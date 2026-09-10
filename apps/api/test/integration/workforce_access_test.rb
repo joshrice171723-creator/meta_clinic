@@ -74,6 +74,18 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal false, capabilities.fetch("billing_read")
   end
 
+  test "HEAD workforce reads use the same protected audit classification as GET" do
+    login(@manager)
+    before = Clinic::AuditEvent.maximum(:id) || 0
+
+    head "/api/clinic/workforce/employments", headers: @headers
+
+    assert_response :success
+    event = Clinic::AuditEvent.where(practice: @practice, action_code: "workforce.admin", outcome: "released")
+      .where("id > ?", before).order(:id).last
+    assert event
+  end
+
   test "employee location selection persists only within assigned sites" do
     @employment.employment_sites.create!(practice: @practice, site: @other_site,
       active: true, effective_from: 1.hour.ago)

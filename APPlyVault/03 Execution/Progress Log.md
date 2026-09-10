@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — Hardened clinic behavior paths verified
+
+**Outcome:** five focused database-backed regression paths now cover the security-hardening risk surface: billing draft idempotency and stale-write protection, forbidden patient-write integrity, tenant-safe inventory exception filtering, nested tenant-scoped inventory paths, and workforce `HEAD` sensitive-read auditing. The managed environment was healthy; the four combined clinic scenarios passed 19 assertions, the isolated billing lifecycle passed 10 assertions, and the workforce scenario passed 3 assertions. Focused RuboCop, scoped diff integrity, and CI security/static-analysis completed successfully.
+
+**Limits:** no broad suite or frontend reformatting ran. CI retains separately known formatting drift in unrelated frontend files, which this batch deliberately preserves. No hosted deployment, provider execution, real-patient use, or human clinical/release acceptance occurred. Detailed evidence and scores are in [the ambulatory workflow review](../../records/audits/2026-09-09-ambulatory-market-nurse-workflow-and-data-model-review.md).
+
 ## 2026-09-10 — CI security findings repaired
 
 **Outcome:** replaced request-influenced raw SQL construction in inventory location paths and inventory exception counts/results/totals with tenant-scoped Ruby projection or fixed templates plus bound values. Billing balance expressions are immutable and selected only through enumerated sort modes. Workforce sensitive-read classification now treats `HEAD` consistently with `GET`. Brakeman completed with 0 errors / 0 warnings, down from the prior CI result of six warnings; focused RuboCop and Ruby syntax passed over all four changed files.

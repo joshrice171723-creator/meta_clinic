@@ -610,6 +610,33 @@ Batch 8 repairs the six static-analysis findings that kept the main CI security 
 
 The next source-side priority is to use the new commit’s Linux CI result to repair any demonstrated behavioral regression in these query paths. If that gate is green, further local work should stop displacing the authorized hosted rehearsal and human synthetic acceptance needed to move the remaining evidence plane.
 
+## 19. Implementation progress — 2026-09-10, batch 9 freeze
+
+Batch 9 exercises the five behavior paths most exposed by the query and audit hardening, and repairs stale test setup without adding broad-suite churn.
+
+1. **Billing draft lifecycle.** The focused scenario now supplies the current idempotency and optimistic-lock fields for editable and posted invoice updates, while preserving the payment-allocation request shape.
+2. **Permission denial integrity.** The module-boundary scenario asserts that a forbidden patient write creates no patient, instead of depending on one incidental audit event selected after an earlier route gate.
+3. **Inventory exception isolation.** A database-backed scenario verifies tenant-safe category, review-state, and escaped text filtering with the expected filtered count.
+4. **Nested inventory locations.** A database-backed scenario verifies deterministic site/room/cabinet path projection and excludes a foreign-practice location.
+5. **Workforce `HEAD` auditing.** A focused request verifies that a successful `HEAD` read produces the released workforce sensitive-read audit classification.
+
+### Batch 9 consolidated verification
+
+- The managed development environment reported healthy Ruby, Bundler, Node, npm, Docker, PostgreSQL, API, web, worker, migrations, and HTTP surfaces.
+- The five focused database-backed scenarios passed: four clinic-workspace scenarios completed **19 assertions**, and the isolated billing lifecycle completed **10 assertions** after its current request fields were restored; the workforce `HEAD` scenario completed **3 assertions**. These are targeted regression results, not a claim that the broad suite ran.
+- Focused RuboCop passed over both changed integration-test files, scoped diff integrity passed, and CI `scan_ruby`, lint, delivery-contract, and agent-document jobs completed successfully. The frontend CI job retains the separately known repository formatting drift; unrelated dirty frontend files were not reformatted.
+
+### Pilot-readiness evidence ladder after batch 9
+
+| Evidence plane | Batch 8 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 96/100 | **96/100** | This batch verifies the hardened behavior rather than adding another capability. |
+| Local automated verification | 92/100 | **94/100** | Five high-risk database-backed paths now have focused passing evidence, with clean scoped lint and security analysis. |
+| Supervised synthetic staff pilot | 84/100 | **84/100** | Automated regression evidence does not replace another human-observed clinic workflow. |
+| Hosted real-patient pilot | 35/100 | **35/100** | No hosted deployment, real-patient use, provider execution, or required human acceptance was authorized or demonstrated. |
+
+Further broad local testing would have low evidence value here. The remaining material move is an explicitly authorized hosted staging continuity exercise followed by timed synthetic nurse/clinician acceptance; real-patient readiness remains a separate human and operational gate.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

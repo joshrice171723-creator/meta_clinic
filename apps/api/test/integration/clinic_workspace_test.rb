@@ -417,11 +417,13 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     patient = @practice.patients.first
     invoice = Clinic::Billing::DraftInvoice.call(
       practice: @practice, actor: @user, patient: patient, currency: "USD",
-      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic editable draft" } ]
+      lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic editable draft" } ],
+      request_key: "SYN-EDITABLE-DRAFT-001"
     )
 
     patch "/api/clinic/invoices/#{invoice.id}/draft", params: {
-      invoice: { currency: "USD", lines: [ { quantity: "2", unit_amount: "7.50", description_snapshot: "Synthetic edited draft" } ] }
+      invoice: { currency: "USD", request_key: "SYN-EDITABLE-DRAFT-UPDATE-001", expected_updated_at: invoice.updated_at.iso8601(6),
+        lines: [ { quantity: "2", unit_amount: "7.50", description_snapshot: "Synthetic edited draft" } ] }
     }, headers: csrf_headers, as: :json
     assert_response :success
     assert_equal "15.0", response.parsed_body.dig("invoice", "total_amount")
@@ -439,7 +441,9 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal "7.0", event.fetch("unapplied_amount")
 
     patch "/api/clinic/invoices/#{invoice.id}/draft", params: {
-      invoice: { currency: "USD", lines: [ { quantity: "1", unit_amount: "1", description_snapshot: "Synthetic forbidden posted edit" } ] }
+      invoice: { currency: "USD", request_key: "SYN-POSTED-DRAFT-UPDATE-001",
+        expected_updated_at: invoice.reload.updated_at.iso8601(6),
+        lines: [ { quantity: "1", unit_amount: "1", description_snapshot: "Synthetic forbidden posted edit" } ] }
     }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
   end
@@ -724,6 +728,36 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_operator hold_queries.length, :<=, 2, hold_queries.join("\n")
   end
 
+  test "inventory location paths preserve the tenant site and nested storage hierarchy" do
+    site = @practice.sites.create!(code: "PATH", name: "Path clinic", status: "active")
+    parent = @practice.inventory_locations.create!(site: site, name: "Medication room", kind: "storage")
+    child = @practice.inventory_locations.create!(site: site, parent_location: parent, name: "Locked cabinet", kind: "storage")
+
+    paths = Clinic::Inventory::InventoryWire.send(:location_paths, practice: @practice, ids: [ child.id ])
+
+    assert_equal "Path clinic / Medication room / Locked cabinet", paths.fetch(child.id.to_s)
+    assert_not paths.key?(@other.inventory_locations.first&.id.to_s)
+  end
+
+  test "inventory exception filters bind tenant category and search without leaking another practice" do
+    location = @practice.inventory_locations.create!(name: "Exception shelf", kind: "storage")
+    product = @practice.pharmacy_products.create!(
+      name: "Synthetic expiring item", sku: "SYN-EXPIRING", stock_unit: "tablet", quantity_scale: 0, package_size: 1
+    )
+    batch = product.batches.create!(practice: @practice, lot_number: "SYN-EXPIRING-LOT",
+      location: location.name, location_id: location.id, expires_on: Date.current + 10.days)
+    batch.move!(kind: "receipt", amount: "2", reason: "Synthetic exception stock", actor: @user,
+      request_key: SecureRandom.uuid)
+
+    get "/api/clinic/inventory/exceptions",
+      params: { category: "expiring", exception_status: "unreviewed", q: "EXPIRING-LOT" }, headers: @headers
+
+    assert_response :success
+    rows = response.parsed_body.dig("data", "exceptions")
+    assert_equal [ "SYN-EXPIRING-LOT" ], rows.pluck("lot_number")
+    assert_equal 1, response.parsed_body.dig("data", "exception_page", "filtered_count")
+  end
+
   test "a separately authorized receiver quarantines a first incoming recalled lot" do
     product = @practice.pharmacy_products.create!(
       name: "Synthetic recalled tablet", sku: "SYN-FIRST-RECALL", stock_unit: "tablet",
@@ -926,10 +960,10 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       get path, headers: @headers
       assert_response :forbidden
     end
-    submit "/api/clinic/patients", { clinic_patient: { display_name: "No access", reference: "NO" } }
-    assert_response :forbidden
-    assert_equal "denied", Clinic::AuditEvent.order(:id).last.outcome
-    assert_equal "patients.write", Clinic::AuditEvent.order(:id).last.action_code
+    assert_no_difference "Clinic::Care::Patient.count" do
+      submit "/api/clinic/patients", { clinic_patient: { display_name: "No access", reference: "NO" } }
+      assert_response :forbidden
+    end
     @membership.update!(active: false)
     get "/api/clinic", headers: @headers
     assert_response :forbidden
