@@ -29,6 +29,40 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
     end
   end
 
+  test "prepares one shared workflow-ready visit without replacing recorded progress" do
+    local_mode do
+      accounts = Development::RoleAccounts.prepare!
+      practice = accounts.fetch("clinical-staff").clinic_membership.practice
+      patient = practice.patients.find_by!(reference: Development::PilotRehearsal::PATIENT_REFERENCE)
+      encounter = practice.encounters.open.find_by!(patient: patient)
+
+      assert_equal "Medication follow-up and fatigue review", encounter.appointment.reason
+      assert_equal Development::PilotRehearsal::SITE_CODE, encounter.site.code
+      assert_equal %w[allergies care_needs medications], encounter.history_reviews.pluck(:topic).sort
+      assert_equal %w[none_reported], encounter.history_reviews.distinct.pluck(:outcome)
+      assert_equal 7, encounter.observations.count
+      assert_equal %w[vital-diastolic-bp vital-heart-rate vital-systolic-bp vital-temperature vital-weight],
+        encounter.observations.where(value_kind: "numeric").order(:code).pluck(:code)
+
+      recorded = Clinic::ClinicalTask.create!(
+        practice: practice,
+        patient: patient,
+        encounter: encounter,
+        task_kind: "patient_call",
+        pool_code: "clinical",
+        state: "open",
+        source_type: "manual",
+        version: 1,
+        recorded_by_membership: accounts.fetch("clinical-staff").clinic_membership
+      )
+      assert_no_difference [ "Clinic::Encounter.count", "Clinic::Care::Observation.count",
+        "Clinic::Care::PatientHistoryReview.count", "Clinic::ClinicalTask.count" ] do
+        Development::RoleAccounts.prepare!
+      end
+      assert_equal recorded, Clinic::ClinicalTask.find(recorded.id)
+    end
+  end
+
   test "clinic administrator can delegate payroll without receiving scribe access" do
     permissions = Development::RoleAccounts::ACCOUNTS.fetch("clinic-administrator").fetch(:permissions)
 

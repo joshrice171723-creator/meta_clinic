@@ -471,6 +471,34 @@ All five product dimensions are now above 8/10 on demonstrated local software ev
 
 The next highest-value work is no longer another broad feature wave. It is a supervised, timed, multi-role synthetic visit; managed-launcher repair; deployment/recovery rehearsal on a non-production host; and targeted repair of defects discovered there. Those are the evidence steps that can move the two remaining readiness planes without low-value test volume.
 
+## 14. Implementation progress — 2026-09-10, batch 4 freeze
+
+Batch 4 converts the prior role-boundary and recovery claims into a reusable local rehearsal and one rendered multi-role exception journey.
+
+1. **Reusable pilot visit.** Local role-account preparation now creates one fictional Morgan Juniper visit with a stable patient reference, confirmed follow-up reason, encounter, site, explicit none-reported history reviews, and recorded vital-sign observations. Rerunning preparation preserves an existing open encounter and its recorded progress.
+2. **Clinical-staff intake.** A signed-in Clinical Staff session opened that shared encounter, bound identity, visit reason, history, and vitals evidence into intake revision 1, marked it ready, and requested clinician handoff.
+3. **Clinician handoff.** A separately selected Clinician session opened the same encounter and accepted the pending handoff; the linked handoff task displayed completed.
+4. **Abnormal-result exception.** The clinician recorded a fictional hemoglobin result of 7.8 g/dL with a critical-low flag, separately reviewed it, and recorded same-day follow-up instructions. The chart changed from Needs review to Reviewed / Follow-up open. Clinical Staff could see the reviewed result but could not perform the clinician-only chart action.
+5. **Managed recovery.** `ruby .\bin\dev restart --no-browser` stopped only checkout-owned services, migrated, restarted API/web/worker, passed HTTP and process-ownership readiness, and exited successfully. After browser reload, the same signed-in Clinical Staff session and the patient, vitals, intake/handoff, critical result, review, and open-follow-up state remained available.
+
+### Batch 4 consolidated verification
+
+- The focused development-role test passed **7 runs / 91 assertions**, including exact account permissions and preservation of the shared pilot visit on repeated preparation.
+- Rails eager loading passed. RuboCop passed over the three changed Ruby files. Scoped diff integrity passed.
+- The managed launcher passed both a clean start and the later restart/recovery rehearsal. The prior launcher warning in batches 2–3 is closed; it came from manually started processes without the launcher's checkout-owned PID records, not from a reproduced launcher defect.
+- No broad suite was run. Existing unrelated working-tree changes and the previously recorded whole-route-contract drift were not included in this batch.
+
+### Pilot-readiness evidence ladder after batch 4
+
+| Evidence plane | Batch 3 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 89/100 | **91/100** | The role-account setup now yields a durable, workflow-ready encounter instead of an empty clinic, and the complete intake/handoff/exception state was rendered. |
+| Local automated verification | 83/100 | **86/100** | Focused account and rehearsal preservation checks, autoloading, lint, managed startup, and managed restart are green. Unrelated whole-route drift remains outside this batch. |
+| Supervised synthetic staff pilot | 76/100 | **84/100** | Separate Clinical Staff and Clinician sessions completed intake, handoff, abnormal-result review, and restart recovery against one shared fictional visit. Human RN/LVN/MA usability acceptance remains open. |
+| Hosted real-patient pilot | 35/100 | **35/100** | This was a local synthetic rehearsal. No hosted deployment, real-patient use, production provider execution, or required clinical/release approval was authorized or demonstrated. |
+
+The next highest-value evidence is a non-production hosted deployment and recovery rehearsal, followed by a timed human nurse/clinician synthetic visit. More local feature volume or a broad test sweep would not close the remaining pilot-readiness gap efficiently.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

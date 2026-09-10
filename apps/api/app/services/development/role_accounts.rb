@@ -29,6 +29,7 @@ module Development
           user = account_for!(practice, role, definition)
           [ role_code, user ]
         end
+        PilotRehearsal.prepare!(practice: practice, accounts: accounts)
         retire_permission_accounts!
         accounts
       end
