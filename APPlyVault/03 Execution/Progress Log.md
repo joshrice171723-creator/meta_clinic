@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — Cash-clinic core separated from optional insurance workflows
+
+**Outcome:** added a tenant-scoped, versioned clinic-model selection that keeps the cash-pay ambulatory core on and lets an administrator opt the clinic into insurance workflows from Facilities. The clinic context now exposes the effective selection. A focused API check passed 2 scenarios and 20 assertions covering default-off behavior, immutable core availability, replay safety and stale-edit rejection. The [cash-based ambulatory workflow review](../../records/audits/2026-09-10-cash-based-ambulatory-user-workflow-gap-review.md) scores ten user journeys and prioritizes refill closure, a unified work inbox, digital forms, waitlist/capacity handling and recall/care-gap work.
+
+**Limits:** this slice establishes the clinic-level selection; existing payer objects and future insurance screens still need consistent route and navigation enforcement before the module is fully gated. Frontend typecheck was blocked by an incomplete local dependency install that omitted Material UI icon declarations; no hosted or real-patient acceptance is claimed.
+
 ## 2026-09-10 — External AWS delivery retired
 
 **Outcome:** removed active AWS CLI, CloudFormation, EC2/ECR/SSM operations and the AWS-targeted staging/production workflows. GitHub access inspection showed only the founder as collaborator and no Actions secrets, variables, environments, deploy keys or webhooks. Added manual, commit-tagged API/web publication to the founder-owned GitHub Container Registry and provider-neutral Compose packaging that binds only to loopback by default.

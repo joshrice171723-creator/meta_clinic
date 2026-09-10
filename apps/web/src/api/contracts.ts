@@ -963,9 +963,17 @@ export type ClinicWorkspaceContext = {
   current_clinician_profile_id: string | null;
   credentials: string[];
   policy_version: "clinic-authorization-v1";
+  features?: PracticeFeatures;
   capabilities: ClinicCapabilities;
   current_site: ClinicSite | null;
   sites: ClinicSite[];
+};
+export type PracticeFeatures = {
+  core: Record<string, true>;
+  optional: { insurance_workflows: boolean };
+  insurance_workflows_enabled: boolean;
+  revision: number;
+  effective_from: string | null;
 };
 export type TelehealthSummary = {
   public_id: string;
