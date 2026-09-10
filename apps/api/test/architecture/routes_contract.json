@@ -1282,6 +1282,11 @@
   [
     null,
     "GET",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/nurse_workspace(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/staff-messaging/attachments/:id/download(.:format)"
   ],
   [
@@ -1312,7 +1317,17 @@
   [
     null,
     "PATCH",
+    "/api/clinic/clinical_tasks/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/context(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/handoffs/:id(.:format)"
   ],
   [
     null,
@@ -1558,6 +1573,21 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/encounters(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/clinical_tasks(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/handoffs(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_revisions(.:format)"
   ],
   [
     null,

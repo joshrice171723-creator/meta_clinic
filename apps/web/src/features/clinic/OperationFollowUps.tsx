@@ -26,6 +26,7 @@ import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
+import type { ClinicalTask } from "../../api/contracts";
 
 type FollowUpFilter = "all" | "mine" | "overdue" | "unassigned";
 type FollowUpRequest = {
@@ -44,6 +45,8 @@ type FollowUpResponse = {
   requests: FollowUpRequest[];
   encounter_summary: { open: number; overdue: number; mine: number; unassigned: number };
   encounter_follow_ups: EncounterFollowUpWorkItem[];
+  clinical_task_summary: { open: number; overdue: number; mine: number; unassigned: number };
+  clinical_tasks: ClinicalTaskWorkItem[];
   reminder_attention_count: number | null;
 };
 type EncounterFollowUpWorkItem = EncounterFollowUpRecord & {
@@ -52,6 +55,14 @@ type EncounterFollowUpWorkItem = EncounterFollowUpRecord & {
   assigned_to_me: boolean;
   assignee_label: string | null;
   overdue: boolean;
+};
+type ClinicalTaskWorkItem = ClinicalTask & {
+  patient_display_name: string;
+  patient_reference: string;
+  assigned_to_me: boolean;
+  assignee_label: string | null;
+  overdue: boolean;
+  encounter_href: string | null;
 };
 type CompletionAttempt = {
   action: "complete";
@@ -262,7 +273,7 @@ function FollowUpWorklist() {
   const response = resource.data;
   const summaryKey = filter === "all" ? "open" : filter;
   const filteredCount = response
-    ? response.summary[summaryKey] + response.encounter_summary[summaryKey]
+    ? response.summary[summaryKey] + response.encounter_summary[summaryKey] + response.clinical_task_summary[summaryKey]
     : undefined;
 
   return (
@@ -323,7 +334,7 @@ function FollowUpWorklist() {
             <Tab
               key={item.value}
               value={item.value}
-              label={`${item.label}${response ? ` (${response.summary[item.summaryKey] + response.encounter_summary[item.summaryKey]})` : ""}`}
+              label={`${item.label}${response ? ` (${response.summary[item.summaryKey] + response.encounter_summary[item.summaryKey] + response.clinical_task_summary[item.summaryKey]})` : ""}`}
             />
           ))}
         </Tabs>
@@ -342,7 +353,7 @@ function FollowUpWorklist() {
               The follow-up worklist could not be loaded. {resource.error}
             </Alert>
           )}
-          {response && response.requests.length === 0 && response.encounter_follow_ups.length === 0 && (
+          {response && response.requests.length === 0 && response.encounter_follow_ups.length === 0 && response.clinical_tasks.length === 0 && (
             <Box sx={{ py: 5, textAlign: "center" }}>
               <AssignmentLateOutlinedIcon sx={{ color: "text.disabled", fontSize: 40, mb: 1 }} />
               <Typography variant="h6">
@@ -353,11 +364,31 @@ function FollowUpWorklist() {
               </Typography>
             </Box>
           )}
-          {response && (response.requests.length > 0 || response.encounter_follow_ups.length > 0) && (
+          {response && (response.requests.length > 0 || response.encounter_follow_ups.length > 0 || response.clinical_tasks.length > 0) && (
             <Stack divider={<Divider flexItem />}>
               <Typography variant="body2" color="text.secondary">
-                Showing {response.requests.length + response.encounter_follow_ups.length} of {filteredCount} follow-ups.
+                Showing {response.requests.length + response.encounter_follow_ups.length + response.clinical_tasks.length} of {filteredCount} work items.
               </Typography>
+              {response.clinical_tasks.map((task) => (
+                <Box key={`task-${task.id}`} sx={{ py: 2, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) auto" }, gap: 2, alignItems: "center" }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        {task.task_kind.replaceAll("_", " ")}
+                      </Typography>
+                      <Chip size="small" variant="outlined" label={task.state.replaceAll("_", " ")} />
+                      {task.overdue && <Chip size="small" color="warning" label="Overdue" />}
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {task.patient_display_name} {patientReferenceLabel(task.patient_reference) ? `· ${patientReferenceLabel(task.patient_reference)}` : ""}
+                    </Typography>
+                    <Typography variant="body2" color={task.overdue ? "warning.main" : "text.secondary"} sx={{ mt: 0.5 }}>
+                      Due: {dateLabel(task.due_at)} · {task.assigned_to_me ? "Assigned to you" : task.assignee_label ? `Assigned to ${task.assignee_label}` : `${task.pool_code.replaceAll("_", " ")} pool`}
+                    </Typography>
+                  </Box>
+                  {task.encounter_href && <Button variant="outlined" href={task.encounter_href}>Open work item</Button>}
+                </Box>
+              ))}
               {response.encounter_follow_ups.map((followUp) => (
                 <EncounterFollowUpItem key={followUp.id} followUp={followUp} onChanged={resource.refresh} />
               ))}

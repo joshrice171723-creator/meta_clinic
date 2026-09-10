@@ -71,6 +71,12 @@ Rails.application.routes.draw do
       resources :notes, controller: "care/encounter_notes", only: %i[index create]
       resources :medication_administrations, controller: "care/medication_administrations", only: %i[index create]
     end
+    get "patients/:patient_id/encounters/:encounter_id/nurse_workspace", to: "care/nurse_workflow#show"
+    post "patients/:patient_id/encounters/:encounter_id/intake_revisions", to: "care/nurse_workflow#revise_intake"
+    post "patients/:patient_id/encounters/:encounter_id/handoffs", to: "care/nurse_workflow#request_handoff"
+    post "patients/:patient_id/encounters/:encounter_id/clinical_tasks", to: "care/nurse_workflow#create_task"
+    patch "handoffs/:id", to: "care/nurse_workflow#transition_handoff"
+    patch "clinical_tasks/:id", to: "care/nurse_workflow#transition_task"
     resources :notes, controller: "care/encounter_notes", only: :show do
       post :revisions, on: :member, action: :revise
       post :corrections, on: :member, action: :correct

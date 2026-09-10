@@ -186,6 +186,7 @@ module Clinic
         return { state: "not_reviewed" } unless review
 
         {
+          id: review.id,
           state: review.outcome,
           information_source: review.information_source,
           reviewed_at: iso(review.reviewed_at)

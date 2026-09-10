@@ -1,0 +1,770 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { api, ApiError } from "../../api/client";
+import type {
+  ClinicalTask,
+  EncounterDetail,
+  EncounterHandoff,
+  EncounterIntakeRevision,
+  NurseWorkspace,
+  Observation,
+  Patient,
+  PatientCareSummary,
+} from "../../api/contracts";
+import { useResource } from "../../shared/ui";
+import { useClinic } from "./Workspace";
+
+type IntakeForm = Pick<
+  EncounterIntakeRevision,
+  | "status"
+  | "identity_state"
+  | "visit_reason_state"
+  | "history_state"
+  | "vitals_state"
+>;
+
+const emptyIntake: IntakeForm = {
+  status: "incomplete",
+  identity_state: "not_confirmed",
+  visit_reason_state: "not_recorded",
+  history_state: "not_recorded",
+  vitals_state: "not_recorded",
+};
+
+const taskLabels: Record<ClinicalTask["task_kind"], string> = {
+  intake: "Finish intake",
+  handoff: "Review handoff",
+  result_follow_up: "Result follow-up",
+  patient_call: "Patient call",
+  order_execution: "Order execution",
+  record_request: "Record request",
+};
+
+function stateLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function requestKey() {
+  return crypto.randomUUID();
+}
+
+export function NurseEncounterWorkspace({
+  patient,
+  encounter,
+  observations,
+  careSummary,
+}: {
+  patient: Patient;
+  encounter: EncounterDetail;
+  observations: Observation[];
+  careSummary: PatientCareSummary | null;
+}) {
+  const clinic = useClinic();
+  const path = `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/nurse_workspace`;
+  const resource = useResource<NurseWorkspace>(path, {
+    retainDataOnRefresh: true,
+  });
+  const [form, setForm] = useState<IntakeForm>(emptyIntake);
+  const [baseline, setBaseline] = useState<IntakeForm>(emptyIntake);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [taskKind, setTaskKind] =
+    useState<ClinicalTask["task_kind"]>("patient_call");
+  const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
+  const reviewIds = useMemo(
+    () =>
+      careSummary
+        ? Object.values(careSummary.reviews)
+            .map((review) => review.id)
+            .filter((id): id is number => typeof id === "number")
+        : [],
+    [careSummary],
+  );
+  const observationIds = useMemo(
+    () =>
+      observations
+        .filter((item) => item.encounter_id === encounter.id)
+        .map((item) => item.id),
+    [encounter.id, observations],
+  );
+
+  useEffect(() => {
+    const intake = resource.data?.intake;
+    if (!intake || dirty) return;
+    const next: IntakeForm = {
+      status: intake.status,
+      identity_state: intake.identity_state,
+      visit_reason_state: intake.visit_reason_state,
+      history_state: intake.history_state,
+      vitals_state: intake.vitals_state,
+    };
+    setForm(next);
+    setBaseline(next);
+  }, [dirty, resource.data?.intake]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  if (!resource.data && !resource.error) {
+    return (
+      <Paper id="nurse-workspace" variant="outlined" sx={{ p: 2 }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{ alignItems: "center" }}
+          role="status"
+        >
+          <CircularProgress size={20} />
+          <Typography>Loading intake and handoff…</Typography>
+        </Stack>
+      </Paper>
+    );
+  }
+  if (!resource.data) {
+    return (
+      <Paper id="nurse-workspace" variant="outlined" sx={{ p: 2 }}>
+        <Alert
+          severity="error"
+          action={<Button onClick={resource.refresh}>Retry</Button>}
+        >
+          {resource.error || "The nurse workspace could not be loaded."}
+        </Alert>
+      </Paper>
+    );
+  }
+  if (
+    resource.data.patient_id !== patient.id ||
+    resource.data.encounter_id !== encounter.id
+  ) {
+    return (
+      <Alert severity="error">
+        The loaded workspace does not match this patient and encounter.
+      </Alert>
+    );
+  }
+
+  const workspace = resource.data;
+  const intakeVersion = workspace.intake?.version ?? 0;
+  const canRespondToHandoff =
+    workspace.capabilities.handoff_respond &&
+    workspace.handoff?.requested_by_membership_id !== clinic.membership_id;
+  const readyEvidence =
+    form.identity_state === "confirmed" &&
+    form.visit_reason_state === "confirmed" &&
+    form.history_state === "reviewed" &&
+    reviewIds.length > 0 &&
+    ((form.vitals_state === "recorded" && observationIds.length > 0) ||
+      form.vitals_state === "not_applicable");
+
+  async function perform(operation: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await operation();
+      resource.refresh();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "outcome_unconfirmed") {
+        setError(
+          "The server outcome is unconfirmed. Refresh this encounter before deciding whether to repeat the action.",
+        );
+      } else {
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "The action could not be completed.",
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveIntake() {
+    await perform(async () => {
+      const response = await api<{ intake: EncounterIntakeRevision }>(
+        `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/intake_revisions`,
+        {
+          method: "POST",
+          body: {
+            intake: {
+              ...form,
+              expected_version: intakeVersion,
+              observation_ids:
+                form.vitals_state === "recorded" ? observationIds : [],
+              history_review_ids:
+                form.history_state === "reviewed" ? reviewIds : [],
+              request_key: requestKey(),
+            },
+          },
+        },
+      );
+      if (
+        response.intake.patient_id !== patient.id ||
+        response.intake.encounter_id !== encounter.id
+      )
+        throw new Error(
+          "The saved intake response did not match this encounter.",
+        );
+      const saved: IntakeForm = {
+        status: response.intake.status,
+        identity_state: response.intake.identity_state,
+        visit_reason_state: response.intake.visit_reason_state,
+        history_state: response.intake.history_state,
+        vitals_state: response.intake.vitals_state,
+      };
+      setForm(saved);
+      setBaseline(saved);
+      setNotice("Intake revision saved.");
+    });
+  }
+
+  async function requestHandoff() {
+    const intake = workspace.intake;
+    if (!intake) return;
+    await perform(async () => {
+      const response = await api<{ handoff: EncounterHandoff }>(
+        `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/handoffs`,
+        {
+          method: "POST",
+          body: {
+            handoff: {
+              intake_revision_id: intake.id,
+              request_key: requestKey(),
+            },
+          },
+        },
+      );
+      if (response.handoff.encounter_id !== encounter.id)
+        throw new Error("The handoff response did not match this encounter.");
+      setNotice(
+        "Handoff requested. It remains pending until a clinician accepts it.",
+      );
+    });
+  }
+
+  async function transitionHandoff(
+    action: "accept" | "reject" | "request_correction" | "complete" | "cancel",
+  ) {
+    if (!workspace.handoff) return;
+    await perform(async () => {
+      const response = await api<{ handoff: EncounterHandoff }>(
+        `/api/clinic/handoffs/${workspace.handoff!.id}`,
+        {
+          method: "PATCH",
+          body: {
+            handoff: {
+              action,
+              expected_version: workspace.handoff!.version,
+              request_key: requestKey(),
+            },
+          },
+        },
+      );
+      if (response.handoff.encounter_id !== encounter.id)
+        throw new Error("The handoff response did not match this encounter.");
+      setNotice(`Handoff ${stateLabel(response.handoff.state).toLowerCase()}.`);
+    });
+  }
+
+  async function createTask() {
+    await perform(async () => {
+      const response = await api<{ task: ClinicalTask }>(
+        `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/clinical_tasks`,
+        {
+          method: "POST",
+          body: {
+            task: {
+              task_kind: taskKind,
+              pool_code: "clinical",
+              request_key: requestKey(),
+            },
+          },
+        },
+      );
+      if (response.task.encounter_id !== encounter.id)
+        throw new Error("The task response did not match this encounter.");
+      setNotice("Clinical task added to this encounter.");
+    });
+  }
+
+  async function transitionTask(
+    task: ClinicalTask,
+    action: "claim" | "start" | "complete",
+  ) {
+    await perform(async () => {
+      const response = await api<{ task: ClinicalTask }>(
+        `/api/clinic/clinical_tasks/${task.id}`,
+        {
+          method: "PATCH",
+          body: {
+            task: {
+              action,
+              expected_version: task.version,
+              request_key: requestKey(),
+              ...(action === "complete"
+                ? { resolution_code: "completed" }
+                : {}),
+            },
+          },
+        },
+      );
+      if (response.task.encounter_id !== encounter.id)
+        throw new Error("The task response did not match this encounter.");
+      setNotice(`Task ${stateLabel(response.task.state).toLowerCase()}.`);
+    });
+  }
+
+  return (
+    <Paper
+      id="nurse-workspace"
+      component="section"
+      variant="outlined"
+      sx={{ p: { xs: 2, md: 2.5 } }}
+    >
+      <Stack spacing={2.5}>
+        <Box>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+            Nurse workspace
+          </Typography>
+          <Typography color="text.secondary">
+            {patient.display_name} · Encounter #{encounter.id}. Intake,
+            evidence, ownership, and handoff remain separate recorded facts.
+          </Typography>
+        </Box>
+        {error && (
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" onClick={resource.refresh}>
+                Refresh
+              </Button>
+            }
+          >
+            {error}
+          </Alert>
+        )}
+        {notice && <Alert severity="success">{notice}</Alert>}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              lg: "minmax(0, 2fr) minmax(20rem, 1fr)",
+            },
+            gap: 2,
+          }}
+        >
+          <Stack spacing={2}>
+            <Box>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                sx={{ justifyContent: "space-between" }}
+              >
+                <Typography component="h3" variant="h6">
+                  Intake revision
+                </Typography>
+                <Chip
+                  variant="outlined"
+                  label={`Version ${intakeVersion} · ${stateLabel(workspace.intake?.status || "not recorded")}`}
+                />
+              </Stack>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
+              >
+                Clinical values stay in observations and history records; this
+                revision records which evidence was used and whether each step
+                is complete.
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 1.5,
+              }}
+            >
+              <StateSelect
+                label="Patient identity"
+                value={form.identity_state}
+                disabled={busy || !workspace.capabilities.intake_write}
+                options={["confirmed", "not_confirmed", "unable_to_confirm"]}
+                onChange={(value) =>
+                  setForm({
+                    ...form,
+                    identity_state: value as IntakeForm["identity_state"],
+                  })
+                }
+              />
+              <StateSelect
+                label="Visit reason"
+                value={form.visit_reason_state}
+                disabled={busy || !workspace.capabilities.intake_write}
+                options={[
+                  "confirmed",
+                  "needs_correction",
+                  "not_recorded",
+                  "unable_to_obtain",
+                ]}
+                onChange={(value) =>
+                  setForm({
+                    ...form,
+                    visit_reason_state:
+                      value as IntakeForm["visit_reason_state"],
+                  })
+                }
+              />
+              <StateSelect
+                label="History review"
+                value={form.history_state}
+                disabled={busy || !workspace.capabilities.intake_write}
+                options={[
+                  "reviewed",
+                  "incomplete",
+                  "not_recorded",
+                  "unable_to_obtain",
+                ]}
+                onChange={(value) =>
+                  setForm({
+                    ...form,
+                    history_state: value as IntakeForm["history_state"],
+                  })
+                }
+              />
+              <StateSelect
+                label="Vitals"
+                value={form.vitals_state}
+                disabled={busy || !workspace.capabilities.intake_write}
+                options={[
+                  "recorded",
+                  "incomplete",
+                  "not_recorded",
+                  "declined",
+                  "unable_to_obtain",
+                  "not_applicable",
+                ]}
+                onChange={(value) =>
+                  setForm({
+                    ...form,
+                    vitals_state: value as IntakeForm["vitals_state"],
+                  })
+                }
+              />
+            </Box>
+            <Alert severity={readyEvidence ? "info" : "warning"}>
+              {readyEvidence
+                ? "Recorded evidence supports requesting handoff. A clinician must still accept responsibility."
+                : `Handoff is not ready. ${observationIds.length} encounter observation(s) and ${reviewIds.length} history review(s) are currently linked.`}
+            </Alert>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                variant="contained"
+                disabled={
+                  busy || !dirty || !workspace.capabilities.intake_write
+                }
+                onClick={() => void saveIntake()}
+              >
+                Save intake revision
+              </Button>
+              <Button
+                variant="outlined"
+                disabled={
+                  busy ||
+                  dirty ||
+                  !readyEvidence ||
+                  workspace.intake?.status !== "ready_for_handoff" ||
+                  !workspace.capabilities.handoff_request ||
+                  Boolean(
+                    workspace.handoff &&
+                    ["pending", "accepted", "correction_requested"].includes(
+                      workspace.handoff.state,
+                    ),
+                  )
+                }
+                onClick={() => void requestHandoff()}
+              >
+                Request clinician handoff
+              </Button>
+              <Button
+                variant="text"
+                disabled={busy || !dirty}
+                onClick={() => setForm(baseline)}
+              >
+                Discard unsaved changes
+              </Button>
+            </Stack>
+            {readyEvidence && form.status !== "ready_for_handoff" && (
+              <Button
+                sx={{ alignSelf: "flex-start" }}
+                disabled={busy || !workspace.capabilities.intake_write}
+                onClick={() =>
+                  setForm({ ...form, status: "ready_for_handoff" })
+                }
+              >
+                Mark intake ready for handoff
+              </Button>
+            )}
+          </Stack>
+          <Stack spacing={2}>
+            <Box>
+              <Typography component="h3" variant="h6">
+                Handoff
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Opening the chart does not accept a handoff.
+              </Typography>
+            </Box>
+            {workspace.handoff ? (
+              <Stack spacing={1.25}>
+                <Chip
+                  sx={{ alignSelf: "flex-start" }}
+                  label={stateLabel(workspace.handoff.state)}
+                  variant="outlined"
+                />
+                <Typography variant="body2">
+                  Bound to intake revision{" "}
+                  {workspace.handoff.intake_revision_id}
+                </Typography>
+                {workspace.handoff.requested_by_membership_id ===
+                  clinic.membership_id &&
+                  ["pending", "accepted"].includes(workspace.handoff.state) && (
+                    <Alert severity="info">
+                      A different authorized clinician must respond to this
+                      handoff.
+                    </Alert>
+                  )}
+                {workspace.handoff.state === "pending" &&
+                  canRespondToHandoff && (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ flexWrap: "wrap" }}
+                      useFlexGap
+                    >
+                      <Button
+                        disabled={busy}
+                        variant="contained"
+                        onClick={() => void transitionHandoff("accept")}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          void transitionHandoff("request_correction")
+                        }
+                      >
+                        Request correction
+                      </Button>
+                      <Button
+                        disabled={busy}
+                        color="error"
+                        onClick={() => void transitionHandoff("reject")}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
+                  )}
+                {workspace.handoff.state === "accepted" &&
+                  canRespondToHandoff && (
+                    <Button
+                      disabled={busy}
+                      variant="outlined"
+                      onClick={() => void transitionHandoff("complete")}
+                    >
+                      Complete handoff
+                    </Button>
+                  )}
+              </Stack>
+            ) : (
+              <Typography color="text.secondary">
+                No handoff has been requested.
+              </Typography>
+            )}
+          </Stack>
+        </Box>
+        <Divider />
+        <Box>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { sm: "center" },
+            }}
+          >
+            <Box>
+              <Typography component="h3" variant="h6">
+                Encounter tasks
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                The task owns responsibility; its linked record owns the
+                clinical fact.
+              </Typography>
+            </Box>
+            {workspace.capabilities.tasks_write && (
+              <Stack direction="row" spacing={1}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
+                  <InputLabel id="new-clinical-task-label">Task</InputLabel>
+                  <Select
+                    labelId="new-clinical-task-label"
+                    label="Task"
+                    value={taskKind}
+                    onChange={(event) =>
+                      setTaskKind(
+                        event.target.value as ClinicalTask["task_kind"],
+                      )
+                    }
+                  >
+                    {(
+                      [
+                        "patient_call",
+                        "record_request",
+                        "result_follow_up",
+                        "order_execution",
+                      ] as const
+                    ).map((kind) => (
+                      <MenuItem key={kind} value={kind}>
+                        {taskLabels[kind]}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="outlined"
+                  disabled={busy}
+                  onClick={() => void createTask()}
+                >
+                  Add task
+                </Button>
+              </Stack>
+            )}
+          </Stack>
+          <Stack spacing={1} sx={{ mt: 1.5 }}>
+            {workspace.tasks.length === 0 ? (
+              <Typography color="text.secondary">
+                No tasks are recorded for this encounter.
+              </Typography>
+            ) : (
+              workspace.tasks.map((task) => {
+                const mine =
+                  task.assigned_to_membership_id === clinic.membership_id;
+                return (
+                  <Paper key={task.id} variant="outlined" sx={{ p: 1.5 }}>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1}
+                      sx={{
+                        justifyContent: "space-between",
+                        alignItems: { sm: "center" },
+                      }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontWeight: 650 }}>
+                          {taskLabels[task.task_kind]}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {stateLabel(task.state)} ·{" "}
+                          {stateLabel(task.pool_code)} pool
+                        </Typography>
+                      </Box>
+                      {workspace.capabilities.tasks_write &&
+                        task.state === "open" && (
+                          <Button
+                            disabled={busy}
+                            onClick={() => void transitionTask(task, "claim")}
+                          >
+                            Claim
+                          </Button>
+                        )}
+                      {workspace.capabilities.tasks_write &&
+                        task.state === "claimed" &&
+                        mine && (
+                          <Button
+                            disabled={busy}
+                            onClick={() => void transitionTask(task, "start")}
+                          >
+                            Start
+                          </Button>
+                        )}
+                      {workspace.capabilities.tasks_write &&
+                        task.state === "in_progress" &&
+                        mine && (
+                          <Button
+                            disabled={busy}
+                            variant="contained"
+                            onClick={() =>
+                              void transitionTask(task, "complete")
+                            }
+                          >
+                            Complete
+                          </Button>
+                        )}
+                    </Stack>
+                  </Paper>
+                );
+              })
+            )}
+          </Stack>
+        </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+function StateSelect({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const labelId = `${label.toLowerCase().replaceAll(" ", "-")}-state-label`;
+  return (
+    <FormControl fullWidth disabled={disabled}>
+      <InputLabel id={labelId}>{label}</InputLabel>
+      <Select
+        labelId={labelId}
+        label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <MenuItem key={option} value={option}>
+            {stateLabel(option)}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}

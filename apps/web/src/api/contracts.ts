@@ -362,6 +362,7 @@ export type PatientCareSummary = {
   reviews: Record<
     "allergies" | "medications" | "care_needs",
     {
+      id?: number;
       state: PatientCareSummaryReviewState;
       information_source?: string | null;
       reviewed_at?: string | null;
@@ -369,6 +370,63 @@ export type PatientCareSummary = {
   >;
   review_needed: boolean | null;
   review_needed_topics: string[] | null;
+};
+export type EncounterIntakeRevision = {
+  id: number;
+  patient_id: number;
+  encounter_id: number;
+  version: number;
+  status: "incomplete" | "ready_for_handoff" | "unable_to_complete";
+  identity_state: "confirmed" | "not_confirmed" | "unable_to_confirm";
+  visit_reason_state: "confirmed" | "needs_correction" | "not_recorded" | "unable_to_obtain";
+  history_state: "reviewed" | "incomplete" | "not_recorded" | "unable_to_obtain";
+  vitals_state: "recorded" | "incomplete" | "not_recorded" | "declined" | "unable_to_obtain" | "not_applicable";
+  observation_ids: number[];
+  history_review_ids: number[];
+  recorded_at: string;
+  recorded_by_membership_id: number;
+};
+export type EncounterHandoff = {
+  id: number;
+  patient_id: number;
+  encounter_id: number;
+  intake_revision_id: number;
+  state: "pending" | "accepted" | "rejected" | "correction_requested" | "completed" | "cancelled";
+  requested_by_membership_id: number;
+  accepted_by_membership_id: number | null;
+  requested_at: string;
+  responded_at: string | null;
+  version: number;
+};
+export type ClinicalTask = {
+  id: number;
+  patient_id: number;
+  encounter_id: number | null;
+  site_id: number | null;
+  task_kind: "intake" | "handoff" | "result_follow_up" | "patient_call" | "order_execution" | "record_request";
+  state: "open" | "claimed" | "in_progress" | "completed" | "cancelled";
+  pool_code: "clinical" | "front_desk" | "records";
+  assigned_to_membership_id: number | null;
+  due_at: string | null;
+  source_type: string;
+  source_id: number | null;
+  resolution_code: string | null;
+  version: number;
+  updated_at: string;
+};
+export type NurseWorkspace = {
+  schema_version: "nurse-workspace-v1";
+  patient_id: number;
+  encounter_id: number;
+  intake: EncounterIntakeRevision | null;
+  handoff: EncounterHandoff | null;
+  tasks: ClinicalTask[];
+  capabilities: {
+    intake_write: boolean;
+    handoff_request: boolean;
+    handoff_respond: boolean;
+    tasks_write: boolean;
+  };
 };
 export type PatientCareNeedSummary = {
   id: number;
@@ -926,6 +984,12 @@ export type ClinicTrackingBoardVisit = {
     release_available: boolean;
   } | null;
   intake_claim_available?: boolean;
+  nurse_workflow?: {
+    stage: "waiting" | "intake" | "ready" | "clinician";
+    intake_status: "not_recorded" | EncounterIntakeRevision["status"];
+    handoff_state: "not_recorded" | EncounterHandoff["state"];
+    open_task_count: number;
+  } | null;
   exceptions?: {
     code: "missing_checkout" | "stale_intake_ownership";
     message: string;

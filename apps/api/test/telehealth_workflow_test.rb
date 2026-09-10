@@ -278,7 +278,8 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   test "booking persists modality and creates a policy-bound video visit without reserving a physical room" do
     in_person = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @staff,
       patient: @patient, site: @site, starts_at: 3.hours.from_now, ends_at: 4.hours.from_now,
-      visit_type: @visit_type, request_key: "telehealth-book-in-person", visit_modality: "in_person")
+      booked_clinician: @clinician, visit_type: @visit_type,
+      request_key: "telehealth-book-in-person", visit_modality: "in_person")
     assert_equal "in_person", in_person.visit_modality
     assert_nil in_person.telehealth_visit
 

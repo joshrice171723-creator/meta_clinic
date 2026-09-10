@@ -605,8 +605,9 @@ function TrackingBoardRow({
   const timing = operationalTiming(visit, now, timezone);
   const hasEncounter = visit.patientId != null && visit.encounterId != null;
   const hasPatient = visit.patientId != null;
+  const intakeClaimed = operations.intakeOwnership?.state === "claimed";
   const primaryHref = hasEncounter
-    ? openSoapHref(visit)
+    ? `${openSoapHref(visit)}${intakeClaimed ? "#nurse-workspace" : ""}`
     : hasPatient
       ? `/clinic/patients/${visit.patientId}`
       : openSoapHref(visit);
@@ -614,7 +615,7 @@ function TrackingBoardRow({
     visit.chartStatus,
     hasEncounter ? "open" : hasPatient ? "patient" : "select",
   );
-  const primaryAction = chartAction.label;
+  const primaryAction = intakeClaimed ? "Continue intake" : chartAction.label;
   const openProviderEditor = () => {
     if (!providerEditable) return;
     setAssignmentError(

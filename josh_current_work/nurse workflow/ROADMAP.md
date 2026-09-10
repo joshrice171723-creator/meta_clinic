@@ -8,8 +8,8 @@ Raise MC's code-level ambulatory breadth, chart coverage, nurse workflow, integr
 
 1. Make encounter arrival, intake state, triage evidence linkage, and handoff explicit persisted workflow facts.
 2. Add one clinical-task lifecycle with pool/owner/due/status/resolution and links to the patient, encounter, request, result, or communication that created the work.
-3. Add first-class local medication/service requests, procedure/immunization outcomes, encounter diagnoses, care plans/goals, referral-as-service-request, and document review metadata.
-4. Put the nurse's current visit, prior summary, today’s inputs, handoff, requests, and owned work into one desktop/tablet workspace backed by the API.
+3. Put the nurse's current visit, prior summary, today’s inputs, handoff, and owned work into one desktop/tablet workspace backed by the API.
+4. After that workflow is verified, add the separate order-to-action and missing chart-object slice.
 
 ## Exclusions and gates
 

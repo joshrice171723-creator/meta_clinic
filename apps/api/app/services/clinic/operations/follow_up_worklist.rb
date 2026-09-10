@@ -61,11 +61,24 @@ module Clinic
           .includes(:patient, :encounter, :follow_up_appointment, assigned_to_membership: :user)
           .order(:due_at, :id).limit(LIMIT)
 
+        task_scope = can_manage_encounters ? accessible_clinical_tasks(ability) : Clinic::ClinicalTask.none
+        clinical_task_summary = summary_for(
+          task_scope,
+          table: "clinic_clinical_tasks",
+          assignee_column: "assigned_to_membership_id",
+          member: member
+        )
+        clinical_tasks = filtered_clinical_tasks(task_scope, member)
+          .includes(:patient, :encounter, assigned_to_membership: :user)
+          .order(:due_at, :id).limit(LIMIT)
+
         {
           summary: summary,
           requests: requests.map { |request| serialize(request, member) },
           encounter_summary: encounter_summary,
           encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
+          clinical_task_summary: clinical_task_summary,
+          clinical_tasks: clinical_tasks.map { |task| serialize_clinical_task(task, member) },
           reminder_attention_count: reminder_attention_count
         }
       end
@@ -157,6 +170,42 @@ module Clinic
         when "unassigned" then scope.where(assigned_to_membership_id: nil)
         else scope
         end
+      end
+
+      def accessible_clinical_tasks(ability)
+        scope = Clinic::ClinicalTask.where(practice_id: practice.id, state: %w[open claimed in_progress])
+        if site_id
+          site = practice.sites.find(site_id)
+          return scope.none unless ability.allowed_permission?("encounters.write", site: site)
+
+          return scope.where(site_id: site.id)
+        end
+        return scope if ability.practice_scope_for?("encounters.write")
+
+        allowed_site_ids = ability.accessible_site_ids.select do |candidate_site_id|
+          ability.allowed_permission?("encounters.write", site: candidate_site_id)
+        end
+        scope.where(site_id: allowed_site_ids)
+      end
+
+      def filtered_clinical_tasks(scope, member)
+        case filter
+        when "mine" then scope.where(assigned_to_membership_id: member.id)
+        when "overdue" then scope.where("clinic_clinical_tasks.due_at < ?", at)
+        when "unassigned" then scope.where(assigned_to_membership_id: nil)
+        else scope
+        end
+      end
+
+      def serialize_clinical_task(task, member)
+        Clinic::Care::NurseWorkflow.serialize_task(task).merge(
+          patient_display_name: task.patient.display_name,
+          patient_reference: task.patient.reference,
+          assigned_to_me: task.assigned_to_membership_id == member.id,
+          assignee_label: task.assigned_to_membership&.user&.email,
+          overdue: task.due_at.present? && task.due_at < at,
+          encounter_href: task.encounter_id && "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}#nurse-workspace"
+        )
       end
 
       def serialize_encounter_follow_up(follow_up, member)

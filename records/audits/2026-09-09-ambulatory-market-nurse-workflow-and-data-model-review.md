@@ -319,6 +319,60 @@ The go/no-go question for each field should be: **What action, safety check, com
 
 Do **not** start by adding all missing objects. First complete the T-13.2/T-13.3-style workflow discovery with the actual intended nurse/MA role and produce a one-page field/state/permission matrix for six common synthetic scenarios. Then build the P0 nurse work loop as one integrated slice. That will tell you whether the complaint is about missing workflow, excessive documentation, role mismatch, or all three—and it avoids spending months on objects the clinic will not use.
 
+## 11. Implementation progress — 2026-09-10, batch 1
+
+This section is a dated implementation addendum. It does not rewrite the original market findings or convert local software evidence into clinical, hosted-pilot, security, HIPAA, or release acceptance.
+
+### Five completed high-value slices
+
+1. **Durable encounter intake evidence.** MC now stores immutable, versioned encounter-intake revisions with explicit identity, visit-reason, history, and vitals states. Each revision links to the exact typed observations and allergy, medication, and care-needs history reviews used to establish readiness. Optimistic concurrency, idempotency, tenant/patient/encounter foreign keys, digests, and explicit unable-to-complete outcomes preserve recovery and provenance.
+2. **Two-owner handoff lifecycle.** A nurse/staff member can request clinician review from an intake revision; a different clinician must accept, reject, request correction, complete, or cancel it. Events are append-only, version checked, and audited. The requester cannot self-accept or self-complete the handoff.
+3. **General clinical-task lifecycle.** Encounter-linked clinical tasks now support pools or individual assignments, due times, claim/start/complete/cancel/reopen transitions, resolution codes, optimistic concurrency, idempotency, audit history, and projection into the operations follow-up worklist.
+4. **One nurse encounter workspace.** Care Flow now presents intake evidence, readiness gaps, handoff state, task work, and recovery controls together. The tracking board projects waiting/intake/ready/clinician state and open-task count, with a direct route into the claimed encounter workspace.
+5. **Provider and workflow hardening.** Focused verification covered the new nurse workflow plus existing Twilio Video, Twilio SMS/reminder/recovery, Stripe, membership billing, and OpenRouter integration paths. A stale telehealth test was corrected to supply the clinician now required by the application. A separately reviewed worker-readiness change verifies the background service lifecycle, but remains a distinct integration item until merged to `main`.
+
+### Provisional score movement
+
+These scores describe the source implementation and local evidence after batch 1. They are not the hosted-pilot score.
+
+| Dimension | Original | Batch 1 | Movement | Why it moved |
+| --- | ---: | ---: | ---: | --- |
+| Overall ambulatory feature breadth | 7.0/10 | **7.3/10** | +0.3 | Added reusable intake, handoff, and task capabilities across the encounter and worklist. |
+| Core chart data coverage | 6.0/10 | **6.6/10** | +0.6 | Added first-class encounter-intake evidence and lifecycle ownership; major chart objects are still absent. |
+| Nurse daily-workflow fit | 4.0/10 | **6.8/10** | +2.8 | Replaced a scattered implied flow with one durable intake-to-handoff workspace and shared task states. |
+| Data integrity/recovery design | 8.0/10 | **8.4/10** | +0.4 | Added immutable revisions/events, database constraints, stale-write rejection, idempotency, and explicit exception outcomes. |
+| Correct data on each screen | 5.0/10 | **6.7/10** | +1.7 | Intake fields now reference reusable clinical observations/history reviews and display their owner and lifecycle in the encounter. |
+
+### Verification evidence
+
+- Nurse workflow integration: **58 assertions passed**.
+- Twilio Video telehealth workflow: **30 tests / 408 assertions passed**.
+- Twilio SMS, reminders, and recovery: **24 tests / 183 assertions passed**.
+- Stripe Connect, invoice, membership, and OpenRouter paths: **26 tests / 129 assertions passed** using isolated test providers/mocks where applicable.
+- Web tests: **41 files / 294 tests passed**; production frontend build passed; npm audit reported zero vulnerabilities.
+- Rails autoloading and focused RuboCop for the changed implementation passed. The separately reviewed worker-readiness test passed **5 tests**.
+
+### Remaining evidence and defects
+
+- No realistic browser walkthrough of the new nurse workspace has been completed yet.
+- No intended RN/LVN/MA or prescribing clinician has validated the field requirements, transitions, role boundaries, or tablet workflow.
+- The full Rails suite exposed failures outside this batch, including an overlapping inventory-reservation race and several stale or concurrently changed test expectations. Those failures prevent a clean repository-wide verification claim even though the focused nurse/provider suites passed.
+- The root web-verification harness did not complete its managed-process startup; the direct frontend test suite and production build passed.
+- Live OpenRouter credentials are not configured in the inspected local environment. OpenRouter behavior is test-verified only. Twilio Video, Twilio SMS, and Stripe local configuration were detected without exposing secret values.
+- Hosted deployment, background-worker operation on the hosted target, synthetic end-to-end pilot execution, recovery drills, and human clinical/release approvals remain unverified.
+
+### Next five high-value chart slices
+
+The next batch should deepen the clinical model without expanding into lower-value polish:
+
+1. Medication requests and prescription lifecycle.
+2. Service requests and referral/order lifecycle.
+3. Encounter diagnoses with provenance and correction history.
+4. Procedure outcomes linked to encounter, order, performer, and complications/unknown state.
+5. Care plans and goals with owner, status, due/review dates, and task linkage.
+
+Immunization administration/history and complete document exchange remain important follow-on gaps. A structured synthetic nurse/clinician walkthrough remains the fastest way to prevent the next objects from encoding the wrong fields or ownership.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

@@ -69,6 +69,7 @@ module Clinic
           viewer_membership_id: viewer_membership&.id,
           claim_available: ->(encounter) { intake_write_available_for?(encounter.site) }
         )
+        nurse_workflow_batch = Clinic::Care::NurseWorkflow.board_snapshot(encounter_visits)
 
         render json: {
           schema_version: "tracking-board-v2",
@@ -91,6 +92,7 @@ module Clinic
                 provider_assignment_available: assignable_site_ids.include?(visit.site_id),
                 intake_ownership: intake_ownership_batch[visit.id],
                 intake_claim_available: intake_write_available_for?(visit.site),
+                nurse_workflow: nurse_workflow_batch[visit.id],
                 exceptions: board_exceptions(visit, intake_ownership_batch[visit.id])
               )
             else

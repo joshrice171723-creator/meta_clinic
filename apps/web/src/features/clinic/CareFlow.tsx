@@ -77,6 +77,7 @@ import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
+import { NurseEncounterWorkspace } from "./NurseEncounterWorkspace";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -3495,6 +3496,16 @@ export function ProviderEncounterWorkflow({
                 </Typography>
               </Stack>
             </Paper>
+            <NurseEncounterWorkspace
+              patient={patient}
+              encounter={encounter}
+              observations={observations}
+              careSummary={
+                careSummaryState.status === "ready"
+                  ? careSummaryState.summary
+                  : null
+              }
+            />
             <PatientClinicalHistory
               patientId={patient.id}
               encounterId={encounter.id}

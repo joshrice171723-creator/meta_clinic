@@ -205,15 +205,16 @@ export function trackingBoardVisitToBoardVisit(
     stage:
       encounter?.status === "completed"
         ? "checkout"
-        : provider
-          ? "clinician"
-          : visit.intake_ownership?.state === "claimed"
-            ? "intake"
-            : ["upcoming", "on_time", "late"].includes(visit.operational_state)
-              ? "scheduled"
-              : visit.operational_state === "waiting_room"
-                ? "waiting"
-                : "unrecorded",
+        : visit.nurse_workflow?.stage ??
+          (provider
+            ? "clinician"
+            : visit.intake_ownership?.state === "claimed"
+              ? "intake"
+              : ["upcoming", "on_time", "late"].includes(visit.operational_state)
+                ? "scheduled"
+                : visit.operational_state === "waiting_room"
+                  ? "waiting"
+                  : "unrecorded"),
     locationId: locationRecord?.site_id
       ? `api-site-${locationRecord.site_id}`
       : "unassigned",

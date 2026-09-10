@@ -16,10 +16,22 @@ Actor: authorized clinic staff or clinician. Entry point: tracking board or sele
 | Slice | Owned outcome | Dependencies |
 | --- | --- | --- |
 | NW-1 | Encounter workflow projection/events, immutable intake revisions/items, triage evidence links, handoff aggregate/events, clinical tasks | Existing encounter, observation, history-review, membership, authorization, idempotency, audit |
-| NW-2 | Medication/service requests, procedure/immunization outcomes, encounter diagnosis, care plan/goals, document review metadata and fulfillment links | Existing patient/encounter, lab report, medication administration, document metadata |
-| NW-3 | API-backed nurse workspace and chart panels with persistent identity, loading/error/stale/unsaved/reconcile states | NW-1 and NW-2 response contracts |
+| NW-2 | API-backed nurse workspace with persistent identity, loading/error/stale/unsaved/reconcile states | NW-1 response contracts |
+| Deferred order-to-action slice | Medication/service requests, procedure/immunization outcomes, encounter diagnosis, care plan/goals, document review metadata and fulfillment links | Verified NW-1/NW-2 workflow foundation and clinical review |
 
 Shared routes, browser contracts, capability projection, schema dump, roadmap/index, and final integration remain coordinator-owned.
+
+## First-slice field, state, and permission matrix
+
+| Screen step | Persisted owner | Minimum fields/state | Current technical permission |
+| --- | --- | --- | --- |
+| Arrival and selection | Existing appointment/encounter | Exact patient, appointment, encounter, site, recorded arrival/check-in | Existing appointment/encounter permissions |
+| Intake | Immutable intake revision | Identity-confirmation state, visit-reason review state, history-review state, vitals state, exact linked observation/review IDs, author/time/version | `intake.write` |
+| Triage evidence | Existing observation/history-review records | Recorded value or explicit missing state, source, observed/reviewed time, author; no score or inferred normality | `observations.write` and existing history-review boundary |
+| Handoff | Handoff aggregate plus immutable events | Exact intake revision, pending/accepted/rejected/correction/completed/cancelled, requester/acceptor/time/version | Staff request via `intake.write`; clinician response via `notes.write` |
+| Remaining work | Clinical task | Patient/encounter/site, task kind, pool/owner, due state, status, resolution, version | Existing encounter-write boundary |
+
+The order-to-action chain is deliberately second. This follows the market review's recommendation to fix ownership and flow before adding broad clinical object families.
 
 ## Freeze gate
 
