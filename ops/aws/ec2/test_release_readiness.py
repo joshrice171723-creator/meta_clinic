@@ -49,8 +49,10 @@ class ReleaseReadinessTest(unittest.TestCase):
                 "apps/web/nginx.conf",
                 "ops/aws/ec2/apply-clinic-worker.service",
                 "ops/aws/ec2/apply-run.sh",
+                "ops/aws/ec2/delivery.yaml",
                 "ops/aws/ec2/install-release.sh",
                 "ops/aws/ec2/postgres.sh",
+                "ops/aws/ec2/release.py",
                 "ops/aws/ec2/render-ssm-command.py",
                 "ops/aws/ec2/verify-container.py",
             ):

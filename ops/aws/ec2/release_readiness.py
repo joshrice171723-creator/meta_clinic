@@ -101,6 +101,14 @@ def check_runtime_boundaries(errors: list[str]) -> None:
     require(installer, "$release-$generation-pilot-readiness.json", "staging readiness receipt", errors)
     require(installer, "API_IMAGE=\"$image\" WEB_IMAGE=\"$web_image\"", "staging receipt image identity", errors)
     require(installer, "ln \"$receipt_temp\" \"$receipt_path\"", "atomic staging receipt", errors)
+    require(installer, "APPLY_RELEASE_ATTESTATION=", "host release attestation", errors)
+    release = read(ROOT / "ops" / "aws" / "ec2" / "release.py")
+    require(release, "invocation_attestation", "host attestation validation", errors)
+    require(release, "receipt.get('host_attestation')", "staging attestation promotion gate", errors)
+    require(release, "f'/apply/releases/{args.environment}/{generation}'", "immutable release receipt", errors)
+    delivery = read(ROOT / "ops" / "aws" / "ec2" / "delivery.yaml")
+    require(delivery, "parameter/apply/releases/staging/*", "staging immutable receipt permission", errors)
+    require(delivery, "parameter/apply/releases/production/*", "production immutable receipt permission", errors)
     require(read(ROOT / "ops" / "aws" / "ec2" / "apply-run.sh"), "./bin/staging-pilot-readiness",
       "staging readiness command", errors)
 

@@ -18,7 +18,19 @@ class ReleasePairTest(unittest.TestCase):
     def setUp(self):
         self.config = json.loads(Path(__file__).with_name("targets.json").read_text())
         self.api, self.web = "sha256:" + "a" * 64, "sha256:" + "b" * 64
-        self.receipt = {"format": 2, "sha": "c" * 40, "tag": "synthetic-check", "images": {"api": self.api, "web": self.web}}
+        registry = f'{self.config["account"]}.dkr.ecr.us-east-1.amazonaws.com'
+        staging_images = {
+            "api": f'{registry}/{self.config["staging"]["repository"]}@{self.api}',
+            "web": f'{registry}/{self.config["staging"]["repository"]}@{self.web}',
+        }
+        self.receipt = {
+            "format": 2, "sha": "c" * 40, "tag": "synthetic-check",
+            "images": {"api": self.api, "web": self.web}, "generation": "12301",
+            "host_attestation": {
+                "format": 1, "generation": 12301, "images": staging_images,
+                "state": {"format": 1, "environment": "staging", "state_fingerprint": "d" * 64},
+            },
+        }
 
     def aws(self, *args):
         if args[:2] == ("sts", "get-caller-identity"):
@@ -35,7 +47,15 @@ class ReleasePairTest(unittest.TestCase):
 
     def run_release(self, arguments):
         findings = {"findingSeverityCounts": {}, "imageScanCompletedAt": datetime.now(timezone.utc).isoformat()}
+        def deployed(_target, api_image, web_image, generation, environment):
+            attestation = {"format": 1, "generation": int(generation), "images": {"api": api_image, "web": web_image}}
+            if environment == "staging":
+                attestation["state"] = {"format": 1, "environment": "staging", "state_fingerprint": "e" * 64}
+            else:
+                attestation["environment"] = environment
+            return "synthetic-command", attestation
         with patch.object(sys, "argv", ["release.py", *arguments]), patch.dict(os.environ, {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1"}, clear=True), patch.object(release, "aws", side_effect=self.aws) as aws, patch.object(release, "command") as command, patch.object(release, "scan", return_value=findings) as scan, patch.object(release, "deploy", return_value="synthetic-command") as deploy:
+            deploy.side_effect = deployed
             release.main()
             return aws, command, scan, deploy
 
@@ -47,7 +67,9 @@ class ReleasePairTest(unittest.TestCase):
         self.assertTrue(deploy.call_args.args[2].endswith(self.web))
         self.assertNotIn("build", str(command.call_args_list))
         saved = [call for call in aws.call_args_list if call.args[:2] == ("ssm", "put-parameter")]
-        self.assertEqual(1, len(saved))
+        self.assertEqual(2, len(saved))
+        self.assertEqual('/apply/releases/production/12301', saved[0].args[saved[0].args.index('--name') + 1])
+        self.assertNotIn('--overwrite', saved[0].args)
         self.assertEqual(self.receipt["images"], json.loads(saved[0].args[-1])["images"])
 
     def test_one_changed_digest_blocks_the_entire_pair_before_deployment(self):
@@ -60,10 +82,16 @@ class ReleasePairTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "legacy releases"):
             self.run_release(["production", "--expected-digest", self.api, "--expected-web-digest", self.web])
 
+    def test_staging_receipt_without_matching_host_attestation_is_not_promoted(self):
+        self.receipt.pop("host_attestation")
+        with self.assertRaisesRegex(RuntimeError, "host attestation"):
+            self.run_release(["production", "--expected-digest", self.api, "--expected-web-digest", self.web])
+
     def test_staging_records_one_pair_from_the_same_source_tag(self):
         _, command, scan, deploy = self.run_release(["staging", "--sha", "c" * 40, "--tag", "synthetic-check"])
         self.assertEqual(2, scan.call_count)
         self.assertEqual(1, deploy.call_count)
+        self.assertEqual("staging", deploy.call_args.args[4])
         command.assert_not_called()
 
     def test_high_or_stale_scans_still_block_promotion(self):

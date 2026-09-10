@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — Host continuity attestation bound to promotion
+
+**Outcome:** a successful remote release now returns one machine-readable host attestation through SSM. The workflow validates its release generation, exact API/web image URIs, environment, and staging continuity fingerprint before recording success. Staging and production each preserve a non-overwritable per-generation SSM record before updating the latest pointer, and production promotion refuses a staging receipt without matching host continuity evidence. Delivery-role permissions remain constrained to their environment’s exact latest and history paths. The focused release suites passed 11 tests; the standalone gate, Python compilation, normalized shell syntax, and scoped diff integrity passed.
+
+**Limits:** this batch establishes the evidence chain but does not generate hosted evidence by itself. No AWS request, image push, deployment, hosted recovery, provider execution, real-patient use, or human clinical/release acceptance occurred. Detailed evidence and scores are in [the ambulatory workflow review](../../records/audits/2026-09-09-ambulatory-market-nurse-workflow-and-data-model-review.md).
+
 ## 2026-09-10 — Staging continuity evidence hardened
 
 **Outcome:** the staging continuity receipt now binds the durable-state fingerprint to the exact API/web digests and release generation, is installed atomically without overwrite, and fails closed when restart readiness times out. PostgreSQL backups must also parse successfully through `pg_restore --list` before release work proceeds. The identity availability response now remains a JSON boolean for accounts without membership, and the staging-demo check distinguishes intentionally granted clinical capabilities from intentionally absent elevated privileges. The five-test offline release gate, standalone source gate, Python compilation, normalized Bash syntax, Rails autoload, focused RuboCop, and scoped diff integrity passed.

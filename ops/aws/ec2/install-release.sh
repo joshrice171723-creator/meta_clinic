@@ -158,6 +158,22 @@ PY
     [ "$generation" -eq 0 ] || printf '%s\n' "$generation" > /etc/apply/release-generation
     printf '%s\n' "$image" > /etc/apply/verified-image
     printf '%s\n' "$web_image" > /etc/apply/verified-web-image
+    if [ "$APPLY_ENVIRONMENT" = staging ]; then
+      printf 'APPLY_RELEASE_ATTESTATION='
+      cat "$receipt_path"
+    else
+      APPLY_ATTESTATION_ENVIRONMENT="$APPLY_ENVIRONMENT" API_IMAGE="$image" WEB_IMAGE="$web_image" \
+        RELEASE_GENERATION="$generation" RELEASED_AT="$release" python3 - <<'PY'
+import json, os
+print('APPLY_RELEASE_ATTESTATION=' + json.dumps({
+    'format': 1,
+    'released_at': os.environ['RELEASED_AT'],
+    'generation': int(os.environ['RELEASE_GENERATION']),
+    'images': {'api': os.environ['API_IMAGE'], 'web': os.environ['WEB_IMAGE']},
+    'environment': os.environ['APPLY_ATTESTATION_ENVIRONMENT'],
+}, sort_keys=True, separators=(',', ':')))
+PY
+    fi
     echo 'Private HTTPS, database, deployment-policy and staging continuity checks passed.'
     exit 0
   fi

@@ -60,7 +60,39 @@ def approve_scan(findings):
         raise RuntimeError('Production promotion needs an image scan from the last 24 hours')
 
 
-def deploy(target, image, web_image, generation):
+def validate_host_attestation(value, environment, generation, images):
+    if not isinstance(value, dict) or value.get('format') != 1:
+        raise RuntimeError('Remote release did not return a current host attestation')
+    try:
+        expected_generation = int(generation)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError('Recorded release generation is invalid') from error
+    if isinstance(value.get('generation'), bool) or value.get('generation') != expected_generation or value.get('images') != images:
+        raise RuntimeError('Remote host attestation does not match the requested release')
+    if environment == 'staging':
+        state = value.get('state')
+        if not isinstance(state, dict) or state.get('format') != 1 or state.get('environment') != 'staging':
+            raise RuntimeError('Remote staging continuity evidence is incomplete')
+        require(r'[a-f0-9]{64}', state.get('state_fingerprint'))
+    elif value.get('environment') != environment:
+        raise RuntimeError('Remote host attestation has the wrong environment')
+    return value
+
+
+def invocation_attestation(invocation, environment, generation, images):
+    output = invocation.get('StandardOutputContent', '')
+    markers = [line.removeprefix('APPLY_RELEASE_ATTESTATION=') for line in output.splitlines()
+               if line.startswith('APPLY_RELEASE_ATTESTATION=')]
+    if len(markers) != 1:
+        raise RuntimeError('Remote release returned missing or ambiguous host attestation')
+    try:
+        value = json.loads(markers[0])
+    except json.JSONDecodeError as error:
+        raise RuntimeError('Remote release returned invalid host attestation') from error
+    return validate_host_attestation(value, environment, generation, images)
+
+
+def deploy(target, image, web_image, generation, environment):
     response = aws('ssm', 'send-command', '--document-name', 'apply-deploy-release',
                    '--instance-ids', target['instance'], '--timeout-seconds', '60',
                    '--parameters', json.dumps({'image': [image], 'webImage': [web_image], 'generation': [generation]}))
@@ -75,9 +107,11 @@ def deploy(target, image, web_image, generation):
             if 'InvocationDoesNotExist' not in result.stderr:
                 raise RuntimeError('Cannot read remote release status; inspect the command before retrying')
         else:
-            status = json.loads(result.stdout)['Status']
+            invocation = json.loads(result.stdout)
+            status = invocation['Status']
             if status == 'Success':
-                return command_id
+                images = {'api': image, 'web': web_image}
+                return command_id, invocation_attestation(invocation, environment, generation, images)
             if status not in ('Pending', 'InProgress', 'Delayed'):
                 raise RuntimeError(f'Remote release ended with {status}; preserve backup and inspect sanitized diagnostics')
         time.sleep(5)
@@ -120,6 +154,8 @@ def main():
             digest = require(r'sha256:[a-f0-9]{64}', receipt['images'][component])
             if digest != require(r'sha256:[a-f0-9]{64}', expected[component]):
                 raise RuntimeError('Staging pair changed since review; review both images before promoting')
+        staging_images = {component: f'{registry}/{stage["repository"]}@{digest}' for component, digest in receipt['images'].items()}
+        validate_host_attestation(receipt.get('host_attestation'), 'staging', receipt.get('generation'), staging_images)
         command('git', 'merge-base', '--is-ancestor', sha, 'HEAD')
         for component in ['api', 'web']:
             digest = receipt['images'][component]
@@ -141,9 +177,11 @@ def main():
             if copied != digest:
                 raise RuntimeError('Copied image digest differs; production was not changed')
     images = {component: f'{registry}/{target["repository"]}@{digest}' for component, digest in receipt['images'].items()}
-    receipt['command'] = deploy(target, images['api'], images['web'], generation)
+    receipt['command'], receipt['host_attestation'] = deploy(target, images['api'], images['web'], generation, args.environment)
     receipt['generation'] = generation
     receipt['verified_at'] = datetime.now(timezone.utc).isoformat()
+    aws('ssm', 'put-parameter', '--name', f'/apply/releases/{args.environment}/{generation}', '--type', 'String',
+        '--value', json.dumps(receipt))
     aws('ssm', 'put-parameter', '--name', f'/apply/releases/{args.environment}', '--type', 'String',
         '--overwrite', '--value', json.dumps(receipt))
     print(f'{args.environment} verified: {sha} / API {receipt["images"]["api"]} / web {receipt["images"]["web"]}', flush=True)

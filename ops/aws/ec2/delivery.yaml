@@ -95,7 +95,9 @@ Resources:
                 Resource: '*'
               - Effect: Allow
                 Action: ssm:PutParameter
-                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/staging'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/staging'
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/staging/*'
   ProductionRole:
     Type: AWS::IAM::Role
     Condition: ProductionEnabled
@@ -139,7 +141,9 @@ Resources:
                 Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/staging'
               - Effect: Allow
                 Action: ssm:PutParameter
-                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/production'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/production'
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/apply/releases/production/*'
 Outputs:
   StagingRoleArn:
     Value: !GetAtt StagingRole.Arn

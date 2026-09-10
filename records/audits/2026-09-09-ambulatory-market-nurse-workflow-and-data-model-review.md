@@ -556,6 +556,33 @@ Batch 6 hardens the continuity evidence against five specific false-success path
 
 Further local feature or test volume has sharply diminishing value for pilot evidence. The next material move remains an explicitly authorized staging deployment/recovery rehearsal and a timed, supervised synthetic nurse/clinician visit; real-patient readiness remains a later clinic-owned acceptance decision.
 
+## 17. Implementation progress — 2026-09-10, batch 7 freeze
+
+Batch 7 closes the evidence gap between “the remote command returned success” and “the reviewed release record contains the exact host continuity result.” It remains source-only until a manual deployment is authorized.
+
+1. **Host attestation return.** A successful host release emits one privacy-safe, machine-readable attestation through SSM rather than only a generic success message.
+2. **Exact workflow validation.** The release controller rejects missing, ambiguous, malformed, wrong-generation, wrong-image, wrong-environment, or incomplete staging continuity attestations before recording success.
+3. **Promotion evidence custody.** The validated host attestation is embedded in the protected staging release record. Production promotion now refuses legacy or current-format staging records that do not carry matching host continuity evidence.
+4. **Immutable release history.** Staging and production each write a non-overwritable `/apply/releases/<environment>/<generation>` record before updating the environment’s latest pointer.
+5. **Least-privilege delivery authority.** The delivery roles can write only their own latest and per-generation release paths; the production role retains read access only to the staging latest pointer needed for reviewed promotion.
+
+### Batch 7 consolidated verification
+
+- The focused release-pair and release-readiness suites passed **11 tests**, including paired-digest promotion, unattested-staging rejection, immutable-record creation, manual trigger gates, and missing-boundary failure.
+- The standalone release gate passed. Python compilation, normalized host-script syntax, and scoped diff integrity passed.
+- No application-wide suite, AWS request, host command, image push, deployment, or provider operation ran. Existing unrelated frontend work remained outside the batch.
+
+### Pilot-readiness evidence ladder after batch 7
+
+| Evidence plane | Batch 6 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 94/100 | **95/100** | Deployment success now has a validated, exact-artifact host attestation and immutable release history rather than relying on SSM status alone. |
+| Local automated verification | 89/100 | **90/100** | Eleven focused release tests exercise the new attestation, promotion, immutability, and failure gates; no broad suite is being substituted for hosted evidence. |
+| Supervised synthetic staff pilot | 84/100 | **84/100** | No additional human-observed clinic workflow occurred in this release-evidence batch. |
+| Hosted real-patient pilot | 35/100 | **35/100** | The source can preserve hosted proof, but no authorized staging run, hosted journey, real-patient use, or human acceptance has occurred. |
+
+The source-side hosted evidence chain is now strong enough that more release scaffolding has diminishing value. The next meaningful evidence remains the explicitly authorized staging deployment/recovery rehearsal and timed synthetic nurse/clinician acceptance session.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).
