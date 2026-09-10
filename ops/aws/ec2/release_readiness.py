@@ -85,17 +85,22 @@ def check_runtime_boundaries(errors: list[str]) -> None:
         ("/srv/apply/backups/before-$release.web-image", "prior web image recovery reference"),
         ("systemctl stop apply-web.service apply-api.service", "failed-release stop condition"),
         ("--format=custom", "custom-format backup"),
+        ("pg_restore --list", "backup archive validation"),
         ("--exit-on-error", "restore fail-closed behavior"),
         ("restored_database", "separate restore target"),
     ):
-        source = installer + postgres if needle in ("apply-postgres backup", "flock -n 9", "systemctl stop apply-web.service apply-api.service", "/srv/apply/backups/before-$release.web-image") else verifier
+        source = installer + postgres if needle in ("apply-postgres backup", "flock -n 9", "systemctl stop apply-web.service apply-api.service", "/srv/apply/backups/before-$release.web-image", "pg_restore --list") else verifier
         require(source, needle, label, errors)
     require(installer, "https://localhost:8443/up", "API health probe", errors)
     require(installer, "https://localhost:8443/health", "web health probe", errors)
     require(installer, "apply-run pilot-readiness", "staging pilot-readiness check", errors)
     require(installer, "systemctl restart apply-api.service apply-clinic-worker.service", "staging restart rehearsal", errors)
     require(installer, '"$before_restart" != "$after_restart"', "staging state-continuity check", errors)
-    require(installer, "$release-pilot-readiness.json", "staging readiness receipt", errors)
+    require(installer, 'restart_ready=0', "staging restart timeout state", errors)
+    require(installer, 'if [ "$restart_ready" -ne 1 ]', "staging restart timeout failure", errors)
+    require(installer, "$release-$generation-pilot-readiness.json", "staging readiness receipt", errors)
+    require(installer, "API_IMAGE=\"$image\" WEB_IMAGE=\"$web_image\"", "staging receipt image identity", errors)
+    require(installer, "ln \"$receipt_temp\" \"$receipt_path\"", "atomic staging receipt", errors)
     require(read(ROOT / "ops" / "aws" / "ec2" / "apply-run.sh"), "./bin/staging-pilot-readiness",
       "staging readiness command", errors)
 

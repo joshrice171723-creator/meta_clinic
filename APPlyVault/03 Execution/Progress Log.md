@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — Staging continuity evidence hardened
+
+**Outcome:** the staging continuity receipt now binds the durable-state fingerprint to the exact API/web digests and release generation, is installed atomically without overwrite, and fails closed when restart readiness times out. PostgreSQL backups must also parse successfully through `pg_restore --list` before release work proceeds. The identity availability response now remains a JSON boolean for accounts without membership, and the staging-demo check distinguishes intentionally granted clinical capabilities from intentionally absent elevated privileges. The five-test offline release gate, standalone source gate, Python compilation, normalized Bash syntax, Rails autoload, focused RuboCop, and scoped diff integrity passed.
+
+**Limits:** the focused staging integration file could not start because the local test PostgreSQL endpoint rejected the configured passwordless connection; no assertions from that file are claimed. No broad suite, AWS access, hosted deployment, provider execution, real-patient use, or human clinical/release acceptance occurred. Detailed evidence and scores are in [the ambulatory workflow review](../../records/audits/2026-09-09-ambulatory-market-nurse-workflow-and-data-model-review.md).
+
 ## 2026-09-10 — Staging continuity gate prepared
 
 **Outcome:** the staging release path now runs an image-owned, staging-only clinic-readiness command that verifies the managed reviewer authorization, minimum clinic dataset, PostgreSQL runtime identity and schema without emitting record content. It fingerprints durable record identities, restarts API and clinic worker, requires the same fingerprint after readiness returns, and archives a mode-0600 receipt on the encrypted data volume before acknowledging the release. Missing, changed or unavailable evidence stops the application. Focused receipt checks passed 2 runs / 8 assertions; the five-test offline release gate, standalone source gate, Python compilation, normalized Bash syntax, Rails autoload, RuboCop and scoped diff integrity passed. Detailed limits and scores are in [the ambulatory workflow review](../../records/audits/2026-09-09-ambulatory-market-nurse-workflow-and-data-model-review.md).

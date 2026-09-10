@@ -528,6 +528,34 @@ Batch 5 prepares the exact hosted continuity evidence that the next authorized s
 
 The next code-independent gate is an explicitly authorized manual staging deployment of the exact reviewed `main` commit, followed by inspection of its image scans, host continuity receipt, protected browser access, and one synthetic clinic journey. Real-patient readiness above 80 additionally requires clinic-owned human, operational, security/privacy, and clinical acceptance; those cannot be created by source changes or local tests.
 
+## 16. Implementation progress — 2026-09-10, batch 6 freeze
+
+Batch 6 hardens the continuity evidence against five specific false-success paths discovered while reviewing batch 5. It adds no hosted action and no broad test volume.
+
+1. **Exact artifact identity.** The root-only readiness receipt now binds the state fingerprint to the exact API image digest, web image digest, release generation, and release time.
+2. **Restart timeout failure.** A restart that never returns both API and worker readiness now explicitly stops the application and fails the release instead of continuing after the bounded wait.
+3. **Atomic, collision-safe receipt.** The host writes a mode-0600 temporary receipt and installs it with a hard link. An existing release/generation receipt cannot be overwritten; collision stops the application, and exit cleanup removes an unfinished temporary file.
+4. **Usable backup evidence.** A nonempty custom-format PostgreSQL dump is no longer sufficient: the backup command also requires `pg_restore --list` to parse the archive before release work continues.
+5. **Staging identity corrections.** `clinic_available` now always returns a JSON boolean rather than `null` for an account without membership. The managed-demo assertion now checks the clinical capabilities the role intentionally owns and separately checks that workforce, telehealth-host, scribe-approval, subscription-catalog, and cash-reconciliation privileges remain unavailable.
+
+### Batch 6 consolidated verification
+
+- The five-test offline release-readiness suite and standalone release gate passed, covering the exact new source boundaries without AWS, Docker, or credentials.
+- Python compilation, normalized Bash syntax, Rails eager loading, focused RuboCop over the two changed Ruby files, and scoped diff integrity passed.
+- The focused production-demo integration file could not begin because the local test PostgreSQL endpoint at `127.0.0.1:54329` rejected the configured connection without a password. No Rails assertion result is claimed, and no database-repair or broad-suite loop was started.
+- Linux CI remains the execution authority for the full launcher behavior. No hosted release or real-patient use occurred.
+
+### Pilot-readiness evidence ladder after batch 6
+
+| Evidence plane | Batch 5 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 93/100 | **94/100** | Release evidence is now tied to the exact artifact pair and generation, rejects overwrite, validates backup structure, and fails explicitly on restart timeout. |
+| Local automated verification | 88/100 | **89/100** | The narrow release gates, syntax, lint, and autoload checks are green. The database-backed staging integration rerun remains unavailable locally and Linux launcher execution remains a CI gate. |
+| Supervised synthetic staff pilot | 84/100 | **84/100** | This hardens release evidence but does not add a new observed staff workflow or human usability result. |
+| Hosted real-patient pilot | 35/100 | **35/100** | No staging deployment, hosted recovery, real-patient use, or required human approval was authorized or demonstrated. |
+
+Further local feature or test volume has sharply diminishing value for pilot evidence. The next material move remains an explicitly authorized staging deployment/recovery rehearsal and a timed, supervised synthetic nurse/clinician visit; real-patient readiness remains a later clinic-owned acceptance decision.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

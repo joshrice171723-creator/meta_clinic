@@ -30,7 +30,8 @@ db_kib=$(du -sk /srv/apply/postgres 2>/dev/null | cut -f1 || true)
 
 # The short-lived ECR token is piped directly to Docker and kept on host tmpfs.
 docker_config=$(mktemp -d /run/apply-registry.XXXXXX)
-trap 'rm -rf "$docker_config"' EXIT
+receipt_temp=
+trap 'rm -rf "$docker_config"; [ -z "${receipt_temp:-}" ] || rm -f "$receipt_temp"' EXIT
 registry=${APPLY_REPOSITORY%%/*}
 aws ecr get-login-password | docker --config "$docker_config" login \
   --username AWS --password-stdin "$registry" >/dev/null
@@ -104,13 +105,21 @@ for _attempt in $(seq 1 45); do
         exit 1
       }
       systemctl restart apply-api.service apply-clinic-worker.service
+      restart_ready=0
       for _restart_attempt in $(seq 1 45); do
         if curl --fail --silent --cacert /etc/apply/tls/localhost.crt https://localhost:8443/up >/dev/null && \
             systemctl is-active --quiet apply-clinic-worker.service; then
+          restart_ready=1
           break
         fi
         sleep 2
       done
+      if [ "$restart_ready" -ne 1 ]; then
+        systemctl stop apply-clinic-worker.service || true
+        systemctl stop apply-web.service apply-api.service
+        echo 'Staging services did not recover after restart; app stopped'
+        exit 1
+      fi
       after_restart=$(/usr/local/sbin/apply-run pilot-readiness) || true
       if [ -z "$after_restart" ] || [ "$before_restart" != "$after_restart" ]; then
         systemctl stop apply-clinic-worker.service || true
@@ -119,8 +128,32 @@ for _attempt in $(seq 1 45); do
         exit 1
       fi
       install -d -m 700 /srv/apply/releases
-      printf '%s\n' "$after_restart" > "/srv/apply/releases/$release-pilot-readiness.json"
-      chmod 600 "/srv/apply/releases/$release-pilot-readiness.json"
+      receipt_path="/srv/apply/releases/$release-$generation-pilot-readiness.json"
+      receipt_temp=$(mktemp /srv/apply/releases/.pilot-readiness.XXXXXX)
+      PILOT_STATE="$after_restart" API_IMAGE="$image" WEB_IMAGE="$web_image" \
+        RELEASE_GENERATION="$generation" RELEASED_AT="$release" python3 - "$receipt_temp" <<'PY'
+import json, os, sys
+state = json.loads(os.environ['PILOT_STATE'])
+receipt = {
+    'format': 1,
+    'released_at': os.environ['RELEASED_AT'],
+    'generation': int(os.environ['RELEASE_GENERATION']),
+    'images': {'api': os.environ['API_IMAGE'], 'web': os.environ['WEB_IMAGE']},
+    'state': state,
+}
+with open(sys.argv[1], 'w', encoding='utf-8') as output:
+    json.dump(receipt, output, sort_keys=True, separators=(',', ':'))
+    output.write('\n')
+PY
+      chmod 600 "$receipt_temp"
+      if ! ln "$receipt_temp" "$receipt_path"; then
+        rm -f "$receipt_temp"
+        systemctl stop apply-clinic-worker.service || true
+        systemctl stop apply-web.service apply-api.service
+        echo 'Staging readiness receipt already exists; app stopped'
+        exit 1
+      fi
+      rm -f "$receipt_temp"
     fi
     [ "$generation" -eq 0 ] || printf '%s\n' "$generation" > /etc/apply/release-generation
     printf '%s\n' "$image" > /etc/apply/verified-image

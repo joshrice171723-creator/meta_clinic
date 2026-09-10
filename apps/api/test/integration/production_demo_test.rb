@@ -96,8 +96,12 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       get "/api/clinic/context"
       assert_response :success
       capabilities = response.parsed_body.fetch("capabilities")
-      assert capabilities.except("billing_cash_reconcile").values.all?
-      assert_equal false, capabilities.fetch("billing_cash_reconcile")
+      %w[patients patients_write appointments encounters notes_write documents billing billing_payment_record].each do |capability|
+        assert_equal true, capabilities.fetch(capability), "Expected staging demo capability #{capability}"
+      end
+      %w[workforce_admin telehealth_host scribe_approve subscription_catalog_read billing_cash_reconcile].each do |capability|
+        assert_equal false, capabilities.fetch(capability), "Unexpected staging demo capability #{capability}"
+      end
       get "/api/inquiries"
       assert_response :forbidden
       assert_difference "Clinic::Care::Patient.count", 1 do

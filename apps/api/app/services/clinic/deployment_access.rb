@@ -5,7 +5,7 @@ module Clinic
       return true if Staging::DemoClinic.available_to?(user)
 
       membership = user&.clinic_membership
-      membership&.active? && user.active? && enabled_practice_ids.include?(membership.practice_id)
+      !!(membership&.active? && user.active? && enabled_practice_ids.include?(membership.practice_id))
     end
 
     def self.practice_enabled?(practice_id)

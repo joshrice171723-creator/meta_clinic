@@ -50,6 +50,7 @@ if [ "$command" = backup ]; then
   [ ! -e "$destination" ] || exit 1
   docker exec apply-postgres pg_dump -U apply_owner -d apply --format=custom --no-owner --no-acl > "$destination"
   test -s "$destination"
+  docker exec -i apply-postgres pg_restore --list < "$destination" >/dev/null
   exit 0
 fi
 image=${2:?Migration image required}
