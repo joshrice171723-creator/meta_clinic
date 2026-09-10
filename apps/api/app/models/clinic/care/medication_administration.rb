@@ -12,6 +12,7 @@ module Clinic
       belongs_to :site, class_name: "Clinic::Site"
       belongs_to :administered_by_membership, class_name: "Clinic::Membership"
       belongs_to :product, class_name: "Clinic::Inventory::PharmacyProduct"
+      belongs_to :medication_request, class_name: "Clinic::Care::MedicationRequest", optional: true
       has_many :movement_links, class_name: "Clinic::Care::MedicationAdministrationMovement",
         dependent: :restrict_with_error
       has_many :inventory_entries, through: :movement_links
@@ -33,6 +34,7 @@ module Clinic
       validate :product_is_medication
       validate :medication_snapshot_is_consistent
       validate :administration_timeline_is_valid
+      validate :medication_request_matches_context
 
       before_validation :normalize_clinical_text
       before_update { throw :abort }
@@ -88,6 +90,14 @@ module Clinic
         errors.add(:administered_at, "cannot be after it was recorded") if administered_at > recorded_at
         errors.add(:administered_at, "cannot precede the encounter") if encounter&.started_at && administered_at < encounter.started_at
         errors.add(:administered_at, "cannot be after the encounter ended") if encounter&.ended_at && administered_at > encounter.ended_at
+      end
+
+      def medication_request_matches_context
+        return unless medication_request
+
+        valid = medication_request.practice_id == practice_id && medication_request.patient_id == patient_id &&
+          medication_request.encounter_id == encounter_id
+        errors.add(:medication_request, "must belong to this patient encounter") unless valid
       end
     end
   end
