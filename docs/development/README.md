@@ -4,6 +4,7 @@ These documents explain how to work on APPly. They describe current source mecha
 
 - [Getting started](getting-started.md): local prerequisites and the managed development lifecycle.
 - [Contributing](contributing.md): branches, focused changes, checks and review.
+- [Standards-guided healthcare development](healthcare-standards.md): primary references and the workflow for translating healthcare standards into data, pages and verification.
 - [CI](ci.md): GitHub checks and the boundary between CI, staging and production.
 - [Architecture](../architecture/README.md): repository ownership, domain boundaries and implementation contracts.
 - [Stripe monthly memberships](stripe-memberships.md): sandbox Connect credentials, local webhook delivery, membership lifecycle and manual acceptance gate.

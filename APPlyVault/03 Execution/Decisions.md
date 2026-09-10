@@ -1,9 +1,15 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 # Decisions
+
+## Standards as a primary healthcare design input
+
+**D-066 — 2026-09-10 / founder's explicit development direction:** use relevant published FHIR implementation guides as a primary input when designing or substantially revising healthcare workflows, pages, data models and integrations. Combine standards requirements with the actual user workflow and product UX decisions. Relevant official terminology and operational references, including HL7 resources, NLM RxNorm, UCUM, FDA routes, CDC vaccination documentation and CMS CLIA guidance, provide additional domain-specific design inputs. The [development procedure](../../docs/development/healthcare-standards.md) owns source selection, version/applicability review and requirement-to-data/UI/verification mapping.
+
+**Limits:** this establishes a development practice, not a product-wide FHIR version, FHIR-native storage mandate, completed standards audit or requirement to display every resource field. Existing capabilities have not been retrospectively reviewed by this decision. Specific terminology, clinical and regulatory applicability remains scoped to each workflow; no integration, deployment or clinical-use approval is implied.
 
 ## Telehealth video provider selection
 

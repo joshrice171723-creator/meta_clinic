@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — Standards-guided healthcare development adopted
+
+**Outcome:** D-066 records the founder's direction to make relevant FHIR implementation guides a primary design input. Root agent instructions and the developer entry point now route to a practical source-to-data/UI/verification procedure, with official terminology and operational references for services, medication administration, vaccination and laboratory setup.
+
+**Limits:** documentation and source applicability guidance only; no application behavior changed and no retrospective conformance or clinical review was performed.
+
 ## 2026-09-10 — Cash-clinic core separated from optional insurance workflows
 
 **Outcome:** added a tenant-scoped, versioned clinic-model selection that keeps the cash-pay ambulatory core on and lets an administrator opt the clinic into insurance workflows from Facilities. The clinic context now exposes the effective selection. A focused API check passed 2 scenarios and 20 assertions covering default-off behavior, immutable core availability, replay safety and stale-edit rejection. The [cash-based ambulatory workflow review](../../records/audits/2026-09-10-cash-based-ambulatory-user-workflow-gap-review.md) scores ten user journeys and prioritizes refill closure, a unified work inbox, digital forms, waitlist/capacity handling and recall/care-gap work.
