@@ -22,8 +22,13 @@ class DeployWorkflowTest(unittest.TestCase):
 
     def test_manual_request_is_guarded_before_aws_authentication(self):
         validation = self.workflow.index("- name: Validate manual staging request")
+        identity = self.workflow.index("- name: Verify exact GitHub OIDC identity")
+        build = self.workflow.index("- name: Build the tested API and frontend once")
         authentication = self.workflow.index("- uses: aws-actions/configure-aws-credentials@")
         self.assertLess(validation, authentication)
+        self.assertLess(identity, build)
+        self.assertLess(identity, authentication)
+        self.assertIn("python3 ops/aws/ec2/verify-github-oidc.py", self.workflow)
         self.assertIn('CONFIRM: ${{ inputs.confirm }}', self.workflow)
         self.assertIn('test "$SOURCE_REF" = "refs/heads/main"', self.workflow)
         self.assertIn('test "$CONFIRM" = "deploy-staging"', self.workflow)

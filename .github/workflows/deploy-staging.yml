@@ -45,6 +45,8 @@ jobs:
               f.write('REGISTRY=' + c['account'] + '.dkr.ecr.us-east-1.amazonaws.com\n')
               f.write('REPOSITORY=' + c['staging']['repository'] + '\n')
           PY
+      - name: Verify exact GitHub OIDC identity
+        run: python3 ops/aws/ec2/verify-github-oidc.py
       - name: Build the tested API and frontend once
         run: |
           docker build --pull --no-cache --platform linux/amd64 --provenance=false -t apply-api-candidate apps/api
