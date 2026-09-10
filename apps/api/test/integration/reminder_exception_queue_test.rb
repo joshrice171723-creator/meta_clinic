@@ -10,14 +10,19 @@ class ReminderExceptionQueueTest < ActionDispatch::IntegrationTest
     @practice = Clinic::Practice.create!(name: "Reminder Exception Queue Practice", organization: organization)
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "reminders.read", "reminders.write", "staff_messaging.read",
-      "staff_messaging.send", "staff_messaging.create_conversation", "staff_messaging.transition")
+      "staff_messaging.send", "staff_messaging.create_conversation", "staff_messaging.transition",
+      "encounters.write")
     coworker = User.create!(email_address: "reminder-exception-coworker@example.invalid", password: SecureRandom.hex(18))
     coworker_membership = @practice.memberships.create!(user: coworker)
+    grant_permissions!(coworker_membership, "staff_messaging.read")
     @conversation = Clinic::Messaging::CreateStaffConversation.call(
       practice: @practice, actor: @user, request_key: "reminder-exception-conversation",
       kind: "direct", member_ids: [ coworker_membership.id ]
     )
     @patient = @practice.patients.create!(display_name: "Reminder Patient", reference: "REMINDER-EXCEPTION-001")
+    @site = @practice.sites.create!(code: "REMINDER-MAIN")
+    @encounter = @practice.encounters.create!(patient: @patient, site: @site,
+      status: "open", started_at: Time.current)
     @endpoint = endpoint_for(@practice, @patient, "reminder-patient@example.invalid")
 
     other_user = User.create!(email_address: "reminder-exception-other@example.invalid", password: SecureRandom.hex(18))
@@ -91,6 +96,38 @@ class ReminderExceptionQueueTest < ActionDispatch::IntegrationTest
 
     assert_equal "Reconcile the delivery outcome before any resend. Do not send a duplicate while delivery is uncertain.",
       request.message.requested_action
+    task = Clinic::ClinicalTask.find_by!(source_type: "reminder", source_id: reminder.id)
+    assert_equal @patient.id, task.patient_id
+    assert_equal @membership.id, task.assigned_to_membership_id
+    assert_equal "staff_request", task.task_kind
+    assert_equal "open", task.state
+  end
+
+  test "patient-linked staff requests share one task lifecycle with the work queue" do
+    message = Clinic::Messaging::SendStaffMessage.call(
+      practice: @practice, actor: @user, conversation: @conversation,
+      request_key: "encounter-staff-request", body: "Review the encounter follow-up.",
+      message_class: "time_sensitive", response_due_at: 1.day.from_now,
+      assignee_membership_id: @membership.id, requested_action: "Review follow-up",
+      linked_object_type: "encounter", linked_object_id: @encounter.id
+    )
+    request = message.request
+    task = Clinic::ClinicalTask.find_by!(source_type: "message", source_id: request.id)
+    assert_equal [ @patient.id, @encounter.id, @site.id ], [ task.patient_id, task.encounter_id, task.site_id ]
+    assert_equal "open", task.state
+
+    Clinic::Messaging::TransitionStaffRequest.call(
+      practice: @practice, actor: @user, request: request, state: "in_progress"
+    )
+    assert_equal "in_progress", task.reload.state
+
+    Clinic::Messaging::TransitionStaffRequest.call(
+      practice: @practice, actor: @user, request: request.reload, state: "resolved",
+      resolution_code: "follow_up_completed"
+    )
+    assert_equal "completed", task.reload.state
+    assert_equal "completed", task.resolution_code
+    assert_equal 1, Clinic::ClinicalTask.where(source_type: "message", source_id: request.id).count
   end
 
   private

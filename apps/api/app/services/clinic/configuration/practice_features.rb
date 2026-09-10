@@ -15,14 +15,20 @@ module Clinic
         telehealth external_lab_coordination minor_office_procedures in_office_medications
         vaccinations point_of_care_testing infusions controlled_medications patient_supplied_medications
       ].freeze
+      ASSESSMENT_SCOPE = %w[
+        depression anxiety alcohol_use tobacco_use social_needs fall_risk
+        functional_status cognitive_status
+      ].freeze
       RECOMMENDED_CLINIC_TYPE = "primary_care".freeze
       RECOMMENDED_SERVICE_SCOPE = %w[
         telehealth external_lab_coordination minor_office_procedures in_office_medications
       ].freeze
+      RECOMMENDED_ASSESSMENT_SCOPE = [].freeze
       OPTIONAL_DEFAULTS = {
         "insurance_workflows" => false,
         "clinic_type" => nil,
-        "service_scope" => []
+        "service_scope" => [],
+        "assessment_scope" => []
       }.freeze
 
       def self.snapshot(practice:, at: Current.business_time)
@@ -32,19 +38,24 @@ module Clinic
         optional = OPTIONAL_DEFAULTS.merge(stored)
         optional["clinic_type"] = nil unless CLINIC_TYPES.include?(optional["clinic_type"])
         optional["service_scope"] = Array(optional["service_scope"]).select { |code| SERVICE_SCOPE.include?(code) }
+        optional["assessment_scope"] = Array(optional["assessment_scope"])
+          .select { |code| ASSESSMENT_SCOPE.include?(code) }
         {
           core: CORE_FEATURES.index_with(true), optional: optional,
           insurance_workflows_enabled: optional.fetch("insurance_workflows", false),
           clinic_type: optional["clinic_type"], service_scope: optional.fetch("service_scope"),
+          assessment_scope: optional.fetch("assessment_scope"),
+          assessment_configured: stored.key?("assessment_scope"),
           configured: version.present? && stored.key?("clinic_type") && stored.key?("service_scope"),
           recommended_clinic_type: RECOMMENDED_CLINIC_TYPE,
           recommended_service_scope: RECOMMENDED_SERVICE_SCOPE,
+          recommended_assessment_scope: RECOMMENDED_ASSESSMENT_SCOPE,
           revision: version&.revision || 0, effective_from: version&.effective_from&.iso8601
         }
       end
 
       def self.revise(practice:, actor:, request_key:, expected_revision:, insurance_workflows_enabled:,
-        clinic_type:, service_scope:)
+        clinic_type:, service_scope:, assessment_scope:)
         key = request_key.to_s.strip
         raise ArgumentError, "request_key is required" if key.blank?
 
@@ -55,10 +66,18 @@ module Clinic
         unsupported = normalized_scope - SERVICE_SCOPE
         raise ArgumentError, "service_scope includes unsupported services: #{unsupported.join(', ')}" if unsupported.any?
 
+        normalized_assessments = Array(assessment_scope).map { |code| code.to_s.strip }.uniq
+        unsupported_assessments = normalized_assessments - ASSESSMENT_SCOPE
+        if unsupported_assessments.any?
+          raise ArgumentError,
+            "assessment_scope includes unsupported assessments: #{unsupported_assessments.join(', ')}"
+        end
+
         optional = {
           "insurance_workflows" => ActiveModel::Type::Boolean.new.cast(insurance_workflows_enabled),
           "clinic_type" => normalized_type,
-          "service_scope" => SERVICE_SCOPE.select { |code| normalized_scope.include?(code) }
+          "service_scope" => SERVICE_SCOPE.select { |code| normalized_scope.include?(code) },
+          "assessment_scope" => ASSESSMENT_SCOPE.select { |code| normalized_assessments.include?(code) }
         }
         digest = Digest::SHA256.hexdigest(optional.to_json)
         practice.with_lock do

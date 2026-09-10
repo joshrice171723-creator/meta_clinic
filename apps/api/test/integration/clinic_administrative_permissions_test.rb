@@ -29,7 +29,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     get "/api/clinic/patients/lookup", params: { q: @patient.reference }, headers: @headers
     assert_response :success
     row = response.parsed_body.fetch("patients").sole
-    assert_equal %w[display_name id reference], row.keys.sort
+    assert_equal %w[date_of_birth display_name id phone_hint reference], row.keys.sort
     assert_equal @patient.id, row.fetch("id")
     get "/api/clinic/patients/#{@patient.id}", headers: @headers
     assert_response :forbidden

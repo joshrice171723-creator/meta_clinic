@@ -17,6 +17,8 @@ module Clinic
       validates :effective_until, comparison: { greater_than: :effective_from }, allow_nil: true
       validate :contact_value_matches_type
 
+      after_save -> { Clinic::Care::PatientIdentitySearch.refresh!(patient) }
+
       private
 
       def contact_value_matches_type

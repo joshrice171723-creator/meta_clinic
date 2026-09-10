@@ -26,22 +26,34 @@ module Clinic
       # endpoint is deliberately separate from the patient detail surface.
       def lookup
         patients = current_practice.patients.accessible_by(current_ability, :read_identity)
+          .includes(:demographics, :contacts)
         query = query_param
+        date_of_birth = params[:date_of_birth].present? ? date_param!(params[:date_of_birth], field: :date_of_birth) : nil
+        phone = params[:phone].to_s.strip.presence
         patient_id = params[:id].presence
-        if query.present? && patient_id.present?
-          raise Clinic::Api::RequestParameters::Invalid.new("q and id cannot be combined.", field: :id)
+        if patient_id.present? && [ query, date_of_birth, phone ].any?(&:present?)
+          raise Clinic::Api::RequestParameters::Invalid.new(
+            "id cannot be combined with other matching fields.", field: :id
+          )
+        end
+        if patient_id.blank? && [ query, date_of_birth, phone ].none?(&:present?)
+          raise Clinic::Api::RequestParameters::Invalid.new(
+            "Enter at least one patient matching field.", field: :q
+          )
         end
 
         patients = if patient_id.present?
           patients.where(id: requested_id!(patient_id, :id))
         else
-          Clinic::Care::PatientNameSearch.search(
+          Clinic::Care::PatientIdentitySearch.search(
             scope: patients,
             practice_id: current_practice.id,
-            query: query
+            query: query,
+            date_of_birth: date_of_birth,
+            phone: phone
           )
         end
-        paginate(patients, key: :patients, serializer: ->(patient) { PatientSerializer.call(patient) },
+        paginate(patients, key: :patients, serializer: ->(patient) { PatientSerializer.identity_lookup(patient) },
           order: { reference: :asc, id: :asc }, maximum: 100)
       end
 

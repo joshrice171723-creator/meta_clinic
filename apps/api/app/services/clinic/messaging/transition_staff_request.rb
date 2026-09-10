@@ -22,6 +22,7 @@ module Clinic
           end
 
           locked_request.transition_to!(state, resolution_code: resolution_code, resolution_note: resolution_note)
+          Clinic::Care::StaffRequestTaskProjection.sync!(request: locked_request, actor_membership: locked_member)
           Clinic::AuditRecorder.record!(practice: practice, actor: actor,
             action_code: "staff_messaging.request.transition", outcome: :committed,
             resource_version_ref: "staff_message_request:#{locked_request.id}")

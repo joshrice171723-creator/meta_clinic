@@ -219,6 +219,8 @@ export type Patient = {
   updated_at?: string;
   display_name: string;
   reference: string;
+  date_of_birth?: string | null;
+  phone_hint?: string | null;
   primary_address_version_id?: number | null;
   primary_address?: { id: number; version: number; formatted: string } | null;
   demographics?: {
@@ -426,7 +428,8 @@ export type ClinicalTask = {
     | "result_follow_up"
     | "patient_call"
     | "order_execution"
-    | "record_request";
+    | "record_request"
+    | "staff_request";
   state: "open" | "claimed" | "in_progress" | "completed" | "cancelled";
   pool_code: "clinical" | "front_desk" | "records";
   assigned_to_membership_id: number | null;
@@ -1036,13 +1039,17 @@ export type PracticeFeatures = {
     insurance_workflows: boolean;
     clinic_type: ClinicType | null;
     service_scope: ClinicServiceCode[];
+    assessment_scope: ClinicAssessmentCode[];
   };
   insurance_workflows_enabled: boolean;
   clinic_type: ClinicType | null;
   service_scope: ClinicServiceCode[];
+  assessment_scope: ClinicAssessmentCode[];
+  assessment_configured: boolean;
   configured: boolean;
   recommended_clinic_type: ClinicType;
   recommended_service_scope: ClinicServiceCode[];
+  recommended_assessment_scope: ClinicAssessmentCode[];
   revision: number;
   effective_from: string | null;
 };
@@ -1063,6 +1070,15 @@ export type ClinicServiceCode =
   | "infusions"
   | "controlled_medications"
   | "patient_supplied_medications";
+export type ClinicAssessmentCode =
+  | "depression"
+  | "anxiety"
+  | "alcohol_use"
+  | "tobacco_use"
+  | "social_needs"
+  | "fall_risk"
+  | "functional_status"
+  | "cognitive_status";
 export type TelehealthSummary = {
   public_id: string;
   status: string;

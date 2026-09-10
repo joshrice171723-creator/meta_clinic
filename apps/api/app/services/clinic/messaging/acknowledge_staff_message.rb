@@ -13,7 +13,10 @@ module Clinic
           receipt.update!(acknowledged_at: now, acknowledgement_note: note.to_s.strip.presence)
           message.update!(acknowledged_at: now, acknowledged_by_membership: member) if message.acknowledged_at.blank?
           request = message.request
-          request.transition_to!("acknowledged") if request && %w[open].include?(request.state)
+          if request && %w[open].include?(request.state)
+            request.transition_to!("acknowledged")
+            Clinic::Care::StaffRequestTaskProjection.sync!(request: request, actor_membership: member)
+          end
           Clinic::AuditRecorder.record!(practice: practice, actor: actor,
             action_code: "staff_messaging.message.acknowledge", outcome: :committed,
             resource_version_ref: "staff_message:#{message.id}")

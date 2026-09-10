@@ -39,7 +39,8 @@ module Clinic
               acknowledgement_required: %w[urgent safety_critical].include?(message_class)
             )
             if message_class != "routine"
-              message.create_request!(practice: practice, assignee_membership: assignee.membership, due_at: due_at)
+              request = message.create_request!(practice: practice, assignee_membership: assignee.membership, due_at: due_at)
+              Clinic::Care::StaffRequestTaskProjection.sync!(request: request, actor_membership: member)
             end
             now = Current.business_time
             conversation.members.active.where.not(membership_id: member.id).find_each do |recipient|
@@ -58,7 +59,9 @@ module Clinic
             message
           end
         end
-        outcome.value
+        message = outcome.value
+        Clinic::Care::StaffRequestTaskProjection.sync!(request: message.request, actor_membership: member) if message&.request
+        message
       end
     end
   end

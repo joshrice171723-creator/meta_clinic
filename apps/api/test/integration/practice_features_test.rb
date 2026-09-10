@@ -26,6 +26,8 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_equal "primary_care", initial.fetch("recommended_clinic_type")
     assert_equal %w[telehealth external_lab_coordination minor_office_procedures in_office_medications],
       initial.fetch("recommended_service_scope")
+    assert_equal [], initial.fetch("recommended_assessment_scope")
+    assert_equal false, initial.fetch("assessment_configured")
     %w[cash_pricing estimates invoices receipts card_payments refunds credits packages memberships].each do |feature|
       assert_equal true, initial.fetch("core").fetch(feature)
     end
@@ -33,6 +35,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     payload = { features: {
       clinic_type: "membership_primary_care",
       service_scope: %w[telehealth in_office_medications],
+      assessment_scope: %w[depression fall_risk],
       insurance_workflows_enabled: true,
       expected_revision: 0,
       request_key: "configure-clinic"
@@ -44,6 +47,8 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_equal true, saved.fetch("configured")
     assert_equal "membership_primary_care", saved.fetch("clinic_type")
     assert_equal %w[telehealth in_office_medications], saved.fetch("service_scope")
+    assert_equal %w[depression fall_risk], saved.fetch("assessment_scope")
+    assert_equal true, saved.fetch("assessment_configured")
     assert_equal 1, saved.fetch("revision")
 
     put "/api/clinic/practice_features", params: payload, headers: csrf_headers, as: :json
@@ -75,6 +80,10 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
       features: profile_payload(service_scope: %w[telehealth surgery], request_key: "unsupported-service")
     }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
+    put "/api/clinic/practice_features", params: {
+      features: profile_payload(assessment_scope: %w[depression universal_triage], request_key: "unsupported-assessment")
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
     assert_equal 0, Clinic::PracticeFeatureVersion.where(practice: @membership.practice).count
   end
 
@@ -97,6 +106,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     {
       clinic_type: "primary_care",
       service_scope: %w[telehealth external_lab_coordination],
+      assessment_scope: [],
       insurance_workflows_enabled: false,
       expected_revision: 0,
       request_key: "profile-#{SecureRandom.uuid}"

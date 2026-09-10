@@ -52,6 +52,7 @@ const taskLabels: Record<ClinicalTask["task_kind"], string> = {
   patient_call: "Patient call",
   order_execution: "Order execution",
   record_request: "Record request",
+  staff_request: "Staff request",
 };
 
 function stateLabel(value: string) {

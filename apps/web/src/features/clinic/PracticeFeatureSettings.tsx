@@ -19,6 +19,7 @@ import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { api } from "../../api/client";
 import type {
+  ClinicAssessmentCode,
   ClinicServiceCode,
   ClinicType,
   PracticeFeatures,
@@ -133,7 +134,54 @@ const services: Array<{
   },
 ];
 
-function sameScope(left: ClinicServiceCode[], right: ClinicServiceCode[]) {
+const assessments: Array<{
+  code: ClinicAssessmentCode;
+  label: string;
+  description: string;
+}> = [
+  {
+    code: "depression",
+    label: "Depression",
+    description: "Clinic-approved depression screening protocol.",
+  },
+  {
+    code: "anxiety",
+    label: "Anxiety",
+    description: "Clinic-approved anxiety screening protocol.",
+  },
+  {
+    code: "alcohol_use",
+    label: "Alcohol use",
+    description: "Clinic-approved alcohol-use screening protocol.",
+  },
+  {
+    code: "tobacco_use",
+    label: "Tobacco use",
+    description: "Clinic-approved tobacco-use screening protocol.",
+  },
+  {
+    code: "social_needs",
+    label: "Social needs",
+    description: "Clinic-approved social-needs assessment protocol.",
+  },
+  {
+    code: "fall_risk",
+    label: "Fall risk",
+    description: "Clinic-approved fall-risk assessment protocol.",
+  },
+  {
+    code: "functional_status",
+    label: "Functional status",
+    description: "Clinic-approved functional-status assessment protocol.",
+  },
+  {
+    code: "cognitive_status",
+    label: "Cognitive status",
+    description: "Clinic-approved cognitive-status assessment protocol.",
+  },
+];
+
+function sameSelection<T extends string>(left: T[], right: T[]) {
   return (
     left.length === right.length && left.every((code) => right.includes(code))
   );
@@ -145,6 +193,9 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
   );
   const [clinicType, setClinicType] = useState<ClinicType>("primary_care");
   const [serviceScope, setServiceScope] = useState<ClinicServiceCode[]>([]);
+  const [assessmentScope, setAssessmentScope] = useState<
+    ClinicAssessmentCode[]
+  >([]);
   const [insuranceEnabled, setInsuranceEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -157,6 +208,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
     if (!features) return;
     setClinicType(features.clinic_type ?? features.recommended_clinic_type);
     setServiceScope(features.service_scope);
+    setAssessmentScope(features.assessment_scope);
     setInsuranceEnabled(features.insurance_workflows_enabled);
   }, [features]);
 
@@ -165,9 +217,10 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
       features !== undefined &&
       (clinicType !==
         (features.clinic_type ?? features.recommended_clinic_type) ||
-        !sameScope(serviceScope, features.service_scope) ||
+        !sameSelection(serviceScope, features.service_scope) ||
+        !sameSelection(assessmentScope, features.assessment_scope) ||
         insuranceEnabled !== features.insurance_workflows_enabled),
-    [clinicType, features, insuranceEnabled, serviceScope],
+    [assessmentScope, clinicType, features, insuranceEnabled, serviceScope],
   );
 
   if (!features) return <LoadState error={error} />;
@@ -182,9 +235,20 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
     );
     setFeedback(null);
   };
+  const toggleAssessment = (code: ClinicAssessmentCode, selected: boolean) => {
+    setAssessmentScope((current) =>
+      selected
+        ? [...current, code].filter(
+            (item, index, all) => all.indexOf(item) === index,
+          )
+        : current.filter((item) => item !== code),
+    );
+    setFeedback(null);
+  };
   const applyRecommendation = () => {
     setClinicType(features.recommended_clinic_type);
     setServiceScope(features.recommended_service_scope);
+    setAssessmentScope(features.recommended_assessment_scope);
     setInsuranceEnabled(false);
     setFeedback(null);
   };
@@ -198,6 +262,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
           features: {
             clinic_type: clinicType,
             service_scope: serviceScope,
+            assessment_scope: assessmentScope,
             insurance_workflows_enabled: insuranceEnabled,
             expected_revision: features.revision,
             request_key: crypto.randomUUID(),
@@ -384,8 +449,63 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
 
         <Divider />
 
+        <FormControl disabled={!canWrite || saving}>
+          <FormLabel component="legend">
+            3. Screening and assessment scope
+          </FormLabel>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mt: 0.5, mb: 1 }}
+          >
+            Select only categories backed by a clinic-approved instrument,
+            visit-type rule, responsible role, scoring rule, and follow-up
+            protocol. No category is required by default.
+          </Typography>
+          {!features.assessment_configured && (
+            <Alert severity="warning" sx={{ mb: 1 }}>
+              Assessment scope has not been explicitly reviewed for this clinic.
+              Saving the profile with no selections records that no universal
+              screening is configured.
+            </Alert>
+          )}
+          <Stack spacing={1}>
+            {assessments.map((assessment) => (
+              <Paper
+                key={assessment.code}
+                variant="outlined"
+                sx={{ px: 1.5, py: 0.75 }}
+              >
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={assessmentScope.includes(assessment.code)}
+                      onChange={(event) =>
+                        toggleAssessment(assessment.code, event.target.checked)
+                      }
+                    />
+                  }
+                  label={
+                    <Stack spacing={0.35} sx={{ py: 0.5 }}>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {assessment.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {assessment.description}
+                      </Typography>
+                    </Stack>
+                  }
+                  sx={{ alignItems: "flex-start", m: 0, width: "100%" }}
+                />
+              </Paper>
+            ))}
+          </Stack>
+        </FormControl>
+
+        <Divider />
+
         <Stack spacing={1}>
-          <Typography variant="h3">3. Payment model</Typography>
+          <Typography variant="h3">4. Payment model</Typography>
           <FormControlLabel
             disabled={!canWrite || saving}
             control={
@@ -419,7 +539,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
             disabled={!canWrite || saving}
             onClick={applyRecommendation}
           >
-            Apply recommended starting scope
+            Use recommended starting scope
           </Button>
           <Button
             type="button"

@@ -11,17 +11,19 @@ module Clinic
       input = parameter_hash!(
         :features,
         %i[insurance_workflows_enabled clinic_type expected_revision request_key],
-        arrays: %i[service_scope]
+        arrays: %i[service_scope assessment_scope]
       )
       raise ArgumentError, "insurance_workflows_enabled is required" unless input.key?(:insurance_workflows_enabled)
       raise ArgumentError, "clinic_type is required" unless input.key?(:clinic_type)
       raise ArgumentError, "service_scope is required" unless input.key?(:service_scope)
+      raise ArgumentError, "assessment_scope is required" unless input.key?(:assessment_scope)
       raise ArgumentError, "expected_revision is required" unless input.key?(:expected_revision)
       features = Clinic::Configuration::PracticeFeatures.revise(
         practice: current_practice, actor: clinic_membership,
         request_key: input[:request_key], expected_revision: input[:expected_revision],
         insurance_workflows_enabled: input[:insurance_workflows_enabled],
-        clinic_type: input[:clinic_type], service_scope: input[:service_scope]
+        clinic_type: input[:clinic_type], service_scope: input[:service_scope],
+        assessment_scope: input[:assessment_scope]
       )
       render json: { features: features }
     end

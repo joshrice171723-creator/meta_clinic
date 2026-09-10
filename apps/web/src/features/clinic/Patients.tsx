@@ -154,46 +154,73 @@ export function Patients({ id }: { id?: string }) {
 
 function PatientLookup() {
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [phone, setPhone] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const normalizedQuery = query.trim();
-  const canSearch = normalizedQuery.length >= 2;
+  const phoneDigits = phone.replace(/\D/g, "");
+  const validName = normalizedQuery.length >= 2;
+  const validDob = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth);
+  const validPhone = phoneDigits.length >= 7 && phoneDigits.length <= 15;
+  const canSearch = validName || validDob || validPhone;
+  const search = new URLSearchParams();
+  if (validName) search.set("q", normalizedQuery);
+  if (validDob) search.set("date_of_birth", dateOfBirth);
+  if (validPhone) search.set("phone", phoneDigits);
+  const signature = search.toString();
   const lookupQuery =
-    canSearch && debouncedQuery === normalizedQuery ? debouncedQuery : null;
+    canSearch && debouncedSearch === signature ? signature : null;
 
   useEffect(() => {
-    const timer = window.setTimeout(
-      () => setDebouncedQuery(normalizedQuery),
-      300,
-    );
+    const timer = window.setTimeout(() => setDebouncedSearch(signature), 300);
     return () => window.clearTimeout(timer);
-  }, [normalizedQuery]);
+  }, [signature]);
 
   return (
     <Card title="Find an existing patient">
       <Stack spacing={1.5}>
         <Typography color="text.secondary">
-          Search by name or clinic reference before registering a new patient.
+          Match more than one identity fact before registering a new patient.
         </Typography>
-        <TextField
-          fullWidth
-          label="Patient name or clinic reference"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          slotProps={{
-            htmlInput: { maxLength: 100 },
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon aria-hidden="true" />
-                </InputAdornment>
-              ),
-            },
-          }}
-          helperText="Enter at least 2 characters. Results are limited to 25 matching records."
-        />
-        {!canSearch && normalizedQuery.length > 0 && (
+        <Box className="pharmacy-form-grid">
+          <TextField
+            fullWidth
+            label="Patient name or clinic reference"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            slotProps={{
+              htmlInput: { maxLength: 100 },
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon aria-hidden="true" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            helperText="At least 2 characters"
+          />
+          <TextField
+            fullWidth
+            label="Date of birth"
+            type="date"
+            value={dateOfBirth}
+            onChange={(event) => setDateOfBirth(event.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            fullWidth
+            label="Phone number"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            slotProps={{ htmlInput: { inputMode: "tel", maxLength: 24 } }}
+            helperText="Use the complete number on the patient record"
+          />
+        </Box>
+        {!canSearch && (normalizedQuery.length > 0 || dateOfBirth || phone) && (
           <Typography color="text.secondary" role="status">
-            Enter at least 2 characters to search.
+            Enter at least 2 name/reference characters, a complete birth date,
+            or a complete phone number.
           </Typography>
         )}
         {canSearch && !lookupQuery && (
@@ -201,15 +228,15 @@ function PatientLookup() {
             Updating search…
           </Typography>
         )}
-        {lookupQuery && <PatientLookupResults query={lookupQuery} />}
+        {lookupQuery && <PatientLookupResults search={lookupQuery} />}
       </Stack>
     </Card>
   );
 }
 
-function PatientLookupResults({ query }: { query: string }) {
+function PatientLookupResults({ search }: { search: string }) {
   const lookup = useResource<{ patients: Patient[]; pagination: Pagination }>(
-    `/api/clinic/patients/lookup?q=${encodeURIComponent(query)}&page=1&per_page=25`,
+    `/api/clinic/patients/lookup?${search}&page=1&per_page=25`,
   );
 
   if (!lookup.data && !lookup.error)
@@ -268,6 +295,10 @@ function PatientLookupResults({ query }: { query: string }) {
             <Typography color="text.secondary" variant="body2">
               Clinic reference:{" "}
               {patientReferenceLabel(patient.reference) ?? "Not recorded"}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              Date of birth: {patient.date_of_birth || "Not recorded"} · Phone:{" "}
+              {patient.phone_hint || "Not recorded"}
             </Typography>
           </Box>
           <Button

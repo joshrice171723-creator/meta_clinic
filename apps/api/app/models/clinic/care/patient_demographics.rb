@@ -14,6 +14,8 @@ module Clinic
       validates :date_of_birth, comparison: { less_than_or_equal_to: -> { Current.business_date } }, allow_nil: true
       validates :interpreter_required, inclusion: { in: [ true, false ] }
       validates :legal_name, :preferred_name, length: { maximum: 160 }, allow_nil: true
+
+      after_save -> { Clinic::Care::PatientIdentitySearch.refresh!(patient) }
     end
   end
 end

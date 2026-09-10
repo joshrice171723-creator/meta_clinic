@@ -47,6 +47,13 @@ module Clinic
 
         { id: address.id, version: address.version, formatted: address.encrypted_address }
       end
+
+      def self.identity_lookup(patient)
+        call(patient).merge(
+          date_of_birth: patient.demographics&.date_of_birth&.iso8601,
+          phone_hint: Clinic::Care::PatientIdentitySearch.masked_phone(patient)
+        )
+      end
       private_class_method :primary_address
     end
   end

@@ -228,7 +228,7 @@ class TelehealthWrapUpWorkflowTest < ActionDispatch::IntegrationTest
 
     @identity.update!(status: "revoked", revoked_at: Time.current)
     get patient_visit_path, headers: @headers
-    assert_response :forbidden
+    assert_response :not_found
   end
 
   private
