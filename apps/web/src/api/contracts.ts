@@ -963,9 +963,34 @@ export type ClinicWorkspaceContext = {
   current_clinician_profile_id: string | null;
   credentials: string[];
   policy_version: "clinic-authorization-v1";
+  features: PracticeFeatures;
   capabilities: ClinicCapabilities;
   current_site: ClinicSite | null;
   sites: ClinicSite[];
+};
+export type PracticeFeatures = {
+  schema_version: "practice-features-v1";
+  core: Record<
+    | "patients"
+    | "scheduling"
+    | "encounters"
+    | "clinical_chart"
+    | "cash_pricing"
+    | "estimates"
+    | "invoices"
+    | "receipts"
+    | "payments"
+    | "refunds"
+    | "credits"
+    | "packages"
+    | "memberships",
+    true
+  >;
+  optional: { insurance_workflows: boolean };
+  current_version: number;
+  effective_from: string | null;
+  reason: string | null;
+  can_write?: boolean;
 };
 export type TelehealthSummary = {
   public_id: string;

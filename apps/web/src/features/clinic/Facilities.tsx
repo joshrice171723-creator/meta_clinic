@@ -23,6 +23,7 @@ import type {
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { VisitTypeSettings } from "./VisitTypeSettings";
+import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
 import { useClinic } from "./Workspace";
 
 const days = [
@@ -197,6 +198,7 @@ export function Facilities() {
           {feedback.text}
         </Alert>
       )}
+      <PracticeFeatureSettings />
       <VisitTypeSettings canWrite={canWrite} />
       <div className="facilities-layout">
         <Paper variant="outlined" className="facilities-list">
