@@ -8,6 +8,7 @@ module Clinic
     STATES = %w[open claimed in_progress completed cancelled].freeze
     POOLS = %w[clinical front_desk records].freeze
     SOURCES = %w[manual encounter handoff lab_follow_up message reminder order].freeze
+    SOURCE_KINDS = %w[medication_request service_request].freeze
     RESOLUTIONS = %w[completed unable_to_complete no_action_needed superseded].freeze
 
     belongs_to :patient, class_name: "Clinic::Care::Patient"
@@ -21,9 +22,11 @@ module Clinic
     validates :state, inclusion: { in: STATES }
     validates :pool_code, inclusion: { in: POOLS }
     validates :source_type, inclusion: { in: SOURCES }
+    validates :source_kind, inclusion: { in: SOURCE_KINDS }, allow_nil: true
     validates :resolution_code, inclusion: { in: RESOLUTIONS }, allow_nil: true
     validate :context_matches
     validate :state_evidence_matches
+    validate :order_source_kind_matches
 
     private
 
@@ -44,6 +47,14 @@ module Clinic
       end
       if state.in?(%w[claimed in_progress]) && assigned_to_membership.nil?
         errors.add(:assigned_to_membership, "is required")
+      end
+    end
+
+    def order_source_kind_matches
+      if source_type == "order"
+        errors.add(:source_kind, "is required for an order task") if source_kind.blank?
+      elsif source_kind.present?
+        errors.add(:source_kind, "is only allowed for order tasks")
       end
     end
   end

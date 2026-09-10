@@ -13,7 +13,6 @@ class Ability
     triage.read triage.write
     handoffs.read handoffs.request handoffs.accept handoffs.reject handoffs.correction_request
     exam.read exam.write
-    diagnosis.read diagnosis.write
     discharge.read discharge.write
   ].freeze
 
@@ -74,6 +73,16 @@ class Ability
     "notes.write" => { action: :create, subjects: [ Clinic::EncounterNote, Clinic::EncounterNoteRevision ], actions: %i[create update], scope: :site_or_practice },
     "notes.sign" => { action: :sign, subjects: [ Clinic::EncounterNoteSignature, Clinic::EncounterNote ], scope: :site_or_practice },
     "observations.write" => { action: :create, subjects: [ Clinic::Care::Observation ], actions: %i[create update], scope: :site_or_practice },
+    "clinical_records.read" => { action: :read, subjects: [
+      Clinic::Care::MedicationRequestRevision, Clinic::Care::ServiceRequestRevision,
+      Clinic::Care::EncounterDiagnosisRevision, Clinic::Care::ProcedureRevision,
+      Clinic::Care::CarePlanRevision, Clinic::Care::CareGoalRevision
+    ], scope: :site_or_practice },
+    "medication_requests.write" => { action: :create, subjects: [ Clinic::Care::MedicationRequestRevision ], scope: :site_or_practice },
+    "service_requests.write" => { action: :create, subjects: [ Clinic::Care::ServiceRequestRevision ], scope: :site_or_practice },
+    "diagnoses.write" => { action: :create, subjects: [ Clinic::Care::EncounterDiagnosisRevision ], scope: :site_or_practice },
+    "procedures.write" => { action: :create, subjects: [ Clinic::Care::ProcedureRevision ], scope: :site_or_practice },
+    "care_plans.write" => { action: :create, subjects: [ Clinic::Care::CarePlanRevision, Clinic::Care::CareGoalRevision ], scope: :site_or_practice },
     "messages.write" => { action: :create, subjects: [ Clinic::MessageIntent, Clinic::MessageOutbox ], actions: %i[create update], scope: :practice },
     "staff_messaging.read" => { action: :read, subjects: [ Clinic::StaffConversation ], scope: :site_or_practice },
     "staff_messaging.send" => { action: :create, subjects: [ Clinic::StaffConversation ], scope: :site_or_practice },

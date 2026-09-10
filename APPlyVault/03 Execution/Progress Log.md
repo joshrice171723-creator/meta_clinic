@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-09
+updated: 2026-09-10
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,12 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-10 — Clinical plan lifecycles and nurse handoff expanded
+
+**Outcome:** added tenant-scoped, immutable lifecycles for medication requests, service requests and referrals, encounter diagnoses, procedure outcomes, care plans, and care goals. Active orders now create durable execution tasks, the nurse workspace links to the clinical plan workspace, and operations staff can return to the owning encounter with exact focus restoration. Focused backend verification passed 10 runs / 181 assertions, Rails autoload and changed-file RuboCop passed, frontend typecheck and production build passed, and an Omni synthetic browser journey proved referral activation through the operations worklist.
+
+**Limits:** the nurse workflow remains below the target until the multi-role scenarios are exercised; medication administration reconciliation, order-result fulfillment, immunization lifecycle, closed-loop referral exchange, hosted operation, and real-patient use remain unproven. The managed development launcher still fails readiness while the equivalent API and web processes run manually, and the route contract has unrelated pre-existing drift. Detailed evidence and updated scores are in [the ambulatory workflow review](../../records/audits/2026-09-09-ambulatory-market-nurse-workflow-and-data-model-review.md).
 
 ## 2026-09-09 — Core clinic-journey contract reconciled to current source
 

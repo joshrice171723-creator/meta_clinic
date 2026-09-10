@@ -374,7 +374,7 @@ function FollowUpWorklist() {
                   <Box sx={{ minWidth: 0 }}>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {task.task_kind.replaceAll("_", " ")}
+                        {(task.source_kind || task.task_kind).replaceAll("_", " ")}
                       </Typography>
                       <Chip size="small" variant="outlined" label={task.state.replaceAll("_", " ")} />
                       {task.overdue && <Chip size="small" color="warning" label="Overdue" />}

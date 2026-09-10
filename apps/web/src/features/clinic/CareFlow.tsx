@@ -78,6 +78,7 @@ import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
 import { NurseEncounterWorkspace } from "./NurseEncounterWorkspace";
+import { ClinicalPlanWorkspace } from "./ClinicalPlanWorkspace";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -3171,7 +3172,20 @@ export function ProviderEncounterWorkflow({
   };
 
   useEffect(() => {
-    if (chartConfirmed) workspaceHeading.current?.focus();
+    if (!chartConfirmed) return;
+    const requestedFocus = new URLSearchParams(window.location.search).get(
+      "focus",
+    );
+    if (!requestedFocus) {
+      workspaceHeading.current?.focus();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(requestedFocus);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [chartConfirmed]);
 
   return (
@@ -3523,6 +3537,7 @@ export function ProviderEncounterWorkflow({
               timezone={timezone}
               onChanged={onCareSummaryRefresh}
             />
+            <ClinicalPlanWorkspace patient={patient} encounter={encounter} />
             {noteWorkspace}
             <VisitWrapUp
               patient={patient}

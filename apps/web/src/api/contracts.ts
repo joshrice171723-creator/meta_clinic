@@ -409,6 +409,7 @@ export type ClinicalTask = {
   assigned_to_membership_id: number | null;
   due_at: string | null;
   source_type: string;
+  source_kind?: "medication_request" | "service_request" | null;
   source_id: number | null;
   resolution_code: string | null;
   version: number;
@@ -427,6 +428,101 @@ export type NurseWorkspace = {
     handoff_respond: boolean;
     tasks_write: boolean;
   };
+};
+export type ClinicalRevisionBase = {
+  id: number;
+  patient_id: number;
+  encounter_id: number;
+  site_id: number;
+  series_id: string;
+  version_number: number;
+  prior_revision_id: number | null;
+  status: string;
+  allowed_statuses: string[];
+  recorded_by_membership_id: number;
+  recorded_at: string;
+};
+export type MedicationRequestRevision = ClinicalRevisionBase & {
+  intent: "proposal" | "plan" | "order";
+  transmission_state: "not_requested" | "pending" | "accepted" | "rejected" | "failed" | "unknown";
+  medication_name: string;
+  dose_text: string | null;
+  route_text: string | null;
+  frequency_text: string | null;
+  quantity_text: string | null;
+  instructions: string | null;
+  source_medication_statement_id: number | null;
+};
+export type ServiceRequestRevision = ClinicalRevisionBase & {
+  request_kind: "lab" | "imaging" | "procedure" | "referral" | "therapy" | "other";
+  intent: "proposal" | "plan" | "order";
+  priority: "routine" | "urgent" | "asap" | "stat";
+  requested_code_system: string | null;
+  requested_code: string | null;
+  requested_display: string;
+  destination: string | null;
+  reason_text: string | null;
+  due_at: string | null;
+};
+export type EncounterDiagnosisRevision = ClinicalRevisionBase & {
+  classification: "primary" | "secondary" | "differential" | "historical";
+  code_system: string | null;
+  diagnosis_code: string | null;
+  diagnosis_display: string;
+  clinical_note: string | null;
+};
+export type ProcedureRevision = ClinicalRevisionBase & {
+  code_system: string | null;
+  procedure_code: string | null;
+  procedure_display: string;
+  performed_at: string | null;
+  outcome_text: string | null;
+  complication_state: "not_assessed" | "none_reported" | "known" | "unknown" | "unable_to_obtain";
+  complication_text: string | null;
+  service_request_revision_id: number | null;
+};
+export type CarePlanRevision = ClinicalRevisionBase & {
+  title: string;
+  description: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+};
+export type CareGoalRevision = ClinicalRevisionBase & {
+  care_plan_revision_id: number;
+  description: string;
+  outcome_text: string | null;
+  target_on: string | null;
+};
+export type ClinicalPlanWorkspace = {
+  schema_version: "clinical-plan-workspace-v1";
+  patient_id: number;
+  encounter_id: number;
+  records: {
+    medication_requests: MedicationRequestRevision[];
+    service_requests: ServiceRequestRevision[];
+    diagnoses: EncounterDiagnosisRevision[];
+    procedures: ProcedureRevision[];
+    care_plans: CarePlanRevision[];
+    care_goals: CareGoalRevision[];
+  };
+  truncated: Record<
+    | "medication_requests"
+    | "service_requests"
+    | "diagnoses"
+    | "procedures"
+    | "care_plans"
+    | "care_goals",
+    boolean
+  >;
+  capabilities: Record<
+    | "medication_requests"
+    | "service_requests"
+    | "diagnoses"
+    | "procedures"
+    | "care_plans"
+    | "care_goals",
+    boolean
+  >;
 };
 export type PatientCareNeedSummary = {
   id: number;

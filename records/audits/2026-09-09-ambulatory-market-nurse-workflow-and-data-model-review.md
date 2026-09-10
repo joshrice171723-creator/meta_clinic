@@ -373,6 +373,61 @@ The next batch should deepen the clinical model without expanding into lower-val
 
 Immunization administration/history and complete document exchange remain important follow-on gaps. A structured synthetic nurse/clinician walkthrough remains the fastest way to prevent the next objects from encoding the wrong fields or ownership.
 
+## 12. Implementation progress — 2026-09-10, batch 2 freeze
+
+Batch 2 implements the next five chart-model gaps as one encounter-bound clinician and staff workflow. This is source implementation pending the consolidated verification below; it does not represent clinical-content approval or a live e-prescribing/referral connection.
+
+1. **Medication requests and prescription lifecycle.** Immutable encrypted revisions distinguish draft, authorized, on-hold, completed, cancelled, and entered-in-error states. Prescription intent and pharmacy-transmission evidence are separate so an authorized record cannot be mistaken for a transmitted or accepted prescription.
+2. **Service requests, referrals, and orders.** Lab, imaging, procedure, referral, therapy, and other requests now preserve intent, recorded priority, coding, destination, reason, due time, author, and lifecycle. Activating a request creates a shared clinical order-execution task; completion/cancellation updates that task in the same transaction.
+3. **Encounter diagnoses.** Diagnoses are now encounter-owned rather than being inferred from longitudinal conditions or note prose. Draft, provisional, confirmed, refuted, resolved, and entered-in-error states are revisioned with encrypted terminology and narrative.
+4. **Procedure outcomes.** Procedure records preserve planned/in-progress/completed/not-done/error state, performer-time evidence, outcome, explicit complication state, and an optional exact link to a procedure request revision.
+5. **Care plans and goals.** Care plans and their exact linked goals now carry independent state, ownership, target/review dates, outcome, and immutable correction history.
+
+The shared implementation adds site-scoped read/write permissions, promotes the local pilot-role catalogue through a new immutable role version, caps each encounter collection at 200 current records with truncation disclosure, rejects stale or invalid lifecycle transitions, uses idempotent request receipts, and retains exact-retry recovery for unknown browser outcomes. The Care Flow screen exposes all five object families in one Material UI workspace instead of scattering them across note text and disconnected modules.
+
+### Batch 2 consolidated verification
+
+The five-slice implementation was frozen before one focused audit-and-repair pass. The first test-database migration exposed a missing composite unique key required by the medication-statement foreign key; that schema defect was repaired and both the test and persistent development databases then migrated successfully.
+
+- **Automated test:** the combined clinical-plan, nurse-workflow, and operations-follow-up checks passed **10 runs / 181 assertions**. They cover all six revision collections used by the five slices, encrypted field storage, exact revision chains, database immutability, patient/encounter/tenant binding, site-scoped authorization denial, safe initial states, allowed transitions, stale-write rejection, exact idempotent replay, and medication/service order-task creation and completion.
+- **Automated test:** after the live handoff repair, the affected clinical-plan test passed **2 runs / 53 assertions**, including the exact source-workspace URL returned for an order task.
+- **Automated test:** Rails eager loading passed; focused RuboCop passed over all 17 changed Ruby files and again over the affected repair; frontend TypeScript passed; the production Vite build passed with 1,350 modules transformed.
+- **Live observation:** Omni logged into the local synthetic clinic, opened Jordan Cedar encounter 31, created a fictional referral as draft, revised it to active, and saw it appear as one open, unassigned `service request` in Operations. The work item returned to the same patient and encounter. The audit caught that the chart-confirmation gate initially discarded the section anchor; the repaired flow preserves `?focus=clinical-plan-workspace`, requires the existing patient/encounter confirmation, and then focuses the exact clinical-plan workspace.
+- **Unresolved:** the repository-wide route-contract assertion remains red because the checked-in contract already omits a larger set of pre-existing telehealth, working-draft, follow-up, billing-support, and facility routes outside this batch and contains one stale facility verb. The 13 new clinical-plan routes are present in both Rails and the checked-in contract, but no clean whole-contract pass is claimed.
+- **Unresolved:** the managed `bin/dev start` launcher started its services but stalled in its migration-access health phase and then failed HTTP readiness. A manual development Puma/Vite start produced HTTP 200 health and the successful browser journey. The launcher defect remains separate from this clinical slice.
+- **Unresolved:** the browser recorded one pre-existing `patientLabel` DOM-prop warning outside this workspace. No clinical-plan error appeared during the observed create, revise, worklist, or source-return path.
+
+### Provisional score movement after batch 2
+
+These are evidence-separated implementation scores, not a clinical or hosted-pilot approval.
+
+| Dimension | Batch 1 | Batch 2 | Movement | Evidence and remaining gap |
+| --- | ---: | ---: | ---: | --- |
+| Overall ambulatory feature breadth | 7.3/10 | **8.1/10** | +0.8 | Medication requests, service requests/referrals, encounter diagnoses, procedures, care plans, goals, and order worklist projection now exist. Immunization and complete exchange/closed-loop fulfillment remain partial. |
+| Core chart data coverage | 6.6/10 | **8.0/10** | +1.4 | Five major missing chart object families are now first-class, revisioned records. Immunization history/administration and complete inbound/outbound document exchange remain gaps. |
+| Nurse daily-workflow fit | 6.8/10 | **7.5/10** | +0.7 | Active orders now become shared work and reopen their exact encounter workspace after confirmation. Only one synthetic referral journey has been observed; intended RN/LVN/MA validation and the six-scenario workflow study remain open. |
+| Data integrity/recovery design | 8.4/10 | **8.8/10** | +0.4 | Composite tenancy keys, immutable encrypted revisions, explicit unknown transmission state, safe initial states, optimistic concurrency, and idempotent retry passed focused checks. Whole-route-contract and managed-startup drift remain unresolved. |
+| Correct data on each screen | 6.7/10 | **8.0/10** | +1.3 | Order, diagnosis, procedure, plan, and goal data now live in the encounter layer with explicit owner, time, status, revision, and linkage instead of note prose. Role-specific field validation is not yet human-approved. |
+
+Four of the five product dimensions are now at or above 8/10 on local source and focused evidence. Nurse daily-workflow fit is deliberately held below 8 until multiple roles and common/exception scenarios prove that the fields and handoffs match real ambulatory work.
+
+### Pilot-readiness evidence ladder after batch 2
+
+| Evidence plane | Before batch 2 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 72/100 | **84/100** | The largest missing clinical object families now have durable server, database, permission, API, UI, and task integration. |
+| Local automated verification | 68/100 | **78/100** | High-risk lifecycle, tenancy, authorization, encryption, recovery, and build checks pass; the repository-wide route contract and managed launcher are still red. |
+| Supervised synthetic staff pilot | 58/100 | **68/100** | One end-to-end Omni referral-to-worklist-to-source journey passed and repaired a real navigation defect. The remaining routine, nurse-only, procedure/immunization, abnormal-result, refill, and telehealth scenarios have not been run with role users. |
+| Hosted real-patient pilot | 35/100 | **35/100** | No hosted deployment, real-patient use, production provider execution, or required human clinical/release approval was authorized or demonstrated. |
+
+### Next five highest-value slices
+
+1. Link medication requests through administration and the longitudinal medication statement without inferring fulfillment from authorization.
+2. Link service requests through specimen/lab or procedure fulfillment with explicit acknowledged, in-progress, completed, not-done, and unknown outcomes.
+3. Add immunization order/history/administration with lot, route, site, screening/consent evidence, refusal, and entered-in-error states.
+4. Add closed-loop referrals and document exchange: outbound packet, receipt/acknowledgment, returned document, review, patient notification, and unresolved follow-up.
+5. Run and repair the six synthetic staff scenarios with nurse/MA and prescribing-clinician views, measuring context switches, duplicate entry, exceptions, and exact-field ownership before adding more required fields.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

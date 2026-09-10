@@ -198,13 +198,20 @@ module Clinic
       end
 
       def serialize_clinical_task(task, member)
+        encounter_href = if task.encounter_id
+          if task.source_type == "order"
+            "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}?focus=clinical-plan-workspace"
+          else
+            "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}#nurse-workspace"
+          end
+        end
         Clinic::Care::NurseWorkflow.serialize_task(task).merge(
           patient_display_name: task.patient.display_name,
           patient_reference: task.patient.reference,
           assigned_to_me: task.assigned_to_membership_id == member.id,
           assignee_label: task.assigned_to_membership&.user&.email,
           overdue: task.due_at.present? && task.due_at < at,
-          encounter_href: task.encounter_id && "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}#nurse-workspace"
+          encounter_href:
         )
       end
 

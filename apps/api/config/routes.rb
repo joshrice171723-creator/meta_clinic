@@ -77,6 +77,32 @@ Rails.application.routes.draw do
     post "patients/:patient_id/encounters/:encounter_id/clinical_tasks", to: "care/nurse_workflow#create_task"
     patch "handoffs/:id", to: "care/nurse_workflow#transition_handoff"
     patch "clinical_tasks/:id", to: "care/nurse_workflow#transition_task"
+    get "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace",
+      to: "care/clinical_plan_workspace#show"
+    post "patients/:patient_id/encounters/:encounter_id/medication_requests",
+      to: "care/clinical_plan_workspace#create_medication_request"
+    patch "patients/:patient_id/encounters/:encounter_id/medication_requests/:series_id",
+      to: "care/clinical_plan_workspace#revise_medication_request"
+    post "patients/:patient_id/encounters/:encounter_id/service_requests",
+      to: "care/clinical_plan_workspace#create_service_request"
+    patch "patients/:patient_id/encounters/:encounter_id/service_requests/:series_id",
+      to: "care/clinical_plan_workspace#revise_service_request"
+    post "patients/:patient_id/encounters/:encounter_id/diagnoses",
+      to: "care/clinical_plan_workspace#create_diagnosis"
+    patch "patients/:patient_id/encounters/:encounter_id/diagnoses/:series_id",
+      to: "care/clinical_plan_workspace#revise_diagnosis"
+    post "patients/:patient_id/encounters/:encounter_id/procedures",
+      to: "care/clinical_plan_workspace#create_procedure"
+    patch "patients/:patient_id/encounters/:encounter_id/procedures/:series_id",
+      to: "care/clinical_plan_workspace#revise_procedure"
+    post "patients/:patient_id/encounters/:encounter_id/care_plans",
+      to: "care/clinical_plan_workspace#create_care_plan"
+    patch "patients/:patient_id/encounters/:encounter_id/care_plans/:series_id",
+      to: "care/clinical_plan_workspace#revise_care_plan"
+    post "patients/:patient_id/encounters/:encounter_id/care_goals",
+      to: "care/clinical_plan_workspace#create_care_goal"
+    patch "patients/:patient_id/encounters/:encounter_id/care_goals/:series_id",
+      to: "care/clinical_plan_workspace#revise_care_goal"
     resources :notes, controller: "care/encounter_notes", only: :show do
       post :revisions, on: :member, action: :revise
       post :corrections, on: :member, action: :correct

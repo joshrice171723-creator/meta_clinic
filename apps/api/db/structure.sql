@@ -25,6 +25,19 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: clinic_clinical_revision_protect(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_clinical_revision_protect() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Clinical plan revision history is immutable';
+END;
+$$;
+
+
+--
 -- Name: clinic_enforce_invoice_status_transition(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1994,6 +2007,102 @@ ALTER SEQUENCE public.clinic_billing_services_id_seq OWNED BY public.clinic_bill
 
 
 --
+-- Name: clinic_care_goal_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_care_goal_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    series_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_number integer NOT NULL,
+    prior_revision_id bigint,
+    status character varying(32) NOT NULL,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    care_plan_revision_id bigint NOT NULL,
+    description text NOT NULL,
+    outcome_text text,
+    target_on date,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT care_goal_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160)))),
+    CONSTRAINT clinic_care_goal_states CHECK (((status)::text = ANY ((ARRAY['proposed'::character varying, 'active'::character varying, 'achieved'::character varying, 'not_achieved'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_care_goal_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_care_goal_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_care_goal_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_care_goal_revisions_id_seq OWNED BY public.clinic_care_goal_revisions.id;
+
+
+--
+-- Name: clinic_care_plan_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_care_plan_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    series_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_number integer NOT NULL,
+    prior_revision_id bigint,
+    status character varying(32) NOT NULL,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    title text NOT NULL,
+    description text,
+    starts_on date,
+    ends_on date,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT care_plan_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160)))),
+    CONSTRAINT clinic_care_plan_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])) AND ((starts_on IS NULL) OR (ends_on IS NULL) OR (ends_on >= starts_on))))
+);
+
+
+--
+-- Name: clinic_care_plan_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_care_plan_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_care_plan_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_care_plan_revisions_id_seq OWNED BY public.clinic_care_plan_revisions.id;
+
+
+--
 -- Name: clinic_cash_drawer_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2104,6 +2213,8 @@ CREATE TABLE public.clinic_clinical_tasks (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    source_kind character varying(40),
+    CONSTRAINT clinic_tasks_source_kind CHECK (((source_kind IS NULL) OR ((source_kind)::text = ANY ((ARRAY['medication_request'::character varying, 'service_request'::character varying])::text[])))),
     CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY ((ARRAY['intake'::character varying, 'handoff'::character varying, 'result_follow_up'::character varying, 'patient_call'::character varying, 'order_execution'::character varying, 'record_request'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((pool_code)::text = ANY ((ARRAY['clinical'::character varying, 'front_desk'::character varying, 'records'::character varying])::text[])) AND ((source_type)::text = ANY ((ARRAY['manual'::character varying, 'encounter'::character varying, 'handoff'::character varying, 'lab_follow_up'::character varying, 'message'::character varying, 'reminder'::character varying, 'order'::character varying])::text[])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
 );
 
@@ -2553,6 +2664,55 @@ CREATE SEQUENCE public.clinic_documents_id_seq
 --
 
 ALTER SEQUENCE public.clinic_documents_id_seq OWNED BY public.clinic_documents.id;
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_diagnosis_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    series_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_number integer NOT NULL,
+    prior_revision_id bigint,
+    status character varying(32) NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_encounter_diagnosis_r_recorded_by_membership_id_not_null NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    classification character varying(32) NOT NULL,
+    code_system text,
+    diagnosis_code text,
+    diagnosis_display text NOT NULL,
+    clinical_note text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_diagnosis_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'provisional'::character varying, 'confirmed'::character varying, 'refuted'::character varying, 'resolved'::character varying, 'entered_in_error'::character varying])::text[])) AND ((classification)::text = ANY ((ARRAY['primary'::character varying, 'secondary'::character varying, 'differential'::character varying, 'historical'::character varying])::text[])))),
+    CONSTRAINT diagnosis_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_diagnosis_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_diagnosis_revisions_id_seq OWNED BY public.clinic_encounter_diagnosis_revisions.id;
 
 
 --
@@ -5097,6 +5257,59 @@ ALTER SEQUENCE public.clinic_medication_administrations_id_seq OWNED BY public.c
 
 
 --
+-- Name: clinic_medication_request_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_medication_request_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    series_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_number integer NOT NULL,
+    prior_revision_id bigint,
+    status character varying(32) NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_medication_request_re_recorded_by_membership_id_not_null NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    intent character varying(32) NOT NULL,
+    transmission_state character varying(32) NOT NULL,
+    medication_name text NOT NULL,
+    dose_text text,
+    route_text text,
+    frequency_text text,
+    quantity_text text,
+    instructions text,
+    source_medication_statement_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_med_request_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'authorized'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])) AND ((intent)::text = ANY ((ARRAY['proposal'::character varying, 'plan'::character varying, 'order'::character varying])::text[])) AND ((transmission_state)::text = ANY ((ARRAY['not_requested'::character varying, 'pending'::character varying, 'accepted'::character varying, 'rejected'::character varying, 'failed'::character varying, 'unknown'::character varying])::text[])))),
+    CONSTRAINT med_request_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+);
+
+
+--
+-- Name: clinic_medication_request_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_medication_request_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_medication_request_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_medication_request_revisions_id_seq OWNED BY public.clinic_medication_request_revisions.id;
+
+
+--
 -- Name: clinic_medication_statements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6720,6 +6933,58 @@ ALTER SEQUENCE public.clinic_previsit_notes_id_seq OWNED BY public.clinic_previs
 
 
 --
+-- Name: clinic_procedure_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_procedure_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    series_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_number integer NOT NULL,
+    prior_revision_id bigint,
+    status character varying(32) NOT NULL,
+    recorded_by_membership_id bigint NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    code_system text,
+    procedure_code text,
+    procedure_display text NOT NULL,
+    performed_at timestamp(6) with time zone,
+    outcome_text text,
+    complication_state character varying(32) NOT NULL,
+    complication_text text,
+    service_request_revision_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_procedure_states CHECK ((((status)::text = ANY ((ARRAY['planned'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'not_done'::character varying, 'entered_in_error'::character varying])::text[])) AND ((complication_state)::text = ANY ((ARRAY['not_assessed'::character varying, 'none_reported'::character varying, 'known'::character varying, 'unknown'::character varying, 'unable_to_obtain'::character varying])::text[])))),
+    CONSTRAINT procedure_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+);
+
+
+--
+-- Name: clinic_procedure_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_procedure_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_procedure_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_procedure_revisions_id_seq OWNED BY public.clinic_procedure_revisions.id;
+
+
+--
 -- Name: clinic_refund_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7427,6 +7692,59 @@ CREATE SEQUENCE public.clinic_service_options_id_seq
 --
 
 ALTER SEQUENCE public.clinic_service_options_id_seq OWNED BY public.clinic_service_options.id;
+
+
+--
+-- Name: clinic_service_request_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_service_request_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    series_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_number integer NOT NULL,
+    prior_revision_id bigint,
+    status character varying(32) NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_service_request_revis_recorded_by_membership_id_not_null NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying(160) NOT NULL,
+    content_digest character varying(64) NOT NULL,
+    request_kind character varying(32) NOT NULL,
+    intent character varying(32) NOT NULL,
+    priority character varying(32) NOT NULL,
+    requested_code_system text,
+    requested_code text,
+    requested_display text NOT NULL,
+    destination text,
+    reason_text text,
+    due_at timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_service_request_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])) AND ((request_kind)::text = ANY ((ARRAY['lab'::character varying, 'imaging'::character varying, 'procedure'::character varying, 'referral'::character varying, 'therapy'::character varying, 'other'::character varying])::text[])) AND ((intent)::text = ANY ((ARRAY['proposal'::character varying, 'plan'::character varying, 'order'::character varying])::text[])) AND ((priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'asap'::character varying, 'stat'::character varying])::text[])))),
+    CONSTRAINT service_request_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
+);
+
+
+--
+-- Name: clinic_service_request_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_service_request_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_service_request_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_service_request_revisions_id_seq OWNED BY public.clinic_service_request_revisions.id;
 
 
 --
@@ -10471,6 +10789,20 @@ ALTER TABLE ONLY public.clinic_billing_services ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: clinic_care_goal_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_care_goal_revisions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_care_plan_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_care_plan_revisions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_cash_drawer_sessions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -10566,6 +10898,13 @@ ALTER TABLE ONLY public.clinic_document_categories ALTER COLUMN id SET DEFAULT n
 --
 
 ALTER TABLE ONLY public.clinic_documents ALTER COLUMN id SET DEFAULT nextval('public.clinic_documents_id_seq'::regclass);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_diagnosis_revisions_id_seq'::regclass);
 
 
 --
@@ -10996,6 +11335,13 @@ ALTER TABLE ONLY public.clinic_medication_administrations ALTER COLUMN id SET DE
 
 
 --
+-- Name: clinic_medication_request_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_medication_request_revisions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_medication_statements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -11269,6 +11615,13 @@ ALTER TABLE ONLY public.clinic_previsit_notes ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: clinic_procedure_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_procedure_revisions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_refund_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -11385,6 +11738,13 @@ ALTER TABLE ONLY public.clinic_scribe_sources ALTER COLUMN id SET DEFAULT nextva
 --
 
 ALTER TABLE ONLY public.clinic_service_options ALTER COLUMN id SET DEFAULT nextval('public.clinic_service_options_id_seq'::regclass);
+
+
+--
+-- Name: clinic_service_request_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_service_request_revisions_id_seq'::regclass);
 
 
 --
@@ -11979,6 +12339,22 @@ ALTER TABLE ONLY public.clinic_billing_services
 
 
 --
+-- Name: clinic_care_goal_revisions clinic_care_goal_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT clinic_care_goal_revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_care_plan_revisions clinic_care_plan_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions
+    ADD CONSTRAINT clinic_care_plan_revisions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_cash_drawer_sessions clinic_cash_drawer_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12088,6 +12464,14 @@ ALTER TABLE ONLY public.clinic_document_categories
 
 ALTER TABLE ONLY public.clinic_documents
     ADD CONSTRAINT clinic_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions clinic_encounter_diagnosis_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions
+    ADD CONSTRAINT clinic_encounter_diagnosis_revisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -12587,6 +12971,14 @@ ALTER TABLE ONLY public.clinic_medication_administrations
 
 
 --
+-- Name: clinic_medication_request_revisions clinic_medication_request_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT clinic_medication_request_revisions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_medication_statements clinic_medication_statements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12899,6 +13291,14 @@ ALTER TABLE ONLY public.clinic_previsit_notes
 
 
 --
+-- Name: clinic_procedure_revisions clinic_procedure_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT clinic_procedure_revisions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_refund_events clinic_refund_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -13032,6 +13432,14 @@ ALTER TABLE ONLY public.clinic_scribe_sources
 
 ALTER TABLE ONLY public.clinic_service_options
     ADD CONSTRAINT clinic_service_options_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_service_request_revisions clinic_service_request_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions
+    ADD CONSTRAINT clinic_service_request_revisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -13643,6 +14051,62 @@ ALTER TABLE ONLY public.clinic_workforce_employment_sites
 
 
 --
+-- Name: care_goal_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_goal_context_id ON public.clinic_care_goal_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: care_goal_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_goal_practice_id ON public.clinic_care_goal_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: care_goal_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_goal_request_key ON public.clinic_care_goal_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: care_goal_series_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_goal_series_version ON public.clinic_care_goal_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
+-- Name: care_plan_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_plan_context_id ON public.clinic_care_plan_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: care_plan_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_plan_practice_id ON public.clinic_care_plan_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: care_plan_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_plan_request_key ON public.clinic_care_plan_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: care_plan_series_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX care_plan_series_version ON public.clinic_care_plan_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
 -- Name: cash_drawer_reconciliation_request; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -14014,6 +14478,13 @@ CREATE INDEX clinic_encounter_precautions_recorded_by_membership_id_fk ON public
 
 
 --
+-- Name: clinic_encounters_context_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounters_context_site_id ON public.clinic_encounters USING btree (practice_id, patient_id, site_id, id);
+
+
+--
 -- Name: clinic_encounters_one_per_appointment; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -14284,6 +14755,13 @@ CREATE UNIQUE INDEX clinic_medication_administrations_practice_id ON public.clin
 --
 
 CREATE UNIQUE INDEX clinic_medication_administrations_retry ON public.clinic_medication_administrations USING btree (practice_id, request_key);
+
+
+--
+-- Name: clinic_medication_statements_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_medication_statements_context_id ON public.clinic_medication_statements USING btree (practice_id, patient_id, id);
 
 
 --
@@ -15253,6 +15731,13 @@ CREATE UNIQUE INDEX clinic_supplier_addresses_version ON public.clinic_supplier_
 
 
 --
+-- Name: clinic_tasks_active_order_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_tasks_active_order_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_kind, source_id) WHERE (((source_type)::text = 'order'::text) AND (source_kind IS NOT NULL) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying])::text[])));
+
+
+--
 -- Name: clinic_tasks_patient_work; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -15299,6 +15784,34 @@ CREATE UNIQUE INDEX clinic_visit_types_practice_id ON public.clinic_visit_types 
 --
 
 CREATE UNIQUE INDEX clinic_working_drafts_identity ON public.clinic_working_drafts USING btree (practice_id, actor_membership_id, context_key);
+
+
+--
+-- Name: diagnosis_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX diagnosis_context_id ON public.clinic_encounter_diagnosis_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: diagnosis_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX diagnosis_practice_id ON public.clinic_encounter_diagnosis_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: diagnosis_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX diagnosis_request_key ON public.clinic_encounter_diagnosis_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: diagnosis_series_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX diagnosis_series_version ON public.clinic_encounter_diagnosis_revisions USING btree (practice_id, encounter_id, series_id, version_number);
 
 
 --
@@ -17633,10 +18146,66 @@ CREATE UNIQUE INDEX learning_sources_practice_id ON public.clinic_learning_sourc
 
 
 --
+-- Name: med_request_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX med_request_context_id ON public.clinic_medication_request_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: med_request_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX med_request_practice_id ON public.clinic_medication_request_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: med_request_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX med_request_request_key ON public.clinic_medication_request_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: med_request_series_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX med_request_series_version ON public.clinic_medication_request_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
 -- Name: permissions_action_code; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX permissions_action_code ON public.permissions USING btree (action_code);
+
+
+--
+-- Name: procedure_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX procedure_context_id ON public.clinic_procedure_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: procedure_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX procedure_practice_id ON public.clinic_procedure_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: procedure_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX procedure_request_key ON public.clinic_procedure_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: procedure_series_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX procedure_series_version ON public.clinic_procedure_revisions USING btree (practice_id, encounter_id, series_id, version_number);
 
 
 --
@@ -17742,6 +18311,34 @@ CREATE UNIQUE INDEX scribe_recordings_scope ON public.clinic_scribe_recordings U
 --
 
 CREATE UNIQUE INDEX scribe_source_segments_order ON public.clinic_scribe_source_segments USING btree (practice_id, source_id, sequence);
+
+
+--
+-- Name: service_request_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX service_request_context_id ON public.clinic_service_request_revisions USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: service_request_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX service_request_practice_id ON public.clinic_service_request_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: service_request_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX service_request_request_key ON public.clinic_service_request_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: service_request_series_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX service_request_series_version ON public.clinic_service_request_revisions USING btree (practice_id, encounter_id, series_id, version_number);
 
 
 --
@@ -18214,6 +18811,20 @@ CREATE TRIGGER clinic_audit_resource_manifests_immutable BEFORE DELETE OR UPDATE
 
 
 --
+-- Name: clinic_care_goal_revisions clinic_care_goal_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_care_goal_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_care_goal_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
+
+
+--
+-- Name: clinic_care_plan_revisions clinic_care_plan_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_care_plan_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_care_plan_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
+
+
+--
 -- Name: clinic_clinician_assignments clinic_clinician_assignments_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -18274,6 +18885,13 @@ CREATE TRIGGER clinic_document_categories_preserve_identity BEFORE UPDATE ON pub
 --
 
 CREATE TRIGGER clinic_documents_preserve_identity BEFORE UPDATE ON public.clinic_documents FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'patient_id', 'encounter_id', 'object_key', 'object_version', 'checksum', 'byte_size', 'media_type');
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions clinic_encounter_diagnosis_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_diagnosis_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_encounter_diagnosis_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
 
 
 --
@@ -18445,6 +19063,13 @@ CREATE TRIGGER clinic_medication_administrations_immutable BEFORE DELETE OR UPDA
 
 
 --
+-- Name: clinic_medication_request_revisions clinic_medication_request_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_medication_request_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_medication_request_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
+
+
+--
 -- Name: clinic_medication_statements clinic_medication_statements_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -18592,6 +19217,13 @@ CREATE TRIGGER clinic_previsit_notes_protect BEFORE DELETE OR UPDATE ON public.c
 
 
 --
+-- Name: clinic_procedure_revisions clinic_procedure_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_procedure_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_procedure_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
+
+
+--
 -- Name: clinic_refund_events clinic_refund_events_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -18617,6 +19249,13 @@ CREATE TRIGGER clinic_role_grants_preserve_identity BEFORE UPDATE ON public.clin
 --
 
 CREATE TRIGGER clinic_rooms_preserve_identity BEFORE UPDATE ON public.clinic_rooms FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id', 'site_id');
+
+
+--
+-- Name: clinic_service_request_revisions clinic_service_request_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_service_request_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_service_request_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
 
 
 --
@@ -19445,6 +20084,54 @@ ALTER TABLE ONLY public.clinic_billing_receipts
 
 
 --
+-- Name: clinic_care_goal_revisions fk_care_goal_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT fk_care_goal_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_care_goal_revisions fk_care_goal_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT fk_care_goal_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_care_goal_revisions fk_care_goal_plan_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT fk_care_goal_plan_revision FOREIGN KEY (practice_id, patient_id, encounter_id, care_plan_revision_id) REFERENCES public.clinic_care_plan_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_care_goal_revisions fk_care_goal_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT fk_care_goal_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_care_goal_revisions fk_care_goal_prior_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT fk_care_goal_prior_revision FOREIGN KEY (practice_id, patient_id, encounter_id, prior_revision_id) REFERENCES public.clinic_care_goal_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_care_goal_revisions fk_care_goal_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_goal_revisions
+    ADD CONSTRAINT fk_care_goal_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_patient_care_needs fk_care_needs_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19458,6 +20145,46 @@ ALTER TABLE ONLY public.clinic_patient_care_needs
 
 ALTER TABLE ONLY public.clinic_patient_care_needs
     ADD CONSTRAINT fk_care_needs_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_care_plan_revisions fk_care_plan_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions
+    ADD CONSTRAINT fk_care_plan_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_care_plan_revisions fk_care_plan_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions
+    ADD CONSTRAINT fk_care_plan_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_care_plan_revisions fk_care_plan_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions
+    ADD CONSTRAINT fk_care_plan_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_care_plan_revisions fk_care_plan_prior_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions
+    ADD CONSTRAINT fk_care_plan_prior_revision FOREIGN KEY (practice_id, patient_id, encounter_id, prior_revision_id) REFERENCES public.clinic_care_plan_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_care_plan_revisions fk_care_plan_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_care_plan_revisions
+    ADD CONSTRAINT fk_care_plan_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -20114,6 +20841,46 @@ ALTER TABLE ONLY public.clinic_credit_notes
 
 ALTER TABLE ONLY public.clinic_credit_notes
     ADD CONSTRAINT fk_credit_notes_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions fk_diagnosis_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions
+    ADD CONSTRAINT fk_diagnosis_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions fk_diagnosis_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions
+    ADD CONSTRAINT fk_diagnosis_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions fk_diagnosis_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions
+    ADD CONSTRAINT fk_diagnosis_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions fk_diagnosis_prior_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions
+    ADD CONSTRAINT fk_diagnosis_prior_revision FOREIGN KEY (practice_id, patient_id, encounter_id, prior_revision_id) REFERENCES public.clinic_encounter_diagnosis_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_encounter_diagnosis_revisions fk_diagnosis_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_diagnosis_revisions
+    ADD CONSTRAINT fk_diagnosis_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -20877,6 +21644,54 @@ ALTER TABLE ONLY public.clinic_learning_sources
 
 
 --
+-- Name: clinic_medication_request_revisions fk_med_request_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_prior_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_prior_revision FOREIGN KEY (practice_id, patient_id, encounter_id, prior_revision_id) REFERENCES public.clinic_medication_request_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_medication_request_revisions fk_med_request_source_statement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_medication_request_revisions
+    ADD CONSTRAINT fk_med_request_source_statement FOREIGN KEY (practice_id, patient_id, source_medication_statement_id) REFERENCES public.clinic_medication_statements(practice_id, patient_id, id);
+
+
+--
 -- Name: clinic_medication_administration_movements fk_medication_admin_movements_administration; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21490,6 +22305,54 @@ ALTER TABLE ONLY public.clinic_previsit_notes
 
 ALTER TABLE ONLY public.clinic_previsit_notes
     ADD CONSTRAINT fk_previsit_notes_submitter FOREIGN KEY (submitted_by_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: clinic_procedure_revisions fk_procedure_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT fk_procedure_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_procedure_revisions fk_procedure_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT fk_procedure_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_procedure_revisions fk_procedure_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT fk_procedure_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_procedure_revisions fk_procedure_prior_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT fk_procedure_prior_revision FOREIGN KEY (practice_id, patient_id, encounter_id, prior_revision_id) REFERENCES public.clinic_procedure_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_procedure_revisions fk_procedure_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT fk_procedure_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_procedure_revisions fk_procedure_service_request; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_procedure_revisions
+    ADD CONSTRAINT fk_procedure_service_request FOREIGN KEY (practice_id, patient_id, encounter_id, service_request_revision_id) REFERENCES public.clinic_service_request_revisions(practice_id, patient_id, encounter_id, id);
 
 
 --
@@ -24693,6 +25556,46 @@ ALTER TABLE ONLY public.clinic_scribe_sources
 
 
 --
+-- Name: clinic_service_request_revisions fk_service_request_encounter_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions
+    ADD CONSTRAINT fk_service_request_encounter_site FOREIGN KEY (practice_id, patient_id, site_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, site_id, id);
+
+
+--
+-- Name: clinic_service_request_revisions fk_service_request_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions
+    ADD CONSTRAINT fk_service_request_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_service_request_revisions fk_service_request_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions
+    ADD CONSTRAINT fk_service_request_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_service_request_revisions fk_service_request_prior_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions
+    ADD CONSTRAINT fk_service_request_prior_revision FOREIGN KEY (practice_id, patient_id, encounter_id, prior_revision_id) REFERENCES public.clinic_service_request_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_service_request_revisions fk_service_request_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_request_revisions
+    ADD CONSTRAINT fk_service_request_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_staff_address_versions fk_staff_addresses_staff; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -25107,6 +26010,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260910001100'),
+('20260910001000'),
 ('20260910000100'),
 ('20260909007000'),
 ('20260909006000'),

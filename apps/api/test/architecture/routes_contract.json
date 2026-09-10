@@ -1282,6 +1282,11 @@
   [
     null,
     "GET",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/nurse_workspace(.:format)"
   ],
   [
@@ -1363,6 +1368,36 @@
     null,
     "PATCH",
     "/api/clinic/patients/:patient_id/clinical_history/:kind/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/care_goals/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/care_plans/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/diagnoses/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/medication_requests/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/procedures/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/service_requests/:series_id(.:format)"
   ],
   [
     null,
@@ -1577,7 +1612,22 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/care_goals(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/care_plans(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/clinical_tasks(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/diagnoses(.:format)"
   ],
   [
     null,
@@ -1588,6 +1638,21 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_revisions(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/medication_requests(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/procedures(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/service_requests(.:format)"
   ],
   [
     null,

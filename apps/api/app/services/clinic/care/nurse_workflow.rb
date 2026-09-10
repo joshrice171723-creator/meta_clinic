@@ -237,6 +237,7 @@ module Clinic
           task_kind: task.task_kind, state: task.state, pool_code: task.pool_code,
           assigned_to_membership_id: task.assigned_to_membership_id, due_at: task.due_at&.iso8601(6),
           source_type: task.source_type, source_id: task.source_id, resolution_code: task.resolution_code,
+          source_kind: task.source_kind,
           version: task.lock_version, updated_at: task.updated_at.iso8601(6)
         }
       end

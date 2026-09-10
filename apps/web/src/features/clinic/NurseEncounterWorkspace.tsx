@@ -685,7 +685,9 @@ export function NurseEncounterWorkspace({
                     >
                       <Box>
                         <Typography sx={{ fontWeight: 650 }}>
-                          {taskLabels[task.task_kind]}
+                          {task.source_kind
+                            ? stateLabel(task.source_kind)
+                            : taskLabels[task.task_kind]}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {stateLabel(task.state)} ·{" "}
