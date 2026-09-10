@@ -4,6 +4,8 @@ Healthcare standards are a primary input to Meta Clinic workflow and data design
 
 ## Select the right sources
 
+Start feature-specific reading with the [U.S. healthcare reference map](us-healthcare-reference-map.md), which maps reviewed official URLs to current app routes/components and explains which source sections to consult. It is a selection aid; reopen the relevant source and confirm its version/applicability for each change.
+
 ### United States scope
 
 Review only sources applicable to United States healthcare workflows. Filter registry discovery to the United States where supported, then verify the actual guide's jurisdiction, publisher and scope. Exclude other countries' implementation guides, regulations, terminology adaptations and country-specific examples from product requirements. Do not substitute a foreign guide when a U.S. guide is missing.

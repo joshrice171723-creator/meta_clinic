@@ -13,6 +13,8 @@ Records in `records/progress/2026/09/` are the dated evidence index for current-
 
 ## 2026-09-10 — Standards-guided healthcare development adopted
 
+**Reference-map follow-up:** added a [U.S. healthcare reference map](../../docs/development/us-healthcare-reference-map.md) with 60 source entries, direct URLs, reading targets and current app route/component pointers. At the founder's clarification, supplied links were treated as starting points for broader exploration of HL7, NLM, UCUM, FDA, CDC and CMS, including labeling, terminology services, recalls, barcodes, outpatient precautions and self-pay estimates. Review depth, R4/R5 differences, global-standard applicability, foreign-country exclusions and unreviewed downloads are explicit. This is developer research/navigation, not an implemented-feature or conformance audit.
+
 **Outcome:** D-066 records the founder's direction to make relevant FHIR implementation guides a primary design input. Root agent instructions and the developer entry point now route to a practical source-to-data/UI/verification procedure, with official terminology and operational references for services, medication administration, vaccination and laboratory setup.
 
 **Same-day clarification:** the founder restricted reference review to U.S. applicability. Root instructions and the procedure now require U.S. guide selection, relevant federal/state authority and explicit applicability for global technical standards, excluding other countries' requirements and examples.

@@ -1,13 +1,15 @@
 ---
 type: source-register
 status: preliminary
-updated: 2026-09-03
+updated: 2026-09-10
 ---
 # Source Register
 
 Home: [[00 Home]] · Used in: [[Texas Diligence]], [[SharePoint and EMR]], [[Data Modeling]], [[Pharmacy Inventory Data Requirements]], [[Pharmacy Provider and Counsel Questions]]
 
 ## How to use this register
+
+For D-066's U.S.-only healthcare design practice, use the [U.S. healthcare reference map](../../docs/development/us-healthcare-reference-map.md). Its R01–R60 entries were reviewed on 2026-09-10 for source selection and app applicability, extending S-94–S-102 through broader website exploration of HL7, NLM, UCUM, FDA, CDC and CMS. It records observed versions, review depth and limits, including landing-page-only reviews and unreviewed linked PDFs; it is not evidence of implemented conformance or a state-specific professional review. The app/component mapping is an engineering interpretation from the current source, not a claim made by the external authorities.
 
 These are primary-source starting references, not a completed legal or security review. “Accessed” means the page was reviewed on that date, not that every statement is current controlling law. Recheck applicability and effective dates before relying on a source for a client. Resolve conflicting or outdated guidance with current authority and a qualified reviewer.
 
