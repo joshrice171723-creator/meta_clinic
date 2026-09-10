@@ -91,6 +91,19 @@ module Clinic
             "cancelled" => %w[entered_in_error], "entered_in_error" => []
           },
           fields: %i[care_plan_revision_id description outcome_text target_on]
+        },
+        immunizations: {
+          klass: ImmunizationRevision,
+          permission: "immunizations.write",
+          root: :immunization,
+          default_status: "planned",
+          transitions: {
+            "planned" => %w[completed not_done entered_in_error],
+            "completed" => %w[entered_in_error], "not_done" => %w[entered_in_error],
+            "entered_in_error" => []
+          },
+          fields: %i[vaccine_name cvx_code manufacturer lot_number dose_text route_text administration_site_text
+            administered_at occurrence_source refusal_reason source_document_id]
         }
       }.freeze
 
@@ -106,7 +119,7 @@ module Clinic
         Clinic::AuditRecorder.record!(practice:, actor:, action_code: "clinical_plan_workspace.read", outcome: :released,
           resource_version_ref: "patient/#{patient.id}:encounter/#{encounter.id}")
         {
-          schema_version: "clinical-plan-workspace-v1",
+          schema_version: "clinical-plan-workspace-v2",
           patient_id: patient.id,
           encounter_id: encounter.id,
           records: records,
@@ -114,7 +127,7 @@ module Clinic
           capabilities: DEFINITIONS.to_h do |kind, definition|
             [ kind, allowed?(practice, actor, definition.fetch(:permission), encounter) ]
           end
-        }
+        }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
       def create(kind:, practice:, actor:, patient:, encounter:, attributes:, request_key:)
@@ -277,6 +290,9 @@ module Clinic
         when :care_goals
           reference = values[:care_plan_revision_id]
           CarePlanRevision.where(practice:, patient:, encounter:).find(reference)
+        when :immunizations
+          reference = values[:source_document_id]
+          Clinic::Document.where(practice:, patient:).find(reference) if reference.present?
         end
       end
       private_class_method :validate_references!

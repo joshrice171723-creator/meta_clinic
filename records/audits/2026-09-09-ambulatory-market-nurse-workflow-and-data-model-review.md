@@ -428,6 +428,49 @@ Four of the five product dimensions are now at or above 8/10 on local source and
 4. Add closed-loop referrals and document exchange: outbound packet, receipt/acknowledgment, returned document, review, patient notification, and unresolved follow-up.
 5. Run and repair the six synthetic staff scenarios with nurse/MA and prescribing-clinician views, measuring context switches, duplicate entry, exceptions, and exact-field ownership before adding more required fields.
 
+## 13. Implementation progress — 2026-09-10, batch 3 freeze
+
+Batch 3 closes the five follow-on gaps that kept the nurse workflow and chart model below the target. It adds no inferred fulfillment: staff must choose the exact source request and exact result, administration, medication statement, procedure, or document.
+
+1. **Medication reconciliation.** Medication requests can now be linked to the exact longitudinal medication statement or encounter medication administration that fulfilled or reconciled them.
+2. **Order-result fulfillment.** Service requests can link to the exact lab report, procedure revision, or chart document. Both the server and the UI restrict targets by the recorded request kind, preventing a referral from being linked to a lab result.
+3. **Immunization lifecycle.** Immutable encrypted immunization revisions preserve vaccine/CVX identity, manufacturer, lot, dose, route, administration site and time, information source, source document, refusal reason, and explicit planned/completed/not-done/error state.
+4. **Closed-loop referrals.** Append-only exchange events preserve outbound/inbound direction and prepared, sent, received, acknowledged, closed, or cancelled state, with outside organization, optional document, author, and time. Invalid skips and direction changes are rejected.
+5. **Role and rendered workflow evidence.** A focused integration scenario exercised nurse, clinician, administrator, records-viewer, front-desk, and wrong-site staff boundaries. A rendered Omni journey created a fictional immunization, recorded a prepared referral exchange, displayed it in the owning encounter, and confirmed that the referral linker offers documents—not unrelated lab results.
+
+All linkage and exchange records are patient/encounter/site/tenant constrained, append-only at both model and database layers, encrypted where narrative is stored, and idempotent with exact-retry recovery. The clinical-staff role now owns medication-request and immunization work as well as service requests, procedures, and care plans; read-only and wrong-site users remain fail closed.
+
+### Batch 3 consolidated verification
+
+- The focused clinical-plan suite passed **4 runs / 119 assertions**, including immutable immunization revisions, medication reconciliation, exact idempotent replay, complete referral exchange sequencing, wrong-target rejection, six staff-role boundaries, and wrong-site concealment.
+- The existing nurse and operations checks ran with the first consolidated pass; after correcting the expected wrong-site result from forbidden to the application’s stronger not-found concealment, the affected clinical-plan suite was rerun and passed.
+- Rails eager loading passed. Focused RuboCop passed over all 11 changed Ruby files and again over the final closure repair. Frontend TypeScript passed.
+- The persistent development database migrated successfully. In the rendered browser, Omni remained logged in on Jordan Cedar encounter 31 with the new immunization and prepared referral event visible.
+- The managed-launcher and unrelated whole-route-contract drift recorded in batch 2 remain open; this batch does not claim hosted provider execution, human clinical acceptance, or real-patient readiness.
+
+### Product scores after batch 3
+
+| Dimension | Batch 2 | Batch 3 | Movement | Evidence and remaining gap |
+| --- | ---: | ---: | ---: | --- |
+| Overall ambulatory feature breadth | 8.1/10 | **8.5/10** | +0.4 | Immunizations, typed fulfillment, and referral exchange now join the prior scheduling, chart, operations, billing, messaging, telehealth, and workforce capabilities. |
+| Core chart data coverage | 8.0/10 | **8.6/10** | +0.6 | Orders now connect to results/administrations/documents, immunizations are first-class, and referral exchanges have their own event history. |
+| Nurse daily-workflow fit | 7.5/10 | **8.1/10** | +0.6 | Clinical staff can work medication requests, immunizations, order execution, and referral exchange in the encounter; six role boundaries and two rendered workflows passed. Human RN/LVN/MA validation remains open. |
+| Data integrity/recovery design | 8.8/10 | **9.1/10** | +0.3 | Composite foreign keys, request-kind target restrictions, append-only evidence, transition validation, encryption, idempotency, and exact retry cover the new closure paths. |
+| Correct data on each screen | 8.0/10 | **8.5/10** | +0.5 | Friendly eligible-target lists show only patient/context-matched records, and the screen distinguishes request state from actual fulfillment/exchange evidence. |
+
+All five product dimensions are now above 8/10 on demonstrated local software evidence. This is not the same as hosted or real-patient pilot approval.
+
+### Pilot-readiness evidence ladder after batch 3
+
+| Evidence plane | Batch 2 | Current | Why |
+| --- | ---: | ---: | --- |
+| Demonstrated code capability | 84/100 | **89/100** | The major chart objects and the missing cross-object fulfillment/referral lifecycles now exist end to end. |
+| Local automated verification | 78/100 | **83/100** | Focused lifecycle, tenancy, role, stale-write, encryption, idempotency, and rendered integration evidence is green; known whole-repo drift remains outside the batch. |
+| Supervised synthetic staff pilot | 68/100 | **76/100** | Six role boundaries are automated and Omni completed two rendered workflows, but separate signed-in nurse/clinician sessions and exception/recovery timing still need human supervision. |
+| Hosted real-patient pilot | 35/100 | **35/100** | No hosted deployment, real-patient use, production provider execution, or required clinical/release approval was authorized or demonstrated. |
+
+The next highest-value work is no longer another broad feature wave. It is a supervised, timed, multi-role synthetic visit; managed-launcher repair; deployment/recovery rehearsal on a non-production host; and targeted repair of defects discovered there. Those are the evidence steps that can move the two remaining readiness planes without low-value test volume.
+
 ## Sources
 
 1. Moy AJ et al. “Measurement of clinical documentation burden among physicians and nurses using electronic health records: a scoping review.” *JAMIA* (2021). [PubMed](https://pubmed.ncbi.nlm.nih.gov/33434273/).

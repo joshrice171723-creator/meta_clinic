@@ -103,6 +103,14 @@ Rails.application.routes.draw do
       to: "care/clinical_plan_workspace#create_care_goal"
     patch "patients/:patient_id/encounters/:encounter_id/care_goals/:series_id",
       to: "care/clinical_plan_workspace#revise_care_goal"
+    post "patients/:patient_id/encounters/:encounter_id/immunizations",
+      to: "care/clinical_plan_workspace#create_immunization"
+    patch "patients/:patient_id/encounters/:encounter_id/immunizations/:series_id",
+      to: "care/clinical_plan_workspace#revise_immunization"
+    post "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/fulfillment_links",
+      to: "care/clinical_plan_workspace#create_fulfillment_link"
+    post "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/referral_events",
+      to: "care/clinical_plan_workspace#create_referral_event"
     resources :notes, controller: "care/encounter_notes", only: :show do
       post :revisions, on: :member, action: :revise
       post :corrections, on: :member, action: :correct

@@ -26,6 +26,7 @@ import type {
   ClinicalRevisionBase,
   EncounterDetail,
   EncounterDiagnosisRevision,
+  ImmunizationRevision,
   MedicationRequestRevision,
   Patient,
   ProcedureRevision,
@@ -35,6 +36,7 @@ import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
+import { ClinicalPlanClosurePanel } from "./ClinicalPlanClosurePanel";
 
 type ResourceKind = keyof ClinicalPlanWorkspaceContract["records"];
 type ClinicalRecord =
@@ -43,7 +45,8 @@ type ClinicalRecord =
   | EncounterDiagnosisRevision
   | ProcedureRevision
   | CarePlanRevision
-  | CareGoalRevision;
+  | CareGoalRevision
+  | ImmunizationRevision;
 type FormState = Record<string, string>;
 type FieldDefinition = {
   name: string;
@@ -217,6 +220,42 @@ const RESOURCE_META: Record<
       { name: "outcome_text", label: "Outcome", multiline: true },
     ],
   },
+  immunizations: {
+    label: "Immunizations",
+    singular: "immunization",
+    root: "immunization",
+    initial: {
+      status: "planned",
+      vaccine_name: "",
+      cvx_code: "",
+      manufacturer: "",
+      lot_number: "",
+      dose_text: "",
+      route_text: "",
+      administration_site_text: "",
+      administered_at: "",
+      occurrence_source: "administered_here",
+      refusal_reason: "",
+      source_document_id: "",
+    },
+    statuses: ["planned", "completed", "not_done", "entered_in_error"],
+    fields: [
+      { name: "vaccine_name", label: "Vaccine", required: true },
+      { name: "cvx_code", label: "CVX code" },
+      { name: "manufacturer", label: "Manufacturer" },
+      { name: "lot_number", label: "Lot number" },
+      { name: "dose_text", label: "Dose" },
+      { name: "route_text", label: "Route" },
+      { name: "administration_site_text", label: "Administration site" },
+      { name: "administered_at", label: "Administered at", type: "datetime-local" },
+      {
+        name: "occurrence_source",
+        label: "Information source",
+        options: ["administered_here", "patient_reported", "external_record", "registry"],
+      },
+      { name: "refusal_reason", label: "Not-given reason", multiline: true },
+    ],
+  },
 };
 
 function humanize(value: string) {
@@ -229,7 +268,8 @@ function recordTitle(kind: ResourceKind, record: ClinicalRecord) {
   if (kind === "diagnoses") return (record as EncounterDiagnosisRevision).diagnosis_display;
   if (kind === "procedures") return (record as ProcedureRevision).procedure_display;
   if (kind === "care_plans") return (record as CarePlanRevision).title;
-  return (record as CareGoalRevision).description;
+  if (kind === "care_goals") return (record as CareGoalRevision).description;
+  return (record as ImmunizationRevision).vaccine_name;
 }
 
 function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
@@ -257,8 +297,16 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
       .filter(Boolean)
       .join(" · ");
   }
-  const value = record as CareGoalRevision;
-  return value.target_on ? `Target ${value.target_on}` : "No target date recorded";
+  if (kind === "care_goals") {
+    const value = record as CareGoalRevision;
+    return value.target_on ? `Target ${value.target_on}` : "No target date recorded";
+  }
+  const value = record as ImmunizationRevision;
+  return [
+    humanize(value.occurrence_source),
+    value.administered_at && new Date(value.administered_at).toLocaleDateString(),
+    value.lot_number && `Lot ${value.lot_number}`,
+  ].filter(Boolean).join(" · ");
 }
 
 function recordForm(kind: ResourceKind, record: ClinicalRecord): FormState {
@@ -537,6 +585,12 @@ export function ClinicalPlanWorkspace({
             ))}
           </Stack>
         )}
+        <ClinicalPlanClosurePanel
+          data={data}
+          base={base}
+          disabled={pendingAttempt !== null || encounter.status !== "open"}
+          refresh={workspace.refresh}
+        />
       </Stack>
 
       <Dialog open={dialogOpen} onClose={() => !busy && !pendingAttempt && setDialogOpen(false)} fullWidth maxWidth="sm">

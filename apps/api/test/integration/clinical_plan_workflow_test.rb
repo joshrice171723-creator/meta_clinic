@@ -12,7 +12,8 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "clinical-plan@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "clinical_records.read", "medication_requests.write",
-      "service_requests.write", "diagnoses.write", "procedures.write", "care_plans.write", "encounters.write")
+      "service_requests.write", "diagnoses.write", "procedures.write", "care_plans.write", "immunizations.write",
+      "encounters.write")
     @patient = @practice.patients.create!(display_name: "Clinical Plan Patient", reference: "PLAN-001")
     @other_patient = @practice.patients.create!(display_name: "Other Plan Patient", reference: "PLAN-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
@@ -20,10 +21,10 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     login(@user)
   end
 
-  test "five clinical record families retain revisions and connect orders to staff work" do
+  test "clinical record families retain revisions and connect orders to staff work" do
     get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
     assert_response :success
-    assert_equal "clinical-plan-workspace-v1", response.parsed_body.fetch("schema_version")
+    assert_equal "clinical-plan-workspace-v2", response.parsed_body.fetch("schema_version")
     assert_equal false, response.parsed_body.fetch("truncated").values.any?
 
     medication = create_record("medication_requests", "medication_request", {
@@ -97,6 +98,15 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       revision_body("care_goal", goal, "active", "plan-care-goal-activate"))
     assert_equal [ "active", plan.fetch("id") ], goal.values_at("status", "care_plan_revision_id")
 
+    immunization = create_record("immunizations", "immunization", {
+      vaccine_name: "Clinical plan vaccine", occurrence_source: "administered_here", cvx_code: "999"
+    }, "plan-immunization-create")
+    immunization = revise_record("immunizations", "immunization", immunization, {
+      immunization: { status: "completed", administered_at: "2026-09-10T15:30:00Z",
+        expected_version: immunization.fetch("version_number"), request_key: "plan-immunization-complete" }
+    })
+    assert_equal [ "completed", "999" ], immunization.values_at("status", "cvx_code")
+
     service = revise_record("service_requests", "service_request", service,
       revision_body("service_request", service, "completed", "plan-service-complete"))
     assert_equal "completed", Clinic::ClinicalTask.find_by!(source_type: "order", source_kind: "service_request").state
@@ -109,6 +119,64 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "fulfillment links and referral exchanges close the loop without replacing source records" do
+    medication = create_record("medication_requests", "medication_request", {
+      medication_name: "Closure medication", intent: "order"
+    }, "closure-medication-create")
+    statement = Clinic::Care::MedicationStatement.create!(
+      practice: @practice, patient: @patient, data_status: "recorded", medication_name: "Closure medication",
+      status: "active", information_source: "clinician", recorded_by_membership: @membership,
+      recorded_at: Time.utc(2026, 9, 10, 14, 30)
+    )
+    link_body = { clinical_plan_link: {
+      source_kind: "medication_request", source_revision_id: medication.fetch("id"),
+      target_kind: "medication_statement", target_id: statement.id,
+      outcome_summary: "Medication list reconciled", request_key: "closure-medication-link"
+    } }
+    assert_difference "Clinic::Care::ClinicalPlanLink.count", 1 do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: link_body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: link_body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+
+    referral = create_record("service_requests", "service_request", {
+      request_kind: "referral", intent: "order", priority: "urgent",
+      requested_display: "Synthetic specialist review", destination: "Synthetic specialty clinic"
+    }, "closure-referral-create")
+    post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+      params: { clinical_plan_link: { source_kind: "service_request", source_revision_id: referral.fetch("id"),
+        target_kind: "lab_report", target_id: 1, request_key: "closure-referral-wrong-target" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    event_body = lambda do |stage, key|
+      { referral_event: { service_request_revision_id: referral.fetch("id"), direction: "outbound", stage:,
+        organization_name: "Synthetic specialty clinic", note: "Synthetic exchange evidence", request_key: key } }
+    end
+    %w[prepared sent received acknowledged closed].each do |stage|
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/referral_events",
+        params: event_body.call(stage, "closure-referral-#{stage}"), headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_equal %w[prepared sent received acknowledged closed],
+      Clinic::Care::ReferralExchangeEvent.order(:id).pluck(:stage)
+
+    post "#{workspace_path(@patient)}/clinical_plan_workspace/referral_events",
+      params: event_body.call("sent", "closure-referral-invalid"), headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :success
+    assert_equal 1, response.parsed_body.fetch("links").length
+    assert_equal "closed", response.parsed_body.fetch("referral_events").first.fetch("stage")
+    assert response.parsed_body.fetch("available_link_targets").fetch("medication_statement")
+      .any? { |target| target.fetch("id") == statement.id }
+  end
+
   test "clinical plan workspace denies a membership without its site scoped read permission" do
     denied = User.create!(email_address: "clinical-plan-denied@example.invalid", password: @password)
     denied_membership = @practice.memberships.create!(user: denied)
@@ -117,6 +185,54 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
     get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
     assert_response :forbidden
+  end
+
+  test "six synthetic staff roles see only the clinical plan actions they own" do
+    nurse = staff_user("nurse", %w[patients.read clinical_records.read medication_requests.write
+      service_requests.write procedures.write care_plans.write immunizations.write])
+    login(nurse)
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("capabilities").fetch("immunizations")
+    create_record("immunizations", "immunization", {
+      vaccine_name: "Synthetic nurse vaccine", occurrence_source: "administered_here"
+    }, "role-nurse-immunization")
+
+    clinician = staff_user("clinician", %w[patients.read clinical_records.read diagnoses.write
+      medication_requests.write service_requests.write procedures.write care_plans.write immunizations.write])
+    login(clinician)
+    create_record("diagnoses", "diagnosis", {
+      classification: "differential", diagnosis_display: "Synthetic clinician finding"
+    }, "role-clinician-diagnosis")
+
+    administrator = staff_user("administrator", %w[patients.read clinical_records.read service_requests.write])
+    login(administrator)
+    create_record("service_requests", "service_request", {
+      request_kind: "referral", intent: "order", priority: "routine",
+      requested_display: "Synthetic administrator referral"
+    }, "role-administrator-referral")
+
+    viewer = staff_user("viewer", %w[patients.read clinical_records.read])
+    login(viewer)
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.fetch("capabilities").fetch("immunizations")
+    post "#{workspace_path(@patient)}/immunizations",
+      params: { immunization: { vaccine_name: "Denied", occurrence_source: "patient_reported",
+        request_key: "role-viewer-denied" } }, headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    front_desk = staff_user("front-desk", %w[patients.read patients.identity.read appointments.read])
+    login(front_desk)
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :forbidden
+
+    other_site = @practice.sites.create!(code: "OTHER-PLAN")
+    site_limited_nurse = staff_user("other-site-nurse", %w[patients.read clinical_records.read immunizations.write],
+      scope_kind: "site", site: other_site)
+    login(site_limited_nurse)
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :not_found
   end
 
   private
@@ -141,6 +257,13 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
   def revision_body(root, record, status, request_key)
     { root => { status:, expected_version: record.fetch("version_number"), request_key: } }
+  end
+
+  def staff_user(label, permissions, scope_kind: "practice", site: nil)
+    user = User.create!(email_address: "clinical-plan-#{label}@example.invalid", password: @password)
+    membership = @practice.memberships.create!(user:)
+    grant_permissions!(membership, *permissions, scope_kind:, site:)
+    user
   end
 
   def login(user)

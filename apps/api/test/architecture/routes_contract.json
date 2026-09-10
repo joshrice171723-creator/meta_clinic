@@ -1387,6 +1387,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/immunizations/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/medication_requests/:series_id(.:format)"
   ],
   [
@@ -1622,6 +1627,16 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/fulfillment_links(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/referral_events(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/clinical_tasks(.:format)"
   ],
   [
@@ -1638,6 +1653,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_revisions(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/immunizations(.:format)"
   ],
   [
     null,

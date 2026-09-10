@@ -493,8 +493,44 @@ export type CareGoalRevision = ClinicalRevisionBase & {
   outcome_text: string | null;
   target_on: string | null;
 };
+export type ImmunizationRevision = ClinicalRevisionBase & {
+  vaccine_name: string;
+  cvx_code: string | null;
+  manufacturer: string | null;
+  lot_number: string | null;
+  dose_text: string | null;
+  route_text: string | null;
+  administration_site_text: string | null;
+  administered_at: string | null;
+  occurrence_source: "administered_here" | "patient_reported" | "external_record" | "registry";
+  refusal_reason: string | null;
+  source_document_id: number | null;
+};
+export type ClinicalPlanLink = {
+  id: number;
+  source_kind: "medication_request" | "service_request";
+  source_revision_id: number;
+  target_kind: "medication_statement" | "medication_administration" | "lab_report" | "procedure" | "document";
+  target_id: number;
+  outcome_summary: string | null;
+  recorded_by_membership_id: number;
+  recorded_at: string;
+};
+export type ReferralExchangeEvent = {
+  id: number;
+  service_request_revision_id: number;
+  service_request_series_id: string;
+  direction: "outbound" | "inbound";
+  stage: "prepared" | "sent" | "received" | "acknowledged" | "closed" | "cancelled";
+  organization_name: string | null;
+  note: string | null;
+  document_id: number | null;
+  recorded_by_membership_id: number;
+  recorded_at: string;
+};
+export type ClinicalPlanLinkTarget = { id: number; label: string };
 export type ClinicalPlanWorkspace = {
-  schema_version: "clinical-plan-workspace-v1";
+  schema_version: "clinical-plan-workspace-v2";
   patient_id: number;
   encounter_id: number;
   records: {
@@ -504,6 +540,7 @@ export type ClinicalPlanWorkspace = {
     procedures: ProcedureRevision[];
     care_plans: CarePlanRevision[];
     care_goals: CareGoalRevision[];
+    immunizations: ImmunizationRevision[];
   };
   truncated: Record<
     | "medication_requests"
@@ -511,7 +548,8 @@ export type ClinicalPlanWorkspace = {
     | "diagnoses"
     | "procedures"
     | "care_plans"
-    | "care_goals",
+    | "care_goals"
+    | "immunizations",
     boolean
   >;
   capabilities: Record<
@@ -520,8 +558,15 @@ export type ClinicalPlanWorkspace = {
     | "diagnoses"
     | "procedures"
     | "care_plans"
-    | "care_goals",
+    | "care_goals"
+    | "immunizations",
     boolean
+  >;
+  links: ClinicalPlanLink[];
+  referral_events: ReferralExchangeEvent[];
+  available_link_targets: Record<
+    "medication_statement" | "medication_administration" | "lab_report" | "procedure" | "document",
+    ClinicalPlanLinkTarget[]
   >;
 };
 export type PatientCareNeedSummary = {

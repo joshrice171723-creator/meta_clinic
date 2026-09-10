@@ -10,7 +10,9 @@ module Clinic
         procedures: %i[status code_system procedure_code procedure_display performed_at outcome_text complication_state
           complication_text service_request_revision_id],
         care_plans: %i[status title description starts_on ends_on],
-        care_goals: %i[status care_plan_revision_id description outcome_text target_on]
+        care_goals: %i[status care_plan_revision_id description outcome_text target_on],
+        immunizations: %i[status vaccine_name cvx_code manufacturer lot_number dose_text route_text
+          administration_site_text administered_at occurrence_source refusal_reason source_document_id]
       }.freeze
       ROOTS = {
         medication_requests: :medication_request,
@@ -18,7 +20,8 @@ module Clinic
         diagnoses: :diagnosis,
         procedures: :procedure,
         care_plans: :care_plan,
-        care_goals: :care_goal
+        care_goals: :care_goal,
+        immunizations: :immunization
       }.freeze
 
       def show
@@ -40,6 +43,41 @@ module Clinic
       def revise_care_plan = revise_record(:care_plans)
       def create_care_goal = create_record(:care_goals)
       def revise_care_goal = revise_record(:care_goals)
+      def create_immunization = create_record(:immunizations)
+      def revise_immunization = revise_record(:immunizations)
+
+      def create_fulfillment_link
+        patient, encounter = patient_and_encounter
+        input = parameter_hash!(:clinical_plan_link,
+          %i[source_kind source_revision_id target_kind target_id outcome_summary request_key])
+        record = ClinicalPlanClosureWorkflow.link(
+          practice: current_practice, actor: current_user, patient:, encounter:,
+          source_kind: required_string!(input[:source_kind], field: :source_kind, maximum: 32),
+          source_revision_id: requested_id!(input[:source_revision_id], :source_revision_id),
+          target_kind: required_string!(input[:target_kind], field: :target_kind, maximum: 32),
+          target_id: requested_id!(input[:target_id], :target_id),
+          outcome_summary: optional_string(input[:outcome_summary], field: :outcome_summary, maximum: 2_000),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160)
+        )
+        render json: { clinical_plan_link: record }, status: :created
+      end
+
+      def create_referral_event
+        patient, encounter = patient_and_encounter
+        input = parameter_hash!(:referral_event,
+          %i[service_request_revision_id direction stage organization_name note document_id request_key])
+        record = ClinicalPlanClosureWorkflow.record_referral_event(
+          practice: current_practice, actor: current_user, patient:, encounter:,
+          service_request_revision_id: requested_id!(input[:service_request_revision_id], :service_request_revision_id),
+          direction: required_string!(input[:direction], field: :direction, maximum: 16),
+          stage: required_string!(input[:stage], field: :stage, maximum: 24),
+          organization_name: optional_string(input[:organization_name], field: :organization_name, maximum: 500),
+          note: optional_string(input[:note], field: :note, maximum: 2_000),
+          document_id: optional_id(input[:document_id], :document_id),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160)
+        )
+        render json: { referral_event: record }, status: :created
+      end
 
       private
 
@@ -75,10 +113,10 @@ module Clinic
 
       def normalized_input(kind, input)
         value = input.dup
-        %i[source_medication_statement_id service_request_revision_id care_plan_revision_id].each do |field|
+        %i[source_medication_statement_id service_request_revision_id care_plan_revision_id source_document_id].each do |field|
           value[field] = optional_id(value[field], field) if value.key?(field)
         end
-        %i[due_at performed_at].each do |field|
+        %i[due_at performed_at administered_at].each do |field|
           value[field] = value[field].present? ? time_param!(value[field], field:) : nil if value.key?(field)
         end
         %i[starts_on ends_on target_on].each do |field|
