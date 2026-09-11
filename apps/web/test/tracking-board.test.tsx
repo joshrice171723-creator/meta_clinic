@@ -33,6 +33,7 @@ import {
   filterVisitsForClinician,
   providerAssignmentAttempt,
   providerAssignmentFailure,
+  trackingBoardFilterSelection,
   TrackingBoardView,
 } from "../src/features/clinic/TrackingBoardPage";
 import {
@@ -586,6 +587,17 @@ describe("board and Operations presentation boundaries", () => {
         <TestTrackingBoard myClinicianId="example-clinician-am" />,
       ),
     ).toContain(">My patients<");
+  });
+  it("restores the full board when All visits follows My patients", () => {
+    const mine = trackingBoardFilterSelection(
+      { patientFilter: "all", stage: "all" },
+      "mine",
+    );
+    expect(mine).toEqual({ patientFilter: "mine", stage: "all" });
+    expect(trackingBoardFilterSelection(mine, "all")).toEqual({
+      patientFilter: "all",
+      stage: "all",
+    });
   });
   it("escapes example content without repeating unavailable demographics", () => {
     const html = renderToStaticMarkup(

@@ -484,6 +484,25 @@ export function filterVisitsForClinician(
     : [];
 }
 
+type TrackingBoardFilterState = {
+  patientFilter: "all" | "mine";
+  stage: string;
+};
+
+export function trackingBoardFilterSelection(
+  current: TrackingBoardFilterState,
+  selection: string,
+): TrackingBoardFilterState {
+  if (selection === "mine") {
+    return {
+      ...current,
+      patientFilter: current.patientFilter === "mine" ? "all" : "mine",
+    };
+  }
+  if (selection === "all") return { patientFilter: "all", stage: "all" };
+  return { ...current, stage: selection };
+}
+
 function storedTrackingBoardColumns(): ColumnKey[] {
   if (typeof window === "undefined") return initialColumns;
   try {
@@ -1380,6 +1399,14 @@ export function TrackingBoardView({
     0,
   );
   const stageOptions = [{ id: "all", label: "All visits" }, ...VISIT_STAGES];
+  const selectDesktopFilter = (selection: string) => {
+    const next = trackingBoardFilterSelection(
+      { patientFilter, stage },
+      selection,
+    );
+    setPatientFilter(next.patientFilter);
+    setStage(next.stage);
+  };
   const boardDate = formatBoardDate(now, timezone);
   return (
     <section className="tracking-board" aria-label="Tracking Board">
@@ -1430,9 +1457,7 @@ export function TrackingBoardView({
         <button
           type="button"
           aria-pressed={patientFilter === "mine"}
-          onClick={() =>
-            setPatientFilter((current) => (current === "mine" ? "all" : "mine"))
-          }
+          onClick={() => selectDesktopFilter("mine")}
         >
           <span>My patients</span>
           <strong>{myPatients.length}</strong>
@@ -1441,12 +1466,14 @@ export function TrackingBoardView({
           <button
             type="button"
             key={s.id}
-            aria-pressed={stage === s.id}
-            onClick={() => setStage(s.id)}
+            aria-pressed={
+              stage === s.id && (s.id !== "all" || patientFilter === "all")
+            }
+            onClick={() => selectDesktopFilter(s.id)}
           >
             <span>{s.label}</span>
             <strong>
-              {s.id === "all" ? stageCounts.all : (stageCounts[s.id] ?? 0)}
+              {s.id === "all" ? visits.length : (stageCounts[s.id] ?? 0)}
             </strong>
           </button>
         ))}
