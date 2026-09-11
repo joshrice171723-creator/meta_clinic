@@ -133,6 +133,43 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     end
   end
 
+  test "patient waitlist replies replay the exact committed outcome without double booking" do
+    site = Clinic::Site.create!(practice: @practice, code: "WAITLIST")
+    clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
+    visit_type = Clinic::VisitType.create!(practice: @practice, code: "WAITLIST-VISIT")
+    identity = Clinic::PatientPortal::Identity.create!(
+      practice: @practice, patient: @patient, user: @actor, status: "active",
+      invited_at: 1.day.ago, activated_at: 1.day.ago
+    )
+    offer_starts_at = 2.hours.from_now
+    entry = Clinic::Scheduling::WaitlistEntry.create!(
+      practice: @practice, patient: @patient, site:, clinician:, visit_type:,
+      earliest_at: 1.hour.from_now, latest_at: 1.day.from_now, duration_minutes: 30,
+      state: "offered", offer_starts_at:, offer_ends_at: offer_starts_at + 30.minutes,
+      offer_expires_at: 1.hour.from_now
+    )
+
+    first = Clinic::Scheduling::Waitlist.portal_reply(
+      entry:, identity:, actor: @actor, action: "accept", expected_version: 0,
+      request_key: "patient-waitlist-accept-1"
+    )
+    replay = Clinic::Scheduling::Waitlist.portal_reply(
+      entry:, identity:, actor: @actor, action: "accept", expected_version: 0,
+      request_key: "patient-waitlist-accept-1"
+    )
+
+    assert_equal "booked", first.state
+    assert_equal first.appointment_id, replay.appointment_id
+    assert_equal 1, @practice.appointments.where(patient: @patient).count
+    assert_equal 1, Clinic::PatientPortal::WaitlistReplyReceipt.where(identity:).count
+    assert_raises(Clinic::Idempotency::Conflict) do
+      Clinic::Scheduling::Waitlist.portal_reply(
+        entry:, identity:, actor: @actor, action: "decline", expected_version: 0,
+        request_key: "patient-waitlist-accept-1"
+      )
+    end
+  end
+
   test "note workflow serializes revisions, detects stale writers, and signs an exact revision" do
     encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
     note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor, encounter: encounter,

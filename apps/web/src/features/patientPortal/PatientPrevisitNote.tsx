@@ -75,6 +75,14 @@ function draftKey(text: string, answers: Record<string, string>) {
   ]);
 }
 
+export function hasUnsavedPrevisitDraft(
+  text: string,
+  answers: Record<string, string>,
+  baseline: string,
+) {
+  return draftKey(text, answers) !== baseline;
+}
+
 function savedText(note: Note | null | undefined) {
   return note?.additional_text ?? note?.text ?? "";
 }
@@ -176,7 +184,7 @@ export function PatientPrevisitNote({
   };
   const requestClose = () => {
     if (busy || outcomeUnknown) return;
-    if (data && draftKey(text, answers) !== baseline) {
+    if (data && hasUnsavedPrevisitDraft(text, answers, baseline)) {
       setConfirmDiscard(true);
       return;
     }
