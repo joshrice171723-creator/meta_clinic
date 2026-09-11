@@ -77,7 +77,7 @@ export const CLINIC_SIDEBAR_THEMES: Record<
   Record<ColorScheme, ClinicSidebarTokens>
 > = {
   owner: {
-    light: { ground: "#1976d2", on: "#ffffff", muted: "#d7e8f9", selected: "#ffffff", "selected-on": "#1976d2" },
+    light: { ground: "#fff7e8", on: "#50300a", muted: "#79633b", selected: "#ffebba", "selected-on": "#50300a" },
     dark: { ground: "#115293", on: "#ffffff", muted: "#c5dcf2", selected: "#1976d2", "selected-on": "#ffffff" },
   },
   juniper: {
