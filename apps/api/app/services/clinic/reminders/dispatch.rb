@@ -147,12 +147,20 @@ module Clinic
       private_class_method :deliver
 
       def self.provider
-        provider_name == "twilio_test" ? Providers::TwilioTest : Providers::Synthetic
+        case provider_name
+        when "twilio" then Providers::Twilio
+        when "twilio_test" then Providers::TwilioTest
+        else Providers::Synthetic
+        end
       end
       private_class_method :provider
 
       def self.provider_name
-        ENV["APPLY_REMINDERS_PROVIDER"] == "twilio_test" ? "twilio_test" : "synthetic"
+        configured = ENV["APPLY_REMINDERS_PROVIDER"].to_s
+        return "twilio" if configured == "twilio"
+        return "twilio_test" if configured == "twilio_test"
+
+        "synthetic"
       end
       private_class_method :provider_name
 

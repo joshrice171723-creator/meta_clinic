@@ -821,7 +821,7 @@ export function Reminders() {
   useEffect(() => {
     if (!selected) return;
     setMessage(
-      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected, clinic.practice.timezone)}. Reply YA to confirm or NA if you need to reschedule.`,
+      `This is a reminder from ${clinic.practice.name} about your appointment on ${appointmentLabel(selected, clinic.practice.timezone)}. Review and confirm it securely at ${window.location.origin}/patient-portal.`,
     );
     setNotice("");
     setError("");
