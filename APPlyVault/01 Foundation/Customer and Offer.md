@@ -41,8 +41,9 @@ The FDE is not a clinician, legal adviser, billing authority or general administ
 
 | Offer | Tangible outcome | Boundary to define |
 | --- | --- | --- |
-| Clinic Ops Core | A usable patient, appointment, encounter and cash-pay operating foundation | Provider/site limits, included users, support and live-use acceptance |
-| Clinic Ops Plus | Core plus deeper billing, membership, worklist, reminder and inventory configuration | Module availability, workflow-specific hardening and training scope |
+| Practice Core | A complete one-site ambulatory operating foundation with charting, cash-pay operations, patient access and supported retail-pharmacy prescribing | Provider/site limits, supported pharmacy connection, included users, support and live-use acceptance |
+| Practice Growth | Core plus memberships, portal, advanced billing, supplier purchasing, inventory and broader integration support | Module availability, supplier/API scope, workflow-specific hardening and training scope |
+| Practice Pro / Multi-site | Growth plus multi-site controls, advanced purchasing/inventory, cross-site reporting and priority implementation support | Site/provider limits, service levels, integration ownership, exit and release boundaries |
 | FDE Integration and Migration | A mapped, reconciled and staff-validated transition from approved source systems | Source ownership, data scope, mapping, access, rollback, acceptance and change orders |
 | Managed Configuration Support | Scheduled configuration, workflow review and issue triage after handoff | Hours, response targets, channels, escalation and exclusions |
 | Founding Clinic Partner | Paid design-partner access with a bounded scope and measurable feedback | Term, discount expiry, reference permission and no unlimited custom work |

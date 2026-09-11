@@ -7,7 +7,7 @@ updated: 2026-09-11
 
 Home: [[00 Home]] · Offer: [[Customer and Offer]] · Pricing: [[Pricing Strategy]] · Boundary: [[Entity and Product Boundary]]
 
-## Current business boundary
+## Business boundary
 
 Meta Clinic is a software product for customer clinics. General consultancy and done-for-you clinic-launch services are not part of the current model. A software-led FDE provides paid onboarding, configuration, approved integration work and data migration as a bounded implementation service.
 
@@ -20,19 +20,19 @@ The software product, FDE work, customer clinic and any professional clinical se
 - **Managed configuration support:** optional recurring retainer with explicit hours and response limits.
 - **Custom integration or complex migration:** separately scoped and quoted; not included in the base subscription.
 
-Rates, billing intervals, minimums, caps, supported sources, data-volume thresholds, change-order rules and exit terms remain open.
+The pricing strategy is a future-state hypothesis for the fully completed platform, not a current-product quote. Rates, billing intervals, minimums, caps, supported sources, data-volume thresholds, change-order rules and exit terms remain open until the mature workflows and implementation economics are proven.
 
 Do not use patient-care revenue as the software price basis. Do not treat an integration fee as authorization to access data, make clinical decisions, approve credentials or represent the clinic professionally.
 
 ## FDE implementation economics
 
-The FDE fee should be based on source count, data volume, mapping complexity, integration method, dry-run effort, reconciliation, staff validation, cutover risk and required support. Use three starting bands:
+The FDE fee should be based on source count, data volume, mapping complexity, integration method, dry-run effort, reconciliation, staff validation, cutover risk and required support. For the fully completed product, use these future-state bands as planning hypotheses:
 
 | Band | Illustrative fee | Typical scope |
 | --- | --- | --- |
-| Simple | $3,000-$6,000 | One source, clean export, standard mapping and one validated import |
-| Standard | $7,500-$15,000 | Multiple sources or custom mapping, reconciliation and guided cutover |
-| Complex | Quote after discovery | Custom API work, multiple sites, incomplete records, high-volume migration or exceptional rollback needs |
+| Simple | $5,000-$10,000 | One source, clean export, standard mapping and one validated import |
+| Standard | $10,000-$20,000 | Multiple sources or custom mapping, reconciliation and guided cutover |
+| Complex | $20,000-$40,000+ | Custom pharmacy/supplier APIs, multiple sites, incomplete records, high-volume migration or exceptional rollback needs |
 
 These are hypotheses, not quotes. Log actual FDE hours, rework, source-system delays, data defects, validation effort and post-cutover requests for every implementation.
 

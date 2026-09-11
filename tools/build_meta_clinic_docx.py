@@ -212,28 +212,30 @@ def pricing_strategy():
     configure_document(doc)
     doc.core_properties.title = "Meta Clinic Pricing and Packaging Strategy"
     doc.core_properties.author = "Meta Clinic"
-    add_title(doc, "Meta Clinic Pricing and Packaging Strategy", "Software subscription and FDE implementation proposal")
+    add_title(doc, "Meta Clinic Pricing and Packaging Strategy", "Future-state mature platform pricing hypothesis")
 
-    add_body(doc, "Meta Clinic should be sold as configurable ambulatory software for NP- and PA-led cash-pay clinics, with an Implementation Specialist (FDE) handling onboarding, approved integrations and migration. The commercial model should be a recurring per-clinic subscription plus a separate fixed-scope FDE fee. A general consultancy or done-for-you clinic-launch service is not part of this offer.")
+    add_body(doc, "This pricing view is for the fully completed product, not the current prototype or an immediate customer quote. The mature product assumed here is a complete ambulatory operating platform for NP- and PA-led cash-pay clinics, including clinical charting, scheduling, patient access, billing and checkout, memberships/packages, retail-pharmacy e-prescribing, supplier purchasing, inventory control and supported third-party integrations. Examples such as routing prescriptions to Walgreens and connecting to suppliers are future-state assumptions, not current production-readiness claims.")
+    add_body(doc, "The commercial model is software plus FDE implementation: a recurring per-clinic subscription and a separate fixed-scope fee for onboarding, approved integrations and migration. A general consultancy or done-for-you clinic-launch service is not part of this offer.")
 
     doc.add_heading("Product position", level=1)
-    add_body(doc, "Tebra is a direct comparator. Its public offering combines configurable practice management, EHR, billing and patient-engagement capabilities. That means customization is a baseline expectation, not a defensible position by itself. Meta Clinic should test a narrower promise: a practical cash-pay ambulatory operating model, fast FDE-led configuration and migration, and workflows designed around small NP/PA-led clinics.")
-    add_body(doc, "The current build supports patient, appointment, encounter and tracking-board workflows; staff and provider workspaces; structured SOAP drafting and revision/signing surfaces; lab, refill, recall and follow-up worklists; cash-pay billing foundations; packages and memberships; inventory controls; and role-scoped clinic access. These capabilities support a product story, but they do not by themselves establish production clinical, privacy, security, professional or regulatory acceptance.")
+    add_body(doc, "Tebra is a direct comparator. Its public offering combines configurable practice management, EHR, billing and patient-engagement capabilities. Customizability is table stakes, not the main differentiator. Meta Clinic should earn a premium by combining a focused cash-pay ambulatory workflow with FDE-led migration, retail-pharmacy prescribing, supplier purchasing and inventory operations in one coherent workspace.")
+    add_body(doc, "The mature value story is time-to-operational-use and reduced system sprawl. The current build's capabilities and local verification do not establish that the future-state pharmacy, supplier, clinical, security, professional or release gates are complete.")
 
     doc.add_heading("Recommended model", level=1)
     add_numbered(doc, [
-        "Recurring software subscription priced per clinic, with ordinary administrative users included.",
+        "Recurring software subscription priced per clinic, with provider and site bands and ordinary administrative users included.",
         "Separate fixed-scope onboarding and FDE integration or migration fee.",
-        "Optional configuration support retainer with written hours, response targets and exclusions.",
+        "Optional managed configuration/support after handoff, with written hours and response targets.",
+        "Vendor pass-through or separately stated charges for external services not controlled by Meta Clinic.",
     ])
 
     doc.add_heading("Package ladder", level=1)
     add_table(doc, ["Package", "What the buyer gets", "Price hypothesis"], [
-        ("Clinic Ops Core", "Patients, appointments, encounters, tracking board, staff/provider work areas, core permissions and basic cash-pay operations.", "$249-$399 per clinic/month plus $1,500-$3,500 onboarding"),
-        ("Clinic Ops Plus", "Core plus billing and checkout configuration, packages/memberships, reminders, lab/refill/recall worklists, inventory workflows and role-specific training.", "$499-$799 per clinic/month plus $3,500-$7,500 onboarding"),
-        ("FDE Integration and Migration", "Source discovery, data inventory, field mapping, import or integration setup, dry run, reconciliation, staff validation and handoff.", "$3,000-$6,000 simple; $7,500-$15,000 standard; complex quoted"),
-        ("Founding Clinic Partner", "Bounded design-partner scope, scheduled feedback and a documented conversion price.", "$249-$399 per clinic/month for six months plus agreed FDE fee"),
-        ("Managed Configuration Support", "Scheduled configuration hours, workflow review, release-readiness coordination and support triage.", "$500-$1,500 per clinic/month"),
+        ("Practice Core", "Scheduling, patient access, encounters, configurable charting, supported retail-pharmacy e-prescribing, workspaces, permissions, cash-pay checkout, invoices, receipts and basic reporting.", "$799-$1,299 per clinic/month plus $5,000-$10,000 FDE onboarding"),
+        ("Practice Growth", "Core plus memberships/packages, patient portal, reminders, refills/recalls, lab coordination, advanced billing, supplier purchasing, inventory controls, reorder workflows and analytics.", "$1,499-$2,499 per clinic/month plus $10,000-$20,000 FDE onboarding"),
+        ("Practice Pro / Multi-site", "Growth plus multi-site controls, advanced purchasing/inventory, supplier integrations, cross-site reporting, priority support and implementation governance.", "$2,500-$4,500 per clinic/month or site-group/month plus $20,000-$40,000 FDE onboarding"),
+        ("Enterprise / Network", "Contracted network scale, enterprise reporting, rollout governance, dedicated FDE capacity and negotiated service levels.", "$5,000+/month; implementation generally $40,000+"),
+        ("FDE Integration and Migration", "Source discovery, mapping, approved pharmacy/supplier/data integration work, dry runs, reconciliation, validation, cutover and handoff.", "$5,000-$10,000 simple; $10,000-$20,000 standard; $20,000-$40,000+ complex"),
     ], widths=[1.45, 3.75, 1.7])
 
     doc.add_heading("Pricing alternatives", level=1)
@@ -242,7 +244,7 @@ def pricing_strategy():
         ("Per provider", "Familiar to EHR buyers.", "Penalizes growth and ignores operational staff; use only if provider support drives most cost."),
         ("Modular add-ons", "Lets a clinic expand gradually.", "Keep to two meaningful tiers plus FDE rather than feature-by-feature billing."),
         ("Usage-based", "May align price to activity.", "Defer until usage, reconciliation and billing evidence exists."),
-        ("FDE retainer", "Monetizes configuration and integration expertise.", "Use written hour and response limits to prevent unbounded labor."),
+        ("FDE retainer", "Monetizes configuration and integration expertise.", "Use written hours, response limits and change orders to prevent unbounded labor."),
     ], widths=[1.45, 2.2, 3.25])
 
     doc.add_heading("Commercial guardrails", level=1)
@@ -250,23 +252,23 @@ def pricing_strategy():
         "Keep software, onboarding and FDE deliverables distinct in the agreement and invoice.",
         "Treat real patient or clinical data migration as a gated implementation activity, not a routine import promise.",
         "Keep custom integrations, complex migration, professional services and vendor costs outside the base subscription unless explicitly contracted.",
-        "Do not use unverified compliance, clinical-approval or prescribing-readiness claims in pricing or sales material.",
-        "Set support limits. A starting hypothesis is two hours per month in Core and five hours per month in Plus.",
+        "Do not use unverified compliance, clinical-approval, prescribing-readiness or vendor-availability claims in pricing or sales material.",
+        "Define provider, site, integration, inventory-location, support-hour, response-time, export and cancellation limits.",
         "Offer annual prepay discounts only after support cost, churn risk and cash needs are known.",
     ])
 
     doc.add_heading("Validation plan", level=1)
     add_table(doc, ["Test", "Price shown", "Evidence to capture"], [
-        ("Subscription test", "$299 Core and $599 Plus per clinic/month", "Buyer type, objection, paid commitment, preferred tier and expected value."),
-        ("FDE test", "$3,000-$6,000 simple and $7,500-$15,000 standard", "Source systems, data volume, mapping effort, validation hours, rework and change requests."),
-        ("Founding cohort", "Three to five clinics maximum", "Onboarding time, support load, workflow outcomes and renewal intent at the non-founding price."),
+        ("Mature platform test", "$799-$2,499 per clinic/month", "Buyer type, replacement value, objection, paid commitment, preferred tier and expected value."),
+        ("FDE test", "$5,000-$10,000 simple and $10,000-$20,000 standard", "Source systems, data volume, mapping effort, validation hours, rework and change requests."),
+        ("Feature readiness test", "Synthetic prescribing and purchasing workflows", "Reliability, vendor costs, support load and evidence required before publishing claims."),
     ], widths=[1.45, 2.0, 3.45])
     add_body(doc, "Interest is not a sale. A deposit or signed scoped engagement is stronger evidence than a positive conversation.")
 
     doc.add_heading("What not to promise yet", level=1)
     add_bullets(doc, [
-        "A fully accepted production EHR.",
-        "Universal clinical workflow coverage or readiness for every selected service.",
+        "A fully accepted production EHR before the relevant clinical, integration, security, professional and release gates are met.",
+        "Universal clinical workflow coverage, live Walgreens routing or supplier connectivity without contract and acceptance evidence.",
         "Automatic migration of every source record without source review and reconciliation.",
         "Compliance certification, clinical approval, professional coverage or unrestricted real-data access.",
     ])
@@ -289,7 +291,7 @@ def fde_offer():
     doc.core_properties.author = "Meta Clinic"
     add_title(doc, "Meta Clinic FDE Integration Offer", "Data migration and implementation scope")
 
-    add_body(doc, "The FDE offer helps a clinic move from its current systems into Meta Clinic through a controlled, documented process. The FDE configures the clinic, maps approved data, coordinates integration or import work, validates the result with clinic staff and hands the configured workspace to clinic ownership. The FDE is an implementation role, not a general consultancy, clinician or clinic administrator.")
+    add_body(doc, "The FDE offer helps a clinic move from its current systems into the fully completed Meta Clinic platform through a controlled, documented process. The FDE configures the clinic, maps approved data, coordinates pharmacy, supplier or other integration work, validates the result with clinic staff and hands the configured workspace to clinic ownership. The FDE is an implementation role, not a general consultancy, clinician or clinic administrator.")
 
     doc.add_heading("FDE outcome", level=1)
     add_body(doc, "At the end of an accepted engagement, the clinic should have a configured Meta Clinic workspace, a documented source-to-target mapping, a reconciled migration result, an identified exception list and a staff-approved handoff. The outcome is a validated implementation within an agreed scope; it is not a guarantee of clinical, legal, regulatory or professional approval.")
@@ -305,9 +307,9 @@ def fde_offer():
 
     doc.add_heading("Integration tiers", level=1)
     add_table(doc, ["Tier", "Typical scope", "Price hypothesis"], [
-        ("Simple", "One source, clean export, standard mapping and one validated import.", "$3,000-$6,000"),
-        ("Standard", "Multiple sources or custom mapping, reconciliation, staff validation and guided cutover.", "$7,500-$15,000"),
-        ("Complex", "Custom APIs, multiple sites, incomplete or high-volume records, or exceptional rollback needs.", "Quote after discovery"),
+        ("Simple", "One source, clean export, standard mapping and one validated import.", "$5,000-$10,000"),
+        ("Standard", "Multiple sources or custom mapping, reconciliation, staff validation and guided cutover.", "$10,000-$20,000"),
+        ("Complex", "Custom pharmacy/supplier APIs, multiple sites, incomplete or high-volume records, or exceptional rollback needs.", "$20,000-$40,000+"),
     ], widths=[1.0, 4.25, 1.65])
     add_body(doc, "The fee is based on source count, data volume, mapping complexity, integration method, validation effort, cutover risk and expected FDE hours. It is not based on patient-care revenue.")
 
@@ -315,6 +317,7 @@ def fde_offer():
     add_table(doc, ["Included when scoped", "Not included by default"], [
         ("Source-system discovery and approved export review", "Legal, clinical, accounting or professional advice"),
         ("Field mapping and transformation rules", "Credential approval, clinical decisions or prescribing authority"),
+        ("Approved pharmacy, supplier and inventory integration coordination when contracted", "Live pharmacy/supplier access without approved contracts, credentials and acceptance"),
         ("Configuration of supported Meta Clinic settings", "Unlimited custom development or unsupported integrations"),
         ("Dry runs, reconciliation and staff validation", "Correction of source records outside the agreed process"),
         ("Cutover runbook, handoff and defined post-cutover support", "Vendor fees, source export charges, travel or extra support unless contracted"),
