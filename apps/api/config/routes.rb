@@ -65,6 +65,7 @@ Rails.application.routes.draw do
     put "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#upsert"
     get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
+      get :completion, on: :member
       post :close, on: :member
       post :provider_assignment, on: :member, to: "scheduling/provider_assignments#create"
       post "intake_ownership/claim", to: "scheduling/intake_ownership#claim"

@@ -205,8 +205,25 @@ describe("provider encounter workflow", () => {
 
     expect(sameAttempt).toBe(first);
     expect(generated).toBe(1);
-    expect(closeRequestBody(7, sameAttempt)).toEqual({
-      close: { patient_id: 7, request_key: "synthetic-close-key" },
+    const completion = {
+      disposition_code: "completed_as_planned" as const,
+      instructions_status: "provided" as const,
+      education_status: "recorded" as const,
+      follow_up_id: 31,
+      follow_up_version: 2,
+      expected_follow_up_state: "arranged" as const,
+      instruction_note_revision_id: 44,
+      expected_education_event_ids: [51],
+      expected_open_task_versions: ["61:3"],
+      open_work_reviewed: true,
+      exception_note: null,
+    };
+    expect(closeRequestBody(7, sameAttempt, completion)).toEqual({
+      close: {
+        patient_id: 7,
+        request_key: "synthetic-close-key",
+        ...completion,
+      },
     });
   });
 

@@ -76,6 +76,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   test "booking permits adjacency, rejects overlap, and encounters support walk-ins" do
     site = Clinic::Site.create!(practice: @practice, code: "MAIN")
     room = Clinic::Room.create!(practice: @practice, site: site, code: "ROOM-1")
+    clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
+    visit_type = Clinic::VisitType.create!(practice: @practice, code: "DOMAIN-VISIT")
     start_time = Time.utc(2026, 8, 31, 9)
 
     first = Clinic::Scheduling::BookAppointment.call(
@@ -84,6 +86,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       patient: @patient,
       site: site,
       room: room,
+      booked_clinician: clinician,
+      visit_type: visit_type,
       starts_at: start_time,
       ends_at: start_time + 30.minutes
     )
@@ -93,6 +97,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       patient: @patient,
       site: site,
       room: room,
+      booked_clinician: clinician,
+      visit_type: visit_type,
       starts_at: start_time + 30.minutes,
       ends_at: start_time + 1.hour
     )
@@ -105,6 +111,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
         patient: @patient,
         site: site,
         room: room,
+        booked_clinician: clinician,
+        visit_type: visit_type,
         starts_at: start_time + 15.minutes,
         ends_at: start_time + 45.minutes
       )

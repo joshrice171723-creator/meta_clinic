@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     class CloseEncounter
-      def self.call(encounter:, actor:, request_key:, ended_at: nil)
+      def self.call(encounter:, actor:, request_key:, ended_at: nil, completion: nil)
         Authorization.authorize!(actor: actor, practice: encounter.practice, action: "encounters.write", site: encounter.site)
 
         result = Clinic::Idempotency.execute(
@@ -9,7 +9,12 @@ module Clinic
           actor: actor,
           operation_code: "encounters.close",
           request_key: request_key,
-          payload: { encounter_id: encounter.id, patient_id: encounter.patient_id, ended_at: ended_at&.iso8601 },
+          payload: {
+            encounter_id: encounter.id,
+            patient_id: encounter.patient_id,
+            ended_at: ended_at&.iso8601,
+            completion: completion
+          },
           resource: encounter,
           authorization: -> { Authorization.authorize!(actor: actor, practice: encounter.practice,
             action: "encounters.write", site: encounter.site) },
@@ -27,13 +32,21 @@ module Clinic
           if telehealth_visit&.active_media?
             raise ArgumentError, "End and reconcile the video session before closing the encounter."
           end
+          completion_review = if completion
+            EncounterCompletion.create!(
+              encounter: updated, actor:, request_key:, attributes: completion
+            )
+          end
           updated.close!(ended_at: ended_at || Current.business_time)
           if appointment && %w[scheduled confirmed].include?(appointment.status)
             appointment.update!(status: "completed")
             Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)
           end
           AuditRecorder.record!(practice: encounter.practice, actor: actor, action_code: "encounters.close",
-            outcome: :committed, resource_version_ref: "encounter:#{updated.id}:#{updated.updated_at.utc.iso8601(6)}")
+            outcome: :committed,
+            resource_version_ref: completion_review ?
+              "encounter:#{updated.id}:completion_review:#{completion_review.id}" :
+              "encounter:#{updated.id}:#{updated.updated_at.utc.iso8601(6)}")
           updated
         end
         raise Clinic::Idempotency::OutcomeUnconfirmed if result.receipt.outcome_outcome_unconfirmed?

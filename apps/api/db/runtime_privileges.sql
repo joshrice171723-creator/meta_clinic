@@ -15,7 +15,7 @@ BEGIN
   FOREACH relation IN ARRAY ARRAY['clinic_inventory_profiles','clinic_inventory_lots','clinic_inventory_receipts','clinic_inventory_receipt_lines','clinic_inventory_entries','clinic_inventory_holds','clinic_inventory_hold_releases','clinic_inventory_counts','clinic_inventory_count_approvals','clinic_inventory_catalog_events','clinic_notes','clinic_pharmacy_batch_events',
     'clinic_inventory_receiving_sessions','clinic_inventory_vendor_returns','clinic_inventory_supplier_credits','clinic_inventory_supplier_invoices',
     'clinic_model_versions','clinic_role_grant_events','clinic_audit_events','clinic_audit_resource_manifests','clinic_audit_delivery_receipts','platform_audit_events',
-    'clinic_patient_address_versions','clinic_staff_address_versions','clinic_supplier_address_versions','clinic_encounter_note_revisions','clinic_encounter_note_signatures',
+    'clinic_patient_address_versions','clinic_staff_address_versions','clinic_supplier_address_versions','clinic_encounter_note_revisions','clinic_encounter_note_signatures','clinic_encounter_completion_reviews',
     'clinic_observation_sources','clinic_payment_events','clinic_payment_allocations','clinic_credit_notes','clinic_refund_events','clinic_coverage_versions',
     'clinic_subscription_versions','clinic_subscription_agreements','clinic_subscription_events','clinic_stripe_membership_cycles',
     'clinic_message_intents','clinic_message_attachments','clinic_message_delivery_events','clinic_invoice_lines','clinic_insurance_claims'] LOOP

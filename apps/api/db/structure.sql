@@ -51,6 +51,19 @@ $$;
 
 
 --
+-- Name: clinic_encounter_completion_reviews_immutable(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_encounter_completion_reviews_immutable() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Encounter completion reviews are append-only';
+END;
+$$;
+
+
+--
 -- Name: clinic_enforce_invoice_status_transition(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2730,6 +2743,54 @@ CREATE SEQUENCE public.clinic_documents_id_seq
 --
 
 ALTER SEQUENCE public.clinic_documents_id_seq OWNED BY public.clinic_documents.id;
+
+
+--
+-- Name: clinic_encounter_completion_reviews; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_encounter_completion_reviews (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    follow_up_id bigint NOT NULL,
+    follow_up_version integer NOT NULL,
+    follow_up_state character varying NOT NULL,
+    instruction_note_id bigint,
+    instruction_note_revision_id bigint,
+    disposition_code character varying NOT NULL,
+    instructions_status character varying CONSTRAINT clinic_encounter_completion_review_instructions_status_not_null NOT NULL,
+    education_status character varying NOT NULL,
+    education_event_ids bigint[] DEFAULT '{}'::bigint[] CONSTRAINT clinic_encounter_completion_review_education_event_ids_not_null NOT NULL,
+    open_work_snapshot jsonb DEFAULT '[]'::jsonb NOT NULL,
+    exception_note text,
+    recorded_by_membership_id bigint CONSTRAINT clinic_encounter_completion__recorded_by_membership_id_not_null NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    request_key character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_completion_reviews_evidence CHECK ((((disposition_code)::text = ANY ((ARRAY['completed_as_planned'::character varying, 'left_before_completion'::character varying, 'transferred_to_higher_level_of_care'::character varying, 'emergency_services'::character varying, 'other'::character varying])::text[])) AND ((instructions_status)::text = ANY ((ARRAY['provided'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((education_status)::text = ANY ((ARRAY['recorded'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((follow_up_state)::text = ANY ((ARRAY['not_required'::character varying, 'needed'::character varying, 'arranged'::character varying, 'completed'::character varying])::text[])) AND (follow_up_version >= 0) AND (jsonb_typeof(open_work_snapshot) = 'array'::text) AND ((((instructions_status)::text = 'provided'::text) AND (instruction_note_id IS NOT NULL) AND (instruction_note_revision_id IS NOT NULL)) OR (((instructions_status)::text <> 'provided'::text) AND (instruction_note_id IS NULL) AND (instruction_note_revision_id IS NULL))) AND ((((education_status)::text = 'recorded'::text) AND (cardinality(education_event_ids) > 0)) OR (((education_status)::text <> 'recorded'::text) AND (cardinality(education_event_ids) = 0))) AND ((((disposition_code)::text = 'completed_as_planned'::text) AND ((instructions_status)::text <> 'unable_to_complete'::text) AND ((education_status)::text <> 'unable_to_complete'::text)) OR (exception_note IS NOT NULL))))
+);
+
+
+--
+-- Name: clinic_encounter_completion_reviews_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_encounter_completion_reviews_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_encounter_completion_reviews_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_encounter_completion_reviews_id_seq OWNED BY public.clinic_encounter_completion_reviews.id;
 
 
 --
@@ -11245,6 +11306,13 @@ ALTER TABLE ONLY public.clinic_documents ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: clinic_encounter_completion_reviews id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews ALTER COLUMN id SET DEFAULT nextval('public.clinic_encounter_completion_reviews_id_seq'::regclass);
+
+
+--
 -- Name: clinic_encounter_diagnosis_revisions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -12851,6 +12919,14 @@ ALTER TABLE ONLY public.clinic_document_categories
 
 ALTER TABLE ONLY public.clinic_documents
     ADD CONSTRAINT clinic_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews clinic_encounter_completion_reviews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT clinic_encounter_completion_reviews_pkey PRIMARY KEY (id);
 
 
 --
@@ -14737,6 +14813,34 @@ CREATE UNIQUE INDEX clinic_communication_preferences_version ON public.clinic_co
 
 
 --
+-- Name: clinic_completion_reviews_education; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_completion_reviews_education ON public.clinic_encounter_completion_reviews USING gin (education_event_ids);
+
+
+--
+-- Name: clinic_completion_reviews_encounter; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_completion_reviews_encounter ON public.clinic_encounter_completion_reviews USING btree (practice_id, encounter_id);
+
+
+--
+-- Name: clinic_completion_reviews_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_completion_reviews_practice_id ON public.clinic_encounter_completion_reviews USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_completion_reviews_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_completion_reviews_request ON public.clinic_encounter_completion_reviews USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
 -- Name: clinic_conditions_patient_data_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -14846,6 +14950,13 @@ CREATE UNIQUE INDEX clinic_documents_patient_id ON public.clinic_documents USING
 --
 
 CREATE UNIQUE INDEX clinic_documents_practice_id ON public.clinic_documents USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_encounter_follow_ups_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_follow_ups_practice_id ON public.clinic_encounter_follow_ups USING btree (practice_id, id);
 
 
 --
@@ -19511,6 +19622,13 @@ CREATE TRIGGER clinic_documents_preserve_identity BEFORE UPDATE ON public.clinic
 
 
 --
+-- Name: clinic_encounter_completion_reviews clinic_encounter_completion_reviews_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_encounter_completion_reviews_immutable BEFORE DELETE OR UPDATE ON public.clinic_encounter_completion_reviews FOR EACH ROW EXECUTE FUNCTION public.clinic_encounter_completion_reviews_immutable();
+
+
+--
 -- Name: clinic_encounter_diagnosis_revisions clinic_encounter_diagnosis_revisions_protect; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -21484,6 +21602,62 @@ ALTER TABLE ONLY public.clinic_communication_endpoints
 
 ALTER TABLE ONLY public.clinic_communication_preferences
     ADD CONSTRAINT fk_communication_preferences_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_follow_up; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_follow_up FOREIGN KEY (practice_id, follow_up_id) REFERENCES public.clinic_encounter_follow_ups(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_instruction_note; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_instruction_note FOREIGN KEY (practice_id, instruction_note_id) REFERENCES public.clinic_encounter_notes(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_instruction_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_instruction_revision FOREIGN KEY (practice_id, instruction_note_id, instruction_note_revision_id) REFERENCES public.clinic_encounter_note_revisions(practice_id, note_id, id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_encounter_completion_reviews fk_completion_reviews_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_encounter_completion_reviews
+    ADD CONSTRAINT fk_completion_reviews_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -27005,6 +27179,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260910002100'),
 ('20260910002000'),
 ('20260910001900'),
 ('20260910001800'),

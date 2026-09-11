@@ -3,6 +3,8 @@ import type {
   Clinician,
   ClinicWorkspaceContext,
   Encounter,
+  EncounterCompletionResponse,
+  EncounterCompletionReview,
   EncounterDetail,
   EncounterNote,
   FacilityRoom,
@@ -191,8 +193,28 @@ export function noteSaveRequestBody(
         };
 }
 
-export function closeRequestBody(patientId: number, requestKey: string) {
-  return { close: { patient_id: patientId, request_key: requestKey } };
+type EncounterCompletionInput = {
+  disposition_code: EncounterCompletionReview["disposition_code"];
+  instructions_status: EncounterCompletionReview["instructions_status"];
+  education_status: EncounterCompletionReview["education_status"];
+  follow_up_id: number;
+  follow_up_version: number;
+  expected_follow_up_state: EncounterCompletionReview["follow_up_state"];
+  instruction_note_revision_id: number | null;
+  expected_education_event_ids: number[];
+  expected_open_task_versions: string[];
+  open_work_reviewed: boolean;
+  exception_note: string | null;
+};
+
+export function closeRequestBody(
+  patientId: number,
+  requestKey: string,
+  completion: EncounterCompletionInput,
+) {
+  return {
+    close: { patient_id: patientId, request_key: requestKey, ...completion },
+  };
 }
 
 export function closeFailureState(
@@ -3576,6 +3598,35 @@ type CloseState =
   | "rejected"
   | "committed";
 
+const COMPLETION_DISPOSITION_LABELS: Record<
+  EncounterCompletionReview["disposition_code"],
+  string
+> = {
+  completed_as_planned: "Completed as planned",
+  left_before_completion: "Patient left before completion",
+  transferred_to_higher_level_of_care: "Transferred to a higher level of care",
+  emergency_services: "Emergency services involved",
+  other: "Other recorded outcome",
+};
+
+const COMPLETION_INSTRUCTION_LABELS: Record<
+  EncounterCompletionReview["instructions_status"],
+  string
+> = {
+  provided: "Signed written instructions provided",
+  not_required: "Written instructions not required",
+  unable_to_complete: "Unable to provide written instructions",
+};
+
+const COMPLETION_EDUCATION_LABELS: Record<
+  EncounterCompletionReview["education_status"],
+  string
+> = {
+  recorded: "Education and teach-back recorded",
+  not_required: "Education not required for this visit",
+  unable_to_complete: "Unable to complete education",
+};
+
 function VisitWrapUp({
   patient,
   encounter,
@@ -3588,7 +3639,14 @@ function VisitWrapUp({
   onEncounterRefresh?: () => void;
 }) {
   const context = useClinic();
+  const completionPath = `/api/clinic/encounters/${encounter.id}/completion?patient_id=${patient.id}`;
+  const completionResource = useResource<EncounterCompletionResponse>(
+    completionPath,
+    { retainDataOnRefresh: true },
+  );
   const [completed, setCompleted] = useState<EncounterDetail | null>(null);
+  const [savedReview, setSavedReview] =
+    useState<EncounterCompletionReview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [closeState, setCloseState] = useState<CloseState>("idle");
@@ -3597,7 +3655,36 @@ function VisitWrapUp({
   );
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const requestKeyRef = useRef<string | null>(null);
+  const initializedEncounterRef = useRef<number | null>(null);
+  const [disposition, setDisposition] = useState<
+    EncounterCompletionReview["disposition_code"]
+  >("completed_as_planned");
+  const [instructionsStatus, setInstructionsStatus] =
+    useState<EncounterCompletionReview["instructions_status"]>("not_required");
+  const [educationStatus, setEducationStatus] =
+    useState<EncounterCompletionReview["education_status"]>("not_required");
+  const [exceptionNote, setExceptionNote] = useState("");
+  const [openWorkReviewed, setOpenWorkReviewed] = useState(false);
   const current = completed ?? encounter;
+  const completion = completionResource.data;
+  const evidence = completion?.evidence;
+  const review = savedReview ?? completion?.completion_review ?? null;
+  const formLocked = busy || closeState !== "idle";
+  const exceptionRequired =
+    disposition !== "completed_as_planned" ||
+    instructionsStatus === "unable_to_complete" ||
+    educationStatus === "unable_to_complete";
+
+  useEffect(() => {
+    if (!completion || initializedEncounterRef.current === encounter.id) return;
+    initializedEncounterRef.current = encounter.id;
+    setInstructionsStatus(
+      completion.evidence.signed_instruction ? "provided" : "not_required",
+    );
+    setEducationStatus(
+      completion.evidence.education_events.length ? "recorded" : "not_required",
+    );
+  }, [completion, encounter.id]);
 
   const redirectIfUnauthorized = (caught: unknown) => {
     if (caught instanceof ApiError && caught.status === 401) {
@@ -3611,38 +3698,118 @@ function VisitWrapUp({
 
   const reconcileCommittedClose = async () => {
     setCloseState("reconciling");
-    const result = await api<{ encounter: EncounterDetail }>(
-      encounterDetailPath(patient.id, encounter.id),
-    );
-    if (!encounterCloseMatches(result.encounter, patient.id, encounter.id)) {
+    const [encounterResult, completionResult] = await Promise.all([
+      api<{ encounter: EncounterDetail }>(
+        encounterDetailPath(patient.id, encounter.id),
+      ),
+      api<EncounterCompletionResponse>(completionPath),
+    ]);
+    if (
+      !encounterCloseMatches(
+        encounterResult.encounter,
+        patient.id,
+        encounter.id,
+      )
+    ) {
       throw new Error(
         "The refreshed encounter did not match this patient, encounter, and completed status.",
       );
     }
-    setCompleted(result.encounter);
+    if (
+      !completionResult.completion_review ||
+      completionResult.patient_id !== patient.id ||
+      completionResult.encounter_id !== encounter.id
+    ) {
+      throw new Error(
+        "The encounter ended, but its completion review could not be confirmed.",
+      );
+    }
+    setCompleted(encounterResult.encounter);
+    setSavedReview(completionResult.completion_review);
     setCloseState("committed");
     requestKeyRef.current = null;
     setRequestKey(null);
+    completionResource.refresh();
     onEncounterRefresh?.();
   };
 
   const endVisit = async () => {
-    if (busy || closeState !== "idle") return;
+    if (busy || closeState !== "idle" || !completion || !evidence) return;
+    if (!evidence.follow_up) {
+      setError(
+        "Save the encounter follow-up disposition before completing this visit.",
+      );
+      return;
+    }
+    if (!openWorkReviewed) {
+      setError(
+        "Review the unfinished work and its current owner before completing this visit.",
+      );
+      return;
+    }
+    if (instructionsStatus === "provided" && !evidence.signed_instruction) {
+      setError(
+        "No signed patient-instruction revision is available. Refresh the checklist or choose another status.",
+      );
+      return;
+    }
+    if (
+      educationStatus === "recorded" &&
+      evidence.education_events.length === 0
+    ) {
+      setError(
+        "No patient education event is available. Refresh the checklist or choose another status.",
+      );
+      return;
+    }
+    if (exceptionRequired && !exceptionNote.trim()) {
+      setError("Record what happened for this completion exception.");
+      return;
+    }
     setConfirmation(null);
     const key = closeRequestKey(requestKeyRef.current);
     requestKeyRef.current = key;
     setRequestKey(key);
+    const body = closeRequestBody(patient.id, key, {
+      disposition_code: disposition,
+      instructions_status: instructionsStatus,
+      education_status: educationStatus,
+      follow_up_id: evidence.follow_up.id,
+      follow_up_version: evidence.follow_up.version,
+      expected_follow_up_state: evidence.follow_up.status,
+      instruction_note_revision_id:
+        instructionsStatus === "provided"
+          ? (evidence.signed_instruction?.revision_id ?? null)
+          : null,
+      expected_education_event_ids: evidence.education_events.map(
+        (event) => event.id,
+      ),
+      expected_open_task_versions: evidence.open_tasks.map(
+        (task) => `${task.id}:${task.version}`,
+      ),
+      open_work_reviewed: openWorkReviewed,
+      exception_note: exceptionNote.trim() || null,
+    });
     setBusy(true);
     setError("");
     setCloseState("closing");
     try {
-      await api<{ encounter: EncounterDetail }>(
-        `/api/clinic/encounters/${encounter.id}/close`,
-        {
-          method: "POST",
-          body: closeRequestBody(patient.id, key),
-        },
-      );
+      const result = await api<{
+        encounter: EncounterDetail;
+        completion_review: EncounterCompletionReview;
+      }>(`/api/clinic/encounters/${encounter.id}/close`, {
+        method: "POST",
+        body,
+      });
+      if (
+        result.completion_review.patient_id !== patient.id ||
+        result.completion_review.encounter_id !== encounter.id
+      ) {
+        throw new Error(
+          "The saved completion review did not match this patient encounter.",
+        );
+      }
+      setSavedReview(result.completion_review);
       await reconcileCommittedClose();
     } catch (caught) {
       if (redirectIfUnauthorized(caught)) return;
@@ -3737,77 +3904,304 @@ function VisitWrapUp({
   };
 
   return (
-    <Paper
-      id="chart-completion"
-      variant="outlined"
-      sx={{ p: 2, scrollMarginTop: 16 }}
-    >
-      <Stack spacing={1.25}>
-        <Typography variant="subtitle2">Visit wrap-up</Typography>
-        {current.status === "completed" ? (
-          <Alert severity="success" role="status" aria-live="polite">
-            Encounter ended {clinicDateTime(current.ended_at, timezone)}. Note
-            signing, discharge, checkout, and handoff remain separate.
-          </Alert>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            Close after saving documentation. This records the encounter end
-            time only; note signing, discharge, checkout, and handoff remain
-            separate.
-          </Typography>
-        )}
-        {error && <ErrorMessage message={error} />}
-        {closeState === "reconciling" && (
-          <Box role="status" aria-live="polite" aria-atomic="true">
-            Verifying the committed close against this patient and encounter…
-          </Box>
-        )}
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          {current.status === "open" && context.capabilities.encounters && (
-            <Button
-              variant="contained"
-              color="warning"
-              onClick={() => setConfirmation("close")}
-              disabled={busy || closeState !== "idle"}
-            >
-              {busy ? "Closing encounter…" : "Close encounter"}
-            </Button>
-          )}
-          {requestKey && closeState !== "committed" && (
-            <Button
-              variant="outlined"
-              onClick={() => void checkCloseStatus()}
-              disabled={busy}
-            >
-              {busy && closeState !== "closing"
-                ? "Checking close status…"
-                : "Check close status"}
-            </Button>
-          )}
-          {requestKey && closeState !== "committed" && !busy && (
-            <Button variant="text" onClick={() => setConfirmation("reset")}>
-              Reset close attempt
-            </Button>
-          )}
-          <Button href="/clinic" variant="outlined">
-            Return to tracking board
-          </Button>
-          {current.status === "completed" &&
-            context.capabilities.billing_read === true && (
-              <Button
-                href={`/clinic/billing/patients?patient_id=${patient.id}&encounter_id=${current.id}`}
-                variant="contained"
-              >
-                Continue to checkout
-              </Button>
-            )}
-        </Stack>
-      </Stack>
+    <Stack spacing={2}>
       <EncounterFollowUpPanel
         patient={patient}
         encounter={current}
         timezone={timezone}
+        onChanged={completionResource.refresh}
       />
+      <Paper
+        id="chart-completion"
+        variant="outlined"
+        sx={{ p: 2, scrollMarginTop: 16 }}
+      >
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle2">Visit completion review</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Confirm the recorded outcome, follow-up, patient information, and
+              ownership of unfinished work before ending the encounter. This is
+              not clinical discharge authorization.
+            </Typography>
+          </Box>
+          {completionResource.error && (
+            <Alert
+              severity="error"
+              action={
+                <Button onClick={completionResource.refresh}>Retry</Button>
+              }
+            >
+              The completion checklist could not be loaded.{" "}
+              {completionResource.error}
+            </Alert>
+          )}
+          {!completion && !completionResource.error && <LoadState />}
+          {current.status === "completed" && review ? (
+            <>
+              <Alert severity="success" role="status" aria-live="polite">
+                Completion review recorded and encounter ended{" "}
+                {clinicDateTime(current.ended_at, timezone)}.
+              </Alert>
+              <Stack spacing={0.5} component="dl" sx={{ m: 0 }}>
+                <Typography
+                  component="dt"
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Recorded outcome
+                </Typography>
+                <Typography component="dd" sx={{ m: 0 }}>
+                  {COMPLETION_DISPOSITION_LABELS[review.disposition_code]}
+                </Typography>
+                <Typography
+                  component="dt"
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Follow-up
+                </Typography>
+                <Typography component="dd" sx={{ m: 0 }}>
+                  {statusLabel(review.follow_up_state)}
+                </Typography>
+                <Typography
+                  component="dt"
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Patient information
+                </Typography>
+                <Typography component="dd" sx={{ m: 0 }}>
+                  {COMPLETION_INSTRUCTION_LABELS[review.instructions_status]} ·{" "}
+                  {COMPLETION_EDUCATION_LABELS[review.education_status]}
+                </Typography>
+                <Typography
+                  component="dt"
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Unfinished work retained
+                </Typography>
+                <Typography component="dd" sx={{ m: 0 }}>
+                  {review.open_work_snapshot.length} open task
+                  {review.open_work_snapshot.length === 1 ? "" : "s"}
+                </Typography>
+              </Stack>
+            </>
+          ) : current.status === "completed" ? (
+            <Alert severity="warning">
+              This encounter is closed without a linked completion review.
+              Follow-up, instructions, education, and unfinished-work evidence
+              must be reviewed separately.
+            </Alert>
+          ) : completion ? (
+            <>
+              {!completion.evidence.follow_up && (
+                <Alert severity="warning">
+                  Save the encounter follow-up disposition above before
+                  completing the visit.
+                </Alert>
+              )}
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Recorded visit outcome"
+                  value={disposition}
+                  onChange={(event) =>
+                    setDisposition(
+                      event.target
+                        .value as EncounterCompletionReview["disposition_code"],
+                    )
+                  }
+                  disabled={formLocked}
+                >
+                  {completion.options.disposition_codes.map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {COMPLETION_DISPOSITION_LABELS[value]}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  fullWidth
+                  label="Written instructions"
+                  value={instructionsStatus}
+                  onChange={(event) =>
+                    setInstructionsStatus(
+                      event.target
+                        .value as EncounterCompletionReview["instructions_status"],
+                    )
+                  }
+                  disabled={formLocked}
+                >
+                  {completion.options.instructions_statuses.map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {COMPLETION_INSTRUCTION_LABELS[value]}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  fullWidth
+                  label="Education and teach-back"
+                  value={educationStatus}
+                  onChange={(event) =>
+                    setEducationStatus(
+                      event.target
+                        .value as EncounterCompletionReview["education_status"],
+                    )
+                  }
+                  disabled={formLocked}
+                >
+                  {completion.options.education_statuses.map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {COMPLETION_EDUCATION_LABELS[value]}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
+              <Alert
+                severity={
+                  completion.evidence.signed_instruction ? "info" : "warning"
+                }
+              >
+                {completion.evidence.signed_instruction
+                  ? `Signed written instructions are available from note revision ${completion.evidence.signed_instruction.revision_no}.`
+                  : "No signed note revision with written patient instructions is available."}
+              </Alert>
+              <Alert
+                severity={
+                  completion.evidence.education_events.length
+                    ? "info"
+                    : "warning"
+                }
+              >
+                {completion.evidence.education_events.length
+                  ? `${completion.evidence.education_events.length} education record${completion.evidence.education_events.length === 1 ? "" : "s"} will be linked to this completion review.`
+                  : "No education or teach-back record is available for this encounter."}
+              </Alert>
+              <Box>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{
+                    alignItems: { sm: "center" },
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography variant="subtitle2">
+                    Unfinished work ownership
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={completionResource.refresh}
+                    disabled={formLocked}
+                  >
+                    Refresh checklist
+                  </Button>
+                </Stack>
+                {completion.evidence.open_tasks.length ? (
+                  <Stack component="ul" spacing={0.5} sx={{ pl: 3, mb: 1 }}>
+                    {completion.evidence.open_tasks.map((task) => (
+                      <Typography component="li" variant="body2" key={task.id}>
+                        {statusLabel(task.task_kind)} ·{" "}
+                        {statusLabel(task.state)} ·{" "}
+                        {task.assigned_to_membership_id
+                          ? "Assigned staff member"
+                          : `${statusLabel(task.pool_code)} pool`}
+                      </Typography>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ my: 1 }}
+                  >
+                    No open encounter tasks are recorded.
+                  </Typography>
+                )}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={openWorkReviewed}
+                      onChange={(event) =>
+                        setOpenWorkReviewed(event.target.checked)
+                      }
+                      disabled={formLocked}
+                    />
+                  }
+                  label="I reviewed the current owner or pool for every unfinished item. These tasks remain open after encounter completion."
+                />
+              </Box>
+              {exceptionRequired && (
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  label="Completion exception note"
+                  value={exceptionNote}
+                  onChange={(event) => setExceptionNote(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 2000 } }}
+                  required
+                  disabled={formLocked}
+                  helperText="Record what happened and the immediate operational handoff. Do not copy the clinical note."
+                />
+              )}
+            </>
+          ) : null}
+          {error && <ErrorMessage message={error} />}
+          {closeState === "reconciling" && (
+            <Box role="status" aria-live="polite" aria-atomic="true">
+              Verifying the committed completion review against this patient and
+              encounter…
+            </Box>
+          )}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            {current.status === "open" &&
+              context.capabilities.encounters &&
+              completion?.can_complete && (
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => setConfirmation("close")}
+                  disabled={formLocked || !completion.evidence.follow_up}
+                >
+                  {busy ? "Completing encounter…" : "Complete encounter"}
+                </Button>
+              )}
+            {requestKey && closeState !== "committed" && (
+              <Button
+                variant="outlined"
+                onClick={() => void checkCloseStatus()}
+                disabled={busy}
+              >
+                {busy && closeState !== "closing"
+                  ? "Checking completion status…"
+                  : "Check completion status"}
+              </Button>
+            )}
+            {requestKey && closeState !== "committed" && !busy && (
+              <Button variant="text" onClick={() => setConfirmation("reset")}>
+                Reset completion attempt
+              </Button>
+            )}
+            <Button href="/clinic" variant="outlined">
+              Return to tracking board
+            </Button>
+            {current.status === "completed" &&
+              context.capabilities.billing_read === true && (
+                <Button
+                  href={`/clinic/billing/patients?patient_id=${patient.id}&encounter_id=${current.id}`}
+                  variant="contained"
+                >
+                  Continue to checkout
+                </Button>
+              )}
+          </Stack>
+        </Stack>
+      </Paper>
       <Dialog
         open={confirmation !== null}
         onClose={() => !busy && setConfirmation(null)}
@@ -3817,8 +4211,8 @@ function VisitWrapUp({
       >
         <DialogTitle id="encounter-close-title">
           {confirmation === "reset"
-            ? "Reset close attempt?"
-            : "Close encounter?"}
+            ? "Reset completion attempt?"
+            : "Complete encounter?"}
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 1 }}>
@@ -3826,8 +4220,8 @@ function VisitWrapUp({
           </Typography>
           <Typography color="text.secondary">
             {confirmation === "reset"
-              ? "Resetting clears this local close attempt. Verify the encounter status before trying to close it again."
-              : "Save your note changes before continuing. Closing records the encounter end time; you can continue to checkout afterward."}
+              ? "Resetting clears this local attempt. Verify the encounter and completion-review status before trying again."
+              : "This records the completion review, ends the encounter, completes the linked appointment when applicable, and makes the visit eligible for checkout. Open tasks remain open with their recorded owner or pool."}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -3842,11 +4236,11 @@ function VisitWrapUp({
               confirmation === "reset" ? resetCloseAttempt() : void endVisit()
             }
           >
-            {confirmation === "reset" ? "Reset attempt" : "Confirm close"}
+            {confirmation === "reset" ? "Reset attempt" : "Confirm completion"}
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </Stack>
   );
 }
 

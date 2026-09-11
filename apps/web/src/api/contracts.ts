@@ -1154,6 +1154,78 @@ export type EncounterDetail = Encounter & {
   observation_count: number;
   document_count: number;
 };
+export type EncounterCompletionTaskSnapshot = {
+  id: number;
+  version: number;
+  task_kind: ClinicalTask["task_kind"];
+  state: "open" | "claimed" | "in_progress";
+  pool_code: ClinicalTask["pool_code"];
+  assigned_to_membership_id: number | null;
+  due_at: string | null;
+};
+export type EncounterCompletionReview = {
+  id: number;
+  patient_id: number;
+  encounter_id: number;
+  disposition_code:
+    | "completed_as_planned"
+    | "left_before_completion"
+    | "transferred_to_higher_level_of_care"
+    | "emergency_services"
+    | "other";
+  instructions_status: "provided" | "not_required" | "unable_to_complete";
+  education_status: "recorded" | "not_required" | "unable_to_complete";
+  follow_up_id: number;
+  follow_up_version: number;
+  follow_up_state: "not_required" | "needed" | "arranged" | "completed";
+  instruction_note_revision_id: number | null;
+  education_event_ids: number[];
+  open_work_snapshot: EncounterCompletionTaskSnapshot[];
+  exception_note: string | null;
+  recorded_by_membership_id: number;
+  recorded_at: string;
+};
+export type EncounterCompletionEvidence = {
+  follow_up: {
+    id: number;
+    status: "not_required" | "needed" | "arranged" | "completed";
+    recorded_status: "not_required" | "needed" | "arranged" | "completed";
+    version: number;
+    due_at: string | null;
+    assigned_to_membership_id: number | null;
+  } | null;
+  signed_instruction: {
+    note_id: number;
+    revision_id: number;
+    revision_no: number;
+    signed_at: string | null;
+  } | null;
+  education_events: {
+    id: number;
+    topic_title: string;
+    teach_back_status: string;
+    follow_up_needed: boolean;
+    recorded_at: string;
+  }[];
+  open_tasks: EncounterCompletionTaskSnapshot[];
+  checkout: {
+    status: "pending_completion" | "queued" | "in_progress";
+    invoice_id: number | null;
+  };
+};
+export type EncounterCompletionResponse = {
+  schema_version: "encounter-completion-v1";
+  patient_id: number;
+  encounter_id: number;
+  completion_review: EncounterCompletionReview | null;
+  evidence: EncounterCompletionEvidence;
+  options: {
+    disposition_codes: EncounterCompletionReview["disposition_code"][];
+    instructions_statuses: EncounterCompletionReview["instructions_status"][];
+    education_statuses: EncounterCompletionReview["education_status"][];
+  };
+  can_complete: boolean;
+};
 export type SoapNoteSections = {
   subjective: string;
   objective: string;

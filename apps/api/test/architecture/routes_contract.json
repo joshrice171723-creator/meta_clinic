@@ -16,8 +16,8 @@
   ],
   [
     "api_clinic",
-    "PATCH",
-    "/api/clinic/facilities/:id(.:format)"
+    "GET",
+    "/api/clinic/working_drafts/:kind(.:format)"
   ],
   [
     "api_clinic_appointment",
@@ -48,6 +48,11 @@
     "api_clinic_billing_services",
     "GET",
     "/api/clinic/billing_services(.:format)"
+  ],
+  [
+    "api_clinic_billing_support_requests",
+    "GET",
+    "/api/clinic/billing/support_requests(.:format)"
   ],
   [
     "api_clinic_cash_drawers",
@@ -285,6 +290,11 @@
     "/api/clinic/operation_receipts/:request_key(.:format)"
   ],
   [
+    "api_clinic_operations",
+    "PATCH",
+    "/api/clinic/operations/encounter_follow_ups/:id(.:format)"
+  ],
+  [
     "api_clinic_operations_follow_ups",
     "GET",
     "/api/clinic/operations/follow_ups(.:format)"
@@ -318,6 +328,11 @@
     "api_clinic_patient_documents",
     "GET",
     "/api/clinic/patients/:patient_id/documents(.:format)"
+  ],
+  [
+    "api_clinic_patient_encounter_education_events",
+    "GET",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/education_events(.:format)"
   ],
   [
     "api_clinic_patient_encounter_previsit_note",
@@ -403,6 +418,11 @@
     "api_clinic_pharmacy_movement",
     "POST",
     "/api/clinic/pharmacy_batches/:id/movement(.:format)"
+  ],
+  [
+    "api_clinic_practice_features",
+    "GET",
+    "/api/clinic/practice_features(.:format)"
   ],
   [
     "api_clinic_reminder",
@@ -518,6 +538,46 @@
     "api_clinic_subscriptions",
     "GET",
     "/api/clinic/subscriptions(.:format)"
+  ],
+  [
+    "api_clinic_telehealth",
+    "GET",
+    "/api/clinic/telehealth/visits/:visit_id(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_booking_options",
+    "GET",
+    "/api/clinic/telehealth/booking_options(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_settings",
+    "GET",
+    "/api/clinic/telehealth/settings(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_settings_check_connection",
+    "POST",
+    "/api/clinic/telehealth/settings/check_connection(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_settings_disable",
+    "POST",
+    "/api/clinic/telehealth/settings/disable(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_settings_draft",
+    "PUT",
+    "/api/clinic/telehealth/settings/draft(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_settings_publish",
+    "POST",
+    "/api/clinic/telehealth/settings/publish(.:format)"
+  ],
+  [
+    "api_clinic_telehealth_visits",
+    "GET",
+    "/api/clinic/telehealth/visits(.:format)"
   ],
   [
     "api_clinic_tracking_board",
@@ -675,6 +735,16 @@
     "/api/inquiries(.:format)"
   ],
   [
+    "api_integrations_telehealth_daily_events",
+    "POST",
+    "/api/integrations/telehealth/daily/events(.:format)"
+  ],
+  [
+    "api_integrations_telehealth_twilio_events",
+    "POST",
+    "/api/integrations/telehealth/twilio/events(.:format)"
+  ],
+  [
     "api_material",
     "GET",
     "/api/materials/:id(.:format)"
@@ -698,6 +768,11 @@
     "api_patient_portal",
     "GET",
     "/api/patient_portal/visit_instructions/:encounter_id(.:format)"
+  ],
+  [
+    "api_patient_portal_account_password",
+    "PATCH",
+    "/api/patient_portal/account/password(.:format)"
   ],
   [
     "api_patient_portal_appointment_confirmation",
@@ -763,6 +838,11 @@
     "api_patient_portal_subscriptions",
     "GET",
     "/api/patient_portal/subscriptions(.:format)"
+  ],
+  [
+    "api_patient_portal_telehealth",
+    "GET",
+    "/api/patient_portal/telehealth/visits/:visit_id(.:format)"
   ],
   [
     "api_patient_portal_visit_instructions",
@@ -883,6 +963,11 @@
     "complete_follow_up_api_clinic_patient_lab_report",
     "POST",
     "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/follow_up/complete(.:format)"
+  ],
+  [
+    "completion_api_clinic_encounter",
+    "GET",
+    "/api/clinic/encounters/:id/completion(.:format)"
   ],
   [
     "consent_api_clinic_scribe_encounter",
@@ -1272,6 +1357,11 @@
   [
     null,
     "GET",
+    "/api/clinic/encounters/:encounter_id/follow_up(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/inventory/purchase-orders/:id(.:format)"
   ],
   [
@@ -1302,6 +1392,11 @@
   [
     null,
     "GET",
+    "/api/clinic/telehealth/visits/:visit_id/scribe_context(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/workforce/payroll-exports/:id/download(.:format)"
   ],
   [
@@ -1328,6 +1423,11 @@
     null,
     "PATCH",
     "/api/clinic/context(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/facilities/:id(.:format)"
   ],
   [
     null,
@@ -1412,6 +1512,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/practice_features(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/staff-messaging/preferences(.:format)"
   ],
   [
@@ -1438,6 +1543,11 @@
     null,
     "POST",
     "/api/clinic/appointments(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/billing/support_requests/:id/transition(.:format)"
   ],
   [
     null,
@@ -1647,17 +1757,22 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/education_events(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/handoffs(.:format)"
   ],
   [
     null,
     "POST",
-    "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_revisions(.:format)"
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/immunizations(.:format)"
   ],
   [
     null,
     "POST",
-    "/api/clinic/patients/:patient_id/encounters/:encounter_id/immunizations(.:format)"
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_revisions(.:format)"
   ],
   [
     null,
@@ -1797,6 +1912,106 @@
   [
     null,
     "POST",
+    "/api/clinic/telehealth/visits/:visit_id/end(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/extend(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/finalize_wrap_up(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/join_grant(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/leave(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/participants(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/participants/:id/admit(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/participants/:id/remove(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/prepare_room(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/reconcile(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/release_scribe_capture(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/renew_scribe_capture(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/request_scribe(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/resume(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/save_wrap_up(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/scribe_consent(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/start_encounter(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/start_scribe_capture(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/take_over_scribe_capture(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/telehealth/visits/:visit_id/verify_preparation(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/workforce/adjustments(.:format)"
   ],
   [
@@ -1872,6 +2087,36 @@
   [
     null,
     "POST",
+    "/api/patient_portal/telehealth/visits/:visit_id/checkins(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/telehealth/visits/:visit_id/consents(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/telehealth/visits/:visit_id/enter_waiting_room(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/telehealth/visits/:visit_id/join_grant(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/telehealth/visits/:visit_id/leave(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/patient_portal/telehealth/visits/:visit_id/scribe_consent(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/session(.:format)"
   ],
   [
@@ -1887,12 +2132,22 @@
   [
     null,
     "PUT",
+    "/api/clinic/encounters/:encounter_id/follow_up(.:format)"
+  ],
+  [
+    null,
+    "PUT",
     "/api/clinic/patients/:id(.:format)"
   ],
   [
     null,
     "PUT",
     "/api/clinic/pharmacy/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/practice_features(.:format)"
   ],
   [
     null,
@@ -1913,6 +2168,11 @@
     null,
     "PUT",
     "/api/clinic/workforce/settings(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/working_drafts/:kind(.:format)"
   ],
   [
     null,

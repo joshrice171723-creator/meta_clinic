@@ -106,10 +106,12 @@ export function EncounterFollowUpPanel({
   patient,
   encounter,
   timezone,
+  onChanged,
 }: {
   patient: Patient;
   encounter: EncounterDetail;
   timezone: string;
+  onChanged?: () => void;
 }) {
   const { capabilities } = useClinic();
   const canWrite = capabilities.encounters === true;
@@ -301,6 +303,7 @@ export function EncounterFollowUpPanel({
           : "Follow-up reopened.",
       );
       resource.refresh();
+      onChanged?.();
     } catch (reason) {
       const unknown =
         !(reason instanceof ApiError) ||
@@ -460,6 +463,7 @@ export function EncounterFollowUpPanel({
         );
       }
       resource.refresh();
+      onChanged?.();
     } catch (reason) {
       setError(
         reason instanceof Error

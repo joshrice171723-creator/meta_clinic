@@ -1,7 +1,7 @@
 module Clinic
   module Scheduling
     class EncountersController < Clinic::ApiController
-      before_action -> { require_capability("patients.read") }, only: %i[index show]
+      before_action -> { require_capability("patients.read") }, only: %i[index show completion]
       # Mutation services authorize the actual site and action.
 
       def index
@@ -39,16 +39,42 @@ module Clinic
       end
 
       def close
-        input = parameter_hash!(:close, %i[patient_id ended_at request_key])
+        input = parameter_hash!(:close, %i[
+          patient_id ended_at request_key disposition_code instructions_status education_status follow_up_id
+          follow_up_version expected_follow_up_state instruction_note_revision_id open_work_reviewed exception_note
+        ], arrays: %i[expected_education_event_ids expected_open_task_versions])
         patient_id = requested_id!(input[:patient_id], :patient_id)
         encounter = current_practice.encounters.where(patient_id: patient_id).find(requested_id!(params[:id], :id))
+        completion = {
+          disposition_code: input[:disposition_code], instructions_status: input[:instructions_status],
+          education_status: input[:education_status], follow_up_id: input[:follow_up_id],
+          follow_up_version: input[:follow_up_version],
+          expected_follow_up_state: input[:expected_follow_up_state],
+          instruction_note_revision_id: input[:instruction_note_revision_id],
+          expected_education_event_ids: input[:expected_education_event_ids],
+          expected_open_task_versions: input[:expected_open_task_versions],
+          open_work_reviewed: boolean_param(input[:open_work_reviewed], field: :open_work_reviewed),
+          exception_note: input[:exception_note]
+        }
         updated = Clinic::Scheduling::CloseEncounter.call(
           encounter: encounter,
           actor: current_user,
           ended_at: input[:ended_at].present? ? time_param!(input[:ended_at], field: :ended_at) : nil,
-          request_key: input[:request_key]
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
+          completion:
         )
-        render json: { encounter: serialize_detail(updated) }
+        render json: {
+          encounter: serialize_detail(updated),
+          completion_review: Clinic::Scheduling::EncounterCompletion.serialize(updated.completion_review)
+        }
+      end
+
+      def completion
+        patient_id = requested_id!(params[:patient_id], :patient_id)
+        encounter = current_practice.encounters.where(patient_id:).find(requested_id!(params[:id], :id))
+        render json: Clinic::Scheduling::EncounterCompletion.show(
+          practice: current_practice, actor: current_user, encounter:
+        )
       end
 
       private
