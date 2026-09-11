@@ -18,7 +18,8 @@ class WorkflowPropertyCase
     begin
       invitation = Clinic::PatientPortal::InviteIdentity.call(practice: @practice, patient: patient, user: user, actor: @actor, now: now)
       identity = invitation.fetch(:identity)
-      args = { token: invitation.fetch(:token), accepted_terms: true,
+      args = { token: invitation.fetch(:token), password: "Property-portal-2026!", password_confirmation: "Property-portal-2026!",
+        accepted_terms: true,
         terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION, session: session, now: now }
       case mode
       when "terms" then args[:accepted_terms] = input.fetch("accepted")

@@ -83,12 +83,24 @@ class WorkflowPropertyCase
 
   def lab_contract(input)
     patient = @practice.patients.create!(display_name: "Property Patient", reference: "PROPERTY-LAB")
+    site = @practice.sites.create!(name: "Property laboratory site", code: "LAB-#{SecureRandom.hex(3)}", status: "active")
+    encounter = @practice.encounters.create!(patient: patient, site: site, started_at: 1.hour.ago, status: "open")
+    order = Clinic::Care::ServiceRequestRevision.create!(
+      practice: @practice, patient: patient, encounter: encounter, site: site, series_id: SecureRandom.uuid,
+      version_number: 1, status: "active", recorded_by_membership: @membership, recorded_at: Current.business_time,
+      request_key: SecureRandom.uuid, content_digest: Digest::SHA256.hexdigest(SecureRandom.uuid),
+      request_kind: "lab", intent: "order", priority: "routine", requested_display: "Property laboratory order",
+      destination: "Property laboratory"
+    )
     action = input.fetch("action")
     value = input.fetch("suffix", 1).to_s
     version = {title: "Property lab report", status: "final", collected_at: 2.hours.ago, issued_at: 1.hour.ago,
       results: [{name: "Example measurement", value: value, unit: "example-unit"}]}
     create = {practice: @practice, actor: @actor, patient: patient, request_key: SecureRandom.uuid, confirmed_patient: true,
       source_name: "Example laboratory", external_report_id: SecureRandom.uuid, version: version}
+    create[:service_request_revision_id] = order.id
+    create[:specimen] = { specimen_identifier: "PROPERTY-SPECIMEN", specimen_type_code: "venous-blood",
+      specimen_type_display: "Venous blood", condition_code: "satisfactory" }
     if action == "invalid_create"
       field = input.fetch("field")
       invalid = input.fetch("value")
@@ -118,7 +130,7 @@ class WorkflowPropertyCase
       return {error: error, follow_up: !!first.reload.follow_up}
     end
     if action == "version_retry"
-      args = create.except(:source_name, :external_report_id).merge(report: report, request_key: SecureRandom.uuid,
+      args = create.except(:source_name, :external_report_id, :service_request_revision_id, :specimen).merge(report: report, request_key: SecureRandom.uuid,
         expected_current_version_id: first.id, version: version.merge(status: "corrected", results: [{name: "Example measurement", value: value + " revised"}]))
       second = Clinic::Care::LabReports.append_version(**args).value
       replay = Clinic::Care::LabReports.append_version(**args).value

@@ -19,7 +19,7 @@ class WorkflowPropertyCase
     @actor = User.create!(email_address: "property-#{SecureRandom.hex(8)}@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Property clinic")
     @membership = Clinic::Membership.create!(practice: @practice, user: @actor)
-    grant_permissions!(@membership, "patients.read", "patients.write", "facilities.read", "facilities.write", "notes.read", "notes.write", "notes.sign", "encounters.write", "observations.write", "appointments.read", "appointments.book", "appointments.status_transition", "inventory.read", "inventory.receive", "inventory.adjust", "billing.invoice_draft", "billing.invoice_post", "billing.payment_record")
+    grant_permissions!(@membership, "patients.read", "patients.write", "facilities.read", "facilities.write", "notes.read", "notes.write", "notes.sign", "encounters.write", "observations.write", "service_requests.write", "medication_requests.write", "medication_administrations.write", "appointments.read", "appointments.book", "appointments.status_transition", "inventory.read", "inventory.receive", "inventory.adjust", "billing.invoice_draft", "billing.invoice_post", "billing.payment_record")
     grant_permissions!(@membership, "encounters.assign_provider", "staff_messaging.attach", "staff_messaging.acknowledge", "staff_messaging.read", "documents.read", "roles.manage")
     end
     warn "Property bridge: fixture committed; checking login"
@@ -121,17 +121,30 @@ class WorkflowPropertyCase
     product = @practice.pharmacy_products.create!(name: "Example medication", generic_name: "example", dosage_form: "solution",
       ndc: "00000-0001-01", sku: "PROP-MED", stock_unit: "mL", quantity_scale: 2, package_size: 1, unit_reference: "1 mL vial")
     location = @practice.inventory_locations.create!(site: site, name: "Property bin", kind: "storage")
+    order = Clinic::Care::ClinicalPlanWorkflow.create(
+      kind: :medication_requests, practice: @practice, actor: @actor, patient: patient, encounter: encounter,
+      attributes: { intent: "order", inventory_product_id: product.id, medication_name: "Example medication",
+        dose_value: "1", dose_unit_code: "mL", route_code: "intravenous", frequency_text: "once",
+        scheduled_for: 30.minutes.ago, reason_text: "Synthetic property workflow" }, request_key: SecureRandom.uuid
+    )
+    order = Clinic::Care::ClinicalPlanWorkflow.revise(
+      kind: :medication_requests, series_id: order.series_id, practice: @practice, actor: @actor,
+      patient: patient, encounter: encounter, attributes: { status: "authorized" },
+      expected_version: order.version_number, request_key: SecureRandom.uuid
+    )
     batch = Clinic::Inventory::Receiving.call(practice: @practice, actor: @actor, supplier: "Example supplier", reason: "Property receipt",
       request_key: SecureRandom.uuid, lines: [{ product_id: product.id, lot_number: "PROP-LOT", location_id: location.id,
         location: location.name, expires_on: (Date.current + 90).iso8601, amount: input.fetch("received"), input_unit: "mL" }]).lines.sole.batch
     before_movements = Clinic::Inventory::PharmacyMovement.count
-    params = { product_id: product.id, dose_text: "Example dose", route_text: "Example route", administration_site_text: "",
+    params = { medication_request_revision_id: order.id, status: "completed", dose_value: "1", dose_unit_code: "mL",
+      route_code: "intravenous", administration_site_code: "left_deltoid", precheck_status: "completed",
+      verification_status: "not_required", response_text: "Property administration", education_text: "Property education",
       administered_at: 30.minutes.ago.iso8601(6), request_key: SecureRandom.uuid,
       allocations: [{ batch_id: batch.id, quantity: input.fetch("used") }] }
     path = "/api/clinic/encounters/#{encounter.id}/medication_administrations"
     first = request(:post, path, { medication_administration: params })
     replay = input["retry"] ? request(:post, path, { medication_administration: params }) : nil
-    changed = input["changed"] ? request(:post, path, { medication_administration: params.merge(dose_text: "Changed dose") }) : nil
+    changed = input["changed"] ? request(:post, path, { medication_administration: params.merge(dose_value: "2") }) : nil
     { status: first[:status], retry_status: replay&.dig(:status), replayed: replay&.dig(:body, "replayed"), changed_status: changed&.dig(:status),
       quantity: batch.reload.quantity.to_s("F"), movements: Clinic::Inventory::PharmacyMovement.count - before_movements,
       administrations: Clinic::Care::MedicationAdministration.where(encounter: encounter).count }

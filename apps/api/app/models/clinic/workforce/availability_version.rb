@@ -43,7 +43,9 @@ module Clinic
       def rules_shape
         time_pattern = /\A(?:[01]\d|2[0-3]):[0-5]\d\z/
         unless weekly_rules.is_a?(Array) && weekly_rules.all? do |rule|
-          rule.is_a?(Hash) && (0..6).cover?(rule["day_of_week"].to_i) &&
+          day = rule.is_a?(Hash) ? rule["day_of_week"] : nil
+          valid_day = day.is_a?(Integer) ? (0..6).cover?(day) : day.is_a?(String) && day.match?(/\A[0-6]\z/)
+          rule.is_a?(Hash) && valid_day &&
             (rule["available"] == false || (rule["start_time"].to_s.match?(time_pattern) && rule["end_time"].to_s.match?(time_pattern)))
         end
           errors.add(:weekly_rules, "must contain day and time ranges")

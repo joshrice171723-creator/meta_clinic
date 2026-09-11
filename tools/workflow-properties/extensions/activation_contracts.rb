@@ -8,7 +8,7 @@ class WorkflowPropertyCase
     token = SecureRandom.urlsafe_base64(48)
     invitation = Clinic::Workforce::EmployeeInvitation.create!(practice: @practice, staff_member: staff,
       invited_by_membership: @membership, role_version: role, email_address: "activation-#{SecureRandom.hex(8)}@example.invalid",
-      token_digest: Clinic::Workforce::EmployeeInvitation.digest(token), status: "pending", invited_at: now - 1.hour,
+      token_digest: Clinic::Workforce::EmployeeInvitation.digest(token), status: "pending", invited_at: now - 2.weeks,
       expires_at: now + 1.hour, effective_from: now - 1.day, site_ids: [site.id])
     operation = input.fetch("operation")
     invitation.update!(expires_at: now - input.fetch("minutes", 0).minutes) if operation == "expired"

@@ -69,7 +69,8 @@ class WorkflowPropertyCase
       allocation = Clinic::Billing::RecordCashPayment.call(**args)
       Clinic::Billing::RecordCashPayment.call(**args) if input["retry"]
       if input.key?("refund")
-        Clinic::Billing::RecordCashRefund.call(practice: @practice, actor: @actor, payment: allocation.payment_event, amount: input["refund"])
+        Clinic::Billing::RecordCashRefund.call(practice: @practice, actor: @actor, payment: allocation.payment_event,
+          amount: input["refund"], reason: input.key?("refund_reason") ? input["refund_reason"] : "Property refund")
       end
     end
     result = Clinic::Billing::CashDrawer.call(drawer.reload)

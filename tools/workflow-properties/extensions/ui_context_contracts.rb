@@ -26,7 +26,8 @@ class WorkflowPropertyCase
     end
     conversation = Clinic::StaffConversation.create!(practice: @practice, created_by_membership: @membership,
       kind: "team", status: "active", retention_class: "routine")
-    conversation.members.create!(practice: @practice, membership: @membership, membership_state: "active", notification_policy: "all")
+    conversation.members.create!(practice: @practice, membership: @membership, membership_state: "active", notification_policy: "all",
+      joined_at: Time.current)
     message = Clinic::StaffMessage.create!(practice: @practice, conversation: conversation, sender_membership: @membership,
       body: "Property attachment message", message_class: "routine", status: "active", request_key: SecureRandom.uuid,
       acknowledgement_required: false)

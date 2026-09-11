@@ -10,7 +10,8 @@ class WorkflowPropertyCase
     if operation == "request_model"
       record = if input["kind"] == "message"
         Clinic::PatientPortal::Request.new(practice: @practice, patient: patient, identity: identity, request_type: "message",
-          status: "pending", request_key: SecureRandom.uuid, content: "Property request", content_digest: "e" * 64, requested_at: Time.current)
+          status: "pending", origin: "patient", request_key: SecureRandom.uuid, content: "Property request",
+          content_digest: "e" * 64, requested_at: Time.current)
       else
         Clinic::PatientPortal::AppointmentRequest.new(practice: @practice, patient: patient, identity: identity,
           request_kind: "new_booking", status: "pending", request_key: SecureRandom.uuid, requested_at: Time.current,
