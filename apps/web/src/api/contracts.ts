@@ -491,6 +491,7 @@ export type MedicationRequestRevision = ClinicalRevisionBase & {
   reason_text: string | null;
   instructions: string | null;
   source_medication_statement_id: number | null;
+  completion_exception: string | null;
 };
 export type ServiceRequestRevision = ClinicalRevisionBase & {
   request_kind:
@@ -503,6 +504,7 @@ export type ServiceRequestRevision = ClinicalRevisionBase & {
   destination: string | null;
   reason_text: string | null;
   due_at: string | null;
+  completion_exception: string | null;
 };
 export type EncounterDiagnosisRevision = ClinicalRevisionBase & {
   classification: "primary" | "secondary" | "differential" | "historical";
@@ -547,6 +549,17 @@ export type ImmunizationRevision = ClinicalRevisionBase & {
     "administered_here" | "patient_reported" | "external_record" | "registry";
   refusal_reason: string | null;
   source_document_id: number | null;
+  medication_administration_id: number | null;
+};
+export type AssessmentRevision = ClinicalRevisionBase & {
+  category: ClinicAssessmentCode;
+  instrument_name: string;
+  instrument_version: string | null;
+  score_value: string | null;
+  interpretation: string | null;
+  response_summary: string | null;
+  follow_up_plan: string | null;
+  assessed_at: string | null;
 };
 export type ClinicalPlanLink = {
   id: number;
@@ -589,6 +602,7 @@ export type ClinicalPlanWorkspace = {
     care_plans: CarePlanRevision[];
     care_goals: CareGoalRevision[];
     immunizations: ImmunizationRevision[];
+    assessments: AssessmentRevision[];
   };
   truncated: Record<
     | "medication_requests"
@@ -597,7 +611,8 @@ export type ClinicalPlanWorkspace = {
     | "procedures"
     | "care_plans"
     | "care_goals"
-    | "immunizations",
+    | "immunizations"
+    | "assessments",
     boolean
   >;
   capabilities: Record<
@@ -607,7 +622,8 @@ export type ClinicalPlanWorkspace = {
     | "procedures"
     | "care_plans"
     | "care_goals"
-    | "immunizations",
+    | "immunizations"
+    | "assessments",
     boolean
   >;
   medication_products: {
@@ -623,6 +639,7 @@ export type ClinicalPlanWorkspace = {
     dose_units: { code: string; label: string }[];
     routes: { code: string; label: string }[];
   };
+  assessment_scope: ClinicAssessmentCode[];
   links: ClinicalPlanLink[];
   referral_events: ReferralExchangeEvent[];
   available_link_targets: Record<

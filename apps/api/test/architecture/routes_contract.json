@@ -1472,6 +1472,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/assessments/:series_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/care_goals/:series_id(.:format)"
   ],
   [
@@ -1723,6 +1728,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/encounters(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/assessments(.:format)"
   ],
   [
     null,

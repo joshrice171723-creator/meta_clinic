@@ -114,6 +114,10 @@ Rails.application.routes.draw do
       to: "care/clinical_plan_workspace#create_immunization"
     patch "patients/:patient_id/encounters/:encounter_id/immunizations/:series_id",
       to: "care/clinical_plan_workspace#revise_immunization"
+    post "patients/:patient_id/encounters/:encounter_id/assessments",
+      to: "care/clinical_plan_workspace#create_assessment"
+    patch "patients/:patient_id/encounters/:encounter_id/assessments/:series_id",
+      to: "care/clinical_plan_workspace#revise_assessment"
     post "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/fulfillment_links",
       to: "care/clinical_plan_workspace#create_fulfillment_link"
     post "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/referral_events",

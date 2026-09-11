@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  AssessmentRevision,
   CareGoalRevision,
   CarePlanRevision,
   ClinicalPlanWorkspace as ClinicalPlanWorkspaceContract,
@@ -47,7 +48,8 @@ type ClinicalRecord =
   | ProcedureRevision
   | CarePlanRevision
   | CareGoalRevision
-  | ImmunizationRevision;
+  | ImmunizationRevision
+  | AssessmentRevision;
 type FormState = Record<string, string>;
 type FieldDefinition = {
   name: string;
@@ -95,6 +97,7 @@ const RESOURCE_META: Record<
       scheduled_for: "",
       reason_text: "",
       instructions: "",
+      completion_exception: "",
     },
     statuses: ["draft", "authorized", "on_hold", "completed", "cancelled", "entered_in_error"],
     fields: [
@@ -130,6 +133,7 @@ const RESOURCE_META: Record<
       destination: "",
       reason_text: "",
       due_at: "",
+      completion_exception: "",
     },
     statuses: ["draft", "active", "on_hold", "completed", "cancelled", "entered_in_error"],
     fields: [
@@ -245,6 +249,7 @@ const RESOURCE_META: Record<
       occurrence_source: "administered_here",
       refusal_reason: "",
       source_document_id: "",
+      medication_administration_id: "",
     },
     statuses: ["planned", "completed", "not_done", "entered_in_error"],
     fields: [
@@ -264,6 +269,33 @@ const RESOURCE_META: Record<
       { name: "refusal_reason", label: "Not-given reason", multiline: true },
     ],
   },
+  assessments: {
+    label: "Assessments",
+    singular: "assessment",
+    root: "assessment",
+    initial: {
+      status: "in_progress",
+      category: "",
+      instrument_name: "",
+      instrument_version: "",
+      score_value: "",
+      interpretation: "",
+      response_summary: "",
+      follow_up_plan: "",
+      assessed_at: "",
+    },
+    statuses: ["in_progress", "completed", "entered_in_error"],
+    fields: [
+      { name: "category", label: "Assessment category", required: true, options: [] },
+      { name: "instrument_name", label: "Instrument name", required: true },
+      { name: "instrument_version", label: "Instrument version" },
+      { name: "score_value", label: "Recorded score" },
+      { name: "interpretation", label: "Recorded interpretation", multiline: true },
+      { name: "response_summary", label: "Responses and observations", multiline: true },
+      { name: "follow_up_plan", label: "Follow-up plan", multiline: true },
+      { name: "assessed_at", label: "Assessed at", type: "datetime-local" },
+    ],
+  },
 };
 
 function humanize(value: string) {
@@ -277,7 +309,8 @@ function recordTitle(kind: ResourceKind, record: ClinicalRecord) {
   if (kind === "procedures") return (record as ProcedureRevision).procedure_display;
   if (kind === "care_plans") return (record as CarePlanRevision).title;
   if (kind === "care_goals") return (record as CareGoalRevision).description;
-  return (record as ImmunizationRevision).vaccine_name;
+  if (kind === "immunizations") return (record as ImmunizationRevision).vaccine_name;
+  return (record as AssessmentRevision).instrument_name;
 }
 
 function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
@@ -309,12 +342,17 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
     const value = record as CareGoalRevision;
     return value.target_on ? `Target ${value.target_on}` : "No target date recorded";
   }
-  const value = record as ImmunizationRevision;
-  return [
-    humanize(value.occurrence_source),
-    value.administered_at && new Date(value.administered_at).toLocaleDateString(),
-    value.lot_number && `Lot ${value.lot_number}`,
-  ].filter(Boolean).join(" · ");
+  if (kind === "immunizations") {
+    const value = record as ImmunizationRevision;
+    return [
+      humanize(value.occurrence_source),
+      value.administered_at && new Date(value.administered_at).toLocaleDateString(),
+      value.lot_number && `Lot ${value.lot_number}`,
+    ].filter(Boolean).join(" · ");
+  }
+  const value = record as AssessmentRevision;
+  return [humanize(value.category), value.score_value && `Score ${value.score_value}`,
+    value.assessed_at && new Date(value.assessed_at).toLocaleDateString()].filter(Boolean).join(" · ");
 }
 
 function recordForm(kind: ResourceKind, record: ClinicalRecord): FormState {
@@ -378,6 +416,9 @@ export function ClinicalPlanWorkspace({
 
   function openCreate(nextKind = kind) {
     const initial = { ...RESOURCE_META[nextKind].initial };
+    if (nextKind === "assessments" && workspace.data?.assessment_scope[0]) {
+      initial.category = workspace.data.assessment_scope[0];
+    }
     if (nextKind === "care_goals" && carePlans[0]) initial.care_plan_revision_id = String(carePlans[0].id);
     if (nextKind === "procedures") {
       const linkedRequest = serviceRequests.find((request) => request.request_kind === "procedure");
@@ -445,6 +486,17 @@ export function ClinicalPlanWorkspace({
       setError("Complete the required fields before saving.");
       return;
     }
+    if (kind === "assessments" && form.status === "completed" && (!form.assessed_at || !form.response_summary?.trim())) {
+      setError("Enter when the assessment was completed and record its responses or observations.");
+      return;
+    }
+    if (
+      kind === "immunizations" && form.status === "completed" &&
+      form.occurrence_source === "administered_here" && !form.medication_administration_id
+    ) {
+      setError("Choose the completed medication administration that used clinic stock.");
+      return;
+    }
     const payload = Object.fromEntries(
       Object.entries(form).map(([name, value]) => [
         name,
@@ -474,7 +526,7 @@ export function ClinicalPlanWorkspace({
     return (
       <Paper id="clinical-plan-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
         <Typography component="h2" variant="subtitle2">
-          Orders, diagnoses, procedures, and care plans
+          Orders, diagnoses, procedures, care plans, and assessments
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
           {workspace.error ? workspace.error : "Loading clinical plan records…"}
@@ -494,7 +546,7 @@ export function ClinicalPlanWorkspace({
       <Stack spacing={2}>
         <Box>
           <Typography component="h2" variant="subtitle2">
-            Orders, diagnoses, procedures, and care plans
+            Orders, diagnoses, procedures, care plans, and assessments
           </Typography>
           <Typography color="text.secondary" variant="body2">
             Every save creates a new attributed revision. Recorded priority and status are not decision support.
@@ -537,7 +589,8 @@ export function ClinicalPlanWorkspace({
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
           <Button
             variant="contained"
-            disabled={!data.capabilities[kind] || pendingAttempt !== null || encounter.status !== "open"}
+            disabled={!data.capabilities[kind] || pendingAttempt !== null || encounter.status !== "open" ||
+              (kind === "assessments" && data.assessment_scope.length === 0)}
             onClick={() => openCreate()}
           >
             Add {meta.singular}
@@ -549,6 +602,11 @@ export function ClinicalPlanWorkspace({
         {kind === "care_goals" && carePlans.length === 0 && (
           <Alert severity="info" action={<Button onClick={() => openCreate("care_plans")}>Create plan</Button>}>
             Create a care plan before adding a goal.
+          </Alert>
+        )}
+        {kind === "assessments" && data.assessment_scope.length === 0 && (
+          <Alert severity="info">
+            Enable the clinic-approved assessment categories in Clinic Setup before recording an assessment.
           </Alert>
         )}
         {records.length === 0 ? (
@@ -691,11 +749,47 @@ export function ClinicalPlanWorkspace({
                 )}
               />
             )}
+            {(kind === "medication_requests" || kind === "service_requests") && editing &&
+              form.status === "completed" && (
+              <TextField
+                label="Completion exception"
+                helperText="Use only when the fulfillment record cannot be linked. Record what established completion."
+                multiline
+                minRows={2}
+                value={form.completion_exception ?? ""}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, completion_exception: event.target.value }))
+                }
+                fullWidth
+              />
+            )}
+            {kind === "immunizations" && (
+              <FormControl fullWidth required={form.status === "completed" && form.occurrence_source === "administered_here"}>
+                <InputLabel id="immunization-administration-label">Clinic administration record</InputLabel>
+                <Select
+                  labelId="immunization-administration-label"
+                  label="Clinic administration record"
+                  value={form.medication_administration_id ?? ""}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, medication_administration_id: event.target.value }))
+                  }
+                >
+                  <MenuItem value="">No clinic administration record</MenuItem>
+                  {data.available_link_targets.medication_administration.map((administration) => (
+                    <MenuItem key={administration.id} value={String(administration.id)}>
+                      {administration.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             {meta.fields.map((field) => {
               const dynamicOptions = kind === "medication_requests" && field.name === "dose_unit_code"
                 ? data.medication_order_options.dose_units
                 : kind === "medication_requests" && field.name === "route_code"
                   ? data.medication_order_options.routes
+                  : kind === "assessments" && field.name === "category"
+                    ? data.assessment_scope.map((code) => ({ code, label: humanize(code) }))
                   : null;
               return field.options || dynamicOptions ? (
                 <FormControl key={field.name} fullWidth required={field.required}>
@@ -741,6 +835,18 @@ export function ClinicalPlanWorkspace({
             {kind === "diagnoses" && (
               <Alert severity="info">
                 Draft and provisional diagnoses remain visibly distinct from confirmed diagnoses.
+              </Alert>
+            )}
+            {(kind === "medication_requests" || kind === "service_requests") && editing && (
+              <Alert severity="info">
+                Completing an order requires linked fulfillment evidence. Use Completion exception only when the
+                expected result cannot be linked, and record what established that the work was complete.
+              </Alert>
+            )}
+            {kind === "immunizations" && (
+              <Alert severity="info">
+                An immunization administered here must reference its completed medication administration so the
+                dose and clinic-stock movement remain connected.
               </Alert>
             )}
           </Stack>

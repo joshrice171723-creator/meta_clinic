@@ -21,6 +21,7 @@ module Clinic
     has_many :encounter_notes, class_name: "Clinic::EncounterNote", dependent: :restrict_with_error
     has_many :encounter_completion_reviews, class_name: "Clinic::EncounterCompletionReview",
       dependent: :restrict_with_error
+    has_many :assessment_revisions, class_name: "Clinic::Care::AssessmentRevision", dependent: :restrict_with_error
     has_many :observations, class_name: "Clinic::Care::Observation", dependent: :restrict_with_error
     has_many :observation_sources, class_name: "Clinic::Care::ObservationSource", dependent: :restrict_with_error
     has_many :patient_care_needs, class_name: "Clinic::Care::PatientCareNeed", dependent: :restrict_with_error

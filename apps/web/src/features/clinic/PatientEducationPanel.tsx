@@ -205,6 +205,7 @@ export function PatientEducationPanel({
 
   return (
     <Paper
+      id="patient-education"
       component="section"
       variant="outlined"
       sx={{ p: { xs: 2, md: 2.5 } }}

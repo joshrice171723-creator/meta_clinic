@@ -447,7 +447,7 @@ export function PatientClinicalHistory({
   const data = history.data;
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
+    <Paper id="clinical-history" variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
       <Stack spacing={1.5}>
         <Box>
           <Typography variant="h6">Clinical history</Typography>

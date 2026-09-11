@@ -21,7 +21,7 @@ module Clinic
           },
           fields: %i[intent transmission_state inventory_product_id requester_membership_id medication_name dose_value dose_unit_code
             dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text instructions
-            source_medication_statement_id]
+            source_medication_statement_id completion_exception]
         },
         service_requests: {
           klass: ServiceRequestRevision,
@@ -36,7 +36,7 @@ module Clinic
             "entered_in_error" => []
           },
           fields: %i[request_kind intent priority requested_code_system requested_code requested_display destination
-            reason_text due_at]
+            reason_text due_at completion_exception]
         },
         diagnoses: {
           klass: EncounterDiagnosisRevision,
@@ -104,7 +104,20 @@ module Clinic
             "entered_in_error" => []
           },
           fields: %i[vaccine_name cvx_code manufacturer lot_number dose_text route_text administration_site_text
-            administered_at occurrence_source refusal_reason source_document_id]
+            administered_at occurrence_source refusal_reason source_document_id medication_administration_id]
+        },
+        assessments: {
+          klass: AssessmentRevision,
+          permission: "intake.write",
+          root: :assessment,
+          default_status: "in_progress",
+          transitions: {
+            "in_progress" => %w[completed entered_in_error],
+            "completed" => %w[entered_in_error],
+            "entered_in_error" => []
+          },
+          fields: %i[category instrument_name instrument_version score_value interpretation response_summary
+            follow_up_plan assessed_at]
         }
       }.freeze
 
@@ -132,7 +145,8 @@ module Clinic
           medication_order_options: {
             dose_units: MedicationRequestRevision::DOSE_UNITS.map { |code, label| { code:, label: } },
             routes: MedicationRequestRevision::ROUTES.map { |code, label| { code:, label: } }
-          }
+          },
+          assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope)
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
@@ -188,7 +202,7 @@ module Clinic
             raise ActiveRecord::StaleObjectError.new(previous, "create revision")
           end
           values = revision_values(definition, previous).merge(changes)
-          validate_revision_change!(definition, previous, changes)
+          validate_revision_change!(kind, definition, previous, changes, values)
           prepare_values!(kind, practice, values)
           validate_references!(kind, practice, patient, encounter, values)
           record = definition.fetch(:klass).create!(
@@ -311,6 +325,13 @@ module Clinic
         when :immunizations
           reference = values[:source_document_id]
           Clinic::Document.where(practice:, patient:).find(reference) if reference.present?
+          administration_reference = values[:medication_administration_id]
+          MedicationAdministration.where(practice:, patient:, encounter:).find(administration_reference) if administration_reference.present?
+        when :assessments
+          configured = Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope)
+          unless configured.include?(values[:category])
+            raise ArgumentError, "This assessment category is not enabled in Clinic Setup."
+          end
         end
       end
       private_class_method :validate_references!
@@ -350,15 +371,36 @@ module Clinic
       end
       private_class_method :medication_products
 
-      def validate_revision_change!(definition, previous, changes)
+      def validate_revision_change!(kind, definition, previous, changes, values)
         changed = changes.any? { |field, value| previous.public_send(field) != value }
         raise ArgumentError, "Change at least one field before saving a revision." unless changed
         return unless changes.key?(:status) && changes[:status] != previous.status
 
         allowed = definition.fetch(:transitions).fetch(previous.status, [])
         raise ArgumentError, "That status transition is not allowed." unless allowed.include?(changes[:status])
+        require_completion_evidence!(kind, previous, values) if changes[:status] == "completed"
       end
       private_class_method :validate_revision_change!
+
+      def require_completion_evidence!(kind, previous, values)
+        return unless %i[medication_requests service_requests].include?(kind.to_sym)
+
+        revision_ids = previous.class.where(practice_id: previous.practice_id, series_id: previous.series_id).select(:id)
+        linked = if kind.to_sym == :medication_requests
+          MedicationAdministration.exists?(practice_id: previous.practice_id,
+            medication_request_revision_id: revision_ids, status: "completed") ||
+            ClinicalPlanLink.exists?(practice_id: previous.practice_id, medication_request_revision_id: revision_ids)
+        else
+          ClinicalPlanLink.exists?(practice_id: previous.practice_id, service_request_revision_id: revision_ids) ||
+            ReferralExchangeEvent.exists?(practice_id: previous.practice_id,
+              service_request_series_id: previous.series_id, stage: "closed")
+        end
+        return if linked || values[:completion_exception].present?
+
+        raise ArgumentError,
+          "Link the fulfillment record before completing this order, or record a completion exception."
+      end
+      private_class_method :require_completion_evidence!
 
       def sync_order_task!(kind, record, previous, membership)
         source_kind = { medication_requests: "medication_request", service_requests: "service_request" }[kind.to_sym]

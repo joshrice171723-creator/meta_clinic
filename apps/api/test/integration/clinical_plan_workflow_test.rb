@@ -13,7 +13,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "clinical_records.read", "medication_requests.write",
       "service_requests.write", "diagnoses.write", "procedures.write", "care_plans.write", "immunizations.write",
-      "encounters.write")
+      "encounters.write", "intake.write")
     @patient = @practice.patients.create!(display_name: "Clinical Plan Patient", reference: "PLAN-001")
     @other_patient = @practice.patients.create!(display_name: "Other Plan Patient", reference: "PLAN-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
@@ -99,7 +99,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal [ "active", plan.fetch("id") ], goal.values_at("status", "care_plan_revision_id")
 
     immunization = create_record("immunizations", "immunization", {
-      vaccine_name: "Clinical plan vaccine", occurrence_source: "administered_here", cvx_code: "999"
+      vaccine_name: "Clinical plan vaccine", occurrence_source: "patient_reported", cvx_code: "999"
     }, "plan-immunization-create")
     immunization = revise_record("immunizations", "immunization", immunization, {
       immunization: { status: "completed", administered_at: "2026-09-10T15:30:00Z",
@@ -108,7 +108,8 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal [ "completed", "999" ], immunization.values_at("status", "cvx_code")
 
     service = revise_record("service_requests", "service_request", service,
-      revision_body("service_request", service, "completed", "plan-service-complete"))
+      { service_request: { status: "completed", completion_exception: "Completed before fulfillment tracking was enabled",
+        expected_version: service.fetch("version_number"), request_key: "plan-service-complete" } })
     assert_equal "completed", Clinic::ClinicalTask.find_by!(source_type: "order", source_kind: "service_request").state
 
     get "#{workspace_path(@other_patient)}/clinical_plan_workspace", headers: @headers
@@ -117,6 +118,62 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_raises ActiveRecord::StatementInvalid do
       revision.update_column(:status, "draft")
     end
+  end
+
+  test "completion evidence and configured assessments are required before final status" do
+    service = create_record("service_requests", "service_request", {
+      request_kind: "procedure", intent: "order", priority: "routine",
+      requested_display: "Synthetic completion evidence check"
+    }, "completion-evidence-service-create")
+    service = revise_record("service_requests", "service_request", service,
+      revision_body("service_request", service, "active", "completion-evidence-service-active"))
+
+    patch "#{workspace_path(@patient)}/service_requests/#{service.fetch('series_id')}",
+      params: revision_body("service_request", service, "completed", "completion-evidence-service-denied"),
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "fulfillment record"
+
+    service = revise_record("service_requests", "service_request", service,
+      { service_request: { status: "completed", completion_exception: "Synthetic legacy result reviewed",
+        expected_version: service.fetch("version_number"), request_key: "completion-evidence-service-exception" } })
+    assert_equal "Synthetic legacy result reviewed", service.fetch("completion_exception")
+
+    immunization = create_record("immunizations", "immunization", {
+      vaccine_name: "Synthetic clinic vaccine", occurrence_source: "administered_here"
+    }, "immunization-evidence-create")
+    patch "#{workspace_path(@patient)}/immunizations/#{immunization.fetch('series_id')}",
+      params: { immunization: { status: "completed", administered_at: "2026-09-10T15:30:00Z",
+        expected_version: immunization.fetch("version_number"), request_key: "immunization-evidence-denied" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error").downcase, "medication administration"
+
+    post "#{workspace_path(@patient)}/assessments",
+      params: { assessment: { category: "depression", instrument_name: "Synthetic PHQ-style screen",
+        request_key: "assessment-disabled" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+
+    Clinic::Configuration::PracticeFeatures.revise(
+      practice: @practice, actor: @membership, request_key: "assessment-configure", expected_revision: 0,
+      insurance_workflows_enabled: false, clinic_type: "primary_care", service_scope: [],
+      assessment_scope: [ "depression" ]
+    )
+    assessment = create_record("assessments", "assessment", {
+      category: "depression", instrument_name: "Synthetic PHQ-style screen", score_value: "4"
+    }, "assessment-create")
+    assert_equal "in_progress", assessment.fetch("status")
+
+    patch "#{workspace_path(@patient)}/assessments/#{assessment.fetch('series_id')}",
+      params: revision_body("assessment", assessment, "completed", "assessment-incomplete"),
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+
+    assessment = revise_record("assessments", "assessment", assessment,
+      { assessment: { status: "completed", assessed_at: "2026-09-10T15:45:00Z",
+        response_summary: "Synthetic responses reviewed with the patient", follow_up_plan: "Routine follow-up",
+        expected_version: assessment.fetch("version_number"), request_key: "assessment-complete" } })
+    assert_equal [ "completed", "depression" ], assessment.values_at("status", "category")
   end
 
   test "fulfillment links and referral exchanges close the loop without replacing source records" do

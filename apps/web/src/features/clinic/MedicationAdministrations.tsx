@@ -505,7 +505,7 @@ function MedicationAdministrationPanel({
   );
 
   return (
-    <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+    <Paper id="medication-administration" component="section" variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
         <Box>
           <Typography component="h2" variant="subtitle2">
