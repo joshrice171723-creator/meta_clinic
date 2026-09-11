@@ -1,7 +1,7 @@
 // Browser-facing response types only. Business rules live in apps/api.
 export type Decimal = string;
 export type AppearancePreference = {
-  palette: "juniper" | "cobalt" | "plum" | "saffron";
+  palette: "owner" | "juniper" | "cobalt" | "plum" | "saffron";
   mode: "system" | "light" | "dark";
 };
 export type UserSettings = {

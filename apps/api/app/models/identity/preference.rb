@@ -4,7 +4,7 @@ module Identity
     class Conflict < StandardError; end
 
     belongs_to :user
-    validates :palette, inclusion: { in: %w[juniper cobalt plum saffron] }
+    validates :palette, inclusion: { in: %w[owner juniper cobalt plum saffron] }
     validates :mode, inclusion: { in: %w[system light dark] }
     validates :revision, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 

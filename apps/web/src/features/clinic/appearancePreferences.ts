@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 export const CLINIC_PALETTES = [
+  { id: "owner", label: "Owner blue & white" },
   { id: "juniper", label: "Juniper & porcelain" },
   { id: "cobalt", label: "Cobalt & limestone" },
   { id: "plum", label: "Plum & parchment" },
@@ -75,6 +76,10 @@ export const CLINIC_SIDEBAR_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ClinicSidebarTokens>
 > = {
+  owner: {
+    light: { ground: "#1976d2", on: "#ffffff", muted: "#d7e8f9", selected: "#ffffff", "selected-on": "#1976d2" },
+    dark: { ground: "#115293", on: "#ffffff", muted: "#c5dcf2", selected: "#1976d2", "selected-on": "#ffffff" },
+  },
   juniper: {
     light: {
       ground: "#163937",
@@ -144,6 +149,10 @@ export const CLINIC_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ThemeTokens>
 > = {
+  owner: {
+    light: { background: "#f8f9fa", surface: "#ffffff", text: "rgba(0, 0, 0, 0.87)", muted: "rgba(0, 0, 0, 0.6)", accent: "#1976d2", "on-accent": "#ffffff", soft: "#e3f2fd", border: "rgba(0, 0, 0, 0.12)", control: "#6b7280" },
+    dark: { background: "#121212", surface: "#1e1e1e", text: "#ffffff", muted: "rgba(255, 255, 255, 0.7)", accent: "#90caf9", "on-accent": "#0d47a1", soft: "#173b5c", border: "rgba(255, 255, 255, 0.12)", control: "#b0bec5" },
+  },
   juniper: {
     light: {
       background: "#f2f7f4",
