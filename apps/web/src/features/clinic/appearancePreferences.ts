@@ -150,7 +150,7 @@ export const CLINIC_THEMES: Record<
   Record<ColorScheme, ThemeTokens>
 > = {
   owner: {
-    light: { background: "#f8f9fa", surface: "#ffffff", text: "rgba(0, 0, 0, 0.87)", muted: "rgba(0, 0, 0, 0.6)", accent: "#1976d2", "on-accent": "#ffffff", soft: "#e3f2fd", border: "rgba(0, 0, 0, 0.12)", control: "#6b7280" },
+    light: { background: "#f8f7f2", surface: "#f8f7f2", text: "rgba(0, 0, 0, 0.87)", muted: "rgba(0, 0, 0, 0.6)", accent: "#1976d2", "on-accent": "#ffffff", soft: "#eeede8", border: "rgba(0, 0, 0, 0.12)", control: "#6b7280" },
     dark: { background: "#121212", surface: "#1e1e1e", text: "#ffffff", muted: "rgba(255, 255, 255, 0.7)", accent: "#90caf9", "on-accent": "#0d47a1", soft: "#173b5c", border: "rgba(255, 255, 255, 0.12)", control: "#b0bec5" },
   },
   juniper: {
