@@ -11,6 +11,16 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-10 — New Lightsail synthetic demo deployed
+
+**Final operational checks:** automatic certificate renewal and nginx reload passed the Certbot dry-run; twice-daily renewal timer is enabled. Runtime PostgreSQL role has no superuser, database/role creation, schema creation or audit update/delete authority. Worker launch now uses `bundle exec`; repeated work passes remained running with zero restarts. Portable-delivery, vault-link and agent-harness checks passed; vault hygiene retains advisory findings. The restore test removed only its generated scratch database; the source database and backup remain intact.
+
+**Authorization and outcome:** founder selected AWS account ending 9164 and the $12/month `meta-clinic-demo` instance in us-east-1a. New static IP `184.194.129.57` serves the demo over HTTPS. The requested free sslip.io name and alternate nip.io name failed certificate-provider secondary DNS validation; the valid IP-certificate URL is the working fallback. This is unrelated to the retired collaborator delivery credentials.
+
+**Evidence:** application source `dda1d41c37665cfc8b309b48751ed35a0701c550`; separate API `-lf1` packaging layer normalizes Windows executable line endings. HTTPS login rendered in Chrome and returned 200 externally. Password login, managed synthetic clinic context, anonymous denial, CSRF denial, development-login denial, logout and five concurrent context reads passed before and after API/web/worker restart. A PostgreSQL dump restored into an isolated scratch database, which was then removed. No real data or credentials were recorded. [Runbook and verification scripts](../../ops/lightsail/README.md) preserve the bounded recovery procedure.
+
+**CI and limits:** image publication run [34551328098](https://github.com/joshrice171723-creator/meta_clinic/actions/runs/34551328098) passed after adding Buildx. Earlier full CI run 34548238926 remains red (Rails: 31 failures/13 errors; frontend formatting: 33 files). Deployment is manual; five concurrent reads are not a five-person workflow load test. On-server backups do not survive host loss. No full browser workflow, off-host recovery, HIPAA, clinical or real-patient readiness is claimed.
+
 ## 2026-09-10 — U.S. healthcare standards product audit completed
 
 **Outcome:** checked all 64 external URLs in the 60-entry U.S. healthcare reference map and compared the current app, focused tests, healthy local runtime and rendered clinic workflows with the applicable HL7/FHIR, NLM, UCUM, FDA, CDC and CMS guidance. The [product gap audit](../../records/audits/2026-09-10-us-healthcare-standards-product-gap-audit.md) preserves the capability matrix and recommends medication-test repair, administration-grade vaccination records, coded/typed lab results, a real cash-pay estimate workflow and Schedule/Slot-like availability as the highest-value next slices. It also records the current strengths that should not be weakened.

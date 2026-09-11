@@ -1,6 +1,6 @@
 ---
 type: operating-guide
-status: aws-retired-replacement-host-pending
+status: founder-selected-lightsail-synthetic-demo
 updated: 2026-09-10
 lifecycle: active
 canonical_for: delivery-state-pointer
@@ -17,7 +17,7 @@ This note routes current delivery context. Developer setup, branches, checks and
 
 D-033 keeps one repository with independent React/Vite and Rails/PostgreSQL applications. The frontend owns presentation and same-origin transport; Rails owns sessions, authorization, tenancy, domain workflows and persistence. Release artifacts remain a matched API/web pair from one reviewed commit.
 
-The former AWS environments and OIDC delivery path were retired from active source on 2026-09-10 after the founder ended the external working relationship. Their dated observations remain historical evidence only. A replacement host has not been selected or verified. CI, image publication, hosted verification and browser/accessibility review are separate evidence.
+The former AWS environments and OIDC delivery path were retired from active source on 2026-09-10 after the founder ended the external working relationship. Their dated observations remain historical evidence only. The founder subsequently selected account ending 9164 for a new $12/month Lightsail synthetic demo. The new HTTPS deployment and its remaining limits are documented in [the Lightsail runbook](../../ops/lightsail/README.md) and [[Progress Log]]. CI, image publication, hosted verification and browser/accessibility review are separate evidence.
 
 ## Current publication path
 
@@ -35,4 +35,4 @@ The API and frontend run independently on loopback with synthetic data. See [Get
 
 ## Finish activation
 
-Select and provision a founder-controlled hosting account. Then follow the release and database-change playbooks, pin both images to one reviewed commit, keep access private until TLS and authentication are verified, and complete a PostgreSQL backup/restore rehearsal before relying on the environment.
+The new Lightsail demo has verified HTTPS, password authentication, anonymous/CSRF denial, application restart and PostgreSQL backup/restore. Deployment remains manual; the container publisher now passes, but pre-existing full CI failures remain unresolved. Off-host backups, a friendly hostname, monitoring and any production or real-data release remain separate work. Do not reuse credentials or access paths from the retired environments.

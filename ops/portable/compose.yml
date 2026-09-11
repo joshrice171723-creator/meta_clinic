@@ -72,7 +72,7 @@ services:
     image: ghcr.io/${IMAGE_OWNER:?required}/meta-clinic-web:${IMAGE_TAG:?required}
     restart: unless-stopped
     read_only: true
-    tmpfs: [/tmp:uid=101,gid=101,mode=0700,size=32m]
+    tmpfs: ["/tmp:uid=101,gid=101,mode=0700,size=32m"]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 

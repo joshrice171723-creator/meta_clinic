@@ -9,6 +9,11 @@ workflow_path = File.join(root, ".github", "workflows", "publish-containers.yml"
 compose = File.read(compose_path)
 workflow = File.read(workflow_path)
 errors = []
+YAML.safe_load(compose, aliases: true).fetch("services").each do |name, service|
+  Array(service["tmpfs"]).each do |mount|
+    errors << "#{name}: tmpfs entries must be complete absolute mount specifications" unless mount.is_a?(String) && mount.start_with?("/")
+  end
+end
 errors << "portable edge must remain loopback-only" unless compose.include?('127.0.0.1:8443:8443')
 errors << "portable images must use immutable commit tags" unless compose.include?('${IMAGE_TAG:?required}')
 errors << "portable deployment must include a database health gate" unless compose.include?("condition: service_healthy")

@@ -1,0 +1,6 @@
+ARG SOURCE_IMAGE
+FROM ${SOURCE_IMAGE}
+USER root
+# Windows checkout line endings must not reach Linux executable shebangs.
+RUN find /rails/bin -type f -exec sed -i 's/\r$//' {} +
+USER 1000:1000
