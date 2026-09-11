@@ -13,7 +13,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "clinical_records.read", "medication_requests.write",
       "service_requests.write", "diagnoses.write", "procedures.write", "care_plans.write", "immunizations.write",
-      "encounters.write", "intake.write")
+      "medication_administrations.write", "inventory.receive", "encounters.write", "intake.write")
     @patient = @practice.patients.create!(display_name: "Clinical Plan Patient", reference: "PLAN-001")
     @other_patient = @practice.patients.create!(display_name: "Other Plan Patient", reference: "PLAN-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
@@ -174,6 +174,62 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
         response_summary: "Synthetic responses reviewed with the patient", follow_up_plan: "Routine follow-up",
         expected_version: assessment.fetch("version_number"), request_key: "assessment-complete" } })
     assert_equal [ "completed", "depression" ], assessment.values_at("status", "category")
+  end
+
+  test "administered-here immunizations retain exact staff facility lot and optional VIS evidence" do
+    product = @practice.pharmacy_products.create!(
+      name: "Synthetic vaccine dose", generic_name: "synthetic antigen", dosage_form: "injection",
+      ndc: "00000-0999-01", sku: "PLAN-VAX-1", stock_unit: "mL", quantity_scale: 2,
+      package_size: 1, unit_reference: "1 mL vial"
+    )
+    location = @practice.inventory_locations.create!(site: @site, name: "Synthetic vaccine refrigerator", kind: "storage")
+    batch = Clinic::Inventory::Receiving.call(
+      practice: @practice, actor: @user, supplier: "Synthetic vaccine supplier",
+      reason: "Synthetic immunization fixture", request_key: SecureRandom.uuid,
+      lines: [ { product_id: product.id, lot_number: "VAX-LOT-1", location_id: location.id,
+        location: location.name, expires_on: "2027-01-31", amount: "5.00", input_unit: "mL" } ]
+    ).lines.sole.batch
+    draft_order = Clinic::Care::ClinicalPlanWorkflow.create(
+      kind: :medication_requests, practice: @practice, actor: @user, patient: @patient, encounter: @encounter,
+      attributes: { intent: "order", inventory_product_id: product.id, medication_name: product.name,
+        dose_value: "0.5", dose_unit_code: "mL", route_code: "intramuscular" },
+      request_key: SecureRandom.uuid
+    )
+    order = Clinic::Care::ClinicalPlanWorkflow.revise(
+      kind: :medication_requests, series_id: draft_order.series_id, practice: @practice, actor: @user,
+      patient: @patient, encounter: @encounter, attributes: { status: "authorized" },
+      expected_version: draft_order.version_number, request_key: SecureRandom.uuid
+    )
+    administered_at = Time.utc(2026, 9, 10, 15, 30)
+    administration = Clinic::Care::AdministerMedication.call(
+      practice: @practice, actor: @user, encounter: @encounter,
+      medication_request_revision_id: order.id, status: "completed",
+      allocations: [ { batch_id: batch.id, quantity: "0.50" } ], dose_value: "0.5", dose_unit_code: "mL",
+      route_code: "intramuscular", administration_site_code: "left_deltoid", administration_site_text: nil,
+      status_reason: nil, variance_reason: nil, precheck_status: "completed", precheck_notes: nil,
+      verification_status: "not_required", verified_by_membership_id: nil,
+      response_text: "Synthetic administration tolerated", education_text: "Synthetic education recorded",
+      administered_at:, request_key: SecureRandom.uuid
+    ).medication_administration
+
+    immunization = create_record("immunizations", "immunization", {
+      vaccine_name: "Synthetic clinic vaccine", occurrence_source: "administered_here"
+    }, "immunization-admin-create")
+    immunization = revise_record("immunizations", "immunization", immunization, {
+      immunization: { status: "completed", cvx_code: "999", manufacturer: "Synthetic Vaccine Company",
+        manufacturer_mvx_code: "syn", medication_administration_id: administration.id,
+        vis_edition_date: "2026-08-01", vis_given_date: "2026-09-10",
+        expected_version: immunization.fetch("version_number"), request_key: "immunization-admin-complete" }
+    })
+
+    assert_equal [ "SYN", "VAX-LOT-1", "2027-01-31" ],
+      immunization.values_at("manufacturer_mvx_code", "lot_number", "lot_expiration_date")
+    assert_equal administered_at.iso8601, immunization.fetch("administered_at")
+    assert_equal @membership.id, immunization.fetch("vaccinator_membership_id")
+    assert_equal @site.id, immunization.fetch("administering_site_id")
+    assert_equal @site.name, immunization.fetch("administering_site_label")
+    assert_equal [ "2026-08-01", "2026-09-10" ],
+      immunization.values_at("vis_edition_date", "vis_given_date")
   end
 
   test "fulfillment links and referral exchanges close the loop without replacing source records" do

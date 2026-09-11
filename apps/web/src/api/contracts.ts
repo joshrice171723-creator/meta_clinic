@@ -540,7 +540,9 @@ export type ImmunizationRevision = ClinicalRevisionBase & {
   vaccine_name: string;
   cvx_code: string | null;
   manufacturer: string | null;
+  manufacturer_mvx_code: string | null;
   lot_number: string | null;
+  lot_expiration_date: string | null;
   dose_text: string | null;
   route_text: string | null;
   administration_site_text: string | null;
@@ -550,6 +552,12 @@ export type ImmunizationRevision = ClinicalRevisionBase & {
   refusal_reason: string | null;
   source_document_id: number | null;
   medication_administration_id: number | null;
+  vis_edition_date: string | null;
+  vis_given_date: string | null;
+  vaccinator_membership_id: number | null;
+  vaccinator_label: string | null;
+  administering_site_id: number | null;
+  administering_site_label: string | null;
 };
 export type AssessmentRevision = ClinicalRevisionBase & {
   category: ClinicAssessmentCode;
@@ -594,6 +602,16 @@ export type MedicationAdministrationLinkTarget = ClinicalPlanLinkTarget & {
   status: "completed";
   movement_count: number;
   lot_numbers: string[];
+  lot_number: string;
+  lot_expiration_date: string;
+  administered_at: string;
+  dose_text: string;
+  route_text: string;
+  administration_site_text: string | null;
+  vaccinator_membership_id: number;
+  vaccinator_label: string;
+  administering_site_id: number;
+  administering_site_label: string;
 };
 export type ClinicalPlanWorkspace = {
   schema_version: "clinical-plan-workspace-v2";

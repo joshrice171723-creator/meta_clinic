@@ -12,9 +12,9 @@ module Clinic
           complication_text service_request_revision_id],
         care_plans: %i[status title description starts_on ends_on],
         care_goals: %i[status care_plan_revision_id description outcome_text target_on],
-        immunizations: %i[status vaccine_name cvx_code manufacturer lot_number dose_text route_text
-          administration_site_text administered_at occurrence_source refusal_reason source_document_id
-          medication_administration_id],
+        immunizations: %i[status vaccine_name cvx_code manufacturer manufacturer_mvx_code lot_number
+          lot_expiration_date dose_text route_text administration_site_text administered_at occurrence_source
+          refusal_reason source_document_id medication_administration_id vis_edition_date vis_given_date],
         assessments: %i[status category instrument_name instrument_version score_value interpretation response_summary
           follow_up_plan assessed_at]
       }.freeze
@@ -127,7 +127,7 @@ module Clinic
         %i[due_at performed_at administered_at scheduled_for assessed_at].each do |field|
           value[field] = value[field].present? ? time_param!(value[field], field:) : nil if value.key?(field)
         end
-        %i[starts_on ends_on target_on].each do |field|
+        %i[starts_on ends_on target_on lot_expiration_date vis_edition_date vis_given_date].each do |field|
           value[field] = value[field].present? ? date_param!(value[field], field:) : nil if value.key?(field)
         end
         value

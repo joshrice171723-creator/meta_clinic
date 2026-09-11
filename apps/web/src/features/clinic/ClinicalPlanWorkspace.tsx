@@ -331,7 +331,9 @@ const RESOURCE_META: Record<
       vaccine_name: "",
       cvx_code: "",
       manufacturer: "",
+      manufacturer_mvx_code: "",
       lot_number: "",
+      lot_expiration_date: "",
       dose_text: "",
       route_text: "",
       administration_site_text: "",
@@ -340,13 +342,17 @@ const RESOURCE_META: Record<
       refusal_reason: "",
       source_document_id: "",
       medication_administration_id: "",
+      vis_edition_date: "",
+      vis_given_date: "",
     },
     statuses: ["planned", "completed", "not_done", "entered_in_error"],
     fields: [
       { name: "vaccine_name", label: "Vaccine", required: true },
       { name: "cvx_code", label: "CVX code" },
-      { name: "manufacturer", label: "Manufacturer" },
+      { name: "manufacturer", label: "Manufacturer name" },
+      { name: "manufacturer_mvx_code", label: "MVX code (optional)" },
       { name: "lot_number", label: "Lot number" },
+      { name: "lot_expiration_date", label: "Lot expiration", type: "date" },
       { name: "dose_text", label: "Dose" },
       { name: "route_text", label: "Route" },
       { name: "administration_site_text", label: "Administration site" },
@@ -355,6 +361,8 @@ const RESOURCE_META: Record<
         label: "Administered at",
         type: "datetime-local",
       },
+      { name: "vis_edition_date", label: "VIS edition date", type: "date" },
+      { name: "vis_given_date", label: "VIS date given", type: "date" },
       {
         name: "occurrence_source",
         label: "Information source",
@@ -482,7 +490,14 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
           : null,
       value.administered_at &&
         new Date(value.administered_at).toLocaleDateString(),
+      value.manufacturer &&
+        `${value.manufacturer}${value.manufacturer_mvx_code ? ` (${value.manufacturer_mvx_code})` : ""}`,
       value.lot_number && `Lot ${value.lot_number}`,
+      value.lot_expiration_date && `Expires ${value.lot_expiration_date}`,
+      value.vaccinator_label && `Given by ${value.vaccinator_label}`,
+      value.administering_site_label && value.administering_site_label,
+      value.vis_given_date &&
+        `VIS ${value.vis_edition_date} given ${value.vis_given_date}`,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -691,6 +706,37 @@ export function ClinicalPlanWorkspace({
         !form.lot_number?.trim()
       ) {
         setError("Enter the lot number used by the linked administration.");
+        return;
+      }
+      if (
+        form.occurrence_source === "administered_here" &&
+        !form.manufacturer?.trim()
+      ) {
+        setError("Enter the vaccine manufacturer name.");
+        return;
+      }
+      if (
+        form.occurrence_source === "administered_here" &&
+        !form.lot_expiration_date
+      ) {
+        setError("Choose an administration with recorded lot expiration.");
+        return;
+      }
+      if (form.cvx_code && !/^\d{1,3}$/.test(form.cvx_code.trim())) {
+        setError("CVX code must contain one to three digits.");
+        return;
+      }
+      if (
+        form.manufacturer_mvx_code &&
+        !/^[A-Za-z0-9]{2,3}$/.test(form.manufacturer_mvx_code.trim())
+      ) {
+        setError("MVX code must contain two or three letters or digits.");
+        return;
+      }
+      if (Boolean(form.vis_edition_date) !== Boolean(form.vis_given_date)) {
+        setError(
+          "Record both VIS dates, or leave both blank when no VIS applies.",
+        );
         return;
       }
     }
@@ -962,7 +1008,17 @@ export function ClinicalPlanWorkspace({
                         status,
                         ...(kind === "immunizations" &&
                         ["planned", "not_done"].includes(status)
-                          ? { medication_administration_id: "" }
+                          ? {
+                              medication_administration_id: "",
+                              lot_number: "",
+                              lot_expiration_date: "",
+                              administered_at: "",
+                              dose_text: "",
+                              route_text: "",
+                              administration_site_text: "",
+                              vis_edition_date: "",
+                              vis_given_date: "",
+                            }
                           : {}),
                         ...(kind === "immunizations" && status !== "not_done"
                           ? { refusal_reason: "" }
@@ -1093,86 +1149,107 @@ export function ClinicalPlanWorkspace({
             {kind === "immunizations" &&
               (immunizationAdminEvidenceRequired ||
                 Boolean(form.medication_administration_id)) && (
-              <FormControl
-                fullWidth
-                required={immunizationAdminEvidenceRequired}
-                error={
-                  immunizationAdminEvidenceRequired &&
-                  !form.medication_administration_id
-                }
-              >
-                <InputLabel id="immunization-administration-label">
-                  Clinic administration record
-                </InputLabel>
-                <Select
-                  labelId="immunization-administration-label"
-                  label="Clinic administration record"
-                  value={form.medication_administration_id ?? ""}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      medication_administration_id: event.target.value,
-                    }))
+                <FormControl
+                  fullWidth
+                  required={immunizationAdminEvidenceRequired}
+                  error={
+                    immunizationAdminEvidenceRequired &&
+                    !form.medication_administration_id
                   }
                 >
-                  {!immunizationAdminEvidenceRequired && (
-                    <MenuItem value="">No clinic administration record</MenuItem>
-                  )}
-                  {immunizationAdminEvidenceRequired && (
-                    <MenuItem value="" disabled>
-                      Select a completed stock-linked administration
-                    </MenuItem>
-                  )}
-                  {data.available_link_targets.medication_administration.map(
-                    (administration) => (
-                      <MenuItem
-                        key={administration.id}
-                        value={String(administration.id)}
-                      >
-                        {administration.label}
+                  <InputLabel id="immunization-administration-label">
+                    Clinic administration record
+                  </InputLabel>
+                  <Select
+                    labelId="immunization-administration-label"
+                    label="Clinic administration record"
+                    value={form.medication_administration_id ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const administration =
+                        data.available_link_targets.medication_administration.find(
+                          (candidate) => String(candidate.id) === value,
+                        );
+                      setForm((current) => ({
+                        ...current,
+                        medication_administration_id: value,
+                        ...(administration
+                          ? {
+                              lot_number: administration.lot_number,
+                              lot_expiration_date:
+                                administration.lot_expiration_date,
+                              administered_at:
+                                administration.administered_at.slice(0, 16),
+                              dose_text: administration.dose_text,
+                              route_text: administration.route_text,
+                              administration_site_text:
+                                administration.administration_site_text ?? "",
+                            }
+                          : {}),
+                      }));
+                    }}
+                  >
+                    {!immunizationAdminEvidenceRequired && (
+                      <MenuItem value="">
+                        No clinic administration record
                       </MenuItem>
-                    ),
-                  )}
-                </Select>
-                <FormHelperText>
-                  {data.available_link_targets.medication_administration
-                    .length === 0
-                    ? "Record the completed medication administration first; this list excludes not-given and non-stock outcomes."
-                    : "Uses the existing medication administration and its inventory movement; saving this record does not post stock again."}
-                </FormHelperText>
-              </FormControl>
-            )}
+                    )}
+                    {immunizationAdminEvidenceRequired && (
+                      <MenuItem value="" disabled>
+                        Select a completed stock-linked administration
+                      </MenuItem>
+                    )}
+                    {data.available_link_targets.medication_administration.map(
+                      (administration) => (
+                        <MenuItem
+                          key={administration.id}
+                          value={String(administration.id)}
+                        >
+                          {administration.label}
+                        </MenuItem>
+                      ),
+                    )}
+                  </Select>
+                  <FormHelperText>
+                    {data.available_link_targets.medication_administration
+                      .length === 0
+                      ? "Record the completed medication administration first; this list excludes not-given and non-stock outcomes."
+                      : "Uses the existing medication administration and its inventory movement; saving this record does not post stock again."}
+                  </FormHelperText>
+                </FormControl>
+              )}
             {kind === "immunizations" &&
               ["external_record", "registry"].includes(
                 form.occurrence_source,
               ) && (
-              <FormControl fullWidth>
-                <InputLabel id="immunization-source-document-label">
-                  Source document
-                </InputLabel>
-                <Select
-                  labelId="immunization-source-document-label"
-                  label="Source document"
-                  value={form.source_document_id ?? ""}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      source_document_id: event.target.value,
-                    }))
-                  }
-                >
-                  <MenuItem value="">No linked source document</MenuItem>
-                  {data.available_link_targets.document.map((document) => (
-                    <MenuItem key={document.id} value={String(document.id)}>
-                      {document.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <FormHelperText>
-                  Optional evidence for an external or registry-reported record.
-                </FormHelperText>
-              </FormControl>
-            )}
+                <FormControl fullWidth>
+                  <InputLabel id="immunization-source-document-label">
+                    Source document
+                  </InputLabel>
+                  <Select
+                    labelId="immunization-source-document-label"
+                    label="Source document"
+                    value={form.source_document_id ?? ""}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        source_document_id: event.target.value,
+                      }))
+                    }
+                  >
+                    <MenuItem value="">No linked source document</MenuItem>
+                    {data.available_link_targets.document.map((document) => (
+                      <MenuItem key={document.id} value={String(document.id)}>
+                        {document.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>
+                    Optional evidence for an external or registry-reported
+                    record.
+                  </FormHelperText>
+                </FormControl>
+              )}
             {meta.fields.map((field) => {
               const dynamicOptions =
                 kind === "medication_requests" &&
@@ -1199,13 +1276,23 @@ export function ClinicalPlanWorkspace({
                     (field.name === "cvx_code" &&
                       ["completed", "not_done"].includes(form.status)) ||
                     (field.name === "lot_number" &&
+                      immunizationAdminEvidenceRequired) ||
+                    (field.name === "manufacturer" &&
+                      immunizationAdminEvidenceRequired) ||
+                    (field.name === "lot_expiration_date" &&
                       immunizationAdminEvidenceRequired)));
+              const administrationDerived =
+                immunizationAdminEvidenceRequired &&
+                [
+                  "lot_number",
+                  "lot_expiration_date",
+                  "dose_text",
+                  "route_text",
+                  "administration_site_text",
+                  "administered_at",
+                ].includes(field.name);
               return field.options || dynamicOptions ? (
-                <FormControl
-                  key={field.name}
-                  fullWidth
-                  required={required}
-                >
+                <FormControl key={field.name} fullWidth required={required}>
                   <InputLabel id={`clinical-${field.name}-label`}>
                     {field.label}
                   </InputLabel>
@@ -1224,7 +1311,17 @@ export function ClinicalPlanWorkspace({
                             ...current,
                             occurrence_source: value,
                             ...(value !== "administered_here"
-                              ? { medication_administration_id: "" }
+                              ? {
+                                  medication_administration_id: "",
+                                  lot_number: "",
+                                  lot_expiration_date: "",
+                                  administered_at: "",
+                                  dose_text: "",
+                                  route_text: "",
+                                  administration_site_text: "",
+                                  vis_edition_date: "",
+                                  vis_given_date: "",
+                                }
                               : {}),
                           };
                         }
@@ -1254,6 +1351,7 @@ export function ClinicalPlanWorkspace({
                   multiline={field.multiline}
                   minRows={field.multiline ? 2 : undefined}
                   type={field.type ?? "text"}
+                  disabled={administrationDerived}
                   value={form[field.name] ?? ""}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -1295,7 +1393,9 @@ export function ClinicalPlanWorkspace({
               <Alert severity="info">
                 An immunization administered here must reference its completed
                 medication administration so the dose and clinic-stock movement
-                remain connected.
+                remain connected. Manufacturer and expiration evidence are
+                required; VIS dates are recorded together when a VIS applies.
+                CVX and optional MVX entries are format-checked only.
               </Alert>
             )}
           </Stack>

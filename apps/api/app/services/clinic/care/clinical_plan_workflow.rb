@@ -103,8 +103,9 @@ module Clinic
             "completed" => %w[entered_in_error], "not_done" => %w[entered_in_error],
             "entered_in_error" => []
           },
-          fields: %i[vaccine_name cvx_code manufacturer lot_number dose_text route_text administration_site_text
-            administered_at occurrence_source refusal_reason source_document_id medication_administration_id]
+          fields: %i[vaccine_name cvx_code manufacturer manufacturer_mvx_code lot_number lot_expiration_date
+            dose_text route_text administration_site_text administered_at occurrence_source refusal_reason
+            source_document_id medication_administration_id vis_edition_date vis_given_date]
         },
         assessments: {
           klass: AssessmentRevision,
@@ -158,7 +159,7 @@ module Clinic
         values[:status] = definition.fetch(:default_status)
         values[:transmission_state] = "not_requested" if kind.to_sym == :medication_requests
         values[:requester_membership_id] = membership.id if kind.to_sym == :medication_requests
-        prepare_values!(kind, practice, values)
+        prepare_values!(kind, practice, values, patient:, encounter:)
         validate_references!(kind, practice, patient, encounter, values)
         series_id = SecureRandom.uuid
         payload = { patient_id: patient.id, encounter_id: encounter.id, site_id: encounter.site_id,
@@ -203,7 +204,7 @@ module Clinic
           end
           values = revision_values(definition, previous).merge(changes)
           validate_revision_change!(kind, definition, previous, changes, values)
-          prepare_values!(kind, practice, values)
+          prepare_values!(kind, practice, values, patient:, encounter:)
           validate_references!(kind, practice, patient, encounter, values)
           record = definition.fetch(:klass).create!(
             values.merge(common_attributes(practice, patient, encounter, membership, request_key, values:,
@@ -240,6 +241,7 @@ module Clinic
             value
           end
         end
+        payload.merge!(immunization_administration_evidence(record)) if kind.to_sym == :immunizations
         payload
       end
 
@@ -271,6 +273,24 @@ module Clinic
         (COMMON_FIELDS + definition.fetch(:fields)).to_h { |field| [ field, record.public_send(field) ] }
       end
       private_class_method :revision_values
+
+      def immunization_administration_evidence(record)
+        administration = record.medication_administration
+        return {
+          vaccinator_membership_id: nil, vaccinator_label: nil,
+          administering_site_id: nil, administering_site_label: nil
+        } unless administration
+
+        membership = administration.administered_by_membership
+        label = membership.clinician_profile&.display_name.presence || membership.user.email_address
+        {
+          vaccinator_membership_id: membership.id,
+          vaccinator_label: label,
+          administering_site_id: administration.site_id,
+          administering_site_label: administration.site.name
+        }
+      end
+      private_class_method :immunization_administration_evidence
 
       def common_attributes(practice, patient, encounter, membership, request_key, values:, series_id:, version_number:, prior_revision:)
         content = { patient_id: patient.id, encounter_id: encounter.id, series_id:, version_number:, values: }
@@ -336,7 +356,11 @@ module Clinic
       end
       private_class_method :validate_references!
 
-      def prepare_values!(kind, practice, values)
+      def prepare_values!(kind, practice, values, patient:, encounter:)
+        if kind.to_sym == :immunizations
+          prepare_immunization_values!(practice, patient, encounter, values)
+          return
+        end
         return unless kind.to_sym == :medication_requests
 
         if values[:inventory_product_id].present?
@@ -360,6 +384,30 @@ module Clinic
       end
       private_class_method :prepare_values!
 
+      def prepare_immunization_values!(practice, patient, encounter, values)
+        values[:manufacturer_mvx_code] = values[:manufacturer_mvx_code].to_s.upcase.presence
+        return unless values[:status] == "completed" && values[:occurrence_source] == "administered_here" &&
+          values[:medication_administration_id].present?
+
+        administration = MedicationAdministration.where(practice:, patient:, encounter:, status: "completed")
+          .includes(:movement_links)
+          .find(values[:medication_administration_id])
+        stock = administration.movement_links.map(&:stock_identity)
+        identities = stock.map { |row| [ row[:lot_number].to_s, row[:expires_on].to_s ] }.uniq
+        raise ArgumentError, "The linked administration must resolve to exactly one inventory lot." unless identities.one?
+
+        lot_number, expires_on = identities.sole
+        values[:administered_at] = administration.administered_at
+        values[:lot_number] = lot_number
+        values[:lot_expiration_date] = Date.iso8601(expires_on)
+        values[:dose_text] = administration.dose_text
+        values[:route_text] = administration.route_text
+        values[:administration_site_text] = administration.administration_site_text
+      rescue Date::Error, ArgumentError => error
+        raise ArgumentError, error.message
+      end
+      private_class_method :prepare_immunization_values!
+
       def medication_products(practice)
         Clinic::Inventory::PharmacyProduct.where(practice:, category: "medication", active: true)
           .order(:name, :id).limit(500).map do |product|
@@ -374,6 +422,12 @@ module Clinic
       def validate_revision_change!(kind, definition, previous, changes, values)
         changed = changes.any? { |field, value| previous.public_send(field) != value }
         raise ArgumentError, "Change at least one field before saving a revision." unless changed
+        if kind.to_sym == :immunizations && changes[:status] == "entered_in_error"
+          changed_evidence = changes.any? do |field, value|
+            field != :status && previous.public_send(field) != value
+          end
+          raise ArgumentError, "Mark an immunization entered in error without rewriting its evidence." if changed_evidence
+        end
         return unless changes.key?(:status) && changes[:status] != previous.status
 
         allowed = definition.fetch(:transitions).fetch(previous.status, [])

@@ -144,17 +144,32 @@ module Clinic
           medication_statement: MedicationStatement.where(practice:, patient:).order(updated_at: :desc, id: :desc).limit(100)
             .map { |record| { id: record.id, label: [ record.medication_name, record.dose_text, record.status ].compact.join(" · ") } },
           medication_administration: MedicationAdministration.where(practice:, patient:, encounter:, status: "completed")
-            .joins(:movement_links).includes(:movement_links).distinct
-            .order(administered_at: :desc, id: :desc).limit(100).map do |record|
+            .joins(:movement_links)
+            .includes(:site, :movement_links, administered_by_membership: [ :user, :clinician_profile ])
+            .distinct.order(administered_at: :desc, id: :desc).limit(100).filter_map do |record|
               medication = record.medication_identity
-              lot_numbers = record.movement_links.sort_by(&:id).filter_map do |link|
-                link.stock_identity[:lot_number]
+              stock = record.movement_links.sort_by(&:id).filter_map do |link|
+                identity = link.stock_identity
+                [ identity[:lot_number].to_s, identity[:expires_on].to_s ]
+              rescue ArgumentError
+                nil
               end.uniq
+              next unless stock.one?
+
+              lot_number, lot_expiration_date = stock.sole
+              membership = record.administered_by_membership
+              vaccinator_label = membership.clinician_profile&.display_name.presence || membership.user.email_address
               { id: record.id,
                 label: [ medication.fetch(:name), record.dose_text,
-                  lot_numbers.any? ? "Lot #{lot_numbers.join(', ')}" : nil,
+                  "Lot #{lot_number}",
+                  vaccinator_label, record.site.name,
                   record.administered_at.iso8601(6) ].compact.join(" · "),
-                status: record.status, movement_count: record.movement_links.length, lot_numbers: }
+                status: record.status, movement_count: record.movement_links.length, lot_numbers: [ lot_number ],
+                lot_number:, lot_expiration_date:, administered_at: record.administered_at.iso8601(6),
+                dose_text: record.dose_text, route_text: record.route_text,
+                administration_site_text: record.administration_site_text,
+                vaccinator_membership_id: membership.id, vaccinator_label:,
+                administering_site_id: record.site_id, administering_site_label: record.site.name }
             end,
           lab_report: LabReport.where(practice:, patient:).includes(:current_version).order(updated_at: :desc, id: :desc)
             .limit(100).map { |record| { id: record.id, label: record.current_version&.title || "Lab report #{record.id}" } },
