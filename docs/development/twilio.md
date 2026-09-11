@@ -40,3 +40,17 @@ APP_PATIENT_PORTAL_TWILIO_FROM_NUMBER=+1...
 The reset link expires after 30 minutes and is replaced by any later recovery request. The public endpoint never reports whether an email address, patient, mobile number or Twilio configuration matched. Delivery is processed by `bin/clinic-worker`; a timed-out or interrupted send is marked unknown and is not automatically duplicated.
 
 For a local non-delivery Twilio API check, omit the APPly recovery Account SID and API key variables, then provide `TWILIO_TEST_ACCOUNT_SID` and `TWILIO_TEST_AUTH_TOKEN`. Twilio test credentials validate the Messages API request with the documented magic sender but do not contact a handset or emit delivery callbacks. Authorized local development still shows the short-lived secure reset continuation so a tester can finish the workflow. A real SMS requires a separately authorized recipient, live Twilio credentials and any applicable messaging registration or sender approval.
+
+## Clinic-owner invitation SMS
+
+The Owner Command Center can send the one-time clinic-owner activation link by email or text message. The owner account still requires an email address; a mobile number is used only for delivery and is not retained with the invitation. Text delivery is disabled in the Command Center until these server-only values are present:
+
+```text
+APP_PLATFORM_INVITATION_SMS_ENABLED=true
+APP_PLATFORM_TWILIO_ACCOUNT_SID=AC...
+APP_PLATFORM_TWILIO_API_KEY_SID=SK...
+APP_PLATFORM_TWILIO_API_KEY_SECRET=<secret-store value>
+APP_PLATFORM_TWILIO_MESSAGING_SERVICE_SID=MG...
+```
+
+Alternatively, configure `APP_PLATFORM_TWILIO_FROM_NUMBER=+1...` instead of a Messaging Service. Use a Twilio restricted API key that can create Messaging messages and an approved sender. A successful Twilio API acceptance returns no activation URL to the browser; an unavailable or rejected sender leaves the existing private recovery link available to the platform owner so the invitation is not lost.
