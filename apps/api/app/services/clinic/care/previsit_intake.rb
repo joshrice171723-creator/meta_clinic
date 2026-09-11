@@ -3,7 +3,10 @@ module Clinic
     # A versioned, non-FHIR intake form stored inside the existing encrypted,
     # append-only previsit note. Rendered text remains available to chart readers.
     module PrevisitIntake
-      FORM_ID = "meta-clinic-previsit-v1".freeze
+      FORM_ID = "meta-clinic-previsit-v2".freeze
+      LEGACY_FORM_IDS = %w[meta-clinic-previsit-v1].freeze
+      ATTESTATION_ID = "patient-confirmed-current-and-care-team-sharing".freeze
+      ATTESTATION_VERSION = "2026-09-11".freeze
       FIELDS = [
         { id: "visit_reason", label: "What brings you in?", reusable: false },
         { id: "symptoms", label: "Symptoms and when they started", reusable: false },
@@ -17,7 +20,7 @@ module Clinic
 
       module_function
 
-      def encode(text:, answers:)
+      def encode(text:, answers:, attested:)
         raise ArgumentError, "Intake answers must be an object." unless answers.is_a?(Hash)
         unknown = answers.keys.map(&:to_s) - FIELDS.map { |field| field[:id] }
         raise ArgumentError, "Choose supported intake questions." if unknown.any?
@@ -28,9 +31,20 @@ module Clinic
           raise ArgumentError, "Each intake answer must be #{MAX_ANSWER_LENGTH} characters or fewer." if value.length > MAX_ANSWER_LENGTH
           [field[:id], value]
         end
-        return text.to_s.strip if normalized.values.all?(&:blank?)
+        additional_text = text.to_s.strip
+        return additional_text if normalized.values.all?(&:blank?) && additional_text.blank?
+        raise ArgumentError, "Confirm the intake is current and may be shared with your care team." unless attested == true
 
-        encoded = PREFIX + JSON.generate(form_id: FORM_ID, text: text.to_s.strip, answers: normalized)
+        encoded = PREFIX + JSON.generate(
+          form_id: FORM_ID,
+          text: additional_text,
+          answers: normalized,
+          attestation: {
+            id: ATTESTATION_ID,
+            version: ATTESTATION_VERSION,
+            accepted: true
+          }
+        )
         raise ArgumentError, "Shorten your intake answers and visit note before saving." if encoded.length > PrevisitNote::MAX_TEXT_LENGTH
         encoded
       end
@@ -38,10 +52,18 @@ module Clinic
       def decode(value)
         return unless value.to_s.start_with?(PREFIX)
         payload = JSON.parse(value.delete_prefix(PREFIX))
-        return unless payload.is_a?(Hash) && payload["form_id"] == FORM_ID &&
+        return unless payload.is_a?(Hash) && ([ FORM_ID ] + LEGACY_FORM_IDS).include?(payload["form_id"]) &&
           payload["text"].is_a?(String) && payload["answers"].is_a?(Hash) &&
           (payload["answers"].keys - FIELDS.map { |field| field[:id] }).empty? &&
           payload["answers"].values.all? { |answer| answer.is_a?(String) }
+        if payload["form_id"] == FORM_ID
+          attestation = payload["attestation"]
+          return unless attestation.is_a?(Hash) && attestation == {
+            "id" => ATTESTATION_ID,
+            "version" => ATTESTATION_VERSION,
+            "accepted" => true
+          }
+        end
         payload
       rescue JSON::ParserError
         nil
@@ -55,6 +77,9 @@ module Clinic
           "#{field[:label]}\n#{answer}" if answer.present?
         end
         sections << "Additional note\n#{payload['text']}" if payload["text"].present?
+        if payload["attestation"]
+          sections << "Patient confirmation\nConfirmed current and authorized for care-team review"
+        end
         "Patient-reported intake\n\n#{sections.join("\n\n") }"
       end
     end

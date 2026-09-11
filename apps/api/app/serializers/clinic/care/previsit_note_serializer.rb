@@ -12,6 +12,7 @@ module Clinic
           additional_text: intake ? intake["text"] : note.text,
           intake_answers: intake ? intake["answers"] : {},
           form_id: intake && intake["form_id"],
+          attestation: intake && intake["attestation"],
           submitted_at: note.submitted_at.iso8601(6)
         }
       end

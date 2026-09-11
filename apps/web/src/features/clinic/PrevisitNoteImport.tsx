@@ -17,6 +17,7 @@ export type PrevisitNote = {
   id: number;
   version_number: number;
   text: string;
+  attestation?: { id: string; version: string; accepted: true } | null;
   submitted_at: string;
 };
 
@@ -105,6 +106,14 @@ export function PrevisitNoteImport({
           {new Date(note.submitted_at).toLocaleString()}
         </Typography>
         <Typography
+          variant="caption"
+          color={note.attestation?.accepted ? "success.main" : "warning.main"}
+        >
+          {note.attestation?.accepted
+            ? "Patient confirmed the intake for care-team review."
+            : "Legacy submission without the current confirmation record."}
+        </Typography>
+        <Typography
           sx={{
             whiteSpace: "pre-wrap",
             overflowWrap: "anywhere",
@@ -152,6 +161,13 @@ export function PrevisitNoteImport({
               end of your current subjective history. Your existing draft stays
               in place. Save the chart to record the addition.
             </Typography>
+            <Alert
+              severity={preview?.attestation?.accepted ? "info" : "warning"}
+            >
+              {preview?.attestation?.accepted
+                ? "This submission includes the current patient confirmation for care-team review."
+                : "This is a legacy submission without the current confirmation record. Review it as patient-reported context."}
+            </Alert>
             <Box sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
               {preview?.text}
             </Box>

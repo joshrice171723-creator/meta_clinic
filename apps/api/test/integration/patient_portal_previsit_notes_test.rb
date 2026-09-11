@@ -35,7 +35,10 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
 
     get portal_path(appointment), headers: @headers
     assert_response :success
-    assert_equal({ "appointment_id" => appointment.id, "note" => nil, "can_edit" => true }, response.parsed_body)
+    assert_equal appointment.id, response.parsed_body.fetch("appointment_id")
+    assert_nil response.parsed_body.fetch("note")
+    assert_equal true, response.parsed_body.fetch("can_edit")
+    assert_equal Clinic::Care::PrevisitIntake::FORM_ID, response.parsed_body.dig("intake_form", "id")
 
     first = { previsit_note: {
       text: "  I have had headaches for two days.  ", expected_version: 0, request_key: "previsit-first"
@@ -84,6 +87,48 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     assert_equal 2, @practice.audit_events.where(
       action_code: "patient_portal.previsit_note.write", outcome: "committed"
     ).count
+  end
+
+  test "structured intake requires and preserves patient confirmation for reuse" do
+    first_appointment = create_appointment(patient: @patient, starts_at: 3.days.from_now.change(usec: 0))
+    intake = {
+      text: "Please review this synthetic intake.",
+      intake_answers: {
+        visit_reason: "Synthetic follow-up",
+        medications: "No changes reported",
+        allergies: "Synthetic allergy answer"
+      },
+      expected_version: 0,
+      request_key: "previsit-structured-confirmed"
+    }
+
+    assert_no_difference "Clinic::Care::PrevisitNote.count" do
+      post portal_path(first_appointment), params: { previsit_note: intake.merge(attestation: false) },
+        headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_equal "invalid_request", response.parsed_body.fetch("code")
+    end
+
+    post portal_path(first_appointment), params: { previsit_note: intake.merge(attestation: true) },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    note = response.parsed_body.fetch("note")
+    assert_equal Clinic::Care::PrevisitIntake::FORM_ID, note.fetch("form_id")
+    assert_equal true, note.dig("attestation", "accepted")
+    assert_equal "Synthetic allergy answer", note.dig("intake_answers", "allergies")
+
+    plain_note_appointment = create_appointment(patient: @patient, starts_at: 4.days.from_now.change(usec: 0))
+    post portal_path(plain_note_appointment), params: { previsit_note: {
+      text: "Legacy plain-text synthetic note", expected_version: 0, request_key: "previsit-plain-between-forms"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+
+    second_appointment = create_appointment(patient: @patient, starts_at: 5.days.from_now.change(usec: 0))
+    get portal_path(second_appointment), headers: @headers
+    assert_response :success
+    assert_equal "Synthetic allergy answer", response.parsed_body.dig("reusable_answers", "answers", "allergies")
+    assert_equal Clinic::Care::PrevisitIntake::ATTESTATION_VERSION,
+      response.parsed_body.dig("intake_form", "attestation", "version")
   end
 
   test "ownership appointment timing and a started encounter gate patient edits" do

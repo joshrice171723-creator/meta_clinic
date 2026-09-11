@@ -2,10 +2,12 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Stack,
   TextField,
   Typography,
@@ -19,6 +21,7 @@ type Note = {
   text: string;
   additional_text?: string;
   intake_answers?: Record<string, string>;
+  attestation?: { id: string; version: string; accepted: true } | null;
   submitted_at: string;
 };
 type Response = {
@@ -29,6 +32,7 @@ type Response = {
     id: string;
     fields: { id: string; label: string; reusable: boolean }[];
     max_answer_length: number;
+    attestation: { id: string; version: string; label: string };
   };
   reusable_answers?: {
     submitted_at: string;
@@ -40,6 +44,7 @@ type Attempt = {
     previsit_note: {
       text: string;
       intake_answers: Record<string, string>;
+      attestation: boolean;
       expected_version: number;
       request_key: string;
     };
@@ -100,6 +105,7 @@ export function PatientPrevisitNote({
   const [text, setText] = useState("");
   const [baseline, setBaseline] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [attested, setAttested] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -142,6 +148,7 @@ export function PatientPrevisitNote({
         const savedAnswers = result.note?.intake_answers ?? {};
         setText(saved);
         setAnswers(savedAnswers);
+        setAttested(false);
         setBaseline(draftKey(saved, savedAnswers));
         setConflict(false);
       } else {
@@ -168,6 +175,7 @@ export function PatientPrevisitNote({
     setLatestReady(false);
     setLatestRefreshFailed(false);
     setConfirmDiscard(false);
+    setAttested(false);
     void load();
   };
   const closeEditor = () => {
@@ -195,6 +203,7 @@ export function PatientPrevisitNote({
     const savedAnswers = data?.note?.intake_answers ?? {};
     setText(saved);
     setAnswers(savedAnswers);
+    setAttested(false);
     setBaseline(draftKey(saved, savedAnswers));
     setConflict(false);
     setError("");
@@ -205,6 +214,7 @@ export function PatientPrevisitNote({
     setBaseline(
       draftKey(savedText(data?.note), data?.note?.intake_answers ?? {}),
     );
+    setAttested(false);
     setConflict(false);
     setError("");
     setLatestReady(false);
@@ -212,6 +222,9 @@ export function PatientPrevisitNote({
   };
   const save = async () => {
     const normalizedText = text.trim() ? text : "";
+    const hasContent =
+      normalizedText !== "" ||
+      Object.values(answers).some((value) => value.trim());
     if (
       !data ||
       busy ||
@@ -222,11 +235,18 @@ export function PatientPrevisitNote({
         !data.note)
     )
       return;
+    if (hasContent && !attested) {
+      setError(
+        "Confirm the intake is current and may be shared with your care team before saving.",
+      );
+      return;
+    }
     const current = attempt.current ?? {
       body: {
         previsit_note: {
           text: normalizedText,
           intake_answers: answers,
+          attestation: attested,
           expected_version: data.note?.version_number ?? 0,
           request_key: crypto.randomUUID(),
         },
@@ -248,6 +268,7 @@ export function PatientPrevisitNote({
       setData(result);
       setText(saved);
       setAnswers(savedAnswers);
+      setAttested(false);
       setBaseline(draftKey(saved, savedAnswers));
       setNotice(
         result.note?.text
@@ -293,6 +314,8 @@ export function PatientPrevisitNote({
     !busy &&
     !conflict &&
     draftKey(text, answers) !== baseline &&
+    ((!text.trim() && !Object.values(answers).some((value) => value.trim())) ||
+      attested) &&
     (text.trim() !== "" ||
       Object.values(answers).some((value) => value.trim()) ||
       data.note !== null);
@@ -387,6 +410,7 @@ export function PatientPrevisitNote({
                           }
                           return next;
                         });
+                        setAttested(false);
                         setNotice(
                           "Previous health answers added to empty fields. Confirm they are still current before saving.",
                         );
@@ -401,12 +425,13 @@ export function PatientPrevisitNote({
                     key={field.id}
                     label={field.label}
                     value={answers[field.id] ?? ""}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setAnswers((current) => ({
                         ...current,
                         [field.id]: event.target.value,
-                      }))
-                    }
+                      }));
+                      setAttested(false);
+                    }}
                     multiline
                     minRows={2}
                     fullWidth
@@ -422,7 +447,10 @@ export function PatientPrevisitNote({
                 <TextField
                   label="Anything else the clinic should know?"
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => {
+                    setText(event.target.value);
+                    setAttested(false);
+                  }}
                   multiline
                   minRows={5}
                   fullWidth
@@ -430,6 +458,24 @@ export function PatientPrevisitNote({
                   slotProps={{ htmlInput: { maxLength: 5_000 } }}
                   helperText="Optional. You can clear a saved note before the visit starts."
                 />
+                {data.intake_form?.attestation &&
+                  (text.trim() !== "" ||
+                    Object.values(answers).some((value) => value.trim())) && (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={attested}
+                          onChange={(event) =>
+                            setAttested(event.target.checked)
+                          }
+                          disabled={
+                            loading || busy || outcomeUnknown || conflict
+                          }
+                        />
+                      }
+                      label={data.intake_form.attestation.label}
+                    />
+                  )}
               </Stack>
             )}
           </Stack>
@@ -451,6 +497,7 @@ export function PatientPrevisitNote({
               onClick={() => {
                 setText("");
                 setAnswers({});
+                setAttested(false);
               }}
             >
               Clear intake and note
