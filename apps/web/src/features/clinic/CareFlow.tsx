@@ -3207,10 +3207,18 @@ export function ProviderEncounterWorkflow({
   };
 
   useEffect(() => {
-    if (!chartConfirmed) return;
     const requestedFocus = new URLSearchParams(window.location.search).get(
       "focus",
     );
+    if (requestedFocus === "nurse-workspace") {
+      const timer = window.setTimeout(() => {
+        const target = document.getElementById(requestedFocus);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        target?.focus();
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    if (!chartConfirmed) return;
     if (!requestedFocus) {
       workspaceHeading.current?.focus();
       return;
@@ -3425,6 +3433,17 @@ export function ProviderEncounterWorkflow({
         </Stack>
       </Paper>
 
+      <NurseEncounterWorkspace
+        patient={patient}
+        encounter={encounter}
+        observations={observations}
+        careSummary={
+          careSummaryState.status === "ready"
+            ? careSummaryState.summary
+            : null
+        }
+      />
+
       {chartConfirmed && (
         <Box className="provider-chart-layout">
           <ChartQuickJump />
@@ -3545,16 +3564,6 @@ export function ProviderEncounterWorkflow({
                 </Typography>
               </Stack>
             </Paper>
-            <NurseEncounterWorkspace
-              patient={patient}
-              encounter={encounter}
-              observations={observations}
-              careSummary={
-                careSummaryState.status === "ready"
-                  ? careSummaryState.summary
-                  : null
-              }
-            />
             <PatientEducationPanel patient={patient} encounter={encounter} />
             <PatientClinicalHistory
               patientId={patient.id}

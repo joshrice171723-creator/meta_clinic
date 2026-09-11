@@ -38,6 +38,9 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
 
       assert_equal "Medication follow-up and fatigue review", encounter.appointment.reason
       assert_equal Development::PilotRehearsal::SITE_CODE, encounter.site.code
+      clinician = accounts.fetch("clinician").clinic_membership.clinician_profile
+      assert_equal "Clinician", clinician.display_name
+      assert clinician.assignments.current.exists?(site: encounter.site)
       assert_equal %w[allergies care_needs medications], encounter.history_reviews.pluck(:topic).sort
       assert_equal %w[none_reported], encounter.history_reviews.distinct.pluck(:outcome)
       assert_equal 7, encounter.observations.count
@@ -60,6 +63,7 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
         Development::RoleAccounts.prepare!
       end
       assert_equal recorded, Clinic::ClinicalTask.find(recorded.id)
+      assert accounts.fetch("clinician").clinic_membership.clinician_profile.assignments.current.exists?(site: encounter.site)
     end
   end
 

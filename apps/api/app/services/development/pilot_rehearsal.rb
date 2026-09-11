@@ -2,21 +2,24 @@ module Development
   class PilotRehearsal
     PATIENT_REFERENCE = "MC-PILOT-001".freeze
     SITE_CODE = "PILOT".freeze
+    DEPARTMENT_CODE = "PRIMARY".freeze
     VISIT_TYPE_CODE = "Ambulatory follow-up".freeze
 
     def self.prepare!(practice:, accounts:, as_of: Current.business_time)
       ensure_local!
       administrator = accounts.fetch("clinic-administrator")
       clinical_staff = accounts.fetch("clinical-staff")
+      clinician = accounts.fetch("clinician")
       patient = practice.patients.find_or_create_by!(reference: PATIENT_REFERENCE) do |record|
         record.display_name = "Morgan Juniper"
       end
-      encounter = practice.encounters.open.find_by(patient: patient)
-      return encounter if encounter
-
       site = practice.sites.find_or_create_by!(code: SITE_CODE) do |record|
         record.name = "Main clinic"
       end
+      prepare_clinician!(practice:, clinician:, site:, as_of:)
+      encounter = practice.encounters.open.find_by(patient: patient)
+      return encounter if encounter
+
       visit_type = practice.visit_types.find_or_create_by!(code: VISIT_TYPE_CODE)
       starts_at = as_of - 15.minutes
       appointment = practice.appointments.create!(
@@ -45,6 +48,19 @@ module Development
         resource_version_ref: "Clinic::Encounter/#{encounter.id}"
       )
       encounter
+    end
+
+    private_class_method def self.prepare_clinician!(practice:, clinician:, site:, as_of:)
+      membership = clinician.clinic_membership
+      profile = practice.clinician_profiles.find_or_initialize_by(membership: membership)
+      profile.display_name ||= Development::RoleAccounts::ACCOUNTS.fetch("clinician").fetch(:label)
+      profile.save!
+
+      department = practice.departments.find_or_create_by!(code: DEPARTMENT_CODE)
+      assignment = profile.assignments.find_or_initialize_by(practice: practice, site: site, department: department)
+      assignment.effective_from ||= as_of - 1.day
+      assignment.effective_until = nil
+      assignment.save!
     end
 
     private_class_method def self.prepare_history!(practice:, patient:, encounter:, reviewer:, starts_at:)
