@@ -70,6 +70,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | --- | --- |
 | [[Company Foundation]] | Confirmed market/model/team direction and unresolved business details |
 | [[Customer and Offer]] | NP/PA customer, done-for-you offer, scope and packaging |
+| [[Pricing Strategy]] | Proposed consultancy and software package ladder, pricing hypotheses and validation tests |
 | [[Business Model]] | Launch/support economics, ordered-inventory-value fee basis and unresolved mechanics |
 | [[Entity and Product Boundary]] | Consultancy, software company, physician services and clinic responsibilities; IP/contracts/data |
 | [[Clinic Launch Packet]] | Source-to-packet outline, applicant actions, review and handoff evidence; actual packet absent |
