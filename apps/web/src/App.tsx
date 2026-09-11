@@ -22,6 +22,11 @@ import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
 import { SessionGuard } from "./features/identity/SessionGuard";
 import {
+  AppearanceContext,
+  ClinicAppearanceScope,
+  useClinicAppearance,
+} from "./features/clinic/Appearance";
+import {
   ClinicNavigationProvider,
   clinicRoute,
   clinicRouteHref,
@@ -81,6 +86,10 @@ const Login = lazyNamed(
 const Settings = lazyNamed(
   () => import("./features/identity/Settings"),
   (m) => m.Settings,
+);
+const OwnerCommandCenter = lazyNamed(
+  () => import("./features/owner/OwnerCommandCenter"),
+  (m) => m.OwnerCommandCenter,
 );
 const Workspace = lazyNamed(
   () => import("./features/clinic/Workspace"),
@@ -306,14 +315,24 @@ function LaunchLayout({
     </>
   );
 }
-function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
-  return (
+function MemberLayout({
+  user,
+  children,
+  inheritOwnerTheme = true,
+}: {
+  user: User;
+  children: ReactNode;
+  inheritOwnerTheme?: boolean;
+}) {
+  const appearance = useClinicAppearance(user.id);
+  const content = (
     <main id="main" className="wrap inner-page portal-page">
       <nav className="member-navigation" aria-label="Member navigation">
         <a href="/portal">Launch &amp; onboarding</a>
         <a href="/paperwork">Paperwork</a>
         <a href="/training">Training</a>
         {user.admin && <a href="/inquiries">Inquiries</a>}
+        {user.admin && <a href="/owner">Owner Command Center</a>}
         <a href="/portal/settings">Settings</a>
         <Form
           endpoint="/api/session"
@@ -324,6 +343,12 @@ function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
       </nav>
       {children}
     </main>
+  );
+  if (!inheritOwnerTheme) return content;
+  return (
+    <ClinicAppearanceScope {...appearance}>
+      <AppearanceContext value={appearance}>{content}</AppearanceContext>
+    </ClinicAppearanceScope>
   );
 }
 
@@ -779,6 +804,19 @@ export function App() {
           businessDate={configuration.business_date}
         />
       </SessionGuard>
+    );
+  }
+  if (path === "/owner" && user) {
+    return (
+      <LaunchLayout user={user} environment={configuration.environment}>
+        <SessionGuard key={user.id} expectedUserId={user.id}>
+          <MemberLayout key={user.id} user={user} inheritOwnerTheme={false}>
+            <RouteBoundary>
+              <OwnerCommandCenter />
+            </RouteBoundary>
+          </MemberLayout>
+        </SessionGuard>
+      </LaunchLayout>
     );
   }
   if (
