@@ -97,13 +97,7 @@ module Clinic
       end
 
       def projected_scope(scope)
-        scope.joins(<<~SQL.squish).select(
-          "clinic_encounter_follow_ups.*",
-          "recall_latest.occurred_at AS recall_latest_event_at",
-          "recall_control.event_type AS recall_control_type",
-          "recall_control.snoozed_until AS recall_snoozed_until",
-          "recall_counts.outreach_count AS recall_outreach_count"
-        )
+        recall_joins = <<~SQL.squish
           LEFT JOIN LATERAL (
             SELECT occurred_at
             FROM clinic_recall_events
@@ -128,6 +122,14 @@ module Clinic
               AND event_type = 'outreach_recorded'
           ) recall_counts ON true
         SQL
+
+        scope.joins(recall_joins).select(
+          "clinic_encounter_follow_ups.*",
+          "recall_latest.occurred_at AS recall_latest_event_at",
+          "recall_control.event_type AS recall_control_type",
+          "recall_control.snoozed_until AS recall_snoozed_until",
+          "recall_counts.outreach_count AS recall_outreach_count"
+        )
       end
 
       def projected_status_sql
