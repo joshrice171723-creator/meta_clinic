@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
+import { businessTimeAfter } from "../../shared/businessDate";
 import { useClinic } from "./Workspace";
 import { localDateTimeInput } from "./frontDeskModel";
 import { LabResultHistory } from "./LabResultHistory";
@@ -428,7 +429,7 @@ export function PatientLabReports({
     setReviewDisposition("required");
     if (!reviewFollowUpDueAt)
       setReviewFollowUpDueAt(
-        localDateTimeInput(new Date(Date.now() + 60 * 60 * 1000).toISOString()),
+        localDateTimeInput(businessTimeAfter(60 * 60 * 1000).toISOString()),
       );
   }, [reviewFollowUpDueAt, reviewTarget]);
   useEffect(() => {
@@ -441,7 +442,7 @@ export function PatientLabReports({
     setFollowUpDisposition("required");
     if (!followUpDueAt)
       setFollowUpDueAt(
-        localDateTimeInput(new Date(Date.now() + 60 * 60 * 1000).toISOString()),
+        localDateTimeInput(businessTimeAfter(60 * 60 * 1000).toISOString()),
       );
   }, [followUpDueAt, followUpTarget]);
   useEffect(() => {

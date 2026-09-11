@@ -24,6 +24,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "../../api/client";
 import type { ClinicalTask } from "../../api/contracts";
+import { isBeforeBusinessTime } from "../../shared/businessDate";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
 import type { LabFollowUp } from "./PatientLabReports";
@@ -388,7 +389,8 @@ function TaskActions({
     task.assigned_to_membership_id === actorMembershipId &&
     ["claimed", "in_progress"].includes(task.state);
   const canStart =
-    task.assigned_to_membership_id === actorMembershipId && task.state === "claimed";
+    task.assigned_to_membership_id === actorMembershipId &&
+    task.state === "claimed";
   return (
     <Stack spacing={1} sx={{ mt: 1.5 }}>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
@@ -453,12 +455,16 @@ function TaskActions({
         {canResolve && (
           <>
             <FormControl size="small" sx={{ minWidth: 190 }}>
-              <InputLabel id={`task-resolution-${task.id}`}>Resolution</InputLabel>
+              <InputLabel id={`task-resolution-${task.id}`}>
+                Resolution
+              </InputLabel>
               <Select
                 labelId={`task-resolution-${task.id}`}
                 label="Resolution"
                 value={resolutionCode}
-                onChange={(event) => setResolutionCode(String(event.target.value))}
+                onChange={(event) =>
+                  setResolutionCode(String(event.target.value))
+                }
               >
                 {[
                   ["completed", "Completed"],
@@ -476,7 +482,9 @@ function TaskActions({
               size="small"
               variant="outlined"
               disabled={Boolean(busy)}
-              onClick={() => transition("complete", { resolution_code: resolutionCode })}
+              onClick={() =>
+                transition("complete", { resolution_code: resolutionCode })
+              }
             >
               {busy === "complete" ? "Resolving…" : "Resolve"}
             </Button>
@@ -505,7 +513,10 @@ function EncounterFollowUpActions({
   const [error, setError] = useState("");
   const attempts = useRef(new Map<string, string>());
 
-  async function mutate(action: "assign" | "complete", values: Record<string, unknown> = {}) {
+  async function mutate(
+    action: "assign" | "complete",
+    values: Record<string, unknown> = {},
+  ) {
     const signature = JSON.stringify([action, values]);
     const requestKey = attempts.current.get(signature) || crypto.randomUUID();
     attempts.current.set(signature, requestKey);
@@ -528,17 +539,20 @@ function EncounterFollowUpActions({
           },
         });
       } else {
-        await api(`/api/clinic/operations/encounter_follow_ups/${followUp.id}`, {
-          method: "PATCH",
-          body: {
-            follow_up: {
-              action: "complete",
-              request_key: requestKey,
-              expected_version: followUp.version,
-              outcome,
+        await api(
+          `/api/clinic/operations/encounter_follow_ups/${followUp.id}`,
+          {
+            method: "PATCH",
+            body: {
+              follow_up: {
+                action: "complete",
+                request_key: requestKey,
+                expected_version: followUp.version,
+                outcome,
+              },
             },
           },
-        });
+        );
       }
       attempts.current.delete(signature);
       onChanged();
@@ -567,7 +581,9 @@ function EncounterFollowUpActions({
           </Button>
         )}
         <FormControl size="small" sx={{ minWidth: 190 }}>
-          <InputLabel id={`follow-up-assignee-${followUp.id}`}>Owner</InputLabel>
+          <InputLabel id={`follow-up-assignee-${followUp.id}`}>
+            Owner
+          </InputLabel>
           <Select
             labelId={`follow-up-assignee-${followUp.id}`}
             label="Owner"
@@ -788,43 +804,48 @@ function StaffRequestActions({
           </Button>
         )}
       </Stack>
-      {canManage && !["resolved", "declined", "expired"].includes(request.state) && (
-        <Button
-          size="small"
-          variant="outlined"
-          disabled={Boolean(busy)}
-          onClick={async () => {
-            const signature = "resolve";
-            const requestKey = attempts.current.get(signature) || crypto.randomUUID();
-            attempts.current.set(signature, requestKey);
-            setBusy("resolve");
-            setError("");
-            try {
-              await api(`/api/clinic/staff-messaging/requests/${request.id}/transition`, {
-                method: "POST",
-                body: {
-                  transition: {
-                    state: "resolved",
-                    resolution_code: "completed",
-                    request_key: requestKey,
-                    expected_updated_at: request.updated_at,
+      {canManage &&
+        !["resolved", "declined", "expired"].includes(request.state) && (
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={Boolean(busy)}
+            onClick={async () => {
+              const signature = "resolve";
+              const requestKey =
+                attempts.current.get(signature) || crypto.randomUUID();
+              attempts.current.set(signature, requestKey);
+              setBusy("resolve");
+              setError("");
+              try {
+                await api(
+                  `/api/clinic/staff-messaging/requests/${request.id}/transition`,
+                  {
+                    method: "POST",
+                    body: {
+                      transition: {
+                        state: "resolved",
+                        resolution_code: "completed",
+                        request_key: requestKey,
+                        expected_updated_at: request.updated_at,
+                      },
+                    },
                   },
-                },
-              });
-              attempts.current.delete(signature);
-              onChanged();
-            } catch (reason) {
-              const failure = mutationFailure(reason);
-              if (!failure.outcomeUnknown) attempts.current.delete(signature);
-              setError(failure.message);
-            } finally {
-              setBusy("");
-            }
-          }}
-        >
-          {busy === "resolve" ? "Resolving…" : "Resolve"}
-        </Button>
-      )}
+                );
+                attempts.current.delete(signature);
+                onChanged();
+              } catch (reason) {
+                const failure = mutationFailure(reason);
+                if (!failure.outcomeUnknown) attempts.current.delete(signature);
+                setError(failure.message);
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
+            {busy === "resolve" ? "Resolving…" : "Resolve"}
+          </Button>
+        )}
       {error && <Alert severity="error">{error}</Alert>}
     </Stack>
   );
@@ -966,8 +987,8 @@ function InboxRow({
         )}
         {!item.mutation && (
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-            This item is source-managed. Use the source link to complete it;
-            the inbox will not imply completion here.
+            This item is source-managed. Use the source link to complete it; the
+            inbox will not imply completion here.
           </Typography>
         )}
       </Box>
@@ -1216,9 +1237,7 @@ export function WorkInbox() {
     if (assignment !== "mine") {
       labFollowUps.data?.items.forEach((item) => {
         const dueAt = item.follow_up.due_at;
-        const overdue = Boolean(
-          dueAt && new Date(dueAt).getTime() < Date.now(),
-        );
+        const overdue = Boolean(dueAt && isBeforeBusinessTime(dueAt));
         if (assignment === "overdue" && !overdue) return;
         const query = new URLSearchParams({
           lab_report_id: String(item.report_id),
@@ -1238,7 +1257,8 @@ export function WorkInbox() {
           dateCaption: "Due",
           overdue,
           owner: "Unassigned",
-          nextAction: item.follow_up.instructions || "Complete the result follow-up",
+          nextAction:
+            item.follow_up.instructions || "Complete the result follow-up",
           sourceLabel: "Lab follow-up",
           href: `/clinic/patients/${item.patient.id}?${query}`,
           action: labFollowUps.data?.can_complete

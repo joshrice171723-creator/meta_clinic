@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
+import { businessNow, isBeforeBusinessTime } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { patientReferenceLabel } from "./patientReference";
 import type { LabFollowUp } from "./PatientLabReports";
@@ -48,7 +49,10 @@ function dateLabel(value: string | null) {
 function ageLabel(value: string) {
   const recordedAt = new Date(value).getTime();
   if (Number.isNaN(recordedAt)) return "Age not recorded";
-  const hours = Math.max(0, Math.floor((Date.now() - recordedAt) / 3_600_000));
+  const hours = Math.max(
+    0,
+    Math.floor((businessNow().getTime() - recordedAt) / 3_600_000),
+  );
   if (hours < 24) return hours === 1 ? "1 hour open" : `${hours} hours open`;
   const days = Math.floor(hours / 24);
   return days === 1 ? "1 day open" : `${days} days open`;
@@ -58,7 +62,7 @@ function dueLabel(value: string | null) {
   if (!value) return null;
   const dueAt = new Date(value);
   if (Number.isNaN(dueAt.valueOf())) return null;
-  const overdue = dueAt.getTime() < Date.now();
+  const overdue = isBeforeBusinessTime(dueAt);
   return `${overdue ? "Overdue" : "Due"} ${new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -224,9 +228,9 @@ function LabFollowUpInbox() {
                           <Chip
                             size="small"
                             color={
-                              new Date(
+                              isBeforeBusinessTime(
                                 item.follow_up.due_at as string,
-                              ).getTime() < Date.now()
+                              )
                                 ? "error"
                                 : "default"
                             }

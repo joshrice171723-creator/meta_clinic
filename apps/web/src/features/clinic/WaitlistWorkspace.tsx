@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { api, ApiError } from "../../api/client";
 import type { Patient } from "../../api/contracts";
+import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 
@@ -58,8 +59,19 @@ type SiteAvailability = {
   site_id: number;
   site_name: string;
   timezone: string;
-  operating_hours: { day_of_week: number; closed: boolean; open_time: string | null; close_time: string | null }[];
-  hour_exceptions: { date: string; closed: boolean; open_time: string | null; close_time: string | null; reason: string | null }[];
+  operating_hours: {
+    day_of_week: number;
+    closed: boolean;
+    open_time: string | null;
+    close_time: string | null;
+  }[];
+  hour_exceptions: {
+    date: string;
+    closed: boolean;
+    open_time: string | null;
+    close_time: string | null;
+    reason: string | null;
+  }[];
 };
 type Rule = {
   id: number;
@@ -99,9 +111,11 @@ function clock(value: number | null) {
 export function WaitlistWorkspace() {
   const { capabilities } = useClinic();
   const queue = useResource<Queue>("/api/clinic/waitlist");
-  const capacity = useResource<{ rules: Rule[]; timezone: string; site_availability: SiteAvailability[] }>(
-    "/api/clinic/capacity",
-  );
+  const capacity = useResource<{
+    rules: Rule[];
+    timezone: string;
+    site_availability: SiteAvailability[];
+  }>("/api/clinic/capacity");
   const [patientQuery, setPatientQuery] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -254,9 +268,10 @@ export function WaitlistWorkspace() {
     });
   }
   function chooseOffer(entry: WaitlistItem, starts = "") {
+    const defaultExpiration = businessTimeAfter(4 * 3_600_000).valueOf();
     const expiration = starts
-      ? Math.min(new Date(starts).valueOf(), Date.now() + 4 * 3_600_000)
-      : Date.now() + 4 * 3_600_000;
+      ? Math.min(new Date(starts).valueOf(), defaultExpiration)
+      : defaultExpiration;
     setOffer({
       entry,
       starts: starts ? localInput(starts) : "",
@@ -437,12 +452,14 @@ export function WaitlistWorkspace() {
                   Released openings
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Cancelled and no-show appointments are available for matching waitlist offers below.
+                  Cancelled and no-show appointments are available for matching
+                  waitlist offers below.
                 </Typography>
                 {queue.data.cancellations.map((slot) => (
                   <Typography key={slot.id} variant="body2">
                     {slot.status === "no_show" ? "No-show" : "Cancelled"} ·{" "}
-                    {new Date(slot.starts_at).toLocaleString()}–{new Date(slot.ends_at).toLocaleTimeString()}
+                    {new Date(slot.starts_at).toLocaleString()}–
+                    {new Date(slot.ends_at).toLocaleTimeString()}
                   </Typography>
                 ))}
               </Stack>
@@ -547,8 +564,9 @@ export function WaitlistWorkspace() {
                         disabled={disabled}
                         onClick={() => chooseOffer(entry, slot.starts_at)}
                       >
-                        Use {slot.status === "no_show" ? "no-show" : "cancelled"} opening:{" "}
-                        {new Date(slot.starts_at).toLocaleString()}
+                        Use{" "}
+                        {slot.status === "no_show" ? "no-show" : "cancelled"}{" "}
+                        opening: {new Date(slot.starts_at).toLocaleString()}
                       </Button>
                     ))}
               </Stack>
@@ -612,8 +630,10 @@ export function WaitlistWorkspace() {
                 <Alert severity="error">{capacity.error}</Alert>
               )}
               <Typography variant="body2">
-                Provider templates use {capacity.data?.timezone ?? "clinic time"} and site hours use each site's timezone.
-                The server checks both before booking or offering a time. Blocks apply to the clinician across sites.
+                Provider templates use{" "}
+                {capacity.data?.timezone ?? "clinic time"} and site hours use
+                each site's timezone. The server checks both before booking or
+                offering a time. Blocks apply to the clinician across sites.
               </Typography>
               {capacity.data?.site_availability.map((siteAvailability) => (
                 <Box key={siteAvailability.site_id}>
@@ -632,8 +652,16 @@ export function WaitlistWorkspace() {
                           .join(" · ")}
                   </Typography>
                   {siteAvailability.hour_exceptions.map((item) => (
-                    <Typography key={item.date} variant="body2" color="text.secondary">
-                      {item.date}: {item.closed ? "closed" : `${item.open_time}–${item.close_time}`} {item.reason || "schedule exception"}
+                    <Typography
+                      key={item.date}
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      {item.date}:{" "}
+                      {item.closed
+                        ? "closed"
+                        : `${item.open_time}–${item.close_time}`}{" "}
+                      {item.reason || "schedule exception"}
                     </Typography>
                   ))}
                 </Box>

@@ -30,6 +30,7 @@ import type {
   Patient,
   VisitType,
 } from "../../api/contracts";
+import { businessNow } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { bookingAvailability } from "./CareFlow";
 import { patientReferenceLabel } from "./patientReference";
@@ -195,7 +196,7 @@ function AppointmentDayQueue({
   appointmentRequestRevision: number;
 }) {
   const today = useMemo(
-    () => clinicDateValue(new Date(), timezone),
+    () => clinicDateValue(businessNow(), timezone),
     [timezone],
   );
   const [date, setDate] = useState(today);

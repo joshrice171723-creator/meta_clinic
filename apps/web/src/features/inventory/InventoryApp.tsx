@@ -749,6 +749,8 @@ function ConfirmButton({
   children,
   disabled,
   onConfirm,
+  onOpen,
+  onCancel,
   tone = "primary",
   confirmationTitle = "Confirm this inventory action?",
   confirmationContent,
@@ -758,6 +760,8 @@ function ConfirmButton({
   children: ReactNode;
   disabled?: boolean;
   onConfirm: () => void;
+  onOpen?: () => void;
+  onCancel?: () => void;
   tone?: "primary" | "danger" | "outline";
   confirmationTitle?: ReactNode;
   confirmationContent?: ReactNode;
@@ -780,7 +784,10 @@ function ConfirmButton({
           <button
             className="inventory-button outline"
             type="button"
-            onClick={() => setConfirming(false)}
+            onClick={() => {
+              onCancel?.();
+              setConfirming(false);
+            }}
           >
             Cancel
           </button>
@@ -803,7 +810,10 @@ function ConfirmButton({
       className={`inventory-button ${tone}`}
       disabled={disabled}
       type="button"
-      onClick={() => setConfirming(true)}
+      onClick={() => {
+        onOpen?.();
+        setConfirming(true);
+      }}
     >
       {children}
     </button>
@@ -5122,6 +5132,9 @@ function PurchaseOrderDetails({
     orderGroups[0]?.id ?? "",
   );
   const [actionReason, setActionReason] = useState("");
+  const [confirmationAction, setConfirmationAction] = useState<
+    "transition" | "cancel" | null
+  >(null);
   const order =
     data.purchase_orders.find((record) => record.id === orderId) ??
     data.purchase_orders[0];
@@ -5252,7 +5265,11 @@ function PurchaseOrderDetails({
                         aria-current={
                           record.id === order.id ? "true" : undefined
                         }
-                        onClick={() => setOrderId(record.id)}
+                        onClick={() => {
+                          setOrderId(record.id);
+                          setActionReason("");
+                          setConfirmationAction(null);
+                        }}
                       >
                         <span>
                           <strong>
@@ -5366,13 +5383,29 @@ function PurchaseOrderDetails({
               )}
             {next && (
               <ConfirmButton
+                key={`transition-${order.id}-${next[0]}`}
                 tone="primary"
-                disabled={busy || !capability(data, next[2])}
+                disabled={
+                  busy ||
+                  confirmationAction !== null ||
+                  !capability(data, next[2])
+                }
+                onOpen={() => {
+                  setActionReason("");
+                  setConfirmationAction("transition");
+                }}
+                onCancel={() => {
+                  setActionReason("");
+                  setConfirmationAction(null);
+                }}
                 confirmationTitle={`${next[1]}?`}
                 confirmationContent={actionReasonField}
                 confirmDisabled={actionConfirmDisabled(next[2])}
                 confirmLabel={next[1]}
-                onConfirm={transition}
+                onConfirm={() => {
+                  setConfirmationAction(null);
+                  transition();
+                }}
               >
                 {next[1]}
               </ConfirmButton>
@@ -5380,17 +5413,30 @@ function PurchaseOrderDetails({
             {order.status !== "complete" && order.status !== "cancelled" && (
               <div className="inventory-order-cancel">
                 <ConfirmButton
+                  key={`cancel-${order.id}`}
                   tone="outline"
                   disabled={
                     busy ||
+                    confirmationAction !== null ||
                     !hasRemaining ||
                     !capability(data, "procurement.submit")
                   }
+                  onOpen={() => {
+                    setActionReason("");
+                    setConfirmationAction("cancel");
+                  }}
+                  onCancel={() => {
+                    setActionReason("");
+                    setConfirmationAction(null);
+                  }}
                   confirmationTitle="Cancel remaining quantities?"
                   confirmationContent={actionReasonField}
                   confirmDisabled={actionConfirmDisabled("procurement.submit")}
                   confirmLabel="Cancel remainder"
-                  onConfirm={cancel}
+                  onConfirm={() => {
+                    setConfirmationAction(null);
+                    cancel();
+                  }}
                 >
                   Cancel remainder
                 </ConfirmButton>
@@ -6370,6 +6416,12 @@ function LotsScreen({
     !selectedLot ||
     !selected.transferable ||
     decimalCompare(selected.on_hand_units, "0") === 0;
+  const chooseAction = (nextAction: "transfer" | "adjust" | "count") => {
+    if (nextAction === action) return;
+    setAction(nextAction);
+    setQuantity("1");
+    setReason("");
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!selected || !selectedProduct) return;
@@ -6655,21 +6707,21 @@ function LotsScreen({
               <button
                 className={`inventory-button ${action === "transfer" ? "primary" : "outline"}`}
                 type="button"
-                onClick={() => setAction("transfer")}
+                onClick={() => chooseAction("transfer")}
               >
                 Transfer
               </button>
               <button
                 className={`inventory-button ${action === "adjust" ? "primary" : "outline"}`}
                 type="button"
-                onClick={() => setAction("adjust")}
+                onClick={() => chooseAction("adjust")}
               >
                 Adjust
               </button>
               <button
                 className={`inventory-button ${action === "count" ? "primary" : "outline"}`}
                 type="button"
-                onClick={() => setAction("count")}
+                onClick={() => chooseAction("count")}
               >
                 Cycle count
               </button>
@@ -6753,6 +6805,7 @@ function LotsScreen({
                   }
                 />
                 <ConfirmButton
+                  key={`lot-action-${selected.id}-${action}`}
                   disabled={
                     busy ||
                     (action === "transfer" &&

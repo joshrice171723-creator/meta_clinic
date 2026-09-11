@@ -22,6 +22,7 @@ import PhoneInTalkOutlinedIcon from "@mui/icons-material/PhoneInTalkOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
+import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { patientReferenceLabel } from "./patientReference";
@@ -119,7 +120,7 @@ function formatDateTime(value: string | null) {
 }
 
 function localDateTime(value?: string | null) {
-  const date = value ? new Date(value) : new Date(Date.now() + 7 * 86_400_000);
+  const date = value ? new Date(value) : businessTimeAfter(7 * 86_400_000);
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.valueOf() - offset).toISOString().slice(0, 16);
 }

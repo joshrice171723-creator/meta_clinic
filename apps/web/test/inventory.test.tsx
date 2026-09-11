@@ -577,6 +577,24 @@ describe("inventory integration", () => {
     expect(source).not.toMatch(/localStorage|sessionStorage|indexedDB/);
   });
 
+  it("keeps inventory confirmation contexts isolated", () => {
+    const source = readFileSync(
+      "src/features/inventory/InventoryApp.tsx",
+      "utf8",
+    );
+
+    expect(source.match(/onOpen=\{\(\) => \{/g)).toHaveLength(2);
+    expect(source.match(/onCancel=\{\(\) => \{/g)).toHaveLength(2);
+    expect(source).toContain('setConfirmationAction("transition")');
+    expect(source).toContain('setConfirmationAction("cancel")');
+    expect(source).toContain("confirmationAction !== null");
+    expect(source).toContain(
+      'const chooseAction = (nextAction: "transfer" | "adjust" | "count")',
+    );
+    expect(source).toContain('setReason("");');
+    expect(source).toContain("key={`lot-action-${selected.id}-${action}`}");
+  });
+
   it("keeps a recall with no exact held balance selectable and non-actionable", () => {
     const source = readFileSync(
       "src/features/inventory/InventoryApp.tsx",

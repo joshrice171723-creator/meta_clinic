@@ -11,3 +11,16 @@ export function businessNow() {
   now.setFullYear(year, month - 1, day);
   return now;
 }
+
+export function businessTimeAfter(milliseconds: number, now = businessNow()) {
+  return new Date(now.getTime() + milliseconds);
+}
+
+export function isBeforeBusinessTime(
+  value: string | Date,
+  now = businessNow(),
+) {
+  const timestamp =
+    value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return !Number.isNaN(timestamp) && timestamp < now.getTime();
+}
