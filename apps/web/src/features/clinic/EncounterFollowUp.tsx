@@ -63,26 +63,55 @@ type FollowUpDraft = {
   plan: string;
   dueAt: string;
   appointmentId: string;
+  baselineFollowUpId?: number | null;
   requestKey: string | null;
   expectedVersion: number;
   pendingRequest?: FollowUpRequest | null;
 };
 
+function sameInstant(left: string | null, right: string | null) {
+  if (!left || !right) return left === right;
+  const leftTime = new Date(left).valueOf();
+  const rightTime = new Date(right).valueOf();
+  return (
+    Number.isFinite(leftTime) &&
+    Number.isFinite(rightTime) &&
+    leftTime === rightTime
+  );
+}
+
 function followUpMatchesRequest(
   followUp: EncounterFollowUpRecord | null,
   request: FollowUpRequest,
+  baselineFollowUpId?: number | null,
 ) {
   if (!followUp) return false;
   const expected = request.body.follow_up;
   if (request.kind === "reopen")
     return (
+      followUp.id === baselineFollowUpId &&
       followUp.recorded_status === "needed" &&
       followUp.version > expected.expected_version
     );
+  const mutationConfirmed =
+    baselineFollowUpId === null
+      ? true
+      : typeof baselineFollowUpId === "number"
+        ? followUp.id === baselineFollowUpId &&
+          followUp.version > expected.expected_version
+        : followUp.version > expected.expected_version;
+  const dueAtMatches =
+    expected.status !== "needed" ||
+    sameInstant(followUp.due_at, expected.due_at ?? null);
+  const appointmentMatches =
+    expected.status !== "arranged" ||
+    followUp.follow_up_appointment?.id === expected.follow_up_appointment_id;
   return (
+    mutationConfirmed &&
     followUp.recorded_status === expected.status &&
     followUp.plan === (expected.plan ?? "") &&
-    followUp.version >= expected.expected_version
+    dueAtMatches &&
+    appointmentMatches
   );
 }
 
@@ -157,8 +186,8 @@ export function EncounterFollowUpPanel({
           request_key: draft.requestKey,
           expected_version: draft.expectedVersion,
           status: draft.status,
-          plan: draft.plan.trim(),
-          ...(draft.dueAt
+          plan: draft.status === "not_required" ? "" : draft.plan.trim(),
+          ...(draft.status === "needed" && draft.dueAt
             ? { due_at: new Date(draft.dueAt).toISOString() }
             : {}),
           ...(draft.status === "arranged"
@@ -249,6 +278,7 @@ export function EncounterFollowUpPanel({
     plan,
     dueAt,
     appointmentId,
+    baselineFollowUpId: followUp?.id ?? null,
     requestKey: null,
     expectedVersion: baseVersionRef.current,
     pendingRequest: null,
@@ -358,8 +388,10 @@ export function EncounterFollowUpPanel({
               request_key: requestKey,
               expected_version: baseVersionRef.current,
               status,
-              plan: plan.trim(),
-              ...(dueAt ? { due_at: new Date(dueAt).toISOString() } : {}),
+              plan: status === "not_required" ? "" : plan.trim(),
+              ...(status === "needed" && dueAt
+                ? { due_at: new Date(dueAt).toISOString() }
+                : {}),
               ...(status === "arranged"
                 ? { follow_up_appointment_id: Number(appointmentId) }
                 : {}),
@@ -406,6 +438,7 @@ export function EncounterFollowUpPanel({
       plan: followUp.plan,
       dueAt: "",
       appointmentId: "",
+      baselineFollowUpId: followUp.id,
       requestKey,
       expectedVersion: followUp.version,
       pendingRequest: request,
@@ -447,7 +480,13 @@ export function EncounterFollowUpPanel({
         throw new Error(
           "The refreshed follow-up did not match this encounter.",
         );
-      if (followUpMatchesRequest(current.follow_up, request)) {
+      if (
+        followUpMatchesRequest(
+          current.follow_up,
+          request,
+          pendingDraft.baselineFollowUpId,
+        )
+      ) {
         if (!(await recovery.clear())) {
           setError(
             "The saved follow-up was confirmed, but its recovery copy could not be cleared. Retry the same request to finish recovery.",
