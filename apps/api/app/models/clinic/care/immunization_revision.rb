@@ -26,10 +26,23 @@ module Clinic
       private
 
       def status_evidence
-        errors.add(:administered_at, "is required for completed immunizations") if status == "completed" && administered_at.nil?
-        errors.add(:refusal_reason, "is required when an immunization was not given") if status == "not_done" && refusal_reason.blank?
-        if status == "completed" && occurrence_source == "administered_here" && medication_administration.nil?
-          errors.add(:medication_administration, "is required for an immunization administered here")
+        if medication_administration && occurrence_source != "administered_here"
+          errors.add(:medication_administration, "must be blank unless the occurrence source is administered_here")
+        end
+        if status == "completed"
+          errors.add(:administered_at, "is required for completed immunizations") if administered_at.nil?
+          errors.add(:cvx_code, "is required for completed immunizations") if cvx_code.blank?
+          if occurrence_source == "administered_here"
+            errors.add(:medication_administration, "is required for an immunization administered here") if medication_administration.nil?
+            errors.add(:lot_number, "is required for an immunization administered here") if lot_number.blank?
+          end
+        elsif status == "not_done"
+          errors.add(:cvx_code, "is required when an immunization was not given") if cvx_code.blank?
+          errors.add(:refusal_reason, "is required when an immunization was not given") if refusal_reason.blank?
+          errors.add(:medication_administration, "must be blank when an immunization was not given") if medication_administration
+        elsif status == "planned"
+          errors.add(:refusal_reason, "must be blank for a planned immunization") if refusal_reason.present?
+          errors.add(:medication_administration, "must be blank for a planned immunization") if medication_administration
         end
       end
 
@@ -41,10 +54,24 @@ module Clinic
 
       def administration_matches
         return unless medication_administration
+
         expected = [ practice_id, patient_id, encounter_id, site_id, "completed" ]
         actual = [ medication_administration.practice_id, medication_administration.patient_id,
           medication_administration.encounter_id, medication_administration.site_id, medication_administration.status ]
         errors.add(:medication_administration, "must be a completed administration for this visit") unless actual == expected
+        if actual == expected && !medication_administration.movement_links.exists?
+          errors.add(:medication_administration, "must have a linked inventory movement")
+        end
+        return unless actual == expected && lot_number.present?
+
+        lot_numbers = medication_administration.movement_links.includes(:inventory_entry).filter_map do |link|
+          link.stock_identity[:lot_number]
+        rescue ArgumentError
+          nil
+        end
+        if lot_numbers.any? && !lot_numbers.include?(lot_number)
+          errors.add(:lot_number, "must match a lot used by the linked administration")
+        end
       end
     end
   end

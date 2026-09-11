@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Paper,
@@ -474,6 +475,11 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
     const value = record as ImmunizationRevision;
     return [
       humanize(value.occurrence_source),
+      value.status === "not_done" && value.refusal_reason
+        ? `Not given: ${value.refusal_reason}`
+        : value.medication_administration_id
+          ? "Clinic administration linked"
+          : null,
       value.administered_at &&
         new Date(value.administered_at).toLocaleDateString(),
       value.lot_number && `Lot ${value.lot_number}`,
@@ -539,6 +545,10 @@ export function ClinicalPlanWorkspace({
   const records = workspace.data?.records[kind] ?? [];
   const carePlans = workspace.data?.records.care_plans ?? [];
   const serviceRequests = workspace.data?.records.service_requests ?? [];
+  const immunizationAdminEvidenceRequired =
+    kind === "immunizations" &&
+    form.status === "completed" &&
+    form.occurrence_source === "administered_here";
 
   useEffect(
     () =>
@@ -665,6 +675,31 @@ export function ClinicalPlanWorkspace({
       setError(
         "Choose the completed medication administration that used clinic stock.",
       );
+      return;
+    }
+    if (kind === "immunizations" && form.status === "completed") {
+      if (!form.administered_at) {
+        setError("Enter when the vaccine was administered.");
+        return;
+      }
+      if (!form.cvx_code?.trim()) {
+        setError("Enter the CVX code for a completed immunization.");
+        return;
+      }
+      if (
+        form.occurrence_source === "administered_here" &&
+        !form.lot_number?.trim()
+      ) {
+        setError("Enter the lot number used by the linked administration.");
+        return;
+      }
+    }
+    if (
+      kind === "immunizations" &&
+      form.status === "not_done" &&
+      !form.refusal_reason?.trim()
+    ) {
+      setError("Record why the immunization was not given.");
       return;
     }
     const payload = Object.fromEntries(
@@ -920,10 +955,20 @@ export function ClinicalPlanWorkspace({
                   label="Status"
                   value={form.status ?? meta.initial.status}
                   onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      status: event.target.value,
-                    }))
+                    setForm((current) => {
+                      const status = event.target.value;
+                      return {
+                        ...current,
+                        status,
+                        ...(kind === "immunizations" &&
+                        ["planned", "not_done"].includes(status)
+                          ? { medication_administration_id: "" }
+                          : {}),
+                        ...(kind === "immunizations" && status !== "not_done"
+                          ? { refusal_reason: "" }
+                          : {}),
+                      };
+                    })
                   }
                 >
                   {[editing.status, ...editing.allowed_statuses].map(
@@ -1045,12 +1090,15 @@ export function ClinicalPlanWorkspace({
                   fullWidth
                 />
               )}
-            {kind === "immunizations" && (
+            {kind === "immunizations" &&
+              (immunizationAdminEvidenceRequired ||
+                Boolean(form.medication_administration_id)) && (
               <FormControl
                 fullWidth
-                required={
-                  form.status === "completed" &&
-                  form.occurrence_source === "administered_here"
+                required={immunizationAdminEvidenceRequired}
+                error={
+                  immunizationAdminEvidenceRequired &&
+                  !form.medication_administration_id
                 }
               >
                 <InputLabel id="immunization-administration-label">
@@ -1067,7 +1115,14 @@ export function ClinicalPlanWorkspace({
                     }))
                   }
                 >
-                  <MenuItem value="">No clinic administration record</MenuItem>
+                  {!immunizationAdminEvidenceRequired && (
+                    <MenuItem value="">No clinic administration record</MenuItem>
+                  )}
+                  {immunizationAdminEvidenceRequired && (
+                    <MenuItem value="" disabled>
+                      Select a completed stock-linked administration
+                    </MenuItem>
+                  )}
                   {data.available_link_targets.medication_administration.map(
                     (administration) => (
                       <MenuItem
@@ -1079,6 +1134,43 @@ export function ClinicalPlanWorkspace({
                     ),
                   )}
                 </Select>
+                <FormHelperText>
+                  {data.available_link_targets.medication_administration
+                    .length === 0
+                    ? "Record the completed medication administration first; this list excludes not-given and non-stock outcomes."
+                    : "Uses the existing medication administration and its inventory movement; saving this record does not post stock again."}
+                </FormHelperText>
+              </FormControl>
+            )}
+            {kind === "immunizations" &&
+              ["external_record", "registry"].includes(
+                form.occurrence_source,
+              ) && (
+              <FormControl fullWidth>
+                <InputLabel id="immunization-source-document-label">
+                  Source document
+                </InputLabel>
+                <Select
+                  labelId="immunization-source-document-label"
+                  label="Source document"
+                  value={form.source_document_id ?? ""}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      source_document_id: event.target.value,
+                    }))
+                  }
+                >
+                  <MenuItem value="">No linked source document</MenuItem>
+                  {data.available_link_targets.document.map((document) => (
+                    <MenuItem key={document.id} value={String(document.id)}>
+                      {document.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>
+                  Optional evidence for an external or registry-reported record.
+                </FormHelperText>
               </FormControl>
             )}
             {meta.fields.map((field) => {
@@ -1095,11 +1187,24 @@ export function ClinicalPlanWorkspace({
                           label: humanize(code),
                         }))
                       : null;
+              const required =
+                field.required ||
+                (kind === "immunizations" &&
+                  ((field.name === "occurrence_source" &&
+                    form.status !== "entered_in_error") ||
+                    (field.name === "refusal_reason" &&
+                      form.status === "not_done") ||
+                    (field.name === "administered_at" &&
+                      form.status === "completed") ||
+                    (field.name === "cvx_code" &&
+                      ["completed", "not_done"].includes(form.status)) ||
+                    (field.name === "lot_number" &&
+                      immunizationAdminEvidenceRequired)));
               return field.options || dynamicOptions ? (
                 <FormControl
                   key={field.name}
                   fullWidth
-                  required={field.required}
+                  required={required}
                 >
                   <InputLabel id={`clinical-${field.name}-label`}>
                     {field.label}
@@ -1109,10 +1214,22 @@ export function ClinicalPlanWorkspace({
                     label={field.label}
                     value={form[field.name] ?? ""}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        [field.name]: event.target.value,
-                      }))
+                      setForm((current) => {
+                        const value = event.target.value;
+                        if (
+                          kind === "immunizations" &&
+                          field.name === "occurrence_source"
+                        ) {
+                          return {
+                            ...current,
+                            occurrence_source: value,
+                            ...(value !== "administered_here"
+                              ? { medication_administration_id: "" }
+                              : {}),
+                          };
+                        }
+                        return { ...current, [field.name]: value };
+                      })
                     }
                   >
                     {(
@@ -1133,7 +1250,7 @@ export function ClinicalPlanWorkspace({
                 <TextField
                   key={field.name}
                   label={field.label}
-                  required={field.required}
+                  required={required}
                   multiline={field.multiline}
                   minRows={field.multiline ? 2 : undefined}
                   type={field.type ?? "text"}

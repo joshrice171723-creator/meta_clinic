@@ -590,6 +590,11 @@ export type ReferralExchangeEvent = {
   recorded_at: string;
 };
 export type ClinicalPlanLinkTarget = { id: number; label: string };
+export type MedicationAdministrationLinkTarget = ClinicalPlanLinkTarget & {
+  status: "completed";
+  movement_count: number;
+  lot_numbers: string[];
+};
 export type ClinicalPlanWorkspace = {
   schema_version: "clinical-plan-workspace-v2";
   patient_id: number;
@@ -642,14 +647,13 @@ export type ClinicalPlanWorkspace = {
   assessment_scope: ClinicAssessmentCode[];
   links: ClinicalPlanLink[];
   referral_events: ReferralExchangeEvent[];
-  available_link_targets: Record<
-    | "medication_statement"
-    | "medication_administration"
-    | "lab_report"
-    | "procedure"
-    | "document",
-    ClinicalPlanLinkTarget[]
-  >;
+  available_link_targets: {
+    medication_statement: ClinicalPlanLinkTarget[];
+    medication_administration: MedicationAdministrationLinkTarget[];
+    lab_report: ClinicalPlanLinkTarget[];
+    procedure: ClinicalPlanLinkTarget[];
+    document: ClinicalPlanLinkTarget[];
+  };
 };
 export type PatientCareNeedSummary = {
   id: number;

@@ -45,6 +45,7 @@ module Clinic
           Clinic::Authorization.authorize!(actor:, practice:, action: "documents.read", any_site: true)
         end
         target = target!(target_definition, practice, patient, encounter, target_id)
+        validate_target_evidence!(target_kind, target)
         payload = {
           patient_id: patient.id, encounter_id: encounter.id, source_kind: source_kind.to_s,
           source_revision_id: source.id, target_kind: target_kind.to_s, target_id: target.id,
@@ -142,10 +143,18 @@ module Clinic
         {
           medication_statement: MedicationStatement.where(practice:, patient:).order(updated_at: :desc, id: :desc).limit(100)
             .map { |record| { id: record.id, label: [ record.medication_name, record.dose_text, record.status ].compact.join(" · ") } },
-          medication_administration: MedicationAdministration.where(practice:, patient:, encounter:)
+          medication_administration: MedicationAdministration.where(practice:, patient:, encounter:, status: "completed")
+            .joins(:movement_links).includes(:movement_links).distinct
             .order(administered_at: :desc, id: :desc).limit(100).map do |record|
               medication = record.medication_identity
-              { id: record.id, label: "#{medication.fetch(:name)} · #{record.dose_text} · #{record.administered_at.iso8601(6)}" }
+              lot_numbers = record.movement_links.sort_by(&:id).filter_map do |link|
+                link.stock_identity[:lot_number]
+              end.uniq
+              { id: record.id,
+                label: [ medication.fetch(:name), record.dose_text,
+                  lot_numbers.any? ? "Lot #{lot_numbers.join(', ')}" : nil,
+                  record.administered_at.iso8601(6) ].compact.join(" · "),
+                status: record.status, movement_count: record.movement_links.length, lot_numbers: }
             end,
           lab_report: LabReport.where(practice:, patient:).includes(:current_version).order(updated_at: :desc, id: :desc)
             .limit(100).map { |record| { id: record.id, label: record.current_version&.title || "Lab report #{record.id}" } },
@@ -205,6 +214,14 @@ module Clinic
         raise ArgumentError, "That result type does not match this order." unless allowed.include?(target_kind.to_s)
       end
       private_class_method :validate_target_compatibility!
+
+      def validate_target_evidence!(target_kind, target)
+        return unless target_kind.to_s == "medication_administration"
+        return if target.status == "completed" && target.movement_links.exists?
+
+        raise ArgumentError, "Only a completed, stock-linked medication administration can be linked."
+      end
+      private_class_method :validate_target_evidence!
 
       def permission_for(source_kind)
         source_kind.to_s == "medication_request" ? "medication_requests.write" : "service_requests.write"
