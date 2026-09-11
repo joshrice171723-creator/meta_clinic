@@ -318,11 +318,9 @@ function LaunchLayout({
 function MemberLayout({
   user,
   children,
-  inheritOwnerTheme = true,
 }: {
   user: User;
   children: ReactNode;
-  inheritOwnerTheme?: boolean;
 }) {
   const appearance = useClinicAppearance(user.id);
   const content = (
@@ -344,7 +342,6 @@ function MemberLayout({
       {children}
     </main>
   );
-  if (!inheritOwnerTheme) return content;
   return (
     <ClinicAppearanceScope {...appearance}>
       <AppearanceContext value={appearance}>{content}</AppearanceContext>
@@ -810,7 +807,7 @@ export function App() {
     return (
       <LaunchLayout user={user} environment={configuration.environment}>
         <SessionGuard key={user.id} expectedUserId={user.id}>
-          <MemberLayout key={user.id} user={user} inheritOwnerTheme={false}>
+          <MemberLayout key={user.id} user={user}>
             <RouteBoundary>
               <OwnerCommandCenter />
             </RouteBoundary>
