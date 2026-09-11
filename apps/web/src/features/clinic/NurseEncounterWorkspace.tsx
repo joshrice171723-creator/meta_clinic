@@ -127,9 +127,23 @@ export function NurseEncounterWorkspace({
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  useEffect(() => {
+    if (
+      new URLSearchParams(window.location.search).get("focus") !==
+      "nurse-workspace"
+    )
+      return;
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById("nurse-workspace");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [resource.data]);
+
   if (!resource.data && !resource.error) {
     return (
-      <Paper id="nurse-workspace" variant="outlined" sx={{ p: 2 }}>
+      <Paper id="nurse-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
         <Stack
           direction="row"
           spacing={1.5}
@@ -144,7 +158,7 @@ export function NurseEncounterWorkspace({
   }
   if (!resource.data) {
     return (
-      <Paper id="nurse-workspace" variant="outlined" sx={{ p: 2 }}>
+      <Paper id="nurse-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
         <Alert
           severity="error"
           action={<Button onClick={resource.refresh}>Retry</Button>}
@@ -341,6 +355,7 @@ export function NurseEncounterWorkspace({
     <Paper
       id="nurse-workspace"
       component="section"
+      tabIndex={-1}
       variant="outlined"
       sx={{ p: { xs: 2, md: 2.5 } }}
     >

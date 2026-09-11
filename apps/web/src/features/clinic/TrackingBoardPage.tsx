@@ -607,7 +607,7 @@ function TrackingBoardRow({
   const hasPatient = visit.patientId != null;
   const intakeClaimed = operations.intakeOwnership?.state === "claimed";
   const primaryHref = hasEncounter
-    ? `${openSoapHref(visit)}${intakeClaimed ? "#nurse-workspace" : ""}`
+    ? `${openSoapHref(visit)}${intakeClaimed ? "?focus=nurse-workspace" : ""}`
     : hasPatient
       ? `/clinic/patients/${visit.patientId}`
       : openSoapHref(visit);
