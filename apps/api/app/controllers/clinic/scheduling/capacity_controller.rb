@@ -4,8 +4,10 @@ module Clinic
       def index
         require_capability("appointments.read", any_site: true)
         site_ids = current_practice.sites.select { |site| current_ability.allowed_permission?("appointments.read", site: site) }.map(&:id)
+        sites = current_practice.sites.where(id: site_ids).includes(:operating_hours, :hour_exceptions).order(:id)
         rules = CapacityRule.where(practice: current_practice, site_id: site_ids, active: true).order(:site_id, :clinician_id, :id).limit(200)
-        render json: { rules: rules.map { |rule| serialize(rule) }, timezone: current_practice.timezone }
+        render json: { rules: rules.map { |rule| serialize(rule) }, timezone: current_practice.timezone,
+          site_availability: sites.map { |site| serialize_site_availability(site) } }
       end
 
       def create
@@ -71,6 +73,16 @@ module Clinic
           weekday: rule.weekday, start_minute: rule.start_minute, end_minute: rule.end_minute,
           starts_at: rule.starts_at&.iso8601(6), ends_at: rule.ends_at&.iso8601(6), reason: rule.reason,
           active: rule.active, version: rule.lock_version }
+      end
+
+      def serialize_site_availability(site)
+        { site_id: site.id, site_name: site.name, timezone: site.timezone_override.presence || current_practice.timezone,
+          operating_hours: site.operating_hours.sort_by { |item| [ item.day_of_week, item.id ] }.map do |item|
+            { day_of_week: item.day_of_week, closed: item.closed, open_time: item.open_time&.strftime("%H:%M"), close_time: item.close_time&.strftime("%H:%M") }
+          end,
+          hour_exceptions: site.hour_exceptions.sort_by { |item| [ item.date, item.id ] }.map do |item|
+            { date: item.date.iso8601, closed: item.closed, open_time: item.open_time&.strftime("%H:%M"), close_time: item.close_time&.strftime("%H:%M"), reason: item.reason }
+          end }
       end
     end
   end

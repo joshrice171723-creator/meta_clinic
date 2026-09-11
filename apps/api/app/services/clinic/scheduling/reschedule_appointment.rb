@@ -17,7 +17,7 @@ module Clinic
           end
         }
         authorize.call
-        raise ArgumentError, "Choose an end time after the start time and within 24 hours." unless ends_at > starts_at && ends_at - starts_at <= 24.hours
+        raise ArgumentError, "Choose a future end time after the start time and within 24 hours." unless starts_at > Current.business_time && ends_at > starts_at && ends_at - starts_at <= 24.hours
         setup_supplied = [ site, booked_clinician, visit_type ].any? { |value| !value.equal?(UNCHANGED) }
         if setup_supplied && [ next_site, next_clinician, next_visit_type ].any?(&:nil?)
           raise ArgumentError, "Choose a site, clinician, and visit type before saving this appointment."
@@ -45,7 +45,7 @@ module Clinic
           appointment.with_lock do
             authorize.call
             raise ActiveRecord::StaleObjectError.new(appointment, "reschedule") unless appointment.updated_at == expected_updated_at
-            unless %w[scheduled confirmed].include?(appointment.status) && appointment.encounter.nil?
+            unless %w[scheduled confirmed].include?(appointment.status) && appointment.encounter.nil? && appointment.starts_at > Current.business_time
               raise ArgumentError, "Only an upcoming visit that has not started can be rescheduled."
             end
 
@@ -57,7 +57,7 @@ module Clinic
             next_room_id = appointment.room_id
             next_room_id = nil if modality == "video" || (appointment.room && appointment.room.site_id != next_site&.id)
             CapacityGuard.check!(practice: appointment.practice, clinician: next_clinician, site: next_site,
-              starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id)
+              patient: appointment.patient, starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id)
             appointment.update!(starts_at: starts_at, ends_at: ends_at, visit_modality: modality,
               site: next_site, booked_clinician: next_clinician, visit_type: next_visit_type, room_id: next_room_id)
             Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor, event: :rescheduled)

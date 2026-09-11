@@ -13,6 +13,9 @@ module Clinic
           if %w[cancelled no_show].include?(to.to_s) && appointment.encounter.present?
             raise ArgumentError, "A visit has already started. Review the encounter before changing the appointment."
           end
+          if to.to_s == "no_show" && appointment.starts_at > Current.business_time
+            raise ArgumentError, "A future appointment cannot be marked as a no-show."
+          end
           if to.to_s == "completed" && appointment.encounter && appointment.encounter.ended_at.nil?
             raise ArgumentError, "Complete the encounter before completing its appointment."
           end

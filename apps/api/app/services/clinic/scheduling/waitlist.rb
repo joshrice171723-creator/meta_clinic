@@ -32,8 +32,8 @@ module Clinic
           result_resource: ->(value) { value },
           resource_resolver: ->(practice:, receipt:) { WaitlistEntry.find_by(practice: practice, id: receipt.resource_id) }
         ) do
-          entry.clinician.lock!
           entry.lock!
+          entry.clinician.lock!
           raise ActiveRecord::StaleObjectError.new(entry, action) unless entry.lock_version == expected_version
           case action
           when "offer"
@@ -117,12 +117,8 @@ module Clinic
 
       def book!(entry, actor)
         raise ArgumentError, "This offer has expired or is no longer available." unless entry.effective_state == "offered"
-        CapacityGuard.check!(practice: entry.practice, clinician: entry.clinician, site: entry.site,
+        CapacityGuard.check!(practice: entry.practice, clinician: entry.clinician, site: entry.site, patient: entry.patient,
           starts_at: entry.offer_starts_at, ends_at: entry.offer_ends_at, waitlist_entry_id: entry.id)
-        if entry.practice.appointments.where(patient: entry.patient, status: %w[scheduled confirmed])
-          .where("starts_at < ? AND ends_at > ?", entry.offer_ends_at, entry.offer_starts_at).exists?
-          raise ArgumentError, "The patient already has an appointment during this time. Release the offer or choose another slot."
-        end
         appointment = entry.practice.appointments.create!(patient: entry.patient, site: entry.site,
           booked_clinician: entry.clinician, visit_type: entry.visit_type, starts_at: entry.offer_starts_at,
           ends_at: entry.offer_ends_at, status: "scheduled", visit_modality: "in_person", reason: entry.reason)

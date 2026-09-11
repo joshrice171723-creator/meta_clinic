@@ -47,11 +47,19 @@ type Queue = {
   visit_types: Option[];
   cancellations: {
     id: number;
+    status: "cancelled" | "no_show";
     site_id: number;
     clinician_id: number;
     starts_at: string;
     ends_at: string;
   }[];
+};
+type SiteAvailability = {
+  site_id: number;
+  site_name: string;
+  timezone: string;
+  operating_hours: { day_of_week: number; closed: boolean; open_time: string | null; close_time: string | null }[];
+  hour_exceptions: { date: string; closed: boolean; open_time: string | null; close_time: string | null; reason: string | null }[];
 };
 type Rule = {
   id: number;
@@ -91,7 +99,7 @@ function clock(value: number | null) {
 export function WaitlistWorkspace() {
   const { capabilities } = useClinic();
   const queue = useResource<Queue>("/api/clinic/waitlist");
-  const capacity = useResource<{ rules: Rule[]; timezone: string }>(
+  const capacity = useResource<{ rules: Rule[]; timezone: string; site_availability: SiteAvailability[] }>(
     "/api/clinic/capacity",
   );
   const [patientQuery, setPatientQuery] = useState("");
@@ -422,6 +430,24 @@ export function WaitlistWorkspace() {
           {queue.data.entries.length === 0 && (
             <Alert severity="info">No waiting patients.</Alert>
           )}
+          {queue.data.cancellations.length > 0 && (
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1}>
+                <Typography variant="h6" component="h2">
+                  Released openings
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Cancelled and no-show appointments are available for matching waitlist offers below.
+                </Typography>
+                {queue.data.cancellations.map((slot) => (
+                  <Typography key={slot.id} variant="body2">
+                    {slot.status === "no_show" ? "No-show" : "Cancelled"} ·{" "}
+                    {new Date(slot.starts_at).toLocaleString()}–{new Date(slot.ends_at).toLocaleTimeString()}
+                  </Typography>
+                ))}
+              </Stack>
+            </Paper>
+          )}
           {queue.data.entries.map((entry, rank) => (
             <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
               <Stack spacing={1}>
@@ -521,7 +547,7 @@ export function WaitlistWorkspace() {
                         disabled={disabled}
                         onClick={() => chooseOffer(entry, slot.starts_at)}
                       >
-                        Use cancelled opening:{" "}
+                        Use {slot.status === "no_show" ? "no-show" : "cancelled"} opening:{" "}
                         {new Date(slot.starts_at).toLocaleString()}
                       </Button>
                     ))}
@@ -586,10 +612,32 @@ export function WaitlistWorkspace() {
                 <Alert severity="error">{capacity.error}</Alert>
               )}
               <Typography variant="body2">
-                Weekly hours use {capacity.data?.timezone ?? "clinic time"}.
-                Templates constrain new bookings; existing bookings stay
-                scheduled. Blocks apply to the clinician across sites.
+                Provider templates use {capacity.data?.timezone ?? "clinic time"} and site hours use each site's timezone.
+                The server checks both before booking or offering a time. Blocks apply to the clinician across sites.
               </Typography>
+              {capacity.data?.site_availability.map((siteAvailability) => (
+                <Box key={siteAvailability.site_id}>
+                  <Typography>
+                    {siteAvailability.site_name} · {siteAvailability.timezone}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {siteAvailability.operating_hours.length === 0
+                      ? "No site hours configured; provider capacity remains the active constraint."
+                      : siteAvailability.operating_hours
+                          .map((item) =>
+                            item.closed
+                              ? `${days[item.day_of_week]} closed`
+                              : `${days[item.day_of_week]} ${item.open_time}–${item.close_time}`,
+                          )
+                          .join(" · ")}
+                  </Typography>
+                  {siteAvailability.hour_exceptions.map((item) => (
+                    <Typography key={item.date} variant="body2" color="text.secondary">
+                      {item.date}: {item.closed ? "closed" : `${item.open_time}–${item.close_time}`} {item.reason || "schedule exception"}
+                    </Typography>
+                  ))}
+                </Box>
+              ))}
               {capacity.data?.rules.map((rule) => (
                 <Box key={rule.id}>
                   <Typography>

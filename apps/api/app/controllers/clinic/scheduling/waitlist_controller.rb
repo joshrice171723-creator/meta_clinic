@@ -6,7 +6,7 @@ module Clinic
         entries = entries.where(state: %w[waiting offered]) unless params[:history] == "true"
         total = entries.count
         sites = current_practice.sites.where(id: visible_site_ids)
-        cancelled = current_practice.appointments.where(site_id: sites.select(:id), status: "cancelled")
+        cancelled = current_practice.appointments.where(site_id: sites.select(:id), status: %w[cancelled no_show])
           .where("starts_at > ? AND starts_at < ?", Current.business_time, Current.business_time + 30.days)
           .order(:starts_at).limit(30)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "waitlist.read", outcome: :released)
@@ -16,8 +16,8 @@ module Clinic
           sites: sites.map { |site| { id: site.id, name: site.name } },
           clinicians: current_practice.clinician_profiles.order(:id).map { |item| { id: item.id, name: item.display_name } },
           visit_types: current_practice.visit_types.active.order(:id).map { |item| { id: item.id, name: item.code } },
-          cancellations: cancelled.map { |item| { id: item.id, site_id: item.site_id, clinician_id: item.booked_clinician_id,
-            starts_at: item.starts_at.iso8601(6), ends_at: item.ends_at.iso8601(6) } }
+          cancellations: cancelled.map { |item| { id: item.id, status: item.status, site_id: item.site_id,
+            clinician_id: item.booked_clinician_id, starts_at: item.starts_at.iso8601(6), ends_at: item.ends_at.iso8601(6) } }
         }
       end
 
