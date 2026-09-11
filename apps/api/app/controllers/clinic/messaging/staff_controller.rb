@@ -5,7 +5,7 @@ module Clinic
       before_action -> { require_capability("staff_messaging.send", any_site: true) }, only: :create_message
       before_action -> { require_capability("staff_messaging.create_conversation", any_site: true) }, only: :create_conversation
       before_action -> { require_capability("staff_messaging.acknowledge", any_site: true) }, only: :acknowledge
-      before_action -> { require_capability("staff_messaging.transition", any_site: true) }, only: :transition
+      before_action -> { require_capability("staff_messaging.transition", any_site: true) }, only: %i[transition manage_request]
       before_action -> { require_capability("staff_messaging.escalate", any_site: true) }, only: %i[escalate recover]
       before_action -> { require_capability("staff_messaging.attach", any_site: true) }, only: %i[presign_attachment complete_attachment download_attachment]
 
@@ -124,6 +124,28 @@ module Clinic
           resolution_code: optional_string(input[:resolution_code], field: :resolution_code, maximum: 80),
           resolution_note: optional_string(input[:resolution_note], field: :resolution_note, maximum: 500))
         render json: { request: { id: result.id, state: result.state, resolved_at: result.resolved_at, resolution_code: result.resolution_code } }
+      end
+
+      def manage_request
+        request = Clinic::StaffMessageRequest.where(practice_id: current_practice.id)
+          .includes(message: :conversation).find(requested_id!(params[:id], :id))
+        input = parameter_hash!(:management, %i[request_key action assignee_membership_id due_at])
+        result = ManageStaffRequest.call(
+          practice: current_practice,
+          actor: current_user,
+          request: request,
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
+          action: enum_param!(input[:action], field: :action, allowed: ManageStaffRequest::ACTIONS),
+          assignee_membership_id: optional_id(input[:assignee_membership_id], :assignee_membership_id),
+          due_at: input[:due_at].present? ? time_param!(input[:due_at], field: :due_at) : nil
+        )
+        render json: {
+          request: {
+            id: result.id,
+            assignee_membership_id: result.assignee_membership_id,
+            due_at: result.due_at&.iso8601(6)
+          }
+        }
       end
 
       def escalate

@@ -95,6 +95,64 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "staff inbox supports durable ownership handoff response targets and overdue escalation" do
+    grant_permissions!(@membership, "staff_messaging.transition", "staff_messaging.escalate")
+    backup = create_membership(@practice, "follow-up-backup@example.invalid")
+    conversation = create_conversation(
+      title: "Urgent handoff",
+      members: [ @membership, @coworker, backup ]
+    )
+    request = create_request(conversation: conversation, assignee: nil, due_at: 1.hour.from_now)
+
+    get follow_ups_path, headers: @headers
+    assert_response :success
+    row = response.parsed_body.fetch("requests").sole
+    assert_equal @membership.id, response.parsed_body.fetch("actor_membership_id")
+    assert_equal true, response.parsed_body.fetch("can_manage_staff_requests")
+    assert_equal [ @membership.id, backup.id, @coworker.id ].sort,
+      row.fetch("eligible_assignees").pluck("membership_id").sort
+
+    patch "/api/clinic/staff-messaging/requests/#{request.id}/manage", params: {
+      management: { request_key: "inbox-claim", action: "claim" }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal @membership.id, request.reload.assignee_membership_id
+
+    transfer = {
+      management: {
+        request_key: "inbox-transfer",
+        action: "assign",
+        assignee_membership_id: @coworker.id
+      }
+    }
+    patch "/api/clinic/staff-messaging/requests/#{request.id}/manage",
+      params: transfer, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal @coworker.id, request.reload.assignee_membership_id
+    assert_no_difference "Clinic::OperationReceipt.count" do
+      patch "/api/clinic/staff-messaging/requests/#{request.id}/manage",
+        params: transfer, headers: csrf_headers, as: :json
+      assert_response :success
+    end
+
+    target = 5.minutes.from_now.change(usec: 0)
+    patch "/api/clinic/staff-messaging/requests/#{request.id}/manage", params: {
+      management: { request_key: "inbox-target", action: "schedule", due_at: target.iso8601 }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal target, request.reload.due_at
+
+    travel_to target + 1.minute do
+      post "/api/clinic/staff-messaging/requests/#{request.id}/escalate", params: {
+        escalation: { request_key: "inbox-overdue-escalation", trigger: "overdue_recovery" }
+      }, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    escalation = request.escalations.sole
+    assert_equal backup.id, escalation.target_membership_id
+    assert_equal "overdue_recovery", escalation.trigger
+  end
+
   test "applies site-scoped messaging access and validates filters and site ids" do
     allowed_site = @practice.sites.create!(code: "FOLLOW-UP-ALLOWED")
     denied_site = @practice.sites.create!(code: "FOLLOW-UP-DENIED")

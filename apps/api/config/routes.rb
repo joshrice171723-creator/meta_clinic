@@ -57,6 +57,7 @@ Rails.application.routes.draw do
     end
     resources :refill_requests, controller: "care/refill_requests", only: %i[index create] do
       post :transition, on: :member
+      post :retry_delivery, on: :member
     end
     get "facilities", to: "facilities#index"
     post "facilities", to: "facilities#create"
@@ -370,6 +371,7 @@ Rails.application.routes.draw do
       patch "preferences", to: "messaging/staff#preferences"
       post "messages/:id/acknowledge", to: "messaging/staff#acknowledge"
       post "requests/:id/transition", to: "messaging/staff#transition"
+      patch "requests/:id/manage", to: "messaging/staff#manage_request"
       post "requests/:id/escalate", to: "messaging/staff#escalate"
       post "messages/:message_id/attachments", to: "messaging/staff#presign_attachment"
       post "attachments/:id/complete", to: "messaging/staff#complete_attachment"

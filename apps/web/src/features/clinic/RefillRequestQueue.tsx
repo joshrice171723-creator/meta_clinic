@@ -8,6 +8,7 @@ import {
   Chip,
   CircularProgress,
   FormControlLabel,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -15,6 +16,7 @@ import {
 } from "@mui/material";
 import type {
   ClinicRefillRequest,
+  Encounter,
   Patient,
   PatientCareSummary,
 } from "../../api/contracts";
@@ -62,8 +64,16 @@ export function RefillRequestQueue() {
   const [medicationSummaries, setMedicationSummaries] = useState<
     Record<
       number,
-      { data?: PatientCareSummary; error?: string; loading?: boolean }
+      {
+        data?: PatientCareSummary;
+        encounters?: Encounter[];
+        error?: string;
+        loading?: boolean;
+      }
     >
+  >({});
+  const [encounterSelections, setEncounterSelections] = useState<
+    Record<number, number | "">
   >({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -138,9 +148,7 @@ export function RefillRequestQueue() {
       setMedicationName("");
       setPharmacyDestination("");
       setRequestNote("");
-      setNotice(
-        "The refill request was opened and is visible in the patient portal.",
-      );
+      setNotice("The refill request was opened for clinical review.");
       requests.refresh();
     } catch (reason) {
       setMutationError(reason, "The refill request could not be opened.");
@@ -179,6 +187,7 @@ export function RefillRequestQueue() {
       requestId: request.id,
       status,
       decision,
+      encounterId: encounterSelections[request.id] || null,
       ...outcome,
     });
     const requestKey = attempts.current.get(signature) ?? crypto.randomUUID();
@@ -187,35 +196,75 @@ export function RefillRequestQueue() {
     setError("");
     setNotice("");
     try {
-      await api(`/api/clinic/refill_requests/${request.id}/transition`, {
-        method: "POST",
-        body: {
-          refill_request: {
-            request_key: requestKey,
-            status,
-            decision,
-            patient_message: decision
-              ? outcome.patientMessage.trim()
-              : undefined,
-            reconciliation_acknowledged: decision
-              ? outcome.reconciliationAcknowledged
-              : undefined,
-            reconciliation_note:
-              decision && outcome.reconciliationNote.trim()
-                ? outcome.reconciliationNote.trim()
+      const result = await api<{ refill_request: ClinicRefillRequest }>(
+        `/api/clinic/refill_requests/${request.id}/transition`,
+        {
+          method: "POST",
+          body: {
+            refill_request: {
+              request_key: requestKey,
+              status,
+              decision,
+              patient_message: decision
+                ? outcome.patientMessage.trim()
                 : undefined,
+              reconciliation_acknowledged: decision
+                ? outcome.reconciliationAcknowledged
+                : undefined,
+              reconciliation_note:
+                decision && outcome.reconciliationNote.trim()
+                  ? outcome.reconciliationNote.trim()
+                  : undefined,
+              encounter_id:
+                status === "resolved"
+                  ? encounterSelections[request.id] || undefined
+                  : undefined,
+            },
           },
         },
-      });
+      );
       attempts.current.delete(signature);
+      const delivery = result.refill_request.response_delivery_state;
       setNotice(
         status === "in_review"
           ? `Refill request #${request.id} is now in clinical review.`
-          : `The ${decision} decision is now visible in the patient portal.`,
+          : delivery === "delivered"
+            ? `The ${decision} decision was saved and delivered in the patient portal.`
+            : `The ${decision} decision was saved. Portal delivery needs staff follow-up.`,
       );
       requests.refresh();
     } catch (reason) {
       setMutationError(reason, "The refill request could not be updated.");
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const retryDelivery = async (request: ClinicRefillRequest) => {
+    if (!canManage || busyKey) return;
+    const signature = `retry-delivery:${request.id}`;
+    const requestKey = attempts.current.get(signature) ?? crypto.randomUUID();
+    attempts.current.set(signature, requestKey);
+    setBusyKey(signature);
+    setError("");
+    setNotice("");
+    try {
+      const result = await api<{ refill_request: ClinicRefillRequest }>(
+        `/api/clinic/refill_requests/${request.id}/retry_delivery`,
+        {
+          method: "POST",
+          body: { delivery: { request_key: requestKey } },
+        },
+      );
+      attempts.current.delete(signature);
+      setNotice(
+        result.refill_request.response_delivery_state === "delivered"
+          ? `Refill response #${request.id} was delivered in the patient portal.`
+          : `Refill response #${request.id} still has no active portal destination.`,
+      );
+      requests.refresh();
+    } catch (reason) {
+      setMutationError(reason, "The refill response could not be delivered.");
     } finally {
       setBusyKey(null);
     }
@@ -248,13 +297,26 @@ export function RefillRequestQueue() {
       [request.id]: { loading: true },
     }));
     try {
-      const data = await api<PatientCareSummary>(
-        `/api/clinic/patients/${request.patient.id}/care_summary`,
+      const [data, encounterPage] = await Promise.all([
+        api<PatientCareSummary>(
+          `/api/clinic/patients/${request.patient.id}/care_summary`,
+        ),
+        api<{ encounters: Encounter[] }>(
+          `/api/clinic/encounters?patient_id=${request.patient.id}&status=open&per_page=50`,
+        ),
+      ]);
+      const encounters = encounterPage.encounters.filter(
+        (encounter) => encounter.site_id !== null,
       );
       setMedicationSummaries((current) => ({
         ...current,
-        [request.id]: { data },
+        [request.id]: { data, encounters },
       }));
+      if (encounters.length === 1)
+        setEncounterSelections((current) => ({
+          ...current,
+          [request.id]: encounters[0].id,
+        }));
     } catch (reason) {
       setMedicationSummaries((current) => ({
         ...current,
@@ -299,8 +361,9 @@ export function RefillRequestQueue() {
                 color="text.secondary"
                 sx={{ mt: 0.5 }}
               >
-                The patient must already have active portal access so the
-                outcome has a secure destination.
+                Staff can open the request even when the patient has no portal
+                account. The saved decision will show whether portal delivery
+                succeeded or needs staff follow-up.
               </Typography>
             </Box>
             <Autocomplete
@@ -472,6 +535,33 @@ export function RefillRequestQueue() {
                       )}
                     </Alert>
                   )}
+                  {terminal && request.response_delivery_state === "failed" && (
+                    <Alert severity="warning">
+                      The decision is saved, but no active patient portal
+                      destination was available. Contact the patient through an
+                      approved clinic channel.
+                      {canManage && (
+                        <Button
+                          color="inherit"
+                          size="small"
+                          sx={{ ml: 1 }}
+                          disabled={busyKey === `retry-delivery:${request.id}`}
+                          onClick={() => void retryDelivery(request)}
+                        >
+                          {busyKey === `retry-delivery:${request.id}`
+                            ? "Retrying…"
+                            : "Retry portal delivery"}
+                        </Button>
+                      )}
+                    </Alert>
+                  )}
+                  {terminal && request.medication_request_revision_id && (
+                    <Typography variant="body2" color="text.secondary">
+                      Medication order revision #
+                      {request.medication_request_revision_id} is linked to
+                      encounter #{request.source_encounter_id}.
+                    </Typography>
+                  )}
 
                   {canManage && !terminal && (
                     <>
@@ -556,6 +646,37 @@ export function RefillRequestQueue() {
                           </Stack>
                         </Paper>
                       )}
+                      {medicationSummary?.data && (
+                        <TextField
+                          select
+                          fullWidth
+                          required
+                          label="Encounter for the medication order"
+                          value={encounterSelections[request.id] ?? ""}
+                          onChange={(event) =>
+                            setEncounterSelections((current) => ({
+                              ...current,
+                              [request.id]: Number(event.target.value),
+                            }))
+                          }
+                          helperText={
+                            medicationSummary.encounters?.length
+                              ? "Approvals and changed plans create an authoritative medication order in this open encounter."
+                              : "Open an encounter with a facility before approving or changing the refill plan."
+                          }
+                        >
+                          {(medicationSummary.encounters ?? []).map(
+                            (encounter) => (
+                              <MenuItem key={encounter.id} value={encounter.id}>
+                                Encounter #{encounter.id} ·{" "}
+                                {new Intl.DateTimeFormat(undefined, {
+                                  dateStyle: "medium",
+                                }).format(new Date(encounter.started_at))}
+                              </MenuItem>
+                            ),
+                          )}
+                        </TextField>
+                      )}
                       <TextField
                         fullWidth
                         required
@@ -618,6 +739,7 @@ export function RefillRequestQueue() {
                             !canDecide ||
                             !outcome.patientMessage.trim() ||
                             !medicationSummary?.data ||
+                            !encounterSelections[request.id] ||
                             !outcome.reconciliationAcknowledged
                           }
                           onClick={() =>
@@ -633,6 +755,7 @@ export function RefillRequestQueue() {
                             !canDecide ||
                             !outcome.patientMessage.trim() ||
                             !medicationSummary?.data ||
+                            !encounterSelections[request.id] ||
                             !outcome.reconciliationAcknowledged
                           }
                           onClick={() =>

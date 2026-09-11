@@ -75,6 +75,9 @@ module Clinic
         {
           summary: summary,
           requests: requests.map { |request| serialize(request, member) },
+          actor_membership_id: member.id,
+          can_manage_staff_requests: ability.allowed_permission?("staff_messaging.transition", any_site: true),
+          can_escalate_staff_requests: ability.allowed_permission?("staff_messaging.escalate", any_site: true),
           encounter_summary: encounter_summary,
           encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
           clinical_task_summary: clinical_task_summary,
@@ -237,10 +240,24 @@ module Clinic
           state: request.state,
           due_at: request.due_at&.iso8601(6),
           assigned_to_me: request.assignee_membership_id == member.id,
-          overdue: request.due_at < at
+          overdue: request.due_at < at,
+          assignee_membership_id: request.assignee_membership_id,
+          eligible_assignees: eligible_assignees(conversation)
         }
         payload[:assignee_label] = Clinic::StaffMessagingSerializer.participant(assignee).fetch(:email) if assignee
         payload
+      end
+
+      def eligible_assignees(conversation)
+        conversation.members.filter_map do |conversation_member|
+          membership = conversation_member.membership
+          next unless conversation_member.membership_state == "active" && membership&.active? && membership.user&.active?
+
+          {
+            membership_id: membership.id,
+            label: membership.user.email
+          }
+        end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
       end
 
       def active_conversation_assignee(conversation, assignee_membership_id)

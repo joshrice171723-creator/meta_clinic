@@ -681,6 +681,11 @@ export type PatientRefillRequest = {
   source: "patient" | "staff" | null;
   decision: "approved" | "changed" | "declined" | null;
   patient_message: string | null;
+  source_encounter_id: number | null;
+  medication_request_revision_id: number | null;
+  response_delivery_state:
+    "pending" | "delivered" | "failed" | "retry_pending" | null;
+  response_delivery_failure_code: "portal_identity_unavailable" | null;
   reviewed_by: { display_name: string } | null;
 };
 export type ClinicRefillRequest = PatientRefillRequest & {

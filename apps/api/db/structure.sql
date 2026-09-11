@@ -1776,15 +1776,15 @@ CREATE TABLE public.clinic_allergies (
     criticality character varying DEFAULT 'unable_to_assess'::character varying NOT NULL,
     severity character varying DEFAULT 'unknown'::character varying NOT NULL,
     onset_at timestamp(6) with time zone,
-    CONSTRAINT clinic_allergies_category CHECK (((category)::text = ANY ((ARRAY['food'::character varying, 'medication'::character varying, 'environment'::character varying, 'biologic'::character varying, 'other'::character varying, 'unknown'::character varying])::text[]))),
-    CONSTRAINT clinic_allergies_clinical_status CHECK (((clinical_status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying, 'resolved'::character varying, 'unknown'::character varying, 'entered_in_error'::character varying])::text[]))),
-    CONSTRAINT clinic_allergies_criticality CHECK (((criticality)::text = ANY ((ARRAY['low'::character varying, 'high'::character varying, 'unable_to_assess'::character varying])::text[]))),
-    CONSTRAINT clinic_allergies_data_status CHECK (((data_status)::text = ANY ((ARRAY['incomplete'::character varying, 'recorded'::character varying])::text[]))),
+    CONSTRAINT clinic_allergies_category CHECK (((category)::text = ANY (ARRAY[('food'::character varying)::text, ('medication'::character varying)::text, ('environment'::character varying)::text, ('biologic'::character varying)::text, ('other'::character varying)::text, ('unknown'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_clinical_status CHECK (((clinical_status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text, ('resolved'::character varying)::text, ('unknown'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_criticality CHECK (((criticality)::text = ANY (ARRAY[('low'::character varying)::text, ('high'::character varying)::text, ('unable_to_assess'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_data_status CHECK (((data_status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('recorded'::character varying)::text]))),
     CONSTRAINT clinic_allergies_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clinic_allergies_recorded_shape CHECK ((((data_status)::text = 'incomplete'::text) OR ((allergen_name IS NOT NULL) AND (recorded_by_membership_id IS NOT NULL) AND (recorded_at IS NOT NULL)))),
     CONSTRAINT clinic_allergies_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
-    CONSTRAINT clinic_allergies_severity CHECK (((severity)::text = ANY ((ARRAY['mild'::character varying, 'moderate'::character varying, 'severe'::character varying, 'unknown'::character varying])::text[]))),
-    CONSTRAINT clinic_allergies_verification CHECK (((verification_status)::text = ANY ((ARRAY['unconfirmed'::character varying, 'presumed'::character varying, 'confirmed'::character varying, 'refuted'::character varying, 'entered_in_error'::character varying])::text[])))
+    CONSTRAINT clinic_allergies_severity CHECK (((severity)::text = ANY (ARRAY[('mild'::character varying)::text, ('moderate'::character varying)::text, ('severe'::character varying)::text, ('unknown'::character varying)::text]))),
+    CONSTRAINT clinic_allergies_verification CHECK (((verification_status)::text = ANY (ARRAY[('unconfirmed'::character varying)::text, ('presumed'::character varying)::text, ('confirmed'::character varying)::text, ('refuted'::character varying)::text, ('entered_in_error'::character varying)::text])))
 );
 
 
@@ -1829,7 +1829,7 @@ CREATE TABLE public.clinic_appointments (
     CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
     CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
     CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at)),
-    CONSTRAINT clinic_appointments_visit_modality CHECK ((((visit_modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying])::text[])) AND (((visit_modality)::text <> 'video'::text) OR (room_id IS NULL))))
+    CONSTRAINT clinic_appointments_visit_modality CHECK ((((visit_modality)::text = ANY (ARRAY[('in_person'::character varying)::text, ('video'::character varying)::text])) AND (((visit_modality)::text <> 'video'::text) OR (room_id IS NULL))))
 );
 
 
@@ -1880,7 +1880,7 @@ CREATE TABLE public.clinic_assessment_revisions (
     content_digest character varying(64) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY ((ARRAY['in_progress'::character varying, 'completed'::character varying, 'entered_in_error'::character varying])::text[])) AND (version_number > 0) AND ((category)::text = ANY ((ARRAY['depression'::character varying, 'anxiety'::character varying, 'alcohol_use'::character varying, 'tobacco_use'::character varying, 'social_needs'::character varying, 'fall_risk'::character varying, 'functional_status'::character varying, 'cognitive_status'::character varying])::text[])) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
+    CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY ((ARRAY['in_progress'::character varying, 'completed'::character varying, 'entered_in_error'::character varying])::text[])) AND (version_number > 0) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
 );
 
 
@@ -1952,7 +1952,7 @@ CREATE TABLE public.clinic_audit_events (
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY ((ARRAY['attempted'::character varying, 'denied'::character varying, 'prepared'::character varying, 'committed'::character varying, 'released'::character varying, 'failed'::character varying])::text[])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
+    CONSTRAINT clinic_audit_events_values CHECK ((((outcome)::text = ANY (ARRAY[('attempted'::character varying)::text, ('denied'::character varying)::text, ('prepared'::character varying)::text, ('committed'::character varying)::text, ('released'::character varying)::text, ('failed'::character varying)::text])) AND (length(TRIM(BOTH FROM action_code)) > 0) AND (length(TRIM(BOTH FROM policy_version)) > 0)))
 );
 
 
@@ -2025,7 +2025,7 @@ CREATE TABLE public.clinic_billing_receipts (
     issued_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY ((ARRAY['cash_payment'::character varying, 'cash_refund'::character varying, 'subscription_payment'::character varying, 'subscription_refund'::character varying, 'card_payment'::character varying])::text[])))
+    CONSTRAINT billing_receipt_kind CHECK (((kind)::text = ANY (ARRAY[('cash_payment'::character varying)::text, ('cash_refund'::character varying)::text, ('subscription_payment'::character varying)::text, ('subscription_refund'::character varying)::text, ('card_payment'::character varying)::text])))
 );
 
 
@@ -2156,7 +2156,7 @@ CREATE TABLE public.clinic_care_goal_revisions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT care_goal_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160)))),
-    CONSTRAINT clinic_care_goal_states CHECK (((status)::text = ANY ((ARRAY['proposed'::character varying, 'active'::character varying, 'achieved'::character varying, 'not_achieved'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])))
+    CONSTRAINT clinic_care_goal_states CHECK (((status)::text = ANY (ARRAY[('proposed'::character varying)::text, ('active'::character varying)::text, ('achieved'::character varying)::text, ('not_achieved'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])))
 );
 
 
@@ -2204,7 +2204,7 @@ CREATE TABLE public.clinic_care_plan_revisions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT care_plan_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160)))),
-    CONSTRAINT clinic_care_plan_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])) AND ((starts_on IS NULL) OR (ends_on IS NULL) OR (ends_on >= starts_on))))
+    CONSTRAINT clinic_care_plan_states CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((starts_on IS NULL) OR (ends_on IS NULL) OR (ends_on >= starts_on))))
 );
 
 
@@ -2250,8 +2250,8 @@ CREATE TABLE public.clinic_cash_drawer_sessions (
     reconciled_at timestamp(6) without time zone,
     reconciliation_note text,
     reconciliation_request_key character varying,
-    CONSTRAINT cash_drawer_reconciliation_state CHECK ((((reconciliation_status)::text = ANY ((ARRAY['pending'::character varying, 'reconciled'::character varying])::text[])) AND ((((reconciliation_status)::text = 'pending'::text) AND (reconciled_by_id IS NULL) AND (reconciled_at IS NULL) AND (reconciliation_request_key IS NULL)) OR (((reconciliation_status)::text = 'reconciled'::text) AND (reconciled_by_id IS NOT NULL) AND (reconciled_at IS NOT NULL) AND (reconciliation_request_key IS NOT NULL))))),
-    CONSTRAINT cash_drawer_session_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'closed'::character varying])::text[])))
+    CONSTRAINT cash_drawer_reconciliation_state CHECK ((((reconciliation_status)::text = ANY (ARRAY[('pending'::character varying)::text, ('reconciled'::character varying)::text])) AND ((((reconciliation_status)::text = 'pending'::text) AND (reconciled_by_id IS NULL) AND (reconciled_at IS NULL) AND (reconciliation_request_key IS NULL)) OR (((reconciliation_status)::text = 'reconciled'::text) AND (reconciled_by_id IS NOT NULL) AND (reconciled_at IS NOT NULL) AND (reconciliation_request_key IS NOT NULL))))),
+    CONSTRAINT cash_drawer_session_status CHECK (((status)::text = ANY (ARRAY[('open'::character varying)::text, ('closed'::character varying)::text])))
 );
 
 
@@ -2339,7 +2339,7 @@ CREATE TABLE public.clinic_clinical_plan_links (
     request_key character varying(160) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinical_plan_links_shape CHECK ((((source_kind)::text = ANY ((ARRAY['medication_request'::character varying, 'service_request'::character varying])::text[])) AND (num_nonnulls(medication_request_revision_id, service_request_revision_id) = 1) AND (num_nonnulls(medication_statement_id, medication_administration_id, lab_report_id, procedure_revision_id, document_id) = 1) AND ((((source_kind)::text = 'medication_request'::text) AND (medication_request_revision_id IS NOT NULL) AND ((target_kind)::text = ANY ((ARRAY['medication_statement'::character varying, 'medication_administration'::character varying])::text[]))) OR (((source_kind)::text = 'service_request'::text) AND (service_request_revision_id IS NOT NULL) AND ((target_kind)::text = ANY ((ARRAY['lab_report'::character varying, 'procedure'::character varying, 'document'::character varying])::text[])))) AND ((outcome_summary IS NULL) OR ((char_length(TRIM(BOTH FROM outcome_summary)) >= 1) AND (char_length(TRIM(BOTH FROM outcome_summary)) <= 2000))) AND ((char_length((request_key)::text) >= 1) AND (char_length((request_key)::text) <= 160))))
+    CONSTRAINT clinical_plan_links_shape CHECK ((((source_kind)::text = ANY (ARRAY[('medication_request'::character varying)::text, ('service_request'::character varying)::text])) AND (num_nonnulls(medication_request_revision_id, service_request_revision_id) = 1) AND (num_nonnulls(medication_statement_id, medication_administration_id, lab_report_id, procedure_revision_id, document_id) = 1) AND ((((source_kind)::text = 'medication_request'::text) AND (medication_request_revision_id IS NOT NULL) AND ((target_kind)::text = ANY (ARRAY[('medication_statement'::character varying)::text, ('medication_administration'::character varying)::text]))) OR (((source_kind)::text = 'service_request'::text) AND (service_request_revision_id IS NOT NULL) AND ((target_kind)::text = ANY (ARRAY[('lab_report'::character varying)::text, ('procedure'::character varying)::text, ('document'::character varying)::text])))) AND ((outcome_summary IS NULL) OR ((char_length(TRIM(BOTH FROM outcome_summary)) >= 1) AND (char_length(TRIM(BOTH FROM outcome_summary)) <= 2000))) AND ((char_length((request_key)::text) >= 1) AND (char_length((request_key)::text) <= 160))))
 );
 
 
@@ -2387,7 +2387,7 @@ CREATE TABLE public.clinic_clinical_tasks (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     source_kind character varying(40),
-    CONSTRAINT clinic_tasks_source_kind CHECK (((source_kind IS NULL) OR ((source_kind)::text = ANY ((ARRAY['medication_request'::character varying, 'service_request'::character varying])::text[])))),
+    CONSTRAINT clinic_tasks_source_kind CHECK (((source_kind IS NULL) OR ((source_kind)::text = ANY (ARRAY[('medication_request'::character varying)::text, ('service_request'::character varying)::text])))),
     CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY ((ARRAY['intake'::character varying, 'handoff'::character varying, 'result_follow_up'::character varying, 'patient_call'::character varying, 'order_execution'::character varying, 'record_request'::character varying, 'staff_request'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((pool_code)::text = ANY ((ARRAY['clinical'::character varying, 'front_desk'::character varying, 'records'::character varying])::text[])) AND ((source_type)::text = ANY ((ARRAY['manual'::character varying, 'encounter'::character varying, 'handoff'::character varying, 'lab_follow_up'::character varying, 'message'::character varying, 'reminder'::character varying, 'order'::character varying])::text[])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
 );
 
@@ -2537,7 +2537,7 @@ CREATE TABLE public.clinic_communication_endpoints (
     invalidation_reason character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_communication_endpoints_values CHECK ((((endpoint_type)::text = ANY ((ARRAY['portal'::character varying, 'phone'::character varying, 'email'::character varying])::text[])) AND (length(TRIM(BOTH FROM value_digest)) > 0)))
+    CONSTRAINT clinic_communication_endpoints_values CHECK ((((endpoint_type)::text = ANY (ARRAY[('portal'::character varying)::text, ('phone'::character varying)::text, ('email'::character varying)::text])) AND (length(TRIM(BOTH FROM value_digest)) > 0)))
 );
 
 
@@ -2580,7 +2580,7 @@ CREATE TABLE public.clinic_communication_preferences (
     version integer DEFAULT 1 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_communication_preferences_values CHECK ((((category)::text = ANY ((ARRAY['operational'::character varying, 'marketing'::character varying])::text[])) AND ((channel)::text = ANY ((ARRAY['portal'::character varying, 'sms'::character varying, 'email'::character varying])::text[])) AND ((setting)::text = ANY ((ARRAY['allowed'::character varying, 'blocked'::character varying, 'not_set'::character varying])::text[])) AND (version > 0)))
+    CONSTRAINT clinic_communication_preferences_values CHECK ((((category)::text = ANY (ARRAY[('operational'::character varying)::text, ('marketing'::character varying)::text])) AND ((channel)::text = ANY (ARRAY[('portal'::character varying)::text, ('sms'::character varying)::text, ('email'::character varying)::text])) AND ((setting)::text = ANY (ARRAY[('allowed'::character varying)::text, ('blocked'::character varying)::text, ('not_set'::character varying)::text])) AND (version > 0)))
 );
 
 
@@ -2626,13 +2626,13 @@ CREATE TABLE public.clinic_conditions (
     care_instruction text,
     onset_at timestamp(6) with time zone,
     resolved_at timestamp(6) with time zone,
-    CONSTRAINT clinic_conditions_clinical_status CHECK (((clinical_status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying, 'resolved'::character varying, 'unknown'::character varying, 'entered_in_error'::character varying])::text[]))),
-    CONSTRAINT clinic_conditions_data_status CHECK (((data_status)::text = ANY ((ARRAY['incomplete'::character varying, 'recorded'::character varying])::text[]))),
+    CONSTRAINT clinic_conditions_clinical_status CHECK (((clinical_status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text, ('resolved'::character varying)::text, ('unknown'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_conditions_data_status CHECK (((data_status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('recorded'::character varying)::text]))),
     CONSTRAINT clinic_conditions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clinic_conditions_recorded_shape CHECK ((((data_status)::text = 'incomplete'::text) OR ((condition_name IS NOT NULL) AND (recorded_by_membership_id IS NOT NULL) AND (recorded_at IS NOT NULL)))),
     CONSTRAINT clinic_conditions_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
     CONSTRAINT clinic_conditions_valid_window CHECK (((resolved_at IS NULL) OR (onset_at IS NULL) OR (resolved_at >= onset_at))),
-    CONSTRAINT clinic_conditions_verification CHECK (((verification_status)::text = ANY ((ARRAY['unconfirmed'::character varying, 'provisional'::character varying, 'confirmed'::character varying, 'refuted'::character varying, 'entered_in_error'::character varying])::text[])))
+    CONSTRAINT clinic_conditions_verification CHECK (((verification_status)::text = ANY (ARRAY[('unconfirmed'::character varying)::text, ('provisional'::character varying)::text, ('confirmed'::character varying)::text, ('refuted'::character varying)::text, ('entered_in_error'::character varying)::text])))
 );
 
 
@@ -2815,7 +2815,7 @@ CREATE TABLE public.clinic_documents (
     scan_state character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY ((ARRAY['pending'::character varying, 'quarantined'::character varying, 'clean'::character varying, 'rejected'::character varying])::text[]))),
+    CONSTRAINT clinic_documents_scan_state CHECK (((scan_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('quarantined'::character varying)::text, ('clean'::character varying)::text, ('rejected'::character varying)::text]))),
     CONSTRAINT clinic_documents_values CHECK (((byte_size >= 0) AND (length(TRIM(BOTH FROM object_key)) > 0) AND (length(TRIM(BOTH FROM object_version)) > 0) AND (length(TRIM(BOTH FROM checksum)) > 0) AND (length(TRIM(BOTH FROM media_type)) > 0)))
 );
 
@@ -2912,7 +2912,7 @@ CREATE TABLE public.clinic_encounter_diagnosis_revisions (
     clinical_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_diagnosis_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'provisional'::character varying, 'confirmed'::character varying, 'refuted'::character varying, 'resolved'::character varying, 'entered_in_error'::character varying])::text[])) AND ((classification)::text = ANY ((ARRAY['primary'::character varying, 'secondary'::character varying, 'differential'::character varying, 'historical'::character varying])::text[])))),
+    CONSTRAINT clinic_diagnosis_states CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('provisional'::character varying)::text, ('confirmed'::character varying)::text, ('refuted'::character varying)::text, ('resolved'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((classification)::text = ANY (ARRAY[('primary'::character varying)::text, ('secondary'::character varying)::text, ('differential'::character varying)::text, ('historical'::character varying)::text])))),
     CONSTRAINT diagnosis_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
 
@@ -2961,8 +2961,8 @@ CREATE TABLE public.clinic_encounter_follow_ups (
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT encounter_follow_ups_arranged_appointment CHECK ((((state)::text <> 'arranged'::text) OR (follow_up_appointment_id IS NOT NULL))),
     CONSTRAINT encounter_follow_ups_completion_evidence CHECK ((((state)::text <> 'completed'::text) OR ((completed_at IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (outcome <> ''::text)))),
-    CONSTRAINT encounter_follow_ups_source_kind CHECK (((source_kind)::text = ANY ((ARRAY['in_person'::character varying, 'telehealth'::character varying])::text[]))),
-    CONSTRAINT encounter_follow_ups_state CHECK (((state)::text = ANY ((ARRAY['not_required'::character varying, 'needed'::character varying, 'arranged'::character varying, 'completed'::character varying])::text[])))
+    CONSTRAINT encounter_follow_ups_source_kind CHECK (((source_kind)::text = ANY (ARRAY[('in_person'::character varying)::text, ('telehealth'::character varying)::text]))),
+    CONSTRAINT encounter_follow_ups_state CHECK (((state)::text = ANY (ARRAY[('not_required'::character varying)::text, ('needed'::character varying)::text, ('arranged'::character varying)::text, ('completed'::character varying)::text])))
 );
 
 
@@ -3003,7 +3003,7 @@ CREATE TABLE public.clinic_encounter_handoff_events (
     content_digest character varying(64) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_handoff_events_values CHECK (((version_number > 0) AND ((event_code)::text = ANY ((ARRAY['requested'::character varying, 'accepted'::character varying, 'rejected'::character varying, 'correction_requested'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND (length((content_digest)::text) = 64)))
+    CONSTRAINT clinic_handoff_events_values CHECK (((version_number > 0) AND ((event_code)::text = ANY (ARRAY[('requested'::character varying)::text, ('accepted'::character varying)::text, ('rejected'::character varying)::text, ('correction_requested'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND (length((content_digest)::text) = 64)))
 );
 
 
@@ -3044,7 +3044,7 @@ CREATE TABLE public.clinic_encounter_handoffs (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_handoffs_state_evidence CHECK ((((state)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'rejected'::character varying, 'correction_requested'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((((state)::text = ANY ((ARRAY['accepted'::character varying, 'completed'::character varying])::text[])) AND (accepted_by_membership_id IS NOT NULL) AND (responded_at IS NOT NULL)) OR (((state)::text = 'pending'::text) AND (accepted_by_membership_id IS NULL) AND (responded_at IS NULL)) OR (((state)::text = ANY ((ARRAY['rejected'::character varying, 'correction_requested'::character varying, 'cancelled'::character varying])::text[])) AND (accepted_by_membership_id IS NULL) AND (responded_at IS NOT NULL)))))
+    CONSTRAINT clinic_handoffs_state_evidence CHECK ((((state)::text = ANY (ARRAY[('pending'::character varying)::text, ('accepted'::character varying)::text, ('rejected'::character varying)::text, ('correction_requested'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((((state)::text = ANY (ARRAY[('accepted'::character varying)::text, ('completed'::character varying)::text])) AND (accepted_by_membership_id IS NOT NULL) AND (responded_at IS NOT NULL)) OR (((state)::text = 'pending'::text) AND (accepted_by_membership_id IS NULL) AND (responded_at IS NULL)) OR (((state)::text = ANY (ARRAY[('rejected'::character varying)::text, ('correction_requested'::character varying)::text, ('cancelled'::character varying)::text])) AND (accepted_by_membership_id IS NULL) AND (responded_at IS NOT NULL)))))
 );
 
 
@@ -3158,7 +3158,7 @@ CREATE TABLE public.clinic_encounter_intake_revisions (
     content_digest character varying(64) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_intake_revisions_states CHECK ((((status)::text = ANY ((ARRAY['incomplete'::character varying, 'ready_for_handoff'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((identity_state)::text = ANY ((ARRAY['confirmed'::character varying, 'not_confirmed'::character varying, 'unable_to_confirm'::character varying])::text[])) AND ((visit_reason_state)::text = ANY ((ARRAY['confirmed'::character varying, 'needs_correction'::character varying, 'not_recorded'::character varying, 'unable_to_obtain'::character varying])::text[])) AND ((history_state)::text = ANY ((ARRAY['reviewed'::character varying, 'incomplete'::character varying, 'not_recorded'::character varying, 'unable_to_obtain'::character varying])::text[])) AND ((vitals_state)::text = ANY ((ARRAY['recorded'::character varying, 'incomplete'::character varying, 'not_recorded'::character varying, 'declined'::character varying, 'unable_to_obtain'::character varying, 'not_applicable'::character varying])::text[])) AND (version_number > 0) AND (length((content_digest)::text) = 64)))
+    CONSTRAINT clinic_intake_revisions_states CHECK ((((status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('ready_for_handoff'::character varying)::text, ('unable_to_complete'::character varying)::text])) AND ((identity_state)::text = ANY (ARRAY[('confirmed'::character varying)::text, ('not_confirmed'::character varying)::text, ('unable_to_confirm'::character varying)::text])) AND ((visit_reason_state)::text = ANY (ARRAY[('confirmed'::character varying)::text, ('needs_correction'::character varying)::text, ('not_recorded'::character varying)::text, ('unable_to_obtain'::character varying)::text])) AND ((history_state)::text = ANY (ARRAY[('reviewed'::character varying)::text, ('incomplete'::character varying)::text, ('not_recorded'::character varying)::text, ('unable_to_obtain'::character varying)::text])) AND ((vitals_state)::text = ANY (ARRAY[('recorded'::character varying)::text, ('incomplete'::character varying)::text, ('not_recorded'::character varying)::text, ('declined'::character varying)::text, ('unable_to_obtain'::character varying)::text, ('not_applicable'::character varying)::text])) AND (version_number > 0) AND (length((content_digest)::text) = 64)))
 );
 
 
@@ -3355,11 +3355,11 @@ CREATE TABLE public.clinic_encounter_precautions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_precautions_discontinued_at CHECK ((((status)::text <> 'discontinued'::text) OR (ended_at IS NOT NULL))),
-    CONSTRAINT clinic_precautions_evidence CHECK (((evidence_status)::text = ANY ((ARRAY['suspected'::character varying, 'confirmed'::character varying])::text[]))),
+    CONSTRAINT clinic_precautions_evidence CHECK (((evidence_status)::text = ANY (ARRAY[('suspected'::character varying)::text, ('confirmed'::character varying)::text]))),
     CONSTRAINT clinic_precautions_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clinic_precautions_reassessment_pair CHECK ((((last_reassessed_at IS NULL) AND (reassessed_by_membership_id IS NULL)) OR ((last_reassessed_at IS NOT NULL) AND (reassessed_by_membership_id IS NOT NULL)))),
-    CONSTRAINT clinic_precautions_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'discontinued'::character varying, 'entered_in_error'::character varying])::text[]))),
-    CONSTRAINT clinic_precautions_type CHECK (((precaution_type)::text = ANY ((ARRAY['contact'::character varying, 'droplet'::character varying, 'airborne'::character varying, 'protective'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT clinic_precautions_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('discontinued'::character varying)::text, ('entered_in_error'::character varying)::text]))),
+    CONSTRAINT clinic_precautions_type CHECK (((precaution_type)::text = ANY (ARRAY[('contact'::character varying)::text, ('droplet'::character varying)::text, ('airborne'::character varying)::text, ('protective'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT clinic_precautions_valid_window CHECK (((ended_at IS NULL) OR (ended_at >= recorded_at)))
 );
 
@@ -3456,7 +3456,7 @@ CREATE TABLE public.clinic_immunization_revisions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     medication_administration_id bigint,
-    CONSTRAINT clinic_immunization_states CHECK ((((status)::text = ANY ((ARRAY['planned'::character varying, 'completed'::character varying, 'not_done'::character varying, 'entered_in_error'::character varying])::text[])) AND ((occurrence_source)::text = ANY ((ARRAY['administered_here'::character varying, 'patient_reported'::character varying, 'external_record'::character varying, 'registry'::character varying])::text[])) AND (((status)::text <> 'completed'::text) OR (administered_at IS NOT NULL)) AND (((status)::text <> 'not_done'::text) OR (refusal_reason IS NOT NULL)))),
+    CONSTRAINT clinic_immunization_states CHECK ((((status)::text = ANY (ARRAY[('planned'::character varying)::text, ('completed'::character varying)::text, ('not_done'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((occurrence_source)::text = ANY (ARRAY[('administered_here'::character varying)::text, ('patient_reported'::character varying)::text, ('external_record'::character varying)::text, ('registry'::character varying)::text])) AND (((status)::text <> 'completed'::text) OR (administered_at IS NOT NULL)) AND (((status)::text <> 'not_done'::text) OR (refusal_reason IS NOT NULL)))),
     CONSTRAINT immunization_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
 
@@ -3563,7 +3563,7 @@ CREATE TABLE public.clinic_inventory_control_reviews (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_control_review_values CHECK ((((kind)::text = ANY ((ARRAY['investigation'::character varying, 'certification'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100))))
+    CONSTRAINT inventory_control_review_values CHECK ((((kind)::text = ANY (ARRAY[('investigation'::character varying)::text, ('certification'::character varying)::text])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100))))
 );
 
 
@@ -3639,9 +3639,9 @@ CREATE TABLE public.clinic_inventory_count_session_events (
     payload_digest character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_count_session_event_kind CHECK (((kind)::text = ANY ((ARRAY['observed'::character varying, 'skipped'::character varying, 'resumed'::character varying, 'reassigned'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[]))),
-    CONSTRAINT inventory_count_session_event_shape CHECK (((((kind)::text = 'observed'::text) AND (count_session_line_id IS NOT NULL) AND (count_id IS NOT NULL) AND (assignee_id IS NULL)) OR (((kind)::text = ANY ((ARRAY['skipped'::character varying, 'resumed'::character varying])::text[])) AND (count_session_line_id IS NOT NULL) AND (count_id IS NULL) AND (assignee_id IS NULL)) OR (((kind)::text = 'reassigned'::text) AND (count_session_line_id IS NULL) AND (count_id IS NULL) AND (assignee_id IS NOT NULL)) OR (((kind)::text = ANY ((ARRAY['completed'::character varying, 'cancelled'::character varying])::text[])) AND (count_session_line_id IS NULL) AND (count_id IS NULL) AND (assignee_id IS NULL)))),
-    CONSTRAINT inventory_count_session_event_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+    CONSTRAINT inventory_count_session_event_kind CHECK (((kind)::text = ANY (ARRAY[('observed'::character varying)::text, ('skipped'::character varying)::text, ('resumed'::character varying)::text, ('reassigned'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text]))),
+    CONSTRAINT inventory_count_session_event_shape CHECK (((((kind)::text = 'observed'::text) AND (count_session_line_id IS NOT NULL) AND (count_id IS NOT NULL) AND (assignee_id IS NULL)) OR (((kind)::text = ANY (ARRAY[('skipped'::character varying)::text, ('resumed'::character varying)::text])) AND (count_session_line_id IS NOT NULL) AND (count_id IS NULL) AND (assignee_id IS NULL)) OR (((kind)::text = 'reassigned'::text) AND (count_session_line_id IS NULL) AND (count_id IS NULL) AND (assignee_id IS NOT NULL)) OR (((kind)::text = ANY (ARRAY[('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND (count_session_line_id IS NULL) AND (count_id IS NULL) AND (assignee_id IS NULL)))),
+    CONSTRAINT inventory_count_session_event_values CHECK (((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
 );
 
 
@@ -3716,8 +3716,8 @@ CREATE TABLE public.clinic_inventory_count_sessions (
     payload_digest character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_count_session_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[]))),
-    CONSTRAINT inventory_count_session_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+    CONSTRAINT inventory_count_session_status CHECK (((status)::text = ANY (ARRAY[('open'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text]))),
+    CONSTRAINT inventory_count_session_values CHECK (((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
 );
 
 
@@ -3854,9 +3854,9 @@ CREATE TABLE public.clinic_inventory_exception_reviews (
     evidence_reference character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_exception_review_source_category CHECK (((((source_kind)::text = 'batch'::text) AND ((category)::text = ANY ((ARRAY['expiring'::character varying, 'expired'::character varying, 'inactive_product'::character varying, 'inactive_location'::character varying])::text[]))) OR (((source_kind)::text = 'hold'::text) AND ((category)::text = 'hold'::text)) OR (((source_kind)::text = 'reconciliation'::text) AND ((category)::text = 'delivery_discrepancy'::text)))),
-    CONSTRAINT inventory_exception_review_state CHECK (((state)::text = ANY ((ARRAY['open'::character varying, 'reviewed'::character varying])::text[]))),
-    CONSTRAINT inventory_exception_review_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((evidence_reference IS NULL) OR ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200))) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+    CONSTRAINT inventory_exception_review_source_category CHECK (((((source_kind)::text = 'batch'::text) AND ((category)::text = ANY (ARRAY[('expiring'::character varying)::text, ('expired'::character varying)::text, ('inactive_product'::character varying)::text, ('inactive_location'::character varying)::text]))) OR (((source_kind)::text = 'hold'::text) AND ((category)::text = 'hold'::text)) OR (((source_kind)::text = 'reconciliation'::text) AND ((category)::text = 'delivery_discrepancy'::text)))),
+    CONSTRAINT inventory_exception_review_state CHECK (((state)::text = ANY (ARRAY[('open'::character varying)::text, ('reviewed'::character varying)::text]))),
+    CONSTRAINT inventory_exception_review_values CHECK (((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200) AND ((evidence_reference IS NULL) OR ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200))) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
 );
 
 
@@ -3976,9 +3976,9 @@ CREATE TABLE public.clinic_inventory_locations (
     site_id bigint,
     parent_location_id bigint,
     status character varying DEFAULT 'active'::character varying NOT NULL,
-    CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY ((ARRAY['storage'::character varying, 'quarantine'::character varying, 'returns'::character varying, 'controlled'::character varying])::text[]))),
+    CONSTRAINT inventory_location_kind CHECK (((kind)::text = ANY (ARRAY[('storage'::character varying)::text, ('quarantine'::character varying)::text, ('returns'::character varying)::text, ('controlled'::character varying)::text]))),
     CONSTRAINT inventory_location_not_self_parent CHECK (((parent_location_id IS NULL) OR (parent_location_id <> id))),
-    CONSTRAINT inventory_location_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'retired'::character varying])::text[])))
+    CONSTRAINT inventory_location_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('retired'::character varying)::text])))
 );
 
 
@@ -4052,7 +4052,7 @@ CREATE TABLE public.clinic_inventory_profiles (
     reason character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_profile_scope CHECK (((version > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'configured'::character varying, 'synthetic'::character varying, 'suspended'::character varying, 'retired'::character varying])::text[])) AND (capabilities <@ ARRAY['inventory'::character varying])))
+    CONSTRAINT inventory_profile_scope CHECK (((version > 0) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('configured'::character varying)::text, ('synthetic'::character varying)::text, ('suspended'::character varying)::text, ('retired'::character varying)::text])) AND (capabilities <@ ARRAY['inventory'::character varying])))
 );
 
 
@@ -4099,7 +4099,7 @@ CREATE TABLE public.clinic_inventory_purchase_cart_items (
     purchase_order_line_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_purchase_cart_item_values CHECK (((requested_packages > (0)::numeric) AND (conversion_factor > (0)::numeric) AND (selected_unit_price >= (0)::numeric) AND (selected_package_quantity > (0)::numeric) AND ((length(TRIM(BOTH FROM input_unit)) >= 1) AND (length(TRIM(BOTH FROM input_unit)) <= 40)) AND (length(TRIM(BOTH FROM selected_currency)) = 3) AND ((source)::text = ANY ((ARRAY['replenishment'::character varying, 'manual'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'checked_out'::character varying, 'removed'::character varying])::text[]))))
+    CONSTRAINT inventory_purchase_cart_item_values CHECK (((requested_packages > (0)::numeric) AND (conversion_factor > (0)::numeric) AND (selected_unit_price >= (0)::numeric) AND (selected_package_quantity > (0)::numeric) AND ((length(TRIM(BOTH FROM input_unit)) >= 1) AND (length(TRIM(BOTH FROM input_unit)) <= 40)) AND (length(TRIM(BOTH FROM selected_currency)) = 3) AND ((source)::text = ANY (ARRAY[('replenishment'::character varying)::text, ('manual'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('checked_out'::character varying)::text, ('removed'::character varying)::text]))))
 );
 
 
@@ -4138,7 +4138,7 @@ CREATE TABLE public.clinic_inventory_purchase_carts (
     version integer DEFAULT 1 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_purchase_cart_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'checking_out'::character varying, 'checked_out'::character varying, 'abandoned'::character varying])::text[])) AND (version > 0) AND ((reason IS NULL) OR ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)))))
+    CONSTRAINT inventory_purchase_cart_values CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('checking_out'::character varying)::text, ('checked_out'::character varying)::text, ('abandoned'::character varying)::text])) AND (version > 0) AND ((reason IS NULL) OR ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)))))
 );
 
 
@@ -4176,7 +4176,7 @@ CREATE TABLE public.clinic_inventory_purchase_order_events (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_purchase_order_event_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100))))
+    CONSTRAINT inventory_purchase_order_event_values CHECK (((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100))))
 );
 
 
@@ -4275,7 +4275,7 @@ CREATE TABLE public.clinic_inventory_purchase_orders (
     checkout_group_id character varying,
     source_kind character varying,
     currency character varying,
-    CONSTRAINT inventory_purchase_order_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'approved'::character varying, 'rejected'::character varying, 'sent'::character varying, 'partially_received'::character varying, 'complete'::character varying, 'cancelled'::character varying])::text[])) AND (version > 0) AND (subtotal >= (0)::numeric) AND (tax >= (0)::numeric) AND (shipping >= (0)::numeric) AND (total >= (0)::numeric) AND ((length(TRIM(BOTH FROM number)) >= 1) AND (length(TRIM(BOTH FROM number)) <= 80)) AND ((length(TRIM(BOTH FROM destination)) >= 1) AND (length(TRIM(BOTH FROM destination)) <= 120)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
+    CONSTRAINT inventory_purchase_order_values CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('submitted'::character varying)::text, ('approved'::character varying)::text, ('rejected'::character varying)::text, ('sent'::character varying)::text, ('partially_received'::character varying)::text, ('complete'::character varying)::text, ('cancelled'::character varying)::text])) AND (version > 0) AND (subtotal >= (0)::numeric) AND (tax >= (0)::numeric) AND (shipping >= (0)::numeric) AND (total >= (0)::numeric) AND ((length(TRIM(BOTH FROM number)) >= 1) AND (length(TRIM(BOTH FROM number)) <= 80)) AND ((length(TRIM(BOTH FROM destination)) >= 1) AND (length(TRIM(BOTH FROM destination)) <= 120)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200))))
 );
 
 
@@ -4314,7 +4314,7 @@ CREATE TABLE public.clinic_inventory_recall_closures (
     payload_digest character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_recall_closure_values CHECK ((((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+    CONSTRAINT inventory_recall_closure_values CHECK (((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200) AND ((length(TRIM(BOTH FROM evidence_reference)) >= 1) AND (length(TRIM(BOTH FROM evidence_reference)) <= 200)) AND ((request_key)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
 );
 
 
@@ -4429,7 +4429,7 @@ CREATE TABLE public.clinic_inventory_recalls (
     affected_units numeric(20,6) DEFAULT 0.0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_recall_values CHECK ((((status)::text = ANY ((ARRAY['identified'::character varying, 'inventory_locked'::character varying, 'location_sweep'::character varying, 'isolated'::character varying, 'disposition_pending'::character varying, 'disposition_complete'::character varying, 'closed'::character varying])::text[])) AND (affected_units >= (0)::numeric) AND ((length(TRIM(BOTH FROM reference)) >= 1) AND (length(TRIM(BOTH FROM reference)) <= 100)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM required_disposition)) >= 1) AND (length(TRIM(BOTH FROM required_disposition)) <= 80))))
+    CONSTRAINT inventory_recall_values CHECK ((((status)::text = ANY (ARRAY[('identified'::character varying)::text, ('inventory_locked'::character varying)::text, ('location_sweep'::character varying)::text, ('isolated'::character varying)::text, ('disposition_pending'::character varying)::text, ('disposition_complete'::character varying)::text, ('closed'::character varying)::text])) AND (affected_units >= (0)::numeric) AND ((length(TRIM(BOTH FROM reference)) >= 1) AND (length(TRIM(BOTH FROM reference)) <= 100)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length(TRIM(BOTH FROM required_disposition)) >= 1) AND (length(TRIM(BOTH FROM required_disposition)) <= 80))))
 );
 
 
@@ -4520,7 +4520,7 @@ CREATE TABLE public.clinic_inventory_receipts (
     purchase_order_id bigint,
     shipment_id bigint,
     status character varying DEFAULT 'received'::character varying NOT NULL,
-    CONSTRAINT inventory_receipt_status CHECK (((status)::text = ANY ((ARRAY['received'::character varying, 'quarantined'::character varying, 'exception'::character varying])::text[])))
+    CONSTRAINT inventory_receipt_status CHECK (((status)::text = ANY (ARRAY[('received'::character varying)::text, ('quarantined'::character varying)::text, ('exception'::character varying)::text])))
 );
 
 
@@ -4642,8 +4642,8 @@ CREATE TABLE public.clinic_inventory_shipment_reconciliations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT inventory_reconciliation_observations CHECK (((jsonb_typeof(observations) = 'array'::text) AND ((jsonb_array_length(observations) >= 1) AND (jsonb_array_length(observations) <= 100)) AND (octet_length((observations)::text) <= 64000))),
-    CONSTRAINT inventory_reconciliation_quantities CHECK ((((accepted_packages >= (0)::numeric) AND (accepted_packages <= (1000000)::numeric)) AND (accepted_packages = trunc(accepted_packages)) AND ((missing_packages >= (0)::numeric) AND (missing_packages <= (1000000)::numeric)) AND (missing_packages = trunc(missing_packages)) AND ((rejected_packages >= (0)::numeric) AND (rejected_packages <= (1000000)::numeric)) AND (rejected_packages = trunc(rejected_packages)) AND ((excess_packages >= (0)::numeric) AND (excess_packages <= (1000000)::numeric)) AND (excess_packages = trunc(excess_packages)))),
-    CONSTRAINT inventory_reconciliation_reason CHECK ((((exception)::text = ANY ((ARRAY['short_delivery'::character varying, 'damaged'::character varying, 'wrong_item'::character varying, 'wrong_lot'::character varying, 'temperature'::character varying, 'expiry'::character varying, 'excess'::character varying, 'other'::character varying])::text[])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64))),
+    CONSTRAINT inventory_reconciliation_quantities CHECK (((accepted_packages >= (0)::numeric) AND (accepted_packages <= (1000000)::numeric) AND (accepted_packages = trunc(accepted_packages)) AND ((missing_packages >= (0)::numeric) AND (missing_packages <= (1000000)::numeric)) AND (missing_packages = trunc(missing_packages)) AND ((rejected_packages >= (0)::numeric) AND (rejected_packages <= (1000000)::numeric)) AND (rejected_packages = trunc(rejected_packages)) AND ((excess_packages >= (0)::numeric) AND (excess_packages <= (1000000)::numeric)) AND (excess_packages = trunc(excess_packages)))),
+    CONSTRAINT inventory_reconciliation_reason CHECK ((((exception)::text = ANY (ARRAY[('short_delivery'::character varying)::text, ('damaged'::character varying)::text, ('wrong_item'::character varying)::text, ('wrong_lot'::character varying)::text, ('temperature'::character varying)::text, ('expiry'::character varying)::text, ('excess'::character varying)::text, ('other'::character varying)::text])) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64))),
     CONSTRAINT inventory_reconciliation_shape CHECK (((((missing_packages + rejected_packages) + excess_packages) > (0)::numeric) AND (((accepted_packages = (0)::numeric) AND (receipt_id IS NULL)) OR ((accepted_packages > (0)::numeric) AND (receipt_id IS NOT NULL)))))
 );
 
@@ -4686,7 +4686,7 @@ CREATE TABLE public.clinic_inventory_shipments (
     delivered_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT inventory_shipment_values CHECK ((((status)::text = ANY ((ARRAY['expected'::character varying, 'delivered'::character varying, 'received'::character varying, 'exception'::character varying])::text[])) AND (package_count > 0) AND (expected_units > (0)::numeric) AND ((length(TRIM(BOTH FROM reference)) >= 1) AND (length(TRIM(BOTH FROM reference)) <= 80)) AND ((length(TRIM(BOTH FROM supplier_reference)) >= 1) AND (length(TRIM(BOTH FROM supplier_reference)) <= 120))))
+    CONSTRAINT inventory_shipment_values CHECK ((((status)::text = ANY (ARRAY[('expected'::character varying)::text, ('delivered'::character varying)::text, ('received'::character varying)::text, ('exception'::character varying)::text])) AND (package_count > 0) AND (expected_units > (0)::numeric) AND ((length(TRIM(BOTH FROM reference)) >= 1) AND (length(TRIM(BOTH FROM reference)) <= 80)) AND ((length(TRIM(BOTH FROM supplier_reference)) >= 1) AND (length(TRIM(BOTH FROM supplier_reference)) <= 120))))
 );
 
 
@@ -4773,7 +4773,7 @@ CREATE TABLE public.clinic_inventory_supplier_invoices (
     currency character varying(3) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT supplier_invoice_amount CHECK (((amount >= (0)::numeric) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND ((status)::text = ANY ((ARRAY['matched'::character varying, 'discrepancy'::character varying])::text[])))),
+    CONSTRAINT supplier_invoice_amount CHECK (((amount >= (0)::numeric) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND ((status)::text = ANY (ARRAY[('matched'::character varying)::text, ('discrepancy'::character varying)::text])))),
     CONSTRAINT supplier_invoices_details CHECK (((jsonb_typeof(details) = 'object'::text) AND (octet_length((details)::text) <= 128000))),
     CONSTRAINT supplier_invoices_input CHECK (((length(TRIM(BOTH FROM reference)) > 0) AND (length(TRIM(BOTH FROM reason)) > 0) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64)))
 );
@@ -5014,7 +5014,7 @@ CREATE TABLE public.clinic_invoice_stripe_checkouts (
     application_fee_cents integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT invoice_stripe_checkouts_values CHECK ((((account_id)::text ~ '^acct_[a-zA-Z0-9]+$'::text) AND (application_fee_cents >= 0) AND ((session_id IS NULL) OR ((session_id)::text ~ '^cs_test_[a-zA-Z0-9]+$'::text)) AND ((session_status IS NULL) OR ((session_status)::text = ANY ((ARRAY['open'::character varying, 'complete'::character varying, 'expired'::character varying])::text[])))))
+    CONSTRAINT invoice_stripe_checkouts_values CHECK ((((account_id)::text ~ '^acct_[a-zA-Z0-9]+$'::text) AND (application_fee_cents >= 0) AND ((session_id IS NULL) OR ((session_id)::text ~ '^cs_test_[a-zA-Z0-9]+$'::text)) AND ((session_status IS NULL) OR ((session_status)::text = ANY (ARRAY[('open'::character varying)::text, ('complete'::character varying)::text, ('expired'::character varying)::text])))))
 );
 
 
@@ -5054,7 +5054,7 @@ CREATE TABLE public.clinic_invoices (
     void_reason text,
     voided_by_membership_id bigint,
     voided_at timestamp(6) without time zone,
-    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'posted'::character varying, 'void'::character varying])::text[])) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0))),
+    CONSTRAINT clinic_invoices_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('posted'::character varying)::text, ('void'::character varying)::text])) AND (length(TRIM(BOTH FROM status)) > 0) AND (length(TRIM(BOTH FROM rounding_policy_version)) > 0))),
     CONSTRAINT clinic_invoices_void_evidence_shape CHECK ((((void_reason IS NULL) AND (voided_by_membership_id IS NULL) AND (voided_at IS NULL)) OR ((void_reason IS NOT NULL) AND (voided_by_membership_id IS NOT NULL) AND (voided_at IS NOT NULL))))
 );
 
@@ -5141,7 +5141,7 @@ CREATE TABLE public.clinic_lab_report_versions (
     result_priority character varying(16) DEFAULT 'routine'::character varying NOT NULL,
     CONSTRAINT clinic_lab_report_versions_review_pair CHECK ((((reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
     CONSTRAINT clinic_lab_report_versions_timeline CHECK ((issued_at >= collected_at)),
-    CONSTRAINT clinic_lab_report_versions_values CHECK (((version_number > 0) AND ((status)::text = ANY ((ARRAY['preliminary'::character varying, 'final'::character varying, 'amended'::character varying, 'corrected'::character varying, 'cancelled'::character varying])::text[])) AND ((entry_kind)::text = 'manual'::text) AND (length((content_digest)::text) = 64))),
+    CONSTRAINT clinic_lab_report_versions_values CHECK (((version_number > 0) AND ((status)::text = ANY (ARRAY[('preliminary'::character varying)::text, ('final'::character varying)::text, ('amended'::character varying)::text, ('corrected'::character varying)::text, ('cancelled'::character varying)::text])) AND ((entry_kind)::text = 'manual'::text) AND (length((content_digest)::text) = 64))),
     CONSTRAINT lab_report_versions_priority CHECK (((result_priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'critical'::character varying])::text[])))
 );
 
@@ -5378,7 +5378,7 @@ CREATE TABLE public.clinic_learning_inquiries (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT learning_inquiries_values CHECK (((general_only = true) AND ((status)::text = ANY ((ARRAY['gathering'::character varying, 'sources_ready'::character varying, 'summarized'::character varying, 'failed'::character varying])::text[])) AND ((evidence_provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'clinic-learning-v1'::text) AND ((prompt_digest IS NULL) OR (length(TRIM(BOTH FROM prompt_digest)) = 64)) AND ((source_snapshot_digest IS NULL) OR (length(TRIM(BOTH FROM source_snapshot_digest)) = 64))))
+    CONSTRAINT learning_inquiries_values CHECK (((general_only = true) AND ((status)::text = ANY (ARRAY[('gathering'::character varying)::text, ('sources_ready'::character varying)::text, ('summarized'::character varying)::text, ('failed'::character varying)::text])) AND ((evidence_provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'clinic-learning-v1'::text) AND ((prompt_digest IS NULL) OR (length(TRIM(BOTH FROM prompt_digest)) = 64)) AND ((source_snapshot_digest IS NULL) OR (length(TRIM(BOTH FROM source_snapshot_digest)) = 64))))
 );
 
 
@@ -5435,7 +5435,7 @@ CREATE TABLE public.clinic_learning_moments (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT learning_moments_documented_shape CHECK ((((learning_status)::text <> 'documented'::text) OR ((attestation_version IS NOT NULL) AND (attested_at IS NOT NULL) AND (confirmed_at IS NOT NULL) AND ((privacy_review_state)::text = 'clear'::text) AND (contains_patient_identifiers = false) AND (practice_impact IS NOT NULL) AND ((documented_seconds >= 60) AND (documented_seconds <= 28800))))),
-    CONSTRAINT learning_moments_values CHECK ((((learning_status)::text = ANY ((ARRAY['awaiting_reflection'::character varying, 'documented'::character varying, 'voided'::character varying])::text[])) AND ((record_classification)::text = 'non_accredited_professional_learning'::text) AND ((privacy_review_state)::text = ANY ((ARRAY['pending'::character varying, 'clear'::character varying, 'needs_edit'::character varying])::text[])) AND ((practice_impact IS NULL) OR ((practice_impact)::text = ANY ((ARRAY['confirmed_approach'::character varying, 'changed_approach'::character varying, 'follow_up_needed'::character varying, 'not_useful'::character varying, 'other'::character varying])::text[]))) AND ((documented_seconds >= 0) AND (documented_seconds <= 28800)) AND (mod(documented_seconds, 60) = 0) AND ((measured_active_seconds >= 0) AND (measured_active_seconds <= 28800)) AND (length(TRIM(BOTH FROM source_set_digest)) = 64))),
+    CONSTRAINT learning_moments_values CHECK ((((learning_status)::text = ANY (ARRAY[('awaiting_reflection'::character varying)::text, ('documented'::character varying)::text, ('voided'::character varying)::text])) AND ((record_classification)::text = 'non_accredited_professional_learning'::text) AND ((privacy_review_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('clear'::character varying)::text, ('needs_edit'::character varying)::text])) AND ((practice_impact IS NULL) OR ((practice_impact)::text = ANY (ARRAY[('confirmed_approach'::character varying)::text, ('changed_approach'::character varying)::text, ('follow_up_needed'::character varying)::text, ('not_useful'::character varying)::text, ('other'::character varying)::text]))) AND ((documented_seconds >= 0) AND (documented_seconds <= 28800)) AND (mod(documented_seconds, 60) = 0) AND ((measured_active_seconds >= 0) AND (measured_active_seconds <= 28800)) AND (length(TRIM(BOTH FROM source_set_digest)) = 64))),
     CONSTRAINT learning_moments_voided_shape CHECK ((((learning_status)::text <> 'voided'::text) OR ((voided_at IS NOT NULL) AND (length(TRIM(BOTH FROM void_reason)) > 0))))
 );
 
@@ -5483,7 +5483,7 @@ CREATE TABLE public.clinic_learning_sources (
     schema_version character varying DEFAULT 'pubmed-eutils-v1'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT learning_sources_values CHECK ((((ordinal >= 1) AND (ordinal <= 5)) AND ((provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'pubmed-eutils-v1'::text) AND (length(TRIM(BOTH FROM pmid)) > 0) AND (length(TRIM(BOTH FROM abstract_digest)) = 64) AND (length(TRIM(BOTH FROM canonical_url)) > 0)))
+    CONSTRAINT learning_sources_values CHECK (((ordinal >= 1) AND (ordinal <= 5) AND ((provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'pubmed-eutils-v1'::text) AND (length(TRIM(BOTH FROM pmid)) > 0) AND (length(TRIM(BOTH FROM abstract_digest)) = 64) AND (length(TRIM(BOTH FROM canonical_url)) > 0)))
 );
 
 
@@ -5578,7 +5578,7 @@ CREATE TABLE public.clinic_medication_administrations (
     response_text text,
     education_text text,
     CONSTRAINT clinic_medication_administrations_outcome CHECK (((medication_request_revision_id IS NULL) OR (((status)::text = 'completed'::text) AND (quantity > (0)::numeric) AND (quantity <= (1000000)::numeric) AND (quantity = round(quantity, 6)) AND (dose_value > (0)::numeric) AND (dose_unit_code IS NOT NULL) AND (route_code IS NOT NULL) AND ((precheck_status)::text <> 'not_recorded'::text) AND ((verification_status)::text <> 'not_recorded'::text) AND (((verification_status)::text <> 'completed'::text) OR (verified_by_membership_id IS NOT NULL)) AND ((((precheck_status)::text <> 'unable_to_complete'::text) AND ((verification_status)::text <> 'unable_to_complete'::text)) OR (variance_reason IS NOT NULL))) OR (((status)::text = 'not_done'::text) AND (quantity IS NULL) AND (dose_value IS NULL) AND (dose_unit_code IS NULL) AND (route_code IS NULL) AND (status_reason IS NOT NULL)))),
-    CONSTRAINT clinic_medication_administrations_stock_unit CHECK (((stock_unit)::text = ANY ((ARRAY['package'::character varying, 'each'::character varying, 'tablet'::character varying, 'capsule'::character varying, 'vial'::character varying, 'mL'::character varying, 'g'::character varying])::text[]))),
+    CONSTRAINT clinic_medication_administrations_stock_unit CHECK (((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text]))),
     CONSTRAINT clinic_medication_administrations_timeline CHECK ((administered_at <= recorded_at)),
     CONSTRAINT clinic_medication_administrations_values CHECK (((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))),
     CONSTRAINT clinic_medication_administrations_workflow_states CHECK ((((status)::text = ANY ((ARRAY['completed'::character varying, 'not_done'::character varying])::text[])) AND ((precheck_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'completed'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((verification_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'completed'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[]))))
@@ -5642,7 +5642,7 @@ CREATE TABLE public.clinic_medication_request_revisions (
     reason_text text,
     completion_exception text,
     CONSTRAINT clinic_med_request_dose_value CHECK (((dose_value IS NULL) OR ((dose_value > (0)::numeric) AND (dose_value <= (1000000)::numeric) AND (dose_value = round(dose_value, 6))))),
-    CONSTRAINT clinic_med_request_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'authorized'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])) AND ((intent)::text = ANY ((ARRAY['proposal'::character varying, 'plan'::character varying, 'order'::character varying])::text[])) AND ((transmission_state)::text = ANY ((ARRAY['not_requested'::character varying, 'pending'::character varying, 'accepted'::character varying, 'rejected'::character varying, 'failed'::character varying, 'unknown'::character varying])::text[])))),
+    CONSTRAINT clinic_med_request_states CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('authorized'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((intent)::text = ANY (ARRAY[('proposal'::character varying)::text, ('plan'::character varying)::text, ('order'::character varying)::text])) AND ((transmission_state)::text = ANY (ARRAY[('not_requested'::character varying)::text, ('pending'::character varying)::text, ('accepted'::character varying)::text, ('rejected'::character varying)::text, ('failed'::character varying)::text, ('unknown'::character varying)::text])))),
     CONSTRAINT med_request_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
 
@@ -5693,11 +5693,11 @@ CREATE TABLE public.clinic_medication_statements (
     effective_until timestamp(6) with time zone,
     asserted_at timestamp(6) with time zone,
     CONSTRAINT clinic_medication_recorded_shape CHECK ((((data_status)::text = 'incomplete'::text) OR ((medication_name IS NOT NULL) AND (recorded_by_membership_id IS NOT NULL) AND (recorded_at IS NOT NULL)))),
-    CONSTRAINT clinic_medication_statements_data_status CHECK (((data_status)::text = ANY ((ARRAY['incomplete'::character varying, 'recorded'::character varying])::text[]))),
+    CONSTRAINT clinic_medication_statements_data_status CHECK (((data_status)::text = ANY (ARRAY[('incomplete'::character varying)::text, ('recorded'::character varying)::text]))),
     CONSTRAINT clinic_medication_statements_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clinic_medication_statements_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
-    CONSTRAINT clinic_medication_statements_source CHECK (((information_source)::text = ANY ((ARRAY['patient'::character varying, 'caregiver'::character varying, 'clinician'::character varying, 'external_record'::character varying, 'other'::character varying, 'unknown'::character varying])::text[]))),
-    CONSTRAINT clinic_medication_statements_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'completed'::character varying, 'on_hold'::character varying, 'stopped'::character varying, 'not_taken'::character varying, 'unknown'::character varying, 'entered_in_error'::character varying])::text[]))),
+    CONSTRAINT clinic_medication_statements_source CHECK (((information_source)::text = ANY (ARRAY[('patient'::character varying)::text, ('caregiver'::character varying)::text, ('clinician'::character varying)::text, ('external_record'::character varying)::text, ('other'::character varying)::text, ('unknown'::character varying)::text]))),
+    CONSTRAINT clinic_medication_statements_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('completed'::character varying)::text, ('on_hold'::character varying)::text, ('stopped'::character varying)::text, ('not_taken'::character varying)::text, ('unknown'::character varying)::text, ('entered_in_error'::character varying)::text]))),
     CONSTRAINT clinic_medication_valid_window CHECK (((effective_until IS NULL) OR (effective_from IS NULL) OR (effective_until >= effective_from)))
 );
 
@@ -5926,7 +5926,7 @@ CREATE TABLE public.clinic_model_versions (
     changed_fields character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     occurred_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY ((ARRAY['create'::character varying, 'update'::character varying, 'destroy'::character varying, 'touch'::character varying])::text[])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
+    CONSTRAINT clinic_model_versions_values CHECK (((length(TRIM(BOTH FROM item_type)) > 0) AND (length(TRIM(BOTH FROM event)) > 0) AND ((event)::text = ANY (ARRAY[('create'::character varying)::text, ('update'::character varying)::text, ('destroy'::character varying)::text, ('touch'::character varying)::text])) AND ((whodunnit IS NULL) OR (length(TRIM(BOTH FROM whodunnit)) > 0)) AND ((actor_reference IS NULL) OR (length(TRIM(BOTH FROM actor_reference)) > 0))))
 );
 
 
@@ -6049,7 +6049,7 @@ CREATE TABLE public.clinic_observations (
     CONSTRAINT clinic_observations_finite_numeric CHECK (((numeric_value IS NULL) OR (numeric_value <> 'NaN'::numeric))),
     CONSTRAINT clinic_observations_legacy_values_empty CHECK (((numeric_value IS NULL) AND (text_value IS NULL) AND (coded_value IS NULL) AND (unit_code IS NULL) AND (missing_reason IS NULL))),
     CONSTRAINT clinic_observations_value_binding_format CHECK (((value_binding_id)::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text)),
-    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY ((ARRAY['numeric'::character varying, 'text'::character varying, 'coded'::character varying, 'missing'::character varying, 'group'::character varying])::text[])))
+    CONSTRAINT clinic_observations_value_kind CHECK (((value_kind)::text = ANY (ARRAY[('numeric'::character varying)::text, ('text'::character varying)::text, ('coded'::character varying)::text, ('missing'::character varying)::text, ('group'::character varying)::text])))
 );
 
 
@@ -6091,10 +6091,10 @@ CREATE TABLE public.clinic_operation_receipts (
     updated_at timestamp(6) without time zone NOT NULL,
     digest_algorithm character varying NOT NULL,
     digest_key_id character varying,
-    CONSTRAINT clinic_operation_receipts_digest_algorithm CHECK (((digest_algorithm)::text = ANY ((ARRAY['sha256-v0'::character varying, 'hmac-sha256-v1'::character varying])::text[]))),
+    CONSTRAINT clinic_operation_receipts_digest_algorithm CHECK (((digest_algorithm)::text = ANY (ARRAY[('sha256-v0'::character varying)::text, ('hmac-sha256-v1'::character varying)::text]))),
     CONSTRAINT clinic_operation_receipts_digest_key CHECK (((((digest_algorithm)::text = 'sha256-v0'::text) AND (digest_key_id IS NULL)) OR (((digest_algorithm)::text = 'hmac-sha256-v1'::text) AND (digest_key_id IS NOT NULL) AND (length(TRIM(BOTH FROM digest_key_id)) > 0)))),
     CONSTRAINT clinic_operation_receipts_resource_pair CHECK ((((resource_type IS NULL) AND (resource_id IS NULL)) OR ((resource_type IS NOT NULL) AND (resource_id IS NOT NULL)))),
-    CONSTRAINT clinic_operation_receipts_values CHECK (((length(TRIM(BOTH FROM operation_code)) > 0) AND (length(TRIM(BOTH FROM request_key)) > 0) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((outcome)::text = ANY ((ARRAY['committed'::character varying, 'outcome_unconfirmed'::character varying])::text[])) AND ((resource_id IS NULL) OR (resource_id > 0))))
+    CONSTRAINT clinic_operation_receipts_values CHECK (((length(TRIM(BOTH FROM operation_code)) > 0) AND (length(TRIM(BOTH FROM request_key)) > 0) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((outcome)::text = ANY (ARRAY[('committed'::character varying)::text, ('outcome_unconfirmed'::character varying)::text])) AND ((resource_id IS NULL) OR (resource_id > 0))))
 );
 
 
@@ -6174,11 +6174,11 @@ CREATE TABLE public.clinic_patient_care_needs (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_care_needs_category CHECK (((category)::text = ANY ((ARRAY['communication'::character varying, 'accessibility'::character varying, 'mobility'::character varying, 'equipment'::character varying, 'decision_support'::character varying, 'other'::character varying])::text[]))),
-    CONSTRAINT clinic_care_needs_code CHECK (((need_code)::text = ANY ((ARRAY['spoken_language_interpreter'::character varying, 'sign_language_interpreter'::character varying, 'hearing_assistance'::character varying, 'vision_assistance'::character varying, 'communication_device'::character varying, 'wheelchair_access'::character varying, 'transfer_assistance'::character varying, 'mobility_assistance'::character varying, 'service_animal'::character varying, 'support_person'::character varying, 'cognitive_support'::character varying, 'supplemental_oxygen'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT clinic_care_needs_category CHECK (((category)::text = ANY (ARRAY[('communication'::character varying)::text, ('accessibility'::character varying)::text, ('mobility'::character varying)::text, ('equipment'::character varying)::text, ('decision_support'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT clinic_care_needs_code CHECK (((need_code)::text = ANY (ARRAY[('spoken_language_interpreter'::character varying)::text, ('sign_language_interpreter'::character varying)::text, ('hearing_assistance'::character varying)::text, ('vision_assistance'::character varying)::text, ('communication_device'::character varying)::text, ('wheelchair_access'::character varying)::text, ('transfer_assistance'::character varying)::text, ('mobility_assistance'::character varying)::text, ('service_animal'::character varying)::text, ('support_person'::character varying)::text, ('cognitive_support'::character varying)::text, ('supplemental_oxygen'::character varying)::text, ('other'::character varying)::text]))),
     CONSTRAINT clinic_care_needs_lock_version CHECK ((lock_version >= 0)),
     CONSTRAINT clinic_care_needs_review_pair CHECK ((((last_reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((last_reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
-    CONSTRAINT clinic_care_needs_status CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying, 'entered_in_error'::character varying])::text[]))),
+    CONSTRAINT clinic_care_needs_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text, ('entered_in_error'::character varying)::text]))),
     CONSTRAINT clinic_care_needs_valid_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
 );
 
@@ -6215,7 +6215,7 @@ CREATE TABLE public.clinic_patient_communication_preferences (
     general_communications_consent boolean DEFAULT false CONSTRAINT clinic_patient_communicatio_general_communications_con_not_null NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_communication_preferences_method CHECK (((preferred_contact_method)::text = ANY ((ARRAY['text'::character varying, 'phone'::character varying, 'email'::character varying, 'portal'::character varying])::text[])))
+    CONSTRAINT clinic_patient_communication_preferences_method CHECK (((preferred_contact_method)::text = ANY (ARRAY[('text'::character varying)::text, ('phone'::character varying)::text, ('email'::character varying)::text, ('portal'::character varying)::text])))
 );
 
 
@@ -6253,7 +6253,7 @@ CREATE TABLE public.clinic_patient_contacts (
     effective_until timestamp(6) with time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_contacts_type CHECK (((contact_type)::text = ANY ((ARRAY['phone'::character varying, 'email'::character varying])::text[]))),
+    CONSTRAINT clinic_patient_contacts_type CHECK (((contact_type)::text = ANY (ARRAY[('phone'::character varying)::text, ('email'::character varying)::text]))),
     CONSTRAINT clinic_patient_contacts_window CHECK (((effective_until IS NULL) OR (effective_until > effective_from)))
 );
 
@@ -6464,10 +6464,10 @@ CREATE TABLE public.clinic_patient_history_reviews (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_history_reviews_outcome CHECK (((outcome)::text = ANY ((ARRAY['current_list_confirmed'::character varying, 'none_reported'::character varying, 'follow_up_needed'::character varying, 'unable_to_obtain'::character varying])::text[]))),
+    CONSTRAINT clinic_history_reviews_outcome CHECK (((outcome)::text = ANY (ARRAY[('current_list_confirmed'::character varying)::text, ('none_reported'::character varying)::text, ('follow_up_needed'::character varying)::text, ('unable_to_obtain'::character varying)::text]))),
     CONSTRAINT clinic_history_reviews_request_present CHECK ((length(TRIM(BOTH FROM request_key)) > 0)),
-    CONSTRAINT clinic_history_reviews_source CHECK (((information_source)::text = ANY ((ARRAY['patient'::character varying, 'caregiver'::character varying, 'clinician'::character varying, 'external_record'::character varying, 'other'::character varying])::text[]))),
-    CONSTRAINT clinic_history_reviews_topic CHECK (((topic)::text = ANY ((ARRAY['allergies'::character varying, 'medications'::character varying, 'care_needs'::character varying])::text[])))
+    CONSTRAINT clinic_history_reviews_source CHECK (((information_source)::text = ANY (ARRAY[('patient'::character varying)::text, ('caregiver'::character varying)::text, ('clinician'::character varying)::text, ('external_record'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT clinic_history_reviews_topic CHECK (((topic)::text = ANY (ARRAY[('allergies'::character varying)::text, ('medications'::character varying)::text, ('care_needs'::character varying)::text])))
 );
 
 
@@ -6505,7 +6505,7 @@ CREATE TABLE public.clinic_patient_memberships (
     effective_until timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_memberships_status CHECK (((status)::text = ANY ((ARRAY['member'::character varying, 'nonmember'::character varying])::text[]))),
+    CONSTRAINT clinic_patient_memberships_status CHECK (((status)::text = ANY (ARRAY[('member'::character varying)::text, ('nonmember'::character varying)::text]))),
     CONSTRAINT clinic_patient_memberships_window CHECK (((version > 0) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
 );
 
@@ -6559,8 +6559,8 @@ CREATE TABLE public.clinic_patient_portal_appointment_requests (
     source_site_id bigint,
     source_status character varying,
     requested_modality character varying(16),
-    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY ((ARRAY['new_booking'::character varying, 'reschedule'::character varying, 'cancel'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'declined'::character varying, 'cancelled'::character varying, 'expired'::character varying])::text[])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL))))),
-    CONSTRAINT clinic_portal_requests_modality CHECK (((requested_modality IS NULL) OR ((requested_modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying])::text[]))))
+    CONSTRAINT clinic_patient_portal_appointment_requests_values CHECK ((((request_kind)::text = ANY (ARRAY[('new_booking'::character varying)::text, ('reschedule'::character varying)::text, ('cancel'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('declined'::character varying)::text, ('cancelled'::character varying)::text, ('expired'::character varying)::text])) AND ((((request_kind)::text = 'new_booking'::text) AND (source_appointment_id IS NULL) AND (source_appointment_updated_at IS NULL) AND (source_starts_at IS NULL) AND (source_ends_at IS NULL) AND (source_site_id IS NULL) AND (source_status IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'reschedule'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (site_id IS NULL) AND (visit_type_id IS NULL) AND (starts_at IS NOT NULL) AND (ends_at > starts_at)) OR (((request_kind)::text = 'cancel'::text) AND (source_appointment_id IS NOT NULL) AND (source_appointment_updated_at IS NOT NULL) AND (source_starts_at IS NOT NULL) AND (source_ends_at > source_starts_at) AND ((source_status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text])) AND (starts_at IS NULL) AND (ends_at IS NULL) AND (site_id IS NULL) AND (visit_type_id IS NULL))))),
+    CONSTRAINT clinic_portal_requests_modality CHECK (((requested_modality IS NULL) OR ((requested_modality)::text = ANY (ARRAY[('in_person'::character varying)::text, ('video'::character varying)::text]))))
 );
 
 
@@ -6605,7 +6605,7 @@ CREATE TABLE public.clinic_patient_portal_identities (
     revoked_reason character varying,
     last_step_up_at timestamp(6) without time zone,
     CONSTRAINT clinic_patient_portal_identity_invitation_state CHECK ((((status)::text <> 'invited'::text) OR ((invitation_digest IS NOT NULL) AND (invitation_expires_at IS NOT NULL)))),
-    CONSTRAINT clinic_patient_portal_identity_status CHECK (((status)::text = ANY ((ARRAY['invited'::character varying, 'active'::character varying, 'revoked'::character varying])::text[])))
+    CONSTRAINT clinic_patient_portal_identity_status CHECK (((status)::text = ANY (ARRAY[('invited'::character varying)::text, ('active'::character varying)::text, ('revoked'::character varying)::text])))
 );
 
 
@@ -6653,7 +6653,7 @@ CREATE TABLE public.clinic_patient_portal_recovery_deliveries (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_portal_recovery_deliveries_values CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'accepted'::character varying, 'failed'::character varying, 'unknown'::character varying, 'gated'::character varying, 'expired'::character varying, 'cancelled'::character varying])::text[])) AND ((provider)::text = 'twilio'::text) AND ((attempt_count >= 0) AND (attempt_count <= 1)) AND (expires_at > requested_at) AND (((status)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[])) = (token IS NOT NULL)) AND (((status)::text = 'leased'::text) = ((lease_until IS NOT NULL) AND (lease_token_digest IS NOT NULL))) AND ((lease_token_digest IS NULL) OR (length((lease_token_digest)::text) = 64)) AND ((provider_message_id IS NULL) OR ((provider_message_id)::text ~ '^SM[0-9A-Fa-f]{32}$'::text))))
+    CONSTRAINT clinic_portal_recovery_deliveries_values CHECK ((((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('leased'::character varying)::text, ('accepted'::character varying)::text, ('failed'::character varying)::text, ('unknown'::character varying)::text, ('gated'::character varying)::text, ('expired'::character varying)::text, ('cancelled'::character varying)::text])) AND ((provider)::text = 'twilio'::text) AND ((attempt_count >= 0) AND (attempt_count <= 1)) AND (expires_at > requested_at) AND (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('leased'::character varying)::text])) = (token IS NOT NULL)) AND (((status)::text = 'leased'::text) = ((lease_until IS NOT NULL) AND (lease_token_digest IS NOT NULL))) AND ((lease_token_digest IS NULL) OR (length((lease_token_digest)::text) = 64)) AND ((provider_message_id IS NULL) OR ((provider_message_id)::text ~ '^SM[0-9A-Fa-f]{32}$'::text))))
 );
 
 
@@ -6684,7 +6684,7 @@ CREATE TABLE public.clinic_patient_portal_requests (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
     patient_id bigint NOT NULL,
-    identity_id bigint NOT NULL,
+    identity_id bigint,
     request_key character varying NOT NULL,
     request_type character varying NOT NULL,
     content text NOT NULL,
@@ -6695,7 +6695,10 @@ CREATE TABLE public.clinic_patient_portal_requests (
     review_note character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_portal_requests_values CHECK ((((request_type)::text = ANY ((ARRAY['message'::character varying, 'refill'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'in_review'::character varying, 'resolved'::character varying, 'declined'::character varying])::text[])) AND (length(TRIM(BOTH FROM content_digest)) > 0)))
+    origin character varying NOT NULL,
+    source_encounter_id bigint,
+    medication_request_revision_id bigint,
+    CONSTRAINT clinic_patient_portal_requests_values CHECK ((((request_type)::text = ANY (ARRAY[('message'::character varying)::text, ('refill'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('in_review'::character varying)::text, ('resolved'::character varying)::text, ('declined'::character varying)::text])) AND (length(TRIM(BOTH FROM content_digest)) > 0)))
 );
 
 
@@ -6772,7 +6775,7 @@ CREATE TABLE public.clinic_patient_reminder_actions (
     outcome character varying DEFAULT 'recorded'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_patient_reminder_actions_values CHECK ((((action_type)::text = ANY ((ARRAY['confirm'::character varying, 'request_reschedule'::character varying, 'request_help'::character varying, 'dismiss'::character varying])::text[])) AND (length(TRIM(BOTH FROM request_key)) > 0)))
+    CONSTRAINT clinic_patient_reminder_actions_values CHECK ((((action_type)::text = ANY (ARRAY[('confirm'::character varying)::text, ('request_reschedule'::character varying)::text, ('request_help'::character varying)::text, ('dismiss'::character varying)::text])) AND (length(TRIM(BOTH FROM request_key)) > 0)))
 );
 
 
@@ -6907,7 +6910,7 @@ CREATE TABLE public.clinic_patient_reminders (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     content text NOT NULL,
-    CONSTRAINT clinic_patient_reminders_values CHECK ((((category)::text = ANY ((ARRAY['appointment'::character varying, 'preparation'::character varying, 'medication'::character varying, 'follow_up'::character varying])::text[])) AND ((channel)::text = ANY ((ARRAY['portal'::character varying, 'sms'::character varying, 'email'::character varying])::text[])) AND (length(TRIM(BOTH FROM dedupe_key)) > 0) AND (lock_version >= 0)))
+    CONSTRAINT clinic_patient_reminders_values CHECK ((((category)::text = ANY (ARRAY[('appointment'::character varying)::text, ('preparation'::character varying)::text, ('medication'::character varying)::text, ('follow_up'::character varying)::text])) AND ((channel)::text = ANY (ARRAY[('portal'::character varying)::text, ('sms'::character varying)::text, ('email'::character varying)::text])) AND (length(TRIM(BOTH FROM dedupe_key)) > 0) AND (lock_version >= 0)))
 );
 
 
@@ -7069,7 +7072,7 @@ CREATE TABLE public.clinic_payment_collection_intents (
     state character varying DEFAULT 'pending'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT payment_collection_intents_values CHECK ((((reference)::text ~ '^ci_[a-f0-9]{32}$'::text) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text) AND ((processor)::text ~ '^[a-z][a-z0-9_.-]{0,39}$'::text) AND ((mode)::text = ANY ((ARRAY['test'::character varying, 'live'::character varying])::text[])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric) AND (amount = round(amount, 2)) AND ((state)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'succeeded'::character varying, 'failed'::character varying, 'needs_reconciliation'::character varying, 'canceled'::character varying])::text[]))))
+    CONSTRAINT payment_collection_intents_values CHECK ((((reference)::text ~ '^ci_[a-f0-9]{32}$'::text) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text) AND ((processor)::text ~ '^[a-z][a-z0-9_.-]{0,39}$'::text) AND ((mode)::text = ANY (ARRAY[('test'::character varying)::text, ('live'::character varying)::text])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric) AND (amount = round(amount, 2)) AND ((state)::text = ANY (ARRAY[('pending'::character varying)::text, ('processing'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text, ('needs_reconciliation'::character varying)::text, ('canceled'::character varying)::text]))))
 );
 
 
@@ -7149,7 +7152,7 @@ CREATE TABLE public.clinic_payment_processor_events (
     redacted_payload jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT payment_processor_events_values CHECK ((((processor)::text ~ '^[a-z][a-z0-9_.-]{0,39}$'::text) AND (length(TRIM(BOTH FROM processor_event_reference)) > 0) AND (length(TRIM(BOTH FROM event_type)) > 0) AND ((raw_payload_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((normalized_outcome)::text = ANY ((ARRAY['succeeded'::character varying, 'failed'::character varying, 'processing'::character varying, 'canceled'::character varying, 'unknown'::character varying])::text[])) AND ((processing_state)::text = ANY ((ARRAY['received'::character varying, 'signature_verified'::character varying, 'normalized'::character varying, 'applied'::character varying, 'ignored_duplicate'::character varying, 'rejected'::character varying, 'needs_reconciliation'::character varying])::text[])) AND (redacted_payload IS NOT NULL)))
+    CONSTRAINT payment_processor_events_values CHECK ((((processor)::text ~ '^[a-z][a-z0-9_.-]{0,39}$'::text) AND (length(TRIM(BOTH FROM processor_event_reference)) > 0) AND (length(TRIM(BOTH FROM event_type)) > 0) AND ((raw_payload_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((normalized_outcome)::text = ANY (ARRAY[('succeeded'::character varying)::text, ('failed'::character varying)::text, ('processing'::character varying)::text, ('canceled'::character varying)::text, ('unknown'::character varying)::text])) AND ((processing_state)::text = ANY (ARRAY[('received'::character varying)::text, ('signature_verified'::character varying)::text, ('normalized'::character varying)::text, ('applied'::character varying)::text, ('ignored_duplicate'::character varying)::text, ('rejected'::character varying)::text, ('needs_reconciliation'::character varying)::text])) AND (redacted_payload IS NOT NULL)))
 );
 
 
@@ -7324,9 +7327,9 @@ CREATE TABLE public.clinic_pharmacy_products (
     CONSTRAINT inventory_package_unit CHECK ((((stock_unit)::text <> 'package'::text) OR (package_size = (1)::numeric))),
     CONSTRAINT inventory_product_units CHECK ((((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text])) AND ((quantity_scale >= 0) AND (quantity_scale <= 6)) AND (((stock_unit)::text = ANY (ARRAY[('mL'::character varying)::text, ('g'::character varying)::text])) OR (quantity_scale = 0)) AND (package_size > (0)::numeric) AND (package_size <= (1000000)::numeric) AND (package_size = round(package_size, quantity_scale)) AND ((package_size = (1)::numeric) OR (length(TRIM(BOTH FROM unit_reference)) > 0)))),
     CONSTRAINT inventory_unit_evidence CHECK (((package_size = (1)::numeric) OR ((unit_reference IS NOT NULL) AND (length(TRIM(BOTH FROM unit_reference)) > 0)))),
-    CONSTRAINT pharmacy_product_category CHECK (((category)::text = ANY ((ARRAY['medication'::character varying, 'clinical_supply'::character varying, 'lab_supply'::character varying, 'office_supply'::character varying, 'cleaning_supply'::character varying, 'equipment'::character varying, 'other'::character varying])::text[]))),
-    CONSTRAINT pharmacy_product_dea_schedule CHECK (((dea_schedule IS NULL) OR ((dea_schedule)::text = ANY ((ARRAY['II'::character varying, 'III'::character varying, 'IV'::character varying, 'V'::character varying])::text[])))),
-    CONSTRAINT pharmacy_product_source CHECK (((source)::text = ANY ((ARRAY['manual'::character varying, 'openfda'::character varying, 'gudid'::character varying, 'synthetic'::character varying])::text[]))),
+    CONSTRAINT pharmacy_product_category CHECK (((category)::text = ANY (ARRAY[('medication'::character varying)::text, ('clinical_supply'::character varying)::text, ('lab_supply'::character varying)::text, ('office_supply'::character varying)::text, ('cleaning_supply'::character varying)::text, ('equipment'::character varying)::text, ('other'::character varying)::text]))),
+    CONSTRAINT pharmacy_product_dea_schedule CHECK (((dea_schedule IS NULL) OR ((dea_schedule)::text = ANY (ARRAY[('II'::character varying)::text, ('III'::character varying)::text, ('IV'::character varying)::text, ('V'::character varying)::text])))),
+    CONSTRAINT pharmacy_product_source CHECK (((source)::text = ANY (ARRAY[('manual'::character varying)::text, ('openfda'::character varying)::text, ('gudid'::character varying)::text, ('synthetic'::character varying)::text]))),
     CONSTRAINT pharmacy_reorder_range CHECK (((reorder_point >= 0) AND (reorder_point <= 1000000)))
 );
 
@@ -7397,7 +7400,8 @@ CREATE TABLE public.clinic_practices (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     timezone character varying DEFAULT 'UTC'::character varying NOT NULL,
-    organization_id bigint
+    organization_id bigint,
+    platform_managed boolean DEFAULT false NOT NULL
 );
 
 
@@ -7487,7 +7491,7 @@ CREATE TABLE public.clinic_procedure_revisions (
     service_request_revision_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_procedure_states CHECK ((((status)::text = ANY ((ARRAY['planned'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'not_done'::character varying, 'entered_in_error'::character varying])::text[])) AND ((complication_state)::text = ANY ((ARRAY['not_assessed'::character varying, 'none_reported'::character varying, 'known'::character varying, 'unknown'::character varying, 'unable_to_obtain'::character varying])::text[])))),
+    CONSTRAINT clinic_procedure_states CHECK ((((status)::text = ANY (ARRAY[('planned'::character varying)::text, ('in_progress'::character varying)::text, ('completed'::character varying)::text, ('not_done'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((complication_state)::text = ANY (ARRAY[('not_assessed'::character varying)::text, ('none_reported'::character varying)::text, ('known'::character varying)::text, ('unknown'::character varying)::text, ('unable_to_obtain'::character varying)::text])))),
     CONSTRAINT procedure_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
 
@@ -7580,7 +7584,7 @@ CREATE TABLE public.clinic_referral_exchange_events (
     request_key character varying(160) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT referral_exchange_events_values CHECK ((((direction)::text = ANY ((ARRAY['outbound'::character varying, 'inbound'::character varying])::text[])) AND ((stage)::text = ANY ((ARRAY['prepared'::character varying, 'sent'::character varying, 'received'::character varying, 'acknowledged'::character varying, 'closed'::character varying, 'cancelled'::character varying])::text[])) AND ((organization_name IS NULL) OR ((char_length(TRIM(BOTH FROM organization_name)) >= 1) AND (char_length(TRIM(BOTH FROM organization_name)) <= 500))) AND ((note IS NULL) OR ((char_length(TRIM(BOTH FROM note)) >= 1) AND (char_length(TRIM(BOTH FROM note)) <= 2000))) AND ((char_length((request_key)::text) >= 1) AND (char_length((request_key)::text) <= 160))))
+    CONSTRAINT referral_exchange_events_values CHECK ((((direction)::text = ANY (ARRAY[('outbound'::character varying)::text, ('inbound'::character varying)::text])) AND ((stage)::text = ANY (ARRAY[('prepared'::character varying)::text, ('sent'::character varying)::text, ('received'::character varying)::text, ('acknowledged'::character varying)::text, ('closed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((organization_name IS NULL) OR ((char_length(TRIM(BOTH FROM organization_name)) >= 1) AND (char_length(TRIM(BOTH FROM organization_name)) <= 500))) AND ((note IS NULL) OR ((char_length(TRIM(BOTH FROM note)) >= 1) AND (char_length(TRIM(BOTH FROM note)) <= 2000))) AND ((char_length((request_key)::text) >= 1) AND (char_length((request_key)::text) <= 160))))
 );
 
 
@@ -7601,6 +7605,47 @@ CREATE SEQUENCE public.clinic_referral_exchange_events_id_seq
 --
 
 ALTER SEQUENCE public.clinic_referral_exchange_events_id_seq OWNED BY public.clinic_referral_exchange_events.id;
+
+
+--
+-- Name: clinic_refill_response_deliveries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_refill_response_deliveries (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    request_id bigint NOT NULL,
+    channel character varying DEFAULT 'portal'::character varying NOT NULL,
+    state character varying DEFAULT 'pending'::character varying NOT NULL,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    last_attempted_at timestamp(6) without time zone,
+    delivered_at timestamp(6) without time zone,
+    failure_code character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_refill_response_deliveries_outcome CHECK (((((state)::text = 'delivered'::text) AND (delivered_at IS NOT NULL) AND (failure_code IS NULL)) OR (((state)::text <> 'delivered'::text) AND (delivered_at IS NULL)))),
+    CONSTRAINT clinic_refill_response_deliveries_state CHECK ((((channel)::text = 'portal'::text) AND ((state)::text = ANY ((ARRAY['pending'::character varying, 'delivered'::character varying, 'failed'::character varying, 'retry_pending'::character varying])::text[])) AND (attempt_count >= 0)))
+);
+
+
+--
+-- Name: clinic_refill_response_deliveries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_refill_response_deliveries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_refill_response_deliveries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_refill_response_deliveries_id_seq OWNED BY public.clinic_refill_response_deliveries.id;
 
 
 --
@@ -7769,7 +7814,7 @@ CREATE TABLE public.clinic_scribe_documents (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     current_draft_id bigint,
-    CONSTRAINT scribe_documents_values CHECK (((template_version > 0) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'deleted'::character varying])::text[]))))
+    CONSTRAINT scribe_documents_values CHECK (((template_version > 0) AND ((status)::text = ANY (ARRAY[('active'::character varying)::text, ('deleted'::character varying)::text]))))
 );
 
 
@@ -7810,7 +7855,7 @@ CREATE TABLE public.clinic_scribe_draft_sections (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     provenance jsonb DEFAULT '{}'::jsonb NOT NULL,
-    CONSTRAINT scribe_draft_sections_values CHECK ((((section_key)::text = ANY ((ARRAY['subjective'::character varying, 'objective'::character varying, 'assessment'::character varying, 'plan'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['needs_review'::character varying, 'accepted'::character varying, 'edited'::character varying, 'rejected'::character varying])::text[])) AND (edit_revision >= 0)))
+    CONSTRAINT scribe_draft_sections_values CHECK ((((section_key)::text = ANY (ARRAY[('subjective'::character varying)::text, ('objective'::character varying)::text, ('assessment'::character varying)::text, ('plan'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('needs_review'::character varying)::text, ('accepted'::character varying)::text, ('edited'::character varying)::text, ('rejected'::character varying)::text])) AND (edit_revision >= 0)))
 );
 
 
@@ -7866,7 +7911,7 @@ CREATE TABLE public.clinic_scribe_drafts (
     source_snapshot_digest character varying,
     context_snapshot_digest character varying,
     input_sources jsonb DEFAULT '[]'::jsonb NOT NULL,
-    CONSTRAINT scribe_drafts_state CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'in_review'::character varying, 'approved'::character varying, 'superseded'::character varying, 'exported'::character varying, 'deleted'::character varying])::text[])) AND ((export_state)::text = ANY ((ARRAY['not_exported'::character varying, 'exported'::character varying])::text[])) AND (template_version > 0)))
+    CONSTRAINT scribe_drafts_state CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('in_review'::character varying)::text, ('approved'::character varying)::text, ('superseded'::character varying)::text, ('exported'::character varying)::text, ('deleted'::character varying)::text])) AND ((export_state)::text = ANY (ARRAY[('not_exported'::character varying)::text, ('exported'::character varying)::text])) AND (template_version > 0)))
 );
 
 
@@ -7921,7 +7966,7 @@ CREATE TABLE public.clinic_scribe_encounters (
     clinical_encounter_id bigint,
     CONSTRAINT scribe_encounters_context_digest CHECK (((context_digest IS NULL) OR (length(TRIM(BOTH FROM context_digest)) = 64))),
     CONSTRAINT scribe_encounters_context_source CHECK (((context_source_type IS NULL) OR ((context_source_type)::text = 'reviewer_authored'::text))),
-    CONSTRAINT scribe_encounters_state CHECK ((((status)::text = ANY ((ARRAY['awaiting_consent'::character varying, 'consented'::character varying, 'source_ready'::character varying, 'in_review'::character varying, 'approved'::character varying, 'exported'::character varying, 'consent_declined'::character varying, 'consent_withdrawn'::character varying, 'deleted'::character varying])::text[])) AND ((consent_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])) AND (template_version > 0)))
+    CONSTRAINT scribe_encounters_state CHECK ((((status)::text = ANY (ARRAY[('awaiting_consent'::character varying)::text, ('consented'::character varying)::text, ('source_ready'::character varying)::text, ('in_review'::character varying)::text, ('approved'::character varying)::text, ('exported'::character varying)::text, ('consent_declined'::character varying)::text, ('consent_withdrawn'::character varying)::text, ('deleted'::character varying)::text])) AND ((consent_status)::text = ANY (ARRAY[('not_recorded'::character varying)::text, ('accepted'::character varying)::text, ('declined'::character varying)::text, ('withdrawn'::character varying)::text])) AND (template_version > 0)))
 );
 
 
@@ -8001,7 +8046,7 @@ CREATE TABLE public.clinic_scribe_exports (
     encounter_note_id bigint,
     encounter_note_revision_id bigint,
     CONSTRAINT scribe_exports_chart_links_together CHECK (((encounter_note_id IS NULL) = (encounter_note_revision_id IS NULL))),
-    CONSTRAINT scribe_exports_values CHECK ((((destination)::text = 'parent_record_adapter'::text) AND ((status)::text = ANY ((ARRAY['exported'::character varying, 'failed'::character varying])::text[]))))
+    CONSTRAINT scribe_exports_values CHECK ((((destination)::text = 'parent_record_adapter'::text) AND ((status)::text = ANY (ARRAY[('exported'::character varying)::text, ('failed'::character varying)::text]))))
 );
 
 
@@ -8075,7 +8120,7 @@ CREATE TABLE public.clinic_scribe_note_templates (
     sections jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT scribe_note_templates_values CHECK (((version > 0) AND ((note_kind)::text = 'soap'::text) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'disabled'::character varying, 'legacy'::character varying])::text[]))))
+    CONSTRAINT scribe_note_templates_values CHECK (((version > 0) AND ((note_kind)::text = 'soap'::text) AND ((status)::text = ANY (ARRAY[('active'::character varying)::text, ('disabled'::character varying)::text, ('legacy'::character varying)::text]))))
 );
 
 
@@ -8168,8 +8213,8 @@ CREATE TABLE public.clinic_scribe_recordings (
     capture_source character varying(24) DEFAULT 'microphone'::character varying NOT NULL,
     recording_segment_index integer,
     source_order integer,
-    CONSTRAINT scribe_recordings_telehealth_values CHECK ((((capture_source)::text = ANY ((ARRAY['microphone'::character varying, 'telehealth_mix'::character varying])::text[])) AND ((((capture_source)::text = 'microphone'::text) AND (telehealth_visit_id IS NULL) AND (capture_owner_participant_id IS NULL) AND (capture_epoch IS NULL) AND (recording_segment_index IS NULL) AND (source_order IS NULL)) OR (((capture_source)::text = 'telehealth_mix'::text) AND (telehealth_visit_id IS NOT NULL) AND (capture_owner_participant_id IS NOT NULL) AND (capture_epoch > 0) AND (recording_segment_index >= 0) AND (source_order > 0))))),
-    CONSTRAINT scribe_recordings_values CHECK ((((status)::text = ANY ((ARRAY['recording'::character varying, 'interrupted'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((mime_type)::text = ANY ((ARRAY['audio/webm'::character varying, 'audio/ogg'::character varying, 'audio/mp4'::character varying])::text[])) AND (expected_encounter_version >= 0) AND (total_bytes >= 0) AND ((total_chunks IS NULL) OR (total_chunks >= 0)) AND ((duration_ms IS NULL) OR (duration_ms >= 0)) AND (length(TRIM(BOTH FROM request_digest)) = 64)))
+    CONSTRAINT scribe_recordings_telehealth_values CHECK ((((capture_source)::text = ANY (ARRAY[('microphone'::character varying)::text, ('telehealth_mix'::character varying)::text])) AND ((((capture_source)::text = 'microphone'::text) AND (telehealth_visit_id IS NULL) AND (capture_owner_participant_id IS NULL) AND (capture_epoch IS NULL) AND (recording_segment_index IS NULL) AND (source_order IS NULL)) OR (((capture_source)::text = 'telehealth_mix'::text) AND (telehealth_visit_id IS NOT NULL) AND (capture_owner_participant_id IS NOT NULL) AND (capture_epoch > 0) AND (recording_segment_index >= 0) AND (source_order > 0))))),
+    CONSTRAINT scribe_recordings_values CHECK ((((status)::text = ANY (ARRAY[('recording'::character varying)::text, ('interrupted'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((mime_type)::text = ANY (ARRAY[('audio/webm'::character varying)::text, ('audio/ogg'::character varying)::text, ('audio/mp4'::character varying)::text])) AND (expected_encounter_version >= 0) AND (total_bytes >= 0) AND ((total_chunks IS NULL) OR (total_chunks >= 0)) AND ((duration_ms IS NULL) OR (duration_ms >= 0)) AND (length(TRIM(BOTH FROM request_digest)) = 64)))
 );
 
 
@@ -8209,7 +8254,7 @@ CREATE TABLE public.clinic_scribe_source_segments (
     quality_flags jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT scribe_source_segments_values CHECK (((sequence > 0) AND (start_ms >= 0) AND (end_ms >= start_ms) AND ((speaker)::text = ANY ((ARRAY['patient'::character varying, 'clinician'::character varying, 'caregiver'::character varying, 'unknown'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['ready'::character varying, 'deleted'::character varying])::text[]))))
+    CONSTRAINT scribe_source_segments_values CHECK (((sequence > 0) AND (start_ms >= 0) AND (end_ms >= start_ms) AND ((speaker)::text = ANY (ARRAY[('patient'::character varying)::text, ('clinician'::character varying)::text, ('caregiver'::character varying)::text, ('unknown'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('ready'::character varying)::text, ('deleted'::character varying)::text]))))
 );
 
 
@@ -8256,7 +8301,7 @@ CREATE TABLE public.clinic_scribe_sources (
     source_order integer,
     source_set_digest character varying(64),
     CONSTRAINT scribe_sources_telehealth_values CHECK ((((telehealth_visit_id IS NULL) AND (telehealth_recording_id IS NULL) AND (capture_epoch IS NULL) AND (recording_segment_index IS NULL) AND (source_order IS NULL) AND (source_set_digest IS NULL)) OR ((telehealth_visit_id IS NOT NULL) AND (telehealth_recording_id IS NOT NULL) AND (capture_epoch > 0) AND (recording_segment_index >= 0) AND (source_order > 0) AND (length((source_set_digest)::text) = 64)))),
-    CONSTRAINT scribe_sources_values CHECK ((((source_type)::text = 'transcript'::text) AND ((status)::text = ANY ((ARRAY['ready'::character varying, 'incomplete'::character varying, 'pending_deletion'::character varying, 'deleted'::character varying])::text[])) AND (length(TRIM(BOTH FROM content_digest)) = 64)))
+    CONSTRAINT scribe_sources_values CHECK ((((source_type)::text = 'transcript'::text) AND ((status)::text = ANY (ARRAY[('ready'::character varying)::text, ('incomplete'::character varying)::text, ('pending_deletion'::character varying)::text, ('deleted'::character varying)::text])) AND (length(TRIM(BOTH FROM content_digest)) = 64)))
 );
 
 
@@ -8343,7 +8388,7 @@ CREATE TABLE public.clinic_service_request_revisions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     completion_exception text,
-    CONSTRAINT clinic_service_request_states CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'entered_in_error'::character varying])::text[])) AND ((request_kind)::text = ANY ((ARRAY['lab'::character varying, 'imaging'::character varying, 'procedure'::character varying, 'referral'::character varying, 'therapy'::character varying, 'other'::character varying])::text[])) AND ((intent)::text = ANY ((ARRAY['proposal'::character varying, 'plan'::character varying, 'order'::character varying])::text[])) AND ((priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'asap'::character varying, 'stat'::character varying])::text[])))),
+    CONSTRAINT clinic_service_request_states CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((request_kind)::text = ANY (ARRAY[('lab'::character varying)::text, ('imaging'::character varying)::text, ('procedure'::character varying)::text, ('referral'::character varying)::text, ('therapy'::character varying)::text, ('other'::character varying)::text])) AND ((intent)::text = ANY (ARRAY[('proposal'::character varying)::text, ('plan'::character varying)::text, ('order'::character varying)::text])) AND ((priority)::text = ANY (ARRAY[('routine'::character varying)::text, ('urgent'::character varying)::text, ('asap'::character varying)::text, ('stat'::character varying)::text])))),
     CONSTRAINT service_request_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
 
@@ -8419,7 +8464,7 @@ CREATE TABLE public.clinic_site_operating_hours (
     close_time time without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_site_hours_values CHECK ((((day_of_week >= 0) AND (day_of_week <= 6)) AND (((closed = true) AND (open_time IS NULL) AND (close_time IS NULL)) OR ((closed = false) AND (open_time IS NOT NULL) AND (close_time IS NOT NULL) AND (open_time < close_time)))))
+    CONSTRAINT clinic_site_hours_values CHECK (((day_of_week >= 0) AND (day_of_week <= 6) AND (((closed = true) AND (open_time IS NULL) AND (close_time IS NULL)) OR ((closed = false) AND (open_time IS NOT NULL) AND (close_time IS NOT NULL) AND (open_time < close_time)))))
 );
 
 
@@ -8465,7 +8510,7 @@ CREATE TABLE public.clinic_sites (
     contact_name character varying,
     contact_email character varying,
     CONSTRAINT clinic_sites_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0)),
-    CONSTRAINT clinic_sites_status CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'temporarily_closed'::character varying, 'retired'::character varying])::text[])))
+    CONSTRAINT clinic_sites_status CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('temporarily_closed'::character varying)::text, ('retired'::character varying)::text])))
 );
 
 
@@ -8541,7 +8586,7 @@ CREATE TABLE public.clinic_staff_conversation_members (
     removed_by_membership_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_conversation_members_values CHECK ((((membership_state)::text = ANY ((ARRAY['active'::character varying, 'removed'::character varying])::text[])) AND ((notification_policy)::text = ANY ((ARRAY['all'::character varying, 'muted'::character varying])::text[]))))
+    CONSTRAINT staff_conversation_members_values CHECK ((((membership_state)::text = ANY (ARRAY[('active'::character varying)::text, ('removed'::character varying)::text])) AND ((notification_policy)::text = ANY (ARRAY[('all'::character varying)::text, ('muted'::character varying)::text]))))
 );
 
 
@@ -8580,7 +8625,7 @@ CREATE TABLE public.clinic_staff_conversations (
     last_message_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_conversations_values CHECK ((((kind)::text = ANY ((ARRAY['direct'::character varying, 'team'::character varying, 'role'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying, 'locked'::character varying])::text[])) AND ((retention_class)::text = ANY ((ARRAY['routine'::character varying, 'time_sensitive'::character varying, 'urgent'::character varying, 'safety_critical'::character varying])::text[]))))
+    CONSTRAINT staff_conversations_values CHECK ((((kind)::text = ANY (ARRAY[('direct'::character varying)::text, ('team'::character varying)::text, ('role'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('active'::character varying)::text, ('archived'::character varying)::text, ('locked'::character varying)::text])) AND ((retention_class)::text = ANY (ARRAY[('routine'::character varying)::text, ('time_sensitive'::character varying)::text, ('urgent'::character varying)::text, ('safety_critical'::character varying)::text]))))
 );
 
 
@@ -8656,7 +8701,7 @@ CREATE TABLE public.clinic_staff_message_attachments (
     deleted_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_message_attachments_values CHECK (((byte_size >= 0) AND ((scan_state)::text = ANY ((ARRAY['quarantined'::character varying, 'clean'::character varying, 'rejected'::character varying, 'expired'::character varying])::text[]))))
+    CONSTRAINT staff_message_attachments_values CHECK (((byte_size >= 0) AND ((scan_state)::text = ANY (ARRAY[('quarantined'::character varying)::text, ('clean'::character varying)::text, ('rejected'::character varying)::text, ('expired'::character varying)::text]))))
 );
 
 
@@ -8697,7 +8742,7 @@ CREATE TABLE public.clinic_staff_message_escalations (
     resolved_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_message_escalations_values CHECK (((level > 0) AND ((delivery_state)::text = ANY ((ARRAY['pending'::character varying, 'delivered'::character varying, 'failed'::character varying])::text[]))))
+    CONSTRAINT staff_message_escalations_values CHECK (((level > 0) AND ((delivery_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('delivered'::character varying)::text, ('failed'::character varying)::text]))))
 );
 
 
@@ -8737,7 +8782,7 @@ CREATE TABLE public.clinic_staff_message_outbox (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_message_outbox_values CHECK ((((delivery_state)::text = ANY ((ARRAY['pending'::character varying, 'in_flight'::character varying, 'delivered'::character varying, 'failed'::character varying])::text[])) AND (attempts >= 0)))
+    CONSTRAINT staff_message_outbox_values CHECK ((((delivery_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('in_flight'::character varying)::text, ('delivered'::character varying)::text, ('failed'::character varying)::text])) AND (attempts >= 0)))
 );
 
 
@@ -8814,7 +8859,7 @@ CREATE TABLE public.clinic_staff_message_requests (
     resolution_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_message_requests_state CHECK (((state)::text = ANY ((ARRAY['open'::character varying, 'acknowledged'::character varying, 'in_progress'::character varying, 'resolved'::character varying, 'declined'::character varying, 'expired'::character varying])::text[])))
+    CONSTRAINT staff_message_requests_state CHECK (((state)::text = ANY (ARRAY[('open'::character varying)::text, ('acknowledged'::character varying)::text, ('in_progress'::character varying)::text, ('resolved'::character varying)::text, ('declined'::character varying)::text, ('expired'::character varying)::text])))
 );
 
 
@@ -8860,7 +8905,7 @@ CREATE TABLE public.clinic_staff_messages (
     acknowledged_by_membership_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT staff_messages_values CHECK ((((message_class)::text = ANY ((ARRAY['routine'::character varying, 'time_sensitive'::character varying, 'urgent'::character varying, 'safety_critical'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'retracted'::character varying, 'expired'::character varying])::text[])) AND (length(TRIM(BOTH FROM request_key)) > 0)))
+    CONSTRAINT staff_messages_values CHECK ((((message_class)::text = ANY (ARRAY[('routine'::character varying)::text, ('time_sensitive'::character varying)::text, ('urgent'::character varying)::text, ('safety_critical'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('active'::character varying)::text, ('retracted'::character varying)::text, ('expired'::character varying)::text])) AND (length(TRIM(BOTH FROM request_key)) > 0)))
 );
 
 
@@ -9162,7 +9207,7 @@ CREATE TABLE public.clinic_subscription_events (
     details jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT subscription_event_values CHECK ((((kind)::text = ANY ((ARRAY['pending_review'::character varying, 'review_approved'::character varying, 'review_declined'::character varying, 'pending_payment'::character varying, 'processing'::character varying, 'payment_failed'::character varying, 'outcome_unknown'::character varying, 'active'::character varying, 'canceled'::character varying, 'refunded'::character varying, 'expired'::character varying])::text[])) AND (jsonb_typeof(details) = 'object'::text)))
+    CONSTRAINT subscription_event_values CHECK ((((kind)::text = ANY (ARRAY[('pending_review'::character varying)::text, ('review_approved'::character varying)::text, ('review_declined'::character varying)::text, ('pending_payment'::character varying)::text, ('processing'::character varying)::text, ('payment_failed'::character varying)::text, ('outcome_unknown'::character varying)::text, ('active'::character varying)::text, ('canceled'::character varying)::text, ('refunded'::character varying)::text, ('expired'::character varying)::text])) AND (jsonb_typeof(details) = 'object'::text)))
 );
 
 
@@ -9398,7 +9443,7 @@ CREATE TABLE public.clinic_telehealth_commands (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_command_values CHECK ((((kind)::text = ANY ((ARRAY['create_room'::character varying, 'end_room'::character varying, 'extend_room'::character varying, 'eject_participant'::character varying, 'reconcile_room'::character varying, 'delete_room'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'succeeded'::character varying, 'failed'::character varying, 'unknown'::character varying, 'suppressed'::character varying])::text[])) AND (access_generation > 0) AND (attempt_count >= 0) AND ((((kind)::text = 'extend_room'::text) AND (requested_expires_at IS NOT NULL)) OR (((kind)::text <> 'extend_room'::text) AND (requested_expires_at IS NULL))) AND ((((status)::text = 'leased'::text) AND (lease_token IS NOT NULL) AND (leased_until IS NOT NULL)) OR ((status)::text <> 'leased'::text))))
+    CONSTRAINT telehealth_command_values CHECK ((((kind)::text = ANY (ARRAY[('create_room'::character varying)::text, ('end_room'::character varying)::text, ('extend_room'::character varying)::text, ('eject_participant'::character varying)::text, ('reconcile_room'::character varying)::text, ('delete_room'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('leased'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text, ('unknown'::character varying)::text, ('suppressed'::character varying)::text])) AND (access_generation > 0) AND (attempt_count >= 0) AND ((((kind)::text = 'extend_room'::text) AND (requested_expires_at IS NOT NULL)) OR (((kind)::text <> 'extend_room'::text) AND (requested_expires_at IS NULL))) AND ((((status)::text = 'leased'::text) AND (lease_token IS NOT NULL) AND (leased_until IS NOT NULL)) OR ((status)::text <> 'leased'::text))))
 );
 
 
@@ -9439,7 +9484,7 @@ CREATE TABLE public.clinic_telehealth_consents (
     policy_content_digest character varying(64) NOT NULL,
     supersedes_consent_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_consent_values CHECK ((((purpose)::text = ANY ((ARRAY['telehealth'::character varying, 'scribe_recording'::character varying])::text[])) AND ((decision)::text = ANY ((ARRAY['accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])) AND (sequence > 0) AND ((method)::text = ANY ((ARRAY['portal_authenticated'::character varying, 'staff_authenticated'::character varying])::text[])) AND (length((policy_content_digest)::text) = 64)))
+    CONSTRAINT telehealth_consent_values CHECK ((((purpose)::text = ANY (ARRAY[('telehealth'::character varying)::text, ('scribe_recording'::character varying)::text])) AND ((decision)::text = ANY (ARRAY[('accepted'::character varying)::text, ('declined'::character varying)::text, ('withdrawn'::character varying)::text])) AND (sequence > 0) AND ((method)::text = ANY (ARRAY[('portal_authenticated'::character varying)::text, ('staff_authenticated'::character varying)::text])) AND (length((policy_content_digest)::text) = 64)))
 );
 
 
@@ -9526,7 +9571,7 @@ CREATE TABLE public.clinic_telehealth_participants (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_participant_values CHECK ((((role)::text = ANY ((ARRAY['patient'::character varying, 'clinician'::character varying, 'assistant'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['eligible'::character varying, 'waiting'::character varying, 'admitted'::character varying, 'left'::character varying, 'removed'::character varying])::text[])) AND ((((role)::text = 'patient'::text) AND (portal_identity_id IS NOT NULL) AND (membership_id IS NULL)) OR (((role)::text = ANY ((ARRAY['clinician'::character varying, 'assistant'::character varying])::text[])) AND (portal_identity_id IS NULL) AND (membership_id IS NOT NULL))) AND ((((status)::text = 'admitted'::text) AND (admitted_at IS NOT NULL) AND (admitted_generation IS NOT NULL)) OR ((status)::text <> 'admitted'::text))))
+    CONSTRAINT telehealth_participant_values CHECK ((((role)::text = ANY (ARRAY[('patient'::character varying)::text, ('clinician'::character varying)::text, ('assistant'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('eligible'::character varying)::text, ('waiting'::character varying)::text, ('admitted'::character varying)::text, ('left'::character varying)::text, ('removed'::character varying)::text])) AND ((((role)::text = 'patient'::text) AND (portal_identity_id IS NOT NULL) AND (membership_id IS NULL)) OR (((role)::text = ANY (ARRAY[('clinician'::character varying)::text, ('assistant'::character varying)::text])) AND (portal_identity_id IS NULL) AND (membership_id IS NOT NULL))) AND ((((status)::text = 'admitted'::text) AND (admitted_at IS NOT NULL) AND (admitted_generation IS NOT NULL)) OR ((status)::text <> 'admitted'::text))))
 );
 
 
@@ -9568,7 +9613,7 @@ CREATE TABLE public.clinic_telehealth_patient_receipts (
     result_id bigint,
     result_version integer,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_patient_receipt_values CHECK (((length((payload_digest)::text) = 64) AND ((digest_algorithm)::text = 'HMAC-SHA256'::text) AND ((outcome)::text = ANY ((ARRAY['committed'::character varying, 'outcome_unconfirmed'::character varying])::text[])) AND ((result_kind)::text = ANY ((ARRAY['checkin'::character varying, 'consent'::character varying, 'participant'::character varying, 'visit'::character varying])::text[]))))
+    CONSTRAINT telehealth_patient_receipt_values CHECK (((length((payload_digest)::text) = 64) AND ((digest_algorithm)::text = 'HMAC-SHA256'::text) AND ((outcome)::text = ANY (ARRAY[('committed'::character varying)::text, ('outcome_unconfirmed'::character varying)::text])) AND ((result_kind)::text = ANY (ARRAY[('checkin'::character varying)::text, ('consent'::character varying)::text, ('participant'::character varying)::text, ('visit'::character varying)::text]))))
 );
 
 
@@ -9629,7 +9674,7 @@ CREATE TABLE public.clinic_telehealth_policy_versions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_policy_values CHECK (((version > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'retired'::character varying])::text[])) AND (length((content_digest)::text) = 64) AND ((join_early_minutes >= 0) AND (join_early_minutes <= 120)) AND ((join_late_minutes >= 0) AND (join_late_minutes <= 120)) AND ((max_room_minutes >= 5) AND (max_room_minutes <= 240)) AND ((grant_ttl_seconds >= 30) AND (grant_ttl_seconds <= 300)) AND ((checkin_max_age_minutes >= 5) AND (checkin_max_age_minutes <= 1440)) AND (((scribe_consent_title IS NULL) AND (scribe_consent_body IS NULL) AND (scribe_consent_digest IS NULL) AND (scribe_enabled = false)) OR ((scribe_consent_title IS NOT NULL) AND (scribe_consent_body IS NOT NULL) AND (length((scribe_consent_digest)::text) = 64))) AND ((((status)::text = 'draft'::text) AND (published_at IS NULL) AND (published_by_membership_id IS NULL)) OR (((status)::text = ANY ((ARRAY['published'::character varying, 'retired'::character varying])::text[])) AND (published_at IS NOT NULL) AND (published_by_membership_id IS NOT NULL)))))
+    CONSTRAINT telehealth_policy_values CHECK (((version > 0) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('published'::character varying)::text, ('retired'::character varying)::text])) AND (length((content_digest)::text) = 64) AND ((join_early_minutes >= 0) AND (join_early_minutes <= 120)) AND ((join_late_minutes >= 0) AND (join_late_minutes <= 120)) AND ((max_room_minutes >= 5) AND (max_room_minutes <= 240)) AND ((grant_ttl_seconds >= 30) AND (grant_ttl_seconds <= 300)) AND ((checkin_max_age_minutes >= 5) AND (checkin_max_age_minutes <= 1440)) AND (((scribe_consent_title IS NULL) AND (scribe_consent_body IS NULL) AND (scribe_consent_digest IS NULL) AND (scribe_enabled = false)) OR ((scribe_consent_title IS NOT NULL) AND (scribe_consent_body IS NOT NULL) AND (length((scribe_consent_digest)::text) = 64))) AND ((((status)::text = 'draft'::text) AND (published_at IS NULL) AND (published_by_membership_id IS NULL)) OR (((status)::text = ANY (ARRAY[('published'::character varying)::text, ('retired'::character varying)::text])) AND (published_at IS NOT NULL) AND (published_by_membership_id IS NOT NULL)))))
 );
 
 
@@ -9671,7 +9716,7 @@ CREATE TABLE public.clinic_telehealth_provider_events (
     payload_digest character varying(64) NOT NULL,
     normalized_metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_provider_event_values CHECK ((((provider_code)::text = ANY ((ARRAY['daily'::character varying, 'twilio'::character varying])::text[])) AND (length((payload_digest)::text) = 64) AND (jsonb_typeof(normalized_metadata) = 'object'::text)))
+    CONSTRAINT telehealth_provider_event_values CHECK ((((provider_code)::text = ANY (ARRAY[('daily'::character varying)::text, ('twilio'::character varying)::text])) AND (length((payload_digest)::text) = 64) AND (jsonb_typeof(normalized_metadata) = 'object'::text)))
 );
 
 
@@ -9719,7 +9764,7 @@ CREATE TABLE public.clinic_telehealth_room_attempts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     provider_room_ref character varying(64),
-    CONSTRAINT telehealth_room_attempt_values CHECK (((attempt_no > 0) AND ((provider_code)::text = ANY ((ARRAY['daily'::character varying, 'twilio'::character varying])::text[])) AND (access_generation > 0) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'provisioning'::character varying, 'ready'::character varying, 'active'::character varying, 'ending'::character varying, 'ended'::character varying, 'failed'::character varying, 'unknown'::character varying])::text[])) AND (expires_at > created_at) AND ((provider_room_ref IS NULL) OR (((provider_code)::text = 'twilio'::text) AND ((provider_room_ref)::text ~ '^RM[0-9A-Fa-f]{32}$'::text)))))
+    CONSTRAINT telehealth_room_attempt_values CHECK (((attempt_no > 0) AND ((provider_code)::text = ANY (ARRAY[('daily'::character varying)::text, ('twilio'::character varying)::text])) AND (access_generation > 0) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('provisioning'::character varying)::text, ('ready'::character varying)::text, ('active'::character varying)::text, ('ending'::character varying)::text, ('ended'::character varying)::text, ('failed'::character varying)::text, ('unknown'::character varying)::text])) AND (expires_at > created_at) AND ((provider_room_ref IS NULL) OR (((provider_code)::text = 'twilio'::text) AND ((provider_room_ref)::text ~ '^RM[0-9A-Fa-f]{32}$'::text)))))
 );
 
 
@@ -9760,7 +9805,7 @@ CREATE TABLE public.clinic_telehealth_settings (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_settings_values CHECK ((((provider_code)::text = ANY ((ARRAY['daily'::character varying, 'twilio'::character varying])::text[])) AND ((health_status)::text = ANY ((ARRAY['not_checked'::character varying, 'ready'::character varying, 'degraded'::character varying, 'unconfigured'::character varying])::text[]))))
+    CONSTRAINT telehealth_settings_values CHECK ((((provider_code)::text = ANY (ARRAY[('daily'::character varying)::text, ('twilio'::character varying)::text])) AND ((health_status)::text = ANY (ARRAY[('not_checked'::character varying)::text, ('ready'::character varying)::text, ('degraded'::character varying)::text, ('unconfigured'::character varying)::text]))))
 );
 
 
@@ -9851,7 +9896,7 @@ CREATE TABLE public.clinic_telehealth_visits (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_visit_values CHECK ((((status)::text = ANY ((ARRAY['scheduled'::character varying, 'in_progress'::character varying, 'ending'::character varying, 'ended'::character varying, 'cancelled'::character varying, 'no_show'::character varying])::text[])) AND (access_generation > 0) AND (scribe_capture_epoch >= 0) AND (((scribe_capture_owner_participant_id IS NULL) AND (scribe_capture_owner_token_digest IS NULL) AND (scribe_capture_lease_expires_at IS NULL)) OR ((scribe_capture_owner_participant_id IS NOT NULL) AND (length((scribe_capture_owner_token_digest)::text) = 64) AND (scribe_capture_lease_expires_at IS NOT NULL)))))
+    CONSTRAINT telehealth_visit_values CHECK ((((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('in_progress'::character varying)::text, ('ending'::character varying)::text, ('ended'::character varying)::text, ('cancelled'::character varying)::text, ('no_show'::character varying)::text])) AND (access_generation > 0) AND (scribe_capture_epoch >= 0) AND (((scribe_capture_owner_participant_id IS NULL) AND (scribe_capture_owner_token_digest IS NULL) AND (scribe_capture_lease_expires_at IS NULL)) OR ((scribe_capture_owner_participant_id IS NOT NULL) AND (length((scribe_capture_owner_token_digest)::text) = 64) AND (scribe_capture_lease_expires_at IS NOT NULL)))))
 );
 
 
@@ -9911,7 +9956,7 @@ CREATE TABLE public.clinic_telehealth_wrap_ups (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT telehealth_wrap_ups_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'finalized'::character varying])::text[])) AND ((outcome IS NULL) OR ((outcome)::text = ANY ((ARRAY['completed'::character varying, 'technical_failure'::character varying, 'follow_up_needed'::character varying])::text[]))) AND ((follow_up_status IS NULL) OR ((follow_up_status)::text = ANY ((ARRAY['none'::character varying, 'needed'::character varying, 'arranged'::character varying])::text[]))) AND ((scribe_review_status IS NULL) OR ((scribe_review_status)::text = ANY ((ARRAY['not_used'::character varying, 'reviewed'::character varying, 'deferred'::character varying])::text[]))) AND ((((follow_up_status)::text = 'arranged'::text) AND (follow_up_appointment_id IS NOT NULL)) OR (((follow_up_status)::text IS DISTINCT FROM 'arranged'::text) AND (follow_up_appointment_id IS NULL))) AND ((((status)::text = 'draft'::text) AND (finalized_at IS NULL) AND (finalized_by_membership_id IS NULL)) OR (((status)::text = 'finalized'::text) AND (outcome IS NOT NULL) AND (follow_up_status IS NOT NULL) AND (scribe_review_status IS NOT NULL) AND (instruction_note_id IS NOT NULL) AND (instruction_note_revision_id IS NOT NULL) AND (instruction_note_signature_id IS NOT NULL) AND (finalized_at IS NOT NULL) AND (finalized_by_membership_id IS NOT NULL)))))
+    CONSTRAINT telehealth_wrap_ups_values CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('finalized'::character varying)::text])) AND ((outcome IS NULL) OR ((outcome)::text = ANY (ARRAY[('completed'::character varying)::text, ('technical_failure'::character varying)::text, ('follow_up_needed'::character varying)::text]))) AND ((follow_up_status IS NULL) OR ((follow_up_status)::text = ANY (ARRAY[('none'::character varying)::text, ('needed'::character varying)::text, ('arranged'::character varying)::text]))) AND ((scribe_review_status IS NULL) OR ((scribe_review_status)::text = ANY (ARRAY[('not_used'::character varying)::text, ('reviewed'::character varying)::text, ('deferred'::character varying)::text]))) AND ((((follow_up_status)::text = 'arranged'::text) AND (follow_up_appointment_id IS NOT NULL)) OR (((follow_up_status)::text IS DISTINCT FROM 'arranged'::text) AND (follow_up_appointment_id IS NULL))) AND ((((status)::text = 'draft'::text) AND (finalized_at IS NULL) AND (finalized_by_membership_id IS NULL)) OR (((status)::text = 'finalized'::text) AND (outcome IS NOT NULL) AND (follow_up_status IS NOT NULL) AND (scribe_review_status IS NOT NULL) AND (instruction_note_id IS NOT NULL) AND (instruction_note_revision_id IS NOT NULL) AND (instruction_note_signature_id IS NOT NULL) AND (finalized_at IS NOT NULL) AND (finalized_by_membership_id IS NOT NULL)))))
 );
 
 
@@ -10039,7 +10084,7 @@ CREATE TABLE public.clinic_workforce_adjustment_requests (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_adjustments_valid CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'approved'::character varying, 'denied'::character varying])::text[])) AND ((correction_type)::text = ANY ((ARRAY['add_segment'::character varying, 'replace_segment'::character varying, 'remove_segment'::character varying])::text[])) AND (length(TRIM(BOTH FROM reason)) > 0) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64) AND (jsonb_typeof(proposed_changes) = 'object'::text)))
+    CONSTRAINT workforce_adjustments_valid CHECK ((((status)::text = ANY (ARRAY[('submitted'::character varying)::text, ('approved'::character varying)::text, ('denied'::character varying)::text])) AND ((correction_type)::text = ANY (ARRAY[('add_segment'::character varying)::text, ('replace_segment'::character varying)::text, ('remove_segment'::character varying)::text])) AND (length(TRIM(BOTH FROM reason)) > 0) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64) AND (jsonb_typeof(proposed_changes) = 'object'::text)))
 );
 
 
@@ -10091,7 +10136,7 @@ CREATE TABLE public.clinic_workforce_availability_versions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_workforce_availability_versions_digest CHECK ((length((request_digest)::text) = 64)),
-    CONSTRAINT workforce_availability_values CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'approved'::character varying, 'denied'::character varying, 'cancelled'::character varying, 'superseded'::character varying])::text[])) AND (revision > 0) AND ((effective_until IS NULL) OR (effective_until >= effective_from)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
+    CONSTRAINT workforce_availability_values CHECK ((((status)::text = ANY (ARRAY[('submitted'::character varying)::text, ('approved'::character varying)::text, ('denied'::character varying)::text, ('cancelled'::character varying)::text, ('superseded'::character varying)::text])) AND (revision > 0) AND ((effective_until IS NULL) OR (effective_until >= effective_from)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
 );
 
 
@@ -10133,7 +10178,7 @@ CREATE TABLE public.clinic_workforce_badge_credentials (
     replaced_by_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_badges_valid CHECK (((length((secret_digest)::text) = 64) AND ((format)::text = 'code128'::text) AND ((status)::text = ANY ((ARRAY['issued'::character varying, 'revoked'::character varying, 'replaced'::character varying])::text[]))))
+    CONSTRAINT workforce_badges_valid CHECK (((length((secret_digest)::text) = 64) AND ((format)::text = 'code128'::text) AND ((status)::text = ANY (ARRAY[('issued'::character varying)::text, ('revoked'::character varying)::text, ('replaced'::character varying)::text]))))
 );
 
 
@@ -10180,7 +10225,7 @@ CREATE TABLE public.clinic_workforce_employee_invitations (
     role_version_id bigint NOT NULL,
     invited_by_platform_user_id bigint,
     CONSTRAINT workforce_employee_invitations_inviter CHECK (((invited_by_membership_id IS NOT NULL) <> (invited_by_platform_user_id IS NOT NULL))),
-    CONSTRAINT workforce_employee_invitations_state CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'activated'::character varying, 'revoked'::character varying])::text[])) AND (expires_at > invited_at) AND ((cardinality(site_ids) >= 1) AND (cardinality(site_ids) <= 100))))
+    CONSTRAINT workforce_employee_invitations_state CHECK ((((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('activated'::character varying)::text, ('revoked'::character varying)::text])) AND (expires_at > invited_at) AND ((cardinality(site_ids) >= 1) AND (cardinality(site_ids) <= 100))))
 );
 
 
@@ -10256,7 +10301,7 @@ CREATE TABLE public.clinic_workforce_employments (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_employments_state CHECK ((((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying])::text[])) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
+    CONSTRAINT workforce_employments_state CHECK ((((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])) AND ((effective_until IS NULL) OR (effective_until > effective_from))))
 );
 
 
@@ -10299,7 +10344,7 @@ CREATE TABLE public.clinic_workforce_export_batches (
     csv_content text NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT wf_export_keys CHECK ((((length((request_key)::text) >= 8) AND (length((request_key)::text) <= 100)) AND (length((payload_digest)::text) = 64) AND (length((source_digest)::text) = 64)))
+    CONSTRAINT wf_export_keys CHECK (((length((request_key)::text) >= 8) AND (length((request_key)::text) <= 100) AND (length((payload_digest)::text) = 64) AND (length((source_digest)::text) = 64)))
 );
 
 
@@ -10339,7 +10384,7 @@ CREATE TABLE public.clinic_workforce_kiosk_enrollments (
     revoked_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_kiosk_enrollments_valid CHECK (((length((token_digest)::text) = 64) AND ((status)::text = ANY ((ARRAY['issued'::character varying, 'enrolled'::character varying, 'revoked'::character varying, 'expired'::character varying])::text[]))))
+    CONSTRAINT workforce_kiosk_enrollments_valid CHECK (((length((token_digest)::text) = 64) AND ((status)::text = ANY (ARRAY[('issued'::character varying)::text, ('enrolled'::character varying)::text, ('revoked'::character varying)::text, ('expired'::character varying)::text]))))
 );
 
 
@@ -10378,7 +10423,7 @@ CREATE TABLE public.clinic_workforce_kiosk_sessions (
     revoked_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_kiosk_sessions_valid CHECK (((length((session_digest)::text) = 64) AND ((status)::text = ANY ((ARRAY['active'::character varying, 'revoked'::character varying, 'expired'::character varying])::text[]))))
+    CONSTRAINT workforce_kiosk_sessions_valid CHECK (((length((session_digest)::text) = 64) AND ((status)::text = ANY (ARRAY[('active'::character varying)::text, ('revoked'::character varying)::text, ('expired'::character varying)::text]))))
 );
 
 
@@ -10504,7 +10549,7 @@ CREATE TABLE public.clinic_workforce_punches (
     result_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_punches_valid CHECK ((((event_type)::text = ANY ((ARRAY['clock_in'::character varying, 'break_start'::character varying, 'break_end'::character varying, 'clock_out'::character varying])::text[])) AND ((source)::text = ANY ((ARRAY['kiosk'::character varying, 'manager_correction'::character varying])::text[])) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64) AND (length((correlation_id)::text) = 36) AND (jsonb_typeof(result_snapshot) = 'object'::text)))
+    CONSTRAINT workforce_punches_valid CHECK ((((event_type)::text = ANY (ARRAY[('clock_in'::character varying)::text, ('break_start'::character varying)::text, ('break_end'::character varying)::text, ('clock_out'::character varying)::text])) AND ((source)::text = ANY (ARRAY[('kiosk'::character varying)::text, ('manager_correction'::character varying)::text])) AND (length((request_key)::text) = 36) AND (length((payload_digest)::text) = 64) AND (length((correlation_id)::text) = 36) AND (jsonb_typeof(result_snapshot) = 'object'::text)))
 );
 
 
@@ -10543,7 +10588,7 @@ CREATE TABLE public.clinic_workforce_schedule_drafts (
     revision integer DEFAULT 1 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_schedule_drafts_values CHECK ((((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'superseded'::character varying])::text[])) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (revision > 0)))
+    CONSTRAINT workforce_schedule_drafts_values CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('published'::character varying)::text, ('superseded'::character varying)::text])) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (revision > 0)))
 );
 
 
@@ -10626,7 +10671,7 @@ CREATE TABLE public.clinic_workforce_schedule_templates (
     active boolean DEFAULT true NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_schedule_templates_values CHECK ((((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 120)) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (revision > 0)))
+    CONSTRAINT workforce_schedule_templates_values CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 120) AND ((length(TRIM(BOTH FROM timezone)) >= 1) AND (length(TRIM(BOTH FROM timezone)) <= 80)) AND (revision > 0)))
 );
 
 
@@ -10719,7 +10764,7 @@ CREATE TABLE public.clinic_workforce_shift_swap_requests (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_workforce_shift_swap_requests_digest CHECK ((length((request_digest)::text) = 64)),
-    CONSTRAINT workforce_shift_swap_requests_values CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'accepted'::character varying, 'declined'::character varying, 'approved'::character varying, 'denied'::character varying, 'cancelled'::character varying])::text[])) AND (requester_employment_id <> target_employment_id) AND (revision > 0) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((target_reason IS NULL) OR ((length(TRIM(BOTH FROM target_reason)) >= 1) AND (length(TRIM(BOTH FROM target_reason)) <= 500))) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
+    CONSTRAINT workforce_shift_swap_requests_values CHECK ((((status)::text = ANY (ARRAY[('submitted'::character varying)::text, ('accepted'::character varying)::text, ('declined'::character varying)::text, ('approved'::character varying)::text, ('denied'::character varying)::text, ('cancelled'::character varying)::text])) AND (requester_employment_id <> target_employment_id) AND (revision > 0) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((target_reason IS NULL) OR ((length(TRIM(BOTH FROM target_reason)) >= 1) AND (length(TRIM(BOTH FROM target_reason)) <= 500))) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
 );
 
 
@@ -10764,7 +10809,7 @@ CREATE TABLE public.clinic_workforce_shifts (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_shifts_values CHECK (((ends_at > starts_at) AND (break_minutes >= 0) AND ((break_minutes)::numeric < (EXTRACT(epoch FROM (ends_at - starts_at)) / (60)::numeric)) AND ((start_occurrence)::text = ANY ((ARRAY['only'::character varying, 'first'::character varying, 'second'::character varying])::text[])) AND ((end_occurrence)::text = ANY ((ARRAY['only'::character varying, 'first'::character varying, 'second'::character varying])::text[]))))
+    CONSTRAINT workforce_shifts_values CHECK (((ends_at > starts_at) AND (break_minutes >= 0) AND ((break_minutes)::numeric < (EXTRACT(epoch FROM (ends_at - starts_at)) / (60)::numeric)) AND ((start_occurrence)::text = ANY (ARRAY[('only'::character varying)::text, ('first'::character varying)::text, ('second'::character varying)::text])) AND ((end_occurrence)::text = ANY (ARRAY[('only'::character varying)::text, ('first'::character varying)::text, ('second'::character varying)::text]))))
 );
 
 
@@ -10815,7 +10860,7 @@ CREATE TABLE public.clinic_workforce_time_off_requests (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT clinic_workforce_time_off_requests_digest CHECK ((length((request_digest)::text) = 64)),
-    CONSTRAINT workforce_time_off_requests_values CHECK ((((status)::text = ANY ((ARRAY['submitted'::character varying, 'approved'::character varying, 'denied'::character varying, 'cancelled'::character varying])::text[])) AND (ends_at > starts_at) AND (revision > 0) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
+    CONSTRAINT workforce_time_off_requests_values CHECK ((((status)::text = ANY (ARRAY[('submitted'::character varying)::text, ('approved'::character varying)::text, ('denied'::character varying)::text, ('cancelled'::character varying)::text])) AND (ends_at > starts_at) AND (revision > 0) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500)) AND ((decision_reason IS NULL) OR ((length(TRIM(BOTH FROM decision_reason)) >= 1) AND (length(TRIM(BOTH FROM decision_reason)) <= 500)))))
 );
 
 
@@ -10861,7 +10906,7 @@ CREATE TABLE public.clinic_workforce_time_segments (
     exception_codes jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_time_segments_valid CHECK ((((segment_kind)::text = ANY ((ARRAY['work'::character varying, 'break'::character varying, 'manual'::character varying])::text[])) AND (ended_at_utc > started_at_utc) AND (raw_minutes >= 0) AND (rounded_minutes >= 0) AND (paid_minutes >= 0) AND ((regular_minutes IS NULL) OR (regular_minutes >= 0)) AND ((overtime_minutes IS NULL) OR (overtime_minutes >= 0)) AND (jsonb_typeof(source_punch_ids) = 'array'::text) AND (jsonb_typeof(settings_provenance) = 'object'::text) AND (jsonb_typeof(exception_codes) = 'array'::text)))
+    CONSTRAINT workforce_time_segments_valid CHECK ((((segment_kind)::text = ANY (ARRAY[('work'::character varying)::text, ('break'::character varying)::text, ('manual'::character varying)::text])) AND (ended_at_utc > started_at_utc) AND (raw_minutes >= 0) AND (rounded_minutes >= 0) AND (paid_minutes >= 0) AND ((regular_minutes IS NULL) OR (regular_minutes >= 0)) AND ((overtime_minutes IS NULL) OR (overtime_minutes >= 0)) AND (jsonb_typeof(source_punch_ids) = 'array'::text) AND (jsonb_typeof(settings_provenance) = 'object'::text) AND (jsonb_typeof(exception_codes) = 'array'::text)))
 );
 
 
@@ -10912,7 +10957,7 @@ CREATE TABLE public.clinic_workforce_timecard_versions (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT workforce_timecards_valid CHECK (((period_end > period_start) AND (version_number > 0) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'approved'::character varying, 'superseded'::character varying])::text[])) AND (length((source_digest)::text) = 64) AND (jsonb_typeof(settings_provenance) = 'object'::text) AND (jsonb_typeof(snapshot) = 'object'::text) AND (jsonb_typeof(unresolved_exceptions) = 'array'::text) AND (raw_total_minutes >= 0) AND (rounded_total_minutes >= 0) AND ((regular_minutes IS NULL) OR (regular_minutes >= 0)) AND ((overtime_minutes IS NULL) OR (overtime_minutes >= 0))))
+    CONSTRAINT workforce_timecards_valid CHECK (((period_end > period_start) AND (version_number > 0) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('submitted'::character varying)::text, ('approved'::character varying)::text, ('superseded'::character varying)::text])) AND (length((source_digest)::text) = 64) AND (jsonb_typeof(settings_provenance) = 'object'::text) AND (jsonb_typeof(snapshot) = 'object'::text) AND (jsonb_typeof(unresolved_exceptions) = 'array'::text) AND (raw_total_minutes >= 0) AND (rounded_total_minutes >= 0) AND ((regular_minutes IS NULL) OR (regular_minutes >= 0)) AND ((overtime_minutes IS NULL) OR (overtime_minutes >= 0))))
 );
 
 
@@ -11031,7 +11076,7 @@ CREATE TABLE public.identity_preferences (
     revision integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY ((ARRAY['system'::character varying, 'light'::character varying, 'dark'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
     CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['owner'::character varying, 'juniper'::character varying, 'cobalt'::character varying, 'plum'::character varying, 'saffron'::character varying])::text[]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
@@ -12416,6 +12461,13 @@ ALTER TABLE ONLY public.clinic_referral_exchange_events ALTER COLUMN id SET DEFA
 
 
 --
+-- Name: clinic_refill_response_deliveries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refill_response_deliveries ALTER COLUMN id SET DEFAULT nextval('public.clinic_refill_response_deliveries_id_seq'::regclass);
+
+
+--
 -- Name: clinic_refund_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -13087,7 +13139,7 @@ ALTER TABLE ONLY public.clinic_allergies
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[]))));
+    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -13095,7 +13147,7 @@ ALTER TABLE ONLY public.clinic_appointments
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying])::text[]))));
+    ADD CONSTRAINT clinic_appointments_no_room_overlap EXCLUDE USING gist (practice_id WITH =, room_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((room_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -13416,14 +13468,6 @@ ALTER TABLE ONLY public.clinic_encounter_precautions
 
 ALTER TABLE ONLY public.clinic_encounters
     ADD CONSTRAINT clinic_encounters_pkey PRIMARY KEY (id);
-
-
---
--- Name: clinic_immunization_revisions clinic_immunization_admin_evidence; Type: CHECK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE public.clinic_immunization_revisions
-    ADD CONSTRAINT clinic_immunization_admin_evidence CHECK ((((status)::text <> 'completed'::text) OR ((occurrence_source)::text <> 'administered_here'::text) OR (medication_administration_id IS NOT NULL))) NOT VALID;
 
 
 --
@@ -14035,6 +14079,14 @@ ALTER TABLE ONLY public.clinic_patient_portal_recovery_deliveries
 
 
 --
+-- Name: clinic_patient_portal_requests clinic_patient_portal_requests_origin; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.clinic_patient_portal_requests
+    ADD CONSTRAINT clinic_patient_portal_requests_origin CHECK ((((origin)::text = ANY ((ARRAY['patient'::character varying, 'staff'::character varying])::text[])) AND (((origin)::text = 'staff'::text) OR (identity_id IS NOT NULL)))) NOT VALID;
+
+
+--
 -- Name: clinic_patient_portal_requests clinic_patient_portal_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -14208,6 +14260,22 @@ ALTER TABLE ONLY public.clinic_recall_events
 
 ALTER TABLE ONLY public.clinic_referral_exchange_events
     ADD CONSTRAINT clinic_referral_exchange_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_portal_requests clinic_refill_requests_resolved_revision; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.clinic_patient_portal_requests
+    ADD CONSTRAINT clinic_refill_requests_resolved_revision CHECK ((((request_type)::text <> 'refill'::text) OR ((status)::text <> 'resolved'::text) OR ((source_encounter_id IS NOT NULL) AND (medication_request_revision_id IS NOT NULL)))) NOT VALID;
+
+
+--
+-- Name: clinic_refill_response_deliveries clinic_refill_response_deliveries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refill_response_deliveries
+    ADD CONSTRAINT clinic_refill_response_deliveries_pkey PRIMARY KEY (id);
 
 
 --
@@ -15549,7 +15617,7 @@ CREATE UNIQUE INDEX clinic_handoffs_context_id ON public.clinic_encounter_handof
 -- Name: clinic_handoffs_one_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_handoffs_one_active ON public.clinic_encounter_handoffs USING btree (practice_id, encounter_id) WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'correction_requested'::character varying])::text[]));
+CREATE UNIQUE INDEX clinic_handoffs_one_active ON public.clinic_encounter_handoffs USING btree (practice_id, encounter_id) WHERE ((state)::text = ANY (ARRAY[('pending'::character varying)::text, ('accepted'::character varying)::text, ('correction_requested'::character varying)::text]));
 
 
 --
@@ -16407,6 +16475,13 @@ CREATE INDEX clinic_portal_recovery_deliveries_queue ON public.clinic_patient_po
 
 
 --
+-- Name: clinic_practices_platform_managed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_practices_platform_managed ON public.clinic_practices USING btree (platform_managed) WHERE (platform_managed = true);
+
+
+--
 -- Name: clinic_precautions_encounter_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -16474,6 +16549,20 @@ CREATE INDEX clinic_recall_events_projection ON public.clinic_recall_events USIN
 --
 
 CREATE UNIQUE INDEX clinic_recall_events_request ON public.clinic_recall_events USING btree (practice_id, actor_membership_id, request_key);
+
+
+--
+-- Name: clinic_refill_response_deliveries_recovery; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_refill_response_deliveries_recovery ON public.clinic_refill_response_deliveries USING btree (practice_id, state, updated_at);
+
+
+--
+-- Name: clinic_refill_response_deliveries_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_refill_response_deliveries_request ON public.clinic_refill_response_deliveries USING btree (practice_id, request_id);
 
 
 --
@@ -16795,7 +16884,7 @@ CREATE UNIQUE INDEX clinic_supplier_addresses_version ON public.clinic_supplier_
 -- Name: clinic_tasks_active_order_source; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_tasks_active_order_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_kind, source_id) WHERE (((source_type)::text = 'order'::text) AND (source_kind IS NOT NULL) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying])::text[])));
+CREATE UNIQUE INDEX clinic_tasks_active_order_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_kind, source_id) WHERE (((source_type)::text = 'order'::text) AND (source_kind IS NOT NULL) AND ((state)::text = ANY (ARRAY[('open'::character varying)::text, ('claimed'::character varying)::text, ('in_progress'::character varying)::text])));
 
 
 --
@@ -16957,6 +17046,13 @@ CREATE INDEX idx_on_actor_session_reference_occurred_at_fc6d32a259 ON public.pla
 --
 
 CREATE INDEX idx_on_created_by_membership_id_50709dc420 ON public.clinic_practice_feature_versions USING btree (created_by_membership_id);
+
+
+--
+-- Name: idx_on_medication_request_revision_id_bc8ef18330; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_medication_request_revision_id_bc8ef18330 ON public.clinic_patient_portal_requests USING btree (medication_request_revision_id);
 
 
 --
@@ -17439,7 +17535,7 @@ CREATE UNIQUE INDEX idx_telehealth_join_grant_request ON public.clinic_telehealt
 -- Name: idx_telehealth_one_live_room; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_telehealth_one_live_room ON public.clinic_telehealth_room_attempts USING btree (practice_id, visit_id) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'provisioning'::character varying, 'ready'::character varying, 'active'::character varying, 'ending'::character varying, 'unknown'::character varying])::text[]));
+CREATE UNIQUE INDEX idx_telehealth_one_live_room ON public.clinic_telehealth_room_attempts USING btree (practice_id, visit_id) WHERE ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('provisioning'::character varying)::text, ('ready'::character varying)::text, ('active'::character varying)::text, ('ending'::character varying)::text, ('unknown'::character varying)::text]));
 
 
 --
@@ -18147,6 +18243,13 @@ CREATE INDEX index_clinic_patient_portal_recovery_deliveries_on_identity_id ON p
 --
 
 CREATE INDEX index_clinic_patient_portal_recovery_deliveries_on_practice_id ON public.clinic_patient_portal_recovery_deliveries USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_patient_portal_requests_on_source_encounter_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_patient_portal_requests_on_source_encounter_id ON public.clinic_patient_portal_requests USING btree (source_encounter_id);
 
 
 --
@@ -27335,6 +27438,46 @@ ALTER TABLE ONLY public.clinic_referral_exchange_events
 
 
 --
+-- Name: clinic_patient_portal_requests fk_refill_requests_medication_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_requests
+    ADD CONSTRAINT fk_refill_requests_medication_revision FOREIGN KEY (practice_id, medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(practice_id, id);
+
+
+--
+-- Name: clinic_patient_portal_requests fk_refill_requests_source_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_portal_requests
+    ADD CONSTRAINT fk_refill_requests_source_encounter FOREIGN KEY (practice_id, source_encounter_id) REFERENCES public.clinic_encounters(practice_id, id);
+
+
+--
+-- Name: clinic_refill_response_deliveries fk_refill_response_deliveries_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refill_response_deliveries
+    ADD CONSTRAINT fk_refill_response_deliveries_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_refill_response_deliveries fk_refill_response_deliveries_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refill_response_deliveries
+    ADD CONSTRAINT fk_refill_response_deliveries_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_refill_response_deliveries fk_refill_response_deliveries_request; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_refill_response_deliveries
+    ADD CONSTRAINT fk_refill_response_deliveries_request FOREIGN KEY (practice_id, request_id) REFERENCES public.clinic_patient_portal_requests(practice_id, id);
+
+
+--
 -- Name: clinic_refund_events fk_refund_events_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28045,7 +28188,9 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260911010000'),
 ('20260911006000'),
+('20260911005000'),
 ('20260911003000'),
 ('20260911002000'),
 ('20260911001000'),

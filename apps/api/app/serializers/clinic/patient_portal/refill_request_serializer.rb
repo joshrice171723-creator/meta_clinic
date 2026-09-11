@@ -15,6 +15,10 @@ module Clinic
           source: details["source"],
           decision: outcome["decision"],
           patient_message: outcome["patient_message"],
+          source_encounter_id: request.source_encounter_id,
+          medication_request_revision_id: request.medication_request_revision_id,
+          response_delivery_state: request.refill_response_delivery&.state,
+          response_delivery_failure_code: request.refill_response_delivery&.failure_code,
           reviewed_by: reviewed_by(request)
         }
         if include_review_details

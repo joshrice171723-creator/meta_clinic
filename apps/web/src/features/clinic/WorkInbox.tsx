@@ -18,6 +18,7 @@ import {
   Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -56,6 +57,8 @@ type StaffRequest = {
   assignee_label?: string | null;
   assigned_to_me: boolean;
   overdue: boolean;
+  assignee_membership_id: number | null;
+  eligible_assignees: Array<{ membership_id: number; label: string }>;
 };
 
 type EncounterFollowUpItem = EncounterFollowUpRecord & {
@@ -83,6 +86,9 @@ type FollowUpResponse = {
   clinical_task_summary: Summary;
   clinical_tasks: ClinicalTaskItem[];
   reminder_attention_count: number | null;
+  actor_membership_id: number;
+  can_manage_staff_requests: boolean;
+  can_escalate_staff_requests: boolean;
 };
 
 type LabReviewItem = {
@@ -200,6 +206,7 @@ type InboxItem = {
   action: string;
   priority?: "routine" | "urgent" | "critical";
   icon: "assignment" | "message" | "lab" | "note" | "payment";
+  staffRequest?: StaffRequest;
 };
 
 const taskLabels: Record<ClinicalTask["task_kind"], string> = {
@@ -279,7 +286,180 @@ function sortItems(items: InboxItem[]) {
   });
 }
 
-function InboxRow({ item }: { item: InboxItem }) {
+function localDateTimeValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function StaffRequestActions({
+  request,
+  actorMembershipId,
+  canManage,
+  canEscalate,
+  onChanged,
+}: {
+  request: StaffRequest;
+  actorMembershipId: number;
+  canManage: boolean;
+  canEscalate: boolean;
+  onChanged: () => void;
+}) {
+  const [assigneeId, setAssigneeId] = useState(
+    request.assignee_membership_id?.toString() || "",
+  );
+  const [dueAt, setDueAt] = useState(localDateTimeValue(request.due_at));
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  async function manage(
+    action: "claim" | "assign" | "schedule",
+    values: Record<string, unknown> = {},
+  ) {
+    setBusy(action);
+    setError("");
+    try {
+      await api(`/api/clinic/staff-messaging/requests/${request.id}/manage`, {
+        method: "PATCH",
+        body: {
+          management: {
+            request_key: crypto.randomUUID(),
+            action,
+            ...values,
+          },
+        },
+      });
+      onChanged();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function escalate() {
+    setBusy("escalate");
+    setError("");
+    try {
+      await api(`/api/clinic/staff-messaging/requests/${request.id}/escalate`, {
+        method: "POST",
+        body: {
+          escalation: {
+            request_key: crypto.randomUUID(),
+            trigger: request.overdue ? "overdue_recovery" : "manual",
+          },
+        },
+      });
+      onChanged();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  if (!canManage && !canEscalate) return null;
+  return (
+    <Stack spacing={1} sx={{ mt: 1.5 }}>
+      {canManage && (
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+          {!request.assigned_to_me && (
+            <Button
+              size="small"
+              variant="contained"
+              disabled={Boolean(busy)}
+              onClick={() => manage("claim")}
+            >
+              {busy === "claim" ? "Claiming…" : "Claim"}
+            </Button>
+          )}
+          <FormControl size="small" sx={{ minWidth: 190 }}>
+            <InputLabel id={`staff-assignee-${request.id}`}>Owner</InputLabel>
+            <Select
+              labelId={`staff-assignee-${request.id}`}
+              label="Owner"
+              value={assigneeId}
+              onChange={(event) => setAssigneeId(String(event.target.value))}
+            >
+              {request.eligible_assignees.map((candidate) => (
+                <MenuItem
+                  key={candidate.membership_id}
+                  value={candidate.membership_id.toString()}
+                >
+                  {candidate.membership_id === actorMembershipId
+                    ? `${candidate.label} (you)`
+                    : candidate.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={
+              Boolean(busy) ||
+              !assigneeId ||
+              assigneeId === request.assignee_membership_id?.toString()
+            }
+            onClick={() =>
+              manage("assign", { assignee_membership_id: Number(assigneeId) })
+            }
+          >
+            {busy === "assign" ? "Transferring…" : "Transfer"}
+          </Button>
+        </Stack>
+      )}
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+        {canManage && (
+          <>
+            <TextField
+              size="small"
+              type="datetime-local"
+              label="Response target"
+              value={dueAt}
+              onChange={(event) => setDueAt(event.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={Boolean(busy) || !dueAt}
+              onClick={() =>
+                manage("schedule", { due_at: new Date(dueAt).toISOString() })
+              }
+            >
+              {busy === "schedule" ? "Saving…" : "Set target"}
+            </Button>
+          </>
+        )}
+        {canEscalate && (
+          <Button
+            size="small"
+            color={request.overdue ? "warning" : "primary"}
+            variant={request.overdue ? "contained" : "outlined"}
+            disabled={Boolean(busy)}
+            onClick={escalate}
+          >
+            {busy === "escalate" ? "Escalating…" : "Escalate"}
+          </Button>
+        )}
+      </Stack>
+      {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  );
+}
+
+function InboxRow({
+  item,
+  work,
+  onChanged,
+}: {
+  item: InboxItem;
+  work?: FollowUpResponse;
+  onChanged: () => void;
+}) {
   const Icon =
     item.icon === "lab"
       ? ScienceOutlinedIcon
@@ -366,6 +546,15 @@ function InboxRow({ item }: { item: InboxItem }) {
             </Typography>
           )}
         </Stack>
+        {item.staffRequest && work && (
+          <StaffRequestActions
+            request={item.staffRequest}
+            actorMembershipId={work.actor_membership_id}
+            canManage={work.can_manage_staff_requests}
+            canEscalate={work.can_escalate_staff_requests}
+            onChanged={onChanged}
+          />
+        )}
       </Box>
       <Button
         variant="outlined"
@@ -557,6 +746,7 @@ export function WorkInbox() {
         href: `/clinic/messages?conversation_id=${request.conversation_id}`,
         action: "Open conversation",
         icon: "message",
+        staffRequest: request,
       });
     });
 
@@ -896,7 +1086,12 @@ export function WorkInbox() {
           {items.length > 0 && (
             <Stack divider={<Divider flexItem />}>
               {items.map((item) => (
-                <InboxRow key={item.id} item={item} />
+                <InboxRow
+                  key={item.id}
+                  item={item}
+                  work={work.data}
+                  onChanged={() => setRefreshRevision((value) => value + 1)}
+                />
               ))}
             </Stack>
           )}

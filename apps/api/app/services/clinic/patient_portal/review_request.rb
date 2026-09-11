@@ -13,7 +13,8 @@ module Clinic
       }.freeze
 
       def self.call(practice:, actor:, request:, status:, review_note: nil, request_key:,
-        decision: nil, patient_message: nil, reconciliation_acknowledged: false, reconciliation_note: nil)
+        decision: nil, patient_message: nil, reconciliation_acknowledged: false, reconciliation_note: nil,
+        encounter: nil)
         authorization_action = AUTHORIZATION_ACTIONS.fetch(request.request_type)
         authorization = lambda {
           Clinic::Authorization.authorize!(
@@ -38,7 +39,8 @@ module Clinic
             decision: decision,
             patient_message: patient_message,
             reconciliation_acknowledged: reconciliation_acknowledged,
-            reconciliation_note: reconciliation_note
+            reconciliation_note: reconciliation_note,
+            encounter_id: encounter&.id
           }
         end
         outcome = Clinic::Idempotency.execute(
@@ -68,11 +70,26 @@ module Clinic
             reconciliation_acknowledged: reconciliation_acknowledged,
             reconciliation_note: reconciliation_note
           ) : review_note.presence
+          medication_revision = if current.refill? && status == "resolved"
+            raise ArgumentError, "Choose the open encounter that owns this medication order." unless encounter
+
+            details = RefillRequestData.parse_content(current.content)
+            RefillMedicationRequest.call(
+              practice:, actor:, request: current, encounter:,
+              attributes: { medication_name: details["medication_name"], instructions: patient_message },
+              request_key:
+            )
+          end
           current.update!(
             status: status,
             reviewed_at: Current.business_time,
-            review_note: stored_review_note
+            review_note: stored_review_note,
+            source_encounter: medication_revision ? encounter : current.source_encounter,
+            medication_request_revision: medication_revision || current.medication_request_revision
           )
+          DeliverRefillResponse.call(
+            practice:, actor:, request: current, request_key: "#{request_key}:delivery"
+          ) if current.refill? && status.in?(%w[resolved declined])
           Clinic::AuditRecorder.record!(
             practice: practice,
             actor: actor,
