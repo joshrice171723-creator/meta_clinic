@@ -5,11 +5,16 @@ import { useResource } from "../../shared/ui";
 import type { WaitlistItem } from "../clinic/WaitlistWorkspace";
 
 type Offer = Omit<WaitlistItem, "patient_id" | "patient_name" | "reason">;
-type Reply = { id: number; action: "accept" | "decline"; version: number };
+type Reply = {
+  id: number;
+  action: "accept" | "decline";
+  version: number;
+  requestKey: string;
+};
+type OffersResponse = { entries: Offer[] };
+
 export function PatientWaitlistOffers() {
-  const resource = useResource<{ entries: Offer[] }>(
-    "/api/patient_portal/waitlist",
-  );
+  const resource = useResource<OffersResponse>("/api/patient_portal/waitlist");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -31,6 +36,7 @@ export function PatientWaitlistOffers() {
             waitlist: {
               action: current.action,
               expected_version: current.version,
+              request_key: current.requestKey,
             },
           },
         },
@@ -45,6 +51,25 @@ export function PatientWaitlistOffers() {
       resource.refresh();
     } catch (value) {
       const unknown = !(value instanceof ApiError) || value.status >= 500;
+      if (unknown && current.action === "decline") {
+        try {
+          const refreshed = await api<OffersResponse>(
+            "/api/patient_portal/waitlist",
+          );
+          const latest = refreshed.entries.find((entry) => entry.id === current.id);
+          resource.refresh();
+          if (latest?.state === "waiting") {
+            attempt.current = null;
+            setUncertain(false);
+            setNotice(
+              "The offer is no longer active. The latest status shows you remain on the waitlist for another opening.",
+            );
+            return;
+          }
+        } catch {
+          // Keep the same request key available when the authoritative refresh also fails.
+        }
+      }
       setUncertain(unknown);
       if (!unknown) {
         attempt.current = null;
@@ -132,6 +157,7 @@ export function PatientWaitlistOffers() {
                         id: entry.id,
                         action: "accept",
                         version: entry.version,
+                        requestKey: crypto.randomUUID(),
                       })
                     }
                   >
@@ -144,6 +170,7 @@ export function PatientWaitlistOffers() {
                         id: entry.id,
                         action: "decline",
                         version: entry.version,
+                        requestKey: crypto.randomUUID(),
                       })
                     }
                   >

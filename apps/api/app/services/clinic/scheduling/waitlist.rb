@@ -69,17 +69,33 @@ module Clinic
         result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
-      def portal_reply(entry:, identity:, actor:, action:, expected_version:)
+      def portal_reply(entry:, identity:, actor:, action:, expected_version:, request_key:)
+        operation = "patient_portal.waitlist.#{action}"
+        key = Clinic::Idempotency.send(:validate_key!, request_key)
+        payload = { id: entry.id, action: action, version: expected_version }
+        canonical_payload = Clinic::Idempotency.send(:canonical_payload, payload)
+        digest_key_id = Clinic::Idempotency.send(:active_digest_key_id)
+        payload_digest = Clinic::Idempotency.send(:digest_for_canonical,
+          canonical_payload, Clinic::Idempotency::DIGEST_ALGORITHM, key_id: digest_key_id)
         ApplicationRecord.transaction do
-          identity.lock!
-          unless identity.active? && actor.active? && identity.user_id == actor.id &&
+          lock_portal_request!(identity: identity, request_key: key)
+          identity = Clinic::PatientPortal::Identity.available.lock.find_by(id: identity.id)
+          unless identity && actor.active? && identity.user_id == actor.id &&
             identity.practice_id == entry.practice_id && identity.patient_id == entry.patient_id
             raise Clinic::Authorization::Denied
           end
+          receipt = Clinic::PatientPortal::WaitlistReplyReceipt.find_by(
+            practice: entry.practice, identity: identity, request_key: key
+          )
+          if receipt
+            verify_portal_replay!(receipt, entry: entry, operation: operation, canonical_payload: canonical_payload)
+            return Clinic::Scheduling::WaitlistEntry.where(practice: entry.practice, patient_id: identity.patient_id)
+              .find(receipt.waitlist_entry_id)
+          end
+
+          entry = Clinic::Scheduling::WaitlistEntry.lock.find(entry.id)
           entry.clinician.lock!
-          entry.lock!
-          # A repeated acceptance returns its existing appointment without booking twice.
-          return entry if action == "accept" && entry.state == "booked"
+          raise Clinic::Authorization::Denied unless entry.practice_id == identity.practice_id && entry.patient_id == identity.patient_id
           raise ActiveRecord::StaleObjectError.new(entry, action) unless entry.lock_version == expected_version
           raise ArgumentError, "This offer has expired or is no longer available." unless entry.effective_state == "offered"
           if action == "accept"
@@ -92,6 +108,9 @@ module Clinic
           Clinic::AuditRecorder.record!(practice: entry.practice, actor: actor,
             action_code: "patient_portal.waitlist.#{action}", outcome: :committed,
             resource_version_ref: "waitlist/#{entry.id}:#{entry.lock_version}")
+          Clinic::PatientPortal::WaitlistReplyReceipt.create!(practice: entry.practice, identity: identity,
+            waitlist_entry: entry, request_key: key, operation_code: operation, payload_digest: payload_digest,
+            digest_algorithm: Clinic::Idempotency::DIGEST_ALGORITHM, digest_key_id: digest_key_id)
           entry
         end
       end
@@ -112,6 +131,23 @@ module Clinic
           outcome: :committed, resource_version_ref: "appointment/#{appointment.id}")
       end
       private_class_method :book!
+
+      def lock_portal_request!(identity:, request_key:)
+        lock_key = "patient-portal-waitlist:#{identity.id}:#{request_key}"
+        ApplicationRecord.connection.execute(ApplicationRecord.sanitize_sql_array([
+          "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", lock_key
+        ]))
+      end
+      private_class_method :lock_portal_request!
+
+      def verify_portal_replay!(receipt, entry:, operation:, canonical_payload:)
+        expected_digest = Clinic::Idempotency.send(:digest_for_canonical, canonical_payload,
+          receipt.digest_algorithm, key_id: receipt.digest_key_id)
+        same = receipt.waitlist_entry_id == entry.id && receipt.operation_code == operation &&
+          ActiveSupport::SecurityUtils.secure_compare(receipt.payload_digest, expected_digest)
+        raise Clinic::Idempotency::Conflict unless same
+      end
+      private_class_method :verify_portal_replay!
     end
   end
 end

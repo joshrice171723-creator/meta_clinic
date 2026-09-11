@@ -42,15 +42,15 @@ fieldset {
   padding: 12px 28px;
   align-items: center;
   gap: 28px;
-  background: #17372f;
-  color: #f7fbf8;
-  border-bottom: 1px solid #0f2922;
+  background: #efeee3;
+  color: #17372f;
+  border-bottom: 1px solid #d6d4c5;
 }
 .development-toolbar-heading {
   flex: 0 0 auto;
   min-height: 32px;
   padding-right: 20px;
-  border-right: 1px solid #45665b;
+  border-right: 1px solid #c9c7b8;
 }
 .development-toolbar-heading h2 {
   margin: 0;
@@ -61,9 +61,9 @@ fieldset {
   white-space: nowrap;
 }
 .development-toolbar .environment-label {
-  border-color: #7b9a8f;
-  background: #294c42;
-  color: #f7fbf8;
+  border-color: #9a988b;
+  background: #e2e1d5;
+  color: #17372f;
 }
 .development-toolbar .development-controls {
   display: grid;
@@ -92,13 +92,13 @@ fieldset {
 .development-toolbar .development-owner-portal-button {
   grid-area: owner;
   min-height: 36px;
-  border-color: #8daaa0;
-  color: #f7fbf8;
+  border-color: #7f8d84;
+  color: #17372f;
   white-space: nowrap;
 }
 .development-toolbar .development-owner-portal-button:hover {
-  border-color: #f7fbf8;
-  background: #294c42;
+  border-color: #17372f;
+  background: #e2e1d5;
 }
 .development-toolbar .development-account-select {
   width: 100%;
@@ -118,7 +118,7 @@ fieldset {
   grid-area: date;
   min-width: 0;
   padding-left: 12px;
-  border-left: 1px solid #45665b;
+  border-left: 1px solid #c9c7b8;
 }
 .development-toolbar .development-date-input .MuiOutlinedInput-root {
   background: #ffffff;
@@ -134,16 +134,16 @@ fieldset {
   display: none;
 }
 .development-toolbar .development-portal-toggle button {
-  color: #dce9e4;
-  border-color: #64877b;
+  color: #17372f;
+  border-color: #8f8d80;
   white-space: nowrap;
 }
 .development-toolbar .development-portal-toggle button.Mui-selected {
-  background: #f2f6f3;
+  background: #ffffff;
   color: #17372f;
 }
 .development-toolbar .development-date-picker .MuiButton-root {
-  color: #f7fbf8;
+  color: #17372f;
 }
 .development-toolbar .development-login-button {
   grid-area: login;

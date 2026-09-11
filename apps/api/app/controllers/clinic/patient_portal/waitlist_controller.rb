@@ -16,11 +16,12 @@ module Clinic
 
       def update
         raise ArgumentError, "An active patient portal identity is required to accept an offer." unless patient_portal_identity
-        input = parameter_hash!(:waitlist, %i[action expected_version])
+        input = parameter_hash!(:waitlist, %i[action expected_version request_key])
         entry = scope.find(integer_id!(params[:id], field: :id))
         updated = Clinic::Scheduling::Waitlist.portal_reply(entry: entry, identity: patient_portal_identity,
           actor: current_user, action: enum_param!(input[:action], field: :action, allowed: %w[accept decline]),
-          expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0))
+          expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
         render json: { entry: Clinic::Scheduling::Waitlist.serialize(updated).except(:reason, :patient_name, :patient_id) }
       end
 

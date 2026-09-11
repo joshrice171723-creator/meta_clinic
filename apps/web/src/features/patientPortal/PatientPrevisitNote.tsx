@@ -99,6 +99,7 @@ export function PatientPrevisitNote({
   const [conflict, setConflict] = useState(false);
   const [latestReady, setLatestReady] = useState(false);
   const [latestRefreshFailed, setLatestRefreshFailed] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const attempt = useRef<Attempt | null>(null);
   const appointmentIdRef = useRef(appointmentId);
   const loadSequenceRef = useRef(0);
@@ -158,9 +159,10 @@ export function PatientPrevisitNote({
     setConflict(false);
     setLatestReady(false);
     setLatestRefreshFailed(false);
+    setConfirmDiscard(false);
     void load();
   };
-  const close = () => {
+  const closeEditor = () => {
     if (busy || outcomeUnknown) return;
     loadSequenceRef.current += 1;
     setLoading(false);
@@ -170,6 +172,15 @@ export function PatientPrevisitNote({
     setConflict(false);
     setLatestReady(false);
     setLatestRefreshFailed(false);
+    setConfirmDiscard(false);
+  };
+  const requestClose = () => {
+    if (busy || outcomeUnknown) return;
+    if (data && draftKey(text, answers) !== baseline) {
+      setConfirmDiscard(true);
+      return;
+    }
+    closeEditor();
   };
   const useLatestSaved = () => {
     const saved = savedText(data?.note);
@@ -287,7 +298,7 @@ export function PatientPrevisitNote({
       </Button>
       <Dialog
         open={open}
-        onClose={close}
+        onClose={requestClose}
         fullWidth
         maxWidth="sm"
         aria-labelledby={`previsit-note-${appointmentId}-title`}
@@ -416,7 +427,7 @@ export function PatientPrevisitNote({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy || outcomeUnknown} onClick={close}>
+          <Button disabled={busy || outcomeUnknown} onClick={requestClose}>
             Close
           </Button>
           {data?.can_edit && data.note && !outcomeUnknown && (
@@ -459,6 +470,26 @@ export function PatientPrevisitNote({
                     : "Save intake and note"}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        aria-labelledby={`previsit-note-${appointmentId}-discard-title`}
+      >
+        <DialogTitle id={`previsit-note-${appointmentId}-discard-title`}>
+          Discard unsaved intake?
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Your unsaved intake answers and visit note will be lost.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDiscard(false)}>Keep editing</Button>
+          <Button color="error" variant="contained" onClick={closeEditor}>
+            Discard changes
+          </Button>
         </DialogActions>
       </Dialog>
     </>

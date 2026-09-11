@@ -40,3 +40,11 @@ Three migrations (`20260911001000`, `20260911002000`, `20260911003000`) installe
 [Appointment R4.0.1](https://hl7.org/fhir/R4/appointment.html) and [Slot R4.0.1](https://hl7.org/fhir/R4/slot.html), reviewed 2026-09-11, inform the distinction between an offered interval, capacity hold and booked appointment in the U.S. Core R4 ecosystem. They do not prescribe FIFO ranking or a clinical scheduling policy. No FHIR endpoint or conformance certification is claimed.
 
 Source integration includes `/clinic/work`, `/clinic/refills`, `/clinic/waitlist`, `/clinic/recalls`, guided encounter checkout, and patient portal intake/refill/waitlist/education panels. Existing encrypted clinical records and audit mechanisms remain the owners of durable state. Refill approval is a human review disposition, not a sent prescription. Staff-created refill requests currently require an active patient portal identity.
+
+## Follow-up — patient portal waitlist response recovery
+
+**Outcome and boundary.** A portal user must be able to safely retry the same accept or decline response after an interrupted request and receive the already-committed waitlist outcome. This change is limited to the existing offered-slot response; it does not change capacity policy, appointment rules, portal authorization, clinical priority, or patient notification.
+
+**Failure hypothesis.** If the server books an appointment or returns an offer to the waitlist but the browser loses the response, a retry currently arrives with a stale version. The portal cannot distinguish that case from a changed or expired offer, leaving the patient without a confirmed outcome.
+
+**Detection, prevention, disproof, and recovery.** The browser will retain an opaque request key for one explicit retry, and the server will bind an immutable, patient-identity-scoped receipt to the waitlist entry, action, version, and keyed payload. A matching retry returns the original current entry; a reused key with different data conflicts, and a genuinely changed offer remains a stale conflict. The focused synthetic check will cover accepted, declined, replayed, stale, and cross-identity behavior. If the outcome is still unconfirmed, the UI retains its existing warning and retry action rather than reporting success.
