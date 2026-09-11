@@ -91,6 +91,10 @@ const OwnerCommandCenter = lazyNamed(
   () => import("./features/owner/OwnerCommandCenter"),
   (m) => m.OwnerCommandCenter,
 );
+const OwnerActivationPage = lazyNamed(
+  () => import("./features/owner/OwnerActivationPage"),
+  (m) => m.OwnerActivationPage,
+);
 const Workspace = lazyNamed(
   () => import("./features/clinic/Workspace"),
   (m) => m.Workspace,
@@ -315,13 +319,7 @@ function LaunchLayout({
     </>
   );
 }
-function MemberLayout({
-  user,
-  children,
-}: {
-  user: User;
-  children: ReactNode;
-}) {
+function MemberLayout({ user, children }: { user: User; children: ReactNode }) {
   const appearance = useClinicAppearance(user.id);
   const content = (
     <main id="main" className="wrap inner-page portal-page">
@@ -700,6 +698,7 @@ export function App() {
     "/login",
     "/patient-portal/activate",
     "/patient-portal/recovery",
+    "/owner/activate",
     "/workforce/activate",
     "/workforce/kiosk",
   ].includes(path);
@@ -777,6 +776,12 @@ export function App() {
     return (
       <RouteBoundary root>
         <PatientPortalRecovery />
+      </RouteBoundary>
+    );
+  if (path === "/owner/activate")
+    return (
+      <RouteBoundary root>
+        <OwnerActivationPage />
       </RouteBoundary>
     );
   if (path === "/workforce/activate")

@@ -161,7 +161,7 @@ describe("system appearance and UI scope", () => {
       />,
     );
     expect(html.match(/<select /g)).toBeNull();
-    expect(html.match(/type="radio"/g)).toHaveLength(4);
+    expect(html.match(/type="radio"/g)).toHaveLength(CLINIC_PALETTES.length);
     expect(html).toContain("Select a color theme");
     expect(html).toContain('role="switch"');
     expect(html).toContain('value="cobalt"');

@@ -1,0 +1,11 @@
+Welcome to Meta Clinic.
+
+Create your platform-owner password using this private link:
+
+<%= @activation_url %>
+
+The link expires at <%= @expires_at.in_time_zone("America/Chicago").strftime("%B %-d, %Y at %-I:%M %p %Z") %> and can be used once.
+
+After you create your password, Meta Clinic will sign you in and open the Owner Command Center.
+
+If you did not request this account, do not use the link.

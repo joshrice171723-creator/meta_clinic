@@ -93,8 +93,8 @@ class ApplicationController < ActionController::Base
   def require_admin
     require_member
     return if performed?
-    return if current_user.admin? || development_omni?
+    return if current_user.platform_owner? || development_omni?
 
-    render json: { error: "This page is for APPly administrators." }, status: :forbidden
+    render json: { error: "This page is for Meta Clinic platform owners." }, status: :forbidden
   end
 end

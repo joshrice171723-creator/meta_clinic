@@ -77,8 +77,20 @@ export const CLINIC_SIDEBAR_THEMES: Record<
   Record<ColorScheme, ClinicSidebarTokens>
 > = {
   owner: {
-    light: { ground: "#fff7e8", on: "#50300a", muted: "#79633b", selected: "#ffebba", "selected-on": "#50300a" },
-    dark: { ground: "#115293", on: "#ffffff", muted: "#c5dcf2", selected: "#1976d2", "selected-on": "#ffffff" },
+    light: {
+      ground: "#fff7e8",
+      on: "#50300a",
+      muted: "#79633b",
+      selected: "#ffebba",
+      "selected-on": "#50300a",
+    },
+    dark: {
+      ground: "#115293",
+      on: "#ffffff",
+      muted: "#c5dcf2",
+      selected: "#1976d2",
+      "selected-on": "#ffffff",
+    },
   },
   juniper: {
     light: {
@@ -150,8 +162,28 @@ export const CLINIC_THEMES: Record<
   Record<ColorScheme, ThemeTokens>
 > = {
   owner: {
-    light: { background: "#f8f7f2", surface: "#f8f7f2", text: "rgba(0, 0, 0, 0.87)", muted: "rgba(0, 0, 0, 0.6)", accent: "#1976d2", "on-accent": "#ffffff", soft: "#eeede8", border: "rgba(0, 0, 0, 0.12)", control: "#6b7280" },
-    dark: { background: "#121212", surface: "#1e1e1e", text: "#ffffff", muted: "rgba(255, 255, 255, 0.7)", accent: "#90caf9", "on-accent": "#0d47a1", soft: "#173b5c", border: "rgba(255, 255, 255, 0.12)", control: "#b0bec5" },
+    light: {
+      background: "#f8f7f2",
+      surface: "#ffffff",
+      text: "#212121",
+      muted: "#575757",
+      accent: "#0d47a1",
+      "on-accent": "#ffffff",
+      soft: "#e3f2fd",
+      border: "#d0d0d0",
+      control: "#5d6673",
+    },
+    dark: {
+      background: "#121212",
+      surface: "#1e1e1e",
+      text: "#ffffff",
+      muted: "#bdbdbd",
+      accent: "#90caf9",
+      "on-accent": "#0d47a1",
+      soft: "#173b5c",
+      border: "#424242",
+      control: "#b0bec5",
+    },
   },
   juniper: {
     light: {

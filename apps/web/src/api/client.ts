@@ -274,6 +274,7 @@ export function loginDestination(value: string | null): string {
   if (/^\/clinic\/patients\/\d+\/encounters\/\d+\/telehealth$/.test(value))
     return value;
   const exact = new Set([
+    "/owner",
     "/clinic",
     "/clinic/chart-selection",
     "/clinic/schedule",

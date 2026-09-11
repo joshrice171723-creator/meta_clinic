@@ -755,6 +755,21 @@
     "/api/materials(.:format)"
   ],
   [
+    "api_owner_activation",
+    "POST",
+    "/api/owner_activation(.:format)"
+  ],
+  [
+    "api_owner_clinics",
+    "POST",
+    "/api/owner/clinics(.:format)"
+  ],
+  [
+    "api_owner_command_center",
+    "GET",
+    "/api/owner/command_center(.:format)"
+  ],
+  [
     "api_paperwork",
     "GET",
     "/api/paperworks/:id(.:format)"

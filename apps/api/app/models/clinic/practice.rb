@@ -8,6 +8,8 @@ module Clinic
     has_many :pharmacy_products, class_name: "Clinic::Inventory::PharmacyProduct", dependent: :restrict_with_error
     has_many :items, class_name: "Clinic::Inventory::Item", dependent: :restrict_with_error
     has_many :staff_members, class_name: "Clinic::Staff::Member", dependent: :restrict_with_error
+    has_many :workforce_employee_invitations, class_name: "Clinic::Workforce::EmployeeInvitation",
+      dependent: :restrict_with_error
     has_many :sites, class_name: "Clinic::Site", dependent: :restrict_with_error
     has_many :rooms, class_name: "Clinic::Room", dependent: :restrict_with_error
     has_many :departments, class_name: "Clinic::Department", dependent: :restrict_with_error
