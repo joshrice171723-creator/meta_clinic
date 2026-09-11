@@ -1270,7 +1270,9 @@ export function SubscriptionCatalog() {
         maxWidth="sm"
         aria-labelledby="catalog-preview-title"
       >
-        <DialogTitle id="catalog-preview-title">Patient card preview</DialogTitle>
+        <DialogTitle id="catalog-preview-title">
+          Patient card preview
+        </DialogTitle>
         <DialogContent>
           {preview && (
             <ThemeProvider theme={membershipTheme}>

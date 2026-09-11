@@ -11,6 +11,9 @@ module Platform
       rescue_from Platform::CreateClinic::Unavailable do |error|
         render json: { error: error.message }, status: :unprocessable_entity
       end
+      rescue_from Platform::InviteClinicOwner::Unavailable do |error|
+        render json: { error: error.message }, status: :unprocessable_entity
+      end
 
       def show
         render json: command_center_payload
@@ -48,7 +51,29 @@ module Platform
         }, status: :created
       end
 
+      def invite_owner
+        input = parameter_hash!(:owner, %i[name email])
+        practice = Clinic::Practice.find(integer_id!(params[:id], field: :id))
+        result = Platform::InviteClinicOwner.call(actor: current_user, practice:,
+          owner_name: required_string!(input[:name], field: :name, maximum: 120),
+          owner_email: required_string!(input[:email], field: :email, maximum: 254))
+        invitation = result.fetch(:invitation)
+        render json: {
+          clinic: clinic_payload(practice.reload),
+          invitation: invitation_payload(invitation, result)
+        }, status: :created
+      end
+
       private
+
+      def invitation_payload(invitation, result)
+        {
+          email_address: invitation.email_address,
+          expires_at: invitation.expires_at.iso8601,
+          activation_path: result.fetch(:delivery_status) == "sent" ? nil : result.fetch(:activation_path),
+          delivery_status: result.fetch(:delivery_status)
+        }
+      end
 
       def command_center_payload
         organizations = Organization.includes(practices: [

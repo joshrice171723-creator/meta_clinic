@@ -6,6 +6,7 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
   setup do
     Rails.cache.clear
     ActionMailer::Base.deliveries.clear
+    Clinic::Authorization::PilotRoleCatalog.install!
     host! "localhost:3000"
     @admin = User.create!(email_address: "platform.owner@example.invalid", password: PASSWORD,
       active: true, admin: true, platform_owner: true)
@@ -36,6 +37,7 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_equal "Riverbend Health Group", practice.organization.name
     assert_equal "Riverbend Primary Care", practice.name
     assert_equal "America/Chicago", practice.timezone
+    assert_predicate practice, :platform_managed?
     assert_equal "Main clinic", practice.sites.find_by!(status: "active").name
     assert_predicate invitation, :pending?
     assert_equal @admin, invitation.invited_by_platform_user
@@ -43,15 +45,15 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_equal "morgan.reed@example.invalid", invitation.email_address
     assert_equal [ "morgan.reed@example.invalid" ], message.to
     assert_equal "Create your Meta Clinic password", message.subject
-    assert_includes text, "http://example.com/workforce/activate?token="
+    assert_includes text, "http://example.com/workforce/activate#token="
     assert_no_match(/^password:/i, text)
     assert_nil body.dig("invitation", "activation_path")
     assert_equal "sent", body.dig("invitation", "delivery_status")
     assert_equal "invited", body.dig("clinic", "state")
     assert_equal [ "morgan.reed@example.invalid" ], body.dig("clinic", "owner_invitations")
 
-    url = text[%r{http://example\.com/workforce/activate\?token=\S+}]
-    token = URI.decode_www_form(URI(url).query).to_h.fetch("token")
+    url = text[%r{http://example\.com/workforce/activate#token=\S+}]
+    token = URI.decode_www_form_component(URI(url).fragment.delete_prefix("token="))
     assert_difference -> { User.count }, 1 do
       post "/api/employee_activation", params: {
         employee_activation: { token:, password: PASSWORD, password_confirmation: PASSWORD }
@@ -218,8 +220,48 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     end
     assert_response :created
     assert_equal "failed", response.parsed_body.dig("invitation", "delivery_status")
-    assert_match(%r{\A/workforce/activate\?token=}, response.parsed_body.dig("invitation", "activation_path"))
+    assert_match(%r{\A/workforce/activate#token=}, response.parsed_body.dig("invitation", "activation_path"))
     assert_predicate Clinic::Workforce::EmployeeInvitation.last, :pending?
+  end
+
+  test "platform owner can invite an owner for an existing clinic" do
+    practice = Organization.create!(name: "Existing Group").practices.create!(
+      name: "Existing Clinic", timezone: "America/Chicago", platform_managed: true
+    )
+    practice.sites.create!(code: "MAIN", name: "Main clinic", status: "active")
+    sign_in(@admin)
+
+    assert_difference -> { Clinic::Workforce::EmployeeInvitation.count }, 1 do
+      post "/api/owner/clinics/#{practice.id}/owner_invitation", params: {
+        owner: { name: "Robin Garison", email: "r_garison25@yahoo.com" }
+      }, headers: csrf_headers, as: :json
+    end
+
+    assert_response :created
+    assert_equal "invited", response.parsed_body.dig("clinic", "state")
+    assert_equal "sent", response.parsed_body.dig("invitation", "delivery_status")
+    assert_equal [ "r_garison25@yahoo.com" ], ActionMailer::Base.deliveries.last.to
+  end
+
+  test "resending replaces the previous pending owner link" do
+    practice = Organization.create!(name: "Resend Group").practices.create!(
+      name: "Resend Clinic", timezone: "America/Chicago", platform_managed: true
+    )
+    practice.sites.create!(code: "MAIN", name: "Main clinic", status: "active")
+    sign_in(@admin)
+    params = { owner: { name: "Robin Garison", email: "robin@example.invalid" } }
+
+    post "/api/owner/clinics/#{practice.id}/owner_invitation", params:, headers: csrf_headers, as: :json
+    assert_response :created
+    original = practice.workforce_employee_invitations.pending.sole
+    original_digest = original.token_digest
+    post "/api/owner/clinics/#{practice.id}/owner_invitation", params:, headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_predicate original.reload, :pending?
+    refute_equal original_digest, original.token_digest
+    assert_equal 1, practice.workforce_employee_invitations.pending.count
+    assert_equal 2, ActionMailer::Base.deliveries.size
   end
 
   private

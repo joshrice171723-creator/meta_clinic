@@ -51,9 +51,11 @@ function enabledRequestTab(
   options: Record<string, boolean> | undefined,
   current: RequestTab,
 ) {
-  return requestTabs.find(
-    ([tab, option]) => tab === current && options?.[option],
-  )?.[0] ?? requestTabs.find(([, option]) => options?.[option])?.[0];
+  return (
+    requestTabs.find(
+      ([tab, option]) => tab === current && options?.[option],
+    )?.[0] ?? requestTabs.find(([, option]) => options?.[option])?.[0]
+  );
 }
 
 export function EmployeeRequestsPage() {

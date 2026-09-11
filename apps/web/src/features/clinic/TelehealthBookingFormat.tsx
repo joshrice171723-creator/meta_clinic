@@ -72,13 +72,20 @@ export function TelehealthBookingFormat({
           severity="warning"
           action={
             canConfigure ? (
-              <Button color="inherit" href="/clinic/settings/telehealth" size="small">
+              <Button
+                color="inherit"
+                href="/clinic/settings/telehealth"
+                size="small"
+              >
                 Open setup
               </Button>
             ) : undefined
           }
         >
-          Video visits are unavailable for this clinic. An authorized administrator must connect a video provider, publish the clinic policy, confirm provider health, and enable an eligible visit type. In-person scheduling is still available.
+          Video visits are unavailable for this clinic. An authorized
+          administrator must connect a video provider, publish the clinic
+          policy, confirm provider health, and enable an eligible visit type.
+          In-person scheduling is still available.
         </Alert>
       )}
       {videoAvailable && value === "video" && (

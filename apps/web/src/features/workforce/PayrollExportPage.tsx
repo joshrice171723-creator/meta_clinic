@@ -321,165 +321,170 @@ export function PayrollExportPage() {
               </Button>
             </Stack>
           )}
-          {canExport && <Stack
-            component="section"
-            spacing={2}
-            aria-label="Prepare payroll file"
-          >
-            <Typography variant="h6">Approved timecards</Typography>
-            <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2 }}>
-              <TextField
-                select
-                label="Configuration version"
-                value={configurationId}
-                onChange={(event) => {
-                  setConfigurationId(event.target.value);
-                  invalidatePreview();
-                }}
-                disabled={busy}
-                sx={{ minWidth: 240 }}
-              >
-                {data.configurations.map((configuration) => (
-                  <MenuItem
-                    key={configuration.id}
-                    value={configuration.id}
-                    disabled={
-                      new Date(configuration.effective_from) > businessNow()
-                    }
-                  >
-                    {configuration.name} · version {configuration.revision}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Correct a previous export"
-                value={supersedes}
-                onChange={(event) => {
-                  setSupersedes(event.target.value);
-                  invalidatePreview();
-                }}
-                disabled={busy}
-                sx={{ minWidth: 240 }}
-              >
-                <MenuItem value="">New export</MenuItem>
-                {data.batches.map((batch) => (
-                  <MenuItem key={batch.id} value={batch.id}>
-                    Export {batch.id} ·{" "}
-                    {new Date(batch.created_at).toLocaleDateString()}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Stack>
-            {!configurationId && (
-              <Alert severity="info">
-                Save file settings before preparing an export.
-              </Alert>
-            )}
-            {data.timecards.map((card) => (
-              <FormControlLabel
-                key={card.id}
-                control={
-                  <Checkbox
-                    disabled={busy}
-                    checked={selected.includes(card.id)}
-                    onChange={(event) => {
-                      setSelected((current) =>
-                        event.target.checked
-                          ? [...current, card.id]
-                          : current.filter((id) => id !== card.id),
-                      );
-                      invalidatePreview();
-                    }}
-                  />
-                }
-                label={`${data.employees.find((employee) => employee.id === card.employment_id)?.name || "Employee"} · ${card.period_start} to ${card.period_end} (end exclusive) · version ${card.version}`}
-              />
-            ))}
-            {!data.timecards.length && (
-              <Typography>
-                No approved timecards are available. Resolve exceptions and
-                approve hours in Timecards first.
-              </Typography>
-            )}
-            <Stack direction="row" sx={{ gap: 2 }}>
-              <Button
-                variant="outlined"
-                disabled={busy || !selected.length || !configurationId}
-                onClick={() => void generate(true)}
-              >
-                Preview export
-              </Button>
-              <Button
-                variant="contained"
-                disabled={busy || !preview}
-                onClick={() => void generate(false)}
-              >
-                Create export
-              </Button>
-            </Stack>
-            {preview && (
-              <Box>
+          {canExport && (
+            <Stack
+              component="section"
+              spacing={2}
+              aria-label="Prepare payroll file"
+            >
+              <Typography variant="h6">Approved timecards</Typography>
+              <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2 }}>
+                <TextField
+                  select
+                  label="Configuration version"
+                  value={configurationId}
+                  onChange={(event) => {
+                    setConfigurationId(event.target.value);
+                    invalidatePreview();
+                  }}
+                  disabled={busy}
+                  sx={{ minWidth: 240 }}
+                >
+                  {data.configurations.map((configuration) => (
+                    <MenuItem
+                      key={configuration.id}
+                      value={configuration.id}
+                      disabled={
+                        new Date(configuration.effective_from) > businessNow()
+                      }
+                    >
+                      {configuration.name} · version {configuration.revision}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Correct a previous export"
+                  value={supersedes}
+                  onChange={(event) => {
+                    setSupersedes(event.target.value);
+                    invalidatePreview();
+                  }}
+                  disabled={busy}
+                  sx={{ minWidth: 240 }}
+                >
+                  <MenuItem value="">New export</MenuItem>
+                  {data.batches.map((batch) => (
+                    <MenuItem key={batch.id} value={batch.id}>
+                      Export {batch.id} ·{" "}
+                      {new Date(batch.created_at).toLocaleDateString()}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
+              {!configurationId && (
+                <Alert severity="info">
+                  Save file settings before preparing an export.
+                </Alert>
+              )}
+              {data.timecards.map((card) => (
+                <FormControlLabel
+                  key={card.id}
+                  control={
+                    <Checkbox
+                      disabled={busy}
+                      checked={selected.includes(card.id)}
+                      onChange={(event) => {
+                        setSelected((current) =>
+                          event.target.checked
+                            ? [...current, card.id]
+                            : current.filter((id) => id !== card.id),
+                        );
+                        invalidatePreview();
+                      }}
+                    />
+                  }
+                  label={`${data.employees.find((employee) => employee.id === card.employment_id)?.name || "Employee"} · ${card.period_start} to ${card.period_end} (end exclusive) · version ${card.version}`}
+                />
+              ))}
+              {!data.timecards.length && (
                 <Typography>
-                  {preview.rows.length} rows · {preview.totals.paid_hours} paid
-                  hours · {preview.totals.overtime_hours} overtime hours
+                  No approved timecards are available. Resolve exceptions and
+                  approve hours in Timecards first.
                 </Typography>
-                <TableContainer>
-                  <Table size="small" aria-label="Payroll preview">
-                    <TableHead>
-                      <TableRow>
-                        {Object.keys(preview.rows[0] || {}).map((key) => (
-                          <TableCell key={key}>
-                            {key.replaceAll("_", " ")}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {preview.rows.slice(0, 25).map((row, index) => (
-                        <TableRow key={index}>
-                          {Object.entries(row).map(([key, value]) => (
-                            <TableCell key={key}>{value}</TableCell>
+              )}
+              <Stack direction="row" sx={{ gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  disabled={busy || !selected.length || !configurationId}
+                  onClick={() => void generate(true)}
+                >
+                  Preview export
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={busy || !preview}
+                  onClick={() => void generate(false)}
+                >
+                  Create export
+                </Button>
+              </Stack>
+              {preview && (
+                <Box>
+                  <Typography>
+                    {preview.rows.length} rows · {preview.totals.paid_hours}{" "}
+                    paid hours · {preview.totals.overtime_hours} overtime hours
+                  </Typography>
+                  <TableContainer>
+                    <Table size="small" aria-label="Payroll preview">
+                      <TableHead>
+                        <TableRow>
+                          {Object.keys(preview.rows[0] || {}).map((key) => (
+                            <TableCell key={key}>
+                              {key.replaceAll("_", " ")}
+                            </TableCell>
                           ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                {preview.rows.length > 25 && (
-                  <Typography>
-                    Showing the first 25 rows. All {preview.rows.length} rows
-                    are included in the file.
+                      </TableHead>
+                      <TableBody>
+                        {preview.rows.slice(0, 25).map((row, index) => (
+                          <TableRow key={index}>
+                            {Object.entries(row).map(([key, value]) => (
+                              <TableCell key={key}>{value}</TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  {preview.rows.length > 25 && (
+                    <Typography>
+                      Showing the first 25 rows. All {preview.rows.length} rows
+                      are included in the file.
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Stack>
+          )}
+          {canExport && (
+            <Stack component="section" spacing={1} aria-label="Export history">
+              <Typography variant="h6">Export history</Typography>
+              {data.batches.map((batch) => (
+                <Box
+                  key={batch.id}
+                  sx={{ borderBottom: 1, borderColor: "divider", py: 1 }}
+                >
+                  <Button component="a" href={batch.download_url}>
+                    Download export {batch.id}
+                  </Button>
+                  <Typography variant="body2" color="text.secondary">
+                    {new Date(batch.created_at).toLocaleString()} ·{" "}
+                    {batch.row_count} rows · {batch.totals.paid_hours} paid
+                    hours
+                    {batch.supersedes_batch_id
+                      ? ` · corrects export ${batch.supersedes_batch_id}`
+                      : ""}
                   </Typography>
-                )}
-              </Box>
-            )}
-          </Stack>}
-          {canExport && <Stack component="section" spacing={1} aria-label="Export history">
-            <Typography variant="h6">Export history</Typography>
-            {data.batches.map((batch) => (
-              <Box
-                key={batch.id}
-                sx={{ borderBottom: 1, borderColor: "divider", py: 1 }}
-              >
-                <Button component="a" href={batch.download_url}>
-                  Download export {batch.id}
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  {new Date(batch.created_at).toLocaleString()} ·{" "}
-                  {batch.row_count} rows · {batch.totals.paid_hours} paid hours
-                  {batch.supersedes_batch_id
-                    ? ` · corrects export ${batch.supersedes_batch_id}`
-                    : ""}
+                </Box>
+              ))}
+              {!data.batches.length && (
+                <Typography>
+                  No payroll files have been created for this location.
                 </Typography>
-              </Box>
-            ))}
-            {!data.batches.length && (
-              <Typography>
-                No payroll files have been created for this location.
-              </Typography>
-            )}
-          </Stack>}
+              )}
+            </Stack>
+          )}
         </>
       )}
     </Stack>

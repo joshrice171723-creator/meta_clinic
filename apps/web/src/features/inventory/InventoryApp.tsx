@@ -2865,10 +2865,12 @@ export function InventoryApp({ path }: { path: string }) {
             requestBody[key] = { ...nested, request_key: requestKey };
         }
       });
-      const payload = await api<{
-        data?: InventoryData;
-        acknowledged?: boolean;
-      } & InventoryMutationResult>(
+      const payload = await api<
+        {
+          data?: InventoryData;
+          acknowledged?: boolean;
+        } & InventoryMutationResult
+      >(
         [
           "lots",
           "purchasing",
@@ -3464,7 +3466,10 @@ export function CatalogScreen({
                   </td>
                   <td data-label="Status">
                     <Badge tone={item.low_stock ? "warning" : "success"}>
-                      {decimalCompare(item.available_units, item.reorder_point_units) < 0
+                      {decimalCompare(
+                        item.available_units,
+                        item.reorder_point_units,
+                      ) < 0
                         ? "Below reorder point"
                         : item.low_stock
                           ? "At reorder point"
@@ -6688,7 +6693,12 @@ function LotsScreen({
                 }
                 slotProps={{
                   htmlInput: {
-                    min: action === "count" ? 0 : action === "adjust" ? undefined : 1,
+                    min:
+                      action === "count"
+                        ? 0
+                        : action === "adjust"
+                          ? undefined
+                          : 1,
                     step: "any",
                   },
                 }}
@@ -6747,12 +6757,12 @@ function LotsScreen({
                     busy ||
                     (action === "transfer" &&
                       (blocked || !effectiveDestination)) ||
-                    ((action === "transfer" &&
+                    (action === "transfer" &&
                       decimalCompare(quantity || "0", "0") <= 0) ||
-                      (action === "adjust" &&
-                        decimalCompare(quantity || "0", "0") === 0) ||
-                      (action === "count" &&
-                        decimalCompare(quantity || "0", "0") < 0)) ||
+                    (action === "adjust" &&
+                      decimalCompare(quantity || "0", "0") === 0) ||
+                    (action === "count" &&
+                      decimalCompare(quantity || "0", "0") < 0) ||
                     !reason.trim() ||
                     !capability(
                       data,
@@ -6775,7 +6785,11 @@ function LotsScreen({
                   confirmationContent={
                     action === "adjust" ? (
                       <p>
-                        {selectedProduct.name}, lot {selectedLot.lot_number}, at {selectedLocation.name}: {decimalCompare(quantity || "0", "0") > 0 ? "+" : ""}{number(quantity || "0")} {selectedProduct.base_unit}. Reason: {reason.trim()}.
+                        {selectedProduct.name}, lot {selectedLot.lot_number}, at{" "}
+                        {selectedLocation.name}:{" "}
+                        {decimalCompare(quantity || "0", "0") > 0 ? "+" : ""}
+                        {number(quantity || "0")} {selectedProduct.base_unit}.
+                        Reason: {reason.trim()}.
                       </p>
                     ) : undefined
                   }

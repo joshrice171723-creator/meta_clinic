@@ -14,8 +14,11 @@ import { api } from "../../api/client";
 const activationTokenFromLocation = (() => {
   if (typeof window === "undefined") return "";
 
-  const token = new URLSearchParams(window.location.search).get("token") ?? "";
-  if (window.location.search)
+  const token =
+    new URLSearchParams(window.location.hash.slice(1)).get("token") ??
+    new URLSearchParams(window.location.search).get("token") ??
+    "";
+  if (window.location.search || window.location.hash)
     window.history.replaceState(
       window.history.state,
       "",

@@ -56,7 +56,9 @@ export function PatientBillingSupport() {
       );
       pendingAttempt.current = null;
       setContent("");
-      setMessage("Your billing support request has been sent to the clinic team.");
+      setMessage(
+        "Your billing support request has been sent to the clinic team.",
+      );
       requests.refresh();
     } catch (reason) {
       const unknown =
@@ -88,9 +90,9 @@ export function PatientBillingSupport() {
             Need billing help?
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Send a question about an invoice, payment, refund, or portal
-            billing access. The clinic team reviews requests here; this is not
-            emergency care or medical advice.
+            Send a question about an invoice, payment, refund, or portal billing
+            access. The clinic team reviews requests here; this is not emergency
+            care or medical advice.
           </Typography>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
@@ -124,7 +126,8 @@ export function PatientBillingSupport() {
         )}
         {requests.error && (
           <Alert severity="warning">
-            Your previous support-request status could not be loaded. {requests.error}
+            Your previous support-request status could not be loaded.{" "}
+            {requests.error}
           </Alert>
         )}
         {requests.data && (

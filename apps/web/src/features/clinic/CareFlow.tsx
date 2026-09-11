@@ -3444,9 +3444,7 @@ export function ProviderEncounterWorkflow({
         encounter={encounter}
         observations={observations}
         careSummary={
-          careSummaryState.status === "ready"
-            ? careSummaryState.summary
-            : null
+          careSummaryState.status === "ready" ? careSummaryState.summary : null
         }
       />
 
@@ -3674,10 +3672,12 @@ function VisitWrapUp({
   const [disposition, setDisposition] = useState<
     EncounterCompletionReview["disposition_code"] | ""
   >("");
-  const [instructionsStatus, setInstructionsStatus] =
-    useState<EncounterCompletionReview["instructions_status"] | "">("");
-  const [educationStatus, setEducationStatus] =
-    useState<EncounterCompletionReview["education_status"] | "">("");
+  const [instructionsStatus, setInstructionsStatus] = useState<
+    EncounterCompletionReview["instructions_status"] | ""
+  >("");
+  const [educationStatus, setEducationStatus] = useState<
+    EncounterCompletionReview["education_status"] | ""
+  >("");
   const [exceptionNote, setExceptionNote] = useState("");
   const [openWorkReviewed, setOpenWorkReviewed] = useState(false);
   const current = completed ?? encounter;
@@ -3685,11 +3685,11 @@ function VisitWrapUp({
   const evidence = completion?.evidence;
   const review = savedReview ?? completion?.completion_review ?? null;
   const formLocked = busy || closeState !== "idle";
-  const exceptionRequired = Boolean(disposition && instructionsStatus && educationStatus) && (
-    disposition !== "completed_as_planned" ||
-    instructionsStatus === "unable_to_complete" ||
-    educationStatus === "unable_to_complete"
-  );
+  const exceptionRequired =
+    Boolean(disposition && instructionsStatus && educationStatus) &&
+    (disposition !== "completed_as_planned" ||
+      instructionsStatus === "unable_to_complete" ||
+      educationStatus === "unable_to_complete");
 
   useEffect(() => {
     if (!completion || initializedEncounterRef.current === encounter.id) return;
@@ -3752,7 +3752,9 @@ function VisitWrapUp({
       return;
     }
     if (!disposition || !instructionsStatus || !educationStatus) {
-      setError("Choose the visit outcome, written-instruction status, and education status.");
+      setError(
+        "Choose the visit outcome, written-instruction status, and education status.",
+      );
       return;
     }
     if (!openWorkReviewed) {
@@ -4030,7 +4032,9 @@ function VisitWrapUp({
                   }
                   disabled={formLocked}
                 >
-                  <MenuItem value="" disabled>Choose an outcome</MenuItem>
+                  <MenuItem value="" disabled>
+                    Choose an outcome
+                  </MenuItem>
                   {completion.options.disposition_codes.map((value) => (
                     <MenuItem key={value} value={value}>
                       {COMPLETION_DISPOSITION_LABELS[value]}
@@ -4050,7 +4054,9 @@ function VisitWrapUp({
                   }
                   disabled={formLocked}
                 >
-                  <MenuItem value="" disabled>Choose an instruction status</MenuItem>
+                  <MenuItem value="" disabled>
+                    Choose an instruction status
+                  </MenuItem>
                   {completion.options.instructions_statuses.map((value) => (
                     <MenuItem key={value} value={value}>
                       {COMPLETION_INSTRUCTION_LABELS[value]}
@@ -4070,7 +4076,9 @@ function VisitWrapUp({
                   }
                   disabled={formLocked}
                 >
-                  <MenuItem value="" disabled>Choose an education status</MenuItem>
+                  <MenuItem value="" disabled>
+                    Choose an education status
+                  </MenuItem>
                   {completion.options.education_statuses.map((value) => (
                     <MenuItem key={value} value={value}>
                       {COMPLETION_EDUCATION_LABELS[value]}

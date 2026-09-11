@@ -91,6 +91,28 @@ module Clinic
         RoleVersion.includes(:permissions).where(role_code: role_codes)
           .order(:role_code, version: :desc, id: :desc).to_a.uniq(&:role_code)
       end
+
+      def self.install!
+        ApplicationRecord.transaction do
+          ApplicationRecord.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('clinic:pilot-role-catalog:v8', 0))"
+          )
+          DEFINITIONS.each do |role_code, definition|
+            role = RoleVersion.find_or_create_by!(role_code:, version: VERSION)
+            expected = definition.fetch(:permissions).sort
+            if role.permissions.exists?
+              actual = role.permissions.pluck(:action_code).sort
+              raise ActiveRecord::RecordInvalid, role unless actual == expected
+              next
+            end
+
+            expected.each do |action_code|
+              permission = Permission.find_or_create_by!(action_code:)
+              RoleVersionPermission.create!(role_version: role, permission:)
+            end
+          end
+        end
+      end
     end
   end
 end

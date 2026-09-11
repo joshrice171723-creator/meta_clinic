@@ -1,5 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { api } from "../../api/client";
 
 export function PatientPortalPassword() {
@@ -35,23 +42,34 @@ export function PatientPortalPassword() {
       setConfirmation("");
       setChanged(true);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to change your password.");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to change your password.",
+      );
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Paper component="section" variant="outlined" sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+    <Paper
+      component="section"
+      variant="outlined"
+      sx={{ p: { xs: 2.5, sm: 3.5 } }}
+    >
       <Stack component="form" spacing={2} onSubmit={submit}>
         <Typography variant="h2" component="h2">
           Password
         </Typography>
         <Typography color="text.secondary">
-          Changing your password signs out every other portal session and keeps this device signed in.
+          Changing your password signs out every other portal session and keeps
+          this device signed in.
         </Typography>
         {error && <Alert severity="error">{error}</Alert>}
-        {changed && <Alert severity="success">Your password was changed.</Alert>}
+        {changed && (
+          <Alert severity="success">Your password was changed.</Alert>
+        )}
         <TextField
           autoComplete="current-password"
           label="Current password"
@@ -81,7 +99,12 @@ export function PatientPortalPassword() {
           value={confirmation}
         />
         <Button
-          disabled={busy || currentPassword.length === 0 || password.length < 12 || confirmation.length < 12}
+          disabled={
+            busy ||
+            currentPassword.length === 0 ||
+            password.length < 12 ||
+            confirmation.length < 12
+          }
           sx={{ alignSelf: "flex-start" }}
           type="submit"
           variant="contained"

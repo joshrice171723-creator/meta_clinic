@@ -1,5 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { api } from "../../api/client";
 
 export function PatientPortalRecovery() {
@@ -37,13 +45,34 @@ export function PatientPortalRecovery() {
   };
 
   return (
-    <Box component="main" id="main" sx={{ minHeight: "100vh", bgcolor: "#f5f7f6", px: { xs: 2, sm: 4 }, py: { xs: 3, md: 8 } }}>
-      <Paper elevation={0} sx={{ maxWidth: 560, mx: "auto", p: { xs: 3, md: 5 }, border: "1px solid #d6e1dd", borderRadius: 3 }}>
+    <Box
+      component="main"
+      id="main"
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "#f5f7f6",
+        px: { xs: 2, sm: 4 },
+        py: { xs: 3, md: 8 },
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          maxWidth: 560,
+          mx: "auto",
+          p: { xs: 3, md: 5 },
+          border: "1px solid #d6e1dd",
+          borderRadius: 3,
+        }}
+      >
         <Stack component="form" spacing={2} onSubmit={submit}>
-          <Typography component="h1" variant="h4">Reset your password</Typography>
+          <Typography component="h1" variant="h4">
+            Reset your password
+          </Typography>
           <Typography color="text.secondary">
             Enter the email address associated with your patient portal account.
-            If the account and a mobile number on file match, we will text a secure recovery link.
+            If the account and a mobile number on file match, we will text a
+            secure recovery link.
           </Typography>
           {error && <Alert severity="error">{error}</Alert>}
           {message && <Alert severity="info">{message}</Alert>}
@@ -56,7 +85,11 @@ export function PatientPortalRecovery() {
             type="email"
             value={contact}
           />
-          <Button disabled={busy || !contact.trim()} type="submit" variant="contained">
+          <Button
+            disabled={busy || !contact.trim()}
+            type="submit"
+            variant="contained"
+          >
             {busy ? "Requesting recovery…" : "Text recovery link"}
           </Button>
           {recoveryPath && (

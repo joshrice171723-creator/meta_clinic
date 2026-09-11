@@ -183,7 +183,8 @@ export function ChartSelectionPage({
       <Card title="Most recent signed chart">
         <p>
           Patient: <strong>{patient.display_name}</strong>
-          {patientReferenceLabel(patient.reference) && ` · Reference: ${patientReferenceLabel(patient.reference)}`}
+          {patientReferenceLabel(patient.reference) &&
+            ` · Reference: ${patientReferenceLabel(patient.reference)}`}
         </p>
         {state.signedChart ? (
           <p>
@@ -215,7 +216,8 @@ export function ChartSelectionPage({
     <Card title="Select current chart">
       <p>
         Patient: <strong>{patient.display_name}</strong>
-        {patientReferenceLabel(patient.reference) && ` · Reference: ${patientReferenceLabel(patient.reference)}`}
+        {patientReferenceLabel(patient.reference) &&
+          ` · Reference: ${patientReferenceLabel(patient.reference)}`}
       </p>
       <p className="care-muted">
         Showing the {RECENT_ENCOUNTER_LIMIT} most recent encounter choices at

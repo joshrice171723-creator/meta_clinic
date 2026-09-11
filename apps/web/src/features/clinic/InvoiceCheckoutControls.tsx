@@ -35,16 +35,25 @@ function openHostedStripeCheckout(checkoutUrl: string) {
 }
 
 function unavailableMessage(reason: InvoiceOnlinePayment["reason"]) {
-  const messages: Record<NonNullable<InvoiceOnlinePayment["reason"]>, string> = {
+  const messages: Record<
+    NonNullable<InvoiceOnlinePayment["reason"]>,
+    string
+  > = {
     membership_managed: "This invoice is managed through membership billing.",
-    invoice_not_posted: "Post this invoice before collecting an online payment.",
+    invoice_not_posted:
+      "Post this invoice before collecting an online payment.",
     no_balance: "This invoice has no remaining balance to collect online.",
-    unsupported_currency: "Hosted online payment is currently available for USD invoices only.",
-    stripe_unavailable: "Hosted online payment is unavailable for this clinic right now.",
+    unsupported_currency:
+      "Hosted online payment is currently available for USD invoices only.",
+    stripe_unavailable:
+      "Hosted online payment is unavailable for this clinic right now.",
     checkout_active: "An online checkout is already active for this invoice.",
-    provider_reconciliation_required: "Refresh payment status before choosing another payment method.",
+    provider_reconciliation_required:
+      "Refresh payment status before choosing another payment method.",
   };
-  return reason ? messages[reason] : "Hosted online payment is unavailable for this invoice.";
+  return reason
+    ? messages[reason]
+    : "Hosted online payment is unavailable for this invoice.";
 }
 
 export function invoicePaymentReturnMarker(): "return" | "cancel" | null {
@@ -89,8 +98,9 @@ export function InvoiceCheckoutControls({
   const [busy, setBusy] = useState<CheckoutAction | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [confirmation, setConfirmation] =
-    useState<CheckoutConfirmation | null>(null);
+  const [confirmation, setConfirmation] = useState<CheckoutConfirmation | null>(
+    null,
+  );
   const startKey = useRef<string | undefined>(undefined);
   const cancelKey = useRef<string | undefined>(undefined);
   const recovery = useWorkingDraft<{
@@ -108,7 +118,8 @@ export function InvoiceCheckoutControls({
 
   useEffect(() => {
     const restored = recovery.restored;
-    if (!recovery.ready || !restored || restored.invoiceId !== invoiceId) return;
+    if (!recovery.ready || !restored || restored.invoiceId !== invoiceId)
+      return;
     if (["available", "paid", "unavailable"].includes(onlinePayment.state)) {
       void recovery.clear();
       return;
@@ -118,7 +129,13 @@ export function InvoiceCheckoutControls({
     setError(
       `A saved online payment ${restored.action} attempt was restored. Refresh payment status before retrying the same action.`,
     );
-  }, [invoiceId, onlinePayment.state, recovery.clear, recovery.ready, recovery.restored]);
+  }, [
+    invoiceId,
+    onlinePayment.state,
+    recovery.clear,
+    recovery.ready,
+    recovery.restored,
+  ]);
 
   useEffect(() => {
     setPayment(onlinePayment);
@@ -163,7 +180,9 @@ export function InvoiceCheckoutControls({
       }
       const result = await api<CheckoutEnvelope>(`${endpoint}/${action}`, {
         method: "POST",
-        ...(requestKey ? { body: { online_payment: { request_key: requestKey } } } : {}),
+        ...(requestKey
+          ? { body: { online_payment: { request_key: requestKey } } }
+          : {}),
       });
       setPayment(result.online_payment);
       if (
@@ -200,13 +219,19 @@ export function InvoiceCheckoutControls({
         );
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Online payment could not be updated.");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Online payment could not be updated.",
+      );
     } finally {
       setBusy(null);
     }
   };
 
-  const pending = ["processing", "needs_reconciliation"].includes(payment.state);
+  const pending = ["processing", "needs_reconciliation"].includes(
+    payment.state,
+  );
   const canStart =
     actionsEnabled && payment.state === "available" && payment.eligible;
   const canRefreshPaid =
@@ -299,7 +324,7 @@ export function InvoiceCheckoutControls({
             )}
           </Stack>
         )}
-        </Stack>
+      </Stack>
       <Dialog
         fullWidth
         maxWidth="sm"

@@ -570,11 +570,15 @@ export function EncounterFollowUpPanel({
               value={statusConfirmed ? status : ""}
               disabled={!canWrite || busy || pending || !recovery.ready}
               onChange={(event) => {
-                setStatus(event.target.value as Exclude<FollowUpStatus, "completed">);
+                setStatus(
+                  event.target.value as Exclude<FollowUpStatus, "completed">,
+                );
                 setStatusConfirmed(true);
               }}
             >
-              <MenuItem value="" disabled>Choose a disposition</MenuItem>
+              <MenuItem value="" disabled>
+                Choose a disposition
+              </MenuItem>
               <MenuItem value="not_required">No follow-up required</MenuItem>
               <MenuItem value="needed">Follow-up needed</MenuItem>
               <MenuItem value="arranged">Appointment arranged</MenuItem>

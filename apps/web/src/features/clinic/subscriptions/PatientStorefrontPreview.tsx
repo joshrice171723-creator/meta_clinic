@@ -1,4 +1,11 @@
-import { Box, Button, Chip, Stack, ThemeProvider, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Stack,
+  ThemeProvider,
+  Typography,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useResource, LoadState } from "../../../shared/ui";
 import { MembershipCatalog } from "../../patientPortal/MembershipCatalog";
@@ -32,9 +39,17 @@ export function PatientStorefrontPreview() {
           <Stack spacing={3} sx={{ maxWidth: 1200, mx: "auto" }}>
             <Stack
               direction={{ xs: "column", sm: "row" }}
-              sx={{ justifyContent: "space-between", gap: 2, alignItems: { sm: "center" } }}
+              sx={{
+                justifyContent: "space-between",
+                gap: 2,
+                alignItems: { sm: "center" },
+              }}
             >
-              <Button href="/clinic/subscriptions" startIcon={<ArrowBackIcon />} sx={{ alignSelf: "flex-start" }}>
+              <Button
+                href="/clinic/subscriptions"
+                startIcon={<ArrowBackIcon />}
+                sx={{ alignSelf: "flex-start" }}
+              >
                 Back to catalog
               </Button>
               <Chip label="Staff preview · published plans only" size="small" />
@@ -51,7 +66,12 @@ export function PatientStorefrontPreview() {
                   Your membership. Your wellbeing.
                 </Typography>
               </Box>
-              <Stack component="nav" aria-label="Patient portal preview" direction="row" sx={{ gap: { xs: 0.5, sm: 2 }, flexWrap: "wrap" }}>
+              <Stack
+                component="nav"
+                aria-label="Patient portal preview"
+                direction="row"
+                sx={{ gap: { xs: 0.5, sm: 2 }, flexWrap: "wrap" }}
+              >
                 <Button href="#memberships">Explore plans</Button>
                 <Button disabled>My memberships</Button>
                 <Button disabled>Billing</Button>
@@ -71,16 +91,45 @@ export function PatientStorefrontPreview() {
                 gap: 4,
               }}
             >
-              <Typography component="h1" sx={{ fontFamily: "Georgia, serif", fontSize: { xs: 42, sm: 56, md: 64 }, lineHeight: 1.05, letterSpacing: "-0.045em", maxWidth: 600 }}>
+              <Typography
+                component="h1"
+                sx={{
+                  fontFamily: "Georgia, serif",
+                  fontSize: { xs: 42, sm: 56, md: 64 },
+                  lineHeight: 1.05,
+                  letterSpacing: "-0.045em",
+                  maxWidth: 600,
+                }}
+              >
                 A little more care.
                 <br />
-                <Box component="span" sx={{ color: "#d9e6b8" }}>A lot more you.</Box>
+                <Box component="span" sx={{ color: "#d9e6b8" }}>
+                  A lot more you.
+                </Box>
               </Typography>
               <Box>
-                <Typography sx={{ color: "#e0e8de", fontSize: 18, lineHeight: 1.65, maxWidth: 380 }}>
-                  Make room for your wellbeing with a membership built around the services that matter to you.
+                <Typography
+                  sx={{
+                    color: "#e0e8de",
+                    fontSize: 18,
+                    lineHeight: 1.65,
+                    maxWidth: 380,
+                  }}
+                >
+                  Make room for your wellbeing with a membership built around
+                  the services that matter to you.
                 </Typography>
-                <Button href="#memberships" variant="contained" size="large" sx={{ mt: 3, bgcolor: "#d9e6b8", color: "#203f34", "&:hover": { bgcolor: "#e7efd1" } }}>
+                <Button
+                  href="#memberships"
+                  variant="contained"
+                  size="large"
+                  sx={{
+                    mt: 3,
+                    bgcolor: "#d9e6b8",
+                    color: "#203f34",
+                    "&:hover": { bgcolor: "#e7efd1" },
+                  }}
+                >
                   Find my membership
                 </Button>
                 <Typography variant="body2" sx={{ mt: 1.5, color: "#e0e8de" }}>

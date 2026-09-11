@@ -78,7 +78,9 @@ export function claimBoardIntake(
     `/api/clinic/encounters/${encounterId}/intake_ownership/claim`,
     {
       method: "POST",
-      body: { ownership: { request_key: requestKey, expected_token: expectedToken } },
+      body: {
+        ownership: { request_key: requestKey, expected_token: expectedToken },
+      },
     },
   );
 }
@@ -92,7 +94,9 @@ export function releaseBoardIntake(
     `/api/clinic/encounters/${encounterId}/intake_ownership/release`,
     {
       method: "POST",
-      body: { ownership: { request_key: requestKey, expected_token: expectedToken } },
+      body: {
+        ownership: { request_key: requestKey, expected_token: expectedToken },
+      },
     },
   );
 }
@@ -205,16 +209,18 @@ export function trackingBoardVisitToBoardVisit(
     stage:
       encounter?.status === "completed"
         ? "checkout"
-        : visit.nurse_workflow?.stage ??
+        : (visit.nurse_workflow?.stage ??
           (provider
             ? "clinician"
             : visit.intake_ownership?.state === "claimed"
               ? "intake"
-              : ["upcoming", "on_time", "late"].includes(visit.operational_state)
+              : ["upcoming", "on_time", "late"].includes(
+                    visit.operational_state,
+                  )
                 ? "scheduled"
                 : visit.operational_state === "waiting_room"
                   ? "waiting"
-                  : "unrecorded"),
+                  : "unrecorded")),
     locationId: locationRecord?.site_id
       ? `api-site-${locationRecord.site_id}`
       : "unassigned",

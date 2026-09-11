@@ -3,6 +3,7 @@ abort "Run provisioning as the database owner" unless ApplicationRecord.connecti
 password = File.read("/run/secrets/demo-password").strip
 abort "A strong generated password is required" if password.length < 32
 ApplicationRecord.transaction do
+  Clinic::Authorization::PilotRoleCatalog.install!
   Staging::DemoClinic.seed_authorization!
   user = User.find_by(email_address: Staging::DemoClinic::EMAIL)
   if user
@@ -12,4 +13,4 @@ ApplicationRecord.transaction do
   end
   Staging::DemoClinic.prepare!(user)
 end
-puts "Synthetic demo provisioned; credentials were not printed."
+puts "Staging workspace provisioned; credentials were not printed."

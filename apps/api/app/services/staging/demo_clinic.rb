@@ -1,8 +1,10 @@
 module Staging
   class DemoClinic
     EMAIL = "staging-demo-user@example.test".freeze
-    ORGANIZATION_NAME = "APPly Staging Demo Organization [Synthetic]".freeze
-    PRACTICE_NAME = "APPly Staging Demo Clinic [Synthetic]".freeze
+    ORGANIZATION_NAME = "Meta Clinic Organization".freeze
+    PRACTICE_NAME = "Meta Clinic".freeze
+    LEGACY_ORGANIZATION_NAME = "APPly Staging Demo Organization [Synthetic]".freeze
+    LEGACY_PRACTICE_NAME = "APPly Staging Demo Clinic [Synthetic]".freeze
     ROLE_CODE = "staging-demo-clinic-administrator".freeze
     PERMISSIONS = Development::TestClinic::DEFAULT_PERMISSIONS
 
@@ -48,11 +50,17 @@ module Staging
         if membership
           raise Unavailable, "Existing clinic assignment is not managed by this demo." unless
             membership.active? && managed_practice?(membership.practice)
+          normalize_names!(membership.practice)
         else
-          organization = Organization.find_or_create_by!(name: ORGANIZATION_NAME)
-          practice = organization.practices.find_or_create_by!(name: PRACTICE_NAME) do |record|
-            record.timezone = "America/Chicago"
-          end
+          organization = Organization.find_by(name: ORGANIZATION_NAME) ||
+            Organization.find_by(name: LEGACY_ORGANIZATION_NAME) || Organization.new(name: ORGANIZATION_NAME)
+          organization.name = ORGANIZATION_NAME
+          organization.save!
+          practice = organization.practices.find_by(name: PRACTICE_NAME) ||
+            organization.practices.find_by(name: LEGACY_PRACTICE_NAME) || organization.practices.new(name: PRACTICE_NAME)
+          practice.name = PRACTICE_NAME
+          practice.timezone = "America/Chicago" if practice.new_record?
+          practice.save!
           membership = Clinic::Membership.create!(practice: practice, user: user)
         end
 
@@ -68,9 +76,16 @@ module Staging
     private_class_method :identity?
 
     def self.managed_practice?(practice)
-      practice&.name == PRACTICE_NAME && practice.organization&.name == ORGANIZATION_NAME
+      [ PRACTICE_NAME, LEGACY_PRACTICE_NAME ].include?(practice&.name) &&
+        [ ORGANIZATION_NAME, LEGACY_ORGANIZATION_NAME ].include?(practice&.organization&.name)
     end
     private_class_method :managed_practice?
+
+    def self.normalize_names!(practice)
+      practice.organization.update!(name: ORGANIZATION_NAME) unless practice.organization.name == ORGANIZATION_NAME
+      practice.update!(name: PRACTICE_NAME) unless practice.name == PRACTICE_NAME
+    end
+    private_class_method :normalize_names!
 
     def self.lock_demo!
       ApplicationRecord.connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('apply:staging-demo-clinic:v1', 0))")
@@ -112,36 +127,40 @@ module Staging
       PaperTrail.request(whodunnit: user.id.to_s,
         controller_info: { causal_id: "staging-demo-clinic-seed-v1" }) do
         patients = [
-          [ "DEMO-001", "Avery Example [Synthetic]" ],
-          [ "DEMO-002", "Jordan Example [Synthetic]" ],
-          [ "DEMO-003", "Morgan Example [Synthetic]" ],
-          [ "DEMO-004", "Riley Example [Synthetic]" ]
+          [ "DEMO-001", "Avery Example" ],
+          [ "DEMO-002", "Jordan Example" ],
+          [ "DEMO-003", "Morgan Example" ],
+          [ "DEMO-004", "Riley Example" ]
         ].map do |reference, display_name|
-          practice.patients.find_or_create_by!(reference: reference) { |patient| patient.display_name = display_name }
+          practice.patients.find_or_initialize_by(reference: reference).tap do |patient|
+            patient.display_name = display_name
+            patient.save!
+          end
         end
         patients.each_with_index do |patient, index|
           patient.notes.create!(practice: practice, author: user,
-            body: "SYNTHETIC ONLY: demonstration note #{index + 1}; no clinical assertion or medical advice.") unless patient.notes.exists?
+            body: "Example chart note #{index + 1}; no clinical assertion or medical advice.") unless patient.notes.exists?
         end
 
         [
-          [ "SYN-OFFICE-001", "Synthetic printer paper", 5, 18, "10000000-0000-4000-8000-000000000001" ],
-          [ "SYN-OFFICE-002", "Synthetic file folders", 10, 24, "10000000-0000-4000-8000-000000000002" ],
-          [ "SYN-OFFICE-003", "Synthetic label rolls", 4, 9, "10000000-0000-4000-8000-000000000003" ]
+          [ "SYN-OFFICE-001", "Printer paper", 5, 18, "10000000-0000-4000-8000-000000000001" ],
+          [ "SYN-OFFICE-002", "File folders", 10, 24, "10000000-0000-4000-8000-000000000002" ],
+          [ "SYN-OFFICE-003", "Label rolls", 4, 9, "10000000-0000-4000-8000-000000000003" ]
         ].each do |sku, name, reorder_level, opening_quantity, request_key|
-          item = practice.items.find_or_create_by!(sku: sku) do |record|
-            record.name = name
-            record.reorder_level = reorder_level
-          end
-          item.adjust!(delta: opening_quantity, reason: "Synthetic demo opening stock", actor: user,
+          item = practice.items.find_or_initialize_by(sku: sku)
+          item.assign_attributes(name:, reorder_level:)
+          item.save!
+          item.adjust!(delta: opening_quantity, reason: "Opening stock", actor: user,
             request_key: request_key) unless item.stock_movements.exists?(request_key: request_key)
         end
 
         [
-          [ "Alex Example [Synthetic]", "Clinic coordinator" ],
-          [ "Taylor Example [Synthetic]", "Medical assistant" ]
+          [ "Alex Example", "Clinic coordinator" ],
+          [ "Taylor Example", "Medical assistant" ]
         ].each do |display_name, job_title|
-          practice.staff_members.find_or_create_by!(job_title: job_title) { |record| record.display_name = display_name }
+          member = practice.staff_members.find_or_initialize_by(job_title: job_title)
+          member.display_name = display_name
+          member.save!
         end
       end
     end

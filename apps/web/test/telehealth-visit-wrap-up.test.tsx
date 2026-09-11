@@ -195,10 +195,7 @@ function mutation(next: TelehealthVisit, version: number) {
 }
 
 const baseProps = {
-  allowedActions: [
-    "telehealth.save_wrap_up",
-    "telehealth.finalize_wrap_up",
-  ],
+  allowedActions: ["telehealth.save_wrap_up", "telehealth.finalize_wrap_up"],
   onSaved: vi.fn(),
   onRefresh: vi.fn().mockResolvedValue(undefined),
   onReviewScribe: vi.fn(),
@@ -259,7 +256,9 @@ describe("visit wrap-up safeguards", () => {
     expect(byLabel(root, "Clinician wrap-up notes").props?.value).toBe(
       "Keep this local edit",
     );
-    expect(text(root)).toContain("The visit was updated while you were editing");
+    expect(text(root)).toContain(
+      "The visit was updated while you were editing",
+    );
     expect(button(root, "Save wrap-up draft").props?.disabled).toBe(true);
 
     (button(root, "Keep my edits").props?.onClick as () => void)();
@@ -272,14 +271,18 @@ describe("visit wrap-up safeguards", () => {
 
   it("does not navigate to the chart when saving fails", async () => {
     let root = render();
-    (byLabel(root, "Clinician wrap-up notes").props?.onChange as (
-      event: unknown,
-    ) => void)({ target: { value: "Unsaved note" } });
+    (
+      byLabel(root, "Clinician wrap-up notes").props?.onChange as (
+        event: unknown,
+      ) => void
+    )({ target: { value: "Unsaved note" } });
     root = render();
     api.saveVisitWrapUp.mockRejectedValueOnce(new Error("Save unavailable"));
 
-    await (button(root, "Save draft and open encounter").props?.onClick as () =>
-      Promise<void>)();
+    await (
+      button(root, "Save draft and open encounter").props
+        ?.onClick as () => Promise<void>
+    )();
     root = render();
 
     expect(navigation.navigate).not.toHaveBeenCalled();
@@ -290,22 +293,21 @@ describe("visit wrap-up safeguards", () => {
   });
 
   it("enables finalization only after save and current server permission", async () => {
-    let root = render(
-      visit(),
-      1,
-      ["telehealth.save_wrap_up"],
-    );
+    let root = render(visit(), 1, ["telehealth.save_wrap_up"]);
     expect(button(root, "Finalize wrap-up").props?.disabled).toBe(true);
-    (byLabel(root, "Clinician wrap-up notes").props?.onChange as (
-      event: unknown,
-    ) => void)({ target: { value: "Ready to save" } });
+    (
+      byLabel(root, "Clinician wrap-up notes").props?.onChange as (
+        event: unknown,
+      ) => void
+    )({ target: { value: "Ready to save" } });
     root = render();
     expect(button(root, "Finalize wrap-up").props?.disabled).toBe(true);
 
     const savedVisit = visit({ ...wrapUp(), clinician_notes: "Ready to save" });
     api.saveVisitWrapUp.mockResolvedValueOnce(mutation(savedVisit, 2));
-    await (button(root, "Save wrap-up draft").props?.onClick as () =>
-      Promise<void>)();
+    await (
+      button(root, "Save wrap-up draft").props?.onClick as () => Promise<void>
+    )();
     root = render(savedVisit, 2, ["telehealth.save_wrap_up"]);
     expect(button(root, "Finalize wrap-up").props?.disabled).toBe(true);
 
@@ -318,9 +320,11 @@ describe("visit wrap-up safeguards", () => {
 
   it("copies patient instructions from the selected signed revision", () => {
     let root = render();
-    (byLabel(root, "Signed patient instructions").props?.onChange as (
-      event: unknown,
-    ) => void)({ target: { value: "22" } });
+    (
+      byLabel(root, "Signed patient instructions").props?.onChange as (
+        event: unknown,
+      ) => void
+    )({ target: { value: "22" } });
     root = render();
 
     expect(byLabel(root, "Patient instructions").props?.value).toBe(

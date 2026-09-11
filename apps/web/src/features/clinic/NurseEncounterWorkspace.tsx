@@ -143,7 +143,12 @@ export function NurseEncounterWorkspace({
 
   if (!resource.data && !resource.error) {
     return (
-      <Paper id="nurse-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
+      <Paper
+        id="nurse-workspace"
+        tabIndex={-1}
+        variant="outlined"
+        sx={{ p: 2 }}
+      >
         <Stack
           direction="row"
           spacing={1.5}
@@ -158,7 +163,12 @@ export function NurseEncounterWorkspace({
   }
   if (!resource.data) {
     return (
-      <Paper id="nurse-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
+      <Paper
+        id="nurse-workspace"
+        tabIndex={-1}
+        variant="outlined"
+        sx={{ p: 2 }}
+      >
         <Alert
           severity="error"
           action={<Button onClick={resource.refresh}>Retry</Button>}

@@ -277,9 +277,7 @@ describe("patient telehealth completion", () => {
       }),
     ).map((node) => node.props.href);
     expect(unsafeLinks).not.toContain("javascript:alert(1)");
-    expect(unsafeLinks).toEqual([
-      "/patient-portal#appointments",
-    ]);
+    expect(unsafeLinks).toEqual(["/patient-portal#appointments"]);
   });
 
   it("surfaces refresh failure without claiming newer information was loaded", async () => {

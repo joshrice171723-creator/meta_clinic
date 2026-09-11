@@ -72,6 +72,20 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "staging permits active users assigned to a platform-managed clinic" do
+    practice = Clinic::Practice.create!(name: "Owner-created clinic", timezone: "America/Chicago", platform_managed: true)
+    Clinic::Membership.create!(practice:, user: @user)
+
+    deployed("staging") do
+      assert Clinic::DeploymentAccess.practice_enabled?(practice.id)
+      assert Clinic::DeploymentAccess.available_to?(@user)
+    end
+    deployed("production") do
+      refute Clinic::DeploymentAccess.practice_enabled?(practice.id)
+      refute Clinic::DeploymentAccess.available_to?(@user)
+    end
+  end
+
   test "only the managed staging demo identity receives the synthetic clinic workspace" do
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("staging") do

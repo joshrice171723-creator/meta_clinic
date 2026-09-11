@@ -1131,7 +1131,9 @@ export function PatientPortal({
                         </Stack>
                       </Paper>
 
-                      {context.capabilities.password_change && <PatientPortalPassword />}
+                      {context.capabilities.password_change && (
+                        <PatientPortalPassword />
+                      )}
 
                       <Box
                         component="section"

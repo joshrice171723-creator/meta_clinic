@@ -781,7 +781,9 @@ export function ScribeReviewWorkspace({
   ).length;
   // A revision that has already passed approval must not continue to advertise
   // historical generation warnings as outstanding review work.
-  const reviewItemCount = approved ? 0 : blockingReviewCount + draft.warnings.length;
+  const reviewItemCount = approved
+    ? 0
+    : blockingReviewCount + draft.warnings.length;
   const saveState = pendingAction?.startsWith("review:")
     ? "Saving…"
     : hasUnsavedEdits

@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   get "owner/command_center", to: "platform/api/command_center#show"
   post "owner/clinics", to: "platform/api/command_center#create"
+  post "owner/clinics/:id/owner_invitation", to: "platform/api/command_center#invite_owner"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"

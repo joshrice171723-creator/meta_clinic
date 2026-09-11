@@ -80,6 +80,11 @@ export function OwnerCommandCenter() {
   const [saveError, setSaveError] = useState("");
   const [invitation, setInvitation] = useState<CreatedInvitation | null>(null);
   const [copied, setCopied] = useState(false);
+  const [inviteClinic, setInviteClinic] = useState<ClinicSummary | null>(null);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviting, setInviting] = useState(false);
 
   const clinicCount = useMemo(
     () =>
@@ -165,6 +170,50 @@ export function OwnerCommandCenter() {
       setCopied(true);
     } catch {
       setCopied(false);
+    }
+  };
+
+  const openOwnerInvitation = (clinic: ClinicSummary) => {
+    setInviteClinic(clinic);
+    setInviteName("");
+    setInviteEmail(clinic.owner_invitations[0] ?? "");
+    setInviteError("");
+  };
+
+  const closeOwnerInvitation = () => {
+    if (inviting) return;
+    setInviteClinic(null);
+    setInviteError("");
+  };
+
+  const submitOwnerInvitation = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!inviteClinic) return;
+    setInviting(true);
+    setInviteError("");
+    setInvitation(null);
+    setCopied(false);
+    try {
+      const result = await api<{
+        clinic: ClinicSummary;
+        invitation: CreatedInvitation;
+      }>(`/api/owner/clinics/${inviteClinic.id}/owner_invitation`, {
+        method: "POST",
+        body: { owner: { name: inviteName, email: inviteEmail } },
+      });
+      setInvitation(result.invitation);
+      setInviteClinic(null);
+      setInviteName("");
+      setInviteEmail("");
+      refresh();
+    } catch (reason) {
+      setInviteError(
+        reason instanceof Error
+          ? reason.message
+          : "The owner invitation could not be sent.",
+      );
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -308,7 +357,10 @@ export function OwnerCommandCenter() {
                 </Typography>
               </Box>
               <Divider />
-              <ClinicTable clinics={organization.clinics} />
+              <ClinicTable
+                clinics={organization.clinics}
+                onInviteOwner={openOwnerInvitation}
+              />
             </Paper>
           ))}
           {data.unassigned_clinics.length > 0 && (
@@ -319,7 +371,10 @@ export function OwnerCommandCenter() {
                 </Typography>
               </Box>
               <Divider />
-              <ClinicTable clinics={data.unassigned_clinics} />
+              <ClinicTable
+                clinics={data.unassigned_clinics}
+                onInviteOwner={openOwnerInvitation}
+              />
             </Paper>
           )}
         </Stack>
@@ -410,11 +465,67 @@ export function OwnerCommandCenter() {
           </DialogActions>
         </Stack>
       </Dialog>
+
+      <Dialog
+        open={Boolean(inviteClinic)}
+        onClose={closeOwnerInvitation}
+        fullWidth
+        maxWidth="sm"
+      >
+        <Stack component="form" onSubmit={submitOwnerInvitation}>
+          <DialogTitle>
+            {inviteClinic?.state === "invited"
+              ? "Send a new owner invitation"
+              : "Invite clinic owner"}
+          </DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2.25} sx={{ pt: 0.5 }}>
+              {inviteError && <Alert severity="error">{inviteError}</Alert>}
+              <Typography color="text.secondary">
+                {inviteClinic?.name}. Any previous pending owner link for this
+                clinic will stop working.
+              </Typography>
+              <TextField
+                label="Owner name"
+                value={inviteName}
+                onChange={(event) => setInviteName(event.target.value)}
+                required
+                autoFocus
+                slotProps={{ htmlInput: { maxLength: 120 } }}
+              />
+              <TextField
+                label="Owner email"
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                required
+                autoComplete="off"
+                slotProps={{ htmlInput: { maxLength: 254 } }}
+                helperText="The owner will receive a private link to create their password."
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={closeOwnerInvitation} disabled={inviting}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" disabled={inviting}>
+              {inviting ? "Sending…" : "Send invitation"}
+            </Button>
+          </DialogActions>
+        </Stack>
+      </Dialog>
     </Stack>
   );
 }
 
-function ClinicTable({ clinics }: { clinics: ClinicSummary[] }) {
+function ClinicTable({
+  clinics,
+  onInviteOwner,
+}: {
+  clinics: ClinicSummary[];
+  onInviteOwner: (clinic: ClinicSummary) => void;
+}) {
   if (clinics.length === 0)
     return (
       <Typography color="text.secondary" sx={{ px: 2.5, py: 3 }}>
@@ -432,6 +543,7 @@ function ClinicTable({ clinics }: { clinics: ClinicSummary[] }) {
             <TableCell>Members</TableCell>
             <TableCell>Timezone</TableCell>
             <TableCell>Status</TableCell>
+            <TableCell align="right">Action</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -468,6 +580,19 @@ function ClinicTable({ clinics }: { clinics: ClinicSummary[] }) {
                         : "Needs owner"
                   }
                 />
+              </TableCell>
+              <TableCell align="right">
+                {clinic.state !== "ready" && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => onInviteOwner(clinic)}
+                  >
+                    {clinic.state === "invited"
+                      ? "Resend invitation"
+                      : "Invite owner"}
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}

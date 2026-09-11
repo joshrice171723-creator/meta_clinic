@@ -99,10 +99,21 @@ const RESOURCE_META: Record<
       instructions: "",
       completion_exception: "",
     },
-    statuses: ["draft", "authorized", "on_hold", "completed", "cancelled", "entered_in_error"],
+    statuses: [
+      "draft",
+      "authorized",
+      "on_hold",
+      "completed",
+      "cancelled",
+      "entered_in_error",
+    ],
     fields: [
       { name: "medication_name", label: "Medication name", required: true },
-      { name: "intent", label: "Intent", options: ["proposal", "plan", "order"] },
+      {
+        name: "intent",
+        label: "Intent",
+        options: ["proposal", "plan", "order"],
+      },
       { name: "dose_value", label: "Dose amount" },
       { name: "dose_unit_code", label: "Dose unit", options: [] },
       { name: "route_code", label: "Route", options: [] },
@@ -114,7 +125,14 @@ const RESOURCE_META: Record<
       {
         name: "transmission_state",
         label: "Pharmacy transmission",
-        options: ["not_requested", "pending", "accepted", "rejected", "failed", "unknown"],
+        options: [
+          "not_requested",
+          "pending",
+          "accepted",
+          "rejected",
+          "failed",
+          "unknown",
+        ],
       },
     ],
   },
@@ -135,16 +153,38 @@ const RESOURCE_META: Record<
       due_at: "",
       completion_exception: "",
     },
-    statuses: ["draft", "active", "on_hold", "completed", "cancelled", "entered_in_error"],
+    statuses: [
+      "draft",
+      "active",
+      "on_hold",
+      "completed",
+      "cancelled",
+      "entered_in_error",
+    ],
     fields: [
       {
         name: "request_kind",
         label: "Request type",
-        options: ["lab", "imaging", "procedure", "referral", "therapy", "other"],
+        options: [
+          "lab",
+          "imaging",
+          "procedure",
+          "referral",
+          "therapy",
+          "other",
+        ],
       },
       { name: "requested_display", label: "Requested service", required: true },
-      { name: "intent", label: "Intent", options: ["proposal", "plan", "order"] },
-      { name: "priority", label: "Recorded priority", options: ["routine", "urgent", "asap", "stat"] },
+      {
+        name: "intent",
+        label: "Intent",
+        options: ["proposal", "plan", "order"],
+      },
+      {
+        name: "priority",
+        label: "Recorded priority",
+        options: ["routine", "urgent", "asap", "stat"],
+      },
       { name: "destination", label: "Destination" },
       { name: "reason_text", label: "Reason", multiline: true },
       { name: "requested_code_system", label: "Code system" },
@@ -164,7 +204,14 @@ const RESOURCE_META: Record<
       diagnosis_code: "",
       clinical_note: "",
     },
-    statuses: ["draft", "provisional", "confirmed", "refuted", "resolved", "entered_in_error"],
+    statuses: [
+      "draft",
+      "provisional",
+      "confirmed",
+      "refuted",
+      "resolved",
+      "entered_in_error",
+    ],
     fields: [
       { name: "diagnosis_display", label: "Diagnosis", required: true },
       {
@@ -192,7 +239,13 @@ const RESOURCE_META: Record<
       complication_text: "",
       service_request_revision_id: "",
     },
-    statuses: ["planned", "in_progress", "completed", "not_done", "entered_in_error"],
+    statuses: [
+      "planned",
+      "in_progress",
+      "completed",
+      "not_done",
+      "entered_in_error",
+    ],
     fields: [
       { name: "procedure_display", label: "Procedure", required: true },
       { name: "code_system", label: "Code system" },
@@ -202,17 +255,40 @@ const RESOURCE_META: Record<
       {
         name: "complication_state",
         label: "Complications",
-        options: ["not_assessed", "none_reported", "known", "unknown", "unable_to_obtain"],
+        options: [
+          "not_assessed",
+          "none_reported",
+          "known",
+          "unknown",
+          "unable_to_obtain",
+        ],
       },
-      { name: "complication_text", label: "Complication details", multiline: true },
+      {
+        name: "complication_text",
+        label: "Complication details",
+        multiline: true,
+      },
     ],
   },
   care_plans: {
     label: "Care plans",
     singular: "care plan",
     root: "care_plan",
-    initial: { status: "draft", title: "", description: "", starts_on: "", ends_on: "" },
-    statuses: ["draft", "active", "on_hold", "completed", "cancelled", "entered_in_error"],
+    initial: {
+      status: "draft",
+      title: "",
+      description: "",
+      starts_on: "",
+      ends_on: "",
+    },
+    statuses: [
+      "draft",
+      "active",
+      "on_hold",
+      "completed",
+      "cancelled",
+      "entered_in_error",
+    ],
     fields: [
       { name: "title", label: "Plan title", required: true },
       { name: "description", label: "Plan details", multiline: true },
@@ -224,8 +300,21 @@ const RESOURCE_META: Record<
     label: "Goals",
     singular: "care goal",
     root: "care_goal",
-    initial: { status: "proposed", care_plan_revision_id: "", description: "", outcome_text: "", target_on: "" },
-    statuses: ["proposed", "active", "achieved", "not_achieved", "cancelled", "entered_in_error"],
+    initial: {
+      status: "proposed",
+      care_plan_revision_id: "",
+      description: "",
+      outcome_text: "",
+      target_on: "",
+    },
+    statuses: [
+      "proposed",
+      "active",
+      "achieved",
+      "not_achieved",
+      "cancelled",
+      "entered_in_error",
+    ],
     fields: [
       { name: "description", label: "Goal", required: true, multiline: true },
       { name: "target_on", label: "Target date", type: "date" },
@@ -260,11 +349,20 @@ const RESOURCE_META: Record<
       { name: "dose_text", label: "Dose" },
       { name: "route_text", label: "Route" },
       { name: "administration_site_text", label: "Administration site" },
-      { name: "administered_at", label: "Administered at", type: "datetime-local" },
+      {
+        name: "administered_at",
+        label: "Administered at",
+        type: "datetime-local",
+      },
       {
         name: "occurrence_source",
         label: "Information source",
-        options: ["administered_here", "patient_reported", "external_record", "registry"],
+        options: [
+          "administered_here",
+          "patient_reported",
+          "external_record",
+          "registry",
+        ],
       },
       { name: "refusal_reason", label: "Not-given reason", multiline: true },
     ],
@@ -286,12 +384,25 @@ const RESOURCE_META: Record<
     },
     statuses: ["in_progress", "completed", "entered_in_error"],
     fields: [
-      { name: "category", label: "Assessment category", required: true, options: [] },
+      {
+        name: "category",
+        label: "Assessment category",
+        required: true,
+        options: [],
+      },
       { name: "instrument_name", label: "Instrument name", required: true },
       { name: "instrument_version", label: "Instrument version" },
       { name: "score_value", label: "Recorded score" },
-      { name: "interpretation", label: "Recorded interpretation", multiline: true },
-      { name: "response_summary", label: "Responses and observations", multiline: true },
+      {
+        name: "interpretation",
+        label: "Recorded interpretation",
+        multiline: true,
+      },
+      {
+        name: "response_summary",
+        label: "Responses and observations",
+        multiline: true,
+      },
       { name: "follow_up_plan", label: "Follow-up plan", multiline: true },
       { name: "assessed_at", label: "Assessed at", type: "datetime-local" },
     ],
@@ -299,24 +410,36 @@ const RESOURCE_META: Record<
 };
 
 function humanize(value: string) {
-  return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase());
+  return value
+    .replaceAll("_", " ")
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 function recordTitle(kind: ResourceKind, record: ClinicalRecord) {
-  if (kind === "medication_requests") return (record as MedicationRequestRevision).medication_name;
-  if (kind === "service_requests") return (record as ServiceRequestRevision).requested_display;
-  if (kind === "diagnoses") return (record as EncounterDiagnosisRevision).diagnosis_display;
-  if (kind === "procedures") return (record as ProcedureRevision).procedure_display;
+  if (kind === "medication_requests")
+    return (record as MedicationRequestRevision).medication_name;
+  if (kind === "service_requests")
+    return (record as ServiceRequestRevision).requested_display;
+  if (kind === "diagnoses")
+    return (record as EncounterDiagnosisRevision).diagnosis_display;
+  if (kind === "procedures")
+    return (record as ProcedureRevision).procedure_display;
   if (kind === "care_plans") return (record as CarePlanRevision).title;
   if (kind === "care_goals") return (record as CareGoalRevision).description;
-  if (kind === "immunizations") return (record as ImmunizationRevision).vaccine_name;
+  if (kind === "immunizations")
+    return (record as ImmunizationRevision).vaccine_name;
   return (record as AssessmentRevision).instrument_name;
 }
 
 function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
   if (kind === "medication_requests") {
     const value = record as MedicationRequestRevision;
-    return [value.dose_text, value.route_text, value.frequency_text, `Transmission: ${humanize(value.transmission_state)}`]
+    return [
+      value.dose_text,
+      value.route_text,
+      value.frequency_text,
+      `Transmission: ${humanize(value.transmission_state)}`,
+    ]
       .filter(Boolean)
       .join(" · ");
   }
@@ -334,25 +457,38 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
   }
   if (kind === "care_plans") {
     const value = record as CarePlanRevision;
-    return [value.starts_on && `Starts ${value.starts_on}`, value.ends_on && `Review ${value.ends_on}`]
+    return [
+      value.starts_on && `Starts ${value.starts_on}`,
+      value.ends_on && `Review ${value.ends_on}`,
+    ]
       .filter(Boolean)
       .join(" · ");
   }
   if (kind === "care_goals") {
     const value = record as CareGoalRevision;
-    return value.target_on ? `Target ${value.target_on}` : "No target date recorded";
+    return value.target_on
+      ? `Target ${value.target_on}`
+      : "No target date recorded";
   }
   if (kind === "immunizations") {
     const value = record as ImmunizationRevision;
     return [
       humanize(value.occurrence_source),
-      value.administered_at && new Date(value.administered_at).toLocaleDateString(),
+      value.administered_at &&
+        new Date(value.administered_at).toLocaleDateString(),
       value.lot_number && `Lot ${value.lot_number}`,
-    ].filter(Boolean).join(" · ");
+    ]
+      .filter(Boolean)
+      .join(" · ");
   }
   const value = record as AssessmentRevision;
-  return [humanize(value.category), value.score_value && `Score ${value.score_value}`,
-    value.assessed_at && new Date(value.assessed_at).toLocaleDateString()].filter(Boolean).join(" · ");
+  return [
+    humanize(value.category),
+    value.score_value && `Score ${value.score_value}`,
+    value.assessed_at && new Date(value.assessed_at).toLocaleDateString(),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function recordForm(kind: ResourceKind, record: ClinicalRecord): FormState {
@@ -377,18 +513,27 @@ export function ClinicalPlanWorkspace({
   const clinic = useClinic();
   const { registerBlocker } = useClinicNavigation();
   const base = `/api/clinic/patients/${patient.id}/encounters/${encounter.id}`;
-  const workspace = useResource<ClinicalPlanWorkspaceContract>(`${base}/clinical_plan_workspace`, {
-    retainDataOnRefresh: true,
-  });
+  const workspace = useResource<ClinicalPlanWorkspaceContract>(
+    `${base}/clinical_plan_workspace`,
+    {
+      retainDataOnRefresh: true,
+    },
+  );
   const [kind, setKind] = useState<ResourceKind>("medication_requests");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ClinicalRecord | null>(null);
-  const [form, setForm] = useState<FormState>(RESOURCE_META.medication_requests.initial);
-  const [baseline, setBaseline] = useState<FormState>(RESOURCE_META.medication_requests.initial);
+  const [form, setForm] = useState<FormState>(
+    RESOURCE_META.medication_requests.initial,
+  );
+  const [baseline, setBaseline] = useState<FormState>(
+    RESOURCE_META.medication_requests.initial,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [pendingAttempt, setPendingAttempt] = useState<PendingAttempt | null>(null);
+  const [pendingAttempt, setPendingAttempt] = useState<PendingAttempt | null>(
+    null,
+  );
   const dirty = dialogOpen && JSON.stringify(form) !== JSON.stringify(baseline);
   const meta = RESOURCE_META[kind];
   const records = workspace.data?.records[kind] ?? [];
@@ -398,8 +543,10 @@ export function ClinicalPlanWorkspace({
   useEffect(
     () =>
       registerBlocker(() => {
-        if (pendingAttempt) return "A clinical record outcome is unknown. Reconcile or retry it before leaving.";
-        if (dirty) return "Unsaved clinical record changes will be lost. Leave this chart?";
+        if (pendingAttempt)
+          return "A clinical record outcome is unknown. Reconcile or retry it before leaving.";
+        if (dirty)
+          return "Unsaved clinical record changes will be lost. Leave this chart?";
         return null;
       }),
     [dirty, pendingAttempt, registerBlocker],
@@ -419,10 +566,14 @@ export function ClinicalPlanWorkspace({
     if (nextKind === "assessments" && workspace.data?.assessment_scope[0]) {
       initial.category = workspace.data.assessment_scope[0];
     }
-    if (nextKind === "care_goals" && carePlans[0]) initial.care_plan_revision_id = String(carePlans[0].id);
+    if (nextKind === "care_goals" && carePlans[0])
+      initial.care_plan_revision_id = String(carePlans[0].id);
     if (nextKind === "procedures") {
-      const linkedRequest = serviceRequests.find((request) => request.request_kind === "procedure");
-      if (linkedRequest) initial.service_request_revision_id = String(linkedRequest.id);
+      const linkedRequest = serviceRequests.find(
+        (request) => request.request_kind === "procedure",
+      );
+      if (linkedRequest)
+        initial.service_request_revision_id = String(linkedRequest.id);
     }
     setKind(nextKind);
     setEditing(null);
@@ -456,10 +607,14 @@ export function ClinicalPlanWorkspace({
         !returned ||
         returned.patient_id !== patient.id ||
         returned.encounter_id !== encounter.id ||
-        (attempt.seriesId !== null && returned.series_id !== attempt.seriesId) ||
-        (attempt.expectedVersion !== null && returned.version_number !== attempt.expectedVersion + 1)
+        (attempt.seriesId !== null &&
+          returned.series_id !== attempt.seriesId) ||
+        (attempt.expectedVersion !== null &&
+          returned.version_number !== attempt.expectedVersion + 1)
       ) {
-        throw new Error("The saved clinical record response did not match this patient and encounter.");
+        throw new Error(
+          "The saved clinical record response did not match this patient and encounter.",
+        );
       }
       setPendingAttempt(null);
       setDialogOpen(false);
@@ -467,7 +622,10 @@ export function ClinicalPlanWorkspace({
       setNotice(`${humanize(RESOURCE_META[attempt.kind].singular)} saved.`);
       workspace.refresh();
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : `Unable to save this ${meta.singular}.`;
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : `Unable to save this ${meta.singular}.`;
       setError(message);
       const outcomeUnknown =
         !(caught instanceof ApiError) ||
@@ -481,20 +639,32 @@ export function ClinicalPlanWorkspace({
   }
 
   function save() {
-    const requiredMissing = meta.fields.some((field) => field.required && !form[field.name]?.trim());
+    const requiredMissing = meta.fields.some(
+      (field) => field.required && !form[field.name]?.trim(),
+    );
     if (requiredMissing) {
       setError("Complete the required fields before saving.");
       return;
     }
-    if (kind === "assessments" && form.status === "completed" && (!form.assessed_at || !form.response_summary?.trim())) {
-      setError("Enter when the assessment was completed and record its responses or observations.");
+    if (
+      kind === "assessments" &&
+      form.status === "completed" &&
+      (!form.assessed_at || !form.response_summary?.trim())
+    ) {
+      setError(
+        "Enter when the assessment was completed and record its responses or observations.",
+      );
       return;
     }
     if (
-      kind === "immunizations" && form.status === "completed" &&
-      form.occurrence_source === "administered_here" && !form.medication_administration_id
+      kind === "immunizations" &&
+      form.status === "completed" &&
+      form.occurrence_source === "administered_here" &&
+      !form.medication_administration_id
     ) {
-      setError("Choose the completed medication administration that used clinic stock.");
+      setError(
+        "Choose the completed medication administration that used clinic stock.",
+      );
       return;
     }
     const payload = Object.fromEntries(
@@ -504,7 +674,9 @@ export function ClinicalPlanWorkspace({
       ]),
     );
     const requestKey = crypto.randomUUID();
-    const path = editing ? `${base}/${kind}/${editing.series_id}` : `${base}/${kind}`;
+    const path = editing
+      ? `${base}/${kind}/${editing.series_id}`
+      : `${base}/${kind}`;
     const body = {
       [meta.root]: {
         ...payload,
@@ -524,7 +696,12 @@ export function ClinicalPlanWorkspace({
 
   if (!workspace.data) {
     return (
-      <Paper id="clinical-plan-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
+      <Paper
+        id="clinical-plan-workspace"
+        tabIndex={-1}
+        variant="outlined"
+        sx={{ p: 2 }}
+      >
         <Typography component="h2" variant="subtitle2">
           Orders, diagnoses, procedures, care plans, and assessments
         </Typography>
@@ -532,7 +709,11 @@ export function ClinicalPlanWorkspace({
           {workspace.error ? workspace.error : "Loading clinical plan records…"}
         </Typography>
         {workspace.error && (
-          <Button size="small" sx={{ mt: 1 }} onClick={() => void workspace.refresh()}>
+          <Button
+            size="small"
+            sx={{ mt: 1 }}
+            onClick={() => void workspace.refresh()}
+          >
             Try again
           </Button>
         )}
@@ -542,24 +723,38 @@ export function ClinicalPlanWorkspace({
   const data = workspace.data;
 
   return (
-    <Paper id="clinical-plan-workspace" tabIndex={-1} variant="outlined" sx={{ p: 2 }}>
+    <Paper
+      id="clinical-plan-workspace"
+      tabIndex={-1}
+      variant="outlined"
+      sx={{ p: 2 }}
+    >
       <Stack spacing={2}>
         <Box>
           <Typography component="h2" variant="subtitle2">
             Orders, diagnoses, procedures, care plans, and assessments
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            Every save creates a new attributed revision. Recorded priority and status are not decision support.
+            Every save creates a new attributed revision. Recorded priority and
+            status are not decision support.
           </Typography>
         </Box>
         {notice && <Alert severity="success">{notice}</Alert>}
         {data.truncated[kind] && (
-          <Alert severity="info">Showing the 200 most recently recorded {meta.label.toLowerCase()}.</Alert>
+          <Alert severity="info">
+            Showing the 200 most recently recorded {meta.label.toLowerCase()}.
+          </Alert>
         )}
-        {error && <Alert severity={pendingAttempt ? "warning" : "error"}>{error}</Alert>}
+        {error && (
+          <Alert severity={pendingAttempt ? "warning" : "error"}>{error}</Alert>
+        )}
         {pendingAttempt && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button disabled={busy} variant="contained" onClick={() => void execute(pendingAttempt)}>
+            <Button
+              disabled={busy}
+              variant="contained"
+              onClick={() => void execute(pendingAttempt)}
+            >
               Retry exact request
             </Button>
             <Button disabled={busy} onClick={() => void workspace.refresh()}>
@@ -578,35 +773,58 @@ export function ClinicalPlanWorkspace({
           scrollButtons="auto"
           aria-label="Clinical plan record types"
         >
-          {(Object.keys(RESOURCE_META) as ResourceKind[]).map((resourceKind) => (
-            <Tab
-              key={resourceKind}
-              value={resourceKind}
-              label={`${RESOURCE_META[resourceKind].label} (${data.records[resourceKind].length})`}
-            />
-          ))}
+          {(Object.keys(RESOURCE_META) as ResourceKind[]).map(
+            (resourceKind) => (
+              <Tab
+                key={resourceKind}
+                value={resourceKind}
+                label={`${RESOURCE_META[resourceKind].label} (${data.records[resourceKind].length})`}
+              />
+            ),
+          )}
         </Tabs>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{ alignItems: { sm: "center" } }}
+        >
           <Button
             variant="contained"
-            disabled={!data.capabilities[kind] || pendingAttempt !== null || encounter.status !== "open" ||
-              (kind === "assessments" && data.assessment_scope.length === 0)}
+            disabled={
+              !data.capabilities[kind] ||
+              pendingAttempt !== null ||
+              encounter.status !== "open" ||
+              (kind === "assessments" && data.assessment_scope.length === 0)
+            }
             onClick={() => openCreate()}
           >
             Add {meta.singular}
           </Button>
           {Object.entries(statusCounts).map(([status, count]) => (
-            <Chip key={status} size="small" variant="outlined" label={`${humanize(status)} ${count}`} />
+            <Chip
+              key={status}
+              size="small"
+              variant="outlined"
+              label={`${humanize(status)} ${count}`}
+            />
           ))}
         </Stack>
         {kind === "care_goals" && carePlans.length === 0 && (
-          <Alert severity="info" action={<Button onClick={() => openCreate("care_plans")}>Create plan</Button>}>
+          <Alert
+            severity="info"
+            action={
+              <Button onClick={() => openCreate("care_plans")}>
+                Create plan
+              </Button>
+            }
+          >
             Create a care plan before adding a goal.
           </Alert>
         )}
         {kind === "assessments" && data.assessment_scope.length === 0 && (
           <Alert severity="info">
-            Enable the clinic-approved assessment categories in Clinic Setup before recording an assessment.
+            Enable the clinic-approved assessment categories in Clinic Setup
+            before recording an assessment.
           </Alert>
         )}
         {records.length === 0 ? (
@@ -617,20 +835,38 @@ export function ClinicalPlanWorkspace({
           <Stack spacing={1}>
             {records.map((record) => (
               <Paper key={record.series_id} variant="outlined" sx={{ p: 1.5 }}>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "space-between" }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  sx={{ justifyContent: "space-between" }}
+                >
                   <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: "center", flexWrap: "wrap" }}
+                    >
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>
                         {recordTitle(kind, record)}
                       </Typography>
                       <Chip size="small" label={humanize(record.status)} />
-                      <Chip size="small" variant="outlined" label={`Revision ${record.version_number}`} />
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={`Revision ${record.version_number}`}
+                      />
                     </Stack>
-                    <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-                      {recordDetails(kind, record) || "No additional details recorded"}
+                    <Typography
+                      color="text.secondary"
+                      variant="body2"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {recordDetails(kind, record) ||
+                        "No additional details recorded"}
                     </Typography>
                     <Typography color="text.secondary" variant="caption">
-                      Recorded {new Intl.DateTimeFormat(undefined, {
+                      Recorded{" "}
+                      {new Intl.DateTimeFormat(undefined, {
                         dateStyle: "medium",
                         timeStyle: "short",
                         timeZone: clinic.practice.timezone,
@@ -640,7 +876,11 @@ export function ClinicalPlanWorkspace({
                   <Button
                     size="small"
                     variant="outlined"
-                    disabled={!data.capabilities[kind] || pendingAttempt !== null || encounter.status !== "open"}
+                    disabled={
+                      !data.capabilities[kind] ||
+                      pendingAttempt !== null ||
+                      encounter.status !== "open"
+                    }
                     onClick={() => openEdit(record)}
                     sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
                   >
@@ -659,28 +899,47 @@ export function ClinicalPlanWorkspace({
         />
       </Stack>
 
-      <Dialog open={dialogOpen} onClose={() => !busy && !pendingAttempt && setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editing ? `Revise ${meta.singular}` : `Add ${meta.singular}`}</DialogTitle>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => !busy && !pendingAttempt && setDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {editing ? `Revise ${meta.singular}` : `Add ${meta.singular}`}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {editing ? (
               <FormControl fullWidth>
-                <InputLabel id="clinical-record-status-label">Status</InputLabel>
+                <InputLabel id="clinical-record-status-label">
+                  Status
+                </InputLabel>
                 <Select
                   labelId="clinical-record-status-label"
                   label="Status"
                   value={form.status ?? meta.initial.status}
-                  onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }
                 >
-                  {[editing.status, ...editing.allowed_statuses].map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {humanize(status)}
-                    </MenuItem>
-                  ))}
+                  {[editing.status, ...editing.allowed_statuses].map(
+                    (status) => (
+                      <MenuItem key={status} value={status}>
+                        {humanize(status)}
+                      </MenuItem>
+                    ),
+                  )}
                 </Select>
               </FormControl>
             ) : (
-              <Alert severity="info">This record starts as {humanize(meta.initial.status)} and changes through explicit revisions.</Alert>
+              <Alert severity="info">
+                This record starts as {humanize(meta.initial.status)} and
+                changes through explicit revisions.
+              </Alert>
             )}
             {kind === "care_goals" && (
               <FormControl fullWidth required>
@@ -690,7 +949,10 @@ export function ClinicalPlanWorkspace({
                   label="Care plan"
                   value={form.care_plan_revision_id ?? ""}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, care_plan_revision_id: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      care_plan_revision_id: event.target.value,
+                    }))
                   }
                 >
                   {carePlans.map((plan) => (
@@ -703,13 +965,18 @@ export function ClinicalPlanWorkspace({
             )}
             {kind === "procedures" && (
               <FormControl fullWidth>
-                <InputLabel id="procedure-request-label">Linked procedure order</InputLabel>
+                <InputLabel id="procedure-request-label">
+                  Linked procedure order
+                </InputLabel>
                 <Select
                   labelId="procedure-request-label"
                   label="Linked procedure order"
                   value={form.service_request_revision_id ?? ""}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, service_request_revision_id: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      service_request_revision_id: event.target.value,
+                    }))
                   }
                 >
                   <MenuItem value="">No linked order</MenuItem>
@@ -717,7 +984,8 @@ export function ClinicalPlanWorkspace({
                     .filter((request) => request.request_kind === "procedure")
                     .map((request) => (
                       <MenuItem key={request.id} value={String(request.id)}>
-                        {request.requested_display} · revision {request.version_number}
+                        {request.requested_display} · revision{" "}
+                        {request.version_number}
                       </MenuItem>
                     ))}
                 </Select>
@@ -726,9 +994,19 @@ export function ClinicalPlanWorkspace({
             {kind === "medication_requests" && (
               <Autocomplete
                 options={data.medication_products}
-                value={data.medication_products.find((product) => String(product.id) === form.inventory_product_id) ?? null}
+                value={
+                  data.medication_products.find(
+                    (product) =>
+                      String(product.id) === form.inventory_product_id,
+                  ) ?? null
+                }
                 getOptionLabel={(product) =>
-                  [product.name, product.generic_name, product.dosage_form, product.ndc && `NDC ${product.ndc}`]
+                  [
+                    product.name,
+                    product.generic_name,
+                    product.dosage_form,
+                    product.ndc && `NDC ${product.ndc}`,
+                  ]
                     .filter(Boolean)
                     .join(" · ")
                 }
@@ -749,61 +1027,102 @@ export function ClinicalPlanWorkspace({
                 )}
               />
             )}
-            {(kind === "medication_requests" || kind === "service_requests") && editing &&
+            {(kind === "medication_requests" || kind === "service_requests") &&
+              editing &&
               form.status === "completed" && (
-              <TextField
-                label="Completion exception"
-                helperText="Use only when the fulfillment record cannot be linked. Record what established completion."
-                multiline
-                minRows={2}
-                value={form.completion_exception ?? ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, completion_exception: event.target.value }))
-                }
-                fullWidth
-              />
-            )}
+                <TextField
+                  label="Completion exception"
+                  helperText="Use only when the fulfillment record cannot be linked. Record what established completion."
+                  multiline
+                  minRows={2}
+                  value={form.completion_exception ?? ""}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      completion_exception: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                />
+              )}
             {kind === "immunizations" && (
-              <FormControl fullWidth required={form.status === "completed" && form.occurrence_source === "administered_here"}>
-                <InputLabel id="immunization-administration-label">Clinic administration record</InputLabel>
+              <FormControl
+                fullWidth
+                required={
+                  form.status === "completed" &&
+                  form.occurrence_source === "administered_here"
+                }
+              >
+                <InputLabel id="immunization-administration-label">
+                  Clinic administration record
+                </InputLabel>
                 <Select
                   labelId="immunization-administration-label"
                   label="Clinic administration record"
                   value={form.medication_administration_id ?? ""}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, medication_administration_id: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      medication_administration_id: event.target.value,
+                    }))
                   }
                 >
                   <MenuItem value="">No clinic administration record</MenuItem>
-                  {data.available_link_targets.medication_administration.map((administration) => (
-                    <MenuItem key={administration.id} value={String(administration.id)}>
-                      {administration.label}
-                    </MenuItem>
-                  ))}
+                  {data.available_link_targets.medication_administration.map(
+                    (administration) => (
+                      <MenuItem
+                        key={administration.id}
+                        value={String(administration.id)}
+                      >
+                        {administration.label}
+                      </MenuItem>
+                    ),
+                  )}
                 </Select>
               </FormControl>
             )}
             {meta.fields.map((field) => {
-              const dynamicOptions = kind === "medication_requests" && field.name === "dose_unit_code"
-                ? data.medication_order_options.dose_units
-                : kind === "medication_requests" && field.name === "route_code"
-                  ? data.medication_order_options.routes
-                  : kind === "assessments" && field.name === "category"
-                    ? data.assessment_scope.map((code) => ({ code, label: humanize(code) }))
-                  : null;
+              const dynamicOptions =
+                kind === "medication_requests" &&
+                field.name === "dose_unit_code"
+                  ? data.medication_order_options.dose_units
+                  : kind === "medication_requests" &&
+                      field.name === "route_code"
+                    ? data.medication_order_options.routes
+                    : kind === "assessments" && field.name === "category"
+                      ? data.assessment_scope.map((code) => ({
+                          code,
+                          label: humanize(code),
+                        }))
+                      : null;
               return field.options || dynamicOptions ? (
-                <FormControl key={field.name} fullWidth required={field.required}>
-                  <InputLabel id={`clinical-${field.name}-label`}>{field.label}</InputLabel>
+                <FormControl
+                  key={field.name}
+                  fullWidth
+                  required={field.required}
+                >
+                  <InputLabel id={`clinical-${field.name}-label`}>
+                    {field.label}
+                  </InputLabel>
                   <Select
                     labelId={`clinical-${field.name}-label`}
                     label={field.label}
                     value={form[field.name] ?? ""}
                     onChange={(event) =>
-                      setForm((current) => ({ ...current, [field.name]: event.target.value }))
+                      setForm((current) => ({
+                        ...current,
+                        [field.name]: event.target.value,
+                      }))
                     }
                   >
-                    {(dynamicOptions ?? field.options?.map((option) => ({ code: option, label: humanize(option) })) ?? [])
-                      .map((option) => (
+                    {(
+                      dynamicOptions ??
+                      field.options?.map((option) => ({
+                        code: option,
+                        label: humanize(option),
+                      })) ??
+                      []
+                    ).map((option) => (
                       <MenuItem key={option.code} value={option.code}>
                         {option.label}
                       </MenuItem>
@@ -820,42 +1139,62 @@ export function ClinicalPlanWorkspace({
                   type={field.type ?? "text"}
                   value={form[field.name] ?? ""}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, [field.name]: event.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      [field.name]: event.target.value,
+                    }))
                   }
-                  slotProps={field.type && field.type !== "text" ? { inputLabel: { shrink: true } } : undefined}
+                  slotProps={
+                    field.type && field.type !== "text"
+                      ? { inputLabel: { shrink: true } }
+                      : undefined
+                  }
                   fullWidth
                 />
               );
             })}
             {kind === "medication_requests" && (
               <Alert severity="info">
-                Authorized records and pharmacy transmission states are separate. MC does not claim transmission from this screen.
+                Authorized records and pharmacy transmission states are
+                separate. MC does not claim transmission from this screen.
               </Alert>
             )}
             {kind === "diagnoses" && (
               <Alert severity="info">
-                Draft and provisional diagnoses remain visibly distinct from confirmed diagnoses.
+                Draft and provisional diagnoses remain visibly distinct from
+                confirmed diagnoses.
               </Alert>
             )}
-            {(kind === "medication_requests" || kind === "service_requests") && editing && (
-              <Alert severity="info">
-                Completing an order requires linked fulfillment evidence. Use Completion exception only when the
-                expected result cannot be linked, and record what established that the work was complete.
-              </Alert>
-            )}
+            {(kind === "medication_requests" || kind === "service_requests") &&
+              editing && (
+                <Alert severity="info">
+                  Completing an order requires linked fulfillment evidence. Use
+                  Completion exception only when the expected result cannot be
+                  linked, and record what established that the work was
+                  complete.
+                </Alert>
+              )}
             {kind === "immunizations" && (
               <Alert severity="info">
-                An immunization administered here must reference its completed medication administration so the
-                dose and clinic-stock movement remain connected.
+                An immunization administered here must reference its completed
+                medication administration so the dose and clinic-stock movement
+                remain connected.
               </Alert>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy || pendingAttempt !== null} onClick={() => setDialogOpen(false)}>
+          <Button
+            disabled={busy || pendingAttempt !== null}
+            onClick={() => setDialogOpen(false)}
+          >
             Cancel
           </Button>
-          <Button disabled={busy || pendingAttempt !== null || !dirty} variant="contained" onClick={save}>
+          <Button
+            disabled={busy || pendingAttempt !== null || !dirty}
+            variant="contained"
+            onClick={save}
+          >
             {busy ? "Saving…" : "Save revision"}
           </Button>
         </DialogActions>

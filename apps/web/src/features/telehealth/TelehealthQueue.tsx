@@ -109,7 +109,11 @@ function QueueBookingAction({ canConfigure }: { canConfigure: boolean }) {
                 : "Checking booking availability…"}
           </Typography>
           {canConfigure && options.data && (
-            <Button href="/clinic/settings/telehealth" size="small" sx={{ alignSelf: "flex-start" }}>
+            <Button
+              href="/clinic/settings/telehealth"
+              size="small"
+              sx={{ alignSelf: "flex-start" }}
+            >
               Open video setup
             </Button>
           )}

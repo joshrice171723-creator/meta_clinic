@@ -8,7 +8,7 @@ module Platform
       @organization_name = invitation.practice.organization&.name
       @owner_name = invitation.staff_member.display_name
       @expires_at = invitation.expires_at
-      @activation_url = "#{site_origin}/workforce/activate?#{URI.encode_www_form(token: token)}"
+      @activation_url = "#{site_origin}/workforce/activate#token=#{URI.encode_www_form_component(token)}"
 
       mail(to: invitation.email_address, subject: "Create your Meta Clinic password")
     end

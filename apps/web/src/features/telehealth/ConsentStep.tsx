@@ -54,7 +54,9 @@ export function ConsentStep({
         spacing={1}
         sx={{ justifyContent: "space-between" }}
       >
-        <Button disabled={busy} onClick={onBack}>Back</Button>
+        <Button disabled={busy} onClick={onBack}>
+          Back
+        </Button>
         <Stack direction={{ xs: "column-reverse", sm: "row" }} spacing={1}>
           <Button
             color="inherit"

@@ -1880,7 +1880,7 @@ CREATE TABLE public.clinic_assessment_revisions (
     content_digest character varying(64) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY ((ARRAY['in_progress'::character varying, 'completed'::character varying, 'entered_in_error'::character varying])::text[])) AND (version_number > 0) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
+    CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY (ARRAY[('in_progress'::character varying)::text, ('completed'::character varying)::text, ('entered_in_error'::character varying)::text])) AND (version_number > 0) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
 );
 
 
@@ -2345,7 +2345,7 @@ CREATE TABLE public.clinic_clinical_tasks (
     updated_at timestamp(6) without time zone NOT NULL,
     source_kind character varying(40),
     CONSTRAINT clinic_tasks_source_kind CHECK (((source_kind IS NULL) OR ((source_kind)::text = ANY (ARRAY[('medication_request'::character varying)::text, ('service_request'::character varying)::text])))),
-    CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY ((ARRAY['intake'::character varying, 'handoff'::character varying, 'result_follow_up'::character varying, 'patient_call'::character varying, 'order_execution'::character varying, 'record_request'::character varying, 'staff_request'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((pool_code)::text = ANY ((ARRAY['clinical'::character varying, 'front_desk'::character varying, 'records'::character varying])::text[])) AND ((source_type)::text = ANY ((ARRAY['manual'::character varying, 'encounter'::character varying, 'handoff'::character varying, 'lab_follow_up'::character varying, 'message'::character varying, 'reminder'::character varying, 'order'::character varying])::text[])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
+    CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY (ARRAY[('intake'::character varying)::text, ('handoff'::character varying)::text, ('result_follow_up'::character varying)::text, ('patient_call'::character varying)::text, ('order_execution'::character varying)::text, ('record_request'::character varying)::text, ('staff_request'::character varying)::text])) AND ((state)::text = ANY (ARRAY[('open'::character varying)::text, ('claimed'::character varying)::text, ('in_progress'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((pool_code)::text = ANY (ARRAY[('clinical'::character varying)::text, ('front_desk'::character varying)::text, ('records'::character varying)::text])) AND ((source_type)::text = ANY (ARRAY[('manual'::character varying)::text, ('encounter'::character varying)::text, ('handoff'::character varying)::text, ('lab_follow_up'::character varying)::text, ('message'::character varying)::text, ('reminder'::character varying)::text, ('order'::character varying)::text])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
 );
 
 
@@ -2821,7 +2821,7 @@ CREATE TABLE public.clinic_encounter_completion_reviews (
     request_key character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_completion_reviews_evidence CHECK ((((disposition_code)::text = ANY ((ARRAY['completed_as_planned'::character varying, 'left_before_completion'::character varying, 'transferred_to_higher_level_of_care'::character varying, 'emergency_services'::character varying, 'other'::character varying])::text[])) AND ((instructions_status)::text = ANY ((ARRAY['provided'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((education_status)::text = ANY ((ARRAY['recorded'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((follow_up_state)::text = ANY ((ARRAY['not_required'::character varying, 'needed'::character varying, 'arranged'::character varying, 'completed'::character varying])::text[])) AND (follow_up_version >= 0) AND (jsonb_typeof(open_work_snapshot) = 'array'::text) AND ((((instructions_status)::text = 'provided'::text) AND (instruction_note_id IS NOT NULL) AND (instruction_note_revision_id IS NOT NULL)) OR (((instructions_status)::text <> 'provided'::text) AND (instruction_note_id IS NULL) AND (instruction_note_revision_id IS NULL))) AND ((((education_status)::text = 'recorded'::text) AND (cardinality(education_event_ids) > 0)) OR (((education_status)::text <> 'recorded'::text) AND (cardinality(education_event_ids) = 0))) AND ((((disposition_code)::text = 'completed_as_planned'::text) AND ((instructions_status)::text <> 'unable_to_complete'::text) AND ((education_status)::text <> 'unable_to_complete'::text)) OR (exception_note IS NOT NULL))))
+    CONSTRAINT clinic_completion_reviews_evidence CHECK ((((disposition_code)::text = ANY (ARRAY[('completed_as_planned'::character varying)::text, ('left_before_completion'::character varying)::text, ('transferred_to_higher_level_of_care'::character varying)::text, ('emergency_services'::character varying)::text, ('other'::character varying)::text])) AND ((instructions_status)::text = ANY (ARRAY[('provided'::character varying)::text, ('not_required'::character varying)::text, ('unable_to_complete'::character varying)::text])) AND ((education_status)::text = ANY (ARRAY[('recorded'::character varying)::text, ('not_required'::character varying)::text, ('unable_to_complete'::character varying)::text])) AND ((follow_up_state)::text = ANY (ARRAY[('not_required'::character varying)::text, ('needed'::character varying)::text, ('arranged'::character varying)::text, ('completed'::character varying)::text])) AND (follow_up_version >= 0) AND (jsonb_typeof(open_work_snapshot) = 'array'::text) AND ((((instructions_status)::text = 'provided'::text) AND (instruction_note_id IS NOT NULL) AND (instruction_note_revision_id IS NOT NULL)) OR (((instructions_status)::text <> 'provided'::text) AND (instruction_note_id IS NULL) AND (instruction_note_revision_id IS NULL))) AND ((((education_status)::text = 'recorded'::text) AND (cardinality(education_event_ids) > 0)) OR (((education_status)::text <> 'recorded'::text) AND (cardinality(education_event_ids) = 0))) AND ((((disposition_code)::text = 'completed_as_planned'::text) AND ((instructions_status)::text <> 'unable_to_complete'::text) AND ((education_status)::text <> 'unable_to_complete'::text)) OR (exception_note IS NOT NULL))))
 );
 
 
@@ -5099,7 +5099,7 @@ CREATE TABLE public.clinic_lab_report_versions (
     CONSTRAINT clinic_lab_report_versions_review_pair CHECK ((((reviewed_at IS NULL) AND (reviewed_by_membership_id IS NULL)) OR ((reviewed_at IS NOT NULL) AND (reviewed_by_membership_id IS NOT NULL)))),
     CONSTRAINT clinic_lab_report_versions_timeline CHECK ((issued_at >= collected_at)),
     CONSTRAINT clinic_lab_report_versions_values CHECK (((version_number > 0) AND ((status)::text = ANY (ARRAY[('preliminary'::character varying)::text, ('final'::character varying)::text, ('amended'::character varying)::text, ('corrected'::character varying)::text, ('cancelled'::character varying)::text])) AND ((entry_kind)::text = 'manual'::text) AND (length((content_digest)::text) = 64))),
-    CONSTRAINT lab_report_versions_priority CHECK (((result_priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'critical'::character varying])::text[])))
+    CONSTRAINT lab_report_versions_priority CHECK (((result_priority)::text = ANY (ARRAY[('routine'::character varying)::text, ('urgent'::character varying)::text, ('critical'::character varying)::text])))
 );
 
 
@@ -5190,9 +5190,9 @@ CREATE TABLE public.clinic_lab_result_follow_ups (
     patient_contact_status character varying(24),
     patient_contact_method character varying(24),
     patient_contact_at timestamp(6) with time zone,
-    CONSTRAINT clinic_lab_follow_ups_escalation_evidence CHECK (((((priority)::text = 'routine'::text) AND (escalated_at IS NULL) AND (escalated_by_membership_id IS NULL)) OR (((priority)::text = ANY ((ARRAY['urgent'::character varying, 'critical'::character varying])::text[])) AND (due_at IS NOT NULL) AND (escalated_at IS NOT NULL) AND (escalated_by_membership_id IS NOT NULL)))),
+    CONSTRAINT clinic_lab_follow_ups_escalation_evidence CHECK (((((priority)::text = 'routine'::text) AND (escalated_at IS NULL) AND (escalated_by_membership_id IS NULL)) OR (((priority)::text = ANY (ARRAY[('urgent'::character varying)::text, ('critical'::character varying)::text])) AND (due_at IS NOT NULL) AND (escalated_at IS NOT NULL) AND (escalated_by_membership_id IS NOT NULL)))),
     CONSTRAINT clinic_lab_follow_ups_state_evidence CHECK (((((state)::text = 'open'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL) AND (patient_contact_status IS NULL) AND (patient_contact_method IS NULL) AND (patient_contact_at IS NULL)) OR (((state)::text = 'completed'::text) AND (instructions IS NOT NULL) AND (outcome IS NOT NULL) AND (completed_at IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (superseded_at IS NULL) AND (((priority)::text <> 'critical'::text) OR (patient_contact_status IS NOT NULL)) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text = 'not_required'::text) OR (patient_contact_at IS NOT NULL)) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text <> 'informed'::text) OR (patient_contact_method IS NOT NULL))) OR (((state)::text = 'not_required'::text) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NULL) AND ((priority)::text = 'routine'::text) AND (patient_contact_status IS NULL)) OR (((state)::text = 'superseded'::text) AND (instructions IS NOT NULL) AND (outcome IS NULL) AND (completed_at IS NULL) AND (completed_by_membership_id IS NULL) AND (superseded_at IS NOT NULL) AND (patient_contact_status IS NULL)))),
-    CONSTRAINT clinic_lab_follow_ups_values CHECK ((((state)::text = ANY ((ARRAY['open'::character varying, 'completed'::character varying, 'not_required'::character varying, 'superseded'::character varying])::text[])) AND ((priority)::text = ANY ((ARRAY['routine'::character varying, 'urgent'::character varying, 'critical'::character varying])::text[])) AND ((instructions IS NULL) OR ((char_length(TRIM(BOTH FROM instructions)) >= 1) AND (char_length(TRIM(BOTH FROM instructions)) <= 1000))) AND ((outcome IS NULL) OR ((char_length(TRIM(BOTH FROM outcome)) >= 1) AND (char_length(TRIM(BOTH FROM outcome)) <= 1000))) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text = ANY ((ARRAY['informed'::character varying, 'not_reached'::character varying, 'not_required'::character varying])::text[]))) AND ((patient_contact_method IS NULL) OR ((patient_contact_method)::text = ANY ((ARRAY['portal'::character varying, 'phone'::character varying, 'in_person'::character varying, 'letter'::character varying, 'other'::character varying])::text[])))))
+    CONSTRAINT clinic_lab_follow_ups_values CHECK ((((state)::text = ANY (ARRAY[('open'::character varying)::text, ('completed'::character varying)::text, ('not_required'::character varying)::text, ('superseded'::character varying)::text])) AND ((priority)::text = ANY (ARRAY[('routine'::character varying)::text, ('urgent'::character varying)::text, ('critical'::character varying)::text])) AND ((instructions IS NULL) OR ((char_length(TRIM(BOTH FROM instructions)) >= 1) AND (char_length(TRIM(BOTH FROM instructions)) <= 1000))) AND ((outcome IS NULL) OR ((char_length(TRIM(BOTH FROM outcome)) >= 1) AND (char_length(TRIM(BOTH FROM outcome)) <= 1000))) AND ((patient_contact_status IS NULL) OR ((patient_contact_status)::text = ANY (ARRAY[('informed'::character varying)::text, ('not_reached'::character varying)::text, ('not_required'::character varying)::text]))) AND ((patient_contact_method IS NULL) OR ((patient_contact_method)::text = ANY (ARRAY[('portal'::character varying)::text, ('phone'::character varying)::text, ('in_person'::character varying)::text, ('letter'::character varying)::text, ('other'::character varying)::text])))))
 );
 
 
@@ -5235,7 +5235,7 @@ CREATE TABLE public.clinic_lab_specimens (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT lab_specimens_values CHECK ((((condition_code)::text = ANY ((ARRAY['satisfactory'::character varying, 'compromised'::character varying, 'unknown'::character varying])::text[])) AND ((char_length(TRIM(BOTH FROM specimen_type_code)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_code)) <= 80)) AND ((char_length(TRIM(BOTH FROM specimen_type_display)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_display)) <= 160))))
+    CONSTRAINT lab_specimens_values CHECK ((((condition_code)::text = ANY (ARRAY[('satisfactory'::character varying)::text, ('compromised'::character varying)::text, ('unknown'::character varying)::text])) AND ((char_length(TRIM(BOTH FROM specimen_type_code)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_code)) <= 80)) AND ((char_length(TRIM(BOTH FROM specimen_type_display)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_display)) <= 160))))
 );
 
 
@@ -5538,7 +5538,7 @@ CREATE TABLE public.clinic_medication_administrations (
     CONSTRAINT clinic_medication_administrations_stock_unit CHECK (((stock_unit)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text]))),
     CONSTRAINT clinic_medication_administrations_timeline CHECK ((administered_at <= recorded_at)),
     CONSTRAINT clinic_medication_administrations_values CHECK (((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))),
-    CONSTRAINT clinic_medication_administrations_workflow_states CHECK ((((status)::text = ANY ((ARRAY['completed'::character varying, 'not_done'::character varying])::text[])) AND ((precheck_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'completed'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[])) AND ((verification_status)::text = ANY ((ARRAY['not_recorded'::character varying, 'completed'::character varying, 'not_required'::character varying, 'unable_to_complete'::character varying])::text[]))))
+    CONSTRAINT clinic_medication_administrations_workflow_states CHECK ((((status)::text = ANY (ARRAY[('completed'::character varying)::text, ('not_done'::character varying)::text])) AND ((precheck_status)::text = ANY (ARRAY[('not_recorded'::character varying)::text, ('completed'::character varying)::text, ('not_required'::character varying)::text, ('unable_to_complete'::character varying)::text])) AND ((verification_status)::text = ANY (ARRAY[('not_recorded'::character varying)::text, ('completed'::character varying)::text, ('not_required'::character varying)::text, ('unable_to_complete'::character varying)::text]))))
 );
 
 
@@ -6301,8 +6301,8 @@ CREATE TABLE public.clinic_patient_education_events (
     request_key character varying(160) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT patient_education_codes CHECK ((((topic_code)::text = ANY ((ARRAY['medication'::character varying, 'diagnosis'::character varying, 'self_care'::character varying, 'warning_signs'::character varying, 'procedure'::character varying, 'device'::character varying, 'follow_up'::character varying, 'prevention'::character varying, 'other'::character varying])::text[])) AND ((delivery_method)::text = ANY ((ARRAY['discussion'::character varying, 'handout'::character varying, 'portal'::character varying, 'demonstration'::character varying])::text[])) AND ((recipient)::text = ANY ((ARRAY['patient'::character varying, 'caregiver'::character varying, 'both'::character varying])::text[])) AND ((teach_back_status)::text = ANY ((ARRAY['demonstrated'::character varying, 'needs_reteaching'::character varying, 'declined'::character varying, 'unable'::character varying, 'not_applicable'::character varying])::text[])))),
-    CONSTRAINT patient_education_evidence CHECK ((((char_length(TRIM(BOTH FROM topic_title)) >= 1) AND (char_length(TRIM(BOTH FROM topic_title)) <= 240)) AND ((char_length(TRIM(BOTH FROM language)) >= 1) AND (char_length(TRIM(BOTH FROM language)) <= 80)) AND (((delivery_method)::text <> ALL ((ARRAY['handout'::character varying, 'portal'::character varying])::text[])) OR (material_title IS NOT NULL)) AND (((teach_back_status)::text <> 'demonstrated'::text) OR (patient_response IS NOT NULL)) AND (((teach_back_status)::text <> 'needs_reteaching'::text) OR ((reteaching_summary IS NOT NULL) AND follow_up_needed)) AND ((NOT follow_up_needed) OR (follow_up_plan IS NOT NULL))))
+    CONSTRAINT patient_education_codes CHECK ((((topic_code)::text = ANY (ARRAY[('medication'::character varying)::text, ('diagnosis'::character varying)::text, ('self_care'::character varying)::text, ('warning_signs'::character varying)::text, ('procedure'::character varying)::text, ('device'::character varying)::text, ('follow_up'::character varying)::text, ('prevention'::character varying)::text, ('other'::character varying)::text])) AND ((delivery_method)::text = ANY (ARRAY[('discussion'::character varying)::text, ('handout'::character varying)::text, ('portal'::character varying)::text, ('demonstration'::character varying)::text])) AND ((recipient)::text = ANY (ARRAY[('patient'::character varying)::text, ('caregiver'::character varying)::text, ('both'::character varying)::text])) AND ((teach_back_status)::text = ANY (ARRAY[('demonstrated'::character varying)::text, ('needs_reteaching'::character varying)::text, ('declined'::character varying)::text, ('unable'::character varying)::text, ('not_applicable'::character varying)::text])))),
+    CONSTRAINT patient_education_evidence CHECK (((char_length(TRIM(BOTH FROM topic_title)) >= 1) AND (char_length(TRIM(BOTH FROM topic_title)) <= 240) AND ((char_length(TRIM(BOTH FROM language)) >= 1) AND (char_length(TRIM(BOTH FROM language)) <= 80)) AND (((delivery_method)::text <> ALL (ARRAY[('handout'::character varying)::text, ('portal'::character varying)::text])) OR (material_title IS NOT NULL)) AND (((teach_back_status)::text <> 'demonstrated'::text) OR (patient_response IS NOT NULL)) AND (((teach_back_status)::text <> 'needs_reteaching'::text) OR ((reteaching_summary IS NOT NULL) AND follow_up_needed)) AND ((NOT follow_up_needed) OR (follow_up_plan IS NOT NULL))))
 );
 
 
@@ -7276,7 +7276,8 @@ CREATE TABLE public.clinic_practices (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     timezone character varying DEFAULT 'UTC'::character varying NOT NULL,
-    organization_id bigint
+    organization_id bigint,
+    platform_managed boolean DEFAULT false NOT NULL
 );
 
 
@@ -10818,7 +10819,7 @@ CREATE TABLE public.identity_preferences (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
-    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['owner'::character varying, 'juniper'::character varying, 'cobalt'::character varying, 'plum'::character varying, 'saffron'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY (ARRAY[('owner'::character varying)::text, ('juniper'::character varying)::text, ('cobalt'::character varying)::text, ('plum'::character varying)::text, ('saffron'::character varying)::text]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
 
@@ -11103,7 +11104,7 @@ CREATE TABLE public.platform_owner_invitations (
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT platform_owner_invitations_expiry CHECK ((expires_at > invited_at)),
     CONSTRAINT platform_owner_invitations_state CHECK (((((status)::text = 'pending'::text) AND (token_digest IS NOT NULL) AND (accepted_at IS NULL) AND (revoked_at IS NULL)) OR (((status)::text = 'accepted'::text) AND (token_digest IS NULL) AND (accepted_at IS NOT NULL) AND (revoked_at IS NULL)) OR (((status)::text = 'revoked'::text) AND (token_digest IS NULL) AND (accepted_at IS NULL) AND (revoked_at IS NOT NULL)))),
-    CONSTRAINT platform_owner_invitations_status CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'revoked'::character varying])::text[])))
+    CONSTRAINT platform_owner_invitations_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('accepted'::character varying)::text, ('revoked'::character varying)::text])))
 );
 
 
@@ -16089,6 +16090,13 @@ CREATE INDEX clinic_portal_recovery_deliveries_queue ON public.clinic_patient_po
 
 
 --
+-- Name: clinic_practices_platform_managed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_practices_platform_managed ON public.clinic_practices USING btree (platform_managed) WHERE (platform_managed = true);
+
+
+--
 -- Name: clinic_precautions_encounter_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -16484,7 +16492,7 @@ CREATE INDEX clinic_tasks_source ON public.clinic_clinical_tasks USING btree (pr
 -- Name: clinic_tasks_staff_source; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_tasks_staff_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_id) WHERE (((source_type)::text = ANY ((ARRAY['message'::character varying, 'reminder'::character varying])::text[])) AND (source_id IS NOT NULL));
+CREATE UNIQUE INDEX clinic_tasks_staff_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_id) WHERE (((source_type)::text = ANY (ARRAY[('message'::character varying)::text, ('reminder'::character varying)::text])) AND (source_id IS NOT NULL));
 
 
 --
@@ -27434,6 +27442,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260911010000'),
 ('20260910011000'),
 ('20260910010000'),
 ('20260910002300'),

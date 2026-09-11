@@ -199,58 +199,60 @@ export function TimecardReviewPage() {
           current calculated versions.
         </Typography>
       </Box>
-      {canReview && <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack spacing={2}>
-          <Typography variant="h3">Calculate a timecard</Typography>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField
-              select
-              label="Location"
-              value={siteId}
-              onChange={(event) => setSiteId(event.target.value)}
-              sx={{ minWidth: 220 }}
-            >
-              {clinic.sites.map((site) => (
-                <MenuItem key={site.id} value={String(site.id)}>
-                  {site.name || site.code}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Employee"
-              value={employmentId}
-              onChange={(event) => setEmploymentId(event.target.value)}
-              sx={{ minWidth: 240 }}
-            >
-              {employees.map((employee) => (
-                <MenuItem key={employee.id} value={String(employee.id)}>
-                  {employee.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Week starting"
-              type="date"
-              value={periodStart}
-              onChange={(event) => setPeriodStart(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <Button
-              variant="contained"
-              disabled={busy || !employmentId || !periodStart}
-              onClick={() => void calculate()}
-            >
-              Calculate
-            </Button>
+      {canReview && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Typography variant="h3">Calculate a timecard</Typography>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <TextField
+                select
+                label="Location"
+                value={siteId}
+                onChange={(event) => setSiteId(event.target.value)}
+                sx={{ minWidth: 220 }}
+              >
+                {clinic.sites.map((site) => (
+                  <MenuItem key={site.id} value={String(site.id)}>
+                    {site.name || site.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Employee"
+                value={employmentId}
+                onChange={(event) => setEmploymentId(event.target.value)}
+                sx={{ minWidth: 240 }}
+              >
+                {employees.map((employee) => (
+                  <MenuItem key={employee.id} value={String(employee.id)}>
+                    {employee.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="Week starting"
+                type="date"
+                value={periodStart}
+                onChange={(event) => setPeriodStart(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <Button
+                variant="contained"
+                disabled={busy || !employmentId || !periodStart}
+                onClick={() => void calculate()}
+              >
+                Calculate
+              </Button>
+            </Stack>
+            {!employees.length && (
+              <Typography variant="body2" color="text.secondary">
+                No eligible employees are available at this location.
+              </Typography>
+            )}
           </Stack>
-          {!employees.length && (
-            <Typography variant="body2" color="text.secondary">
-              No eligible employees are available at this location.
-            </Typography>
-          )}
-        </Stack>
-      </Paper>}
+        </Paper>
+      )}
       {error && <Alert severity="error">{error}</Alert>}
       {reviewError && (
         <Alert severity="warning">
@@ -258,79 +260,82 @@ export function TimecardReviewPage() {
         </Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
-      {canReview && adjustments
-        .filter((adjustment) => adjustment.status === "submitted")
-        .map((adjustment) => (
-          <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
-            <Stack spacing={1}>
-              <Typography variant="h3">
-                Correction request #{adjustment.id}
-              </Typography>
-              <Typography>{adjustment.reason}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {adjustment.correction_type.replaceAll("_", " ")} · submitted{" "}
-                {new Date(adjustment.requested_at).toLocaleString()}
-              </Typography>
-              <TextField
-                label="Decision reason"
-                value={decisionReasons[adjustment.id] ?? ""}
-                onChange={(event) =>
-                  setDecisionReasons((current) => ({
-                    ...current,
-                    [adjustment.id]: event.target.value,
-                  }))
-                }
-                multiline
-                minRows={2}
-              />
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained"
-                  disabled={busy || !decisionReasons[adjustment.id]?.trim()}
-                  onClick={() => void decide(adjustment, "approved")}
-                >
-                  Approve correction
-                </Button>
-                <Button
-                  color="warning"
-                  disabled={busy || !decisionReasons[adjustment.id]?.trim()}
-                  onClick={() => void decide(adjustment, "denied")}
-                >
-                  Deny
-                </Button>
+      {canReview &&
+        adjustments
+          .filter((adjustment) => adjustment.status === "submitted")
+          .map((adjustment) => (
+            <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
+              <Stack spacing={1}>
+                <Typography variant="h3">
+                  Correction request #{adjustment.id}
+                </Typography>
+                <Typography>{adjustment.reason}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {adjustment.correction_type.replaceAll("_", " ")} · submitted{" "}
+                  {new Date(adjustment.requested_at).toLocaleString()}
+                </Typography>
+                <TextField
+                  label="Decision reason"
+                  value={decisionReasons[adjustment.id] ?? ""}
+                  onChange={(event) =>
+                    setDecisionReasons((current) => ({
+                      ...current,
+                      [adjustment.id]: event.target.value,
+                    }))
+                  }
+                  multiline
+                  minRows={2}
+                />
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    disabled={busy || !decisionReasons[adjustment.id]?.trim()}
+                    onClick={() => void decide(adjustment, "approved")}
+                  >
+                    Approve correction
+                  </Button>
+                  <Button
+                    color="warning"
+                    disabled={busy || !decisionReasons[adjustment.id]?.trim()}
+                    onClick={() => void decide(adjustment, "denied")}
+                  >
+                    Deny
+                  </Button>
+                </Stack>
               </Stack>
-            </Stack>
-          </Paper>
-        ))}
+            </Paper>
+          ))}
       {latestCards.map((card) => (
         <TimecardSummary
           key={card.id}
           card={card}
-          actions={canReview || canApprove ? (
-            <>
-              {canApprove && (
-              <Button
-                variant="contained"
-                disabled={
-                  busy ||
-                  card.status !== "submitted" ||
-                  card.unresolved_exceptions.length > 0
-                }
-                onClick={() => void approve(card)}
-              >
-                Approve timecard
-              </Button>
-              )}
-              {canReview && (
-              <Button
-                disabled={busy || card.status === "superseded"}
-                onClick={() => setCorrectionCard(card)}
-              >
-                Add manager correction
-              </Button>
-              )}
-            </>
-          ) : undefined}
+          actions={
+            canReview || canApprove ? (
+              <>
+                {canApprove && (
+                  <Button
+                    variant="contained"
+                    disabled={
+                      busy ||
+                      card.status !== "submitted" ||
+                      card.unresolved_exceptions.length > 0
+                    }
+                    onClick={() => void approve(card)}
+                  >
+                    Approve timecard
+                  </Button>
+                )}
+                {canReview && (
+                  <Button
+                    disabled={busy || card.status === "superseded"}
+                    onClick={() => setCorrectionCard(card)}
+                  >
+                    Add manager correction
+                  </Button>
+                )}
+              </>
+            ) : undefined
+          }
         />
       ))}
       {!latestCards.length && (

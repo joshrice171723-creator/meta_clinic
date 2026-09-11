@@ -33,7 +33,7 @@ module Platform
         role = administrator_role!
         PaperTrail.request(whodunnit: actor.id.to_s,
           controller_info: { request_id:, causal_id: "owner-command-center:create-clinic" }) do
-          practice = organization.practices.create!(name: clinic_name, timezone:)
+          practice = organization.practices.create!(name: clinic_name, timezone:, platform_managed: true)
           site = practice.sites.create!(code: "MAIN", name: "Main clinic", status: "active")
           staff_member = practice.staff_members.create!(display_name: owner_name, job_title: "Clinic owner")
           invitation = Clinic::Workforce::EmployeeInvitation.create!(practice:, staff_member:,
@@ -48,7 +48,7 @@ module Platform
           result = { organization:, practice:, site:, invitation: }
         end
       end
-      activation_path = "/workforce/activate?#{URI.encode_www_form(token: token)}"
+      activation_path = "/workforce/activate#token=#{URI.encode_www_form_component(token)}"
       result.merge(activation_path:, delivery_status: deliver_invitation(result.fetch(:invitation), token, actor))
     rescue ActiveRecord::RecordInvalid => error
       raise Unavailable, error.record.errors.full_messages.to_sentence

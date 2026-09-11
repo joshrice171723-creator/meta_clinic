@@ -60,7 +60,9 @@ export function BillingSupportRequestQueue({
         },
       );
       attempts.current.delete(key);
-      setNotice(`Support request #${request.id} marked ${statusLabel(status)}.`);
+      setNotice(
+        `Support request #${request.id} marked ${statusLabel(status)}.`,
+      );
       requests.refresh();
     } catch (reason) {
       const unknown =
@@ -99,7 +101,9 @@ export function BillingSupportRequestQueue({
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
         {!requests.data && !requests.error && (
-          <Typography role="status">Loading billing support requests…</Typography>
+          <Typography role="status">
+            Loading billing support requests…
+          </Typography>
         )}
         {requests.error && (
           <Alert

@@ -76,7 +76,10 @@ export function SessionGuard({
       const response = await api<{
         session_policy?: SessionPolicy;
         user?: { id: number };
-        clinic_access?: { active: boolean; authorization_generation: number } | null;
+        clinic_access?: {
+          active: boolean;
+          authorization_generation: number;
+        } | null;
       }>("/api/session", { method: extend ? "PATCH" : "GET" });
       if (!alive.current) return;
       if (
@@ -92,8 +95,12 @@ export function SessionGuard({
           return;
         }
         if (authorizationGeneration.current === null) {
-          authorizationGeneration.current = response.clinic_access.authorization_generation;
-        } else if (authorizationGeneration.current !== response.clinic_access.authorization_generation) {
+          authorizationGeneration.current =
+            response.clinic_access.authorization_generation;
+        } else if (
+          authorizationGeneration.current !==
+          response.clinic_access.authorization_generation
+        ) {
           setExpired(true);
           return;
         }

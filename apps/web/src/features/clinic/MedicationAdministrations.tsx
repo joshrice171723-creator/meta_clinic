@@ -191,7 +191,9 @@ function decimalNotGreaterThan(value: string, limit: string, scale: number) {
 }
 
 function humanize(value: string) {
-  return value.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase());
+  return value
+    .replaceAll("_", " ")
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 export function MedicationAdministrations({
@@ -223,7 +225,11 @@ export function MedicationAdministrations({
       encounter={encounter}
       patient={patient}
       key={`${context.practice.id}:${patient.id}:${encounter.id}`}
-      pendingScopeKey={administrationScopeKey(context, patient.id, encounter.id)}
+      pendingScopeKey={administrationScopeKey(
+        context,
+        patient.id,
+        encounter.id,
+      )}
       timezone={timezone}
       onChanged={onChanged}
     />
@@ -337,11 +343,20 @@ function MedicationAdministrationPanel({
       return;
     }
     if (!resource.data.can_administer) {
-      setError("Inventory posting is required before a completed administration can be recorded.");
+      setError(
+        "Inventory posting is required before a completed administration can be recorded.",
+      );
       return;
     }
-    if (!doseValue.trim() || !doseUnitCode || !routeCode || !administrationSiteCode) {
-      setError("Enter the actual dose and choose its unit, route, and administration site.");
+    if (
+      !doseValue.trim() ||
+      !doseUnitCode ||
+      !routeCode ||
+      !administrationSiteCode
+    ) {
+      setError(
+        "Enter the actual dose and choose its unit, route, and administration site.",
+      );
       return;
     }
     if (!precheckStatus || !verificationStatus) {
@@ -353,7 +368,9 @@ function MedicationAdministrationPanel({
       return;
     }
     if (verificationStatus === "completed" && !verifiedByMembershipId) {
-      setError("Choose the staff member who completed the independent verification.");
+      setError(
+        "Choose the staff member who completed the independent verification.",
+      );
       return;
     }
     const invalidBatch = selectedBatches.find((batch) => {
@@ -374,7 +391,9 @@ function MedicationAdministrationPanel({
       return;
     }
     if (selectedBatches.length === 0) {
-      setError("Choose at least one actual lot and enter the stock quantity used.");
+      setError(
+        "Choose at least one actual lot and enter the stock quantity used.",
+      );
       return;
     }
     setError("");
@@ -390,7 +409,9 @@ function MedicationAdministrationPanel({
       route_code: routeCode,
       administration_site_code: administrationSiteCode,
       administration_site_text:
-        administrationSiteCode === "other" ? administrationSiteText.trim() : undefined,
+        administrationSiteCode === "other"
+          ? administrationSiteText.trim()
+          : undefined,
       variance_reason: varianceReason.trim() || undefined,
       precheck_status: precheckStatus,
       precheck_notes: precheckNotes.trim() || undefined,
@@ -476,7 +497,11 @@ function MedicationAdministrationPanel({
             {resource.error}
           </Alert>
         ) : (
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 1.5 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", mt: 1.5 }}
+          >
             <CircularProgress size={18} />
             <Typography color="text.secondary" variant="body2">
               Loading current medication orders…
@@ -505,7 +530,12 @@ function MedicationAdministrationPanel({
   );
 
   return (
-    <Paper id="medication-administration" component="section" variant="outlined" sx={{ p: 2 }}>
+    <Paper
+      id="medication-administration"
+      component="section"
+      variant="outlined"
+      sx={{ p: 2 }}
+    >
       <Stack spacing={2}>
         <Box>
           <Typography component="h2" variant="subtitle2">
@@ -517,7 +547,8 @@ function MedicationAdministrationPanel({
         </Box>
         {!encounter.site_id ? (
           <Alert severity="warning">
-            This visit has no assigned site. Review the visit location before recording a medication outcome.
+            This visit has no assigned site. Review the visit location before
+            recording a medication outcome.
           </Alert>
         ) : !data.can_record_outcome ? (
           <Alert severity="warning">
@@ -525,14 +556,15 @@ function MedicationAdministrationPanel({
           </Alert>
         ) : data.eligible_orders.length === 0 ? (
           <Alert severity="info">
-            No current authorized medication orders are linked to clinic inventory. Create and authorize a
-            catalog-linked medication order before recording administration.
+            No current authorized medication orders are linked to clinic
+            inventory. Create and authorize a catalog-linked medication order
+            before recording administration.
           </Alert>
         ) : (
           <>
             <Alert severity="info">
-              Start from the authorized order. Record the actual outcome, then choose the exact lot only when
-              medication was given.
+              Start from the authorized order. Record the actual outcome, then
+              choose the exact lot only when medication was given.
             </Alert>
             <Autocomplete
               disabled={locked}
@@ -543,7 +575,8 @@ function MedicationAdministrationPanel({
                   order.medication_name,
                   order.dose_text,
                   order.route_text,
-                  order.scheduled_for && recordedDateTime(order.scheduled_for, timezone),
+                  order.scheduled_for &&
+                    recordedDateTime(order.scheduled_for, timezone),
                 ]
                   .filter(Boolean)
                   .join(" · ")
@@ -561,22 +594,33 @@ function MedicationAdministrationPanel({
             />
             {selectedOrder && (
               <Paper variant="outlined" sx={{ p: 1.5 }}>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ justifyContent: "space-between" }}
+                >
                   <Box>
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       {selectedOrder.product.name}
                     </Typography>
                     <Typography color="text.secondary" variant="body2">
-                      Ordered by {selectedOrder.ordered_by_display} · revision {selectedOrder.version_number}
+                      Ordered by {selectedOrder.ordered_by_display} · revision{" "}
+                      {selectedOrder.version_number}
                     </Typography>
-                    {(selectedOrder.reason_text || selectedOrder.instructions) && (
+                    {(selectedOrder.reason_text ||
+                      selectedOrder.instructions) && (
                       <Typography color="text.secondary" variant="caption">
-                        {[selectedOrder.reason_text, selectedOrder.instructions].filter(Boolean).join(" · ")}
+                        {[selectedOrder.reason_text, selectedOrder.instructions]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </Typography>
                     )}
                   </Box>
                   {selectedOrder.scheduled_for && (
-                    <Chip label={`Due ${recordedDateTime(selectedOrder.scheduled_for, timezone)}`} size="small" />
+                    <Chip
+                      label={`Due ${recordedDateTime(selectedOrder.scheduled_for, timezone)}`}
+                      size="small"
+                    />
                   )}
                 </Stack>
               </Paper>
@@ -610,14 +654,21 @@ function MedicationAdministrationPanel({
               <>
                 {!data.inventory_posting_available && (
                   <Alert severity="warning">
-                    Inventory posting is not configured or available for this account. A not-given outcome can
-                    still be recorded, but a completed administration cannot.
+                    Inventory posting is not configured or available for this
+                    account. A not-given outcome can still be recorded, but a
+                    completed administration cannot.
                     <Button component="a" href="/clinic/inventory" size="small">
                       Open inventory
                     </Button>
                   </Alert>
                 )}
-                <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gap: 1.5,
+                    gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  }}
+                >
                   <TextField
                     disabled={locked || !selectedOrder}
                     inputMode="decimal"
@@ -626,8 +677,14 @@ function MedicationAdministrationPanel({
                     value={doseValue}
                     onChange={(event) => setDoseValue(event.target.value)}
                   />
-                  <FormControl fullWidth required disabled={locked || !selectedOrder}>
-                    <InputLabel id="medication-dose-unit-label">Dose unit</InputLabel>
+                  <FormControl
+                    fullWidth
+                    required
+                    disabled={locked || !selectedOrder}
+                  >
+                    <InputLabel id="medication-dose-unit-label">
+                      Dose unit
+                    </InputLabel>
                     <Select
                       labelId="medication-dose-unit-label"
                       label="Dose unit"
@@ -635,11 +692,17 @@ function MedicationAdministrationPanel({
                       onChange={(event) => setDoseUnitCode(event.target.value)}
                     >
                       {data.dose_units.map((option) => (
-                        <MenuItem key={option.code} value={option.code}>{option.label}</MenuItem>
+                        <MenuItem key={option.code} value={option.code}>
+                          {option.label}
+                        </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
-                  <FormControl fullWidth required disabled={locked || !selectedOrder}>
+                  <FormControl
+                    fullWidth
+                    required
+                    disabled={locked || !selectedOrder}
+                  >
                     <InputLabel id="medication-route-label">Route</InputLabel>
                     <Select
                       labelId="medication-route-label"
@@ -648,20 +711,32 @@ function MedicationAdministrationPanel({
                       onChange={(event) => setRouteCode(event.target.value)}
                     >
                       {data.routes.map((option) => (
-                        <MenuItem key={option.code} value={option.code}>{option.label}</MenuItem>
+                        <MenuItem key={option.code} value={option.code}>
+                          {option.label}
+                        </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
-                  <FormControl fullWidth required disabled={locked || !selectedOrder}>
-                    <InputLabel id="medication-site-label">Administration site</InputLabel>
+                  <FormControl
+                    fullWidth
+                    required
+                    disabled={locked || !selectedOrder}
+                  >
+                    <InputLabel id="medication-site-label">
+                      Administration site
+                    </InputLabel>
                     <Select
                       labelId="medication-site-label"
                       label="Administration site"
                       value={administrationSiteCode}
-                      onChange={(event) => setAdministrationSiteCode(event.target.value)}
+                      onChange={(event) =>
+                        setAdministrationSiteCode(event.target.value)
+                      }
                     >
                       {data.administration_sites.map((option) => (
-                        <MenuItem key={option.code} value={option.code}>{option.label}</MenuItem>
+                        <MenuItem key={option.code} value={option.code}>
+                          {option.label}
+                        </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
@@ -671,49 +746,80 @@ function MedicationAdministrationPanel({
                       label="Other administration site"
                       required
                       value={administrationSiteText}
-                      onChange={(event) => setAdministrationSiteText(event.target.value)}
+                      onChange={(event) =>
+                        setAdministrationSiteText(event.target.value)
+                      }
                     />
                   )}
-                  <FormControl fullWidth required disabled={locked || !selectedOrder}>
-                    <InputLabel id="medication-precheck-label">Medication pre-check</InputLabel>
+                  <FormControl
+                    fullWidth
+                    required
+                    disabled={locked || !selectedOrder}
+                  >
+                    <InputLabel id="medication-precheck-label">
+                      Medication pre-check
+                    </InputLabel>
                     <Select
                       labelId="medication-precheck-label"
                       label="Medication pre-check"
                       value={precheckStatus}
-                      onChange={(event) => setPrecheckStatus(event.target.value)}
+                      onChange={(event) =>
+                        setPrecheckStatus(event.target.value)
+                      }
                     >
                       <MenuItem value="completed">Completed</MenuItem>
-                      <MenuItem value="not_required">Not required by policy</MenuItem>
-                      <MenuItem value="unable_to_complete">Unable to complete</MenuItem>
+                      <MenuItem value="not_required">
+                        Not required by policy
+                      </MenuItem>
+                      <MenuItem value="unable_to_complete">
+                        Unable to complete
+                      </MenuItem>
                     </Select>
                   </FormControl>
-                  <FormControl fullWidth required disabled={locked || !selectedOrder}>
-                    <InputLabel id="medication-verification-label">Independent verification</InputLabel>
+                  <FormControl
+                    fullWidth
+                    required
+                    disabled={locked || !selectedOrder}
+                  >
+                    <InputLabel id="medication-verification-label">
+                      Independent verification
+                    </InputLabel>
                     <Select
                       labelId="medication-verification-label"
                       label="Independent verification"
                       value={verificationStatus}
                       onChange={(event) => {
                         setVerificationStatus(event.target.value);
-                        if (event.target.value !== "completed") setVerifiedByMembershipId("");
+                        if (event.target.value !== "completed")
+                          setVerifiedByMembershipId("");
                       }}
                     >
-                      <MenuItem value="not_required">Not required by clinic policy</MenuItem>
+                      <MenuItem value="not_required">
+                        Not required by clinic policy
+                      </MenuItem>
                       <MenuItem value="completed">Completed</MenuItem>
-                      <MenuItem value="unable_to_complete">Unable to complete</MenuItem>
+                      <MenuItem value="unable_to_complete">
+                        Unable to complete
+                      </MenuItem>
                     </Select>
                   </FormControl>
                   {verificationStatus === "completed" && (
                     <FormControl fullWidth required disabled={locked}>
-                      <InputLabel id="medication-verifier-label">Verified by</InputLabel>
+                      <InputLabel id="medication-verifier-label">
+                        Verified by
+                      </InputLabel>
                       <Select
                         labelId="medication-verifier-label"
                         label="Verified by"
                         value={verifiedByMembershipId}
-                        onChange={(event) => setVerifiedByMembershipId(event.target.value)}
+                        onChange={(event) =>
+                          setVerifiedByMembershipId(event.target.value)
+                        }
                       >
                         {data.verifier_options.map((option) => (
-                          <MenuItem key={option.id} value={String(option.id)}>{option.label}</MenuItem>
+                          <MenuItem key={option.id} value={String(option.id)}>
+                            {option.label}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -744,16 +850,25 @@ function MedicationAdministrationPanel({
                   getOptionLabel={(batch) =>
                     `Lot ${batch.lot_number} · ${batch.location_name} · ${batch.available_quantity} ${batch.stock_unit} available`
                   }
-                  isOptionEqualToValue={(option, value) => option.batch_id === value.batch_id}
+                  isOptionEqualToValue={(option, value) =>
+                    option.batch_id === value.batch_id
+                  }
                   onChange={(_event, batches) =>
                     setQuantities((current) =>
                       Object.fromEntries(
-                        batches.map((batch) => [batch.batch_id, current[batch.batch_id] ?? ""]),
+                        batches.map((batch) => [
+                          batch.batch_id,
+                          current[batch.batch_id] ?? "",
+                        ]),
                       ),
                     )
                   }
                   renderInput={(params) => (
-                    <TextField {...params} label="Medication lot used" required />
+                    <TextField
+                      {...params}
+                      label="Medication lot used"
+                      required
+                    />
                   )}
                 />
                 {selectedBatches.map((batch) => (
@@ -777,7 +892,11 @@ function MedicationAdministrationPanel({
             )}
             <TextField
               disabled={locked || !selectedOrder}
-              label={status === "completed" ? "Administration time (device local)" : "Outcome time (device local)"}
+              label={
+                status === "completed"
+                  ? "Administration time (device local)"
+                  : "Outcome time (device local)"
+              }
               required
               slotProps={{ inputLabel: { shrink: true } }}
               type="datetime-local"
@@ -801,10 +920,13 @@ function MedicationAdministrationPanel({
               value={educationText}
               onChange={(event) => setEducationText(event.target.value)}
             />
-            {error && <Alert severity={attempt ? "warning" : "error"}>{error}</Alert>}
+            {error && (
+              <Alert severity={attempt ? "warning" : "error"}>{error}</Alert>
+            )}
             {attempt && (
               <Alert severity="warning">
-                This outcome has an unconfirmed result. Its exact order, lot, and documentation are locked for retry.
+                This outcome has an unconfirmed result. Its exact order, lot,
+                and documentation are locked for retry.
               </Alert>
             )}
             <Button
@@ -821,17 +943,35 @@ function MedicationAdministrationPanel({
           <>
             <Divider />
             <Box>
-              <Typography variant="subtitle2">Recorded medication outcomes</Typography>
+              <Typography variant="subtitle2">
+                Recorded medication outcomes
+              </Typography>
               <Stack spacing={1} sx={{ mt: 1 }}>
                 {data.administrations.map((administration) => (
-                  <Paper key={administration.id} variant="outlined" sx={{ p: 1.5 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <Paper
+                    key={administration.id}
+                    variant="outlined"
+                    sx={{ p: 1.5 }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: "center", flexWrap: "wrap" }}
+                    >
                       <Typography sx={{ fontWeight: 700 }} variant="body2">
                         {administration.product.name}
                       </Typography>
                       <Chip
-                        color={administration.status === "completed" ? "success" : "warning"}
-                        label={administration.status === "completed" ? "Given" : "Not given"}
+                        color={
+                          administration.status === "completed"
+                            ? "success"
+                            : "warning"
+                        }
+                        label={
+                          administration.status === "completed"
+                            ? "Given"
+                            : "Not given"
+                        }
                         size="small"
                       />
                     </Stack>
@@ -849,13 +989,23 @@ function MedicationAdministrationPanel({
                         : administration.status_reason}
                     </Typography>
                     <Typography color="text.secondary" variant="caption">
-                      {recordedDateTime(administration.administered_at, timezone)} · order revision{" "}
-                      {administration.medication_request_revision_id ?? "legacy record"} · pre-check{" "}
-                      {humanize(administration.precheck_status)} · verification{" "}
+                      {recordedDateTime(
+                        administration.administered_at,
+                        timezone,
+                      )}{" "}
+                      · order revision{" "}
+                      {administration.medication_request_revision_id ??
+                        "legacy record"}{" "}
+                      · pre-check {humanize(administration.precheck_status)} ·
+                      verification{" "}
                       {humanize(administration.verification_status)}
                     </Typography>
                     {administration.movements.length > 0 && (
-                      <Typography color="text.secondary" sx={{ display: "block" }} variant="caption">
+                      <Typography
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                        variant="caption"
+                      >
                         {administration.movements
                           .map(
                             (movement) =>
@@ -864,8 +1014,13 @@ function MedicationAdministrationPanel({
                           .join("; ")}
                       </Typography>
                     )}
-                    {(administration.response_text || administration.education_text) && (
-                      <Typography color="text.secondary" sx={{ display: "block" }} variant="caption">
+                    {(administration.response_text ||
+                      administration.education_text) && (
+                      <Typography
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                        variant="caption"
+                      >
                         {[
                           administration.response_text &&
                             `Response: ${administration.response_text}`,
@@ -897,15 +1052,19 @@ function MedicationAdministrationPanel({
                 {patient.display_name} · Visit #{encounter.id}
               </Typography>
               <Typography sx={{ fontWeight: 700 }}>
-                {selectedReviewOrder?.medication_name ?? "Authorized medication order"}
+                {selectedReviewOrder?.medication_name ??
+                  "Authorized medication order"}
               </Typography>
               <Typography color="text.secondary" variant="body2">
                 {review.status === "completed"
                   ? [
                       `Dose ${review.dose_value} ${data.dose_units.find((option) => option.code === review.dose_unit_code)?.label ?? review.dose_unit_code}`,
-                      data.routes.find((option) => option.code === review.route_code)?.label,
+                      data.routes.find(
+                        (option) => option.code === review.route_code,
+                      )?.label,
                       data.administration_sites.find(
-                        (option) => option.code === review.administration_site_code,
+                        (option) =>
+                          option.code === review.administration_site_code,
                       )?.label,
                     ]
                       .filter(Boolean)
@@ -913,7 +1072,8 @@ function MedicationAdministrationPanel({
                   : `Not given: ${review.status_reason}`}
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                Clinic time ({timezone}): {recordedDateTime(review.administered_at, timezone)}
+                Clinic time ({timezone}):{" "}
+                {recordedDateTime(review.administered_at, timezone)}
               </Typography>
               {review.status === "completed" && (
                 <>
@@ -924,31 +1084,46 @@ function MedicationAdministrationPanel({
                     );
                     return (
                       <Typography key={batch.batch_id} variant="body2">
-                        Lot {batch.lot_number} · {batch.location_name} · {allocation?.quantity}{" "}
-                        {batch.stock_unit}
+                        Lot {batch.lot_number} · {batch.location_name} ·{" "}
+                        {allocation?.quantity} {batch.stock_unit}
                       </Typography>
                     );
                   })}
                   <Typography color="text.secondary" variant="body2">
-                    Pre-check {humanize(review.precheck_status ?? "not recorded")} · verification{" "}
+                    Pre-check{" "}
+                    {humanize(review.precheck_status ?? "not recorded")} ·
+                    verification{" "}
                     {humanize(review.verification_status ?? "not recorded")}
                     {selectedVerifier ? ` by ${selectedVerifier.label}` : ""}
                   </Typography>
                 </>
               )}
               {attempt && (
-                <Alert severity="warning">Retry submits the exact retained medication outcome.</Alert>
+                <Alert severity="warning">
+                  Retry submits the exact retained medication outcome.
+                </Alert>
               )}
               {error && <Alert severity="error">{error}</Alert>}
             </Stack>
           )}
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy || attempt !== null} onClick={() => setReview(null)}>
+          <Button
+            disabled={busy || attempt !== null}
+            onClick={() => setReview(null)}
+          >
             Go back
           </Button>
-          <Button disabled={busy} onClick={() => void recordAdministration()} variant="contained">
-            {busy ? "Recording…" : attempt ? "Retry exact outcome" : "Record outcome"}
+          <Button
+            disabled={busy}
+            onClick={() => void recordAdministration()}
+            variant="contained"
+          >
+            {busy
+              ? "Recording…"
+              : attempt
+                ? "Retry exact outcome"
+                : "Record outcome"}
           </Button>
         </DialogActions>
       </Dialog>

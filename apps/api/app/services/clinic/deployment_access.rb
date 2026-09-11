@@ -5,11 +5,14 @@ module Clinic
       return true if Staging::DemoClinic.available_to?(user)
 
       membership = user&.clinic_membership
-      !!(membership&.active? && user.active? && enabled_practice_ids.include?(membership.practice_id))
+      !!(membership&.active? && user.active? && practice_enabled?(membership.practice_id))
     end
 
     def self.practice_enabled?(practice_id)
-      !Rails.env.production? || enabled_practice_ids.include?(practice_id.to_i)
+      return true unless Rails.env.production?
+      return true if enabled_practice_ids.include?(practice_id.to_i)
+
+      DemoContent.enabled? && Clinic::Practice.where(id: practice_id, platform_managed: true).exists?
     end
 
     def self.enabled_practice_ids
