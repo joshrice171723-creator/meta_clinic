@@ -201,6 +201,7 @@ describe("tracking-board care indicators", () => {
     expect(html).toContain('data-tooltip-anchor="true"');
     expect(html).not.toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("aria-expanded");
+    expect(html).not.toContain('patientLabel="S. Pat"');
     const source = readFileSync(
       "src/features/clinic/CareIndicators.tsx",
       "utf8",

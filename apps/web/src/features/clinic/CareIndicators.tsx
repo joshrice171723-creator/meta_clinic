@@ -310,17 +310,31 @@ type CareSummaryTriggerProps = {
 export const CareSummaryTrigger = forwardRef<
   HTMLAnchorElement,
   CareSummaryTriggerProps
->(({ href, actionLabel, children, className, ...anchorProps }, ref) => (
-  <a
-    {...anchorProps}
-    ref={ref}
-    href={href}
-    className={`tracking-chart-action${className ? ` ${className}` : ""}`}
-    aria-label={actionLabel}
-  >
-    {children}
-  </a>
-));
+>(
+  (
+    {
+      href,
+      actionLabel,
+      children,
+      className,
+      state: _state,
+      patientLabel: _patientLabel,
+      timezone: _timezone,
+      ...anchorProps
+    },
+    ref,
+  ) => (
+    <a
+      {...anchorProps}
+      ref={ref}
+      href={href}
+      className={`tracking-chart-action${className ? ` ${className}` : ""}`}
+      aria-label={actionLabel}
+    >
+      {children}
+    </a>
+  ),
+);
 CareSummaryTrigger.displayName = "CareSummaryTrigger";
 
 export function CareIndicators({

@@ -11,6 +11,14 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-11 — Ten workflow-hardening audit priorities completed locally
+
+**Outcome:** completed the ten software Definitions of Done for unified work intake; a cross-role clinic day; refill closure; the confirmed standards defects; nurse-to-clinician handoff recovery; administration-grade immunization evidence; checkout/follow-up closure; connected orders/results/referrals; reusable attested previsit intake; and capacity/waitlist/no-show recovery. The implementation preserves exact patient, encounter, site and source linkage, fail-closed role/context boundaries, durable ownership, stale/replay protection and explicit recovery paths. [DOD and closeout evidence](../../records/implementation/2026-09-11-ten-audit-dod-closeout.md).
+
+**Evidence:** the final backend risk selection passed 7 runs / 271 assertions with no failures or errors; two focused frontend files passed 11 tests; TypeScript typecheck and final Ruby syntax passed; the test and development migrations installed; and the local browser rendered a synthetic Omni tracking-board → work-inbox → exact linked encounter journey. The repository graph was refreshed. No full suite was run.
+
+**Limits:** local synthetic software evidence only. No hosted acceptance, external provider or IIS transmission, interoperability certification, clinical/legal approval, real-patient use or release acceptance is claimed.
+
 ## 2026-09-11 — Ambulatory workflow implementation, verification deferred
 
 Implemented durable refill review, a consolidated work inbox, structured reusable intake, portal education acknowledgment, capacity/waitlist offers and booking, recall history, and guided checkout. Three migrations installed locally. No tests were added or run; runtime/browser acceptance and a verified score remain open. [Implementation boundaries and remaining gaps](../../records/implementation/2026-09-11-workflow-loop-delivery.md).

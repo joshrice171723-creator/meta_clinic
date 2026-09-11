@@ -194,6 +194,14 @@ export function NurseEncounterWorkspace({
   const canRespondToHandoff =
     workspace.capabilities.handoff_respond &&
     workspace.handoff?.requested_by_membership_id !== clinic.membership_id;
+  const canCancelHandoff =
+    workspace.capabilities.handoff_request &&
+    Boolean(
+      workspace.handoff &&
+      ["pending", "accepted", "correction_requested"].includes(
+        workspace.handoff.state,
+      ),
+    );
   const readyEvidence =
     form.identity_state === "confirmed" &&
     form.visit_reason_state === "confirmed" &&
@@ -625,6 +633,23 @@ export function NurseEncounterWorkspace({
                       Complete handoff
                     </Button>
                   )}
+                {workspace.handoff.state === "correction_requested" && (
+                  <Alert severity="warning">
+                    Revise and save the intake, then cancel this handoff before
+                    requesting a new clinician review.
+                  </Alert>
+                )}
+                {canCancelHandoff && (
+                  <Button
+                    disabled={busy}
+                    color="error"
+                    variant="text"
+                    sx={{ alignSelf: "flex-start" }}
+                    onClick={() => void transitionHandoff("cancel")}
+                  >
+                    Cancel handoff
+                  </Button>
+                )}
               </Stack>
             ) : (
               <Typography color="text.secondary">

@@ -3456,6 +3456,10 @@ CREATE TABLE public.clinic_immunization_revisions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     medication_administration_id bigint,
+    manufacturer_mvx_code text,
+    lot_expiration_date date,
+    vis_edition_date date,
+    vis_given_date date,
     CONSTRAINT clinic_immunization_states CHECK ((((status)::text = ANY (ARRAY[('planned'::character varying)::text, ('completed'::character varying)::text, ('not_done'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((occurrence_source)::text = ANY (ARRAY[('administered_here'::character varying)::text, ('patient_reported'::character varying)::text, ('external_record'::character varying)::text, ('registry'::character varying)::text])) AND (((status)::text <> 'completed'::text) OR (administered_at IS NOT NULL)) AND (((status)::text <> 'not_done'::text) OR (refusal_reason IS NOT NULL)))),
     CONSTRAINT immunization_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
 );
@@ -13468,6 +13472,14 @@ ALTER TABLE ONLY public.clinic_encounter_precautions
 
 ALTER TABLE ONLY public.clinic_encounters
     ADD CONSTRAINT clinic_encounters_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_immunization_revisions clinic_immunization_evidence_v2; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.clinic_immunization_revisions
+    ADD CONSTRAINT clinic_immunization_evidence_v2 CHECK ((((status)::text = 'entered_in_error'::text) OR (((source_document_id IS NULL) OR ((occurrence_source)::text = ANY ((ARRAY['external_record'::character varying, 'registry'::character varying])::text[]))) AND (((vis_edition_date IS NULL) AND (vis_given_date IS NULL)) OR (((status)::text = 'completed'::text) AND ((occurrence_source)::text = 'administered_here'::text) AND (vis_edition_date IS NOT NULL) AND (vis_given_date IS NOT NULL))) AND ((lot_expiration_date IS NULL) OR ((administered_at IS NOT NULL) AND (lot_expiration_date >= (administered_at)::date))) AND ((vis_edition_date IS NULL) OR ((vis_edition_date <= vis_given_date) AND (vis_given_date <= (administered_at)::date))) AND ((((status)::text = 'planned'::text) AND (administered_at IS NULL) AND (medication_administration_id IS NULL) AND (refusal_reason IS NULL) AND (lot_number IS NULL) AND (lot_expiration_date IS NULL) AND (vis_edition_date IS NULL) AND (vis_given_date IS NULL)) OR (((status)::text = 'not_done'::text) AND (administered_at IS NULL) AND (medication_administration_id IS NULL) AND (refusal_reason IS NOT NULL) AND (lot_number IS NULL) AND (lot_expiration_date IS NULL) AND (vis_edition_date IS NULL) AND (vis_given_date IS NULL)) OR (((status)::text = 'completed'::text) AND (administered_at IS NOT NULL) AND (cvx_code IS NOT NULL) AND ((((occurrence_source)::text = 'administered_here'::text) AND (medication_administration_id IS NOT NULL) AND (manufacturer IS NOT NULL) AND (lot_number IS NOT NULL) AND (lot_expiration_date IS NOT NULL) AND (source_document_id IS NULL)) OR (((occurrence_source)::text <> 'administered_here'::text) AND (medication_administration_id IS NULL)))))))) NOT VALID;
 
 
 --
@@ -28188,6 +28200,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260911012000'),
 ('20260911010000'),
 ('20260911006000'),
 ('20260911005000'),

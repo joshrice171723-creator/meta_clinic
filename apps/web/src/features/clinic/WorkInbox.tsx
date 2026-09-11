@@ -355,11 +355,7 @@ function TaskActions({
     action: "claim" | "assign" | "start" | "complete",
     values: Record<string, unknown> = {},
   ) {
-    const signature = JSON.stringify([
-      action,
-      values,
-      action === "complete" ? outcome : undefined,
-    ]);
+    const signature = JSON.stringify([action, values]);
     const requestKey = attempts.current.get(signature) || crypto.randomUUID();
     attempts.current.set(signature, requestKey);
     setBusy(action);

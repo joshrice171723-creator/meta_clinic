@@ -163,7 +163,7 @@ function PackagePosition({
                   {processorAmountAvailable && subscription.last_synced_at && (
                     <Typography
                       color="text.secondary"
-                      display="block"
+                      sx={{ display: "block" }}
                       variant="caption"
                     >
                       Last synced {subscriptionDate(subscription.last_synced_at)}

@@ -22,6 +22,8 @@ export type PrevisitNote = {
 };
 
 type PrevisitNoteResponse = {
+  patient_id: number;
+  encounter_id: number;
   appointment_id: number | null;
   note: PrevisitNote | null;
 };
@@ -57,6 +59,11 @@ export function PrevisitNoteImport({
   const [preview, setPreview] = useState<PrevisitNote | null>(null);
   const titleId = useId();
   const note = resource.data?.note;
+  const contextMismatch = Boolean(
+    resource.data &&
+      (resource.data.patient_id !== patientId ||
+        resource.data.encounter_id !== encounterId),
+  );
   const alreadyIncluded = Boolean(
     note?.text.trim() && subjective.includes(previsitNoteBlock(note)),
   );
@@ -91,6 +98,13 @@ export function PrevisitNoteImport({
       <Typography role="status" color="text.secondary">
         Checking for a pre-visit note…
       </Typography>
+    );
+  }
+  if (contextMismatch) {
+    return (
+      <Alert severity="error">
+        The pre-visit submission does not match this patient and encounter.
+      </Alert>
     );
   }
   if (!note?.text.trim()) return null;

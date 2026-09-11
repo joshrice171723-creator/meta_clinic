@@ -212,7 +212,7 @@ module Clinic
           patient_display_name: task.patient.display_name,
           patient_reference: task.patient.reference,
           assigned_to_me: task.assigned_to_membership_id == member.id,
-          assignee_label: task.assigned_to_membership&.user&.email,
+          assignee_label: task.assigned_to_membership&.user&.email_address,
           overdue: task.due_at.present? && task.due_at < at,
           eligible_assignees: eligible_assignees_for_task(task),
           encounter_href:
@@ -228,7 +228,7 @@ module Clinic
           next unless Ability.new(membership.user, practice: practice)
             .allowed_permission?("encounters.write", site: encounter.site)
 
-          { membership_id: membership.id, label: membership.user.email }
+          { membership_id: membership.id, label: membership.user.email_address }
         end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
       end
 
@@ -238,7 +238,7 @@ module Clinic
           patient_display_name: follow_up.patient.display_name,
           patient_reference: follow_up.patient.reference,
           assigned_to_me: follow_up.assigned_to_membership_id == member.id,
-          assignee_label: follow_up.assigned_to_membership&.user&.email,
+          assignee_label: follow_up.assigned_to_membership&.user&.email_address,
           overdue: payload[:due_at].present? && Time.iso8601(payload[:due_at]) < at,
           eligible_assignees: eligible_assignees_for_encounter(follow_up.encounter)
         )
@@ -271,7 +271,7 @@ module Clinic
 
           {
             membership_id: membership.id,
-            label: membership.user.email
+            label: membership.user.email_address
           }
         end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
       end

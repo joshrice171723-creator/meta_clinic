@@ -25,7 +25,8 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     @first_batch = receive_batch("LOT-A", @site_bin, "4.00")
     @second_batch = receive_batch("LOT-B", @site_bin_two, "5.00")
     @other_site_batch = receive_batch("LOT-OTHER", @other_bin, "3.00")
-    grant_permissions!(@membership, "medication_requests.write", scope_kind: "site", site: @site)
+    grant_permissions!(@membership, "clinical_records.read", "medication_requests.write",
+      "medication_administrations.write", scope_kind: "site", site: @site)
     @order = authorized_order
     login(@user)
   end

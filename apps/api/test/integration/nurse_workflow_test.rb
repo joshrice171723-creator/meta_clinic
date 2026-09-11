@@ -114,6 +114,49 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "correction request can be cancelled revised and handed off again" do
+    initial = ready_intake(request_key: "nurse-correction-intake", history_review_ids: @reviews.map(&:id))
+    post intake_path, params: initial, headers: csrf_headers, as: :json
+    assert_response :created
+    first_intake = response.parsed_body.fetch("intake")
+
+    post handoffs_path, params: { handoff: {
+      intake_revision_id: first_intake.fetch("id"), request_key: "nurse-correction-handoff"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    first_handoff = response.parsed_body.fetch("handoff")
+
+    login(@clinician)
+    patch "/api/clinic/handoffs/#{first_handoff.fetch('id')}", params: { handoff: {
+      action: "request_correction", expected_version: first_handoff.fetch("version"),
+      request_key: "nurse-correction-request"
+    } }, headers: csrf_headers, as: :json
+    assert_response :success
+    correction = response.parsed_body.fetch("handoff")
+    assert_equal "correction_requested", correction.fetch("state")
+
+    login
+    patch "/api/clinic/handoffs/#{first_handoff.fetch('id')}", params: { handoff: {
+      action: "cancel", expected_version: correction.fetch("version"), request_key: "nurse-correction-cancel"
+    } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "cancelled", response.parsed_body.dig("handoff", "state")
+
+    revised = ready_intake(request_key: "nurse-correction-revised", history_review_ids: @reviews.map(&:id),
+      expected_version: first_intake.fetch("version"))
+    post intake_path, params: revised, headers: csrf_headers, as: :json
+    assert_response :created
+    second_intake = response.parsed_body.fetch("intake")
+
+    assert_difference "Clinic::EncounterHandoff.count", 1 do
+      post handoffs_path, params: { handoff: {
+        intake_revision_id: second_intake.fetch("id"), request_key: "nurse-correction-rehandoff"
+      } }, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal "pending", response.parsed_body.dig("handoff", "state")
+    end
+  end
+
   private
 
   def workspace_path(patient, encounter)
@@ -132,8 +175,8 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     "/api/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}/clinical_tasks"
   end
 
-  def ready_intake(request_key:, history_review_ids:)
-    { intake: { request_key:, expected_version: 0, status: "ready_for_handoff", identity_state: "confirmed",
+  def ready_intake(request_key:, history_review_ids:, expected_version: 0)
+    { intake: { request_key:, expected_version:, status: "ready_for_handoff", identity_state: "confirmed",
       visit_reason_state: "confirmed", history_state: "reviewed", vitals_state: "not_applicable",
       observation_ids: [], history_review_ids: } }
   end

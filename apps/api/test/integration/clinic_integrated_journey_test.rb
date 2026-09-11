@@ -156,13 +156,16 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       practice:, password:, label: "clinician",
       permissions: %w[patients.read clinical_records.read medication_requests.write medication_administrations.write
         service_requests.write immunizations.write encounters.write notes.write appointments.book
-        appointments.status_transition inventory.adjust]
+        appointments.status_transition inventory.receive inventory.adjust]
     )
     clinician_profile = practice.clinician_profiles.create!(
       membership: clinician_membership, display_name: "Synthetic Clinic Day Clinician"
     )
     scheduler, = create_clinic_day_staff(
       practice:, password:, label: "scheduler", permissions: %w[appointments.read]
+    )
+    billing, = create_clinic_day_staff(
+      practice:, password:, label: "billing", permissions: %w[patients.read billing.invoice_draft]
     )
     foreign_practice = Clinic::Practice.create!(name: "Synthetic Other Clinic", organization:, timezone: "UTC")
     foreign_patient = foreign_practice.patients.create!(display_name: "Synthetic Other Patient", reference: "OTHER-001")
@@ -223,7 +226,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
 
       login_as(scheduler, password:, headers:)
       get nurse_workspace_path(patient, encounter), headers: headers
-      assert_response :forbidden
+      assert_response :not_found
 
       login_as(foreign_user, password:, headers:)
       get nurse_workspace_path(patient, encounter), headers: headers
@@ -315,7 +318,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       refill.reload
       refill_revision = Clinic::Care::MedicationRequestRevision.find(refill.medication_request_revision_id)
       assert_equal [ patient.id, encounter.id, "authorized", "delivered" ],
-        [ refill_revision.patient_id, refill_revision.source_encounter_id, refill_revision.status,
+        [ refill_revision.patient_id, refill.source_encounter_id, refill_revision.status,
           refill.refill_response_delivery.state ]
       assert_no_difference "Clinic::Care::MedicationRequestRevision.count" do
         post "/api/clinic/refill_requests/#{refill.id}/transition", params: refill_transition,
@@ -329,7 +332,8 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       immunization = create_clinical_record(
         patient:, encounter:, collection: "immunizations", root: "immunization", headers:,
         request_key: "clinic-day-immunization", attributes: {
-          vaccine_name: "Synthetic clinic vaccine", occurrence_source: "administered_here", cvx_code: "207"
+          vaccine_name: "Synthetic clinic vaccine", occurrence_source: "administered_here", cvx_code: "207",
+          manufacturer: "Synthetic Vaccine Manufacturer", manufacturer_mvx_code: "PMC"
         }
       )
       immunization = revise_clinical_record(
@@ -379,7 +383,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
         headers: csrf_headers(headers), as: :json
       assert_response :success
       invoice = Clinic::Billing::DraftInvoice.call(
-        practice:, actor: clinician, patient:, encounter:, currency: "USD",
+        practice:, actor: billing, patient:, encounter:, currency: "USD",
         lines: [ { quantity: "1", unit_amount: "95.00", description_snapshot: "Synthetic clinic-day visit" } ],
         request_key: "clinic-day-checkout"
       )
@@ -503,7 +507,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
     location = practice.inventory_locations.create!(site:, name: "Synthetic vaccine refrigerator", kind: "storage")
     lot_number = "CLINIC-DAY-LOT"
     batch = Clinic::Inventory::Receiving.call(
-      practice:, actor:, reason: "Synthetic clinic-day vaccine stock", request_key: "clinic-day-vaccine-receipt",
+      practice:, actor:, reason: "Synthetic clinic-day vaccine stock", request_key: SecureRandom.uuid,
       lines: [ {
         product_id: product.id, lot_number:, location_id: location.id, location: location.name,
         expires_on: 90.days.from_now.to_date.iso8601, amount: "2.00", input_unit: "mL"
@@ -529,7 +533,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       status_reason: nil, variance_reason: nil, precheck_status: "completed", precheck_notes: nil,
       verification_status: "not_required", verified_by_membership_id: nil,
       response_text: "Synthetic expected response observed", education_text: "Synthetic vaccine education reviewed",
-      administered_at: encounter.started_at + 15.minutes, request_key: "clinic-day-vaccine-administration"
+      administered_at: Current.business_time, request_key: "clinic-day-vaccine-administration"
     ).medication_administration
     [ administration, lot_number ]
   end

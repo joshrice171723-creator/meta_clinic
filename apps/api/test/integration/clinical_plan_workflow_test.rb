@@ -8,7 +8,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     @password = SecureRandom.hex(18)
     organization = Organization.create!(name: "Clinical Plan Organization")
     @practice = Clinic::Practice.create!(name: "Clinical Plan Practice", organization:, timezone: "UTC")
-    @site = @practice.sites.create!(code: "PLAN")
+    @site = @practice.sites.create!(code: "PLAN", status: "active")
     @user = User.create!(email_address: "clinical-plan@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "clinical_records.read", "medication_requests.write",

@@ -21,6 +21,8 @@ module Clinic
           resource_version_ref: "Clinic::Encounter/#{encounter.id}"
         )
         render json: {
+          patient_id: patient.id,
+          encounter_id: encounter.id,
           appointment_id: appointment&.id,
           note: Clinic::Care::PrevisitNoteSerializer.call(note)
         }
