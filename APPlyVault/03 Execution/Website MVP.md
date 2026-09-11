@@ -14,13 +14,13 @@ Home: [[00 Home]] · Portal: [[Client Portal]] · Tasks: [Shortcut Roadmap](http
 
 **Current direction, D-033:** independent React/Vite browser presentation and a Rails JSON API, preserving D-025's distinct selling/onboarding and [[Clinic Workspace]] experiences. No external clinic URL is required; clinic access is separately assigned. The software business remains separately owned/scoped. The clinic prototype is synthetic and production-disabled. The earlier Rails-only rendering choice is historical.
 
-The consultancy website now leads to Contact and a client login. The founder explicitly removed the clinic brief and requested Ruby on Rails, then defined the paid-client portal as Paperwork plus Onboarding & Training. See D-021/D-022 and [[Client Portal]]. APPly remains a working name.
+The product website now leads to Contact and a client login. The founder explicitly removed the clinic brief and requested Ruby on Rails, then defined the paid-client portal as Paperwork plus Onboarding & Training. Meta Clinic's software offer and FDE integration path are documented in [[Customer and Offer]] and [[Pricing Strategy]]. APPly remains a working name.
 
 D-033 places the frontend in `apps/web/` and Rails in `apps/api/`; active provider-neutral packaging now lives in `ops/portable/`; see [[Software Architecture]]. The founder removed retired `reference/` on 2026-08-31; it is not an application dependency. D-023's one-repository rule remains. `site/` retains historical assets/metadata, and compatibility links are retired. Do not initialize a nested repository/submodule or publish the parent repository/vault. The owner-only APPly private preview published on 2026-08-30 does not run the current frontend/API pair and is historical evidence only.
 
 ## Implemented
 
-- Existing green-and-cream consultancy landing page, positioning, services, process, Kevin's reference-clinic experience, FAQs, favicon and social card preserved.
+- Existing green-and-cream landing page, positioning, services, process, Kevin's reference-clinic experience, FAQs, favicon and social card preserved as historical website material pending product-positioning updates.
 - Entire brief section, generator, download code and brief tests removed; the prior version remains recoverable in the local backup of the former site repository, not imported into APPly history.
 - Contact page and Rails-backed encrypted inquiry inbox for administrators.
 - Provisioned-account login and the [[Client Portal]] foundation; no public signup or EHR inside the launch portal. Synthetic clinic operations live in the separately permissioned [[Clinic Workspace]].
@@ -36,7 +36,7 @@ The owner-only hosted preview also requires ChatGPT sign-in at the hosting layer
 
 The local prototype uses synthetic examples. Applicant names, signatures, contracts and actual legal documents require approved handling before real use; patient data is excluded entirely. Contact collects only a name, email and business message with a no-patient-data notice. No automatic emails, analytics configuration, payment processing, filings or institutional submissions were added.
 
-No invented prices, launch deadlines, testimonials, regulatory approvals, HIPAA certification or released EHR/video-library claims. Public use of the brand, founder story, service copy and notices remains subject to approval.
+No invented prices, launch deadlines, testimonials, regulatory approvals, HIPAA certification or released EHR/video-library claims. Public use of the brand, founder story, product pricing, FDE migration claims and notices remains subject to approval.
 
 ## Verification
 

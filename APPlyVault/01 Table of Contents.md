@@ -69,10 +69,10 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | Note | What it covers |
 | --- | --- |
 | [[Company Foundation]] | Confirmed market/model/team direction and unresolved business details |
-| [[Customer and Offer]] | NP/PA customer, done-for-you offer, scope and packaging |
-| [[Pricing Strategy]] | Proposed consultancy and software package ladder, pricing hypotheses and validation tests |
-| [[Business Model]] | Launch/support economics, ordered-inventory-value fee basis and unresolved mechanics |
-| [[Entity and Product Boundary]] | Consultancy, software company, physician services and clinic responsibilities; IP/contracts/data |
+| [[Customer and Offer]] | NP/PA customer, software offer, FDE onboarding and migration scope |
+| [[Pricing Strategy]] | Proposed software tiers, FDE integration pricing hypotheses and validation tests |
+| [[Business Model]] | Software subscription, FDE implementation economics and unresolved mechanics |
+| [[Entity and Product Boundary]] | Software, FDE, source-system and customer-clinic responsibilities; IP/contracts/data |
 | [[Clinic Launch Packet]] | Source-to-packet outline, applicant actions, review and handoff evidence; actual packet absent |
 | [[Knowledge Bank and Mentorship]] | Deferred video/mentorship concept; not a released library or physician coverage |
 | [[Foundation Questions]] | Historical founder answers and deferred questions; later refinements supersede older unknowns |

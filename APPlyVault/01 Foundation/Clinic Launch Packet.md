@@ -1,9 +1,11 @@
 ---
 type: delivery-plan
-status: outline-awaiting-source-materials
+status: superseded-historical-outline
 updated: 2026-08-31
 ---
 # Clinic Launch Packet
+
+This outline is retained as dated history. D-067 supersedes its consultancy and done-for-you launch purpose. The current offer is Meta Clinic software with FDE-led onboarding, approved integrations and data migration; see [[Customer and Offer]], [[Pricing Strategy]] and the FDE integration document under `docs/commercial/`.
 
 Home: [[00 Home]] · Offer: [[Customer and Offer]] · Source process: [[MD Pilot]] · Review: [[Texas Diligence]]
 

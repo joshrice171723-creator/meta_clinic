@@ -1,69 +1,50 @@
 ---
 type: business-boundary
-status: direction-confirmed-details-open
-updated: 2026-08-31
+status: software-and-fde-boundary-details-open
+updated: 2026-09-11
 ---
 # Entity and Product Boundary
 
-Home: [[00 Home]] · Offer: [[Customer and Offer]] · Economics: [[Business Model]] · Technology: [[SharePoint and EMR]]
+Home: [[00 Home]] · Offer: [[Customer and Offer]] · Economics: [[Business Model]] · Pricing: [[Pricing Strategy]]
 
-## Founder direction
+## Current direction
 
-The consultancy is formed and owned 51% by Kevin and 49% by the founder. The EHR/inventory entity is not yet formed and will have different ownership, including the senior-developer friend as an owner. The consultancy executes clinic launches with minimal provider input and ongoing support, including an initial SharePoint EHR. Software pricing is an implementation fee plus recurring fees based on a percentage of ordered inventory value; rates and billing mechanics remain open. Eventually SharePoint will be replaced with a bespoke backend; clinical production architecture and S3 use remain open. D-027/D-030 separately selected private EC2 bootstrap hosting, and D-031/D-033 implemented a synthetic PostgreSQL frontend/API product; neither approves clinical use.
+Meta Clinic is being documented as a software product rather than a consultancy. It sells clinic software, paid onboarding and FDE-led integration/migration work. The FDE configures the software and moves approved data through a controlled implementation process; the FDE does not become the clinic's administrator, clinician, legal adviser or record custodian.
 
-The founder reports that direction-setting authority is documented and refers to a “veto concern.” Record both without resolving the ambiguity: whose veto, what decisions it covers, and how it interacts with direction-setting authority have not been stated. Formation and governing documents have not been reviewed here. Do not equate the equity split with unilateral control, a particular veto right, or deadlock provisions.
+The customer clinic remains responsible for its operations, professional obligations, user authorization and records. Any clinical, legal, accounting or other regulated service is outside the software product unless a separately identified qualified party contracts for it.
 
-The senior-developer friend will work with both businesses: employee of the consultancy and owner on the software side. Software equity amount and employment/compensation/IP terms are TBD. Do not imply consultancy equity for the friend or a finalized software cap table. Account for work time, compensation, code ownership, and any licenses between the businesses explicitly.
-
-## Responsibility map — confirmed roles, detailed agreements open
+## Responsibility map
 
 | Subject | Intended purpose | Details to settle |
 | --- | --- | --- |
-| Founder / consultancy | Founder directs the consultancy; company executes minimal-input launch package and ongoing support | Legal name, authority documentation, execution/signature limits, spending approvals, support terms |
-| Senior-developer friend | Consultancy employee and software-business owner | Employment scope/pay, software equity/vesting, work allocation, code/IP assignments, and licenses |
-| Software entity | EHR and inventory product, including eventual custom replacement | Whether it also supplies the current SharePoint package; software IP; licenses; hosting; support; security operations |
-| Kevin | Physician collaboration/delegation support, help with physician arrangements, and mentorship | Personal versus entity contracting, compensation, clinical scope, capacity, backup, and continuity |
-| Video knowledge bank / mentorship | Kevin's proposed additional education/mentorship service | Selling entity, audience, pricing, content/IP ownership, support and live-service commitments |
-| MD's clinic | Real-world reference implementation and source of setup experience | Approved access, testing, reuse of materials, and clinic-specific clinical responsibility |
-| Customer clinic | Client care business and day-to-day operation | Professional obligations, local approvals, patient records, authorized users, operational acceptance |
+| Meta Clinic software entity | Own and operate the application, subscriptions, product IP and software support | Legal entity, ownership, IP assignments, hosting, support and contracts |
+| FDE implementation role | Configure clinic settings, map approved sources, execute integrations/imports, reconcile results and guide handoff | Employment/contracting, rate, access, source authorization, audit, rollback and acceptance |
+| Customer clinic | Own clinic operations, records, users and professional responsibilities | Data custody, user approvals, acceptance, clinical accountability and exit |
+| Source-system vendors | Supply exports or integration access under the customer's authority | Export rights, API terms, rate limits, retention and vendor support |
+| Professional service providers | Provide clinical, legal, accounting or other regulated expertise when separately engaged | Qualified party, scope, contract, fees and responsibility |
 
-Kevin's attorney helped with his clinic setup. Whether that attorney will advise the consultancy, software entity, or client clinics—and on which issues—is not yet established.
+## FDE data and access boundary
 
-## Medication supply and pharmacy boundary
+FDE work may include discovery, source export review, field mapping, transformation, dry runs, reconciliation, cutover support and staff validation. Real patient or clinical data may be accessed or moved only after documented customer authorization, applicable agreements, data-flow/security review, approved credentials, auditability, rollback planning and release approval.
 
-An internal pharmacy may introduce a distinct licensed operator, PIC, stock owner and record custodian. Do not automatically assign those roles to the consultancy, software company, Kevin or the customer clinic. Map who buys, pays, owns, stores, prepares, supplies/dispenses and receives returns. Taking title, brokering, central storage or cross-clinic supply needs separate distribution-role review; merely recording an order grants no such authority.
+The current implementation-specialist role is intentionally limited to facilities configuration. It does not grant patient, encounter, note, medication, billing, inventory or role-management authority. If real-data migration needs additional access, define a separate migration role or controlled process with least privilege, time bounds, audit and revocation. Do not expand the ordinary FDE role by assumption.
 
-[[Pharmacy Provider and Counsel Questions]] provides the proposed provider/counsel agenda, especially PQ-16 and PQ-26–PQ-30. Related ownership, fees, supplier incentives, contracts, clinical independence and record access remain L-01/L-04/L-05/L-08 matters. No pharmacy entity formation, procurement role, contract or clinical authority is selected by this update.
+## Commercial boundaries
 
-## Decisions before bundling a software product with consulting
+1. Invoice software subscription, onboarding and FDE integration work as distinct deliverables.
+2. Define what is included in each migration tier and what becomes a change order.
+3. Keep custom integration, complex migration, professional services, vendor fees and travel outside the base subscription unless explicitly contracted.
+4. Define data export, retention, deletion, cancellation, rollback and post-handoff support before live migration.
+5. Do not use the integration fee to imply clinical approval, credential verification, professional coverage or regulatory acceptance.
 
-1. **Customer contract:** one agreement, separate agreements, or a disclosed bundled arrangement? Who invoices for setup, licenses, maintenance, and support?
-2. **Ownership and reuse:** who owns the MD's packet, SharePoint configuration, templates, existing code, and future EHR/inventory IP? What licenses are required between entities?
-3. **Operations:** who provisions accounts, trains staff, answers support requests, changes permissions, pays vendors, and handles incidents?
-4. **Data:** where does information flow, who has access, what agreements apply, and what can each entity do during setup and support?
-5. **Exit:** what happens when consulting ends, software is cancelled, or SharePoint is replaced? How does the clinic retain usable records and operational continuity?
-6. **Choice:** must launch clients use the related software, or can they bring another system? Can unrelated clinics buy the software independently?
-7. **Governance and development:** review the documented direction-setting authority and clarify the veto concern; record employment and software ownership terms, work allocation, and IP rights for the senior developer's dual role.
+## Decisions before live migration
 
-Separate entities do not resolve these practical questions automatically. Capture the agreed answers and appropriate reviews before customer commitments.
+- Which legal entity contracts with the clinic and invoices each deliverable?
+- Which source systems, data domains and import methods are supported?
+- Who authorizes export and access, and how is that authority evidenced?
+- What mapping, validation, reconciliation, rollback and acceptance evidence is required?
+- Which staff members can view, correct or approve migration results?
+- What happens when source data is incomplete, duplicated, misidentified or not portable?
+- What support and exit obligations survive the FDE handoff?
 
-## Workstreams
-
-- **Now — consultancy:** ingest existing materials, assemble a reviewed launch packet, define the package, and identify the first clients.
-- **Now — starter system:** map the actual SharePoint workflow, delivery responsibilities, review evidence, and handoff requirements.
-- **Now — synthetic custom product:** D-025 authorizes [[Clinic Workspace]] alongside selling/onboarding; D-033 now implements the experiences through `apps/web` and the Rails API in `apps/api`, with separate layouts/navigation and explicit clinic access. Fictional EHR, inventory and employee-directory workflows do not merge business ownership or approve shared production infrastructure.
-- **Later — real clinical product:** validate requirements, architecture/data boundaries, migration, security/operations and standalone economics before real records. No cloud deployment or PHI use is authorized by this prototype.
-
-## Open record
-
-| Item | Current record |
-| --- | --- |
-| Consultancy formation | Formed per founder; legal name/type/documents not supplied |
-| Consultancy ownership / direction | Kevin 51% / founder 49%; direction-setting documented per founder; exact veto concern and governing terms not reviewed |
-| Software entity | Not formed; different ownership including developer friend; amounts and full cap table TBD |
-| Developer friend | Consultancy employee; software owner; detailed terms TBD |
-| IP / intercompany agreement | Not supplied |
-| Pricing | Launch + ongoing support; software implementation + percentage of ordered inventory value; rates/terms open |
-| Kevin's services | Physician support in scope; capacity/terms explicitly TBD. Video knowledge bank + mentorship proposed as another service; entity unassigned |
-| Patient-data roles / architecture | Unreviewed / undecided |
-| Due dates | None committed |
+The repository's synthetic clinic implementation and local tests do not close these decisions or authorize real-data use.

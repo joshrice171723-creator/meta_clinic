@@ -81,7 +81,7 @@ D-031 and [[PostgreSQL and Inventory Foundation]] supersede the initial SQLite/w
 | Area | Local behavior | Limits |
 | --- | --- | --- |
 | Navigation | `/clinic` opens the account's assigned dashboard/sidebar; signed-out visitors return here after login | No clinic picker or creation step; same Rails process, not isolated hosting |
-| Access | Active clinic membership with patients/inventory/staff capabilities; consultancy administration grants none | One clinic per user; no invitations, MFA or permission-management interface |
+| Access | Active clinic membership with patients/inventory/staff capabilities; non-clinic administration grants none | One clinic per user; no invitations, MFA or permission-management interface |
 | EHR foundation | Fictional patient creation/directory, encrypted names and append-only encrypted draft entries with author attribution | No clinical signatures, full encounter workflow, diagnoses, prescriptions, orders, labs or decision support |
 | Inventory | Office supplies, reason/actor-attributed adjustments, atomic nonnegative stock, retry deduplication and reorder indicators | No purchasing, billing, clinical stock, lots or expiry management |
 | EHR pharmacy | `/clinic/pharmacy`: public FDA NDC package search/import, fictional catalog, lot/location receipts, whole-package ledger, stock/expiry worklists, quarantine/recall/release history | Inventory permission required; no patient links, dispensing, prescriptions, orders, valuation, transfers, automated recalls or production use |

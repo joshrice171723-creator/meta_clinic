@@ -1,7 +1,7 @@
 ---
 type: dashboard
 status: active
-updated: 2026-09-10
+updated: 2026-09-11
 lifecycle: active
 canonical_for: vault-orientation
 ---
@@ -9,7 +9,7 @@ canonical_for: vault-orientation
 
 **[[01 Table of Contents|Vault table of contents]] · [Product definition](../PRODUCT.md) · [[Design|Clinic design system]] · [Developer handbook](../docs/README.md)**
 
-Our shared workspace for a done-for-you clinic-launch consultancy serving **NPs and PAs in Sherman and North Texas**, focused on cash-pay primary-care / concierge-adjacent clinics. The consultancy is formed; the EHR and inventory-management entity is not yet formed and will have different ownership. **APPly remains a working name until the consultancy's legal/brand name is confirmed.**
+Our shared workspace for **Meta Clinic**, a configurable ambulatory software product for NPs and PAs in Sherman and North Texas, focused on cash-pay primary-care / concierge-adjacent clinics. The product uses a software-led Implementation Specialist (FDE) for configuration, approved integrations and data migration. **APPly remains a working name until the product's legal/brand name is confirmed.**
 
 ## Developers — start with the handbook
 
@@ -26,14 +26,14 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Current position
 
-- **Offer:** execute the clinic launch with minimal provider input, through first-patient readiness, including the packet and starter SharePoint EHR; ongoing support is part of the model. Exact deliverables, exceptions, fees, and support terms remain to define.
-- **Leadership:** consultancy ownership is Kevin 51% / founder 49%. Founder reports documented direction-setting authority and raises a “veto concern”; whose veto and its scope remain to clarify. Governing documents have not yet been reviewed here.
-- **Team / physician services:** Kevin supplies physician support/arrangements and mentorship. The senior-developer friend will be a consultancy employee and a software-company owner; equity amount and employment/IP terms are TBD.
+- **Offer:** provide configurable ambulatory software with FDE-led onboarding, approved integrations and data migration. Subscription tiers, onboarding fees, support limits and acceptance terms remain to define.
+- **Leadership / entity:** product ownership, governance, employment, IP and commercial entity terms remain to be documented. No consultancy launch business is assumed in the current model.
+- **Implementation:** an FDE configures clinic type, services, payment model, visit types, sites and operating hours, then leads authorized integration and migration work. Professional clinical services remain separate and are not implied by the FDE role.
 - **Additional service concept:** Kevin wants a video knowledge bank with mentorship. [[Knowledge Bank and Mentorship]] tracks this separately from physician coverage; the selling entity, packaging, audience, and pricing remain open.
 - **Reference clinic:** Kevin Stacks, MD, PLLC, general adult medicine in Sherman, verified on the public website. The founder reports the MD has recently gone through cash-pay PLLC setup and documented the legal steps taken so far.
 - **Starting assets:** Kevin's attorney helped with his setup process. The founder will gather Kevin's documents/legal materials for authorized ingestion; receipt, reuse permission and review are still not recorded here. The earlier expected availability was not proof of receipt.
-- **Commercial structure:** consultancy launch package with ongoing support; support and package-cost details explicitly TBD. Software implementation fee plus recurring fees calculated as a percentage of ordered inventory value; rate, eligible value, billing trigger, and terms remain open. This is not a selected percentage of patient-care revenue.
-- **Product direction:** SharePoint initially; eventual custom EHR/inventory backend. The former AWS environments and OIDC delivery path are retired. Current source publishes commit-tagged containers to the founder-owned GitHub registry and retains provider-neutral packaging. The founder selected a new Lightsail synthetic demo with verified HTTPS access; [[CICD]] distinguishes historical evidence, current operations and remaining release limits.
+- **Commercial structure:** per-clinic software subscription plus separate onboarding/FDE integration fees and optional bounded configuration support. Rates, supported sources, billing terms and data-migration mechanics remain open.
+- **Product direction:** Meta Clinic software with FDE-led onboarding, approved integrations and data migration; SharePoint mapping and the eventual custom EHR/inventory backend remain implementation paths rather than a consultancy offer. The former AWS environments and OIDC delivery path are retired. Current source publishes commit-tagged containers to the founder-owned GitHub registry and retains provider-neutral packaging. The founder selected a new Lightsail synthetic demo with verified HTTPS access; [[CICD]] distinguishes historical evidence, current operations and remaining release limits.
 - **Database implementation:** D-031 selects PostgreSQL throughout Rails, tests and prepared deployment tooling. [[PostgreSQL and Inventory Foundation]] records the tested shared ledger, units, receipts, holds and counts. Staging's verified maintenance cutover preserves its synthetic records/keys and includes independent PostgreSQL restore evidence; production cutover remains pending.
 - **Source structure:** D-033 separates browser UI (`apps/web`) and Rails API (`apps/api`), retaining D-032's domain ownership. [Architecture](../docs/architecture/software-architecture.md) and [development docs](../docs/development/README.md) define the two build/runtime boundaries and commands; [[Software Architecture]] and [[CICD]] remain vault compatibility pointers. The temporary link is retired; staging now runs the split release and production remains unchanged. The local `apply_test` cleanup issue was resolved by authorized recreation; [[Progress Log]] retains the incident and corrected cleanup checks.
 - **Pharmacy scope:** D-028 sets broad configurability: clinics should be able to choose and combine pharmacy setups. [[Pharmacy Inventory Data Requirements]] covers the shared inventory foundation and proposed capability extensions; individual clinic activation and real-data release still need their own evidence.
@@ -44,7 +44,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 ## Start here
 
 1. For development, start with [development](../docs/development/README.md) and [architecture](../docs/architecture/README.md). Keep task scope, dependencies and acceptance in the active task context. Agents use the [failure-first workflow](../agent-harness/workflows/failure-first.md); the human agreement remains [[Working Agreement]]. Existing professional and release gates remain in force.
-2. Use [[MD Pilot]] and [[Texas Diligence]] to turn the existing materials into the [[Clinic Launch Packet]].
+2. Use [[Customer and Offer]], [[Pricing Strategy]] and [[Texas Diligence]] to define the software offer, FDE integration scope and real-data migration gates.
 3. Use the active task context for workstreams, [[Decisions]] for agreed choices, and [[Progress Log]] for material dated outcomes.
 
 ## Workspace map
@@ -61,7 +61,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 ## Next three moves
 
 - Finish remaining engineering/release acceptance: browser/account journeys, image advisories and operations/recovery. Select and provision a founder-controlled host before any new hosted acceptance; historical AWS evidence does not transfer to it.
-- Build toward operator onboarding and versioned synthetic packet/training management. The founder will gather Kevin's materials; actual content/reuse review is a separate dependency, and real applicant documents/signing remain gated.
+- Build toward operator onboarding, FDE integration runbooks and versioned migration/validation procedures. Source-system permissions, data mapping, real-data handling and customer acceptance remain separate dependencies.
 - Finish inventory configuration/permission acceptance and prepare the synthetic clinic workflow walkthrough alongside it; field/layout/clinical acceptance and real-data gates remain open.
 
 Active task status lives in the current task context; this page is a direction summary, not a second task list.

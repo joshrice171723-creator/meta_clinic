@@ -1,65 +1,64 @@
 ---
 type: strategy
 status: direction-confirmed
-updated: 2026-08-30
+updated: 2026-09-11
 ---
 # Customer and Offer
 
-Home: [[00 Home]] · Evidence: [[Customer Discovery]] · Economics: [[Business Model]]
+Home: [[00 Home]] · Economics: [[Business Model]] · Pricing: [[Pricing Strategy]]
 
-## First customer definition — partially confirmed
+## First customer definition
 
 | Dimension | Current direction / remaining decision |
 | --- | --- |
-| Profession | Both NPs and PAs confirmed; maintain distinct profession-specific pathways. |
-| Clinic | Primary-care / concierge-adjacent. Exact services and physical / telehealth / hybrid coverage remain open. |
-| Place | Sherman and North Texas confirmed; exact county/service-radius coverage to define operationally. |
-| Stage | Exploring, committed to opening, already forming, or already operating |
-| Payment model | Cash-pay PLLC model confirmed. Per-visit versus membership details remain open; concierge-adjacent does not automatically mean membership. |
-| Buyer | Individual clinician, founding group, existing practice, or another sponsor |
-| Trigger | A specific event that makes help urgent |
-| Constraints | Opening horizon, available capital, prior ownership experience, physician relationships |
+| Profession | NPs and PAs; maintain profession-specific workflows and onboarding |
+| Clinic | Cash-pay primary-care / concierge-adjacent; physical, telehealth and hybrid scope remain open |
+| Place | Sherman and North Texas initially; exact service radius remains open |
+| Stage | Existing clinic, committed launch, or early operating clinic; prioritize buyers with current data to migrate |
+| Buyer | Individual clinician, founding group, existing practice or sponsor |
+| Payment model | Cash-pay first; per-visit versus membership details remain clinic-configurable |
+| Trigger | Replacing fragmented systems, opening a clinic, or needing a controlled migration |
+| Constraints | Budget, current-system export quality, available staff, integrations and implementation timing |
 
-## Candidate problems, not findings
+## Candidate problems
 
-1. “I cannot tell what applies to my proposed clinic or in what order to do it.”
-2. “I spend too much time coordinating advisors, vendors, forms, and permits.”
-3. “I need affordable, workable administrative systems when I open.”
-4. “I need ongoing support after launch, not just formation documents.”
+1. “Our current systems are disconnected and staff re-enter the same information.”
+2. “We need a clinic workflow that fits cash-pay operations without paying for unused complexity.”
+3. “We need someone technical to configure integrations and move our existing data safely.”
+4. “We need a usable operating system after migration, not a blank account and a help center.”
 
-The founder reports substantial local demand and increased interest in cash-pay clinics, including primary care and Botox/aesthetics examples. Capture actual leads, problems, spending, and purchase readiness. We have no ranked customer pain points or recorded customer commitments yet. Aesthetics is an adjacent market to evaluate separately, not a launch-scope commitment.
+These are hypotheses. Local demand has been reported, but ranked pain points, named leads, paid commitments and willingness to pay remain unvalidated.
 
-## Main offer — direction confirmed
+## Main offer
 
-**A done-for-you launch package for a cash-pay clinic, with minimal provider input, through first-patient readiness—including a SharePoint starter EHR, Kevin's physician support/mentorship, and ongoing support.**
+**Meta Clinic software configured for the clinic, with an FDE-led onboarding, integration and data-migration engagement.**
 
-Use Kevin's attorney-assisted setup process to build [[Clinic Launch Packet]]. The consultancy executes the agreed work, with a small applicant input/approval burden rather than a self-service checklist. Define required provider decisions/signatures, qualified-expert work, spending authorization, completion evidence, and scope exceptions. The separate software entity will have different owners; see [[Entity and Product Boundary]].
+The FDE discovers the clinic's current systems, maps the approved data set, configures supported integrations or import paths, runs reconciliation and dry-run checks, guides staff validation, and hands the workspace to clinic ownership. The subscription remains the software product; FDE work is a separate, fixed-scope implementation service.
 
-## Packaging — model confirmed, detailed terms open
+The FDE is not a clinician, legal adviser, billing authority or general administrator. The role does not approve clinical decisions, credentials, professional scope or patient-care readiness.
+
+## Package structure
 
 | Offer | Tangible outcome | Boundary to define |
 | --- | --- | --- |
-| Intake / applicability review | Completed clinic profile and tailored launch plan | Could be part of the main package; no separate assessment product or fee agreed |
-| Done-for-you launch — core offer | Minimal-input packet, executed setup, physician arrangements, starter EHR, and readiness handoff | Exact deliverables, provider approvals, third-party expenses, package price, and change-order rules |
-| Kevin's physician support and mentorship | Collaboration/delegation support, help with physician arrangements, and mentorship | Exact professional scope, agreements, billing, cadence, capacity, and backup |
-| Ongoing consultancy support | Support after launch is confirmed as part of the model | Included versus separate fee, duration, services, response expectations, and exclusions |
-| EHR / inventory product | Separate-entity implementation fee plus a percentage of ordered inventory value | Eligible-value rules, rates, billing, product support, and any bundling |
+| Clinic Ops Core | A usable patient, appointment, encounter and cash-pay operating foundation | Provider/site limits, included users, support and live-use acceptance |
+| Clinic Ops Plus | Core plus deeper billing, membership, worklist, reminder and inventory configuration | Module availability, workflow-specific hardening and training scope |
+| FDE Integration and Migration | A mapped, reconciled and staff-validated transition from approved source systems | Source ownership, data scope, mapping, access, rollback, acceptance and change orders |
+| Managed Configuration Support | Scheduled configuration, workflow review and issue triage after handoff | Hours, response targets, channels, escalation and exclusions |
+| Founding Clinic Partner | Paid design-partner access with a bounded scope and measurable feedback | Term, discount expiry, reference permission and no unlimited custom work |
 
-The earlier assessment-first suggestion is not the selected business direction; the founder has specified an end-to-end launch consultancy. An assessment may be an intake step, not a substitute for that offer.
+Detailed pricing hypotheses are in [[Pricing Strategy]].
 
-## Candidate software areas
+## Product boundary
 
-- Clinic-specific task dependencies and evidence tracking.
-- Reviewed document/template inventory with dates and applicability.
-- Advisor handoffs, unresolved questions, and administrative reminders.
-- Workflow configuration or integrations, subject to [[SharePoint and EMR]].
+The product supports a configurable ambulatory software base. It is not currently a promise of universal clinical workflow coverage, professional approval, compliance certification or unrestricted real-data readiness. A clinic's selected services and integrations require their own implementation, verification and release evidence.
 
-The SharePoint starter EHR is included in the intended launch scope, but its detailed functions are unverified. The eventual custom EHR and inventory product is a separate-entity offering. D-025 authorizes a synthetic [[Clinic Workspace]]; D-028 now establishes broad pharmacy configurability so clinics can choose and combine setups. [[Pharmacy Inventory Data Requirements]] defines proposed collection/capability details. This product direction is not a released prescribing/dispensing service or a promise that every pharmacy setup is included in the consultancy's launch package.
+Real patient or clinical data may move only after the applicable authorization, agreements, data-flow review, access controls, migration validation and release gates are satisfied. Synthetic development fixtures remain separate from customer migration evidence.
 
-## What the first written offer must contain
+## What the written offer must contain
 
-Named buyer; desired outcome; deliverables; start/end conditions; clinic prerequisites; price/payment terms; explicit exclusions; client responsibilities; expert responsibilities; support limits; treatment of third-party fees; change/cancellation terms; and the basis for every public claim.
+Named buyer; software tier; implementation scope; source systems; included data domains; assumptions; customer responsibilities; FDE responsibilities; price and payment terms; acceptance evidence; exclusions; support limits; change-order rules; migration rollback/exit handling; and the basis for every public claim.
 
 ## Alternatives to investigate
 
-Doing it alone; healthcare attorneys and accountants; independent practice consultants; professional associations; franchise or practice networks; EHR/practice-management vendors; and existing personal networks. These are discovery categories, not a completed competitor analysis. Capture real alternatives named by customers before drafting a differentiation claim.
+Tebra and other configurable EHR/practice-management platforms; standalone scheduling and payment tools; custom integration vendors; doing the work internally; and specialist implementation firms. Capture actual alternatives named by customers before making differentiation claims.

@@ -9,6 +9,8 @@ Home: [[00 Home]] · Synthesis: [[Company Foundation]] · Decisions: [[Decisions
 
 Answer conversationally or inline. Partial answers and “unknown” are useful. Answers are evidence; they become decisions only when clearly agreed. Founder responses through the latest seven numbered answers are incorporated below; do not restart discovery from zero.
 
+**Current clarification:** D-067 supersedes the earlier consultancy and done-for-you launch answers as the current commercial direction. Meta Clinic is now software plus FDE-led onboarding, approved integrations and data migration. The historical answers below remain preserved evidence and are not the active offer.
+
 ## Round 1 — direction and starting assets
 
 1. **First customer:** When you say APPs, do you mean primarily NPs, PAs, or both? Which specialty or clinic type is the best starting point?
