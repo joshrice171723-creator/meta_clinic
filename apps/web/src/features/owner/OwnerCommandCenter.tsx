@@ -9,8 +9,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
   MenuItem,
   Paper,
+  Radio,
+  RadioGroup,
   Stack,
   Table,
   TableBody,
@@ -45,6 +50,7 @@ type OrganizationSummary = {
 
 type CommandCenterData = {
   schema_version: "owner-command-center-v1";
+  delivery_methods: { email: boolean; sms: boolean };
   organizations: OrganizationSummary[];
   unassigned_clinics: ClinicSummary[];
 };
@@ -76,6 +82,8 @@ export function OwnerCommandCenter() {
   const [timezone, setTimezone] = useState("America/Chicago");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("email");
+  const [ownerPhone, setOwnerPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [invitation, setInvitation] = useState<CreatedInvitation | null>(null);
@@ -83,6 +91,8 @@ export function OwnerCommandCenter() {
   const [inviteClinic, setInviteClinic] = useState<ClinicSummary | null>(null);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteDeliveryMethod, setInviteDeliveryMethod] = useState("email");
+  const [invitePhone, setInvitePhone] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
 
@@ -138,6 +148,8 @@ export function OwnerCommandCenter() {
             timezone,
             owner_name: ownerName,
             owner_email: ownerEmail,
+            delivery_method: deliveryMethod,
+            owner_phone: ownerPhone,
           },
         },
       });
@@ -149,6 +161,8 @@ export function OwnerCommandCenter() {
       setTimezone("America/Chicago");
       setOwnerName("");
       setOwnerEmail("");
+      setDeliveryMethod("email");
+      setOwnerPhone("");
       refresh();
     } catch (reason) {
       setSaveError(
@@ -177,6 +191,8 @@ export function OwnerCommandCenter() {
     setInviteClinic(clinic);
     setInviteName("");
     setInviteEmail(clinic.owner_invitations[0] ?? "");
+    setInviteDeliveryMethod("email");
+    setInvitePhone("");
     setInviteError("");
   };
 
@@ -199,12 +215,21 @@ export function OwnerCommandCenter() {
         invitation: CreatedInvitation;
       }>(`/api/owner/clinics/${inviteClinic.id}/owner_invitation`, {
         method: "POST",
-        body: { owner: { name: inviteName, email: inviteEmail } },
+        body: {
+          owner: {
+            name: inviteName,
+            email: inviteEmail,
+            delivery_method: inviteDeliveryMethod,
+            phone: invitePhone,
+          },
+        },
       });
       setInvitation(result.invitation);
       setInviteClinic(null);
       setInviteName("");
       setInviteEmail("");
+      setInviteDeliveryMethod("email");
+      setInvitePhone("");
       refresh();
     } catch (reason) {
       setInviteError(
@@ -451,7 +476,14 @@ export function OwnerCommandCenter() {
                 required
                 autoComplete="off"
                 slotProps={{ htmlInput: { maxLength: 254 } }}
-                helperText="The owner will receive a private link to create their password."
+                helperText="Used for the owner account, even when the activation link is sent by text."
+              />
+              <DeliveryMethodField
+                method={deliveryMethod}
+                onMethodChange={setDeliveryMethod}
+                phone={ownerPhone}
+                onPhoneChange={setOwnerPhone}
+                smsAvailable={data.delivery_methods.sms}
               />
             </Stack>
           </DialogContent>
@@ -501,7 +533,14 @@ export function OwnerCommandCenter() {
                 required
                 autoComplete="off"
                 slotProps={{ htmlInput: { maxLength: 254 } }}
-                helperText="The owner will receive a private link to create their password."
+                helperText="Used for the owner account, even when the activation link is sent by text."
+              />
+              <DeliveryMethodField
+                method={inviteDeliveryMethod}
+                onMethodChange={setInviteDeliveryMethod}
+                phone={invitePhone}
+                onPhoneChange={setInvitePhone}
+                smsAvailable={data.delivery_methods.sms}
               />
             </Stack>
           </DialogContent>
@@ -515,6 +554,63 @@ export function OwnerCommandCenter() {
           </DialogActions>
         </Stack>
       </Dialog>
+    </Stack>
+  );
+}
+
+function DeliveryMethodField({
+  method,
+  onMethodChange,
+  phone,
+  onPhoneChange,
+  smsAvailable,
+}: {
+  method: string;
+  onMethodChange: (value: string) => void;
+  phone: string;
+  onPhoneChange: (value: string) => void;
+  smsAvailable: boolean;
+}) {
+  return (
+    <Stack spacing={1.25}>
+      <FormControl>
+        <FormLabel id="owner-delivery-method-label">
+          Send activation link by
+        </FormLabel>
+        <RadioGroup
+          row
+          aria-labelledby="owner-delivery-method-label"
+          value={method}
+          onChange={(event) => onMethodChange(event.target.value)}
+        >
+          <FormControlLabel value="email" control={<Radio />} label="Email" />
+          <FormControlLabel
+            value="sms"
+            control={<Radio />}
+            label="Text message"
+            disabled={!smsAvailable}
+          />
+        </RadioGroup>
+        {!smsAvailable && (
+          <Typography variant="caption" color="text.secondary">
+            Text delivery becomes available after the Twilio Messaging sender is
+            configured on this server.
+          </Typography>
+        )}
+      </FormControl>
+      {method === "sms" && (
+        <TextField
+          label="Mobile number"
+          type="tel"
+          value={phone}
+          onChange={(event) => onPhoneChange(event.target.value)}
+          required
+          autoComplete="tel"
+          placeholder="(555) 555-5555"
+          helperText="The one-time password link will be sent by text message."
+          slotProps={{ htmlInput: { maxLength: 32 } }}
+        />
+      )}
     </Stack>
   );
 }

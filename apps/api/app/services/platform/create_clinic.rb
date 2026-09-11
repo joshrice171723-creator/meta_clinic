@@ -2,7 +2,8 @@ module Platform
   class CreateClinic
     class Unavailable < StandardError; end
 
-    def self.call(actor:, organization_id:, organization_name:, clinic_name:, timezone:, owner_name:, owner_email:)
+    def self.call(actor:, organization_id:, organization_name:, clinic_name:, timezone:, owner_name:, owner_email:,
+      delivery_method: "email", owner_phone: nil)
       raise Unavailable, "Owner access is required." unless actor&.active? && actor.platform_owner_access?
 
       email = owner_email.to_s.strip.downcase
@@ -48,8 +49,8 @@ module Platform
           result = { organization:, practice:, site:, invitation: }
         end
       end
-      activation_path = "/workforce/activate#token=#{URI.encode_www_form_component(token)}"
-      result.merge(activation_path:, delivery_status: deliver_invitation(result.fetch(:invitation), token, actor))
+      result.merge(ClinicOwnerInvitationDelivery.call(invitation: result.fetch(:invitation), token:,
+        method: delivery_method, phone_number: owner_phone, actor:))
     rescue ActiveRecord::RecordInvalid => error
       raise Unavailable, error.record.errors.full_messages.to_sentence
     rescue ActiveRecord::RecordNotFound
@@ -81,17 +82,5 @@ module Platform
     end
     private_class_method :administrator_role!
 
-    def self.deliver_invitation(invitation, token, actor)
-      Platform::ClinicOwnerMailer.invitation(invitation.id, token).deliver_now
-      Clinic::AuditRecorder.record_platform(actor:, action_code: "owner_command_center.invitation.sent",
-        outcome: :committed)
-      Rails.env.development? ? "prepared" : "sent"
-    rescue StandardError => error
-      Rails.logger.error("Clinic owner invitation delivery failed: #{error.class}")
-      Clinic::AuditRecorder.record_platform(actor:, action_code: "owner_command_center.invitation.failed",
-        outcome: :failed)
-      "failed"
-    end
-    private_class_method :deliver_invitation
   end
 end

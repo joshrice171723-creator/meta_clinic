@@ -243,6 +243,34 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_equal [ "r_garison25@yahoo.com" ], ActionMailer::Base.deliveries.last.to
   end
 
+  test "platform owner can text an owner activation link" do
+    practice = Organization.create!(name: "Text Group").practices.create!(
+      name: "Text Clinic", timezone: "America/Chicago", platform_managed: true
+    )
+    practice.sites.create!(code: "MAIN", name: "Main clinic", status: "active")
+    sign_in(@admin)
+    sms = Platform::ClinicOwnerInvitationSms.singleton_class
+    original_deliver = Platform::ClinicOwnerInvitationSms.method(:deliver)
+    captured = nil
+    sms.define_method(:deliver) { |**args| captured = args; true }
+
+    begin
+      assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+        post "/api/owner/clinics/#{practice.id}/owner_invitation", params: {
+          owner: { name: "Robin Garison", email: "robin@example.invalid", delivery_method: "sms", phone: "(555) 555-1212" }
+        }, headers: csrf_headers, as: :json
+      end
+    ensure
+      sms.define_method(:deliver, original_deliver)
+    end
+
+    assert_response :created
+    assert_equal "sent", response.parsed_body.dig("invitation", "delivery_status")
+    assert_nil response.parsed_body.dig("invitation", "activation_path")
+    assert_equal "+15555551212", captured.fetch(:phone_number).then { |number| Platform::ClinicOwnerInvitationSms.normalize_phone(number) }
+    assert_match(%r{\A/workforce/activate#token=}, captured.fetch(:activation_path))
+  end
+
   test "resending replaces the previous pending owner link" do
     practice = Organization.create!(name: "Resend Group").practices.create!(
       name: "Resend Clinic", timezone: "America/Chicago", platform_managed: true

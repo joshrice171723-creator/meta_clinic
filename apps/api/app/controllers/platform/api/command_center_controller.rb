@@ -22,6 +22,7 @@ module Platform
       def create
         input = parameter_hash!(:clinic, %i[
           organization_id organization_name clinic_name timezone owner_name owner_email
+          delivery_method owner_phone
         ])
         organization_id = input[:organization_id].present? ?
           integer_id!(input[:organization_id], field: :organization_id) : nil
@@ -30,6 +31,7 @@ module Platform
           raise Clinic::Api::RequestParameters::Invalid.new("Choose a valid timezone.", field: :timezone)
         end
 
+        delivery = invitation_delivery_input!(input)
         result = Platform::CreateClinic.call(
           actor: current_user,
           organization_id:,
@@ -37,7 +39,8 @@ module Platform
           clinic_name: required_string!(input[:clinic_name], field: :clinic_name, maximum: 120),
           timezone:,
           owner_name: required_string!(input[:owner_name], field: :owner_name, maximum: 120),
-          owner_email: required_string!(input[:owner_email], field: :owner_email, maximum: 254)
+          owner_email: required_string!(input[:owner_email], field: :owner_email, maximum: 254),
+          **delivery
         )
         invitation = result.fetch(:invitation)
         render json: {
@@ -52,11 +55,12 @@ module Platform
       end
 
       def invite_owner
-        input = parameter_hash!(:owner, %i[name email])
+        input = parameter_hash!(:owner, %i[name email delivery_method phone])
         practice = Clinic::Practice.find(integer_id!(params[:id], field: :id))
+        delivery = invitation_delivery_input!(input)
         result = Platform::InviteClinicOwner.call(actor: current_user, practice:,
           owner_name: required_string!(input[:name], field: :name, maximum: 120),
-          owner_email: required_string!(input[:email], field: :email, maximum: 254))
+          owner_email: required_string!(input[:email], field: :email, maximum: 254), **delivery)
         invitation = result.fetch(:invitation)
         render json: {
           clinic: clinic_payload(practice.reload),
@@ -65,6 +69,18 @@ module Platform
       end
 
       private
+
+      def invitation_delivery_input!(input)
+        delivery_method = optional_string(input[:delivery_method], field: :delivery_method, maximum: 10)&.downcase || "email"
+        unless Platform::ClinicOwnerInvitationDelivery::METHODS.include?(delivery_method)
+          raise Clinic::Api::RequestParameters::Invalid.new("Choose email or text message.", field: :delivery_method)
+        end
+        owner_phone = optional_string(input[:owner_phone] || input[:phone], field: :owner_phone, maximum: 32)
+        if delivery_method == "sms" && Platform::ClinicOwnerInvitationSms.normalize_phone(owner_phone).blank?
+          raise Clinic::Api::RequestParameters::Invalid.new("Enter a valid mobile number for text delivery.", field: :owner_phone)
+        end
+        { delivery_method:, owner_phone: }
+      end
 
       def invitation_payload(invitation, result)
         {
@@ -89,6 +105,7 @@ module Platform
           ).order(:name, :id)
         {
           schema_version: "owner-command-center-v1",
+          delivery_methods: { email: true, sms: Platform::ClinicOwnerInvitationSms.configured? },
           organizations: organizations.map { |organization| organization_payload(organization) },
           unassigned_clinics: unassigned.reject { |practice| assigned_ids.include?(practice.id) }.map { |practice| clinic_payload(practice) }
         }
