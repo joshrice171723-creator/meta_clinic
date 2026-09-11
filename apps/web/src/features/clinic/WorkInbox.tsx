@@ -358,7 +358,6 @@ function TaskActions({
     const signature = JSON.stringify([
       action,
       values,
-      action === "complete" ? outcome : undefined,
     ]);
     const requestKey = attempts.current.get(signature) || crypto.randomUUID();
     attempts.current.set(signature, requestKey);
