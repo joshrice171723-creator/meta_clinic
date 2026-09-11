@@ -283,8 +283,9 @@ describe("system appearance and UI scope", () => {
         path="/clinic"
       />,
     );
-    expect(restricted.match(/<a /g)).toHaveLength(2);
+    expect(restricted.match(/<a /g)).toHaveLength(3);
     expect(restricted.match(/<button /g)).toBeNull();
+    expect(restricted).toContain("/clinic/work");
     expect(restricted).toContain("/clinic/operations");
     expect(restricted).toContain("/clinic/settings");
     expect(restricted).not.toContain("Tracking Board");
