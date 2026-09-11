@@ -3097,6 +3097,12 @@ function SoapNoteWorkspace({
 export function ChartQuickJump() {
   const links = [
     ["Patient", "#chart-patient"],
+    ["Intake", "#nurse-workspace"],
+    ["Education", "#patient-education"],
+    ["History", "#clinical-history"],
+    ["Labs", "#chart-labs"],
+    ["Medication", "#medication-administration"],
+    ["Orders & plans", "#clinical-plan-workspace"],
     ["HPI", "#chart-hpi"],
     ["ROS", "#chart-ros"],
     ["Assessment", "#chart-assessment"],
@@ -3666,12 +3672,12 @@ function VisitWrapUp({
   const requestKeyRef = useRef<string | null>(null);
   const initializedEncounterRef = useRef<number | null>(null);
   const [disposition, setDisposition] = useState<
-    EncounterCompletionReview["disposition_code"]
-  >("completed_as_planned");
+    EncounterCompletionReview["disposition_code"] | ""
+  >("");
   const [instructionsStatus, setInstructionsStatus] =
-    useState<EncounterCompletionReview["instructions_status"]>("not_required");
+    useState<EncounterCompletionReview["instructions_status"] | "">("");
   const [educationStatus, setEducationStatus] =
-    useState<EncounterCompletionReview["education_status"]>("not_required");
+    useState<EncounterCompletionReview["education_status"] | "">("");
   const [exceptionNote, setExceptionNote] = useState("");
   const [openWorkReviewed, setOpenWorkReviewed] = useState(false);
   const current = completed ?? encounter;
@@ -3679,20 +3685,15 @@ function VisitWrapUp({
   const evidence = completion?.evidence;
   const review = savedReview ?? completion?.completion_review ?? null;
   const formLocked = busy || closeState !== "idle";
-  const exceptionRequired =
+  const exceptionRequired = Boolean(disposition && instructionsStatus && educationStatus) && (
     disposition !== "completed_as_planned" ||
     instructionsStatus === "unable_to_complete" ||
-    educationStatus === "unable_to_complete";
+    educationStatus === "unable_to_complete"
+  );
 
   useEffect(() => {
     if (!completion || initializedEncounterRef.current === encounter.id) return;
     initializedEncounterRef.current = encounter.id;
-    setInstructionsStatus(
-      completion.evidence.signed_instruction ? "provided" : "not_required",
-    );
-    setEducationStatus(
-      completion.evidence.education_events.length ? "recorded" : "not_required",
-    );
   }, [completion, encounter.id]);
 
   const redirectIfUnauthorized = (caught: unknown) => {
@@ -3748,6 +3749,10 @@ function VisitWrapUp({
       setError(
         "Save the encounter follow-up disposition before completing this visit.",
       );
+      return;
+    }
+    if (!disposition || !instructionsStatus || !educationStatus) {
+      setError("Choose the visit outcome, written-instruction status, and education status.");
       return;
     }
     if (!openWorkReviewed) {
@@ -4025,6 +4030,7 @@ function VisitWrapUp({
                   }
                   disabled={formLocked}
                 >
+                  <MenuItem value="" disabled>Choose an outcome</MenuItem>
                   {completion.options.disposition_codes.map((value) => (
                     <MenuItem key={value} value={value}>
                       {COMPLETION_DISPOSITION_LABELS[value]}
@@ -4044,6 +4050,7 @@ function VisitWrapUp({
                   }
                   disabled={formLocked}
                 >
+                  <MenuItem value="" disabled>Choose an instruction status</MenuItem>
                   {completion.options.instructions_statuses.map((value) => (
                     <MenuItem key={value} value={value}>
                       {COMPLETION_INSTRUCTION_LABELS[value]}
@@ -4063,6 +4070,7 @@ function VisitWrapUp({
                   }
                   disabled={formLocked}
                 >
+                  <MenuItem value="" disabled>Choose an education status</MenuItem>
                   {completion.options.education_statuses.map((value) => (
                     <MenuItem key={value} value={value}>
                       {COMPLETION_EDUCATION_LABELS[value]}

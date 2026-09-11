@@ -31,7 +31,7 @@ module Identity
         return invalid_credentials unless user
 
         establish_session(user)
-        render json: { user: user.as_json(only: %i[id email_address admin]) }
+        render json: { user: user.as_json(only: %i[id email_address admin platform_owner]) }
       end
 
       def development
@@ -115,7 +115,7 @@ module Identity
         demo = development_demo?
         preview = Development::TestAccounts.preview_account_for(user,
           profile: session[:development_test_profile]) if demo
-        user.as_json(only: %i[id email_address admin]).merge(
+        user.as_json(only: %i[id email_address admin platform_owner]).merge(
           development_demo: !!demo,
           development_account_id: preview&.fetch(:id, nil)
         )

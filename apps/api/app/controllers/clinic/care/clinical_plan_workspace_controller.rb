@@ -4,16 +4,19 @@ module Clinic
       FIELD_SETS = {
         medication_requests: %i[status intent transmission_state inventory_product_id medication_name dose_value
           dose_unit_code dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text
-          instructions source_medication_statement_id],
+          instructions source_medication_statement_id completion_exception],
         service_requests: %i[status request_kind intent priority requested_code_system requested_code requested_display
-          destination reason_text due_at],
+          destination reason_text due_at completion_exception],
         diagnoses: %i[status classification code_system diagnosis_code diagnosis_display clinical_note],
         procedures: %i[status code_system procedure_code procedure_display performed_at outcome_text complication_state
           complication_text service_request_revision_id],
         care_plans: %i[status title description starts_on ends_on],
         care_goals: %i[status care_plan_revision_id description outcome_text target_on],
         immunizations: %i[status vaccine_name cvx_code manufacturer lot_number dose_text route_text
-          administration_site_text administered_at occurrence_source refusal_reason source_document_id]
+          administration_site_text administered_at occurrence_source refusal_reason source_document_id
+          medication_administration_id],
+        assessments: %i[status category instrument_name instrument_version score_value interpretation response_summary
+          follow_up_plan assessed_at]
       }.freeze
       ROOTS = {
         medication_requests: :medication_request,
@@ -22,7 +25,8 @@ module Clinic
         procedures: :procedure,
         care_plans: :care_plan,
         care_goals: :care_goal,
-        immunizations: :immunization
+        immunizations: :immunization,
+        assessments: :assessment
       }.freeze
 
       def show
@@ -46,6 +50,8 @@ module Clinic
       def revise_care_goal = revise_record(:care_goals)
       def create_immunization = create_record(:immunizations)
       def revise_immunization = revise_record(:immunizations)
+      def create_assessment = create_record(:assessments)
+      def revise_assessment = revise_record(:assessments)
 
       def create_fulfillment_link
         patient, encounter = patient_and_encounter
@@ -115,10 +121,10 @@ module Clinic
       def normalized_input(kind, input)
         value = input.dup
         %i[inventory_product_id source_medication_statement_id service_request_revision_id care_plan_revision_id
-          source_document_id].each do |field|
+          source_document_id medication_administration_id].each do |field|
           value[field] = optional_id(value[field], field) if value.key?(field)
         end
-        %i[due_at performed_at administered_at scheduled_for].each do |field|
+        %i[due_at performed_at administered_at scheduled_for assessed_at].each do |field|
           value[field] = value[field].present? ? time_param!(value[field], field:) : nil if value.key?(field)
         end
         %i[starts_on ends_on target_on].each do |field|

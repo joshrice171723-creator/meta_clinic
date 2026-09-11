@@ -30,13 +30,16 @@ export function Login({
   const returnTo = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("next");
+  const ownerPortal = returnTo?.startsWith("/owner");
   const employeePortal = returnTo?.startsWith("/clinic");
   const patientPortal = returnTo?.startsWith("/patient-portal");
-  const portalName = employeePortal
-    ? "Clinic team workspace"
-    : patientPortal
-      ? "Patient portal"
-      : "Launch & onboarding";
+  const portalName = ownerPortal
+    ? "Owner Command Center"
+    : employeePortal
+      ? "Clinic team workspace"
+      : patientPortal
+        ? "Patient portal"
+        : "Launch & onboarding";
   const done = () =>
     window.location.assign(
       loginDestination(new URLSearchParams(window.location.search).get("next")),
@@ -45,26 +48,32 @@ export function Login({
     <main id="main" className="wrap inner-page login-layout">
       <div className="inner-page-copy">
         <h1>
-          {employeePortal
-            ? "Your workday."
-            : patientPortal
-              ? "Your care."
-              : "Your launch."}
+          {ownerPortal
+            ? "Your organizations."
+            : employeePortal
+              ? "Your workday."
+              : patientPortal
+                ? "Your care."
+                : "Your launch."}
           <br />
           <em>
-            {employeePortal
-              ? "One place to work."
-              : patientPortal
-                ? "One secure place."
-                : "One place to start."}
+            {ownerPortal
+              ? "One place to lead."
+              : employeePortal
+                ? "One place to work."
+                : patientPortal
+                  ? "One secure place."
+                  : "One place to start."}
           </em>
         </h1>
         <p>
-          {employeePortal
-            ? "Sign in to work in your clinic and access the tools assigned to your team account."
-            : patientPortal
-              ? "Sign in to view the patient portal access assigned by your clinic."
-              : "Sign in to review your paperwork and work through onboarding and training."}
+          {ownerPortal
+            ? "Sign in to establish clinics and invite their first owners."
+            : employeePortal
+              ? "Sign in to work in your clinic and access the tools assigned to your team account."
+              : patientPortal
+                ? "Sign in to view the patient portal access assigned by your clinic."
+                : "Sign in to review your paperwork and work through onboarding and training."}
         </p>
         {!developmentLogin && (
           <p className="page-fine-print">
@@ -80,8 +89,16 @@ export function Login({
             aria-label="Choose your sign-in space"
           >
             <a
+              aria-current={ownerPortal ? "page" : undefined}
+              href="/login?next=%2Fowner"
+            >
+              Owner
+            </a>
+            <a
               aria-current={
-                !employeePortal && !patientPortal ? "page" : undefined
+                !ownerPortal && !employeePortal && !patientPortal
+                  ? "page"
+                  : undefined
               }
               href="/login"
             >
@@ -102,11 +119,13 @@ export function Login({
           </div>
           <h2>{portalName}</h2>
           <p>
-            {employeePortal
-              ? "Clinic employees use the account provided by their organization."
-              : patientPortal
-                ? "Patients use the account activated from their clinic invitation."
-                : "Use this account for launch paperwork, onboarding, and training. Clinic team access is separate."}
+            {ownerPortal
+              ? "Meta Clinic owners use their platform account to manage organizations and clinics."
+              : employeePortal
+                ? "Clinic employees use the account provided by their organization."
+                : patientPortal
+                  ? "Patients use the account activated from their clinic invitation."
+                  : "Use this account for launch paperwork, onboarding, and training. Clinic team access is separate."}
           </p>
           <Form endpoint="/api/session" submit="Sign in" onSuccess={done}>
             <Field
@@ -130,7 +149,8 @@ export function Login({
               </a>
             </p>
           )}
-          {(employeePortal || (developmentLogin && !patientPortal)) && (
+          {(employeePortal ||
+            (developmentLogin && !ownerPortal && !patientPortal)) && (
             <p>
               <a href="/workforce/activate">Activate employee account</a>
             </p>

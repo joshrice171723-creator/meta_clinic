@@ -16,6 +16,7 @@ module Clinic
     has_many :history_reviews, class_name: "Clinic::Care::PatientHistoryReview", dependent: :restrict_with_error
     has_one :telehealth_visit, class_name: "Clinic::Telehealth::Visit", dependent: :restrict_with_error
     has_one :completion_review, class_name: "Clinic::EncounterCompletionReview", dependent: :restrict_with_error
+    has_many :assessment_revisions, class_name: "Clinic::Care::AssessmentRevision", dependent: :restrict_with_error
 
     scope :open, -> { where(ended_at: nil) }
     scope :recent, -> { order(started_at: :desc) }

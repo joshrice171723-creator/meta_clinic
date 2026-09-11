@@ -4,6 +4,8 @@ Rails.application.routes.draw do
   post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
   scope path: "api", as: "api" do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
+  get "owner/command_center", to: "platform/api/command_center#show"
+  post "owner/clinics", to: "platform/api/command_center#create"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"
@@ -114,6 +116,10 @@ Rails.application.routes.draw do
       to: "care/clinical_plan_workspace#create_immunization"
     patch "patients/:patient_id/encounters/:encounter_id/immunizations/:series_id",
       to: "care/clinical_plan_workspace#revise_immunization"
+    post "patients/:patient_id/encounters/:encounter_id/assessments",
+      to: "care/clinical_plan_workspace#create_assessment"
+    patch "patients/:patient_id/encounters/:encounter_id/assessments/:series_id",
+      to: "care/clinical_plan_workspace#revise_assessment"
     post "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/fulfillment_links",
       to: "care/clinical_plan_workspace#create_fulfillment_link"
     post "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace/referral_events",
@@ -388,6 +394,7 @@ Rails.application.routes.draw do
   end
   end
   namespace :api, module: "identity/api" do
+    post "owner_activation", to: "owner_activations#create"
     post "employee_activation", to: "employee_activations#create"
     get "csrf", to: "sessions#csrf"
     resource :session, only: %i[show create update destroy]

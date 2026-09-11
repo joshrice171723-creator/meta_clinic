@@ -237,6 +237,14 @@ export function DevelopmentControls({
         <ToggleButton value="employee">Employee portal</ToggleButton>
         <ToggleButton value="omni">Omni</ToggleButton>
       </ToggleButtonGroup>
+      <Button
+        className="development-owner-portal-button"
+        variant="outlined"
+        size="small"
+        href="/owner"
+      >
+        Owner portal
+      </Button>
       <Stack
         className="development-control-row"
         direction="row"

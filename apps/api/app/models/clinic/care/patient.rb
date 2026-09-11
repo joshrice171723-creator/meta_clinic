@@ -10,6 +10,7 @@ module Clinic
       has_many :encounter_notes, class_name: "Clinic::EncounterNote", dependent: :restrict_with_error
       has_many :encounter_completion_reviews, class_name: "Clinic::EncounterCompletionReview",
         dependent: :restrict_with_error
+      has_many :assessment_revisions, class_name: "Clinic::Care::AssessmentRevision", dependent: :restrict_with_error
       has_many :observations, class_name: "Clinic::Care::Observation", dependent: :restrict_with_error
       has_many :lab_specimens, class_name: "Clinic::Care::LabSpecimen", dependent: :restrict_with_error
       has_many :education_events, class_name: "Clinic::Care::PatientEducationEvent", dependent: :restrict_with_error

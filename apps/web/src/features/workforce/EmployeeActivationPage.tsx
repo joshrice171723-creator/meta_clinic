@@ -16,12 +16,17 @@ const activationTokenFromLocation = (() => {
 
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
   if (window.location.search)
-    window.history.replaceState(window.history.state, "", "/workforce/activate");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      "/workforce/activate",
+    );
   return token;
 })();
 
 export function EmployeeActivationPage() {
   const [token, setToken] = useState(activationTokenFromLocation);
+  const openedFromInvitation = activationTokenFromLocation.length > 0;
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [saving, setSaving] = useState(false);
@@ -67,22 +72,29 @@ export function EmployeeActivationPage() {
         <Stack component="form" spacing={2.5} onSubmit={submit}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary">
-              EMPLOYEE ACCOUNT
+              CLINIC ACCOUNT
             </Typography>
-            <Typography variant="h1">Activate your clinic account</Typography>
+            <Typography variant="h1">
+              {openedFromInvitation
+                ? "Create your password"
+                : "Activate your clinic account"}
+            </Typography>
             <Typography color="text.secondary">
-              Enter the token your manager shared with you, then choose a
-              password for your staff login.
+              {openedFromInvitation
+                ? "Choose a password to finish setting up your Meta Clinic account."
+                : "Enter your invitation code, then choose a password for your clinic account."}
             </Typography>
           </Stack>
           {error && <Alert severity="error">{error}</Alert>}
-          <TextField
-            label="Activation token"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            required
-            autoComplete="one-time-code"
-          />
+          {!openedFromInvitation && (
+            <TextField
+              label="Invitation code"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              required
+              autoComplete="one-time-code"
+            />
+          )}
           <TextField
             label="Password"
             type="password"
@@ -114,11 +126,11 @@ export function EmployeeActivationPage() {
               confirmation.length < 12
             }
           >
-            {saving ? "Activating…" : "Activate account"}
+            {saving ? "Creating account…" : "Create account"}
           </Button>
           <Typography variant="body2" color="text.secondary">
-            This creates a staff account only. It does not use patient portal
-            credentials or expose your password to your manager.
+            Your password is never shared with the person who invited you and is
+            separate from patient portal access.
           </Typography>
         </Stack>
       </Paper>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;background:#f4f7f6;color:#16302b;font-family:Arial,sans-serif;">
+    <div style="max-width:620px;margin:0 auto;padding:40px 20px;">
+      <div style="background:#ffffff;border:1px solid #d8e2df;border-radius:14px;padding:36px;">
+        <p style="margin:0 0 24px;color:#276c5b;font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Meta Clinic</p>
+        <h1 style="margin:0 0 16px;font-size:30px;line-height:1.2;">Create your clinic password</h1>
+        <p style="margin:0 0 16px;font-size:17px;line-height:1.6;">Hello <%= @owner_name %>,</p>
+        <p style="margin:0 0 24px;font-size:17px;line-height:1.6;">
+          You have been invited to manage <strong><%= @clinic_name %></strong><% if @organization_name.present? %> for <%= @organization_name %><% end %> in Meta Clinic.
+        </p>
+        <p style="margin:0 0 28px;">
+          <a href="<%= @activation_url %>" style="display:inline-block;background:#176b57;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:8px;">Create password</a>
+        </p>
+        <p style="margin:0;color:#526b65;font-size:14px;line-height:1.6;">
+          This private link can be used once and expires <%= l(@expires_at, format: :long) %>. If you were not expecting this invitation, you can ignore this email.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

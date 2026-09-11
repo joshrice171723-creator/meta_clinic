@@ -11,7 +11,9 @@ module Clinic
       enum :status, { pending: "pending", activated: "activated", revoked: "revoked" }, validate: true
 
       belongs_to :staff_member, class_name: "Clinic::Staff::Member"
-      belongs_to :invited_by_membership, class_name: "Clinic::Membership"
+      belongs_to :invited_by_membership, class_name: "Clinic::Membership", optional: true
+      belongs_to :invited_by_platform_user, class_name: "User", optional: true,
+        inverse_of: :platform_clinic_invitations
       belongs_to :role_version
 
       encrypts :email_address
@@ -24,6 +26,7 @@ module Clinic
       validates :invited_at, :expires_at, :effective_from, presence: true
       validates :site_ids, length: { minimum: 1, maximum: 100 }
       validate :related_records_belong_to_practice
+      validate :inviter_is_authorized
       validate :sites_belong_to_practice
       before_validation :set_email_digest, if: :pending?
 
@@ -40,6 +43,16 @@ module Clinic
       def related_records_belong_to_practice
         { staff_member: staff_member, invited_by_membership: invited_by_membership }.each do |attribute, record|
           errors.add(attribute, "must belong to this practice") if record && record.practice_id != practice_id
+        end
+      end
+
+      def inviter_is_authorized
+        inviters = [ invited_by_membership, invited_by_platform_user ].compact
+        errors.add(:base, "Invitation must have exactly one inviter") unless inviters.one?
+        return unless invited_by_platform_user
+
+        unless invited_by_platform_user.active? && invited_by_platform_user.platform_owner_access?
+          errors.add(:invited_by_platform_user, "must have active platform owner access")
         end
       end
 

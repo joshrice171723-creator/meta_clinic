@@ -11,7 +11,8 @@ module Clinic
 
       belongs_to :prior_revision, class_name: name, optional: true
 
-      encrypts :requested_code_system, :requested_code, :requested_display, :destination, :reason_text
+      encrypts :requested_code_system, :requested_code, :requested_display, :destination, :reason_text,
+        :completion_exception
       validates :status, inclusion: { in: STATUSES }
       validates :request_kind, inclusion: { in: KINDS }
       validates :intent, inclusion: { in: INTENTS }
@@ -20,6 +21,8 @@ module Clinic
       validates :requested_code_system, :requested_code, length: { maximum: 240 }, allow_nil: true
       validates :destination, length: { maximum: 500 }, allow_nil: true
       validates :reason_text, length: { maximum: 2_000 }, allow_nil: true
+      validates :completion_exception, length: { maximum: 2_000 }, allow_nil: true
+      validates :completion_exception, absence: true, unless: -> { status == "completed" }
     end
   end
 end

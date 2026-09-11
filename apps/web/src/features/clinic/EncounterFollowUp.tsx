@@ -120,6 +120,7 @@ export function EncounterFollowUpPanel({
   );
   const [status, setStatus] =
     useState<Exclude<FollowUpStatus, "completed">>("not_required");
+  const [statusConfirmed, setStatusConfirmed] = useState(false);
   const [plan, setPlan] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [appointmentId, setAppointmentId] = useState("");
@@ -145,6 +146,7 @@ export function EncounterFollowUpPanel({
     const draft = recovery.ready ? recovery.restored : null;
     if (draft) {
       setStatus(draft.status);
+      setStatusConfirmed(true);
       setPlan(draft.plan);
       setDueAt(draft.dueAt);
       setAppointmentId(draft.appointmentId);
@@ -189,6 +191,7 @@ export function EncounterFollowUpPanel({
           ? "not_required"
           : (followUp?.status ?? "not_required"),
       );
+      setStatusConfirmed(Boolean(followUp));
       setPlan(followUp?.plan ?? "");
       setDueAt(localDateTime(followUp?.due_at ?? null));
       setAppointmentId(String(followUp?.follow_up_appointment?.id ?? ""));
@@ -201,6 +204,7 @@ export function EncounterFollowUpPanel({
       !canWrite ||
       !recovery.ready ||
       !restored ||
+      !statusConfirmed ||
       busyRef.current ||
       followUp?.status === "completed" ||
       pending
@@ -235,6 +239,7 @@ export function EncounterFollowUpPanel({
     recovery.save,
     restored,
     status,
+    statusConfirmed,
   ]);
 
   if (!resource.data) return <LoadState error={resource.error} />;
@@ -332,6 +337,10 @@ export function EncounterFollowUpPanel({
     try {
       let snapshot = pendingDraftRef.current;
       if (!snapshot) {
+        if (!statusConfirmed) {
+          setError("Choose the follow-up disposition.");
+          return;
+        }
         if (status !== "not_required" && !plan.trim()) {
           setError("Enter the follow-up plan.");
           return;
@@ -558,14 +567,14 @@ export function EncounterFollowUpPanel({
             <TextField
               select
               label="Follow-up status"
-              value={status}
+              value={statusConfirmed ? status : ""}
               disabled={!canWrite || busy || pending || !recovery.ready}
-              onChange={(event) =>
-                setStatus(
-                  event.target.value as Exclude<FollowUpStatus, "completed">,
-                )
-              }
+              onChange={(event) => {
+                setStatus(event.target.value as Exclude<FollowUpStatus, "completed">);
+                setStatusConfirmed(true);
+              }}
             >
+              <MenuItem value="" disabled>Choose a disposition</MenuItem>
               <MenuItem value="not_required">No follow-up required</MenuItem>
               <MenuItem value="needed">Follow-up needed</MenuItem>
               <MenuItem value="arranged">Appointment arranged</MenuItem>

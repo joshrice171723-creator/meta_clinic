@@ -40,6 +40,25 @@ failures must be recorded separately; provisioning a host does not resolve them.
 7. Verify HTTPS, credential login, anonymous protected-route denial, CSRF denial,
    development-login denial, runtime database restrictions, and service restart.
 
+## Platform owner invitation
+
+Configure outbound SMTP only in `/opt/meta-clinic/secrets/runtime.env` using
+`APP_SMTP_ADDRESS`, `APP_SMTP_PORT`, `APP_SMTP_USERNAME`, `APP_SMTP_PASSWORD`,
+`APP_SMTP_AUTHENTICATION`, and a provider-verified `APP_EMAIL_FROM`. Never place
+those values in `release.env`, Git, shell history, screenshots, or deployment logs.
+
+After the matched release is healthy and its migration has completed, issue the
+single platform-owner invitation from the host:
+
+```sh
+sudo env APP_PLATFORM_OWNER_EMAIL='owner@example.com' bash ./invite-owner.sh
+```
+
+The task never prints the password or invitation token. Delivery failure revokes
+the unusable invitation. The emailed link creates the password, signs in the new
+owner, and opens `/owner`. PostgreSQL permits only one user with platform-owner
+access; issuing another invitation is refused after activation.
+
 The demo email is `staging-demo-user@example.test`; its generated password is in
 the root-restricted secrets directory. Deliver credentials through an owner-only
 local file, never Git, build logs, screenshots, or public notes. No shared default

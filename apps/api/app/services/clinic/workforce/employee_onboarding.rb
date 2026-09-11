@@ -91,9 +91,20 @@ module Clinic
             employment.employment_sites.create!(practice: invitation.practice, site: site,
               active: true, effective_from: invitation.effective_from)
           end
-          RoleAssignment.grant!(actor: invitation.invited_by_membership.user,
-            membership: membership, role_version: invitation.role_version,
-            sites: sites, effective_from: invitation.effective_from, source_employment: employment)
+          if invitation.invited_by_membership
+            RoleAssignment.grant!(actor: invitation.invited_by_membership.user,
+              membership: membership, role_version: invitation.role_version,
+              sites: sites, effective_from: invitation.effective_from, source_employment: employment)
+          else
+            platform_inviter = invitation.invited_by_platform_user
+            raise InvalidInvitation unless platform_inviter&.active? && platform_inviter.platform_owner_access?
+            raise InvalidInvitation unless invitation.role_version.role_code == "clinic-administrator" &&
+              invitation.role_version.version == Clinic::Authorization::PilotRoleCatalog::VERSION
+
+            membership.role_grants.create!(practice: invitation.practice, role_version: invitation.role_version,
+              scope_kind: "practice", source_employment: employment,
+              effective_from: invitation.effective_from, revision: 1)
+          end
           invitation.update!(status: :activated, activated_at: now, token_digest: nil, email_digest: nil)
           Clinic::AuditRecorder.record!(practice: invitation.practice, actor: user,
             action_code: "workforce.onboarding.activate", outcome: :committed,

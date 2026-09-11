@@ -1,0 +1,10 @@
+Meta Clinic
+
+Hello <%= @owner_name %>,
+
+You have been invited to manage <%= @clinic_name %><% if @organization_name.present? %> for <%= @organization_name %><% end %> in Meta Clinic.
+
+Create your password:
+<%= @activation_url %>
+
+This private link can be used once and expires <%= l(@expires_at, format: :long) %>. If you were not expecting this invitation, you can ignore this email.

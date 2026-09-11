@@ -22,13 +22,16 @@ module Clinic
       belongs_to :inventory_product, class_name: "Clinic::Inventory::PharmacyProduct", optional: true
       belongs_to :requester_membership, class_name: "Clinic::Membership", optional: true
 
-      encrypts :medication_name, :dose_text, :route_text, :frequency_text, :quantity_text, :instructions, :reason_text
+      encrypts :medication_name, :dose_text, :route_text, :frequency_text, :quantity_text, :instructions, :reason_text,
+        :completion_exception
       validates :status, inclusion: { in: STATUSES }
       validates :intent, inclusion: { in: INTENTS }
       validates :transmission_state, inclusion: { in: TRANSMISSION_STATES }
       validates :medication_name, presence: true, length: { maximum: 400 }
       validates :dose_text, :route_text, :frequency_text, :quantity_text, length: { maximum: 400 }, allow_nil: true
       validates :instructions, :reason_text, length: { maximum: 2_000 }, allow_nil: true
+      validates :completion_exception, length: { maximum: 2_000 }, allow_nil: true
+      validates :completion_exception, absence: true, unless: -> { status == "completed" }
       validates :dose_value, numericality: { greater_than: 0, less_than_or_equal_to: 1_000_000 }, allow_nil: true
       validates :dose_unit_code, inclusion: { in: DOSE_UNITS.keys }, allow_nil: true
       validates :route_code, inclusion: { in: ROUTES.keys }, allow_nil: true
