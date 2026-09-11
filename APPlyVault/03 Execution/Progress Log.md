@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-10
+updated: 2026-09-11
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,10 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-11 — Ambulatory workflow implementation, verification deferred
+
+Implemented durable refill review, a consolidated work inbox, structured reusable intake, portal education acknowledgment, capacity/waitlist offers and booking, recall history, and guided checkout. Three migrations installed locally. No tests were added or run; runtime/browser acceptance and a verified score remain open. [Implementation boundaries and remaining gaps](../../records/implementation/2026-09-11-workflow-loop-delivery.md).
 
 ## 2026-09-10 — New Lightsail synthetic demo deployed
 

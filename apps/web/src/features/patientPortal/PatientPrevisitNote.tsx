@@ -17,17 +17,29 @@ type Note = {
   id: number;
   version_number: number;
   text: string;
+  additional_text?: string;
+  intake_answers?: Record<string, string>;
   submitted_at: string;
 };
 type Response = {
   appointment_id: number;
   note: Note | null;
   can_edit: boolean;
+  intake_form?: {
+    id: string;
+    fields: { id: string; label: string; reusable: boolean }[];
+    max_answer_length: number;
+  };
+  reusable_answers?: {
+    submitted_at: string;
+    answers: Record<string, string>;
+  } | null;
 };
 type Attempt = {
   body: {
     previsit_note: {
       text: string;
+      intake_answers: Record<string, string>;
       expected_version: number;
       request_key: string;
     };
@@ -53,6 +65,20 @@ function dateLabel(value: string) {
     : date.toLocaleString();
 }
 
+function draftKey(text: string, answers: Record<string, string>) {
+  return JSON.stringify([
+    text.trim(),
+    Object.entries(answers)
+      .map(([key, value]) => [key, value.trim()])
+      .filter(([, value]) => value !== "")
+      .sort(([left], [right]) => left.localeCompare(right)),
+  ]);
+}
+
+function savedText(note: Note | null | undefined) {
+  return note?.additional_text ?? note?.text ?? "";
+}
+
 export function PatientPrevisitNote({
   appointmentId,
   appointmentLabel,
@@ -65,6 +91,7 @@ export function PatientPrevisitNote({
   const [data, setData] = useState<Response | null>(null);
   const [text, setText] = useState("");
   const [baseline, setBaseline] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -102,9 +129,11 @@ export function PatientPrevisitNote({
       if (!requestIsCurrent()) return;
       setData(result);
       if (!preserveDraft || data === null) {
-        const saved = result.note?.text ?? "";
+        const saved = savedText(result.note);
+        const savedAnswers = result.note?.intake_answers ?? {};
         setText(saved);
-        setBaseline(saved);
+        setAnswers(savedAnswers);
+        setBaseline(draftKey(saved, savedAnswers));
         setConflict(false);
       } else {
         setLatestReady(true);
@@ -143,16 +172,20 @@ export function PatientPrevisitNote({
     setLatestRefreshFailed(false);
   };
   const useLatestSaved = () => {
-    const saved = data?.note?.text ?? "";
+    const saved = savedText(data?.note);
+    const savedAnswers = data?.note?.intake_answers ?? {};
     setText(saved);
-    setBaseline(saved);
+    setAnswers(savedAnswers);
+    setBaseline(draftKey(saved, savedAnswers));
     setConflict(false);
     setError("");
     setLatestReady(false);
     setLatestRefreshFailed(false);
   };
   const keepDraft = () => {
-    setBaseline(data?.note?.text ?? "");
+    setBaseline(
+      draftKey(savedText(data?.note), data?.note?.intake_answers ?? {}),
+    );
     setConflict(false);
     setError("");
     setLatestReady(false);
@@ -164,14 +197,17 @@ export function PatientPrevisitNote({
       !data ||
       busy ||
       conflict ||
-      normalizedText === baseline ||
-      (normalizedText === "" && !data.note)
+      (!outcomeUnknown && draftKey(normalizedText, answers) === baseline) ||
+      (normalizedText === "" &&
+        !Object.values(answers).some((value) => value.trim()) &&
+        !data.note)
     )
       return;
     const current = attempt.current ?? {
       body: {
         previsit_note: {
           text: normalizedText,
+          intake_answers: answers,
           expected_version: data.note?.version_number ?? 0,
           request_key: crypto.randomUUID(),
         },
@@ -188,12 +224,16 @@ export function PatientPrevisitNote({
       );
       if (result.appointment_id !== appointmentId)
         throw new Error("The saved visit note did not match this appointment.");
-      const saved = result.note?.text ?? "";
+      const saved = savedText(result.note);
+      const savedAnswers = result.note?.intake_answers ?? {};
       setData(result);
       setText(saved);
-      setBaseline(saved);
+      setAnswers(savedAnswers);
+      setBaseline(draftKey(saved, savedAnswers));
       setNotice(
-        saved ? "Your visit note was saved." : "Your visit note was cleared.",
+        result.note?.text
+          ? "Your intake and visit note were saved."
+          : "Your intake and visit note were cleared.",
       );
       attempt.current = null;
       setOutcomeUnknown(false);
@@ -233,15 +273,17 @@ export function PatientPrevisitNote({
     !loading &&
     !busy &&
     !conflict &&
-    (text.trim() ? text : "") !== baseline &&
-    (text.trim() !== "" || data.note !== null);
+    draftKey(text, answers) !== baseline &&
+    (text.trim() !== "" ||
+      Object.values(answers).some((value) => value.trim()) ||
+      data.note !== null);
   const conflictChoiceDisabled =
     busy || outcomeUnknown || loading || !latestReady || latestRefreshFailed;
 
   return (
     <>
       <Button size="small" variant="outlined" onClick={openEditor}>
-        What would you like the clinic to know?
+        Complete intake / visit note
       </Button>
       <Dialog
         open={open}
@@ -251,7 +293,7 @@ export function PatientPrevisitNote({
         aria-labelledby={`previsit-note-${appointmentId}-title`}
       >
         <DialogTitle id={`previsit-note-${appointmentId}-title`}>
-          Visit note for the clinic
+          Prepare for your visit
           <Typography component="div" variant="body2" color="text.secondary">
             {appointmentLabel}
           </Typography>
@@ -307,17 +349,69 @@ export function PatientPrevisitNote({
               </Alert>
             )}
             {data?.can_edit && (
-              <TextField
-                label="What would you like the clinic to know?"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                multiline
-                minRows={5}
-                fullWidth
-                disabled={loading || busy || outcomeUnknown || conflict}
-                slotProps={{ htmlInput: { maxLength: 5_000 } }}
-                helperText="Optional. You can clear a saved note before the visit starts."
-              />
+              <Stack spacing={2}>
+                {data.reusable_answers && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Previous answers from{" "}
+                      {dateLabel(data.reusable_answers.submitted_at)}. Review
+                      each answer for changes before saving.
+                    </Typography>
+                    <Button
+                      disabled={loading || busy || outcomeUnknown || conflict}
+                      onClick={() => {
+                        const previous = data.reusable_answers?.answers ?? {};
+                        setAnswers((current) => {
+                          const next = { ...current };
+                          for (const [key, value] of Object.entries(previous)) {
+                            if (!next[key]?.trim()) next[key] = value;
+                          }
+                          return next;
+                        });
+                        setNotice(
+                          "Previous health answers added to empty fields. Confirm they are still current before saving.",
+                        );
+                      }}
+                    >
+                      Reuse previous health answers
+                    </Button>
+                  </Box>
+                )}
+                {data.intake_form?.fields.map((field) => (
+                  <TextField
+                    key={field.id}
+                    label={field.label}
+                    value={answers[field.id] ?? ""}
+                    onChange={(event) =>
+                      setAnswers((current) => ({
+                        ...current,
+                        [field.id]: event.target.value,
+                      }))
+                    }
+                    multiline
+                    minRows={2}
+                    fullWidth
+                    disabled={loading || busy || outcomeUnknown || conflict}
+                    slotProps={{
+                      htmlInput: {
+                        maxLength: data.intake_form?.max_answer_length ?? 600,
+                      },
+                    }}
+                    helperText="Optional. Leave blank if unknown; write ‘none’ only when you mean none."
+                  />
+                ))}
+                <TextField
+                  label="Anything else the clinic should know?"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  multiline
+                  minRows={5}
+                  fullWidth
+                  disabled={loading || busy || outcomeUnknown || conflict}
+                  slotProps={{ htmlInput: { maxLength: 5_000 } }}
+                  helperText="Optional. You can clear a saved note before the visit starts."
+                />
+              </Stack>
             )}
           </Stack>
         </DialogContent>
@@ -328,10 +422,19 @@ export function PatientPrevisitNote({
           {data?.can_edit && data.note && !outcomeUnknown && (
             <Button
               color="error"
-              disabled={loading || busy || conflict || text.trim() === ""}
-              onClick={() => setText("")}
+              disabled={
+                loading ||
+                busy ||
+                conflict ||
+                (!text.trim() &&
+                  !Object.values(answers).some((value) => value.trim()))
+              }
+              onClick={() => {
+                setText("");
+                setAnswers({});
+              }}
             >
-              Clear note
+              Clear intake and note
             </Button>
           )}
           {error && !outcomeUnknown && (
@@ -349,9 +452,11 @@ export function PatientPrevisitNote({
                 ? "Saving…"
                 : outcomeUnknown
                   ? "Retry same request"
-                  : text.trim() === "" && data.note
-                    ? "Save cleared note"
-                    : "Save visit note"}
+                  : !text.trim() &&
+                      !Object.values(answers).some((value) => value.trim()) &&
+                      data.note
+                    ? "Save cleared intake"
+                    : "Save intake and note"}
             </Button>
           )}
         </DialogActions>

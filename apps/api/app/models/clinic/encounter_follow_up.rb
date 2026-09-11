@@ -15,6 +15,8 @@ module Clinic
     belongs_to :recorded_by_membership, class_name: "Clinic::Membership"
     belongs_to :updated_by_membership, class_name: "Clinic::Membership"
     belongs_to :completed_by_membership, class_name: "Clinic::Membership", optional: true
+    has_many :recall_events, class_name: "Clinic::RecallEvent", foreign_key: :follow_up_id,
+      dependent: :restrict_with_error, inverse_of: :follow_up
 
     encrypts :plan, :outcome
 

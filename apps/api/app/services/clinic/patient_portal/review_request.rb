@@ -7,52 +7,76 @@ module Clinic
         "in_review" => %w[resolved declined]
       }.freeze
 
-      def self.call(practice:, actor:, request:, status:, review_note:, request_key:)
+      AUTHORIZATION_ACTIONS = {
+        "message" => "billing.write",
+        "refill" => "medication_requests.write"
+      }.freeze
+
+      def self.call(practice:, actor:, request:, status:, review_note: nil, request_key:,
+        decision: nil, patient_message: nil, reconciliation_acknowledged: false, reconciliation_note: nil)
+        authorization_action = AUTHORIZATION_ACTIONS.fetch(request.request_type)
         authorization = lambda {
           Clinic::Authorization.authorize!(
             actor: actor,
             practice: practice,
-            action: "billing.write",
+            action: authorization_action,
             any_site: true
           )
+          ensure_clinical_reviewer!(practice, actor) if request.refill? && status.in?(%w[resolved declined])
         }
         authorization.call
+        operation_payload = if request.message?
+          {
+            patient_portal_request_id: request.id,
+            status: status,
+            review_note: review_note
+          }
+        else
+          {
+            patient_portal_request_id: request.id,
+            status: status,
+            decision: decision,
+            patient_message: patient_message,
+            reconciliation_acknowledged: reconciliation_acknowledged,
+            reconciliation_note: reconciliation_note
+          }
+        end
         outcome = Clinic::Idempotency.execute(
           practice: practice,
           actor: actor,
           operation_code: OPERATION_CODE,
           request_key: request_key,
-          payload: {
-            patient_portal_request_id: request.id,
-            status: status,
-            review_note: review_note
-          },
+          payload: operation_payload,
           resource: request,
           authorization: authorization,
-          authorization_action: "billing.write",
+          authorization_action: authorization_action,
           result_resource: ->(record) { record },
           resource_resolver: ->(practice:, receipt:) {
             practice.patient_portal_requests.find_by(id: receipt.resource_id)
           }
         ) do
           current = practice.patient_portal_requests.lock.find(request.id)
-          unless current.message?
-            raise ArgumentError, "Only billing support messages can be reviewed through this workflow."
-          end
           allowed = TRANSITIONS.fetch(current.status) { [] }
           unless allowed.include?(status)
             raise ArgumentError, "This support request cannot transition from #{current.status.humanize.downcase}."
           end
 
+          stored_review_note = current.refill? ? refill_outcome(
+            status: status,
+            decision: decision,
+            patient_message: patient_message,
+            reconciliation_acknowledged: reconciliation_acknowledged,
+            reconciliation_note: reconciliation_note
+          ) : review_note.presence
           current.update!(
             status: status,
             reviewed_at: Current.business_time,
-            review_note: review_note.presence
+            review_note: stored_review_note
           )
           Clinic::AuditRecorder.record!(
             practice: practice,
             actor: actor,
-            action_code: "patient_portal.billing_support.#{status}",
+            action_code: "patient_portal.#{current.refill? ? 'refill' : 'billing_support'}.#{status}",
             outcome: :committed,
             resource_version_ref: "#{current.class.name}:#{current.id}"
           )
@@ -60,6 +84,38 @@ module Clinic
         end
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
+
+      def self.refill_outcome(status:, decision:, patient_message:, reconciliation_acknowledged:, reconciliation_note:)
+        return nil if status == "in_review"
+
+        valid_decisions = status == "declined" ? %w[declined] : %w[approved changed]
+        unless valid_decisions.include?(decision)
+          raise ArgumentError, "decision must be one of: #{valid_decisions.join(', ')}."
+        end
+        message = patient_message.to_s.strip
+        raise ArgumentError, "A patient-visible outcome is required." if message.empty?
+        if %w[approved changed].include?(decision) && reconciliation_acknowledged != true
+          raise ArgumentError, "Medication reconciliation must be acknowledged before approving or changing this request."
+        end
+
+        RefillRequestData.outcome(
+          decision: decision,
+          patient_message: message,
+          reconciliation_acknowledged: reconciliation_acknowledged == true,
+          reconciliation_note: reconciliation_note.to_s.strip.presence
+        )
+      end
+      private_class_method :refill_outcome
+
+      def self.ensure_clinical_reviewer!(practice, actor)
+        membership = Clinic::Membership.active.includes(:clinician_profile)
+          .find_by(practice_id: practice.id, user_id: actor.id)
+        return if membership&.clinician_profile&.display_name.present?
+
+        raise Clinic::Authorization::Denied,
+          "A named clinician profile is required to record a terminal refill decision."
+      end
+      private_class_method :ensure_clinical_reviewer!
     end
   end
 end

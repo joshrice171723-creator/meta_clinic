@@ -51,6 +51,8 @@ module Clinic
           notes_read: allowed?("notes.read"),
           notes_sign: allowed?("notes.sign"),
           observations_write: allowed?("observations.write"),
+          clinical_records_read: allowed?("clinical_records.read"),
+          medication_requests_write: allowed?("medication_requests.write"),
           notes_write: allowed?("notes.write"),
           documents: allowed?("documents.read"),
           messages: allowed?("messages.write"),

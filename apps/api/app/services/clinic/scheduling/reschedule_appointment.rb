@@ -41,6 +41,7 @@ module Clinic
             expected_updated_at: expected_updated_at.iso8601(6), visit_modality: visit_modality || appointment.visit_modality,
             site_id: next_site&.id, booked_clinician_id: next_clinician&.id, visit_type_id: next_visit_type&.id }
         ) do
+          next_clinician&.lock!
           appointment.with_lock do
             authorize.call
             raise ActiveRecord::StaleObjectError.new(appointment, "reschedule") unless appointment.updated_at == expected_updated_at
@@ -55,6 +56,8 @@ module Clinic
             end
             next_room_id = appointment.room_id
             next_room_id = nil if modality == "video" || (appointment.room && appointment.room.site_id != next_site&.id)
+            CapacityGuard.check!(practice: appointment.practice, clinician: next_clinician, site: next_site,
+              starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id)
             appointment.update!(starts_at: starts_at, ends_at: ends_at, visit_modality: modality,
               site: next_site, booked_clinician: next_clinician, visit_type: next_visit_type, room_id: next_room_id)
             Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor, event: :rescheduled)

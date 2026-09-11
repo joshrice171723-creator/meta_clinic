@@ -24,7 +24,7 @@ module Clinic
       validate :records_belong_to_context
 
       def text
-        encrypted_text
+        PrevisitIntake.render(encrypted_text)
       end
 
       private

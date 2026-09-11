@@ -44,6 +44,23 @@ function lazyNamed<Module, Props>(
   return lazy(() => load().then((module) => ({ default: select(module) })));
 }
 
+const WorkInbox = lazyNamed(
+  () => import("./features/clinic/WorkInbox"),
+  (m) => m.WorkInbox,
+);
+const WaitlistWorkspace = lazyNamed(
+  () => import("./features/clinic/WaitlistWorkspace"),
+  (m) => m.WaitlistWorkspace,
+);
+const RecallWorklist = lazyNamed(
+  () => import("./features/clinic/RecallWorklist"),
+  (m) => m.RecallWorklist,
+);
+const RefillRequestQueue = lazyNamed(
+  () => import("./features/clinic/RefillRequestQueue"),
+  (m) => m.RefillRequestQueue,
+);
+
 const TelehealthQueue = lazyNamed(
   () => import("./features/telehealth/TelehealthQueue"),
   (m) => m.TelehealthQueue,
@@ -459,6 +476,14 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
           patientId={encounterVideo[1]}
           encounterId={encounterVideo[2]}
         />
+      ) : path === "/clinic/work" ? (
+        <WorkInbox />
+      ) : path === "/clinic/waitlist" ? (
+        <WaitlistWorkspace />
+      ) : path === "/clinic/recalls" ? (
+        <RecallWorklist />
+      ) : path === "/clinic/refills" ? (
+        <RefillRequestQueue />
       ) : path === "/clinic/operations" ? (
         <Operations />
       ) : path === "/clinic/setup" || path === "/clinic/facilities" ? (

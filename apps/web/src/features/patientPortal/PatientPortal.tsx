@@ -26,6 +26,7 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
 import type {
   DevelopmentAccount,
   PatientPortalBillingHistoryPage,
@@ -37,6 +38,9 @@ import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { PatientSubscriptions } from "./PatientSubscriptions";
 import { PatientBillingSupport } from "./PatientBillingSupport";
+import { PatientEducationMaterials } from "./PatientEducationMaterials";
+import { PatientRefillRequests } from "./PatientRefillRequests";
+import { PatientWaitlistOffers } from "./PatientWaitlistOffers";
 import { PatientPortalPassword } from "./PatientPortalPassword";
 import {
   PatientAppointmentRequests,
@@ -55,11 +59,12 @@ import {
   invoicePaymentReturnMarker,
 } from "../clinic/InvoiceCheckoutControls";
 
-type PortalSection = "home" | "appointments" | "billing" | "settings";
+type PortalSection = "home" | "appointments" | "care" | "billing" | "settings";
 
 const sectionHashes: Record<PortalSection, string> = {
   home: "home",
   appointments: "appointments",
+  care: "care",
   billing: "billing",
   settings: "settings",
 };
@@ -70,6 +75,7 @@ function sectionFromLocation(): PortalSection {
   if (search.has("invoice_payment")) return "billing";
   if (search.has("stripe_payment")) return "settings";
   const hash = window.location.hash.slice(1);
+  if (hash === "care" || hash === "refills") return "care";
   if (hash === "appointments" || hash.startsWith("appointment-"))
     return "appointments";
   if (hash === "billing" || hash === "memberships") return "billing";
@@ -362,6 +368,11 @@ export function PatientPortal({
       section: "appointments",
       label: "Appointments",
       icon: <CalendarMonthOutlinedIcon />,
+    },
+    {
+      section: "care",
+      label: "Care requests",
+      icon: <MedicalServicesOutlinedIcon />,
     },
     {
       section: "billing",
@@ -749,13 +760,35 @@ export function PatientPortal({
                     <PortalPageHeader
                       section="appointments"
                       title="Appointments"
-                      description="Review upcoming visits, confirm when available, share a pre-visit note, or ask the clinic to book or change an appointment."
+                      description="Review upcoming visits, complete your intake, confirm when available, or ask the clinic to book or change an appointment."
                     />
                     <PatientAppointmentRequests
                       key={`appointments-${context.patient.id}`}
                       hideHeader
                       onUpcomingAppointments={setUpcomingAppointments}
                       onUpcomingAppointmentsError={setUpcomingAppointmentsError}
+                    />
+                    <PatientWaitlistOffers
+                      key={`waitlist-${context.patient.id}`}
+                    />
+                  </Box>
+                </SectionPanel>
+
+                <SectionPanel
+                  active={activeSection === "care"}
+                  labelledBy="care-heading"
+                >
+                  <Box id="care" sx={{ scrollMarginTop: 24 }}>
+                    <PortalPageHeader
+                      section="care"
+                      title="Care requests"
+                      description="Ask your clinic to review a refill and read its response."
+                    />
+                    <PatientRefillRequests
+                      key={`refills-${context.patient.id}`}
+                    />
+                    <PatientEducationMaterials
+                      key={`education-${context.patient.id}`}
                     />
                   </Box>
                 </SectionPanel>

@@ -23,13 +23,18 @@ module Clinic
 
       def create
         appointment = portal_appointment!
-        input = parameter_hash!(:previsit_note, %i[text expected_version request_key])
+        input = parameter_hash!(:previsit_note, %i[text intake_answers expected_version request_key])
         unless input.key?(:text)
           raise Clinic::Api::RequestParameters::Invalid.new("text is required.", field: :text)
         end
         text = optional_string(
           input[:text], field: :text, maximum: Clinic::Care::PrevisitNote::MAX_TEXT_LENGTH
         ) || ""
+        if params[:previsit_note].key?(:intake_answers)
+          answers = params[:previsit_note][:intake_answers]
+          answers = answers.to_unsafe_h if answers.is_a?(ActionController::Parameters)
+          text = Clinic::Care::PrevisitIntake.encode(text: text, answers: answers)
+        end
         result = PrevisitNotes.submit(
           practice: portal_practice,
           patient: portal_patient,
@@ -53,9 +58,26 @@ module Clinic
       end
 
       def projection(appointment, note)
+        previous = Clinic::Care::PrevisitNote.where(
+          practice_id: portal_practice.id, patient_id: portal_patient.id
+        ).where.not(appointment_id: appointment.id)
+          .where("submitted_at <= ?", Current.business_time)
+          .order(submitted_at: :desc, id: :desc).first
+        previous_intake = previous && Clinic::Care::PrevisitIntake.decode(previous.encrypted_text)
         {
           appointment_id: appointment.id,
           note: Clinic::Care::PrevisitNoteSerializer.call(note),
+          intake_form: {
+            id: Clinic::Care::PrevisitIntake::FORM_ID,
+            fields: Clinic::Care::PrevisitIntake::FIELDS,
+            max_answer_length: Clinic::Care::PrevisitIntake::MAX_ANSWER_LENGTH
+          },
+          reusable_answers: previous_intake && {
+            submitted_at: previous.submitted_at.iso8601(6),
+            answers: previous_intake["answers"].slice(
+              *Clinic::Care::PrevisitIntake::FIELDS.select { |field| field[:reusable] }.map { |field| field[:id] }
+            )
+          },
           can_edit: PrevisitNotes.editable?(appointment)
         }
       end

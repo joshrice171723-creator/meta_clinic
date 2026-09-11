@@ -4,10 +4,14 @@ module Clinic
       def self.call(note)
         return unless note
 
+        intake = PrevisitIntake.decode(note.encrypted_text)
         {
           id: note.id,
           version_number: note.version_number,
           text: note.text,
+          additional_text: intake ? intake["text"] : note.text,
+          intake_answers: intake ? intake["answers"] : {},
+          form_id: intake && intake["form_id"],
           submitted_at: note.submitted_at.iso8601(6)
         }
       end

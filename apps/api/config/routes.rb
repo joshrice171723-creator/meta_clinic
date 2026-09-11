@@ -45,6 +45,19 @@ Rails.application.routes.draw do
       post "visits/:visit_id/take_over_scribe_capture", to: "scribe#take_over_capture"
     end
     get "note_templates", to: "care/note_templates#index"
+    get "work_exceptions", to: "work_exceptions#show"
+    resources :recalls, controller: "operations/recalls", only: %i[index show] do
+      post :events, on: :member, action: :create_event
+    end
+    resources :waitlist, controller: "scheduling/waitlist", only: %i[index create] do
+      post :transition, on: :member
+    end
+    resources :capacity, controller: "scheduling/capacity", only: %i[index create] do
+      post :deactivate, on: :member
+    end
+    resources :refill_requests, controller: "care/refill_requests", only: %i[index create] do
+      post :transition, on: :member
+    end
     get "facilities", to: "facilities#index"
     post "facilities", to: "facilities#create"
     patch "facilities/:id", to: "facilities#update"
@@ -413,6 +426,8 @@ Rails.application.routes.draw do
   end
   scope path: "api", as: "api" do
     namespace :patient_portal, module: "clinic/patient_portal" do
+      get "education_materials", to: "patient_education_materials#index"
+      post "education_materials/:education_event_id/acknowledgment", to: "patient_education_materials#create"
       namespace :telehealth do
         get "visits/:visit_id", to: "visits#show"
         post "visits/:visit_id/checkins", to: "visits#checkins"
@@ -436,6 +451,7 @@ Rails.application.routes.draw do
         get :receipt, on: :member
       end
       get "context", to: "context#show"
+      resources :waitlist, controller: "waitlist", only: %i[index update]
       get "billing_history", to: "billing_history#index"
       patch "account/password", to: "account_password#update"
       get "visit_instructions", to: "visit_instructions#index"

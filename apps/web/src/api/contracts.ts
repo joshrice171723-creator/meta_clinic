@@ -670,6 +670,25 @@ export type Pagination = {
   total: number;
   total_pages: number;
 };
+export type PatientRefillRequest = {
+  id: number;
+  status: "pending" | "in_review" | "resolved" | "declined";
+  requested_at: string;
+  reviewed_at: string | null;
+  medication_name: string | null;
+  pharmacy_destination: string | null;
+  request_note: string | null;
+  source: "patient" | "staff" | null;
+  decision: "approved" | "changed" | "declined" | null;
+  patient_message: string | null;
+  reviewed_by: { display_name: string } | null;
+};
+export type ClinicRefillRequest = PatientRefillRequest & {
+  reconciliation_acknowledged: boolean;
+  reconciliation_note: string | null;
+  patient: Pick<Patient, "id" | "display_name" | "reference">;
+};
+
 export type ClinicCapabilities = {
   telehealth_read?: boolean;
   telehealth_prepare_read?: boolean;
@@ -718,6 +737,8 @@ export type ClinicCapabilities = {
   notes_write: boolean;
   notes_sign?: boolean;
   observations_write?: boolean;
+  clinical_records_read?: boolean;
+  medication_requests_write?: boolean;
   documents: boolean;
   messages: boolean;
   staff_messaging_read?: boolean;

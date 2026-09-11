@@ -53,6 +53,7 @@ import {
   type InvoiceLineDraft,
 } from "./InvoiceLineEditor";
 import { patientReferenceLabel } from "./patientReference";
+import { GuidedCheckout } from "./GuidedCheckout";
 import { InvoiceCheckoutControls } from "./InvoiceCheckoutControls";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
@@ -601,6 +602,15 @@ function LedgerDetails({
             This account can review billing but cannot create a checkout draft.
           </Alert>
         )}
+      {checkoutEncounterId && !checkoutInvoice.checking && (
+        <GuidedCheckout
+          key={`${checkoutEncounterId}:${financialRevision}`}
+          patientId={ledger.patient.id}
+          encounterId={checkoutEncounterId}
+          invoiceId={checkoutInvoice.active?.id}
+          ledger={ledger}
+        />
+      )}
       {canDraft &&
         !checkoutInvoice.active &&
         !checkoutInvoice.error &&
@@ -739,14 +749,16 @@ function LedgerDetails({
           onSaved={onFinancialChange}
         />
       )}
-      <CheckoutSettlement
-        invoice={actionableInvoice}
-        patientId={ledger.patient.id}
-        encounterId={checkoutEncounterId}
-        canPost={canPost}
-        financialRevision={financialRevision}
-        onFinancialChange={onFinancialChange}
-      />
+      <Box id="checkout-invoice-actions" sx={{ scrollMarginTop: 24 }}>
+        <CheckoutSettlement
+          invoice={actionableInvoice}
+          patientId={ledger.patient.id}
+          encounterId={checkoutEncounterId}
+          canPost={canPost}
+          financialRevision={financialRevision}
+          onFinancialChange={onFinancialChange}
+        />
+      </Box>
       <PaymentHistory
         patientId={ledger.patient.id}
         patientName={ledger.patient.display_name}

@@ -79,7 +79,7 @@ module Clinic
 
       def self.replay(note, patient:, appointment:, text:, expected_version:)
         compatible = note.patient_id == patient.id && note.appointment_id == appointment.id &&
-          note.version_number == expected_version + 1 && note.text == text
+          note.version_number == expected_version + 1 && note.encrypted_text == text
         raise Conflict, "This request key was already used for different pre-visit note data." unless compatible
 
         Result.new(note: note, replayed: true)

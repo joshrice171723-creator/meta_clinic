@@ -27436,12 +27436,512 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 
 --
+-- Name: clinic_capacity_rules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_capacity_rules (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    clinician_id bigint NOT NULL,
+    kind character varying NOT NULL,
+    weekday integer,
+    start_minute integer,
+    end_minute integer,
+    starts_at timestamp(6) without time zone,
+    ends_at timestamp(6) without time zone,
+    active boolean DEFAULT true NOT NULL,
+    reason text,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_capacity_rules_shape CHECK (((((kind)::text = 'weekly'::text) AND (weekday IS NOT NULL) AND (start_minute IS NOT NULL) AND (end_minute IS NOT NULL) AND ((weekday >= 0) AND (weekday <= 6)) AND (start_minute >= 0) AND (end_minute <= 1440) AND (end_minute > start_minute) AND (starts_at IS NULL) AND (ends_at IS NULL)) OR (((kind)::text = 'block'::text) AND (starts_at IS NOT NULL) AND (ends_at IS NOT NULL) AND (ends_at > starts_at) AND (weekday IS NULL) AND (start_minute IS NULL) AND (end_minute IS NULL))))
+);
+
+
+--
+-- Name: clinic_capacity_rules_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_capacity_rules_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_capacity_rules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_capacity_rules_id_seq OWNED BY public.clinic_capacity_rules.id;
+
+
+--
+-- Name: clinic_patient_education_acknowledgments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_education_acknowledgments (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    education_event_id bigint CONSTRAINT clinic_patient_education_acknowledg_education_event_id_not_null NOT NULL,
+    identity_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    request_key character varying(160) NOT NULL,
+    source character varying(32) DEFAULT 'patient_portal'::character varying NOT NULL,
+    acknowledged_at timestamp(6) with time zone CONSTRAINT clinic_patient_education_acknowledgmen_acknowledged_at_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT patient_education_acks_values CHECK ((((source)::text = 'patient_portal'::text) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160))))
+);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_education_acknowledgments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_education_acknowledgments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_education_acknowledgments_id_seq OWNED BY public.clinic_patient_education_acknowledgments.id;
+
+
+--
+-- Name: clinic_recall_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_recall_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    follow_up_id bigint NOT NULL,
+    actor_membership_id bigint NOT NULL,
+    event_type character varying(32) NOT NULL,
+    request_key character varying(160) NOT NULL,
+    previous_clinical_state character varying(24) NOT NULL,
+    resulting_clinical_state character varying(24) NOT NULL,
+    source_version integer NOT NULL,
+    channel character varying(24),
+    reason text,
+    completion_evidence text,
+    occurred_at timestamp(6) with time zone NOT NULL,
+    snoozed_until timestamp(6) with time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_recall_events_evidence CHECK (((((event_type)::text = 'outreach_recorded'::text) AND (channel IS NOT NULL) AND (snoozed_until IS NULL) AND (completion_evidence IS NULL)) OR (((event_type)::text = 'snoozed'::text) AND (channel IS NULL) AND (snoozed_until IS NOT NULL) AND (reason IS NOT NULL) AND (completion_evidence IS NULL)) OR (((event_type)::text = 'excluded'::text) AND (channel IS NULL) AND (snoozed_until IS NULL) AND (reason IS NOT NULL) AND (completion_evidence IS NULL)) OR (((event_type)::text = 'completed'::text) AND (channel IS NULL) AND (snoozed_until IS NULL) AND (completion_evidence IS NOT NULL)) OR (((event_type)::text = 'reopened'::text) AND (channel IS NULL) AND (snoozed_until IS NULL) AND (reason IS NOT NULL) AND (completion_evidence IS NULL)))),
+    CONSTRAINT clinic_recall_events_states CHECK ((((event_type)::text = ANY ((ARRAY['outreach_recorded'::character varying, 'snoozed'::character varying, 'excluded'::character varying, 'completed'::character varying, 'reopened'::character varying])::text[])) AND ((previous_clinical_state)::text = ANY ((ARRAY['needed'::character varying, 'arranged'::character varying, 'completed'::character varying])::text[])) AND ((resulting_clinical_state)::text = ANY ((ARRAY['needed'::character varying, 'arranged'::character varying, 'completed'::character varying])::text[])) AND (source_version >= 0)))
+);
+
+
+--
+-- Name: clinic_recall_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_recall_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_recall_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_recall_events_id_seq OWNED BY public.clinic_recall_events.id;
+
+
+--
+-- Name: clinic_waitlist_entries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_waitlist_entries (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    clinician_id bigint NOT NULL,
+    visit_type_id bigint NOT NULL,
+    appointment_id bigint,
+    earliest_at timestamp(6) without time zone NOT NULL,
+    latest_at timestamp(6) without time zone NOT NULL,
+    duration_minutes integer NOT NULL,
+    state character varying DEFAULT 'waiting'::character varying NOT NULL,
+    offer_starts_at timestamp(6) without time zone,
+    offer_ends_at timestamp(6) without time zone,
+    offer_expires_at timestamp(6) without time zone,
+    reason text,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_waitlist_entry_shape CHECK ((((state)::text = ANY ((ARRAY['waiting'::character varying, 'offered'::character varying, 'booked'::character varying, 'cancelled'::character varying])::text[])) AND (latest_at > earliest_at) AND ((duration_minutes >= 5) AND (duration_minutes <= 240)) AND (((state)::text <> 'offered'::text) OR ((offer_starts_at IS NOT NULL) AND (offer_ends_at IS NOT NULL) AND (offer_ends_at > offer_starts_at) AND (offer_expires_at IS NOT NULL) AND (offer_expires_at <= offer_starts_at))) AND (((state)::text <> 'booked'::text) OR (appointment_id IS NOT NULL))))
+);
+
+
+--
+-- Name: clinic_waitlist_entries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_waitlist_entries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_waitlist_entries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_waitlist_entries_id_seq OWNED BY public.clinic_waitlist_entries.id;
+
+
+--
+-- Name: clinic_capacity_rules id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_capacity_rules ALTER COLUMN id SET DEFAULT nextval('public.clinic_capacity_rules_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_education_acknowledgments_id_seq'::regclass);
+
+
+--
+-- Name: clinic_recall_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_recall_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_recall_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_waitlist_entries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries ALTER COLUMN id SET DEFAULT nextval('public.clinic_waitlist_entries_id_seq'::regclass);
+
+
+--
+-- Name: clinic_capacity_rules clinic_capacity_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_capacity_rules
+    ADD CONSTRAINT clinic_capacity_rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments clinic_patient_education_acknowledgments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments
+    ADD CONSTRAINT clinic_patient_education_acknowledgments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_recall_events clinic_recall_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_recall_events
+    ADD CONSTRAINT clinic_recall_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_waitlist_entries clinic_waitlist_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT clinic_waitlist_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_appointments_waitlist_context; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointments_waitlist_context ON public.clinic_appointments USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_capacity_rules_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_capacity_rules_lookup ON public.clinic_capacity_rules USING btree (practice_id, clinician_id, site_id, active);
+
+
+--
+-- Name: clinic_encounter_follow_ups_context_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_encounter_follow_ups_context_id ON public.clinic_encounter_follow_ups USING btree (practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_recall_events_patient_history; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_recall_events_patient_history ON public.clinic_recall_events USING btree (practice_id, patient_id, follow_up_id, occurred_at, id);
+
+
+--
+-- Name: clinic_recall_events_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_recall_events_practice_id ON public.clinic_recall_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_recall_events_projection; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_recall_events_projection ON public.clinic_recall_events USING btree (practice_id, follow_up_id, source_version, occurred_at, id);
+
+
+--
+-- Name: clinic_recall_events_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_recall_events_request ON public.clinic_recall_events USING btree (practice_id, actor_membership_id, request_key);
+
+
+--
+-- Name: clinic_waitlist_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_waitlist_queue ON public.clinic_waitlist_entries USING btree (practice_id, state, created_at);
+
+
+--
+-- Name: index_clinic_capacity_rules_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_capacity_rules_on_practice_id_and_id ON public.clinic_capacity_rules USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_waitlist_entries_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_waitlist_entries_on_practice_id_and_id ON public.clinic_waitlist_entries USING btree (practice_id, id);
+
+
+--
+-- Name: patient_education_acks_patient_timeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX patient_education_acks_patient_timeline ON public.clinic_patient_education_acknowledgments USING btree (practice_id, patient_id, acknowledged_at, id);
+
+
+--
+-- Name: patient_education_acks_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_education_acks_practice_id ON public.clinic_patient_education_acknowledgments USING btree (practice_id, id);
+
+
+--
+-- Name: patient_education_acks_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_education_acks_request_key ON public.clinic_patient_education_acknowledgments USING btree (practice_id, user_id, request_key);
+
+
+--
+-- Name: patient_education_acks_user_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_education_acks_user_event ON public.clinic_patient_education_acknowledgments USING btree (practice_id, user_id, education_event_id);
+
+
+--
+-- Name: patient_education_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_education_patient_id ON public.clinic_patient_education_events USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: patient_portal_identities_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_portal_identities_patient_id ON public.clinic_patient_portal_identities USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments clinic_patient_education_acknowledgments_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_education_acknowledgments_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_education_acknowledgments FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_recall_events clinic_recall_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_recall_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_recall_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_education_acknowledgments fk_patient_education_acks_event; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments
+    ADD CONSTRAINT fk_patient_education_acks_event FOREIGN KEY (practice_id, patient_id, education_event_id) REFERENCES public.clinic_patient_education_events(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments fk_patient_education_acks_identity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments
+    ADD CONSTRAINT fk_patient_education_acks_identity FOREIGN KEY (practice_id, patient_id, identity_id) REFERENCES public.clinic_patient_portal_identities(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments fk_patient_education_acks_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments
+    ADD CONSTRAINT fk_patient_education_acks_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments fk_patient_education_acks_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments
+    ADD CONSTRAINT fk_patient_education_acks_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_education_acknowledgments fk_patient_education_acks_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_education_acknowledgments
+    ADD CONSTRAINT fk_patient_education_acks_user FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: clinic_waitlist_entries fk_rails_0b9c2115a9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT fk_rails_0b9c2115a9 FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_waitlist_entries fk_rails_16bc117140; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT fk_rails_16bc117140 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_waitlist_entries fk_rails_3ce173de25; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT fk_rails_3ce173de25 FOREIGN KEY (practice_id, visit_type_id) REFERENCES public.clinic_visit_types(practice_id, id);
+
+
+--
+-- Name: clinic_capacity_rules fk_rails_4375650422; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_capacity_rules
+    ADD CONSTRAINT fk_rails_4375650422 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_waitlist_entries fk_rails_b7c8c8599d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT fk_rails_b7c8c8599d FOREIGN KEY (practice_id, clinician_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_waitlist_entries fk_rails_bd519fa271; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT fk_rails_bd519fa271 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_capacity_rules fk_rails_d215c39f68; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_capacity_rules
+    ADD CONSTRAINT fk_rails_d215c39f68 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_waitlist_entries fk_rails_d374598e67; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_waitlist_entries
+    ADD CONSTRAINT fk_rails_d374598e67 FOREIGN KEY (practice_id, patient_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_capacity_rules fk_rails_ec2a38b0bd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_capacity_rules
+    ADD CONSTRAINT fk_rails_ec2a38b0bd FOREIGN KEY (practice_id, clinician_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_recall_events fk_recall_events_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_recall_events
+    ADD CONSTRAINT fk_recall_events_actor FOREIGN KEY (practice_id, actor_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_recall_events fk_recall_events_follow_up; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_recall_events
+    ADD CONSTRAINT fk_recall_events_follow_up FOREIGN KEY (practice_id, patient_id, encounter_id, follow_up_id) REFERENCES public.clinic_encounter_follow_ups(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_recall_events fk_recall_events_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_recall_events
+    ADD CONSTRAINT fk_recall_events_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260911003000'),
+('20260911002000'),
+('20260911001000'),
 ('20260911010000'),
 ('20260910011000'),
 ('20260910010000'),

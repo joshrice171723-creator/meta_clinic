@@ -13,6 +13,8 @@ import DeskIcon from "@mui/icons-material/RoomService";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import { TelehealthSessionProvider } from "../telehealth/TelehealthSessionProvider";
 import { TelehealthDock } from "../telehealth/TelehealthDock";
@@ -69,6 +71,33 @@ export function ClinicNavigation({
     capabilities.billing_read,
   ].some((value) => value === true);
   const links = [
+    {
+      href: "/clinic/work",
+      label: "Work inbox",
+      Icon: InboxOutlinedIcon,
+      allowed: true,
+    },
+    {
+      href: "/clinic/refills",
+      label: "Refill requests",
+      Icon: MedicationOutlinedIcon,
+      allowed:
+        capabilities.patients &&
+        (capabilities.clinical_records_read === true ||
+          capabilities.medication_requests_write === true),
+    },
+    {
+      href: "/clinic/waitlist",
+      label: "Capacity and waitlist",
+      Icon: CalendarMonthIcon,
+      allowed: capabilities.appointments_read === true,
+    },
+    {
+      href: "/clinic/recalls",
+      label: "Recalls and care gaps",
+      Icon: NotificationsNoneIcon,
+      allowed: capabilities.patients && capabilities.encounters,
+    },
     {
       href: "/clinic/front-desk",
       label: "Front desk",
