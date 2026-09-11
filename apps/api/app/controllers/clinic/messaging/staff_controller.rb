@@ -118,12 +118,15 @@ module Clinic
 
       def transition
         request = Clinic::StaffMessageRequest.where(practice_id: current_practice.id).includes(message: :conversation).find(requested_id!(params[:id], :id))
-        input = parameter_hash!(:transition, %i[state resolution_code resolution_note])
+        input = parameter_hash!(:transition, %i[state resolution_code resolution_note request_key expected_updated_at])
         result = TransitionStaffRequest.call(practice: current_practice, actor: current_user, request: request,
           state: enum_param!(input[:state], field: :state, allowed: StaffMessageRequest::STATES),
           resolution_code: optional_string(input[:resolution_code], field: :resolution_code, maximum: 80),
-          resolution_note: optional_string(input[:resolution_note], field: :resolution_note, maximum: 500))
-        render json: { request: { id: result.id, state: result.state, resolved_at: result.resolved_at, resolution_code: result.resolution_code } }
+          resolution_note: optional_string(input[:resolution_note], field: :resolution_note, maximum: 500),
+          request_key: input[:request_key].present? ? required_string!(input[:request_key], field: :request_key, maximum: 160) : nil,
+          expected_updated_at: optional_string(input[:expected_updated_at], field: :expected_updated_at, maximum: 40))
+        render json: { request: { id: result.id, state: result.state, resolved_at: result.resolved_at,
+          resolution_code: result.resolution_code, updated_at: result.updated_at&.iso8601(6) } }
       end
 
       def manage_request

@@ -9,7 +9,7 @@ module Clinic
         "accept" => "accepted", "reject" => "rejected", "request_correction" => "correction_requested",
         "complete" => "completed", "cancel" => "cancelled"
       }.freeze
-      TASK_ACTIONS = %w[claim start complete cancel reopen].freeze
+      TASK_ACTIONS = %w[claim assign start complete cancel reopen].freeze
 
       def board_snapshot(encounters)
         ids = encounters.map(&:id)
@@ -187,12 +187,14 @@ module Clinic
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
-      def transition_task(practice:, actor:, task:, action:, expected_version:, request_key:, resolution_code: nil)
+      def transition_task(practice:, actor:, task:, action:, expected_version:, request_key:, resolution_code: nil,
+        assignee_membership_id: nil)
         authorize!(practice, actor, "encounters.write", task.encounter)
         member = membership!(practice, actor)
         action = action.to_s
         raise ArgumentError, "The task action is unsupported." unless TASK_ACTIONS.include?(action)
-        payload = { task_id: task.id, action:, expected_version:, resolution_code: }
+        assignee = action == "assign" ? eligible_assignee!(practice, actor, task, assignee_membership_id) : nil
+        payload = { task_id: task.id, action:, expected_version:, resolution_code:, assignee_membership_id: assignee&.id }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "operations.clinical_task.#{action}", request_key:, resource: task,
           authorization_action: "encounters.write", authorization: -> { authorize!(practice, actor, "encounters.write", task.encounter) },
@@ -201,7 +203,7 @@ module Clinic
         ) do
           task = Clinic::ClinicalTask.lock.find(task.id)
           stale!(task.lock_version, expected_version, task)
-          transition_task!(task, action, member, resolution_code)
+          transition_task!(task, action, member, resolution_code, assignee)
           task
         end
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
@@ -304,7 +306,7 @@ module Clinic
         raise ArgumentError, "Task kind, pool, assignee, or due time is invalid for this encounter."
       end
 
-      def transition_task!(task, action, member, resolution_code)
+      def transition_task!(task, action, member, resolution_code, assignee = nil)
         case action
         when "claim"
           raise ArgumentError, "Only an open task can be claimed." unless task.state == "open"
@@ -312,6 +314,9 @@ module Clinic
         when "start"
           raise ArgumentError, "Claim this task before starting it." unless task.state == "claimed" && task.assigned_to_membership_id == member.id
           task.update!(state: "in_progress")
+        when "assign"
+          raise ArgumentError, "Only open or active tasks can be assigned." unless task.state.in?(%w[open claimed in_progress])
+          task.update!(assigned_to_membership: assignee)
         when "complete"
           raise ArgumentError, "Claim this task before completing it." unless task.state.in?(%w[claimed in_progress]) && task.assigned_to_membership_id == member.id
           resolution = resolution_code.to_s
@@ -325,6 +330,18 @@ module Clinic
           raise ArgumentError, "Only a cancelled task can be reopened." unless task.state == "cancelled"
           task.update!(state: "open", assigned_to_membership: nil)
         end
+      end
+
+      def eligible_assignee!(practice, actor, task, membership_id)
+        id = Integer(membership_id.to_s, 10)
+        membership = practice.memberships.active.includes(:user).find_by(id: id)
+        raise ArgumentError, "The selected assignee is not active in this clinic." unless membership&.user&.active?
+        unless Ability.new(membership.user, practice: practice).allowed_permission?("encounters.write", site: task.encounter.site)
+          raise Clinic::Authorization::Denied
+        end
+        membership
+      rescue ArgumentError
+        raise ArgumentError, "Select an active staff member who can work this encounter."
       end
 
       def append_handoff_event!(handoff:, member:, event_code:, request_key:, version_number:)

@@ -214,8 +214,22 @@ module Clinic
           assigned_to_me: task.assigned_to_membership_id == member.id,
           assignee_label: task.assigned_to_membership&.user&.email,
           overdue: task.due_at.present? && task.due_at < at,
+          eligible_assignees: eligible_assignees_for_task(task),
           encounter_href:
         )
+      end
+
+      def eligible_assignees_for_task(task)
+        eligible_assignees_for_encounter(task.encounter)
+      end
+
+      def eligible_assignees_for_encounter(encounter)
+        practice.memberships.active.joins(:user).where(users: { active: true }).includes(:user).filter_map do |membership|
+          next unless Ability.new(membership.user, practice: practice)
+            .allowed_permission?("encounters.write", site: encounter.site)
+
+          { membership_id: membership.id, label: membership.user.email }
+        end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
       end
 
       def serialize_encounter_follow_up(follow_up, member)
@@ -225,7 +239,8 @@ module Clinic
           patient_reference: follow_up.patient.reference,
           assigned_to_me: follow_up.assigned_to_membership_id == member.id,
           assignee_label: follow_up.assigned_to_membership&.user&.email,
-          overdue: payload[:due_at].present? && Time.iso8601(payload[:due_at]) < at
+          overdue: payload[:due_at].present? && Time.iso8601(payload[:due_at]) < at,
+          eligible_assignees: eligible_assignees_for_encounter(follow_up.encounter)
         )
       end
 
@@ -242,7 +257,8 @@ module Clinic
           assigned_to_me: request.assignee_membership_id == member.id,
           overdue: request.due_at < at,
           assignee_membership_id: request.assignee_membership_id,
-          eligible_assignees: eligible_assignees(conversation)
+          eligible_assignees: eligible_assignees(conversation),
+          updated_at: request.updated_at.iso8601(6)
         }
         payload[:assignee_label] = Clinic::StaffMessagingSerializer.participant(assignee).fetch(:email) if assignee
         payload

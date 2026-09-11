@@ -25,9 +25,10 @@ module Clinic
     end
 
     def call
-      unsigned = unsigned_notes
-      payments = payment_exceptions
+      unsigned = load_source(:unsigned_notes, unsigned_notes_available) { unsigned_notes }
+      payments = load_source(:payment_exceptions, payment_exceptions_available) { payment_exceptions }
       {
+        schema_version: "work-exceptions-v2",
         sources: {
           unsigned_notes: source_status(unsigned_notes_available, unsigned, NOTE_LIMIT),
           payment_exceptions: source_status(payment_exceptions_available, payments, PAYMENT_LIMIT)
@@ -97,8 +98,25 @@ module Clinic
         note_revision_id: revision.id,
         unresolved_section_count: nil,
         updated_at: revision.created_at.iso8601(6),
+        status: "unsigned",
+        priority: "routine",
+        next_action: "Review and sign the current SOAP note revision",
         owner: nil,
-        due_at: nil
+        due_at: nil,
+        version: revision.revision_no,
+        source: {
+          type: "encounter_note_revision",
+          id: revision.id,
+          href: "/clinic/patients/#{note.patient_id}/encounters/#{note.encounter_id}"
+        },
+        actions: {
+          claim: false,
+          assign: false,
+          transfer: false,
+          resolve: false,
+          managed_in_source: true,
+          reason: "Signing is completed in the encounter workspace."
+        }
       }
     end
 
@@ -119,23 +137,40 @@ module Clinic
 
     def payment_item(intent)
       encounter = intent.invoice.encounter
+      patient = patient_identity_available ? {
+        id: intent.patient.id,
+        display_name: intent.patient.display_name,
+        reference: intent.patient.reference
+      } : nil
       {
         id: intent.id,
         invoice_id: intent.invoice_id,
-        patient: patient_identity_available ? {
-          id: intent.patient.id,
-          display_name: intent.patient.display_name,
-          reference: intent.patient.reference
-        } : nil,
+        patient: patient,
         site_id: encounter.site_id,
         encounter_id: encounter.id,
         status: intent.state,
+        priority: intent.state == "failed" ? "urgent" : "routine",
+        next_action: intent.state == "failed" ? "Retry or reconcile the failed payment" : "Reconcile the payment outcome",
         amount: intent.amount.to_d.to_s("F"),
         currency: intent.currency,
         processor: intent.processor,
         updated_at: intent.updated_at.iso8601(6),
         owner: nil,
-        due_at: nil
+        due_at: nil,
+        version: intent.updated_at.iso8601(6),
+        source: {
+          type: "payment_collection_intent",
+          id: intent.id,
+          href: patient ? "/clinic/billing/patients?patient_id=#{patient.fetch(:id)}&invoice_id=#{intent.invoice_id}" : "/clinic/billing"
+        },
+        actions: {
+          claim: false,
+          assign: false,
+          transfer: false,
+          resolve: false,
+          managed_in_source: true,
+          reason: "Payment recovery is completed in the billing workspace."
+        }
       }
     end
 
@@ -153,12 +188,28 @@ module Clinic
         available: available,
         limit: limit,
         returned_count: source.fetch(:items).length,
-        truncated: source.fetch(:truncated)
+        truncated: source.fetch(:truncated),
+        error: source[:error]
       }
     end
 
     def empty_source
       { items: [], truncated: false }
+    end
+
+    def load_source(name, available)
+      return empty_source unless available
+
+      yield
+    rescue ActiveRecord::StatementInvalid, ActiveRecord::ConnectionNotEstablished
+      {
+        items: [],
+        truncated: false,
+        error: {
+          code: "source_unavailable",
+          message: "#{name.to_s.humanize} could not be loaded. Retry before treating the inbox as clear."
+        }
+      }
     end
   end
 end

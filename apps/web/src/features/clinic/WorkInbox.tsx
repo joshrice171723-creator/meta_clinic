@@ -21,8 +21,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
-import { api } from "../../api/client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ApiError, api } from "../../api/client";
 import type { ClinicalTask } from "../../api/contracts";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
@@ -59,6 +59,7 @@ type StaffRequest = {
   overdue: boolean;
   assignee_membership_id: number | null;
   eligible_assignees: Array<{ membership_id: number; label: string }>;
+  updated_at: string;
 };
 
 type EncounterFollowUpItem = EncounterFollowUpRecord & {
@@ -67,6 +68,7 @@ type EncounterFollowUpItem = EncounterFollowUpRecord & {
   assigned_to_me: boolean;
   assignee_label: string | null;
   overdue: boolean;
+  eligible_assignees: Array<{ membership_id: number; label: string }>;
 };
 
 type ClinicalTaskItem = ClinicalTask & {
@@ -76,6 +78,7 @@ type ClinicalTaskItem = ClinicalTask & {
   assignee_label: string | null;
   overdue: boolean;
   encounter_href: string | null;
+  eligible_assignees: Array<{ membership_id: number; label: string }>;
 };
 
 type FollowUpResponse = {
@@ -146,9 +149,11 @@ type WorkExceptionSource = {
   limit: number;
   returned_count: number;
   truncated: boolean;
+  error: { code: string; message: string } | null;
 };
 
 type WorkExceptionsResponse = {
+  schema_version: string;
   sources: {
     unsigned_notes: WorkExceptionSource;
     payment_exceptions: WorkExceptionSource;
@@ -161,8 +166,14 @@ type WorkExceptionsResponse = {
     note_id: number;
     note_revision_id: number;
     updated_at: string;
+    status: string;
+    priority: "routine" | "urgent" | "critical";
+    next_action: string;
     owner: null;
-    due_at: null;
+    due_at: string | null;
+    version: number;
+    source: { type: string; id: number; href: string };
+    actions: { managed_in_source: boolean; reason: string };
   }>;
   payment_exceptions: Array<{
     id: number;
@@ -179,8 +190,13 @@ type WorkExceptionsResponse = {
     currency: string;
     processor: string;
     updated_at: string;
+    priority: "routine" | "urgent" | "critical";
+    next_action: string;
     owner: null;
-    due_at: null;
+    due_at: string | null;
+    version: string;
+    source: { type: string; id: number; href: string };
+    actions: { managed_in_source: boolean; reason: string };
   }>;
 };
 
@@ -207,6 +223,13 @@ type InboxItem = {
   priority?: "routine" | "urgent" | "critical";
   icon: "assignment" | "message" | "lab" | "note" | "payment";
   staffRequest?: StaffRequest;
+  nextAction: string;
+  owner: string;
+  sourceLabel: string;
+  mutation?:
+    | { kind: "task"; task: ClinicalTaskItem }
+    | { kind: "follow_up"; followUp: EncounterFollowUpItem }
+    | { kind: "staff_request"; request: StaffRequest };
 };
 
 const taskLabels: Record<ClinicalTask["task_kind"], string> = {
@@ -248,9 +271,11 @@ function errorMessage(error: unknown) {
 function assignmentLabel(item: {
   assigned_to_me: boolean;
   assignee_label?: string | null;
+  assigned_to_membership_id?: number | null;
 }) {
   if (item.assigned_to_me) return "Assigned to you";
   if (item.assignee_label) return `Assigned to ${item.assignee_label}`;
+  if (item.assigned_to_membership_id) return "Owner unavailable";
   return "Unassigned";
 }
 
@@ -294,6 +319,314 @@ function localDateTimeValue(value: string | null) {
   return local.toISOString().slice(0, 16);
 }
 
+function mutationFailure(error: unknown) {
+  const apiError = error instanceof ApiError ? error : undefined;
+  const outcomeUnknown =
+    apiError?.code === "outcome_unconfirmed" || (apiError?.status ?? 0) >= 500;
+  const stale = apiError?.code === "stale_record";
+  return {
+    outcomeUnknown,
+    message: outcomeUnknown
+      ? "The outcome is unknown. Retry the exact action or refresh to reconcile it."
+      : stale
+        ? "This work changed elsewhere. Refresh before acting again."
+        : errorMessage(error),
+  };
+}
+
+function TaskActions({
+  task,
+  actorMembershipId,
+  onChanged,
+}: {
+  task: ClinicalTaskItem;
+  actorMembershipId: number;
+  onChanged: () => void;
+}) {
+  const [assigneeId, setAssigneeId] = useState(
+    task.assigned_to_membership_id?.toString() || "",
+  );
+  const [resolutionCode, setResolutionCode] = useState("completed");
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const attempts = useRef(new Map<string, string>());
+
+  async function transition(
+    action: "claim" | "assign" | "start" | "complete",
+    values: Record<string, unknown> = {},
+  ) {
+    const signature = JSON.stringify([
+      action,
+      values,
+      action === "complete" ? outcome : undefined,
+    ]);
+    const requestKey = attempts.current.get(signature) || crypto.randomUUID();
+    attempts.current.set(signature, requestKey);
+    setBusy(action);
+    setError("");
+    try {
+      await api(`/api/clinic/clinical_tasks/${task.id}`, {
+        method: "PATCH",
+        body: {
+          task: {
+            action,
+            expected_version: task.version,
+            request_key: requestKey,
+            ...values,
+          },
+        },
+      });
+      attempts.current.delete(signature);
+      onChanged();
+    } catch (reason) {
+      const failure = mutationFailure(reason);
+      if (!failure.outcomeUnknown) attempts.current.delete(signature);
+      setError(failure.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  const canClaim = task.state === "open" && !task.assigned_to_membership_id;
+  const canResolve =
+    task.assigned_to_membership_id === actorMembershipId &&
+    ["claimed", "in_progress"].includes(task.state);
+  const canStart =
+    task.assigned_to_membership_id === actorMembershipId && task.state === "claimed";
+  return (
+    <Stack spacing={1} sx={{ mt: 1.5 }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+        {canClaim && (
+          <Button
+            size="small"
+            variant="contained"
+            disabled={Boolean(busy)}
+            onClick={() => transition("claim")}
+          >
+            {busy === "claim" ? "Claiming…" : "Claim"}
+          </Button>
+        )}
+        <FormControl size="small" sx={{ minWidth: 190 }}>
+          <InputLabel id={`task-assignee-${task.id}`}>Owner</InputLabel>
+          <Select
+            labelId={`task-assignee-${task.id}`}
+            label="Owner"
+            value={assigneeId}
+            onChange={(event) => setAssigneeId(String(event.target.value))}
+          >
+            {task.eligible_assignees.map((candidate) => (
+              <MenuItem
+                key={candidate.membership_id}
+                value={candidate.membership_id.toString()}
+              >
+                {candidate.membership_id === actorMembershipId
+                  ? `${candidate.label} (you)`
+                  : candidate.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={
+            Boolean(busy) ||
+            !assigneeId ||
+            assigneeId === task.assigned_to_membership_id?.toString()
+          }
+          onClick={() =>
+            transition("assign", {
+              assignee_membership_id: Number(assigneeId),
+            })
+          }
+        >
+          {busy === "assign" ? "Transferring…" : "Transfer"}
+        </Button>
+      </Stack>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+        {canStart && (
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={Boolean(busy)}
+            onClick={() => transition("start")}
+          >
+            {busy === "start" ? "Starting…" : "Start"}
+          </Button>
+        )}
+        {canResolve && (
+          <>
+            <FormControl size="small" sx={{ minWidth: 190 }}>
+              <InputLabel id={`task-resolution-${task.id}`}>Resolution</InputLabel>
+              <Select
+                labelId={`task-resolution-${task.id}`}
+                label="Resolution"
+                value={resolutionCode}
+                onChange={(event) => setResolutionCode(String(event.target.value))}
+              >
+                {[
+                  ["completed", "Completed"],
+                  ["unable_to_complete", "Unable to complete"],
+                  ["no_action_needed", "No action needed"],
+                  ["superseded", "Superseded"],
+                ].map(([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={Boolean(busy)}
+              onClick={() => transition("complete", { resolution_code: resolutionCode })}
+            >
+              {busy === "complete" ? "Resolving…" : "Resolve"}
+            </Button>
+          </>
+        )}
+      </Stack>
+      {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  );
+}
+
+function EncounterFollowUpActions({
+  followUp,
+  actorMembershipId,
+  onChanged,
+}: {
+  followUp: EncounterFollowUpItem;
+  actorMembershipId: number;
+  onChanged: () => void;
+}) {
+  const [assigneeId, setAssigneeId] = useState(
+    followUp.assigned_to_membership_id?.toString() || "",
+  );
+  const [outcome, setOutcome] = useState("");
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const attempts = useRef(new Map<string, string>());
+
+  async function mutate(action: "assign" | "complete", values: Record<string, unknown> = {}) {
+    const signature = JSON.stringify([action, values]);
+    const requestKey = attempts.current.get(signature) || crypto.randomUUID();
+    attempts.current.set(signature, requestKey);
+    setBusy(action);
+    setError("");
+    try {
+      if (action === "assign") {
+        await api(`/api/clinic/encounters/${followUp.encounter_id}/follow_up`, {
+          method: "PUT",
+          body: {
+            follow_up: {
+              request_key: requestKey,
+              expected_version: followUp.version,
+              status: followUp.status,
+              plan: followUp.plan,
+              follow_up_appointment_id: followUp.follow_up_appointment?.id,
+              due_at: followUp.due_at,
+              assigned_to_membership_id: values.assigned_to_membership_id,
+            },
+          },
+        });
+      } else {
+        await api(`/api/clinic/operations/encounter_follow_ups/${followUp.id}`, {
+          method: "PATCH",
+          body: {
+            follow_up: {
+              action: "complete",
+              request_key: requestKey,
+              expected_version: followUp.version,
+              outcome,
+            },
+          },
+        });
+      }
+      attempts.current.delete(signature);
+      onChanged();
+    } catch (reason) {
+      const failure = mutationFailure(reason);
+      if (!failure.outcomeUnknown) attempts.current.delete(signature);
+      setError(failure.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <Stack spacing={1} sx={{ mt: 1.5 }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+        {!followUp.assigned_to_membership_id && (
+          <Button
+            size="small"
+            variant="contained"
+            disabled={Boolean(busy)}
+            onClick={() =>
+              mutate("assign", { assigned_to_membership_id: actorMembershipId })
+            }
+          >
+            {busy === "assign" ? "Claiming…" : "Claim"}
+          </Button>
+        )}
+        <FormControl size="small" sx={{ minWidth: 190 }}>
+          <InputLabel id={`follow-up-assignee-${followUp.id}`}>Owner</InputLabel>
+          <Select
+            labelId={`follow-up-assignee-${followUp.id}`}
+            label="Owner"
+            value={assigneeId}
+            onChange={(event) => setAssigneeId(String(event.target.value))}
+          >
+            {followUp.eligible_assignees.map((candidate) => (
+              <MenuItem
+                key={candidate.membership_id}
+                value={candidate.membership_id.toString()}
+              >
+                {candidate.membership_id === actorMembershipId
+                  ? `${candidate.label} (you)`
+                  : candidate.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={
+            Boolean(busy) ||
+            !assigneeId ||
+            assigneeId === followUp.assigned_to_membership_id?.toString()
+          }
+          onClick={() =>
+            mutate("assign", { assigned_to_membership_id: Number(assigneeId) })
+          }
+        >
+          {busy === "assign" ? "Transferring…" : "Transfer"}
+        </Button>
+      </Stack>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+        <TextField
+          size="small"
+          label="Resolution outcome"
+          value={outcome}
+          onChange={(event) => setOutcome(event.target.value)}
+          sx={{ minWidth: { sm: 280 } }}
+        />
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={Boolean(busy) || !outcome.trim()}
+          onClick={() => mutate("complete")}
+        >
+          {busy === "complete" ? "Resolving…" : "Resolve"}
+        </Button>
+      </Stack>
+      {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  );
+}
+
 function StaffRequestActions({
   request,
   actorMembershipId,
@@ -313,11 +646,15 @@ function StaffRequestActions({
   const [dueAt, setDueAt] = useState(localDateTimeValue(request.due_at));
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const attempts = useRef(new Map<string, string>());
 
   async function manage(
     action: "claim" | "assign" | "schedule",
     values: Record<string, unknown> = {},
   ) {
+    const signature = JSON.stringify([action, values]);
+    const requestKey = attempts.current.get(signature) || crypto.randomUUID();
+    attempts.current.set(signature, requestKey);
     setBusy(action);
     setError("");
     try {
@@ -325,21 +662,27 @@ function StaffRequestActions({
         method: "PATCH",
         body: {
           management: {
-            request_key: crypto.randomUUID(),
+            request_key: requestKey,
             action,
             ...values,
           },
         },
       });
+      attempts.current.delete(signature);
       onChanged();
     } catch (reason) {
-      setError(errorMessage(reason));
+      const failure = mutationFailure(reason);
+      if (!failure.outcomeUnknown) attempts.current.delete(signature);
+      setError(failure.message);
     } finally {
       setBusy("");
     }
   }
 
   async function escalate() {
+    const signature = "escalate";
+    const requestKey = attempts.current.get(signature) || crypto.randomUUID();
+    attempts.current.set(signature, requestKey);
     setBusy("escalate");
     setError("");
     try {
@@ -347,14 +690,17 @@ function StaffRequestActions({
         method: "POST",
         body: {
           escalation: {
-            request_key: crypto.randomUUID(),
+            request_key: requestKey,
             trigger: request.overdue ? "overdue_recovery" : "manual",
           },
         },
       });
+      attempts.current.delete(signature);
       onChanged();
     } catch (reason) {
-      setError(errorMessage(reason));
+      const failure = mutationFailure(reason);
+      if (!failure.outcomeUnknown) attempts.current.delete(signature);
+      setError(failure.message);
     } finally {
       setBusy("");
     }
@@ -446,6 +792,43 @@ function StaffRequestActions({
           </Button>
         )}
       </Stack>
+      {canManage && !["resolved", "declined", "expired"].includes(request.state) && (
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={Boolean(busy)}
+          onClick={async () => {
+            const signature = "resolve";
+            const requestKey = attempts.current.get(signature) || crypto.randomUUID();
+            attempts.current.set(signature, requestKey);
+            setBusy("resolve");
+            setError("");
+            try {
+              await api(`/api/clinic/staff-messaging/requests/${request.id}/transition`, {
+                method: "POST",
+                body: {
+                  transition: {
+                    state: "resolved",
+                    resolution_code: "completed",
+                    request_key: requestKey,
+                    expected_updated_at: request.updated_at,
+                  },
+                },
+              });
+              attempts.current.delete(signature);
+              onChanged();
+            } catch (reason) {
+              const failure = mutationFailure(reason);
+              if (!failure.outcomeUnknown) attempts.current.delete(signature);
+              setError(failure.message);
+            } finally {
+              setBusy("");
+            }
+          }}
+        >
+          {busy === "resolve" ? "Resolving…" : "Resolve"}
+        </Button>
+      )}
       {error && <Alert severity="error">{error}</Alert>}
     </Stack>
   );
@@ -512,11 +895,17 @@ function InboxRow({
           {item.overdue && (
             <Chip size="small" color="warning" label="Overdue" />
           )}
-          {item.priority && item.priority !== "routine" && (
+          {item.priority && (
             <Chip
               size="small"
-              color={item.priority === "critical" ? "error" : "warning"}
-              label={`${item.priority} result`}
+              color={
+                item.priority === "critical"
+                  ? "error"
+                  : item.priority === "urgent"
+                    ? "warning"
+                    : "default"
+              }
+              label={`Priority: ${item.priority}`}
             />
           )}
         </Stack>
@@ -540,20 +929,50 @@ function InboxRow({
           >
             {item.dateCaption}: {dateLabel(item.dueAt, "Not recorded")}
           </Typography>
-          {item.assignment && (
-            <Typography variant="body2" color="text.secondary">
-              {item.assignment}
-            </Typography>
-          )}
+          <Typography variant="body2" color="text.secondary">
+            Owner: {item.owner}
+          </Typography>
         </Stack>
-        {item.staffRequest && work && (
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 0.25, sm: 2 }}
+          sx={{ mt: 0.5 }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Next action: {item.nextAction}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Source: {item.sourceLabel}
+          </Typography>
+        </Stack>
+        {item.mutation?.kind === "task" && work && (
+          <TaskActions
+            task={item.mutation.task}
+            actorMembershipId={work.actor_membership_id}
+            onChanged={onChanged}
+          />
+        )}
+        {item.mutation?.kind === "follow_up" && work && (
+          <EncounterFollowUpActions
+            followUp={item.mutation.followUp}
+            actorMembershipId={work.actor_membership_id}
+            onChanged={onChanged}
+          />
+        )}
+        {item.mutation?.kind === "staff_request" && work && (
           <StaffRequestActions
-            request={item.staffRequest}
+            request={item.mutation.request}
             actorMembershipId={work.actor_membership_id}
             canManage={work.can_manage_staff_requests}
             canEscalate={work.can_escalate_staff_requests}
             onChanged={onChanged}
           />
+        )}
+        {!item.mutation && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+            This item is source-managed. Use the source link to complete it;
+            the inbox will not imply completion here.
+          </Typography>
         )}
       </Box>
       <Button
@@ -707,9 +1126,19 @@ export function WorkInbox() {
         dateCaption: "Due",
         overdue: task.overdue,
         assignment: assignmentLabel(task),
+        owner: assignmentLabel(task).replace(/^Assigned to /, ""),
+        nextAction:
+          task.state === "open"
+            ? "Claim or transfer this task"
+            : task.state === "claimed"
+              ? "Start or resolve this task"
+              : "Resolve this task",
+        sourceLabel: "Clinical task",
         href: task.encounter_href,
         action: "Open work item",
         icon: "assignment",
+        priority: "routine",
+        mutation: { kind: "task", task },
       });
     });
     work.data?.encounter_follow_ups.forEach((followUp) => {
@@ -725,9 +1154,14 @@ export function WorkInbox() {
         dateCaption: "Due",
         overdue: followUp.overdue,
         assignment: assignmentLabel(followUp),
+        owner: assignmentLabel(followUp).replace(/^Assigned to /, ""),
+        nextAction: "Complete the follow-up and record the outcome",
+        sourceLabel: "Encounter follow-up",
         href: `/clinic/patients/${followUp.patient_id}/encounters/${followUp.encounter_id}`,
         action: "Open encounter",
         icon: "assignment",
+        priority: "routine",
+        mutation: { kind: "follow_up", followUp },
       });
     });
     work.data?.requests.forEach((request) => {
@@ -743,10 +1177,15 @@ export function WorkInbox() {
         dateCaption: "Due",
         overdue: request.overdue,
         assignment: assignmentLabel(request),
+        owner: assignmentLabel(request).replace(/^Assigned to /, ""),
+        nextAction: request.requested_action || "Respond to this staff request",
+        sourceLabel: "Staff conversation",
         href: `/clinic/messages?conversation_id=${request.conversation_id}`,
         action: "Open conversation",
         icon: "message",
         staffRequest: request,
+        priority: request.overdue ? "urgent" : "routine",
+        mutation: { kind: "staff_request", request },
       });
     });
 
@@ -767,6 +1206,9 @@ export function WorkInbox() {
           dueAt: item.current_version.issued_at,
           dateCaption: "Reported",
           overdue: false,
+          owner: "Unassigned",
+          nextAction: "Review the reported result",
+          sourceLabel: "Lab report",
           href: `/clinic/patients/${item.patient.id}?${query}`,
           action: labReviews.data?.can_review ? "Review report" : "Open report",
           priority: item.current_version.result_priority,
@@ -799,6 +1241,9 @@ export function WorkInbox() {
           dueAt,
           dateCaption: "Due",
           overdue,
+          owner: "Unassigned",
+          nextAction: item.follow_up.instructions || "Complete the result follow-up",
+          sourceLabel: "Lab follow-up",
           href: `/clinic/patients/${item.patient.id}?${query}`,
           action: labFollowUps.data?.can_complete
             ? "Complete follow-up"
@@ -829,9 +1274,13 @@ export function WorkInbox() {
             dueAt: request.requested_at,
             dateCaption: "Requested",
             overdue: false,
+            owner: "Unassigned",
+            nextAction: "Review the refill request",
+            sourceLabel: "Refill request",
             href: "/clinic/refills",
             action: "Review refill",
             icon: "assignment",
+            priority: "routine",
           });
         });
     }
@@ -849,9 +1298,13 @@ export function WorkInbox() {
           dueAt: item.updated_at,
           dateCaption: "Updated",
           overdue: false,
-          href: `/clinic/patients/${item.patient.id}/encounters/${item.clinical_encounter_id}`,
+          owner: "Unassigned",
+          nextAction: item.next_action,
+          sourceLabel: "Encounter note",
+          href: item.source.href,
           action: "Open encounter",
           icon: "note",
+          priority: item.priority,
         });
       });
       exceptions.data?.payment_exceptions.forEach((item) => {
@@ -869,11 +1322,13 @@ export function WorkInbox() {
           dueAt: item.updated_at,
           dateCaption: "Updated",
           overdue: false,
-          href: item.patient
-            ? `/clinic/billing/patients?patient_id=${item.patient.id}`
-            : "/clinic/billing",
+          owner: "Unassigned",
+          nextAction: item.next_action,
+          sourceLabel: "Payment collection",
+          href: item.source.href,
           action: "Open billing",
           icon: "payment",
+          priority: item.priority,
         });
       });
     }
@@ -896,12 +1351,19 @@ export function WorkInbox() {
     labFollowUps.loading ||
     refills.loading ||
     exceptions.loading;
+  const exceptionSourceErrors = exceptions.data
+    ? Object.entries(exceptions.data.sources)
+        .filter(([, source]) => Boolean(source.error))
+        .map(([, source]) => source.error?.message)
+        .filter((message): message is string => Boolean(message))
+    : [];
   const sourceErrors = [
     work.error && "Assigned work",
     labReviews.error && "Lab review",
     labFollowUps.error && "Lab follow-up",
     refills.error && "Refill requests",
     exceptions.error && "Documentation and payment exceptions",
+    ...exceptionSourceErrors,
   ].filter(Boolean);
   const returnedWorkCount = work.data
     ? work.data.requests.length +
@@ -974,9 +1436,8 @@ export function WorkInbox() {
 
       {sourceErrors.length > 0 && (
         <Alert severity="warning">
-          {sourceErrors.join(" and ")}{" "}
-          {sourceErrors.length === 1 ? "is" : "are"} unavailable. The inbox
-          below may be incomplete.
+          Some inbox sources are unavailable: {sourceErrors.join("; ")} The
+          loaded rows remain visible, but this inbox is not a complete view.
         </Alert>
       )}
       {queuesTruncated && (
