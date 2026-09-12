@@ -67,8 +67,8 @@ fieldset {
 }
 .development-toolbar .development-controls {
   display: grid;
-  grid-template-columns: auto auto minmax(200px, 240px) auto auto;
-  grid-template-areas: "portal owner account date login";
+  grid-template-columns: auto minmax(200px, 240px) auto auto;
+  grid-template-areas: "portal-actions account date login";
   min-width: 0;
   align-items: center;
   gap: 12px;
@@ -78,11 +78,16 @@ fieldset {
 .development-toolbar .development-control-row > * {
   margin: 0;
 }
+.development-portal-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
 .development-toolbar .development-control-row {
   display: contents;
 }
-.development-toolbar .development-portal-toggle {
-  grid-area: portal;
+.development-toolbar .development-portal-actions {
+  grid-area: portal-actions;
+  flex-wrap: nowrap;
 }
 .development-toolbar .development-account-switcher {
   grid-area: account;
@@ -90,7 +95,6 @@ fieldset {
   min-width: 0;
 }
 .development-toolbar .development-owner-portal-button {
-  grid-area: owner;
   min-height: 36px;
   border-color: #7f8d84;
   color: #17372f;
@@ -166,10 +170,10 @@ fieldset {
 }
 @media (max-width: 1280px) {
   .development-toolbar .development-controls {
-    grid-template-columns: auto auto minmax(200px, 1fr) auto;
+    grid-template-columns: auto minmax(200px, 1fr) auto;
     grid-template-areas:
-      "portal owner account login"
-      "date date date date";
+      "portal-actions account login"
+      "date date date";
     justify-content: start;
   }
   .development-toolbar .development-date-picker {
@@ -186,10 +190,13 @@ fieldset {
   .development-toolbar .development-controls {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "portal owner"
+      "portal-actions portal-actions"
       "account login"
       "date date";
     align-items: end;
+  }
+  .development-toolbar .development-portal-actions {
+    flex-wrap: wrap;
   }
   .development-toolbar .development-account-switcher {
     width: 100%;

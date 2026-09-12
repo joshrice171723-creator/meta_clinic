@@ -225,26 +225,32 @@ export function DevelopmentControls({
 
   return (
     <Stack className="development-controls" spacing={0.75}>
-      <ToggleButtonGroup
-        className="development-portal-toggle"
-        value={portalType}
-        exclusive
-        size="small"
-        onChange={selectPortal}
-        aria-label="Portal type"
+      <Stack
+        className="development-portal-actions"
+        direction="row"
+        spacing={0.5}
       >
-        <ToggleButton value="patient">Patient portal</ToggleButton>
-        <ToggleButton value="employee">Employee portal</ToggleButton>
-        <ToggleButton value="omni">Omni</ToggleButton>
-      </ToggleButtonGroup>
-      <Button
-        className="development-owner-portal-button"
-        variant="outlined"
-        size="small"
-        href="/owner"
-      >
-        Owner portal
-      </Button>
+        <ToggleButtonGroup
+          className="development-portal-toggle"
+          value={portalType}
+          exclusive
+          size="small"
+          onChange={selectPortal}
+          aria-label="Portal type"
+        >
+          <ToggleButton value="patient">Patient portal</ToggleButton>
+          <ToggleButton value="employee">Employee portal</ToggleButton>
+          <ToggleButton value="omni">Omni</ToggleButton>
+        </ToggleButtonGroup>
+        <Button
+          className="development-owner-portal-button"
+          variant="outlined"
+          size="small"
+          href="/owner"
+        >
+          Owner portal
+        </Button>
+      </Stack>
       <Stack
         className="development-control-row"
         direction="row"
