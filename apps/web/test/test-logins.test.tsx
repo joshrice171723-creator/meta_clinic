@@ -27,9 +27,6 @@ describe("development account preview", () => {
       />,
     );
     expect(html).toContain("Omni");
-    expect(html).toContain("Patient portal");
-    expect(html).toContain("Clinic team");
-    expect(html).toContain("Launch &amp; onboarding");
     expect(html).toContain("Omni");
     expect(html).toContain("Select launch account");
     expect(html).toContain(">Owner<");
@@ -44,10 +41,10 @@ describe("development account preview", () => {
     expect(html).toContain('min="2000-01-01"');
     expect(html).toContain('max="2100-12-31"');
     expect(html).toContain("Login and permissions use real time.");
-    expect(html).toContain("Email address");
-    expect(html).toContain("Password");
-    expect(html).toContain(">Sign in<");
-    expect(html).toContain('href="/workforce/activate"');
+    expect(html).not.toContain("Email address");
+    expect(html).not.toContain("Password");
+    expect(html).not.toContain(">Sign in<");
+    expect(html).not.toContain('href="/workforce/activate"');
     expect(html).not.toContain("clinician1@test.com");
   });
 

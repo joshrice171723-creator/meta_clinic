@@ -4,13 +4,7 @@ import type {
   RuntimeEnvironment,
 } from "../../api/contracts";
 import { Field, Form } from "../../shared/ui";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Typography,
-} from "@mui/material";
-import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
+import { Typography } from "@mui/material";
 import {
   DevelopmentControls,
   EnvironmentLabel,
@@ -52,8 +46,11 @@ export function Login({
       loginDestination(new URLSearchParams(window.location.search).get("next")),
     );
   return (
-    <main id="main" className="wrap inner-page login-layout">
-      <div className="inner-page-copy">
+    <main
+      id="main"
+      className={`wrap inner-page login-layout${developmentLogin ? " development-login-layout" : ""}`}
+    >
+      {!developmentLogin && <div className="inner-page-copy">
         <h1>
           {ownerPortal
             ? "Your organizations."
@@ -87,10 +84,23 @@ export function Login({
             Meta Clinic issues accounts directly. There is no public signup.
           </p>
         )}
-      </div>
+      </div>}
       <section className="form-card login-card">
         <EnvironmentLabel environment={environment} />
-        <>
+        {developmentLogin ? (
+          <div className="login-development-tools">
+            <h2>Development tools</h2>
+            <Typography color="text.secondary" variant="body2">
+              Choose a local account and its permitted destination for this environment.
+            </Typography>
+            <DevelopmentControls
+              accounts={developmentAccounts}
+              businessDate={businessDate}
+              initialPortal={developmentPortalFor(returnTo)}
+            />
+          </div>
+        ) : (
+          <>
           <div
             className="portal-type-links"
             aria-label="Choose your sign-in space"
@@ -162,50 +172,7 @@ export function Login({
               <a href="/workforce/activate">Activate employee account</a>
             </p>
           )}
-        </>
-        {developmentLogin && (
-          <Accordion
-            className="login-development-tools"
-            disableGutters
-            elevation={0}
-            sx={{
-              mt: 3,
-              border: 1,
-              borderColor: "divider",
-              borderRadius: 2,
-              overflow: "hidden",
-              "&::before": { display: "none" },
-              "& .MuiAccordionSummary-root": {
-                minHeight: 52,
-                px: 2,
-              },
-              "& .MuiAccordionDetails-root": {
-                px: 2,
-                pb: 2,
-              },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreOutlinedIcon />}
-              aria-controls="login-development-tools"
-              id="login-development-heading"
-            >
-              <Typography sx={{ fontWeight: 600 }}>
-                Development tools
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails id="login-development-tools">
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Choose a local account for this environment. Actions are
-                recorded as that account.
-              </Typography>
-              <DevelopmentControls
-                accounts={developmentAccounts}
-                businessDate={businessDate}
-                initialPortal={developmentPortalFor(returnTo)}
-              />
-            </AccordionDetails>
-          </Accordion>
+          </>
         )}
       </section>
     </main>
