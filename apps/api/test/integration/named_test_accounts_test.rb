@@ -162,6 +162,10 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       enter(omni.fetch(:id), portal: "launch")
       assert_response :created
       assert_equal "/portal", response.parsed_body.fetch("destination")
+
+      enter(omni.fetch(:id), portal: "clinic")
+      assert_response :created
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
     end
   end
 

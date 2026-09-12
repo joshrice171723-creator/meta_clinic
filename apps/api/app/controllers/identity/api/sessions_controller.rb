@@ -3,10 +3,10 @@ module Identity
     class SessionsController < ApplicationController
       include MemberAuthentication
       DEVELOPMENT_PORTALS = {
-        "owner" => { account_type: "omni", destination: "/owner" },
-        "launch" => { account_type: "omni", destination: "/portal" },
-        "patient" => { account_type: "patient", destination: "/patient-portal" },
-        "clinic" => { account_type: "employee", destination: "/clinic" }
+        "owner" => { account_types: [ "omni" ], destination: "/owner" },
+        "launch" => { account_types: [ "omni" ], destination: "/portal" },
+        "patient" => { account_types: [ "patient" ], destination: "/patient-portal" },
+        "clinic" => { account_types: [ "employee", "omni" ], destination: "/clinic" }
       }.freeze
       before_action :require_member, only: %i[show update]
       before_action :enforce_login_rate_limit, only: %i[create development]
@@ -53,7 +53,7 @@ module Identity
         preview = Development::TestAccounts.preview_account_for(user, profile: profile)
         portal = params[:portal].presence
         portal_definition = DEVELOPMENT_PORTALS[portal] if portal
-        if portal && (!portal_definition || preview&.fetch(:account_type) != portal_definition.fetch(:account_type))
+        if portal && (!portal_definition || !portal_definition.fetch(:account_types).include?(preview&.fetch(:account_type)))
           return render json: { error: "The selected account cannot enter that portal." }, status: :unprocessable_entity
         end
 

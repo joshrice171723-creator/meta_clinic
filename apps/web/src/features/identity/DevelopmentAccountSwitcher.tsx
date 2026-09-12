@@ -22,20 +22,20 @@ type DevelopmentPortal = "owner" | "launch" | "patient" | "clinic";
 const DEVELOPMENT_PORTALS: Record<
   DevelopmentPortal,
   {
-    accountType: DevelopmentAccount["account_type"];
+    accountTypes: DevelopmentAccount["account_type"][];
     accountLabel: string;
     label: string;
   }
 > = {
-  owner: { accountType: "omni", accountLabel: "owner", label: "Owner" },
-  launch: { accountType: "omni", accountLabel: "launch", label: "Launch" },
+  owner: { accountTypes: ["omni"], accountLabel: "owner", label: "Owner" },
+  launch: { accountTypes: ["omni"], accountLabel: "launch", label: "Launch" },
   patient: {
-    accountType: "patient",
+    accountTypes: ["patient"],
     accountLabel: "patient",
     label: "Patient",
   },
   clinic: {
-    accountType: "employee",
+    accountTypes: ["employee", "omni"],
     accountLabel: "clinic team",
     label: "Clinic",
   },
@@ -76,7 +76,7 @@ export function DevelopmentAccountSwitcher({
 }) {
   const portalDefinition = DEVELOPMENT_PORTALS[portal];
   const visibleAccounts = accounts.filter(
-    (account) => account.account_type === portalDefinition.accountType,
+    (account) => portalDefinition.accountTypes.includes(account.account_type),
   );
   const selectedAccount = visibleAccounts.find(
     (account) => account.id === selectedId,

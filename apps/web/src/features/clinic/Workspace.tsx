@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Button,
   Dialog,
@@ -288,11 +288,12 @@ export function Workspace({
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const locationPickerShown = useRef(false);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
 
   useEffect(() => {
-    if (data && data.sites.length > 1 && !data.current_site)
+    if (data && data.sites.length > 1 && !locationPickerShown.current)
       setLocationPickerOpen(true);
   }, [data]);
 
@@ -300,6 +301,7 @@ export function Workspace({
     setSelectingSiteId(siteId);
     setLocationPickerError("");
     try {
+      locationPickerShown.current = true;
       await api("/api/clinic/context", {
         method: "PATCH",
         body: { site_id: siteId },
@@ -485,7 +487,13 @@ export function Workspace({
                         )}
                       </DialogContent>
                       <DialogActions>
-                        <Button disabled={selectingSiteId !== null} onClick={() => setLocationPickerOpen(false)}>
+                        <Button
+                          disabled={selectingSiteId !== null}
+                          onClick={() => {
+                            locationPickerShown.current = true;
+                            setLocationPickerOpen(false);
+                          }}
+                        >
                           Continue without selecting
                         </Button>
                       </DialogActions>
