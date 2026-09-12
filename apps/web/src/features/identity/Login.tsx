@@ -158,13 +158,24 @@ export function Login({
         </>
         {developmentLogin && (
           <Accordion
+            className="login-development-tools"
             disableGutters
             elevation={0}
             sx={{
               mt: 3,
-              borderTop: 1,
+              border: 1,
               borderColor: "divider",
+              borderRadius: 2,
+              overflow: "hidden",
               "&::before": { display: "none" },
+              "& .MuiAccordionSummary-root": {
+                minHeight: 52,
+                px: 2,
+              },
+              "& .MuiAccordionDetails-root": {
+                px: 2,
+                pb: 2,
+              },
             }}
           >
             <AccordionSummary
@@ -177,7 +188,7 @@ export function Login({
               </Typography>
             </AccordionSummary>
             <AccordionDetails id="login-development-tools">
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 Choose a local account for this environment. Actions are
                 recorded as that account.
               </Typography>

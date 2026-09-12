@@ -238,8 +238,8 @@ export function DevelopmentControls({
           onChange={selectPortal}
           aria-label="Portal type"
         >
-          <ToggleButton value="patient">Patient portal</ToggleButton>
-          <ToggleButton value="employee">Employee portal</ToggleButton>
+          <ToggleButton value="patient">Patient</ToggleButton>
+          <ToggleButton value="employee">Employee</ToggleButton>
           <ToggleButton value="omni">Omni</ToggleButton>
         </ToggleButtonGroup>
         <Button

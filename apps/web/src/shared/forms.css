@@ -35,6 +35,63 @@ fieldset {
 .member-navigation .development-account-switcher {
   margin-left: auto;
 }
+.login-development-tools .development-controls {
+  gap: 16px;
+}
+.login-development-tools .development-portal-actions {
+  width: 100%;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+}
+.login-development-tools .development-portal-toggle {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.login-development-tools .development-portal-toggle .MuiToggleButton-root {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+.login-development-tools .development-owner-portal-button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.login-development-tools .development-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.login-development-tools .development-account-switcher,
+.login-development-tools .development-account-switcher .MuiFormControl-root,
+.login-development-tools .development-account-select {
+  width: 100%;
+}
+.login-development-tools .development-date-picker {
+  padding-top: 12px;
+  border-top: 1px solid #e1e0d8;
+}
+.login-development-tools .development-date-row {
+  justify-content: space-between;
+}
+.login-development-tools .development-date-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.login-development-tools .development-login-button {
+  min-height: 40px;
+}
+@media (max-width: 380px) {
+  .login-development-tools .development-portal-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .login-development-tools .development-owner-portal-button {
+    width: 100%;
+  }
+}
 .development-toolbar.MuiStack-root {
   display: grid;
   grid-template-columns: minmax(156px, 0.5fr) minmax(0, auto);
