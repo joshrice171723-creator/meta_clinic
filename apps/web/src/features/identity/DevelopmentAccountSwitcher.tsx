@@ -17,6 +17,30 @@ import type {
 } from "../../api/contracts";
 import { api, loginDestination } from "../../api/client";
 
+type DevelopmentPortal = "owner" | "launch" | "patient" | "clinic";
+
+const DEVELOPMENT_PORTALS: Record<
+  DevelopmentPortal,
+  {
+    accountType: DevelopmentAccount["account_type"];
+    accountLabel: string;
+    label: string;
+  }
+> = {
+  owner: { accountType: "omni", accountLabel: "owner", label: "Owner" },
+  launch: { accountType: "omni", accountLabel: "launch", label: "Launch" },
+  patient: {
+    accountType: "patient",
+    accountLabel: "patient",
+    label: "Patient",
+  },
+  clinic: {
+    accountType: "employee",
+    accountLabel: "clinic team",
+    label: "Clinic",
+  },
+};
+
 export function EnvironmentLabel({
   environment,
 }: {
@@ -39,29 +63,24 @@ export function EnvironmentLabel({
 
 export function DevelopmentAccountSwitcher({
   accounts,
-  portalType,
+  portal,
   selectedId,
   onSelect,
   disabled,
 }: {
   accounts: DevelopmentAccount[];
-  portalType: DevelopmentAccount["account_type"];
+  portal: DevelopmentPortal;
   selectedId: string;
   onSelect: (id: string) => void;
   disabled: boolean;
 }) {
+  const portalDefinition = DEVELOPMENT_PORTALS[portal];
   const visibleAccounts = accounts.filter(
-    (account) => account.account_type === portalType,
+    (account) => account.account_type === portalDefinition.accountType,
   );
   const selectedAccount = visibleAccounts.find(
     (account) => account.id === selectedId,
   );
-  const portalLabel =
-    portalType === "patient"
-      ? "patient"
-      : portalType === "omni"
-        ? "Omni"
-        : "employee";
 
   return (
     <Stack className="development-account-switcher" spacing={0.75}>
@@ -75,13 +94,15 @@ export function DevelopmentAccountSwitcher({
           onChange={(event) => onSelect(event.target.value)}
           displayEmpty
           renderValue={() =>
-            selectedAccount?.label || `Select ${portalLabel} account`
+            selectedAccount?.label || `Select ${portalDefinition.accountLabel} account`
           }
-          inputProps={{ "aria-label": `Select ${portalLabel} account` }}
+          inputProps={{
+            "aria-label": `Select ${portalDefinition.accountLabel} account`,
+          }}
           sx={{ minWidth: 0, bgcolor: "background.paper" }}
         >
           <MenuItem value="" disabled>
-            Select {portalLabel} account
+            Select {portalDefinition.accountLabel} account
           </MenuItem>
           {visibleAccounts.map((account) => (
             <MenuItem key={account.id} value={account.id}>
@@ -92,7 +113,7 @@ export function DevelopmentAccountSwitcher({
       </FormControl>
       {visibleAccounts.length === 0 && (
         <Typography variant="caption">
-          No {portalLabel} accounts are available.
+          No {portalDefinition.accountLabel} accounts are available.
         </Typography>
       )}
     </Stack>
@@ -176,27 +197,25 @@ export function DevelopmentControls({
   accounts,
   activeId,
   businessDate,
-  returnTo,
+  initialPortal = "clinic",
 }: {
   accounts: DevelopmentAccount[];
   activeId?: string | null;
   businessDate: string;
-  returnTo?: string | null;
+  initialPortal?: DevelopmentPortal;
 }) {
   const activeAccount = accounts.find((account) => account.id === activeId);
-  const [portalType, setPortalType] = useState<
-    DevelopmentAccount["account_type"]
-  >(activeAccount?.account_type || "patient");
+  const [portal, setPortal] = useState<DevelopmentPortal>(initialPortal);
   const [selectedId, setSelectedId] = useState(activeAccount?.id || "");
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState("");
 
   const selectPortal = (
     _event: MouseEvent<HTMLElement>,
-    nextPortal: DevelopmentAccount["account_type"] | null,
+    nextPortal: DevelopmentPortal | null,
   ) => {
-    if (!nextPortal || nextPortal === portalType) return;
-    setPortalType(nextPortal);
+    if (!nextPortal || nextPortal === portal) return;
+    setPortal(nextPortal);
     setSelectedId("");
     setError("");
   };
@@ -208,11 +227,9 @@ export function DevelopmentControls({
     try {
       const result = await api<{ destination: string }>(
         "/api/development_session",
-        { method: "POST", body: { profile: selectedId } },
+        { method: "POST", body: { profile: selectedId, portal } },
       );
-      window.location.assign(
-        returnTo ? loginDestination(returnTo) : result.destination,
-      );
+      window.location.assign(loginDestination(result.destination));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -225,32 +242,23 @@ export function DevelopmentControls({
 
   return (
     <Stack className="development-controls" spacing={0.75}>
-      <Stack
-        className="development-portal-actions"
-        direction="row"
-        spacing={0.5}
+      <ToggleButtonGroup
+        className="development-portal-toggle"
+        value={portal}
+        exclusive
+        size="small"
+        onChange={selectPortal}
+        aria-label="Development sign-in destination"
       >
-        <ToggleButtonGroup
-          className="development-portal-toggle"
-          value={portalType}
-          exclusive
-          size="small"
-          onChange={selectPortal}
-          aria-label="Portal type"
-        >
-          <ToggleButton value="patient">Patient</ToggleButton>
-          <ToggleButton value="employee">Employee</ToggleButton>
-          <ToggleButton value="omni">Omni</ToggleButton>
-        </ToggleButtonGroup>
-        <Button
-          className="development-owner-portal-button"
-          variant="outlined"
-          size="small"
-          href="/owner"
-        >
-          Owner portal
-        </Button>
-      </Stack>
+        {(Object.entries(DEVELOPMENT_PORTALS) as [
+          DevelopmentPortal,
+          (typeof DEVELOPMENT_PORTALS)[DevelopmentPortal],
+        ][]).map(([value, definition]) => (
+          <ToggleButton key={value} value={value}>
+            {definition.label}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
       <Stack
         className="development-control-row"
         direction="row"
@@ -259,7 +267,7 @@ export function DevelopmentControls({
       >
         <DevelopmentAccountSwitcher
           accounts={accounts}
-          portalType={portalType}
+          portal={portal}
           selectedId={selectedId}
           onSelect={setSelectedId}
           disabled={switching}
@@ -314,6 +322,7 @@ export function DevelopmentToolbar({
         accounts={accounts}
         activeId={activeId}
         businessDate={businessDate}
+        initialPortal="clinic"
       />
     </Stack>
   );

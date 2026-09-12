@@ -1,6 +1,15 @@
-import { createContext, useContext, type ReactNode } from "react";
-import { useEffect } from "react";
-import { Button } from "@mui/material";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  List,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
@@ -278,6 +287,35 @@ export function Workspace({
     error,
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
+  const [locationPickerError, setLocationPickerError] = useState("");
+
+  useEffect(() => {
+    if (data && data.sites.length > 1 && !data.current_site)
+      setLocationPickerOpen(true);
+  }, [data]);
+
+  const selectSite = async (siteId: number) => {
+    setSelectingSiteId(siteId);
+    setLocationPickerError("");
+    try {
+      await api("/api/clinic/context", {
+        method: "PATCH",
+        body: { site_id: siteId },
+      });
+      await refreshWorkspace();
+      setLocationPickerOpen(false);
+    } catch (caught) {
+      setLocationPickerError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to select this location. Try again.",
+      );
+    } finally {
+      setSelectingSiteId(null);
+    }
+  };
   const overview = useResource<ClinicOverview>("/api/clinic");
   const appearance = useClinicAppearance(user.id);
   const landingDestination = data
@@ -417,6 +455,41 @@ export function Workspace({
                         environment={environment}
                       />
                     )}
+                    <Dialog
+                      open={locationPickerOpen}
+                      aria-labelledby="location-picker-title"
+                    >
+                      <DialogTitle id="location-picker-title">
+                        Choose your location
+                      </DialogTitle>
+                      <DialogContent>
+                        <Typography color="text.secondary" variant="body2">
+                          Select a location you are authorized to use for this session.
+                        </Typography>
+                        <List aria-label="Available locations" sx={{ mt: 1 }}>
+                          {data.sites.map((site) => (
+                            <ListItemButton
+                              key={site.id}
+                              disabled={selectingSiteId !== null}
+                              onClick={() => void selectSite(site.id)}
+                              selected={site.id === data.current_site?.id}
+                            >
+                              <ListItemText primary={site.name || site.code} />
+                            </ListItemButton>
+                          ))}
+                        </List>
+                        {locationPickerError && (
+                          <Typography color="error" role="alert" variant="body2">
+                            {locationPickerError}
+                          </Typography>
+                        )}
+                      </DialogContent>
+                      <DialogActions>
+                        <Button disabled={selectingSiteId !== null} onClick={() => setLocationPickerOpen(false)}>
+                          Continue without selecting
+                        </Button>
+                      </DialogActions>
+                    </Dialog>
                     {!scribePage && (
                       <header
                         className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}
@@ -434,7 +507,7 @@ export function Workspace({
                         )}
                         <span className="clinic-topbar-actions">
                           <span className="clinic-topbar-location">
-                            {data.practice.name}
+                            {data.current_site?.name || data.current_site?.code || data.practice.name}
                           </span>
                           <a href="/clinic/settings">My settings</a>
                         </span>

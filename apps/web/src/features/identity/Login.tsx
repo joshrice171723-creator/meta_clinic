@@ -16,6 +16,13 @@ import {
   EnvironmentLabel,
 } from "./DevelopmentAccountSwitcher";
 
+function developmentPortalFor(returnTo: string | null) {
+  if (returnTo?.startsWith("/owner")) return "owner" as const;
+  if (returnTo?.startsWith("/clinic")) return "clinic" as const;
+  if (returnTo?.startsWith("/patient-portal")) return "patient" as const;
+  return "launch" as const;
+}
+
 export function Login({
   developmentLogin,
   developmentAccounts = [],
@@ -195,7 +202,7 @@ export function Login({
               <DevelopmentControls
                 accounts={developmentAccounts}
                 businessDate={businessDate}
-                returnTo={returnTo}
+                initialPortal={developmentPortalFor(returnTo)}
               />
             </AccordionDetails>
           </Accordion>

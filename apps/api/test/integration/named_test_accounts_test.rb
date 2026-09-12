@@ -23,8 +23,10 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     @headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token"))
   end
 
-  def enter(profile)
-    post "/api/development_session", params: { profile: profile }, headers: csrf, as: :json
+  def enter(profile, portal: nil)
+    params = { profile: profile }
+    params[:portal] = portal if portal
+    post "/api/development_session", params: params, headers: csrf, as: :json
   end
 
   test "setup is atomic, repeatable and preserves progress and disabled status" do
@@ -131,6 +133,35 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_equal patient.id, response.parsed_body.dig("user", "id")
       assert_equal "patient-#{patient.id}", response.parsed_body.dig("user", "development_account_id")
       assert_equal "/patient-portal", response.parsed_body.fetch("destination")
+    end
+  end
+
+  test "development portal selection accepts only its eligible account type" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      accounts = Development::TestAccounts.preview_accounts
+      employee = accounts.find { |account| account.fetch(:account_type) == "employee" }
+      patient = accounts.find { |account| account.fetch(:account_type) == "patient" }
+      omni = accounts.find { |account| account.fetch(:account_type) == "omni" }
+
+      enter(patient.fetch(:id), portal: "clinic")
+      assert_response :unprocessable_entity
+      assert_equal "The selected account cannot enter that portal.", response.parsed_body.fetch("error")
+
+      enter(employee.fetch(:id), portal: "patient")
+      assert_response :unprocessable_entity
+
+      enter(patient.fetch(:id), portal: "patient")
+      assert_response :created
+      assert_equal "/patient-portal", response.parsed_body.fetch("destination")
+
+      enter(omni.fetch(:id), portal: "owner")
+      assert_response :created
+      assert_equal "/owner", response.parsed_body.fetch("destination")
+
+      enter(omni.fetch(:id), portal: "launch")
+      assert_response :created
+      assert_equal "/portal", response.parsed_body.fetch("destination")
     end
   end
 

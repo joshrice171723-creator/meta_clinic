@@ -2,6 +2,12 @@ module Identity
   module Api
     class SessionsController < ApplicationController
       include MemberAuthentication
+      DEVELOPMENT_PORTALS = {
+        "owner" => { account_type: "omni", destination: "/owner" },
+        "launch" => { account_type: "omni", destination: "/portal" },
+        "patient" => { account_type: "patient", destination: "/patient-portal" },
+        "clinic" => { account_type: "employee", destination: "/clinic" }
+      }.freeze
       before_action :require_member, only: %i[show update]
       before_action :enforce_login_rate_limit, only: %i[create development]
 
@@ -44,14 +50,20 @@ module Identity
         user = profile.is_a?(String) && Development::TestAccounts.sign_in_account(profile)
         return render json: { error: "This account is unavailable. It may be disabled or need local setup." }, status: :unauthorized unless user
 
+        preview = Development::TestAccounts.preview_account_for(user, profile: profile)
+        portal = params[:portal].presence
+        portal_definition = DEVELOPMENT_PORTALS[portal] if portal
+        if portal && (!portal_definition || preview&.fetch(:account_type) != portal_definition.fetch(:account_type))
+          return render json: { error: "The selected account cannot enter that portal." }, status: :unprocessable_entity
+        end
+
         establish_session(user)
         session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
         session[:development_test_profile] = profile
-        preview = Development::TestAccounts.preview_account_for(user, profile: profile)
         render json: {
           user: session_user(user),
-          destination: preview&.fetch(:destination, nil) || "/portal"
+          destination: portal_definition&.fetch(:destination) || preview&.fetch(:destination, nil) || "/portal"
         }, status: :created
       end
 

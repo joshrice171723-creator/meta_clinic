@@ -31,7 +31,11 @@ describe("development account preview", () => {
     expect(html).toContain("Clinic team");
     expect(html).toContain("Launch &amp; onboarding");
     expect(html).toContain("Omni");
-    expect(html).toContain("Select patient account");
+    expect(html).toContain("Select launch account");
+    expect(html).toContain(">Owner<");
+    expect(html).toContain(">Launch<");
+    expect(html).toContain(">Patient<");
+    expect(html).toContain(">Clinic<");
     expect(html).toContain("Log in");
     expect(html).toContain("Development tools");
     expect(html).toContain("Choose a local account for this environment.");

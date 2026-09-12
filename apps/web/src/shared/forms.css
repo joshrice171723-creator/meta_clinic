@@ -38,25 +38,14 @@ fieldset {
 .login-development-tools .development-controls {
   gap: 16px;
 }
-.login-development-tools .development-portal-actions {
-  width: 100%;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-}
 .login-development-tools .development-portal-toggle {
   display: flex;
-  min-width: 0;
-  flex: 1 1 auto;
+  width: 100%;
 }
 .login-development-tools .development-portal-toggle .MuiToggleButton-root {
   flex: 1 1 0;
   min-width: 0;
   padding-inline: 8px;
-  white-space: nowrap;
-}
-.login-development-tools .development-owner-portal-button {
-  flex: 0 0 auto;
-  min-height: 32px;
   white-space: nowrap;
 }
 .login-development-tools .development-control-row {
@@ -84,12 +73,8 @@ fieldset {
   min-height: 40px;
 }
 @media (max-width: 380px) {
-  .login-development-tools .development-portal-actions {
-    align-items: stretch;
-    flex-wrap: wrap;
-  }
-  .login-development-tools .development-owner-portal-button {
-    width: 100%;
+  .login-development-tools .development-portal-toggle .MuiToggleButton-root {
+    padding-inline: 5px;
   }
 }
 .development-toolbar.MuiStack-root {
@@ -125,7 +110,7 @@ fieldset {
 .development-toolbar .development-controls {
   display: grid;
   grid-template-columns: auto minmax(200px, 240px) auto auto;
-  grid-template-areas: "portal-actions account date login";
+  grid-template-areas: "portal account date login";
   min-width: 0;
   align-items: center;
   gap: 12px;
@@ -135,31 +120,17 @@ fieldset {
 .development-toolbar .development-control-row > * {
   margin: 0;
 }
-.development-portal-actions {
-  align-items: center;
-  flex-wrap: wrap;
-}
 .development-toolbar .development-control-row {
   display: contents;
 }
-.development-toolbar .development-portal-actions {
-  grid-area: portal-actions;
-  flex-wrap: nowrap;
+.development-toolbar .development-portal-toggle {
+  display: flex;
+  grid-area: portal;
 }
 .development-toolbar .development-account-switcher {
   grid-area: account;
   width: 100%;
   min-width: 0;
-}
-.development-toolbar .development-owner-portal-button {
-  min-height: 36px;
-  border-color: #7f8d84;
-  color: #17372f;
-  white-space: nowrap;
-}
-.development-toolbar .development-owner-portal-button:hover {
-  border-color: #17372f;
-  background: #e2e1d5;
 }
 .development-toolbar .development-account-select {
   width: 100%;
@@ -229,7 +200,7 @@ fieldset {
   .development-toolbar .development-controls {
     grid-template-columns: auto minmax(200px, 1fr) auto;
     grid-template-areas:
-      "portal-actions account login"
+      "portal account login"
       "date date date";
     justify-content: start;
   }
@@ -247,13 +218,10 @@ fieldset {
   .development-toolbar .development-controls {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "portal-actions portal-actions"
+      "portal portal"
       "account login"
       "date date";
     align-items: end;
-  }
-  .development-toolbar .development-portal-actions {
-    flex-wrap: wrap;
   }
   .development-toolbar .development-account-switcher {
     width: 100%;
