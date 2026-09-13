@@ -97,9 +97,11 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
 
   setup do
     @previous_environment, @previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
-    @saved_stripe = ENV.to_h.slice("STRIPE_SANDBOX_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN")
+    @saved_stripe = ENV.to_h.slice("STRIPE_SANDBOX_KEY", "STRIPE_SANDBOX_ACCOUNT_ID",
+      "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN")
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     ENV["STRIPE_SANDBOX_KEY"] = "rk_test_storefrontfixture"
+    ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "disabled"
     ENV["STRIPE_CONNECT_WEBHOOK_SECRET"] = "whsec_storefront_fixture"
     ENV["STRIPE_RETURN_ORIGIN"] = "http://127.0.0.1:3200"
     Rails.cache.clear
@@ -120,7 +122,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
 
   teardown do
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = @previous_environment, @previous_flag
-    %w[STRIPE_SANDBOX_KEY STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN].each do |key|
+    %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN].each do |key|
       @saved_stripe.key?(key) ? ENV[key] = @saved_stripe[key] : ENV.delete(key)
     end
   end
@@ -246,6 +248,24 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     } }, headers: csrf_headers, as: :json
     assert_response :created
     assert prospect.reload.status_converted?
+  end
+
+  test "temporary platform sandbox opens checkout without rewriting clinic routing" do
+    ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "acct_platformsandbox"
+    version_id = publish_catalog(@admin, "PlatformSandbox")
+    configure_storefront(@admin, "temporary-sandbox-memberships", enabled: true)
+    gateway = Gateway.new
+    payload = prospect_payload(version_id:, request_key: "temporary-sandbox-purchase").fetch(:prospect)
+
+    result = Clinic::MembershipGrowth::PublicCheckout.start(practice: @practice, gateway:,
+      **payload.except(:request_key).symbolize_keys, request_key: payload.fetch(:request_key))
+
+    create = gateway.calls.find { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
+    assert_equal "acct_platformsandbox", create.last.fetch(:account)
+    refute create.last.fetch(:fields).key?("payment_intent_data[application_fee_amount]")
+    assert_equal "acct_storefront", @connection.reload.account_id
+    assert_equal "acct_platformsandbox", result.prospect.reload.checkout_account_id
+    assert_equal 0, result.prospect.application_fee_cents
   end
 
   test "mismatched or expired checkout never enters onboarding" do

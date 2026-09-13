@@ -10,8 +10,10 @@ module Clinic
       validates :account_id, format: { with: /\Aacct_[a-zA-Z0-9]+\z/ }
       validates :application_fee_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
       validate do
+        account_matches = connection.account_id == account_id ||
+          Clinic::Billing::StripeGateway.platform_sandbox_account?(account_id)
         errors.add(:base, "Stripe routing does not match the purchase") unless
-          connection.practice_id == practice_id && connection.account_id == account_id &&
+          connection.practice_id == practice_id && account_matches &&
           agreement.practice_id == practice_id && collection_intent.practice_id == practice_id &&
           collection_intent.invoice_id == agreement.invoice_id && collection_intent.patient_id == agreement.patient_id
       end

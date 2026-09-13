@@ -30,12 +30,17 @@ module Clinic
 
             connection = Clinic::Billing::StripeConnect.connection(practice)
             raise ArgumentError, "The clinic must complete Stripe onboarding before accepting online payment." unless connection&.account_id
-            account = Clinic::Billing::StripeConnect.verified_account(connection, gateway)
-            unless account.dig("configuration", "merchant", "capabilities", "card_payments", "status") == "active"
-              raise ArgumentError, "The clinic is not ready to accept online card payments. Ask the clinic to contact you."
+            platform_account_id = Clinic::Billing::StripeGateway.configuration["STRIPE_SANDBOX_ACCOUNT_ID"]
+            platform_sandbox = Clinic::Billing::StripeGateway.platform_sandbox_account?(platform_account_id)
+            checkout_account_id = platform_sandbox ? platform_account_id : connection.account_id
+            unless platform_sandbox
+              account = Clinic::Billing::StripeConnect.verified_account(connection, gateway)
+              unless account.dig("configuration", "merchant", "capabilities", "card_payments", "status") == "active"
+                raise ArgumentError, "The clinic is not ready to accept online card payments. Ask the clinic to contact you."
+              end
             end
 
-            configure_routing!(prospect, connection)
+            configure_routing!(prospect, checkout_account_id, collect_platform_fee: !platform_sandbox)
             session = checkout_session(prospect, gateway)
             unless session["id"].to_s.match?(/\Acs_test_[a-zA-Z0-9]+\z/)
               raise Clinic::Billing::StripeGateway::Invalid, "Stripe returned an invalid checkout session."
@@ -60,11 +65,21 @@ module Clinic
           reference = session.dig("metadata", "apply_membership_prospect")
           return unless reference
 
-          connection = Clinic::Billing::StripeConnection.find_by(account_id: payload["account"])
-          return unless connection
-          prospect = MembershipProspect.find_by(practice_id: connection.practice_id, checkout_reference: reference,
-            checkout_account_id: connection.account_id, intent_type: "purchase")
+          account_id = payload["account"].presence
+          if account_id
+            connection = Clinic::Billing::StripeConnection.find_by(account_id: account_id)
+            return unless connection
+            prospect = MembershipProspect.find_by(practice_id: connection.practice_id, checkout_reference: reference,
+              checkout_account_id: account_id, intent_type: "purchase")
+          else
+            account_id = Clinic::Billing::StripeGateway.configuration["STRIPE_SANDBOX_ACCOUNT_ID"]
+            return unless Clinic::Billing::StripeGateway.platform_sandbox_account?(account_id)
+            prospect = MembershipProspect.find_by(checkout_reference: reference,
+              checkout_account_id: account_id, intent_type: "purchase")
+            connection = Clinic::Billing::StripeConnect.connection(prospect.practice) if prospect
+          end
           return unless prospect
+          return unless connection
 
           prospect.with_lock do
             prospect.update!(checkout_session_id: session.fetch("id")) unless prospect.checkout_session_id
@@ -113,19 +128,19 @@ module Clinic
 
         private
 
-        def configure_routing!(prospect, connection)
+        def configure_routing!(prospect, account_id, collect_platform_fee:)
           prospect.with_lock do
-            if prospect.checkout_account_id && prospect.checkout_account_id != connection.account_id
+            if prospect.checkout_account_id && prospect.checkout_account_id != account_id
               raise Clinic::Billing::StripeGateway::Invalid, "Checkout routing no longer matches this clinic."
             end
             prospect.update!(
               status: "checkout_pending",
               checkout_reference: prospect.checkout_reference || "ci_#{SecureRandom.hex(16)}",
-              checkout_account_id: connection.account_id,
+              checkout_account_id: account_id,
               checkout_mode: prospect.selected_terms.fetch("renewal") == "automatic" ? "subscription" : "payment",
-              application_fee_cents: Clinic::Billing::StripeMembershipPayments.fee_cents(
+              application_fee_cents: collect_platform_fee ? Clinic::Billing::StripeMembershipPayments.fee_cents(
                 prospect.selected_terms.fetch("total")
-              )
+              ) : 0
             )
           end
         end
@@ -159,7 +174,7 @@ module Clinic
               terms.fetch("duration_unit") == "months" && terms.fetch("duration") == 1
             fields["line_items[0][price_data][recurring][interval]"] = "month"
             fields["line_items[0][price_data][recurring][interval_count]"] = "1"
-            fields["subscription_data[application_fee_percent]"] = "2.1"
+            fields["subscription_data[application_fee_percent]"] = "2.1" if prospect.application_fee_cents.positive?
             fields["subscription_data[metadata][apply_collection_intent]"] = prospect.checkout_reference
           elsif prospect.application_fee_cents.positive?
             fields["payment_intent_data[application_fee_amount]"] = prospect.application_fee_cents.to_s

@@ -9,13 +9,14 @@ module Clinic
       class Unavailable < StandardError; end
       class Invalid < StandardError; end
       API_VERSION = "2026-07-29.dahlia"
+      SANDBOX_KEY_PATTERN = /\A(?:sk|rk|rkcs)_test_[a-zA-Z0-9_]+\z/
 
       def self.configuration
         return {} unless Rails.env.development? || Rails.env.test?
         path = Rails.root.join("tmp", "stripe-sandbox.json")
         private_values = Rails.env.development? && path.file? ? JSON.parse(path.read.sub(/\A\uFEFF/, "")) : {}
         private_values = {} unless private_values.is_a?(Hash)
-        %w[STRIPE_SANDBOX_KEY STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN].to_h do |name|
+        %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN].to_h do |name|
           [name, ENV[name].presence || private_values[name]]
         end
       rescue JSON::ParserError, IOError, SystemCallError
@@ -24,9 +25,16 @@ module Clinic
 
       def self.configured?
         (Rails.env.development? || Rails.env.test?) &&
-          configuration["STRIPE_SANDBOX_KEY"].to_s.match?(/\A(?:sk|rk)_test_[a-zA-Z0-9]+\z/) &&
+          configuration["STRIPE_SANDBOX_KEY"].to_s.match?(SANDBOX_KEY_PATTERN) &&
           configuration["STRIPE_CONNECT_WEBHOOK_SECRET"].to_s.start_with?("whsec_") &&
           configuration["STRIPE_RETURN_ORIGIN"].present?
+      end
+
+      def self.platform_sandbox_account?(account_id)
+        return false unless Rails.env.development? || Rails.env.test?
+
+        configured_account = configuration["STRIPE_SANDBOX_ACCOUNT_ID"].to_s
+        configured_account.match?(/\Aacct_[a-zA-Z0-9]+\z/) && account_id.to_s == configured_account
       end
 
       def self.return_url(path)
