@@ -2,13 +2,18 @@ module Clinic
   class MembershipReceiptMailer < ApplicationMailer
     layout false
 
-    def receipt(prospect_id, token, purpose)
+    def receipt(prospect_id, token = nil, purpose = nil)
       @prospect = Clinic::MembershipProspect.find(prospect_id)
       @practice = @prospect.practice
       @receipt = @prospect.receipt
       @terms = @prospect.selected_terms
-      @activation_url = "#{site_origin}/patient-portal/activate#token=#{URI.encode_www_form_component(token)}" \
-        "&purpose=#{URI.encode_www_form_component(purpose)}"
+      @activation_url = if token
+        "#{site_origin}/patient-portal/activate#token=#{URI.encode_www_form_component(token)}" \
+          "&purpose=#{URI.encode_www_form_component(purpose)}"
+      else
+        "#{site_origin}/patient-portal"
+      end
+      @portal_ready = token.nil?
       mail(to: @prospect.email_address, subject: "#{@practice.name} membership receipt and patient portal")
     end
 

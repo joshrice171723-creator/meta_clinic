@@ -11,5 +11,10 @@
   <dt>Receipt number</dt>
   <dd><%= @receipt.id %></dd>
 </dl>
-<p><a href="<%= @activation_url %>">Create your patient portal password and continue onboarding</a></p>
-<p>Clinic staff will contact you to complete onboarding. This one-time link expires in 30 minutes.</p>
+<% if @portal_ready %>
+  <p><a href="<%= @activation_url %>">Open your patient portal and continue onboarding</a></p>
+<% else %>
+  <p><a href="<%= @activation_url %>">Create your patient portal password and continue onboarding</a></p>
+  <p>This one-time link expires in 30 minutes.</p>
+<% end %>
+<p>Clinic staff will contact you to complete onboarding.</p>

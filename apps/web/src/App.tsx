@@ -210,6 +210,10 @@ const PatientPortalRecovery = lazyNamed(
   () => import("./features/patientPortal/PatientPortalRecovery"),
   (m) => m.PatientPortalRecovery,
 );
+const MembershipAccountActivation = lazyNamed(
+  () => import("./features/membershipGrowth/MembershipAccountActivation"),
+  (m) => m.MembershipAccountActivation,
+);
 const StaffMessagingPage = lazyNamed(
   () => import("./features/staff-messaging/LiveStaffMessagingWorkspace"),
   (m) => m.StaffMessagingPage,
@@ -776,6 +780,7 @@ export function App() {
       "/login",
       "/patient-portal/activate",
       "/patient-portal/recovery",
+      "/memberships/account/activate",
       "/owner/activate",
       "/workforce/activate",
       "/workforce/kiosk",
@@ -859,6 +864,12 @@ export function App() {
     return (
       <RouteBoundary root>
         <PatientPortalRecovery />
+      </RouteBoundary>
+    );
+  if (path === "/memberships/account/activate")
+    return (
+      <RouteBoundary root>
+        <MembershipAccountActivation />
       </RouteBoundary>
     );
   if (path === "/owner/activate")

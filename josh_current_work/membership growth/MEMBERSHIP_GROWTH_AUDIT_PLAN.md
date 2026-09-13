@@ -7,12 +7,14 @@ Prove the local synthetic software flow only. Do not treat these checks as produ
 ## Required checks
 
 - Each clinic address exposes only that clinic and its published package versions.
-- Contact-first submission creates one encrypted lead and no patient, agreement, payment, or portal identity.
-- Purchase-now creates a Stripe sandbox Checkout Session and still creates no patient before payment verification.
+- Contact-first submission creates one encrypted lead and no user account, patient, agreement, payment, or portal identity.
+- Account setup creates one encrypted purchase prospect and a one-time setup delivery without a patient, agreement, payment, or portal identity; only the matching email link can set the first password and create the session.
+- An unverified account, expired/replayed link, or session for a different prospect cannot create a Stripe Checkout Session.
+- Purchase-now creates a Stripe sandbox Checkout Session for the matching verified account and still creates no patient before payment verification.
 - Browser return and cancel states do not activate onboarding.
-- A matching verified payment creates exactly one patient, agreement, payment allocation, receipt, portal invitation, receipt email, and front-desk onboarding task across replay.
-- The receipt email contains the paid amount, receipt number, and one-time portal activation link.
-- Portal activation moves the paid record to the activated stage.
+- A matching verified payment creates exactly one patient, agreement, payment allocation, receipt, active portal identity for the verified account, receipt email, and front-desk onboarding task across replay.
+- The receipt email contains the paid amount and receipt number without a second password-setup token.
+- The Patient Flow board exposes only authorized, tenant-scoped records; its final Scheduled column requires an actual linked future appointment. A claimed task, opened scheduling screen, or pending appointment request must not appear as scheduled.
 - Wrong clinic, wrong package version, mismatched amount or currency, invalid fee, failed payment, expired checkout, stale pipeline update, and missing clinic authority fail without cross-tenant disclosure.
 - No protected contact value or activation token appears in provider metadata, audit metadata, public acknowledgement responses, or browser storage.
 

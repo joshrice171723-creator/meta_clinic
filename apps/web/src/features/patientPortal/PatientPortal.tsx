@@ -11,11 +11,15 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  FormControl,
+  InputLabel,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Paper,
+  MenuItem,
+  Select,
   Stack,
   ThemeProvider,
   Typography,
@@ -73,7 +77,7 @@ function sectionFromLocation(): PortalSection {
   if (typeof window === "undefined") return "home";
   const search = new URLSearchParams(window.location.search);
   if (search.has("invoice_payment")) return "billing";
-  if (search.has("stripe_payment")) return "settings";
+  if (search.has("stripe_payment")) return "home";
   const hash = window.location.hash.slice(1);
   if (hash === "care" || hash === "refills") return "care";
   if (hash === "appointments" || hash.startsWith("appointment-"))
@@ -95,6 +99,14 @@ function planPickerFromLocation() {
     !search.has("stripe_payment") &&
     !search.has("invoice_payment") &&
     window.location.hash === "#memberships"
+  );
+}
+
+function membershipOnboardingReturn() {
+  if (typeof window === "undefined") return false;
+  return (
+    new URLSearchParams(window.location.search).get("stripe_payment") ===
+      "return" && window.location.hash === "#onboarding"
   );
 }
 
@@ -203,12 +215,46 @@ export function PatientPortal({
     "invoices" | "payments" | null
   >(null);
   const [billingHistoryError, setBillingHistoryError] = useState("");
+  const [onboardingChannel, setOnboardingChannel] = useState("email");
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState("");
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   const checkoutReturnHandled = useRef(false);
   const billingHistoryRequest = useRef(0);
   const context = resource.data;
   const patientReference = context
     ? patientPortalReferenceLabel(context.patient.reference)
     : null;
+  const showMembershipOnboarding =
+    membershipOnboardingReturn() && !onboardingComplete;
+
+  const saveOnboardingPreference = async () => {
+    if (!context || onboardingSaving) return;
+    setOnboardingSaving(true);
+    setOnboardingError("");
+    try {
+      await api("/api/patient_portal/reminder_preferences", {
+        method: "POST",
+        body: {
+          preference: {
+            channel: onboardingChannel,
+            setting: "allowed",
+            timezone: context.practice.timezone,
+          },
+        },
+      });
+      setOnboardingComplete(true);
+      window.history.replaceState({}, "", "/patient-portal#home");
+    } catch (reason) {
+      setOnboardingError(
+        reason instanceof Error
+          ? reason.message
+          : "We could not save your contact preference.",
+      );
+    } finally {
+      setOnboardingSaving(false);
+    }
+  };
 
   useEffect(() => {
     billingHistoryRequest.current += 1;
@@ -371,7 +417,7 @@ export function PatientPortal({
     },
     {
       section: "care",
-      label: "Care requests",
+      label: "Refill requests",
       icon: <MedicalServicesOutlinedIcon />,
     },
     {
@@ -582,6 +628,49 @@ export function PatientPortal({
                       description="See what is coming next and return to the instructions your clinic has shared with you."
                     />
                     <Stack spacing={{ xs: 3, sm: 4 }}>
+                      {showMembershipOnboarding && (
+                        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+                          <Stack spacing={2}>
+                            <Typography component="h2" variant="h6">
+                              Finish your membership setup
+                            </Typography>
+                            <Typography color="text.secondary">
+                              Choose how the clinic may send appointment
+                              updates. You can change this later in the portal.
+                            </Typography>
+                            {onboardingError && (
+                              <Alert severity="error">{onboardingError}</Alert>
+                            )}
+                            <FormControl fullWidth>
+                              <InputLabel id="membership-onboarding-contact-label">
+                                Appointment updates
+                              </InputLabel>
+                              <Select
+                                labelId="membership-onboarding-contact-label"
+                                label="Appointment updates"
+                                value={onboardingChannel}
+                                onChange={(event) =>
+                                  setOnboardingChannel(event.target.value)
+                                }
+                              >
+                                <MenuItem value="email">Email</MenuItem>
+                                <MenuItem value="portal">
+                                  Patient portal
+                                </MenuItem>
+                              </Select>
+                            </FormControl>
+                            <Button
+                              variant="contained"
+                              onClick={() => void saveOnboardingPreference()}
+                              disabled={onboardingSaving}
+                            >
+                              {onboardingSaving
+                                ? "Saving…"
+                                : "Save and continue"}
+                            </Button>
+                          </Stack>
+                        </Paper>
+                      )}
                       <Paper
                         component="section"
                         variant="outlined"
@@ -781,7 +870,7 @@ export function PatientPortal({
                   <Box id="care" sx={{ scrollMarginTop: 24 }}>
                     <PortalPageHeader
                       section="care"
-                      title="Care requests"
+                      title="Refill requests"
                       description="Ask your clinic to review a refill and read its response."
                     />
                     <PatientRefillRequests

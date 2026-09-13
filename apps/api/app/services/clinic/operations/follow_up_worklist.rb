@@ -215,11 +215,14 @@ module Clinic
           assignee_label: task.assigned_to_membership&.user&.email_address,
           overdue: task.due_at.present? && task.due_at < at,
           eligible_assignees: eligible_assignees_for_task(task),
-          encounter_href:
+          encounter_href:,
+          patient_href: "/clinic/patients/#{task.patient_id}"
         )
       end
 
       def eligible_assignees_for_task(task)
+        return [] unless task.encounter
+
         eligible_assignees_for_encounter(task.encounter)
       end
 

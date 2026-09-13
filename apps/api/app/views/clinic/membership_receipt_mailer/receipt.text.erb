@@ -6,7 +6,14 @@ Amount paid: <%= @terms.fetch("currency") %> <%= @receipt.payload.fetch("amount"
 Paid: <%= @receipt.issued_at.iso8601 %>
 Receipt number: <%= @receipt.id %>
 
+<% if @portal_ready %>
+Open your patient portal and continue onboarding:
+<%= @activation_url %>
+<% else %>
 Create your patient portal password and continue onboarding:
 <%= @activation_url %>
 
-Clinic staff will contact you to complete onboarding. This one-time link expires in 30 minutes.
+This one-time link expires in 30 minutes.
+<% end %>
+
+Clinic staff will contact you to complete onboarding.

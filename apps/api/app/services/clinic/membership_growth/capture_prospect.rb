@@ -55,7 +55,7 @@ module Clinic
               source: source,
               outreach_consent: outreach_consent,
               intent_type: intent_type,
-              status: intent_type == "purchase" ? "checkout_pending" : "new"
+              status: "new"
             )
             prospect.save!
           end

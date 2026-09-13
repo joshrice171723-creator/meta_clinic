@@ -11,6 +11,7 @@ module Clinic
         source: prospect.source,
         outreach_consent: prospect.outreach_consent,
         intent_type: prospect.intent_type,
+        account_activated_at: timestamp(prospect.account_activated_at),
         possible_duplicate: prospect.possible_duplicate?,
         subscription_version_id: prospect.subscription_version_id,
         selected_terms: prospect.selected_terms,

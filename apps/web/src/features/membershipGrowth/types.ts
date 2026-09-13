@@ -48,6 +48,7 @@ export type MembershipProspect = {
   phone_number: string | null;
   outreach_consent: boolean;
   intent_type: "outreach" | "purchase";
+  account_activated_at: string | null;
   source: string | null;
   status: MembershipProspectState;
   relationship_stage: "prospective_patient" | "patient";

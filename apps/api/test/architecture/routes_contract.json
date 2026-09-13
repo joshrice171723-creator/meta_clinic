@@ -12,7 +12,7 @@
   [
     "api",
     "POST",
-    "/api/materials/:material_id/start(.:format)"
+    "/api/owner/clinics/:id/owner_invitation(.:format)"
   ],
   [
     "api_clinic",
@@ -53,6 +53,11 @@
     "api_clinic_billing_support_requests",
     "GET",
     "/api/clinic/billing/support_requests(.:format)"
+  ],
+  [
+    "api_clinic_capacity_index",
+    "GET",
+    "/api/clinic/capacity(.:format)"
   ],
   [
     "api_clinic_cash_drawers",
@@ -440,6 +445,21 @@
     "/api/clinic/practice_features(.:format)"
   ],
   [
+    "api_clinic_recall",
+    "GET",
+    "/api/clinic/recalls/:id(.:format)"
+  ],
+  [
+    "api_clinic_recalls",
+    "GET",
+    "/api/clinic/recalls(.:format)"
+  ],
+  [
+    "api_clinic_refill_requests",
+    "GET",
+    "/api/clinic/refill_requests(.:format)"
+  ],
+  [
     "api_clinic_reminder",
     "GET",
     "/api/clinic/reminders/:id(.:format)"
@@ -608,6 +628,16 @@
     "api_clinic_visit_types",
     "POST",
     "/api/clinic/visit_types(.:format)"
+  ],
+  [
+    "api_clinic_waitlist_index",
+    "GET",
+    "/api/clinic/waitlist(.:format)"
+  ],
+  [
+    "api_clinic_work_exceptions",
+    "GET",
+    "/api/clinic/work_exceptions(.:format)"
   ],
   [
     "api_clinic_workforce",
@@ -796,8 +826,8 @@
   ],
   [
     "api_patient_portal",
-    "GET",
-    "/api/patient_portal/visit_instructions/:encounter_id(.:format)"
+    "POST",
+    "/api/patient_portal/education_materials/:education_event_id/acknowledgment(.:format)"
   ],
   [
     "api_patient_portal_account_password",
@@ -833,6 +863,11 @@
     "api_patient_portal_development_patient",
     "PATCH",
     "/api/patient_portal/development_patient(.:format)"
+  ],
+  [
+    "api_patient_portal_education_materials",
+    "GET",
+    "/api/patient_portal/education_materials(.:format)"
   ],
   [
     "api_patient_portal_invitation_activate",
@@ -878,6 +913,26 @@
     "api_patient_portal_visit_instructions",
     "GET",
     "/api/patient_portal/visit_instructions(.:format)"
+  ],
+  [
+    "api_patient_portal_waitlist",
+    "PATCH",
+    "/api/patient_portal/waitlist/:id(.:format)"
+  ],
+  [
+    "api_patient_portal_waitlist_index",
+    "GET",
+    "/api/patient_portal/waitlist(.:format)"
+  ],
+  [
+    "api_public_membership_accounts_activate",
+    "POST",
+    "/api/public/membership_accounts/activate(.:format)"
+  ],
+  [
+    "api_public_membership_storefronts",
+    "GET",
+    "/api/public/membership_storefronts(.:format)"
   ],
   [
     "api_session",
@@ -1020,6 +1075,11 @@
     "/api/clinic/invoices/:id/credits(.:format)"
   ],
   [
+    "deactivate_api_clinic_capacity",
+    "POST",
+    "/api/clinic/capacity/:id/deactivate(.:format)"
+  ],
+  [
     "decide_api_clinic_workforce_adjustment",
     "POST",
     "/api/clinic/workforce/adjustments/:id/decide(.:format)"
@@ -1068,6 +1128,11 @@
     "enroll",
     "POST",
     "/api/workforce/kiosk/enroll(.:format)"
+  ],
+  [
+    "events_api_clinic_recall",
+    "POST",
+    "/api/clinic/recalls/:id/events(.:format)"
   ],
   [
     "export_api_clinic_scribe_draft",
@@ -1270,6 +1335,11 @@
     "/api/clinic/reminders/:id/retry(.:format)"
   ],
   [
+    "retry_delivery_api_clinic_refill_request",
+    "POST",
+    "/api/clinic/refill_requests/:id/retry_delivery(.:format)"
+  ],
+  [
     "review_api_clinic_scribe_draft",
     "POST",
     "/api/clinic/scribe/drafts/:id/review(.:format)"
@@ -1355,6 +1425,16 @@
     "/api/clinic/appointments/:id/transition(.:format)"
   ],
   [
+    "transition_api_clinic_refill_request",
+    "POST",
+    "/api/clinic/refill_requests/:id/transition(.:format)"
+  ],
+  [
+    "transition_api_clinic_waitlist",
+    "POST",
+    "/api/clinic/waitlist/:id/transition(.:format)"
+  ],
+  [
     "versions_api_clinic_patient_lab_report",
     "POST",
     "/api/clinic/patients/:patient_id/lab_reports/:id/versions(.:format)"
@@ -1437,7 +1517,7 @@
   [
     null,
     "GET",
-    "/api/public/membership_storefronts(.:format)"
+    "/api/patient_portal/visit_instructions/:encounter_id(.:format)"
   ],
   [
     null,
@@ -1577,6 +1657,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/staff-messaging/requests/:id/manage(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/subscription_catalog/:kind/:id(.:format)"
   ],
   [
@@ -1608,6 +1693,11 @@
     null,
     "POST",
     "/api/clinic/billing_services(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/capacity(.:format)"
   ],
   [
     null,
@@ -1882,6 +1972,11 @@
   [
     null,
     "POST",
+    "/api/clinic/refill_requests(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/reminders(.:format)"
   ],
   [
@@ -2072,6 +2167,11 @@
   [
     null,
     "POST",
+    "/api/clinic/waitlist(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/workforce/adjustments(.:format)"
   ],
   [
@@ -2118,6 +2218,11 @@
     null,
     "POST",
     "/api/materials/:material_id/complete(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/materials/:material_id/start(.:format)"
   ],
   [
     null,
@@ -2173,6 +2278,11 @@
     null,
     "POST",
     "/api/patient_portal/telehealth/visits/:visit_id/scribe_consent(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/public/membership_storefronts/:slug/accounts(.:format)"
   ],
   [
     null,
@@ -2263,6 +2373,11 @@
     null,
     "PUT",
     "/api/development_access(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/patient_portal/waitlist/:id(.:format)"
   ],
   [
     null,

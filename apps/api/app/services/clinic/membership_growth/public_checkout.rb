@@ -17,12 +17,26 @@ module Clinic
 
           captured = CaptureProspect.call(practice:, version_id:, selections:, display_name:, email_address:,
             phone_number:, source:, outreach_consent:, request_key:, intent_type: "purchase")
-          prospect = captured.prospect
+          start_for_prospect(practice:, prospect: captured.prospect, replayed: captured.replayed, gateway:)
+        end
+
+        def start_for_account(practice:, prospect:, user:, gateway: Clinic::Billing::StripeGateway.new)
+          raise Clinic::Billing::StripeGateway::Unavailable, "Stripe sandbox is not configured." unless
+            Clinic::Billing::StripeGateway.configured?
+          unless prospect.practice_id == practice.id && prospect.intent_type == "purchase" &&
+              prospect.account_user_id == user.id && prospect.account_activated_at && user.active?
+            raise ArgumentError, "Sign in to the membership account that started this enrollment."
+          end
+
+          start_for_prospect(practice:, prospect:, replayed: false, gateway:)
+        end
+
+        def start_for_prospect(practice:, prospect:, replayed:, gateway:)
           begin
             if prospect.agreement_id
               raise ArgumentError, "This membership purchase is already recorded. Use the patient portal or contact the clinic."
             end
-            if User.exists?(email_address: prospect.email_address)
+            if prospect.account_user_id.nil? && User.exists?(email_address: prospect.email_address)
               raise ArgumentError, "An account already uses this email address. Sign in to the patient portal or contact the clinic."
             end
             raise ArgumentError, "This membership requires clinic review before payment. Ask the clinic to contact you." if
@@ -50,7 +64,7 @@ module Clinic
             end
             verify_session!(prospect, session)
             Result.new(prospect:, checkout_url: Clinic::Billing::StripeGateway.external_url(session.fetch("url"),
-              host: "checkout.stripe.com"), replayed: captured.replayed)
+              host: "checkout.stripe.com"), replayed:)
           rescue ArgumentError
             prospect.with_lock { prospect.update!(status: "payment_failed") unless prospect.checkout_session_id }
             raise
@@ -240,8 +254,16 @@ module Clinic
             receipt = Clinic::BillingReceipt.where(practice_id: prospect.practice_id,
               invoice_id: prospect.agreement.invoice_id, kind: "subscription_payment").order(id: :desc).first!
             unless prospect.status_paid_onboarding? || prospect.status_converted?
-              invitation = Clinic::PatientPortal::InviteIdentity.call(practice: prospect.practice,
-                patient: prospect.patient, actor:, email_address: prospect.email_address)
+              invitation = if prospect.account_user
+                identity = Clinic::PatientPortal::Identity.create!(practice: prospect.practice, patient: prospect.patient,
+                  user: prospect.account_user, status: :active, invited_at: prospect.account_activated_at,
+                  activated_at: prospect.account_activated_at, accepted_terms_version: prospect.accepted_terms_version,
+                  accepted_terms_at: prospect.accepted_terms_at)
+                { identity:, token: nil, purpose: nil }
+              else
+                Clinic::PatientPortal::InviteIdentity.call(practice: prospect.practice,
+                  patient: prospect.patient, actor:, email_address: prospect.email_address)
+              end
               member = clinic_membership!(prospect.practice, actor)
               task = Clinic::ClinicalTask.create!(practice: prospect.practice, patient: prospect.patient,
                 task_kind: "patient_call", state: "open", pool_code: "front_desk", due_at: 1.day.from_now,
@@ -263,10 +285,14 @@ module Clinic
         def deliver_receipt!(prospect, actor, invitation)
           prospect.with_lock do
             return if prospect.receipt_sent_at
-            invitation ||= Clinic::PatientPortal::InviteIdentity.call(practice: prospect.practice,
-              patient: prospect.patient, actor:, email_address: prospect.email_address)
-            Clinic::MembershipReceiptMailer.receipt(prospect.id, invitation.fetch(:token),
-              invitation.fetch(:purpose)).deliver_now
+            if prospect.account_user_id
+              Clinic::MembershipReceiptMailer.receipt(prospect.id).deliver_now
+            else
+              invitation ||= Clinic::PatientPortal::InviteIdentity.call(practice: prospect.practice,
+                patient: prospect.patient, actor:, email_address: prospect.email_address)
+              Clinic::MembershipReceiptMailer.receipt(prospect.id, invitation.fetch(:token),
+                invitation.fetch(:purpose)).deliver_now
+            end
             prospect.update!(receipt_sent_at: Current.business_time)
           end
         end

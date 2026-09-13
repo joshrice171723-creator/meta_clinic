@@ -12,6 +12,7 @@ module Clinic
     ].freeze
 
     belongs_to :subscription_version, class_name: "Clinic::Care::SubscriptionVersion"
+    belongs_to :account_user, class_name: "User", optional: true
     belongs_to :reviewed_by_membership, class_name: "Clinic::Membership", optional: true
     belongs_to :patient, class_name: "Clinic::Care::Patient", optional: true
     belongs_to :portal_identity, class_name: "Clinic::PatientPortal::Identity", optional: true
@@ -44,6 +45,8 @@ module Clinic
     validates :email_address, length: { maximum: 320 }, allow_nil: true
     validates :phone_number, length: { maximum: 40 }, allow_nil: true
     validates :portal_setup_token, length: { maximum: 200 }, allow_nil: true
+    validates :account_setup_token_digest, format: { with: /\A\h{64}\z/ }, allow_nil: true
+    validates :accepted_terms_version, length: { maximum: 80 }, allow_nil: true
     validates :source, length: { maximum: 80 }, allow_nil: true
     validates :selected_terms, presence: true
     validates :outreach_consent, inclusion: { in: [ true, false ] }

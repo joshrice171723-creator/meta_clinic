@@ -29,8 +29,8 @@ type OutreachAcknowledgement = {
   inquiry: { status: "received"; replayed: boolean };
 };
 
-type CheckoutResponse = {
-  checkout: { url: string; status: "checkout_pending"; replayed: boolean };
+type AccountAcknowledgement = {
+  account: { status: "email_sent"; replayed: boolean };
 };
 
 type CheckoutHandoffResponse = {
@@ -87,6 +87,7 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [outreachAcknowledged, setOutreachAcknowledged] = useState(false);
+  const [accountAcknowledged, setAccountAcknowledged] = useState(false);
   const [{ paymentOutcome, handoffToken }] = useState(() => {
     if (typeof window === "undefined") {
       return { paymentOutcome: null, handoffToken: "" };
@@ -182,6 +183,7 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
     setSelected(plan);
     setSelections([]);
     setOutreachAcknowledged(false);
+    setAccountAcknowledged(false);
     setError("");
     requestKey.current = crypto.randomUUID();
   }
@@ -191,6 +193,8 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
     setSelected(null);
     setSelections([]);
     setOutreachAcknowledged(false);
+    setAccountAcknowledged(false);
+    setAccountAcknowledged(false);
     setError("");
   }
 
@@ -220,27 +224,26 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
     setBusy(true);
     setError("");
     try {
-      const path = intent === "purchase" ? "checkouts" : "prospects";
-      const result = await api<OutreachAcknowledgement | CheckoutResponse>(
-        `${endpoint}/${path}`,
-        {
-          method: "POST",
-          body: {
-            [intent === "purchase" ? "checkout" : "prospect"]: {
-              version_id: selected.id,
-              selections,
-              display_name: displayName.trim(),
-              email_address: emailAddress.trim(),
-              phone_number: phoneNumber.trim() || null,
-              outreach_consent: true,
-              source: "membership_storefront",
-              request_key: requestKey.current,
-            },
+      const path = intent === "purchase" ? "accounts" : "prospects";
+      const result = await api<
+        OutreachAcknowledgement | AccountAcknowledgement
+      >(`${endpoint}/${path}`, {
+        method: "POST",
+        body: {
+          [intent === "purchase" ? "account" : "prospect"]: {
+            version_id: selected.id,
+            selections,
+            display_name: displayName.trim(),
+            email_address: emailAddress.trim(),
+            phone_number: phoneNumber.trim() || null,
+            outreach_consent: true,
+            source: "membership_storefront",
+            request_key: requestKey.current,
           },
         },
-      );
-      if ("checkout" in result) {
-        window.location.assign(result.checkout.url);
+      });
+      if ("account" in result) {
+        setAccountAcknowledged(true);
       } else {
         setOutreachAcknowledged(true);
       }
@@ -387,12 +390,18 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
           aria-labelledby="membership-interest-title"
         >
           <DialogTitle id="membership-interest-title">
-            {outreachAcknowledged
+            {outreachAcknowledged || accountAcknowledged
               ? "Request received"
               : "Choose how to continue"}
           </DialogTitle>
           <DialogContent>
-            {outreachAcknowledged ? (
+            {accountAcknowledged ? (
+              <Alert severity="success" sx={{ mt: 1 }}>
+                Your membership account is ready in the clinic Growth pipeline.
+                Check your email for a one-time link to create your password
+                before payment.
+              </Alert>
+            ) : outreachAcknowledged ? (
               <Alert severity="success" sx={{ mt: 1 }}>
                 Your request was sent to{" "}
                 {resource.data?.practice.name || "the clinic"}. Clinic staff
@@ -429,10 +438,10 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                     Your contact details
                   </Typography>
                   <Typography color="text.secondary">
-                    Your name and at least one contact method create a
-                    prospective-patient record before secure payment. A verified
-                    payment converts that record to a patient, emails the
-                    receipt, and opens patient portal password setup.
+                    Your name and email create a membership account before
+                    payment and place the enrollment in the clinic Growth
+                    pipeline. Use the emailed link to set a password, then
+                    secure checkout opens.
                   </Typography>
                   <TextField
                     required
@@ -448,10 +457,10 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                   <TextField
                     fullWidth
                     type="email"
-                    label="Email address (required for purchase)"
+                    label="Email address (required to create account)"
                     value={emailAddress}
                     autoComplete="email"
-                    helperText="Provide an email for a receipt and patient portal setup."
+                    helperText="We send a one-time password setup link before payment."
                     slotProps={{ htmlInput: { maxLength: 320 } }}
                     onChange={(event) =>
                       changeIntent(() => setEmailAddress(event.target.value))
@@ -487,7 +496,8 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                     <FormHelperText>
                       This lets the clinic contact you about this request and
                       post-payment onboarding. Payment authorization happens
-                      only on the secure checkout page.
+                      only after you create your password and open the secure
+                      checkout page.
                     </FormHelperText>
                   </FormControl>
                 </Stack>
@@ -496,9 +506,9 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
           </DialogContent>
           <DialogActions>
             <Button disabled={busy} onClick={closeDialog}>
-              {outreachAcknowledged ? "Done" : "Cancel"}
+              {outreachAcknowledged || accountAcknowledged ? "Done" : "Cancel"}
             </Button>
-            {!outreachAcknowledged && (
+            {!outreachAcknowledged && !accountAcknowledged && (
               <>
                 <Button
                   form="membership-interest-form"
@@ -527,7 +537,7 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                     resource.data?.payment.checkout_available !== true
                   }
                 >
-                  {busy ? "Opening checkout…" : "Continue to secure payment"}
+                  {busy ? "Creating account…" : "Create account"}
                 </Button>
               </>
             )}

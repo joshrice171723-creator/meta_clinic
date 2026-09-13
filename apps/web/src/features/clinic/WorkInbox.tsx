@@ -7,9 +7,10 @@ import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   CircularProgress,
-  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -23,7 +24,7 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "../../api/client";
-import type { ClinicalTask } from "../../api/contracts";
+import type { ClinicalTask, ClinicTrackingBoard } from "../../api/contracts";
 import { isBeforeBusinessTime } from "../../shared/businessDate";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
@@ -79,6 +80,7 @@ type ClinicalTaskItem = ClinicalTask & {
   assignee_label: string | null;
   overdue: boolean;
   encounter_href: string | null;
+  patient_href: string;
   eligible_assignees: Array<{ membership_id: number; label: string }>;
 };
 
@@ -207,6 +209,35 @@ type SourceState<T> = {
   error?: string;
 };
 
+type PatientFlowColumn = "new" | "active" | "scheduling" | "scheduled";
+
+const patientFlowColumns: Array<{
+  id: PatientFlowColumn;
+  title: string;
+  description: string;
+}> = [
+  {
+    id: "new",
+    title: "New",
+    description: "Newly created work that still needs an owner.",
+  },
+  {
+    id: "active",
+    title: "In progress",
+    description: "A staff member is actively working the next step.",
+  },
+  {
+    id: "scheduling",
+    title: "Ready to schedule",
+    description: "Onboarding is ready for the clinic scheduling workflow.",
+  },
+  {
+    id: "scheduled",
+    title: "Scheduled",
+    description: "A recorded appointment completes this flow view.",
+  },
+];
+
 type InboxItem = {
   id: string;
   type: Exclude<WorkType, "all">;
@@ -227,6 +258,7 @@ type InboxItem = {
   nextAction: string;
   owner: string;
   sourceLabel: string;
+  scheduleReady?: boolean;
   mutation?:
     | { kind: "task"; task: ClinicalTaskItem }
     | { kind: "follow_up"; followUp: EncounterFollowUpItem }
@@ -310,6 +342,14 @@ function sortItems(items: InboxItem[]) {
     if (leftDue !== rightDue) return leftDue - rightDue;
     return left.title.localeCompare(right.title);
   });
+}
+
+function patientFlowColumn(item: InboxItem): PatientFlowColumn {
+  if (item.scheduleReady) return "scheduling";
+  if (item.type === "patient") return "scheduling";
+  if (["claimed", "in_progress", "in review"].includes(item.status))
+    return "active";
+  return "new";
 }
 
 function localDateTimeValue(value: string | null) {
@@ -1003,6 +1043,34 @@ function InboxRow({
   );
 }
 
+function PatientFlowCard({
+  item,
+  work,
+  onChanged,
+}: {
+  item: InboxItem;
+  work?: FollowUpResponse;
+  onChanged: () => void;
+}) {
+  const patientId = item.href.match(/\/clinic\/patients\/(\d+)/)?.[1];
+  const scheduleHref =
+    item.scheduleReady && patientId
+      ? `/clinic/schedule?patient_id=${encodeURIComponent(patientId)}`
+      : null;
+  return (
+    <Card variant="outlined" sx={{ minWidth: 0 }}>
+      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+        <InboxRow item={item} work={work} onChanged={onChanged} />
+        {scheduleHref && (
+          <Button href={scheduleHref} variant="contained" sx={{ mt: 1 }}>
+            Schedule patient
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function WorkInbox() {
   const { capabilities, current_site } = useClinic();
   const canLoadWork =
@@ -1017,6 +1085,8 @@ export function WorkInbox() {
   const canLoadExceptions =
     (capabilities.patients === true && capabilities.notes_read === true) ||
     capabilities.billing_read === true;
+  const canLoadScheduledVisits =
+    capabilities.patients === true && capabilities.appointments_read === true;
   const [assignment, setAssignment] = useState<AssignmentFilter>("all");
   const [workType, setWorkType] = useState<WorkType>("all");
   const [refreshRevision, setRefreshRevision] = useState(0);
@@ -1035,6 +1105,9 @@ export function WorkInbox() {
   const [exceptions, setExceptions] = useState<
     SourceState<WorkExceptionsResponse>
   >({ loading: canLoadExceptions });
+  const [scheduledVisits, setScheduledVisits] = useState<
+    SourceState<ClinicTrackingBoard>
+  >({ loading: canLoadScheduledVisits });
 
   useEffect(() => {
     if (!canLoadWork) return;
@@ -1127,10 +1200,28 @@ export function WorkInbox() {
     return () => abort.abort();
   }, [canLoadExceptions, current_site?.id, refreshRevision]);
 
+  useEffect(() => {
+    if (!canLoadScheduledVisits) return;
+    const abort = new AbortController();
+    setScheduledVisits((current) => ({
+      ...current,
+      loading: true,
+      error: undefined,
+    }));
+    api<ClinicTrackingBoard>("/api/clinic/tracking_board", {
+      signal: abort.signal,
+    })
+      .then((data) => setScheduledVisits({ loading: false, data }))
+      .catch((error: unknown) => {
+        if (!abort.signal.aborted)
+          setScheduledVisits({ loading: false, error: errorMessage(error) });
+      });
+    return () => abort.abort();
+  }, [canLoadScheduledVisits, refreshRevision]);
+
   const items = useMemo(() => {
     const next: InboxItem[] = [];
     work.data?.clinical_tasks.forEach((task) => {
-      if (!task.encounter_href) return;
       next.push({
         id: `task-${task.id}`,
         type: taskType(task),
@@ -1151,11 +1242,13 @@ export function WorkInbox() {
               ? "Start or resolve this task"
               : "Resolve this task",
         sourceLabel: "Clinical task",
-        href: task.encounter_href,
+        scheduleReady:
+          task.task_kind === "patient_call" && task.encounter_id === null,
+        href: task.encounter_href || task.patient_href,
         action: "Open work item",
         icon: "assignment",
         priority: "routine",
-        mutation: { kind: "task", task },
+        mutation: task.encounter_href ? { kind: "task", task } : undefined,
       });
     });
     work.data?.encounter_follow_ups.forEach((followUp) => {
@@ -1366,7 +1459,8 @@ export function WorkInbox() {
     labReviews.loading ||
     labFollowUps.loading ||
     refills.loading ||
-    exceptions.loading;
+    exceptions.loading ||
+    scheduledVisits.loading;
   const exceptionSourceErrors = exceptions.data
     ? Object.entries(exceptions.data.sources)
         .filter(([, source]) => Boolean(source.error))
@@ -1379,6 +1473,7 @@ export function WorkInbox() {
     labFollowUps.error && "Lab follow-up",
     refills.error && "Refill requests",
     exceptions.error && "Documentation and payment exceptions",
+    scheduledVisits.error && "Scheduled visits",
     ...exceptionSourceErrors,
   ].filter(Boolean);
   const returnedWorkCount = work.data
@@ -1403,7 +1498,55 @@ export function WorkInbox() {
         exceptions.data?.sources.unsigned_notes.truncated === true ||
         exceptions.data?.sources.payment_exceptions.truncated === true));
   const hasAnyAccess =
-    canLoadWork || canLoadLabs || canLoadRefills || canLoadExceptions;
+    canLoadWork ||
+    canLoadLabs ||
+    canLoadRefills ||
+    canLoadExceptions ||
+    canLoadScheduledVisits;
+
+  const flowItems = useMemo(() => {
+    const scheduled = (scheduledVisits.data?.visits || [])
+      .filter(
+        (visit) =>
+          visit.row_type === "appointment" &&
+          ["scheduled", "confirmed"].includes(visit.appointment?.status || ""),
+      )
+      .map<InboxItem>((visit) => ({
+        id: `scheduled-${visit.id}`,
+        type: "patient",
+        title: visit.appointment?.visit_type_code || "Scheduled visit",
+        patient: visit.patient.display_name,
+        patientReference: visit.patient.reference,
+        detail:
+          visit.appointment?.reason || "Appointment recorded by the clinic",
+        status: "scheduled",
+        dueAt: visit.appointment?.starts_at || null,
+        dateCaption: "Due",
+        overdue: false,
+        owner: "Clinic schedule",
+        nextAction: "Prepare for the scheduled appointment",
+        sourceLabel: "Clinic schedule",
+        href: `/clinic/schedule?patient_id=${encodeURIComponent(String(visit.patient_id))}`,
+        action: "Open schedule",
+        icon: "assignment",
+        priority: "routine",
+      }));
+    return [...items, ...scheduled].reduce<
+      Record<PatientFlowColumn, InboxItem[]>
+    >(
+      (columns, item) => {
+        const column =
+          item.status === "scheduled" ? "scheduled" : patientFlowColumn(item);
+        columns[column].push(item);
+        return columns;
+      },
+      { new: [], active: [], scheduling: [], scheduled: [] },
+    );
+  }, [items, scheduledVisits.data]);
+  const flowItemCount = patientFlowColumns.reduce(
+    (count, column) => count + flowItems[column.id].length,
+    0,
+  );
 
   if (!hasAnyAccess) {
     return (
@@ -1424,15 +1567,15 @@ export function WorkInbox() {
         >
           <Box>
             <Typography component="h1" variant="h4" sx={{ fontWeight: 750 }}>
-              Work inbox
+              Patient Flow
             </Typography>
             <Typography
               color="text.secondary"
               sx={{ mt: 0.5, maxWidth: "72ch" }}
             >
-              Prioritize the work your role can access, then finish it in the
-              patient record, encounter, billing workspace, or staff
-              conversation.
+              Move patient work from a new request through active ownership and
+              scheduling. The Scheduled column contains only recorded clinic
+              appointments.
             </Typography>
           </Box>
           <Button
@@ -1537,7 +1680,7 @@ export function WorkInbox() {
               <Typography>Loading work inbox…</Typography>
             </Stack>
           )}
-          {!anyLoading && items.length === 0 && sourceErrors.length === 0 && (
+          {!anyLoading && flowItemCount === 0 && sourceErrors.length === 0 && (
             <Box sx={{ py: 5, textAlign: "center" }}>
               <AssignmentOutlinedIcon
                 sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
@@ -1549,7 +1692,7 @@ export function WorkInbox() {
               </Typography>
             </Box>
           )}
-          {!anyLoading && items.length === 0 && sourceErrors.length > 0 && (
+          {!anyLoading && flowItemCount === 0 && sourceErrors.length > 0 && (
             <Box sx={{ py: 5, textAlign: "center" }}>
               <Typography variant="h6">
                 No work is available from the loaded queues
@@ -1560,17 +1703,80 @@ export function WorkInbox() {
               </Typography>
             </Box>
           )}
-          {items.length > 0 && (
-            <Stack divider={<Divider flexItem />}>
-              {items.map((item) => (
-                <InboxRow
-                  key={item.id}
-                  item={item}
-                  work={work.data}
-                  onChanged={() => setRefreshRevision((value) => value + 1)}
-                />
+          {flowItemCount > 0 && (
+            <Box
+              aria-label="Patient Flow board"
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md: "repeat(2, minmax(0, 1fr))",
+                  xl: "repeat(4, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
+            >
+              {patientFlowColumns.map((column) => (
+                <Paper
+                  key={column.id}
+                  component="section"
+                  variant="outlined"
+                  aria-labelledby={`patient-flow-${column.id}`}
+                  sx={{ p: 1.5, minWidth: 0, bgcolor: "action.hover" }}
+                >
+                  <Stack spacing={1.25}>
+                    <Box>
+                      <Stack
+                        direction="row"
+                        sx={{
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 1,
+                        }}
+                      >
+                        <Typography
+                          id={`patient-flow-${column.id}`}
+                          component="h2"
+                          variant="subtitle1"
+                          sx={{ fontWeight: 750 }}
+                        >
+                          {column.title}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={flowItems[column.id].length}
+                        />
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        {column.description}
+                      </Typography>
+                    </Box>
+                    {flowItems[column.id].length === 0 ? (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ py: 2 }}
+                      >
+                        No patients in this stage.
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1.25}>
+                        {flowItems[column.id].map((item) => (
+                          <PatientFlowCard
+                            key={item.id}
+                            item={item}
+                            work={work.data}
+                            onChanged={() =>
+                              setRefreshRevision((value) => value + 1)
+                            }
+                          />
+                        ))}
+                      </Stack>
+                    )}
+                  </Stack>
+                </Paper>
               ))}
-            </Stack>
+            </Box>
           )}
         </Box>
       </Paper>

@@ -10,8 +10,10 @@ Rails.application.routes.draw do
   get "public/membership_storefronts", to: "public/membership_storefronts#index"
   get "public/membership_storefronts/:slug", to: "public/membership_storefronts#show"
   post "public/membership_storefronts/:slug/prospects", to: "public/membership_storefronts#create"
+  post "public/membership_storefronts/:slug/accounts", to: "public/membership_storefronts#create_account"
   post "public/membership_storefronts/:slug/checkouts", to: "public/membership_storefronts#checkout"
   post "public/membership_storefronts/:slug/checkouts/handoff", to: "public/membership_storefronts#handoff"
+  post "public/membership_accounts/activate", to: "public/membership_storefronts#activate_account"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"

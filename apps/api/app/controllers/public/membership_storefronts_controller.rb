@@ -1,8 +1,9 @@
 module Public
   class MembershipStorefrontsController < ApplicationController
     include Clinic::Api::RequestParameters
+    include MemberAuthentication
 
-    rate_limit to: 10, within: 15.minutes, only: %i[create checkout], name: "membership_storefront_submit_ip",
+    rate_limit to: 10, within: 15.minutes, only: %i[create create_account checkout activate_account], name: "membership_storefront_submit_ip",
       with: -> { render json: { error: "Too many membership requests. Please try again later." }, status: :too_many_requests }
     rate_limit to: 30, within: 15.minutes, only: :handoff, name: "membership_storefront_handoff_ip",
       with: -> { render json: { error: "Portal setup is taking longer than expected. Use the link in your receipt email." },
@@ -31,6 +32,13 @@ module Public
     rescue_from Clinic::Billing::StripeGateway::Invalid do
       render json: { error: "Secure checkout could not be validated. Please try again.", code: "checkout_invalid" },
         status: :unprocessable_entity
+    end
+    rescue_from Clinic::MembershipGrowth::ActivateAccount::InvalidInvitation do
+      render json: { error: "That account setup link is invalid or has expired.", code: "invalid_invitation" },
+        status: :unprocessable_entity
+    end
+    rescue_from Clinic::MembershipGrowth::ActivateAccount::InvalidPassword do |error|
+      render json: { error: error.message, code: "invalid_password" }, status: :unprocessable_entity
     end
 
     def index
@@ -78,22 +86,37 @@ module Public
     end
 
     def checkout
+      storefront_practice
+      raise ArgumentError, "Create and activate a membership account before payment."
+    end
+
+    def create_account
       practice = storefront_practice
-      input = parameter_hash!(:checkout,
+      input = parameter_hash!(:account,
         %i[version_id display_name email_address phone_number source outreach_consent request_key], arrays: %i[selections])
-      result = Clinic::MembershipGrowth::PublicCheckout.start(
-        practice: practice,
-        version_id: input[:version_id],
-        selections: input[:selections] || [],
-        display_name: input[:display_name],
-        email_address: input[:email_address],
-        phone_number: input[:phone_number],
-        source: input[:source],
-        outreach_consent: boolean_param(input[:outreach_consent], field: :outreach_consent),
+      result = Clinic::MembershipGrowth::PrepareAccount.call(
+        practice: practice, version_id: input[:version_id], selections: input[:selections] || [],
+        display_name: input[:display_name], email_address: input[:email_address], phone_number: input[:phone_number],
+        source: input[:source], outreach_consent: boolean_param(input[:outreach_consent], field: :outreach_consent),
         request_key: input[:request_key]
       )
-      render json: { checkout: { url: result.checkout_url, status: result.prospect.status,
-        replayed: result.replayed } }, status: result.replayed ? :ok : :created
+      render json: { account: { status: "email_sent", replayed: result.replayed } },
+        status: result.replayed ? :ok : :created
+    end
+
+    def activate_account
+      input = parameter_hash!(:membership_account,
+        %i[token password password_confirmation accepted_terms terms_version])
+      token = required_string!(input[:token], field: :token, maximum: 200)
+      password = password_value!(input[:password], :password)
+      password_confirmation = password_value!(input[:password_confirmation], :password_confirmation)
+      terms_version = required_string!(input[:terms_version], field: :terms_version, maximum: 80)
+      result = Clinic::MembershipGrowth::ActivateAccount.call(token:, password:, password_confirmation:,
+        accepted_terms: boolean_param(input[:accepted_terms], field: :accepted_terms), terms_version:)
+      establish_session(result.user)
+      checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: result.prospect.practice,
+        prospect: result.prospect.reload, user: result.user)
+      render json: { checkout: { url: checkout.checkout_url, status: checkout.prospect.status } }, status: :created
     end
 
     def handoff
@@ -131,6 +154,17 @@ module Public
     end
 
     def render_paid_handoff(prospect)
+      if prospect.account_user_id
+        identity = prospect.portal_identity
+        if identity&.active? && current_user&.id == prospect.account_user_id
+          session[:patient_portal_identity_id] = identity.id
+          render json: { onboarding: { status: "active", redirect_to: "/patient-portal?stripe_payment=return#onboarding" } }
+        else
+          render json: { onboarding: { status: "email_required" } }
+        end
+        return
+      end
+
       identity = prospect.portal_identity
       token = prospect.portal_setup_token
       ready = identity&.invited? && token.present? && identity.invitation_expires_at&.future? &&
@@ -145,6 +179,16 @@ module Public
         status: "ready",
         redirect_to: "/patient-portal/activate#token=#{ERB::Util.url_encode(token)}&purpose=activation"
       } }
+    end
+
+    def password_value!(value, field)
+      password = value.to_s
+      unless password.length.between?(12, 72)
+        raise Clinic::Api::RequestParameters::Invalid.new(
+          "#{field} must be between 12 and 72 characters.", field: field
+        )
+      end
+      password
     end
   end
 end

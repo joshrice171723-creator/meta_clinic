@@ -210,6 +210,53 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_nil prospect.patient_id
   end
 
+  test "membership account is created before checkout and verified payment reuses it for portal access" do
+    version_id = publish_catalog(@admin, "AccountFirst")
+    configure_storefront(@admin, "account-first-memberships", enabled: true)
+    payload = prospect_payload(version_id:, request_key: "account-first-request").fetch(:prospect)
+
+    prepared = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice,
+      **payload.symbolize_keys)
+    prospect = prepared.prospect
+    assert prospect.status_new?
+    assert prospect.account_user
+    refute prospect.account_user.active?
+    assert prospect.account_setup_token_digest
+    assert_equal 1, ActionMailer::Base.deliveries.count
+    setup_mail = ActionMailer::Base.deliveries.sole
+    setup_url = setup_mail.text_part.body.decoded.lines.map(&:strip)
+      .find { |line| line.include?("/memberships/account/activate#") }
+    token = URI.decode_www_form(URI.parse(setup_url).fragment).to_h.fetch("token")
+
+    activated = Clinic::MembershipGrowth::ActivateAccount.call(token: token,
+      password: "Synthetic-account-password-2026!", password_confirmation: "Synthetic-account-password-2026!",
+      accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION)
+    assert activated.user.active?
+    assert prospect.reload.account_activated_at
+    assert_nil prospect.account_setup_token_digest
+
+    gateway = Gateway.new
+    checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: @practice,
+      prospect: prospect.reload, user: activated.user, gateway:)
+    assert_equal "checkout_pending", checkout.prospect.status
+    assert_equal 0, @practice.patients.count
+
+    gateway.mark_paid
+    event = { "type" => "checkout.session.completed", "livemode" => false,
+      "account" => @connection.account_id, "data" => { "object" => gateway.session } }
+    Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:)
+
+    prospect.reload
+    assert prospect.status_paid_onboarding?
+    assert_equal activated.user.id, prospect.portal_identity.user_id
+    assert prospect.portal_identity.active?
+    assert_nil prospect.portal_setup_token
+    assert_equal 2, ActionMailer::Base.deliveries.count
+    receipt_mail = ActionMailer::Base.deliveries.last
+    assert_includes receipt_mail.text_part.body.decoded, "/patient-portal"
+    refute_includes receipt_mail.text_part.body.decoded, "/patient-portal/activate#"
+  end
+
   test "purchase opens checkout without a patient and verified payment creates onboarding receipt email and portal" do
     version_id = publish_catalog(@admin, "Purchase")
     configure_storefront(@admin, "purchase-memberships", enabled: true)

@@ -5767,6 +5767,14 @@ CREATE TABLE public.clinic_membership_prospects (
     receipt_sent_at timestamp(6) without time zone,
     portal_setup_token text,
     portal_setup_expires_at timestamp(6) without time zone,
+    account_user_id bigint,
+    account_setup_token_digest character varying(64),
+    account_setup_expires_at timestamp(6) without time zone,
+    account_setup_sent_at timestamp(6) without time zone,
+    account_activated_at timestamp(6) without time zone,
+    accepted_terms_version character varying(80),
+    accepted_terms_at timestamp(6) without time zone,
+    CONSTRAINT clinic_membership_prospects_account_setup_token_digest CHECK (((account_setup_token_digest IS NULL) OR ((account_setup_token_digest)::text ~ '^[0-9a-f]{64}$'::text))),
     CONSTRAINT clinic_membership_prospects_conversion_state CHECK ((((status)::text <> 'converted'::text) OR (converted_at IS NOT NULL))),
     CONSTRAINT clinic_membership_prospects_digest_format CHECK ((((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((email_digest IS NULL) OR ((email_digest)::text ~ '^[0-9a-f]{64}$'::text)) AND ((phone_digest IS NULL) OR ((phone_digest)::text ~ '^[0-9a-f]{64}$'::text)) AND ((email_digest IS NOT NULL) OR (phone_digest IS NOT NULL)))),
     CONSTRAINT clinic_membership_prospects_intent_type CHECK (((intent_type)::text = ANY ((ARRAY['outreach'::character varying, 'purchase'::character varying])::text[]))),
@@ -16014,6 +16022,20 @@ CREATE INDEX clinic_medication_statements_reviewed_by_membership_id_fk ON public
 
 
 --
+-- Name: clinic_membership_prospects_account_setup_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_membership_prospects_account_setup_token ON public.clinic_membership_prospects USING btree (account_setup_token_digest) WHERE (account_setup_token_digest IS NOT NULL);
+
+
+--
+-- Name: clinic_membership_prospects_account_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_membership_prospects_account_user ON public.clinic_membership_prospects USING btree (account_user_id) WHERE (account_user_id IS NOT NULL);
+
+
+--
 -- Name: clinic_membership_prospects_active_purchase; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -23750,6 +23772,14 @@ ALTER TABLE ONLY public.clinic_medication_administrations
 
 
 --
+-- Name: clinic_membership_prospects fk_membership_prospects_account_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_account_user FOREIGN KEY (account_user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_membership_prospects fk_membership_prospects_agreement; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28428,6 +28458,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260913100000'),
 ('20260913090000'),
 ('20260913001000'),
 ('20260912003000'),
