@@ -133,6 +133,7 @@ vi.mock("../src/shared/ui", () => {
 import { MembershipGrowth } from "../src/features/membershipGrowth/MembershipGrowth";
 import { PublicMembershipDirectory } from "../src/features/membershipGrowth/PublicMembershipDirectory";
 import { PublicMembershipStorefront } from "../src/features/membershipGrowth/PublicMembershipStorefront";
+import { PublicMembershipEntry } from "../src/App";
 
 describe("clinic-specific membership growth", () => {
   it("makes clinic identity and both payment and contact paths prominent", () => {
@@ -158,6 +159,17 @@ describe("clinic-specific membership growth", () => {
     expect(html).toContain('href="/memberships/north-clinic"');
     expect(html).toContain('href="/memberships/south-clinic"');
     expect(html).toContain('href="/login"');
+  });
+
+  it("holds public membership content until the existing session is cleared", () => {
+    const html = renderToStaticMarkup(
+      <PublicMembershipEntry>
+        <span>Public storefront content</span>
+      </PublicMembershipEntry>,
+    );
+
+    expect(html).toContain("Loading this page");
+    expect(html).not.toContain("Public storefront content");
   });
 
   it("renders the clinic growth pipeline and its clinic-specific public address", () => {

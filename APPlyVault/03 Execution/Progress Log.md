@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,14 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-13 — Public membership checkout configuration and anonymous entry corrected locally
+
+**Outcome:** corrected the Stripe test application programming interface version used to create hosted Checkout sessions and now report configuration and authorization failures without suggesting that a buyer create another payment. The public membership directory and each clinic-specific membership page now clear an existing application session before they mount, so the future-patient route begins anonymously even when reached from a signed-in local development view.
+
+**Evidence:** source inspection identified an unsupported Stripe version behind the generic checkout retry message. Ruby syntax checks, Stripe error-class availability, frontend formatting, frontend type checking before the final formatting pass, and scoped agent checks passed. A new server regression test fixes the expected Stripe version, and a front-end render test guards that public membership content stays hidden while session clearing is pending. The failure-first record is [here](../../records/verification/2026-09-13-public-membership-checkout-and-anonymous-entry.md).
+
+**Limits:** the focused Rails and Vitest runners did not return a completion report under the current high-load local process conditions, and browser automation timed out while refreshing the existing local storefront tab. No test Checkout session, payment, email, patient record, onboarding task, hosted acceptance, or production behavior is claimed.
 
 ## 2026-09-12 — Clinic-specific membership storefront and dual-path onboarding implemented locally
 

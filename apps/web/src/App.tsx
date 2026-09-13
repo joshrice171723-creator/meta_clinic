@@ -293,6 +293,38 @@ function RouteBoundary({
   );
 }
 
+export function PublicMembershipEntry({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<"clearing" | "ready" | "failed">(
+    "clearing",
+  );
+
+  useEffect(() => {
+    let active = true;
+    void api<void>("/api/session", { method: "DELETE" })
+      .then(() => {
+        if (active) setState("ready");
+      })
+      .catch(() => {
+        if (active) setState("failed");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (state === "clearing") return <RoutePending root />;
+  if (state === "failed")
+    return (
+      <main id="main" className="wrap inner-page">
+        <LoadState error="We could not start a private membership visit. Reload the page before continuing." />
+        <Button variant="contained" onClick={() => window.location.reload()}>
+          Reload page
+        </Button>
+      </main>
+    );
+  return <>{children}</>;
+}
+
 function ClinicLegacyRedirect({ to }: { to: string }) {
   const { navigate } = useClinicNavigation();
   useEffect(() => {
@@ -734,6 +766,8 @@ export function App() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   const publicMembership =
     /^\/memberships\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))$/.exec(path);
+  const publicMembershipRoute =
+    path === "/memberships" || publicMembership !== null;
   const publicPage =
     [
       "/",
@@ -750,6 +784,10 @@ export function App() {
     error?: string;
   }>({});
   useEffect(() => {
+    if (publicMembershipRoute) {
+      setSession({ user: null });
+      return;
+    }
     let active = true;
     const check = () =>
       api<{ user: User }>("/api/session")
@@ -781,7 +819,7 @@ export function App() {
       window.clearInterval(timer);
       window.removeEventListener("focus", check);
     };
-  }, [publicPage]);
+  }, [publicMembershipRoute, publicPage]);
   useEffect(() => {
     if (!publicPage && session.user === null)
       window.location.replace(
@@ -842,13 +880,17 @@ export function App() {
   if (path === "/memberships")
     return (
       <RouteBoundary root>
-        <PublicMembershipDirectory />
+        <PublicMembershipEntry>
+          <PublicMembershipDirectory />
+        </PublicMembershipEntry>
       </RouteBoundary>
     );
   if (publicMembership)
     return (
       <RouteBoundary root>
-        <PublicMembershipStorefront slug={publicMembership[1]} />
+        <PublicMembershipEntry>
+          <PublicMembershipStorefront slug={publicMembership[1]} />
+        </PublicMembershipEntry>
       </RouteBoundary>
     );
   if (path.startsWith("/clinic") && user) {

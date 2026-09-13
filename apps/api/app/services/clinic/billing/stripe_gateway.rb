@@ -8,7 +8,7 @@ module Clinic
     class StripeGateway
       class Unavailable < StandardError; end
       class Invalid < StandardError; end
-      API_VERSION = "2026-08-26.dahlia"
+      API_VERSION = "2026-07-29.dahlia"
 
       def self.configuration
         return {} unless Rails.env.development? || Rails.env.test?
@@ -57,6 +57,10 @@ module Clinic
         payload = client.raw_request(method, path, params: fields, opts: options).data
         raise Invalid, "Stripe response could not be validated." unless payload.is_a?(Hash)
         payload.deep_stringify_keys
+      rescue Stripe::InvalidRequestError
+        raise Unavailable, "Stripe rejected the clinic test-payment setup. Ask the clinic to refresh its Stripe connection before trying again."
+      rescue Stripe::AuthenticationError, Stripe::PermissionError
+        raise Unavailable, "Stripe test payments are unavailable for this clinic. Ask the clinic to refresh its Stripe connection before trying again."
       rescue Stripe::StripeError
         raise Unavailable, "Stripe could not confirm this request. Retry the same operation; do not create another payment."
       end
