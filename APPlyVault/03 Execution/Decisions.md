@@ -1,7 +1,7 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-10
+updated: 2026-09-12
 ---
 # Decisions
 
@@ -315,3 +315,7 @@ The recommended Meta Clinic starting profile is primary care with the cash-pay c
 **D-068 — 2026-09-11 / founder's pricing clarification:** price the product based on the fully completed mature platform, not the current prototype or near-term readiness. The future-state pricing model may assume reliable clinical operations, retail-pharmacy e-prescribing such as Walgreens routing, supplier purchasing, inventory management, billing, memberships/packages, patient access and supported integrations. Use a serious ambulatory-platform package ladder with per-clinic subscriptions, provider/site bands and separately priced FDE implementation and migration.
 
 **D-068 limits:** these are future-state commercial hypotheses, not claims that the listed capabilities are currently implemented, integrated, approved or ready for live clinical use. Each pharmacy, prescribing, supplier, data, security, professional and release dependency requires its own evidence and acceptance gate. Customizability is table stakes against Tebra; differentiation must come from a reliable connected cash-pay workflow and lower migration friction. The FDE remains an implementation/integration role and does not receive clinical, prescribing, legal, billing or record-custodian authority by this pricing decision.
+
+**D-069 — 2026-09-12 / founder's membership storefront direction:** every clinic-specific membership page must offer both self-service purchase and an optional request for clinic contact before payment. A contact-first request remains a pre-purchase lead. Starting checkout is not payment evidence. Only a verified payment event may create the purchased membership, place the customer into patient onboarding, open a clinic outreach task, and trigger a receipt email containing the one-time patient portal activation link.
+
+**D-069 limits:** packages requiring clinic review before payment remain contact-first. The initial implementation uses Stripe test mode and local/test email delivery; it does not authorize live charges, production email, real-patient use, clinical acceptance, legal/privacy approval, or deployment. The browser return URL is informational and never activates onboarding.

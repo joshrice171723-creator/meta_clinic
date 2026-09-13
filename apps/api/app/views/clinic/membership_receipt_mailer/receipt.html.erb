@@ -1,0 +1,15 @@
+<h1>Payment received</h1>
+<p>Your payment to <strong><%= @practice.name %></strong> was received.</p>
+<h2>Receipt</h2>
+<dl>
+  <dt>Membership</dt>
+  <dd><%= @terms.fetch("package_name") %></dd>
+  <dt>Amount paid</dt>
+  <dd><%= @terms.fetch("currency") %> <%= @receipt.payload.fetch("amount") %></dd>
+  <dt>Paid</dt>
+  <dd><%= @receipt.issued_at.iso8601 %></dd>
+  <dt>Receipt number</dt>
+  <dd><%= @receipt.id %></dd>
+</dl>
+<p><a href="<%= @activation_url %>">Create your patient portal password and continue onboarding</a></p>
+<p>Clinic staff will contact you to complete onboarding. This one-time link expires in 30 minutes.</p>

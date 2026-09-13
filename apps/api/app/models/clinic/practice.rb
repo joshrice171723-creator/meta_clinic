@@ -57,6 +57,7 @@ module Clinic
     has_many :patient_portal_requests, class_name: "Clinic::PatientPortal::Request", dependent: :restrict_with_error
     has_many :patient_portal_recovery_deliveries, class_name: "Clinic::PatientPortal::RecoveryDelivery",
       dependent: :restrict_with_error
+    has_many :membership_prospects, class_name: "Clinic::MembershipProspect", dependent: :restrict_with_error
     has_many :scribe_encounters, class_name: "Clinic::Scribe::Encounter", dependent: :restrict_with_error
     has_many :scribe_sources, class_name: "Clinic::Scribe::Source", dependent: :restrict_with_error
     has_many :scribe_drafts, class_name: "Clinic::Scribe::Draft", dependent: :restrict_with_error
@@ -68,5 +69,16 @@ module Clinic
 
     validates :timezone, inclusion: { in: ActiveSupport::TimeZone::MAPPING.values + [ "UTC" ] }
     validates :name, presence: true, length: { maximum: 120 }
+    validates :public_membership_slug, uniqueness: true,
+      format: { with: /\A[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])\z/ }, allow_nil: true
+    validate :enabled_storefront_has_slug
+
+    private
+
+    def enabled_storefront_has_slug
+      if membership_storefront_enabled? && public_membership_slug.blank?
+        errors.add(:public_membership_slug, "is required before the membership storefront can be enabled")
+      end
+    end
   end
 end

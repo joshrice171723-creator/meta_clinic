@@ -168,6 +168,14 @@ const PatientStorefrontPreview = lazyNamed(
   () => import("./features/clinic/subscriptions/PatientStorefrontPreview"),
   (m) => m.PatientStorefrontPreview,
 );
+const MembershipGrowth = lazyNamed(
+  () => import("./features/membershipGrowth/MembershipGrowth"),
+  (m) => m.MembershipGrowth,
+);
+const PublicMembershipStorefront = lazyNamed(
+  () => import("./features/membershipGrowth/PublicMembershipStorefront"),
+  (m) => m.PublicMembershipStorefront,
+);
 const Reminders = lazyNamed(
   () => import("./features/clinic/Reminders"),
   (m) => m.Reminders,
@@ -514,6 +522,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         <SubscriptionCatalog />
       ) : path === "/clinic/subscriptions/patient-preview" ? (
         <PatientStorefrontPreview />
+      ) : path === "/clinic/growth" ? (
+        <MembershipGrowth />
       ) : path === "/clinic/reminders" ? (
         <Reminders />
       ) : path === "/clinic/messages" ? (
@@ -718,15 +728,18 @@ export function App() {
       .catch(() => {});
   }, []);
   const path = window.location.pathname.replace(/\/$/, "") || "/";
-  const publicPage = [
-    "/",
-    "/login",
-    "/patient-portal/activate",
-    "/patient-portal/recovery",
-    "/owner/activate",
-    "/workforce/activate",
-    "/workforce/kiosk",
-  ].includes(path);
+  const publicMembership =
+    /^\/memberships\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))$/.exec(path);
+  const publicPage =
+    [
+      "/",
+      "/login",
+      "/patient-portal/activate",
+      "/patient-portal/recovery",
+      "/owner/activate",
+      "/workforce/activate",
+      "/workforce/kiosk",
+    ].includes(path) || publicMembership !== null;
   const [session, setSession] = useState<{
     user?: User | null;
     error?: string;
@@ -819,6 +832,12 @@ export function App() {
     return (
       <RouteBoundary root>
         <KioskClockPage />
+      </RouteBoundary>
+    );
+  if (publicMembership)
+    return (
+      <RouteBoundary root>
+        <PublicMembershipStorefront slug={publicMembership[1]} />
       </RouteBoundary>
     );
   if (path.startsWith("/clinic") && user) {

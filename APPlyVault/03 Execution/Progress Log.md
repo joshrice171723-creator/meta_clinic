@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-11
+updated: 2026-09-12
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -10,6 +10,14 @@ canonical_for: recent-progress-and-history-index
 Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
+
+## 2026-09-12 — Clinic-specific membership storefront and dual-path onboarding implemented locally
+
+**Outcome:** added a clinic-specific public membership address, a contact-first lead path, and a purchase-now path. Contact-first submissions remain outside the patient and billing records. Purchase-now opens a Stripe test Checkout Session; only a verified matching payment creates the patient, active agreement, payment allocation, receipt, one-time portal invitation, receipt email and front-desk follow-up task. Payment return and cancellation pages do not activate onboarding.
+
+**Evidence:** the focused membership, Stripe membership and patient-portal lifecycle regression set passed 31 runs / 235 assertions. The storefront tests also proved mismatched, expired and invalid-payment-evidence Checkout Sessions create no patient or onboarding records, and covered both one-time and automatic-renewal purchases. Frontend type checking, 16 membership/subscription tests and the production build passed. Ruby formatting, eager loading and vault verification passed; the full static security scan retained one unrelated existing recall-worklist warning.
+
+**Limits:** local synthetic evidence only. Stripe remains test-only and email used the test delivery adapter. No live payment, external email deliverability, hosted browser acceptance, real-patient use, clinical/privacy/legal approval or deployment is claimed.
 
 ## 2026-09-11 — Ten workflow-hardening audit priorities completed locally
 

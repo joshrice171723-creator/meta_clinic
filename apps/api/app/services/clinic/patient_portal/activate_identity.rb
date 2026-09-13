@@ -25,6 +25,11 @@ module Clinic
           audit_recorder.record!(practice: identity.practice, actor: identity.user,
             action_code: "patient_portal.identity.activate", outcome: :committed,
             resource_version_ref: "patient_portal_identity:#{identity.id}")
+          Clinic::MembershipGrowth::TransitionProspect.convert_for_identity!(
+            identity: identity,
+            actor: identity.user,
+            now: now
+          )
         end
         session[:member_session_id] = member_session.id
         session[:patient_portal_identity_id] = identity.id

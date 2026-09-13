@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Button,
   Dialog,
@@ -25,6 +32,7 @@ import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { TelehealthSessionProvider } from "../telehealth/TelehealthSessionProvider";
 import { TelehealthDock } from "../telehealth/TelehealthDock";
 import type {
@@ -178,6 +186,14 @@ export function ClinicNavigation({
       label: "Subscriptions",
       Icon: ReceiptLongIcon,
       allowed: capabilities.subscription_catalog_read === true,
+    },
+    {
+      href: "/clinic/growth",
+      label: "Growth",
+      Icon: TrendingUpIcon,
+      allowed:
+        capabilities.subscriptions_review === true ||
+        capabilities.subscription_catalog_publish === true,
     },
     {
       href: "/clinic/reminders",
@@ -466,7 +482,8 @@ export function Workspace({
                       </DialogTitle>
                       <DialogContent>
                         <Typography color="text.secondary" variant="body2">
-                          Select a location you are authorized to use for this session.
+                          Select a location you are authorized to use for this
+                          session.
                         </Typography>
                         <List aria-label="Available locations" sx={{ mt: 1 }}>
                           {data.sites.map((site) => (
@@ -481,7 +498,11 @@ export function Workspace({
                           ))}
                         </List>
                         {locationPickerError && (
-                          <Typography color="error" role="alert" variant="body2">
+                          <Typography
+                            color="error"
+                            role="alert"
+                            variant="body2"
+                          >
                             {locationPickerError}
                           </Typography>
                         )}
@@ -515,7 +536,9 @@ export function Workspace({
                         )}
                         <span className="clinic-topbar-actions">
                           <span className="clinic-topbar-location">
-                            {data.current_site?.name || data.current_site?.code || data.practice.name}
+                            {data.current_site?.name ||
+                              data.current_site?.code ||
+                              data.practice.name}
                           </span>
                           <a href="/clinic/settings">My settings</a>
                         </span>

@@ -80,6 +80,8 @@ module Clinic
           billing_read: allowed?("billing.read") || allowed?("billing.write"),
           billing_write: allowed?("billing.write"),
           subscription_catalog_read: allowed?("subscription_catalog.read"),
+          subscription_catalog_publish: allowed?("subscription_catalog.publish"),
+          subscriptions_review: allowed?("subscriptions.review"),
           billing_invoice_draft: allowed?("billing.invoice_draft"),
           billing_invoice_post: allowed?("billing.invoice_post"),
           billing_payment_record: allowed?("billing.payment_record"),

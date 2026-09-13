@@ -1,0 +1,12 @@
+Your payment to <%= @practice.name %> was received.
+
+Receipt
+Membership: <%= @terms.fetch("package_name") %>
+Amount paid: <%= @terms.fetch("currency") %> <%= @receipt.payload.fetch("amount") %>
+Paid: <%= @receipt.issued_at.iso8601 %>
+Receipt number: <%= @receipt.id %>
+
+Create your patient portal password and continue onboarding:
+<%= @activation_url %>
+
+Clinic staff will contact you to complete onboarding. This one-time link expires in 30 minutes.

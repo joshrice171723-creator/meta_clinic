@@ -1,7 +1,7 @@
 ---
 type: risk-register
 status: active
-updated: 2026-09-03
+updated: 2026-09-12
 ---
 # Risks and Assumptions
 
@@ -42,6 +42,8 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 **R-18 — High / open:** new content silently alters issued evidence, stale progress appears current, or a paperwork checkbox is treated as completed external work. Mitigation/evidence: T-24.1–T-24.6 version-bound assignment/progress, explicit re-review, evidence-backed transitions and two-client export/restore tests. Detect mismatched version references, missing completion evidence and unowned dependencies; preserve the prior version and stop only the affected release/transition. Source applicability remains R-01/R-10, not a second source-review task. See [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). Owner unassigned.
 
 **R-19 — High / open:** clinic screens appear usable while wrong-patient selection, lost edits, stale intake or an unaccepted handoff cause unsafe or falsely completed work. The current board can classify same-day appointment timing but has no durable production check-in event; treating encounter start or a schedule timestamp as arrival would falsely place a patient in the waiting room. Mitigation/evidence: T-13.1–T-13.4 observed synthetic workflow, identity/visit binding, authorship/version rules, explicit check-in/ownership events and interrupted-session/conflict prototypes. Signals include missing owner, mismatched identity/version and unacknowledged save; pause the affected transition and use the reviewed fallback rather than inventing clinical behavior. Theme completion and schedule-aware presentation are not workflow validation. See [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). Owner unassigned.
+
+**R-20 — High / open:** a checkout return, stale provider event, mismatched amount, duplicate delivery, or email failure could falsely activate a membership or leave a paid customer without onboarding access. Current mitigation is test-mode-only checkout; signed-event and fresh-provider reconciliation; clinic/account/amount/currency/fee correlation; idempotent patient, ledger, receipt and task creation; serialized receipt delivery; and an explicit pending-email signal in the clinic pipeline. Production requires live-provider custody, monitored retry and reconciliation, external email deliverability, duplicate-identity recovery, privacy/legal review and hosted acceptance before real use. Owner unassigned.
 
 ## Assumptions to test
 

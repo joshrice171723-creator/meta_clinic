@@ -1,0 +1,149 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../src/shared/ui", () => {
+  const terms = {
+    family_id: 1,
+    family_name: "Direct primary care",
+    package_id: 2,
+    package_name: "North Clinic membership",
+    description: "Ongoing access published by North Clinic.",
+    tier: "Individual",
+    amount: "79.25",
+    currency: "USD",
+    duration: 1,
+    duration_unit: "months",
+    renewal: "manual",
+    cancellation: "end_of_term",
+    refund_policy: "manual_review",
+    terms: "Synthetic membership terms.",
+    eligibility_review: false,
+    max_per_patient: 1,
+    available_from: null,
+    available_until: null,
+    components: [
+      {
+        service_id: 3,
+        name: "Routine visit",
+        description: "One included routine visit.",
+        mode: "included",
+        group: "",
+        min: 0,
+        max: 100,
+        quantity: 1,
+        frequency: "term",
+        price_adjustment: "0.0",
+        eligibility_review: false,
+      },
+    ],
+  };
+  const published = { id: 7, number: 1, terms };
+  return {
+    LoadState: ({ error }: { error?: string }) => <span>{error}</span>,
+    useResource: (path: string) => {
+      if (path === "/api/clinic/membership_prospects") {
+        return {
+          data: {
+            storefront: {
+              slug: "north-clinic",
+              enabled: true,
+              public_path: "/memberships/north-clinic",
+            },
+            capabilities: {
+              review: true,
+              configure: true,
+            },
+            prospects: [
+              {
+                id: 11,
+                display_name: "Future Patient",
+                email_address: "future.patient@example.invalid",
+                phone_number: "555-010-2026",
+                outreach_consent: true,
+                intent_type: "outreach",
+                source: "membership_storefront",
+                status: "new",
+                possible_duplicate: false,
+                lock_version: 0,
+                created_at: "2026-09-12T12:00:00Z",
+                updated_at: "2026-09-12T12:00:00Z",
+                subscription_version_id: 7,
+                selected_terms: terms,
+                patient_id: null,
+                portal_identity_id: null,
+                agreement_id: null,
+                receipt_id: null,
+                onboarding_task_id: null,
+                checkout_status: null,
+                paid_at: null,
+                receipt_sent_at: null,
+                reviewed_at: null,
+                invited_at: null,
+                converted_at: null,
+              },
+            ],
+          },
+          refresh: () => {},
+        };
+      }
+      if (path.startsWith("/api/public/membership_storefronts/")) {
+        return {
+          data: {
+            practice: { name: "North Clinic", slug: "north-clinic" },
+            catalog: [published],
+            payment: { checkout_available: true, mode: "test" },
+          },
+          refresh: () => {},
+        };
+      }
+      return {
+        data: {
+          catalog: [published],
+          subscriptions: [],
+          can_purchase: true,
+          processor: "development_fixture",
+          payment: { checkout_available: false, next_step: "clinic_follow_up" },
+          requested_membership: { version_id: 7, selected_service_ids: [] },
+        },
+        refresh: () => {},
+      };
+    },
+  };
+});
+
+import { MembershipGrowth } from "../src/features/membershipGrowth/MembershipGrowth";
+import { PublicMembershipStorefront } from "../src/features/membershipGrowth/PublicMembershipStorefront";
+
+describe("clinic-specific membership growth", () => {
+  it("makes clinic identity and both payment and contact paths prominent", () => {
+    const html = renderToStaticMarkup(
+      <PublicMembershipStorefront slug="north-clinic" />,
+    );
+
+    expect(html.match(/North Clinic/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(html).toContain("Memberships offered by this clinic");
+    expect(html).toContain("North Clinic membership");
+    expect(html).toContain("purchase an eligible membership now");
+    expect(html).toContain("request clinic contact before paying");
+    expect(html).not.toContain("South Clinic");
+  });
+
+  it("renders the clinic growth pipeline and its clinic-specific public address", () => {
+    const html = renderToStaticMarkup(<MembershipGrowth />);
+
+    expect(html).toContain("Membership pipeline");
+    expect(html).toContain("/memberships/north-clinic");
+    expect(html).toContain("Future Patient");
+    expect(html).toContain("North Clinic membership");
+    expect(html).toContain("Contact requests stay pre-purchase");
+    expect(html).toContain("Contact first");
+  });
+
+  it("describes verified-payment onboarding separately from contact-first leads", () => {
+    const html = renderToStaticMarkup(<MembershipGrowth />);
+
+    expect(html).toContain("Verified payments create a patient");
+    expect(html).toContain("receipt email");
+    expect(html).toContain("front-desk onboarding task");
+  });
+});

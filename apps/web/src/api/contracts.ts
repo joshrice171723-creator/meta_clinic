@@ -749,6 +749,8 @@ export type ClinicCapabilities = {
   billing_write?: boolean;
   billing_catalog_manage?: boolean;
   subscription_catalog_read?: boolean;
+  subscription_catalog_publish?: boolean;
+  subscriptions_review?: boolean;
   billing_invoice_draft?: boolean;
   billing_invoice_post?: boolean;
   billing_payment_record?: boolean;

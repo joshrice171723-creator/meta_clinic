@@ -270,6 +270,21 @@
     "/api/clinic/lab_reports/review_queue(.:format)"
   ],
   [
+    "api_clinic_membership_prospect",
+    "GET",
+    "/api/clinic/membership_prospects/:id(.:format)"
+  ],
+  [
+    "api_clinic_membership_prospects",
+    "GET",
+    "/api/clinic/membership_prospects(.:format)"
+  ],
+  [
+    "api_clinic_membership_storefront",
+    "GET",
+    "/api/clinic/membership_storefront(.:format)"
+  ],
+  [
     "api_clinic_message_intent",
     "GET",
     "/api/clinic/message_intents/:id(.:format)"
@@ -1422,6 +1437,11 @@
   [
     null,
     "GET",
+    "/api/public/membership_storefronts/:slug(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/workforce/kiosk(.:format)"
   ],
   [
@@ -1473,6 +1493,16 @@
     null,
     "PATCH",
     "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/membership_prospects/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/membership_storefront(.:format)"
   ],
   [
     null,
@@ -2142,6 +2172,16 @@
   [
     null,
     "POST",
+    "/api/public/membership_storefronts/:slug/checkouts(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/public/membership_storefronts/:slug/prospects(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/session(.:format)"
   ],
   [
@@ -2158,6 +2198,16 @@
     null,
     "PUT",
     "/api/clinic/encounters/:encounter_id/follow_up(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/membership_prospects/:id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/membership_storefront(.:format)"
   ],
   [
     null,

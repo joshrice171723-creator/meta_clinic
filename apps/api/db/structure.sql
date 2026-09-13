@@ -5726,6 +5726,73 @@ ALTER SEQUENCE public.clinic_medication_statements_id_seq OWNED BY public.clinic
 
 
 --
+-- Name: clinic_membership_prospects; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_membership_prospects (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    subscription_version_id bigint NOT NULL,
+    request_key character varying(160) NOT NULL,
+    request_digest character varying(64) NOT NULL,
+    status character varying DEFAULT 'new'::character varying NOT NULL,
+    display_name text NOT NULL,
+    email_address text NOT NULL,
+    phone_number text,
+    email_digest character varying(64) NOT NULL,
+    phone_digest character varying(64),
+    selected_terms jsonb DEFAULT '{}'::jsonb NOT NULL,
+    source character varying(80),
+    outreach_consent boolean DEFAULT false NOT NULL,
+    reviewed_by_membership_id bigint,
+    patient_id bigint,
+    portal_identity_id bigint,
+    reviewed_at timestamp(6) without time zone,
+    invited_at timestamp(6) without time zone,
+    converted_at timestamp(6) without time zone,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    intent_type character varying DEFAULT 'outreach'::character varying NOT NULL,
+    checkout_reference character varying(35),
+    checkout_session_id character varying,
+    checkout_account_id character varying,
+    checkout_mode character varying,
+    application_fee_cents integer,
+    checkout_status character varying,
+    agreement_id bigint,
+    receipt_id bigint,
+    onboarding_task_id bigint,
+    paid_at timestamp(6) without time zone,
+    receipt_sent_at timestamp(6) without time zone,
+    CONSTRAINT clinic_membership_prospects_conversion_state CHECK ((((status)::text <> 'converted'::text) OR (converted_at IS NOT NULL))),
+    CONSTRAINT clinic_membership_prospects_digest_format CHECK ((((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((email_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((phone_digest IS NULL) OR ((phone_digest)::text ~ '^[0-9a-f]{64}$'::text)))),
+    CONSTRAINT clinic_membership_prospects_intent_type CHECK (((intent_type)::text = ANY ((ARRAY['outreach'::character varying, 'purchase'::character varying])::text[]))),
+    CONSTRAINT clinic_membership_prospects_onboarding_state CHECK ((((status)::text <> ALL ((ARRAY['paid_onboarding'::character varying, 'converted'::character varying])::text[])) OR ((patient_id IS NOT NULL) AND (portal_identity_id IS NOT NULL) AND (agreement_id IS NOT NULL) AND (receipt_id IS NOT NULL) AND (onboarding_task_id IS NOT NULL) AND (invited_at IS NOT NULL) AND (paid_at IS NOT NULL)))),
+    CONSTRAINT clinic_membership_prospects_status CHECK (((status)::text = ANY ((ARRAY['new'::character varying, 'contacted'::character varying, 'qualified'::character varying, 'invited'::character varying, 'converted'::character varying, 'declined'::character varying, 'checkout_pending'::character varying, 'payment_processing'::character varying, 'paid_onboarding'::character varying, 'checkout_expired'::character varying, 'payment_failed'::character varying])::text[])))
+);
+
+
+--
+-- Name: clinic_membership_prospects_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_membership_prospects_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_membership_prospects_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_membership_prospects_id_seq OWNED BY public.clinic_membership_prospects.id;
+
+
+--
 -- Name: clinic_memberships; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7405,7 +7472,10 @@ CREATE TABLE public.clinic_practices (
     updated_at timestamp(6) without time zone NOT NULL,
     timezone character varying DEFAULT 'UTC'::character varying NOT NULL,
     organization_id bigint,
-    platform_managed boolean DEFAULT false NOT NULL
+    platform_managed boolean DEFAULT false NOT NULL,
+    public_membership_slug character varying,
+    membership_storefront_enabled boolean DEFAULT false NOT NULL,
+    CONSTRAINT clinic_practices_public_membership_slug_format CHECK (((public_membership_slug IS NULL) OR ((public_membership_slug)::text ~ '^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$'::text)))
 );
 
 
@@ -12150,6 +12220,13 @@ ALTER TABLE ONLY public.clinic_medication_statements ALTER COLUMN id SET DEFAULT
 
 
 --
+-- Name: clinic_membership_prospects id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects ALTER COLUMN id SET DEFAULT nextval('public.clinic_membership_prospects_id_seq'::regclass);
+
+
+--
 -- Name: clinic_memberships id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -13907,6 +13984,14 @@ ALTER TABLE ONLY public.clinic_medication_statements
 
 
 --
+-- Name: clinic_membership_prospects clinic_membership_prospects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT clinic_membership_prospects_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_memberships clinic_memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15255,6 +15340,13 @@ CREATE UNIQUE INDEX clinic_audit_resource_manifests_practice_id ON public.clinic
 
 
 --
+-- Name: clinic_billing_receipts_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_billing_receipts_practice_id ON public.clinic_billing_receipts USING btree (practice_id, id);
+
+
+--
 -- Name: clinic_billing_services_code; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -15301,6 +15393,13 @@ CREATE UNIQUE INDEX clinic_cash_drawer_one_open_per_site ON public.clinic_cash_d
 --
 
 CREATE UNIQUE INDEX clinic_cash_tenders_request_key ON public.clinic_cash_tenders USING btree (practice_id, request_key);
+
+
+--
+-- Name: clinic_clinical_tasks_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_clinical_tasks_practice_id ON public.clinic_clinical_tasks USING btree (practice_id, id);
 
 
 --
@@ -15913,6 +16012,48 @@ CREATE INDEX clinic_medication_statements_reviewed_by_membership_id_fk ON public
 
 
 --
+-- Name: clinic_membership_prospects_active_purchase; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_membership_prospects_active_purchase ON public.clinic_membership_prospects USING btree (practice_id, email_digest, subscription_version_id) WHERE (((intent_type)::text = 'purchase'::text) AND ((status)::text = ANY ((ARRAY['checkout_pending'::character varying, 'payment_processing'::character varying, 'paid_onboarding'::character varying, 'contacted'::character varying, 'converted'::character varying])::text[])));
+
+
+--
+-- Name: clinic_membership_prospects_checkout_reference; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_membership_prospects_checkout_reference ON public.clinic_membership_prospects USING btree (checkout_reference) WHERE (checkout_reference IS NOT NULL);
+
+
+--
+-- Name: clinic_membership_prospects_email_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_membership_prospects_email_status ON public.clinic_membership_prospects USING btree (practice_id, email_digest, status);
+
+
+--
+-- Name: clinic_membership_prospects_pipeline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_membership_prospects_pipeline ON public.clinic_membership_prospects USING btree (practice_id, status, created_at);
+
+
+--
+-- Name: clinic_membership_prospects_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_membership_prospects_practice_id ON public.clinic_membership_prospects USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_membership_prospects_request_key ON public.clinic_membership_prospects USING btree (practice_id, request_key);
+
+
+--
 -- Name: clinic_memberships_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -16491,6 +16632,13 @@ CREATE INDEX clinic_portal_recovery_deliveries_queue ON public.clinic_patient_po
 --
 
 CREATE INDEX clinic_practices_platform_managed ON public.clinic_practices USING btree (platform_managed) WHERE (platform_managed = true);
+
+
+--
+-- Name: clinic_practices_public_membership_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_practices_public_membership_slug ON public.clinic_practices USING btree (public_membership_slug) WHERE (public_membership_slug IS NOT NULL);
 
 
 --
@@ -18199,6 +18347,20 @@ CREATE UNIQUE INDEX index_clinic_items_on_practice_id_and_id ON public.clinic_it
 --
 
 CREATE UNIQUE INDEX index_clinic_items_on_practice_id_and_sku ON public.clinic_items USING btree (practice_id, sku);
+
+
+--
+-- Name: index_clinic_membership_prospects_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_membership_prospects_on_practice_id ON public.clinic_membership_prospects USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_membership_prospects_on_subscription_version_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_membership_prospects_on_subscription_version_id ON public.clinic_membership_prospects USING btree (subscription_version_id);
 
 
 --
@@ -23586,6 +23748,62 @@ ALTER TABLE ONLY public.clinic_medication_administrations
 
 
 --
+-- Name: clinic_membership_prospects fk_membership_prospects_agreement; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_agreement FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects fk_membership_prospects_onboarding_task; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_onboarding_task FOREIGN KEY (practice_id, onboarding_task_id) REFERENCES public.clinic_clinical_tasks(practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects fk_membership_prospects_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects fk_membership_prospects_portal_identity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_portal_identity FOREIGN KEY (practice_id, portal_identity_id) REFERENCES public.clinic_patient_portal_identities(practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects fk_membership_prospects_receipt; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_receipt FOREIGN KEY (practice_id, receipt_id) REFERENCES public.clinic_billing_receipts(practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects fk_membership_prospects_reviewer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_reviewer FOREIGN KEY (practice_id, reviewed_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_membership_prospects fk_membership_prospects_subscription_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_subscription_version FOREIGN KEY (practice_id, subscription_version_id) REFERENCES public.clinic_subscription_versions(practice_id, id);
+
+
+--
 -- Name: clinic_message_attachments fk_message_attachments_document; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -26978,6 +27196,14 @@ ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
 
 
 --
+-- Name: clinic_membership_prospects fk_rails_dfcf086c0a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_rails_dfcf086c0a FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_telehealth_provider_events fk_rails_e032280499; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28200,6 +28426,9 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260912003000'),
+('20260912002000'),
+('20260912001000'),
 ('20260911012000'),
 ('20260911010000'),
 ('20260911006000'),
