@@ -21,6 +21,8 @@ module Clinic
         receipt_id: prospect.receipt_id,
         onboarding_task_id: prospect.onboarding_task_id,
         checkout_status: prospect.checkout_status,
+        staff_payment_status: prospect.staff_payment_status,
+        recurring_authorized_at: timestamp(prospect.recurring_authorized_at),
         paid_at: timestamp(prospect.paid_at),
         receipt_sent_at: timestamp(prospect.receipt_sent_at),
         reviewed_at: timestamp(prospect.reviewed_at),

@@ -64,6 +64,9 @@ export type MembershipProspect = {
   receipt_id: number | null;
   onboarding_task_id: number | null;
   checkout_status: string | null;
+  staff_payment_status:
+    "awaiting_card" | "payment_processing" | "paid" | "failed" | null;
+  recurring_authorized_at: string | null;
   paid_at: string | null;
   receipt_sent_at: string | null;
   reviewed_at: string | null;
@@ -78,6 +81,7 @@ export type MembershipProspect = {
   follow_up_attempt_count: number;
   follow_up_outcome:
     | "checkout_opened"
+    | "phone_payment_started"
     | "no_answer"
     | "callback_requested"
     | "not_interested"
@@ -98,6 +102,9 @@ export type MembershipProspectMutationResponse = {
   prospect: MembershipProspect;
 };
 
-export type AssistedCheckoutResponse = MembershipProspectMutationResponse & {
-  checkout_url: string;
+export type StaffPhonePaymentResponse = MembershipProspectMutationResponse & {
+  phone_payment: {
+    status: "awaiting_card" | "payment_processing" | "paid" | "failed";
+    instructions: string | null;
+  };
 };

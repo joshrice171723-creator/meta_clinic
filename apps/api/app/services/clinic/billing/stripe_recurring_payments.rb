@@ -67,7 +67,7 @@ module Clinic
           terms["renewal"] == "automatic" && subscription["livemode"] == false &&
           (!checkout.subscription_id || subscription["id"] == checkout.subscription_id) &&
           subscription.dig("metadata", "apply_collection_intent") == checkout.collection_intent.reference &&
-          subscription["application_fee_percent"].to_s.in?(["2.1", "2.10"]) &&
+          valid_application_fee?(checkout, subscription) &&
           items.is_a?(Array) && items.one? && subscription.dig("items", "has_more") == false && items.first["quantity"] == 1 &&
           price.is_a?(Hash) && price["unit_amount"] == (checkout.agreement.amount * 100).to_i && price["currency"] == "usd" &&
           terms["duration_unit"] == "months" && terms["duration"] == 1 &&
@@ -75,6 +75,12 @@ module Clinic
           subscription["collection_method"] == "charge_automatically" && subscription["trial_end"].nil? &&
           subscription["pause_collection"].nil? && subscription["discounts"].to_a.empty?
       end
+
+      def self.valid_application_fee?(checkout, subscription)
+        value = subscription["application_fee_percent"].to_s
+        checkout.application_fee_cents.positive? ? value.in?(["2.1", "2.10"]) : value.blank?
+      end
+      private_class_method :valid_application_fee?
 
       def self.validate_invoice_identity!(checkout, invoice)
         raise StripeGateway::Invalid, "Stripe invoice does not match this membership." unless
@@ -103,7 +109,7 @@ module Clinic
         raise StripeGateway::Invalid, "Invoice payment or application fee does not match." unless
           payment["id"] == payment_id && payment["livemode"] == false && payment["status"] == "succeeded" &&
           payment["amount_received"] == cents && payment["currency"] == "usd" &&
-          payment["application_fee_amount"] == checkout.application_fee_cents
+          payment["application_fee_amount"].to_i == checkout.application_fee_cents
         paid_at = Time.at(Integer(invoice.fetch("status_transitions").fetch("paid_at"))).utc
         period_start = Time.at(Integer(line.fetch("period").fetch("start"))).utc
         period_end = Time.at(Integer(line.fetch("period").fetch("end"))).utc

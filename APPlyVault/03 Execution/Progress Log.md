@@ -11,6 +11,14 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-13 — Worker-assisted recurring telephone payment implemented locally
+
+**Outcome:** replaced the worker's reuse of consumer Stripe Checkout with a dedicated Stripe Terminal Mail Order/Telephone Order flow. The assigned worker records recurring-authorization evidence, the previous open consumer Checkout is closed, and Stripe Customer, SetupIntent and subscription identities remain bound to the selected prospect. Card values stay on the Stripe reader. The prospect does not become a patient until the initial subscription invoice is verified paid.
+
+**Evidence:** the focused Rails membership-growth file passed 11 runs / 193 assertions, including a 38-assertion caller-specific payment journey; scoped Ruby style, the focused frontend file, TypeScript type checking and the production build passed. The additive development migration installed without resetting data. Browser inspection verified location selection before clinic entry and the worker's exact recurring amount/cancellation attestation with the payment action disabled until attested. [Failure-first and verification record](../../records/progress/2026/09/2026-09-13-worker-assisted-recurring-phone-payment.md).
+
+**Limits:** source and synthetic local verification only; no real or simulated Stripe reader transaction was performed. Stripe MOTO approval, supported reader setup, authorization-language/legal review, Payment Card Industry Data Security Standard review, tax determination, operations/reconciliation, hosted acceptance, real-patient use and release remain separate gates.
+
 ## 2026-09-13 — Prospective-patient rule and verified portal handoff implemented locally
 
 **Outcome:** the membership pipeline now presents every person with a name plus an email address or phone number as a prospective patient until server-verified payment creates a patient. Incomplete Checkout activity remains supporting detail instead of turning the person into a patient or removing the lead. A successful Stripe return now waits for signed payment processing and then continues directly to the existing one-time patient portal password setup; the receipt email retains the same setup link as fallback.

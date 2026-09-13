@@ -16,7 +16,8 @@ module Clinic
         path = Rails.root.join("tmp", "stripe-sandbox.json")
         private_values = Rails.env.development? && path.file? ? JSON.parse(path.read.sub(/\A\uFEFF/, "")) : {}
         private_values = {} unless private_values.is_a?(Hash)
-        %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN].to_h do |name|
+        %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN
+          STRIPE_MOTO_READER_ID].to_h do |name|
           [name, ENV[name].presence || private_values[name]]
         end
       rescue JSON::ParserError, IOError, SystemCallError
@@ -35,6 +36,14 @@ module Clinic
 
         configured_account = configuration["STRIPE_SANDBOX_ACCOUNT_ID"].to_s
         configured_account.match?(/\Aacct_[a-zA-Z0-9]+\z/) && account_id.to_s == configured_account
+      end
+
+      def self.moto_reader_id!
+        reader_id = configuration["STRIPE_MOTO_READER_ID"].to_s
+        raise Unavailable, "Configure this clinic's Stripe telephone-payment reader before taking a card by phone." unless
+          reader_id.match?(/\Atmr_[a-zA-Z0-9]+\z/)
+
+        reader_id
       end
 
       def self.return_url(path)

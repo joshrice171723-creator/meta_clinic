@@ -24,6 +24,18 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       end
     end
 
+    def complete_phone_setup
+      @setup_intent["status"] = "succeeded"
+      @setup_intent["payment_method"] = "pm_phonecard"
+      @reader["action"]["status"] = "succeeded"
+    end
+
+    def mark_phone_paid
+      @subscription["status"] = "active"
+      @invoice.merge!("status" => "paid", "amount_paid" => @amount_cents, "amount_remaining" => 0,
+        "status_transitions" => { "paid_at" => Time.utc(2026, 9, 12, 18).to_i })
+    end
+
     def request(method, path, **options)
       @calls << [ method, path, options ]
       value = case [ method, path ]
@@ -49,6 +61,63 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
         }
       when [ :get, "/v1/checkout/sessions/cs_test_storefront" ]
         @session
+      when [ :post, "/v1/checkout/sessions/cs_test_storefront/expire" ]
+        @session.merge!("status" => "expired")
+      when [ :post, "/v1/customers" ]
+        { "id" => "cus_phonecaller", "livemode" => false }
+      when [ :post, "/v1/setup_intents" ]
+        fields = options.fetch(:fields)
+        @reference = fields.fetch("metadata[apply_membership_prospect]")
+        @setup_intent = { "id" => "seti_phonecaller", "livemode" => false,
+          "status" => "requires_payment_method", "customer" => fields.fetch("customer"),
+          "payment_method" => nil, "metadata" => { "apply_membership_prospect" => @reference } }
+      when [ :post, "/v1/terminal/readers/tmr_phonefixture/process_setup_intent" ]
+        @reader = { "id" => "tmr_phonefixture", "livemode" => false,
+          "action" => { "type" => "process_setup_intent", "status" => "in_progress",
+            "process_setup_intent" => { "setup_intent" => @setup_intent.fetch("id") } } }
+      when [ :get, "/v1/setup_intents/seti_phonecaller" ]
+        @setup_intent
+      when [ :post, "/v1/products" ]
+        { "id" => "prod_phonemembership", "livemode" => false }
+      when [ :post, "/v1/prices" ]
+        { "id" => "price_phonemonthly", "livemode" => false }
+      when [ :post, "/v1/subscriptions" ]
+        paid_at = Time.utc(2026, 9, 12, 18).to_i
+        @invoice = {
+          "id" => "in_phoneinitial", "livemode" => false,
+          "parent" => { "subscription_details" => { "subscription" => "sub_phonecaller" } },
+          "currency" => "usd", "status" => "open", "amount_paid" => 0,
+          "total" => @amount_cents, "amount_remaining" => @amount_cents,
+          "billing_reason" => "subscription_create", "status_transitions" => { "paid_at" => nil },
+          "lines" => { "data" => [{ "amount" => @amount_cents,
+            "parent" => { "subscription_item_details" => { "proration" => false,
+              "subscription" => "sub_phonecaller" } },
+            "period" => { "start" => paid_at, "end" => 1.month.from_now.to_i } }], "has_more" => false }
+        }
+        @subscription = {
+          "id" => "sub_phonecaller", "livemode" => false, "customer" => "cus_phonecaller",
+          "default_payment_method" => "pm_phonecard", "status" => "incomplete",
+          "metadata" => { "apply_membership_prospect" => @reference,
+            "apply_collection_intent" => @reference }, "application_fee_percent" => "2.1",
+          "items" => { "data" => [{ "quantity" => 1, "price" => {
+            "id" => "price_phonemonthly", "unit_amount" => @amount_cents, "currency" => "usd",
+            "recurring" => { "interval" => "month", "interval_count" => 1 } } }], "has_more" => false },
+          "collection_method" => "charge_automatically", "trial_end" => nil, "pause_collection" => nil,
+          "discounts" => [], "latest_invoice" => @invoice, "cancel_at_period_end" => false
+        }
+      when [ :get, "/v1/subscriptions/sub_phonecaller" ]
+        @subscription.merge("latest_invoice" => "in_phoneinitial")
+      when [ :get, "/v1/invoices/in_phoneinitial" ]
+        @invoice
+      when [ :get, "/v1/payment_intents/pi_phoneinitial" ]
+        { "id" => "pi_phoneinitial", "livemode" => false, "status" => "succeeded",
+          "amount_received" => @amount_cents, "amount" => @amount_cents, "currency" => "usd",
+          "application_fee_amount" => @application_fee_cents, "latest_charge" => "ch_phoneinitial",
+          "metadata" => { "apply_collection_intent" => @reference } }
+      when [ :get, "/v1/charges/ch_phoneinitial" ]
+        { "id" => "ch_phoneinitial", "livemode" => false, "payment_intent" => "pi_phoneinitial",
+          "status" => "succeeded", "paid" => true, "created" => Time.utc(2026, 9, 12, 18).to_i,
+          "currency" => "usd", "amount" => @amount_cents, "amount_refunded" => 0 }
       when [ :get, "/v1/subscriptions/sub_storefrontpaid" ]
         {
           "id" => "sub_storefrontpaid", "livemode" => false,
@@ -74,7 +143,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
         }
       when [ :get, "/v1/invoice_payments" ]
         { "data" => [{ "amount_paid" => @amount_cents,
-          "payment" => { "payment_intent" => "pi_storefrontpaid" } }], "has_more" => false }
+          "payment" => { "payment_intent" => @subscription ? "pi_phoneinitial" : "pi_storefrontpaid" } }],
+          "has_more" => false }
       when [ :get, "/v1/payment_intents/pi_storefrontpaid" ]
         {
           "id" => "pi_storefrontpaid", "livemode" => false, "status" => "succeeded",
@@ -98,12 +168,13 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   setup do
     @previous_environment, @previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
     @saved_stripe = ENV.to_h.slice("STRIPE_SANDBOX_KEY", "STRIPE_SANDBOX_ACCOUNT_ID",
-      "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN")
+      "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN", "STRIPE_MOTO_READER_ID")
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     ENV["STRIPE_SANDBOX_KEY"] = "rk_test_storefrontfixture"
     ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "disabled"
     ENV["STRIPE_CONNECT_WEBHOOK_SECRET"] = "whsec_storefront_fixture"
     ENV["STRIPE_RETURN_ORIGIN"] = "http://127.0.0.1:3200"
+    ENV["STRIPE_MOTO_READER_ID"] = "tmr_phonefixture"
     Rails.cache.clear
     ActionMailer::Base.deliveries.clear
     host! "localhost:3000"
@@ -122,7 +193,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
 
   teardown do
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = @previous_environment, @previous_flag
-    %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN].each do |key|
+    %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN
+      STRIPE_MOTO_READER_ID].each do |key|
       @saved_stripe.key?(key) ? ENV[key] = @saved_stripe[key] : ENV.delete(key)
     end
   end
@@ -335,8 +407,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_nil prospect.portal_setup_expires_at
   end
 
-  test "worker owns an incomplete signup call and secure checkout stays prospective until verified payment" do
-    version_id = publish_catalog(@admin, "Assisted")
+  test "worker takes a recurring phone payment without exposing another caller or creating a patient before verification" do
+    version_id = publish_catalog(@admin, "Assisted", renewal: "automatic")
     configure_storefront(@admin, "assisted-memberships", enabled: true)
     gateway = Gateway.new
     payload = prospect_payload(version_id:, request_key: "assisted-purchase").fetch(:prospect)
@@ -357,20 +429,35 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       prospect.follow_up_assigned_to_membership_id
     assert_equal 1, prospect.follow_up_attempt_count
 
-    checkout = Clinic::MembershipGrowth::StaffAssistedCheckout.call(practice: @practice, actor: @admin,
-      prospect_id: prospect.id, lock_version: prospect.lock_version, gateway:)
-    assert_equal "https://checkout.stripe.com/c/pay/storefront", checkout.checkout_url
+    payment = Clinic::MembershipGrowth::StaffPhonePayment.start(practice: @practice, actor: @admin,
+      prospect_id: prospect.id, lock_version: prospect.lock_version, authorization_confirmed: true,
+      authorization_version: Clinic::MembershipGrowth::StaffPhonePayment::AUTHORIZATION_VERSION, gateway:)
+    assert_equal "awaiting_card", payment.payment.fetch(:status)
     prospect.reload
-    assert prospect.status_checkout_pending?
+    assert prospect.status_payment_processing?
     assert_equal "waiting", prospect.follow_up_state
-    assert_equal "checkout_opened", prospect.follow_up_outcome
+    assert_equal "phone_payment_started", prospect.follow_up_outcome
+    assert prospect.recurring_authorized_at
+    assert_equal @practice.memberships.find_by!(user: @admin), prospect.recurring_authorized_by_membership
+    assert_equal "cus_phonecaller", prospect.staff_payment_customer_id
+    assert_equal "seti_phonecaller", prospect.staff_payment_setup_intent_id
+    assert_nil prospect.patient_id
+    assert_equal 0, @practice.patients.count
+    assert_equal 1, gateway.calls.count { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
+    assert gateway.calls.any? { |method, path, _| method == :post && path == "/v1/checkout/sessions/cs_test_storefront/expire" }
+
+    gateway.complete_phone_setup
+    processing = Clinic::MembershipGrowth::StaffPhonePayment.refresh(practice: @practice, actor: @admin,
+      prospect_id: prospect.id, gateway:)
+    assert_equal "payment_processing", processing.payment.fetch(:status)
+    assert_equal "sub_phonecaller", prospect.reload.staff_payment_subscription_id
     assert_nil prospect.patient_id
     assert_equal 0, @practice.patients.count
 
-    gateway.mark_paid
-    event = { "type" => "checkout.session.completed", "livemode" => false,
-      "account" => @connection.account_id, "data" => { "object" => gateway.session } }
-    Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:)
+    gateway.mark_phone_paid
+    paid = Clinic::MembershipGrowth::StaffPhonePayment.refresh(practice: @practice, actor: @admin,
+      prospect_id: prospect.id, gateway:)
+    assert_equal "paid", paid.payment.fetch(:status)
 
     prospect.reload
     assert prospect.status_paid_onboarding?

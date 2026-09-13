@@ -20,6 +20,8 @@ class StripeWebhooksController < ApplicationController
     result = Clinic::Billing::StripeInvoicePayments.webhook(payload: payload, gateway: Clinic::Billing::StripeGateway.new)
     result ||= Clinic::MembershipGrowth::PublicCheckout.webhook(payload: payload,
       gateway: Clinic::Billing::StripeGateway.new)
+    result ||= Clinic::MembershipGrowth::StaffPhonePayment.webhook(payload: payload,
+      gateway: Clinic::Billing::StripeGateway.new)
     result ||= Clinic::Billing::StripeMembershipPayments.webhook(raw_body: raw_body, signature_header: request.headers["Stripe-Signature"])
     evidence&.update!(processing_state: result ? "applied" : "needs_reconciliation")
     head :no_content

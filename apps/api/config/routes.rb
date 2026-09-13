@@ -190,7 +190,8 @@ Rails.application.routes.draw do
     get "subscription_catalog", to: "care/subscription_catalog#index"
     resource :membership_storefront, only: %i[show update], controller: "membership_storefront"
     resources :membership_prospects, only: %i[index show update] do
-      post :assisted_checkout, on: :member
+      post :phone_payment, on: :member
+      post :refresh_phone_payment, on: :member
     end
     get "subscription_catalog/storefront_preview", to: "care/subscription_catalog#storefront_preview"
     post "subscription_catalog/:kind", to: "care/subscription_catalog#save"

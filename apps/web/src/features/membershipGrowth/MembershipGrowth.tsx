@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  Checkbox,
   Paper,
   Stack,
   Switch,
@@ -28,7 +29,7 @@ import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import type {
-  AssistedCheckoutResponse,
+  StaffPhonePaymentResponse,
   MembershipProspect,
   MembershipProspectIndexResponse,
   MembershipProspectMutationResponse,
@@ -75,7 +76,7 @@ type ProspectAction =
 const actionNotices: Record<ProspectAction, string> = {
   contacted: "Clinic outreach marked complete.",
   begin_call:
-    "Signup call started. Confirm the membership and contact details before preparing payment.",
+    "Signup call started. Confirm the membership, contact details, recurring terms, and cancellation policy before taking payment.",
   no_answer: "No answer recorded. This person remains in the follow-up queue.",
   callback_requested:
     "Callback requested. This person remains in the follow-up queue.",
@@ -121,7 +122,7 @@ export function MembershipGrowth() {
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState("");
+  const [recurringAuthorization, setRecurringAuthorization] = useState(false);
   const [slug, setSlug] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [configurationBusy, setConfigurationBusy] = useState(false);
@@ -196,6 +197,7 @@ export function MembershipGrowth() {
         },
       );
       setSelected(result.prospect);
+      setRecurringAuthorization(false);
       setActionNotice(actionNotices[action]);
       resource.refresh();
     } catch (reason) {
@@ -211,24 +213,29 @@ export function MembershipGrowth() {
     }
   }
 
-  async function prepareAssistedCheckout() {
+  async function startPhonePayment() {
     if (!selected || actionBusy) return;
     setActionBusy(true);
     setActionError("");
     setActionNotice("");
-    setCheckoutUrl("");
     try {
-      const result = await api<AssistedCheckoutResponse>(
-        `/api/clinic/membership_prospects/${selected.id}/assisted_checkout`,
+      const result = await api<StaffPhonePaymentResponse>(
+        `/api/clinic/membership_prospects/${selected.id}/phone_payment`,
         {
           method: "POST",
-          body: { prospect: { lock_version: selected.lock_version } },
+          body: {
+            prospect: {
+              lock_version: selected.lock_version,
+              authorization_confirmed: recurringAuthorization,
+              authorization_version: "membership-recurring-phone-v1",
+            },
+          },
         },
       );
       setSelected(result.prospect);
-      setCheckoutUrl(result.checkout_url);
       setActionNotice(
-        "Secure checkout is ready. Open it while the customer is on the call; payment remains pending until Stripe verifies it.",
+        result.phone_payment.instructions ||
+          "Phone payment started. Check the payment status after the reader finishes.",
       );
       resource.refresh();
     } catch (reason) {
@@ -237,7 +244,37 @@ export function MembershipGrowth() {
           ? `${reason.message} Reload the pipeline before preparing payment.`
           : reason instanceof Error
             ? reason.message
-            : "Secure checkout could not be prepared.",
+            : "Phone payment could not be started.",
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function refreshPhonePayment() {
+    if (!selected || actionBusy) return;
+    setActionBusy(true);
+    setActionError("");
+    setActionNotice("");
+    try {
+      const result = await api<StaffPhonePaymentResponse>(
+        `/api/clinic/membership_prospects/${selected.id}/refresh_phone_payment`,
+        { method: "POST" },
+      );
+      setSelected(result.prospect);
+      setActionNotice(
+        result.phone_payment.status === "paid"
+          ? "Payment verified. The membership and patient onboarding were created."
+          : result.phone_payment.status === "failed"
+            ? "The payment was not completed. Return this person to the call queue before trying again."
+            : "Stripe is still processing this phone payment. No patient record has been created yet.",
+      );
+      resource.refresh();
+    } catch (reason) {
+      setActionError(
+        reason instanceof Error
+          ? reason.message
+          : "Phone payment status could not be confirmed.",
       );
     } finally {
       setActionBusy(false);
@@ -466,7 +503,7 @@ export function MembershipGrowth() {
                                 setSelected(prospect);
                                 setActionError("");
                                 setActionNotice("");
-                                setCheckoutUrl("");
+                                setRecurringAuthorization(false);
                               }}
                             >
                               Review
@@ -488,11 +525,11 @@ export function MembershipGrowth() {
         onClose={() => {
           if (!actionBusy) {
             setSelected(null);
-            setCheckoutUrl("");
+            setRecurringAuthorization(false);
           }
         }}
         fullWidth
-        maxWidth="sm"
+        maxWidth="md"
         aria-labelledby="membership-record-title"
       >
         <DialogTitle id="membership-record-title">
@@ -500,7 +537,7 @@ export function MembershipGrowth() {
         </DialogTitle>
         <DialogContent>
           {selected && (
-            <Stack spacing={2.5} sx={{ pt: 1 }}>
+            <Stack spacing={1.5} sx={{ pt: 0.5 }}>
               {actionError && <Alert severity="error">{actionError}</Alert>}
               {actionNotice && <Alert severity="success">{actionNotice}</Alert>}
               {selected.possible_duplicate && (
@@ -517,8 +554,8 @@ export function MembershipGrowth() {
                 ].includes(selected.status) && (
                   <Alert severity="warning">
                     Worker action required. Call this person, confirm the
-                    selected membership, and help them finish secure payment.
-                    They remain a prospective patient until payment is verified.
+                    selected membership, and take payment by phone. They remain
+                    a prospective patient until payment is verified.
                   </Alert>
                 )}
               <Box>
@@ -538,7 +575,7 @@ export function MembershipGrowth() {
                     : "Contact before payment"}
                 </Typography>
               </Box>
-              <Paper variant="outlined" sx={{ p: 2 }}>
+              <Paper variant="outlined" sx={{ p: 1.5 }}>
                 <Typography variant="overline">Selected membership</Typography>
                 <Typography component="h3" variant="h6">
                   {selected.selected_terms.package_name}
@@ -553,7 +590,7 @@ export function MembershipGrowth() {
               </Paper>
               {selected.intent_type === "purchase" &&
                 selected.follow_up_state !== "not_required" && (
-                  <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Paper variant="outlined" sx={{ p: 1.5 }}>
                     <Typography variant="overline">
                       Worker enrollment workflow
                     </Typography>
@@ -574,50 +611,80 @@ export function MembershipGrowth() {
                         : ""}
                     </Typography>
                     {selected.follow_up_state === "in_progress" && (
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
-                        sx={{ mt: 1.5 }}
-                      >
-                        {selected.phone_number && (
+                      <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                        >
+                          {selected.phone_number && (
+                            <Button
+                              component="a"
+                              href={`tel:${selected.phone_number}`}
+                              variant="outlined"
+                            >
+                              Call customer
+                            </Button>
+                          )}
+                          {!selected.phone_number && selected.email_address && (
+                            <Button
+                              component="a"
+                              href={`mailto:${selected.email_address}`}
+                              variant="outlined"
+                            >
+                              Email customer
+                            </Button>
+                          )}
+                        </Stack>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1.5}
+                          sx={{ alignItems: { sm: "center" } }}
+                        >
+                          <FormControlLabel
+                            sx={{ flex: 1, m: 0 }}
+                            control={
+                              <Checkbox
+                                checked={recurringAuthorization}
+                                onChange={(event) =>
+                                  setRecurringAuthorization(
+                                    event.target.checked,
+                                  )
+                                }
+                              />
+                            }
+                            label={`I confirmed the caller authorizes ${subscriptionMoney(
+                              selected.selected_terms.total ||
+                                selected.selected_terms.amount,
+                              selected.selected_terms.currency,
+                            )} monthly until canceled and explained the cancellation terms.`}
+                          />
                           <Button
-                            component="a"
-                            href={`tel:${selected.phone_number}`}
-                            variant="outlined"
+                            disabled={actionBusy || !recurringAuthorization}
+                            onClick={() => void startPhonePayment()}
+                            variant="contained"
+                            sx={{
+                              flexShrink: 0,
+                              alignSelf: { xs: "stretch", sm: "center" },
+                            }}
                           >
-                            Call customer
+                            Take recurring payment by phone
                           </Button>
-                        )}
-                        {!selected.phone_number && selected.email_address && (
-                          <Button
-                            component="a"
-                            href={`mailto:${selected.email_address}`}
-                            variant="outlined"
-                          >
-                            Email customer
-                          </Button>
-                        )}
+                        </Stack>
                       </Stack>
                     )}
                   </Paper>
                 )}
-              {checkoutUrl && (
-                <Alert
-                  severity="info"
-                  action={
-                    <Button
-                      component="a"
-                      href={checkoutUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      color="inherit"
-                    >
-                      Open secure checkout
-                    </Button>
-                  }
-                >
-                  Use Stripe’s secure page for payment details. Do not enter or
-                  store card details in Meta Clinic.
+              {selected.staff_payment_status === "awaiting_card" && (
+                <Alert severity="info">
+                  Enter the caller’s card number, security code, expiration
+                  date, and postal code on the assigned Stripe reader. Meta
+                  Clinic does not receive or store the card details.
+                </Alert>
+              )}
+              {selected.staff_payment_status === "payment_processing" && (
+                <Alert severity="warning">
+                  Stripe is processing the first recurring payment. This person
+                  remains a prospective patient until payment is verified.
                 </Alert>
               )}
               {selected.paid_at && (
@@ -643,7 +710,7 @@ export function MembershipGrowth() {
             disabled={actionBusy}
             onClick={() => {
               setSelected(null);
-              setCheckoutUrl("");
+              setRecurringAuthorization(false);
             }}
           >
             Close
@@ -704,13 +771,6 @@ export function MembershipGrowth() {
                     >
                       Not interested
                     </Button>
-                    <Button
-                      disabled={actionBusy}
-                      onClick={() => void prepareAssistedCheckout()}
-                      variant="contained"
-                    >
-                      Prepare secure payment
-                    </Button>
                   </>
                 )}
               {selected.intent_type === "outreach" &&
@@ -721,6 +781,18 @@ export function MembershipGrowth() {
                     onClick={() => void performAction("decline")}
                   >
                     Decline
+                  </Button>
+                )}
+              {selected.intent_type === "purchase" &&
+                ["awaiting_card", "payment_processing"].includes(
+                  selected.staff_payment_status || "",
+                ) && (
+                  <Button
+                    disabled={actionBusy}
+                    onClick={() => void refreshPhonePayment()}
+                    variant="contained"
+                  >
+                    Check payment status
                   </Button>
                 )}
             </>

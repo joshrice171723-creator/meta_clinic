@@ -20,6 +20,7 @@ module Clinic
     belongs_to :receipt, class_name: "Clinic::BillingReceipt", optional: true
     belongs_to :onboarding_task, class_name: "Clinic::ClinicalTask", optional: true
     belongs_to :follow_up_assigned_to_membership, class_name: "Clinic::Membership", optional: true
+    belongs_to :recurring_authorized_by_membership, class_name: "Clinic::Membership", optional: true
 
     enum :status, {
       new: "new",
@@ -56,12 +57,20 @@ module Clinic
       uniqueness: true
     validates :checkout_account_id, format: { with: /\Aacct_[a-zA-Z0-9]+\z/ }, allow_nil: true
     validates :checkout_mode, inclusion: { in: %w[payment subscription] }, allow_nil: true
+    validates :staff_payment_customer_id, format: { with: /\Acus_[a-zA-Z0-9]+\z/ }, allow_nil: true
+    validates :staff_payment_setup_intent_id, format: { with: /\Aseti_[a-zA-Z0-9]+\z/ }, allow_nil: true
+    validates :staff_payment_subscription_id, format: { with: /\Asub_[a-zA-Z0-9]+\z/ }, allow_nil: true
+    validates :staff_payment_product_id, format: { with: /\Aprod_[a-zA-Z0-9]+\z/ }, allow_nil: true
+    validates :staff_payment_price_id, format: { with: /\Aprice_[a-zA-Z0-9]+\z/ }, allow_nil: true
+    validates :staff_payment_reader_id, format: { with: /\Atmr_[a-zA-Z0-9]+\z/ }, allow_nil: true
+    validates :staff_payment_status, inclusion: { in: %w[awaiting_card payment_processing paid failed] }, allow_nil: true
+    validates :recurring_authorization_version, length: { maximum: 80 }, allow_nil: true
     validates :application_fee_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 },
       allow_nil: true
     validates :follow_up_state, inclusion: { in: %w[not_required open in_progress waiting completed] }
     validates :follow_up_attempt_count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
     validates :follow_up_outcome,
-      inclusion: { in: %w[checkout_opened no_answer callback_requested not_interested payment_verified] }, allow_nil: true
+      inclusion: { in: %w[checkout_opened phone_payment_started no_answer callback_requested not_interested payment_verified] }, allow_nil: true
     validate :selected_terms_are_an_object
     validate :has_reachable_contact
     validate :related_records_belong_to_practice
@@ -96,7 +105,7 @@ module Clinic
       return unless practice_id
 
       [ subscription_version, reviewed_by_membership, patient, portal_identity, agreement, receipt,
-        onboarding_task, follow_up_assigned_to_membership ].compact.each do |record|
+        onboarding_task, follow_up_assigned_to_membership, recurring_authorized_by_membership ].compact.each do |record|
         errors.add(:base, "Membership prospect context must belong to this practice") if record.practice_id != practice_id
       end
       if portal_identity && patient && portal_identity.patient_id != patient.id
@@ -116,6 +125,9 @@ module Clinic
       errors.add(:converted_at, "is required after conversion") if status_converted? && converted_at.nil?
       if follow_up_state.in?(%w[in_progress waiting]) && follow_up_assigned_to_membership.nil?
         errors.add(:follow_up_assigned_to_membership, "is required for active follow-up")
+      end
+      if recurring_authorized_at && (recurring_authorized_by_membership.nil? || recurring_authorization_version.blank?)
+        errors.add(:base, "Recurring payment authorization evidence is incomplete")
       end
     end
 

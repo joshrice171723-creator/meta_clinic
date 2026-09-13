@@ -38,3 +38,4 @@ One file per material outcome. The active [Progress Log](../../../../APPlyVault/
 | 2026-09-03 | [Startdev synchronization streamlined](2026-09-03-startdev-synchronization-streamlined.md) |
 | 2026-09-03 | [Synthetic patient portal vertical slice implemented](2026-09-03-synthetic-patient-portal-vertical-slice-implemented.md) |
 | 2026-09-03 | [Vault control, developer and evidence planes separated](2026-09-03-vault-control-developer-and-evidence-planes-separated.md) |
+| 2026-09-13 | [Worker-assisted recurring telephone payment](2026-09-13-worker-assisted-recurring-phone-payment.md) |

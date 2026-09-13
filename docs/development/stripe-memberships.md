@@ -12,7 +12,8 @@ Create `apps/api/tmp/stripe-sandbox.json` privately (the directory is Git-ignore
 {
   "STRIPE_SANDBOX_KEY": "",
   "STRIPE_CONNECT_WEBHOOK_SECRET": "",
-  "STRIPE_RETURN_ORIGIN": "http://127.0.0.1:3000"
+  "STRIPE_RETURN_ORIGIN": "http://127.0.0.1:3000",
+  "STRIPE_MOTO_READER_ID": ""
 }
 ```
 
@@ -23,7 +24,7 @@ Restricted-key permissions must cover the actual calls below. Stripe's Dashboard
 | Scope | Resources used |
 | --- | --- |
 | Platform | Accounts v2 and merchant configuration creation/read; Account Links write; account read; Events read; CLI Debugging Tools write for local listening |
-| Connected accounts | Checkout Sessions write, Customers write, Products write, Prices write, Subscriptions write; Invoices and Invoice Payments read; Payment Intents write; Charges read; Events read |
+| Connected accounts | Checkout Sessions write, Customers write, Products write, Prices write, Subscriptions write; Setup Intents write/read; Terminal Readers write/read; Invoices and Invoice Payments read; Payment Intents write/read; Charges read; Events read |
 
 No payout/transfer/refund creation permission is needed by APPly. Stripe onboarding selects full Dashboard access, US/USD, merchant card payments and Stripe as fees/losses collector. The account is verified again before payment. The clinic owns its processing fees and payout account. Clinic business/bank details and any agreements are completed by the user on Stripe's hosted page.
 
@@ -53,6 +54,14 @@ Joshua authorized a light automated-testing pass during the non-inventory integr
 7. Choose **Cancel future renewals** and confirm. For a paid subscription, Stripe schedules cancellation at period end and APPly retains only the verified paid access. For an open unpaid Checkout, APPly expires that session. Refresh repeatedly to inspect stable dates and records.
 8. If reviewing refunds manually, use the connected clinic's sandbox Stripe Dashboard. APPly observes cumulative successful refunded amounts from the verified charge; it never initiates a Stripe refund or claims that the application fee was refunded. A full refund of the current paid period removes that period's access. Refunding a payment does not cancel its recurring subscription; cancel future renewals separately.
 
+### Worker-assisted telephone enrollment
+
+Stripe must first approve Mail Order/Telephone Order (MOTO) access for the processing account. Register a supported S700/S710 or BBPOS WisePOS E reader to the same account used for the clinic payment, then place its `tmr_...` identifier in the private `STRIPE_MOTO_READER_ID` setting. A platform-sandbox reader belongs to the configured platform sandbox; a connected-clinic reader belongs to that connected account. Stripe account scoping prevents a reader from being used against a different clinic account.
+
+In **Growth**, open the prospective patient's membership record, start the signup call, explain the exact monthly amount, renewal timing, cancellation terms and saved-card purpose, then check the recurring-authorization attestation. **Take recurring payment by phone** first expires the caller's still-open consumer Checkout so both surfaces cannot charge concurrently. Stripe creates a unique Customer and SetupIntent for that prospect and prompts for card number, security code, expiration date and postal code on the assigned reader. Meta Clinic never receives those card values. Choose **Check payment status** after reader entry. The person remains prospective through card setup and subscription processing; only a verified paid initial invoice creates the patient, ledger, receipt, portal invitation and onboarding task. Each subsequent caller receives a different Customer and SetupIntent.
+
+The worker attestation is application evidence that the caller authorized the displayed recurring terms; it is not by itself legal or card-network approval of the clinic's authorization language. Before real use, the clinic must approve the written authorization/retention procedure and Stripe MOTO access, reader custody and Payment Card Industry Data Security Standard responsibilities.
+
 Immediate month advancement is not built into this UI. Checkout currently creates its own customer without a test clock. An accelerated renewal/failure walkthrough requires a separately reviewed sandbox test-clock customer flow; do not claim that monthly renewal was exercised merely by completing initial Checkout. Focused service tests use stubbed Stripe responses and cannot prove live sandbox delivery or a real monthly charge.
 
 ## Implementation contract and limits
@@ -60,6 +69,7 @@ Immediate month advancement is not built into this UI. Checkout currently create
 - `StripeGateway` uses stripe-ruby `19.6.1`, API `2026-07-29.dahlia`, a sandbox-only transport and HTTPS redirect allowlists. Stripe's official SDK changelog verified this pairing on 2026-09-13.
 - `StripeConnect` creates one durable clinic/account routing identity and verifies full Dashboard and fee responsibility. Direct Checkout runs with the connected-account header. Subscription Checkout sets `subscription_data[application_fee_percent] = 2.1` for every invoice; one-time purchases use a fixed 210-basis-point fee rounded to cents.
 - Stripe receives only a neutral membership product label and opaque routing reference, with no clinical package, service or patient data from APPly. Card details are collected by Stripe.
+- Worker-assisted recurring enrollment uses Stripe Terminal MOTO, not consumer Checkout or Stripe Link. The selected prospect owns an opaque Stripe Customer, SetupIntent, Product, Price and Subscription identity. The previous online Checkout is expired before staff takeover, recurring authorization is tied to the immutable membership terms and staff membership, and repeated provider calls use the same idempotency identities.
 - The public clinic storefront creates a prospective-patient record before redirecting to Checkout. A name plus either an email address or phone number is sufficient for contact-first capture; purchase requires email so the receipt and portal setup link have a delivery address. Canceling, abandoning or failing Checkout leaves the person prospective. Only verified full payment creates the patient.
 - A successful public Checkout return carries an opaque reference in the browser fragment. The storefront polls the same-origin handoff endpoint, which returns no portal credential until the signed payment workflow has created the patient and invitation. It then redirects to the existing password setup page using the same one-time token delivered in the receipt email. The encrypted temporary copy is removed when activation succeeds.
 - Signed webhook evidence persists a digest and redacted identifiers in the existing event ledger. Processing re-reads current Stripe objects and verifies account, sandbox, currency, amount, interval, payment and fee. Unique checkout/agreement and invoice/payment cycle identities plus locks prevent repeat ledger allocation. An old event cannot shorten the latest recorded paid period.
@@ -70,4 +80,4 @@ Immediate month advancement is not built into this UI. Checkout currently create
 - A lost account/session creation response may be retried using its original idempotency key within 23 hours. After that, identity recovery is an operator task; no new account/payment is silently created. No repair UI for that exceptional identity loss is provided.
 - Production enablement requires explicit release authority, secure hosted credentials and connected webhooks, runtime database grants, financial/privacy/security review, operational ownership, reconciliation monitoring and acceptance evidence. The development lock is deliberate; this work makes no production-readiness claim.
 
-Primary references: [Connect subscriptions](https://docs.stripe.com/connect/subscriptions), [direct charges](https://docs.stripe.com/connect/direct-charges), [fee-payer behavior](https://docs.stripe.com/connect/direct-charges-fee-payer-behavior), [Accounts v2 creation](https://docs.stripe.com/api/v2/core/accounts/create), [Connect webhooks](https://docs.stripe.com/connect/webhooks), [CLI listening](https://docs.stripe.com/cli/listen), [stripe-ruby changelog](https://github.com/stripe/stripe-ruby/blob/master/CHANGELOG.md).
+Primary references: [MOTO overview](https://docs.stripe.com/terminal/features/mail-telephone-orders/overview), [save a MOTO card](https://docs.stripe.com/terminal/features/mail-telephone-orders/save-directly), [Connect subscriptions](https://docs.stripe.com/connect/subscriptions), [direct charges](https://docs.stripe.com/connect/direct-charges), [fee-payer behavior](https://docs.stripe.com/connect/direct-charges-fee-payer-behavior), [Accounts v2 creation](https://docs.stripe.com/api/v2/core/accounts/create), [Connect webhooks](https://docs.stripe.com/connect/webhooks), [CLI listening](https://docs.stripe.com/cli/listen), [stripe-ruby changelog](https://github.com/stripe/stripe-ruby/blob/master/CHANGELOG.md).

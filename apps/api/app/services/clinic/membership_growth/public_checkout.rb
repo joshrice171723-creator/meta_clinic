@@ -94,6 +94,7 @@ module Clinic
           end
           return unless prospect
           return unless connection
+          return prospect if prospect.recurring_authorized_at
 
           prospect.with_lock do
             prospect.update!(checkout_session_id: session.fetch("id")) unless prospect.checkout_session_id
@@ -138,6 +139,20 @@ module Clinic
             session["currency"] == terms.fetch("currency").downcase &&
             session.dig("metadata", "apply_membership_prospect") == prospect.checkout_reference &&
             session.dig("metadata", "apply_collection_intent") == prospect.checkout_reference
+        end
+
+        def fulfill_staff_subscription!(prospect:, connection:, subscription:, gateway:)
+          ApplicationRecord.transaction do
+            checkout = ensure_purchase_records!(prospect, connection,
+              subscription_id: subscription.fetch("id"))
+            agreement = Clinic::Billing::StripeRecurringPayments.sync(
+              checkout:, actor: connection.connected_by, subscription:, gateway:
+            )
+            raise Clinic::Billing::StripeGateway::Unavailable,
+              "Paid membership is awaiting reconciliation." unless agreement.current_state == "active"
+          end
+
+          finish_onboarding!(prospect, connection.connected_by)
         end
 
         private
@@ -206,7 +221,7 @@ module Clinic
           Clinic::Billing::StripeGateway.return_url(path)
         end
 
-        def ensure_purchase_records!(prospect, connection)
+        def ensure_purchase_records!(prospect, connection, subscription_id: nil)
           ApplicationRecord.transaction do
             prospect.practice.lock!
             prospect.lock!
@@ -241,8 +256,9 @@ module Clinic
               mode: "test", currency: agreement.currency, amount: agreement.amount, state: "processing")
             checkout = Clinic::Billing::StripeCheckout.create!(practice: prospect.practice, connection:, agreement:,
               collection_intent: intent, account_id: prospect.checkout_account_id,
-              application_fee_cents: prospect.application_fee_cents, session_id: prospect.checkout_session_id,
-              session_status: prospect.checkout_status)
+              application_fee_cents: prospect.application_fee_cents,
+              session_id: subscription_id ? nil : prospect.checkout_session_id,
+              session_status: subscription_id ? nil : prospect.checkout_status, subscription_id:)
             prospect.update!(status: "payment_processing", patient:, agreement:, reviewed_by_membership: actor_membership,
               reviewed_at: Current.business_time)
             checkout

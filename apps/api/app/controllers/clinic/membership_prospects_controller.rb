@@ -3,7 +3,7 @@ module Clinic
     wrap_parameters false
 
     before_action :require_growth_access, only: :index
-    before_action -> { require_capability("subscriptions.review") }, only: %i[show update assisted_checkout]
+    before_action -> { require_capability("subscriptions.review") }, only: %i[show update phone_payment refresh_phone_payment]
 
     rescue_from Clinic::MembershipGrowth::TransitionProspect::InvalidTransition do |error|
       render json: { error: error.message, code: "invalid_transition" }, status: :unprocessable_entity
@@ -53,18 +53,32 @@ module Clinic
       render json: { prospect: MembershipProspectSerializer.call(result.prospect) }
     end
 
-    def assisted_checkout
-      input = parameter_hash!(:prospect, %i[lock_version])
-      result = MembershipGrowth::StaffAssistedCheckout.call(
+    def phone_payment
+      input = parameter_hash!(:prospect, %i[lock_version authorization_confirmed authorization_version])
+      result = MembershipGrowth::StaffPhonePayment.start(
         practice: current_practice,
         actor: current_user,
         prospect_id: params[:id],
-        lock_version: input.require(:lock_version)
+        lock_version: input.require(:lock_version),
+        authorization_confirmed: input[:authorization_confirmed] == true,
+        authorization_version: required_string!(input[:authorization_version], field: :authorization_version, maximum: 80)
       )
       render json: {
         prospect: MembershipProspectSerializer.call(result.prospect),
-        checkout_url: result.checkout_url
+        phone_payment: result.payment
       }, status: :accepted
+    end
+
+    def refresh_phone_payment
+      result = MembershipGrowth::StaffPhonePayment.refresh(
+        practice: current_practice,
+        actor: current_user,
+        prospect_id: params[:id]
+      )
+      render json: {
+        prospect: MembershipProspectSerializer.call(result.prospect),
+        phone_payment: result.payment
+      }
     end
 
     private
