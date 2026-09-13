@@ -174,7 +174,12 @@ export function AppearanceSettings({
                       name="appearance[palette]"
                       value={id}
                       checked={selected}
-                      onChange={() => changeAppearance({ palette: id })}
+                      onChange={() =>
+                        changeAppearance({
+                          palette: id,
+                          ...(id === "astra" ? { mode: "dark" as const } : {}),
+                        })
+                      }
                     />
                     <div className="appearance-preview-heading">
                       <strong>{label}</strong>

@@ -133,10 +133,12 @@ export function ClinicAppearanceScope({
           text: { primary: tokens.text, secondary: tokens.muted },
           divider: tokens.border,
         },
-        shape: { borderRadius: 8 },
+        shape: { borderRadius: preferences.palette === "astra" ? 3 : 8 },
         typography: {
           fontFamily:
-            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            preferences.palette === "astra"
+              ? '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif'
+              : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           h1: { fontSize: "clamp(28px, 3vw, 35px)", fontWeight: 700 },
           h2: { fontSize: "clamp(20px, 2vw, 24px)", fontWeight: 650 },
           body1: { fontSize: "1rem", lineHeight: 1.5 },
@@ -150,6 +152,15 @@ export function ClinicAppearanceScope({
                 minHeight: 44,
                 textTransform: "none",
                 fontWeight: 650,
+                ...(preferences.palette === "astra"
+                  ? {
+                      "&.MuiButton-containedPrimary": {
+                        backgroundColor: "#0e639c",
+                        color: "#ffffff",
+                        "&:hover": { backgroundColor: "#1177bb" },
+                      },
+                    }
+                  : {}),
                 "&:focus-visible": {
                   outline: `3px solid ${tokens.accent}`,
                   outlineOffset: 3,
@@ -198,7 +209,7 @@ export function ClinicAppearanceScope({
           },
         },
       }),
-    [scheme, tokens],
+    [scheme, tokens, preferences.palette],
   );
   return (
     <ThemeProvider theme={muiTheme}>

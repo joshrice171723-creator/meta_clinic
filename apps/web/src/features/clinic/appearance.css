@@ -309,6 +309,24 @@
     font-size: 14px;
   }
 }
+.clinic-theme[data-clinic-palette="astra"] {
+  --clinic-sidebar-ground: rgb(24 24 24);
+  --clinic-sidebar-on: rgb(204 204 204);
+  --clinic-sidebar-muted: rgb(167 167 167);
+  --clinic-sidebar-selected: rgb(9 71 113);
+  --clinic-sidebar-selected-on: rgb(255 255 255);
+  --clinic-font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-dm-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --clinic-radius-control: 3px;
+  --clinic-radius-container: 4px;
+}
+.clinic-theme[data-clinic-palette="astra"][data-color-scheme="light"] {
+  --clinic-sidebar-ground: rgb(243 243 243);
+  --clinic-sidebar-on: rgb(51 51 51);
+  --clinic-sidebar-muted: rgb(97 97 97);
+  --clinic-sidebar-selected: rgb(214 235 255);
+  --clinic-sidebar-selected-on: rgb(34 34 34);
+}
 /* Clinic-only appearance. No global theme class or launch-page color changes. */
 .clinic-theme {
   --background: var(--clinic-background);

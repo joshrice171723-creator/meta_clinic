@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 export const CLINIC_PALETTES = [
+  { id: "astra", label: "Astra / VS Code" },
   { id: "owner", label: "Owner blue & white" },
   { id: "juniper", label: "Juniper & porcelain" },
   { id: "cobalt", label: "Cobalt & limestone" },
@@ -76,6 +77,22 @@ export const CLINIC_SIDEBAR_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ClinicSidebarTokens>
 > = {
+  astra: {
+    light: {
+      ground: "#f3f3f3",
+      on: "#333333",
+      muted: "#616161",
+      selected: "#d6ebff",
+      "selected-on": "#222222",
+    },
+    dark: {
+      ground: "#181818",
+      on: "#cccccc",
+      muted: "#a7a7a7",
+      selected: "#094771",
+      "selected-on": "#ffffff",
+    },
+  },
   owner: {
     light: {
       ground: "#fff7e8",
@@ -161,6 +178,30 @@ export const CLINIC_THEMES: Record<
   ClinicPalette,
   Record<ColorScheme, ThemeTokens>
 > = {
+  astra: {
+    light: {
+      background: "#f3f3f3",
+      surface: "#ffffff",
+      text: "#333333",
+      muted: "#616161",
+      accent: "#0e639c",
+      "on-accent": "#ffffff",
+      soft: "#d6ebff",
+      border: "#cccccc",
+      control: "#616161",
+    },
+    dark: {
+      background: "#1e1e1e",
+      surface: "#252526",
+      text: "#d4d4d4",
+      muted: "#a7a7a7",
+      accent: "#4daafc",
+      "on-accent": "#101820",
+      soft: "#263442",
+      border: "#3e3e42",
+      control: "#a7a7a7",
+    },
+  },
   owner: {
     light: {
       background: "#f8f7f2",

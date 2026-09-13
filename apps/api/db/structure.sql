@@ -11153,7 +11153,7 @@ CREATE TABLE public.identity_preferences (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT identity_preferences_mode CHECK (((mode)::text = ANY (ARRAY[('system'::character varying)::text, ('light'::character varying)::text, ('dark'::character varying)::text]))),
-    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['owner'::character varying, 'juniper'::character varying, 'cobalt'::character varying, 'plum'::character varying, 'saffron'::character varying])::text[]))),
+    CONSTRAINT identity_preferences_palette CHECK (((palette)::text = ANY ((ARRAY['astra'::character varying, 'owner'::character varying, 'juniper'::character varying, 'cobalt'::character varying, 'plum'::character varying, 'saffron'::character varying])::text[]))),
     CONSTRAINT identity_preferences_revision CHECK ((revision >= 0))
 );
 
@@ -28428,6 +28428,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260913090000'),
 ('20260913001000'),
 ('20260912003000'),
 ('20260912002000'),

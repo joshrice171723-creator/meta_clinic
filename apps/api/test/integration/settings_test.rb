@@ -51,6 +51,16 @@ class SettingsTest < ActionDispatch::IntegrationTest
     assert_equal %w[appearance user_id], response.parsed_body.keys.sort
   end
 
+  test "Astra appearance saves and reloads for the signed in account" do
+    sign_in
+    save_appearance(palette: "astra", mode: "dark")
+    assert_response :success
+    get "/api/settings"
+    assert_equal "astra", response.parsed_body.dig("appearance", "palette")
+    assert_equal "dark", response.parsed_body.dig("appearance", "mode")
+    assert_equal "astra", Identity::Preference.find_by!(user: @user).palette
+  end
+
   test "accounts are isolated and client supplied target IDs cannot redirect writes" do
     sign_in
     save_appearance(user_id: @other.id, admin: true)
