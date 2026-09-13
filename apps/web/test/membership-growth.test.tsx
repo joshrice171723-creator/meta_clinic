@@ -41,6 +41,25 @@ vi.mock("../src/shared/ui", () => {
   return {
     LoadState: ({ error }: { error?: string }) => <span>{error}</span>,
     useResource: (path: string) => {
+      if (path === "/api/public/membership_storefronts") {
+        return {
+          data: {
+            storefronts: [
+              {
+                name: "North Clinic",
+                slug: "north-clinic",
+                public_path: "/memberships/north-clinic",
+              },
+              {
+                name: "South Clinic",
+                slug: "south-clinic",
+                public_path: "/memberships/south-clinic",
+              },
+            ],
+          },
+          refresh: () => {},
+        };
+      }
       if (path === "/api/clinic/membership_prospects") {
         return {
           data: {
@@ -112,6 +131,7 @@ vi.mock("../src/shared/ui", () => {
 });
 
 import { MembershipGrowth } from "../src/features/membershipGrowth/MembershipGrowth";
+import { PublicMembershipDirectory } from "../src/features/membershipGrowth/PublicMembershipDirectory";
 import { PublicMembershipStorefront } from "../src/features/membershipGrowth/PublicMembershipStorefront";
 
 describe("clinic-specific membership growth", () => {
@@ -126,6 +146,18 @@ describe("clinic-specific membership growth", () => {
     expect(html).toContain("purchase an eligible membership now");
     expect(html).toContain("request clinic contact before paying");
     expect(html).not.toContain("South Clinic");
+  });
+
+  it("lets a future patient choose a clinic before viewing memberships", () => {
+    const html = renderToStaticMarkup(<PublicMembershipDirectory />);
+
+    expect(html).toContain("Find your clinic");
+    expect(html).toContain("without an account");
+    expect(html).toContain("North Clinic");
+    expect(html).toContain("South Clinic");
+    expect(html).toContain('href="/memberships/north-clinic"');
+    expect(html).toContain('href="/memberships/south-clinic"');
+    expect(html).toContain('href="/login"');
   });
 
   it("renders the clinic growth pipeline and its clinic-specific public address", () => {

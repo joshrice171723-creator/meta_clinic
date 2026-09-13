@@ -57,6 +57,9 @@ describe("development account preview", () => {
     expect(html).not.toContain("App date");
     expect(html).not.toContain('href="/workforce/activate"');
     expect(html).toContain("Email address");
+    expect(html).toContain("Future patient");
+    expect(html).toContain('href="/memberships"');
+    expect(html).toContain("without an account");
   });
 
   it("presents in-app controls as a separate developer utility region", () => {

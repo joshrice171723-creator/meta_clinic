@@ -131,6 +131,21 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     configure_storefront(@admin, "north-memberships", enabled: true)
     configure_storefront(@foreign_admin, "south-memberships", enabled: true)
 
+    get "/api/public/membership_storefronts", headers: @headers
+    assert_response :success
+    assert_equal [
+      {
+        "name" => @practice.name,
+        "slug" => "north-memberships",
+        "public_path" => "/memberships/north-memberships"
+      },
+      {
+        "name" => @foreign_practice.name,
+        "slug" => "south-memberships",
+        "public_path" => "/memberships/south-memberships"
+      }
+    ], response.parsed_body.fetch("storefronts")
+
     get "/api/public/membership_storefronts/north-memberships", headers: @headers
     assert_response :success
     assert_equal @practice.name, response.parsed_body.dig("practice", "name")

@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   get "owner/command_center", to: "platform/api/command_center#show"
   post "owner/clinics", to: "platform/api/command_center#create"
   post "owner/clinics/:id/owner_invitation", to: "platform/api/command_center#invite_owner"
+  get "public/membership_storefronts", to: "public/membership_storefronts#index"
   get "public/membership_storefronts/:slug", to: "public/membership_storefronts#show"
   post "public/membership_storefronts/:slug/prospects", to: "public/membership_storefronts#create"
   post "public/membership_storefronts/:slug/checkouts", to: "public/membership_storefronts#checkout"

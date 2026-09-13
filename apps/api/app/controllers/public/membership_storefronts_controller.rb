@@ -30,6 +30,22 @@ module Public
         status: :unprocessable_entity
     end
 
+    def index
+      storefronts = Clinic::Practice.where(
+        membership_storefront_enabled: true
+      ).where.not(public_membership_slug: nil).order(:name, :id).filter_map do |practice|
+        next unless Clinic::DeploymentAccess.practice_enabled?(practice.id)
+
+        {
+          name: practice.name,
+          slug: practice.public_membership_slug,
+          public_path: "/memberships/#{practice.public_membership_slug}"
+        }
+      end
+
+      render json: { storefronts: storefronts }
+    end
+
     def show
       practice = storefront_practice
       render json: {

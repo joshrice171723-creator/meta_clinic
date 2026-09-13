@@ -21,6 +21,14 @@ export type PublicMembershipStorefrontResponse = {
   };
 };
 
+export type PublicMembershipDirectoryResponse = {
+  storefronts: Array<{
+    name: string;
+    slug: string;
+    public_path: string;
+  }>;
+};
+
 export type MembershipProspectState =
   | "new"
   | "contacted"

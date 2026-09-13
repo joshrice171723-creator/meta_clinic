@@ -121,6 +121,7 @@ export function Login({
             >
               Launch &amp; onboarding
             </a>
+            <a href="/memberships">Future patient</a>
             <a
               aria-current={patientPortal ? "page" : undefined}
               href="/login?next=%2Fpatient-portal"
@@ -134,6 +135,11 @@ export function Login({
               Clinic team
             </a>
           </div>
+          <p className="page-fine-print">
+            <a href="/memberships">
+              New to a clinic? Explore membership options without an account.
+            </a>
+          </p>
           <h2>{portalName}</h2>
           <p>
             {ownerPortal

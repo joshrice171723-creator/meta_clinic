@@ -1437,6 +1437,11 @@
   [
     null,
     "GET",
+    "/api/public/membership_storefronts(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/public/membership_storefronts/:slug(.:format)"
   ],
   [

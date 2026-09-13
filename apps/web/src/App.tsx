@@ -176,6 +176,10 @@ const PublicMembershipStorefront = lazyNamed(
   () => import("./features/membershipGrowth/PublicMembershipStorefront"),
   (m) => m.PublicMembershipStorefront,
 );
+const PublicMembershipDirectory = lazyNamed(
+  () => import("./features/membershipGrowth/PublicMembershipDirectory"),
+  (m) => m.PublicMembershipDirectory,
+);
 const Reminders = lazyNamed(
   () => import("./features/clinic/Reminders"),
   (m) => m.Reminders,
@@ -739,6 +743,7 @@ export function App() {
       "/owner/activate",
       "/workforce/activate",
       "/workforce/kiosk",
+      "/memberships",
     ].includes(path) || publicMembership !== null;
   const [session, setSession] = useState<{
     user?: User | null;
@@ -832,6 +837,12 @@ export function App() {
     return (
       <RouteBoundary root>
         <KioskClockPage />
+      </RouteBoundary>
+    );
+  if (path === "/memberships")
+    return (
+      <RouteBoundary root>
+        <PublicMembershipDirectory />
       </RouteBoundary>
     );
   if (publicMembership)
