@@ -214,6 +214,10 @@ const MembershipAccountActivation = lazyNamed(
   () => import("./features/membershipGrowth/MembershipAccountActivation"),
   (m) => m.MembershipAccountActivation,
 );
+const MembershipAccount = lazyNamed(
+  () => import("./features/membershipGrowth/MembershipAccount"),
+  (m) => m.MembershipAccount,
+);
 const StaffMessagingPage = lazyNamed(
   () => import("./features/staff-messaging/LiveStaffMessagingWorkspace"),
   (m) => m.StaffMessagingPage,
@@ -773,7 +777,7 @@ export function App() {
   const publicMembership =
     /^\/memberships\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))$/.exec(path);
   const publicMembershipRoute =
-    path === "/memberships" || publicMembership !== null;
+    path === "/memberships" || (publicMembership !== null && path !== "/memberships/account");
   const publicPage =
     [
       "/",
@@ -785,7 +789,7 @@ export function App() {
       "/workforce/activate",
       "/workforce/kiosk",
       "/memberships",
-    ].includes(path) || publicMembership !== null;
+    ].includes(path) || (publicMembership !== null && path !== "/memberships/account");
   const [session, setSession] = useState<{
     user?: User | null;
     error?: string;
@@ -871,6 +875,12 @@ export function App() {
       <RouteBoundary root>
         <MembershipAccountActivation />
       </RouteBoundary>
+    );
+  if (path === "/memberships/account" && user)
+    return (
+      <SessionGuard key={user.id} expectedUserId={user.id}>
+        <RouteBoundary root><MembershipAccount /></RouteBoundary>
+      </SessionGuard>
     );
   if (path === "/owner/activate")
     return (

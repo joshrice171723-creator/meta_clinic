@@ -49,6 +49,14 @@ export type MembershipProspect = {
   outreach_consent: boolean;
   intent_type: "outreach" | "purchase";
   account_activated_at: string | null;
+  account_setup_sent_at: string | null;
+  enrollment_stage:
+    | "contact_requested"
+    | "email_verification_pending"
+    | "payment_pending"
+    | "payment_processing"
+    | "patient_onboarding"
+    | "closed";
   source: string | null;
   status: MembershipProspectState;
   relationship_stage: "prospective_patient" | "patient";

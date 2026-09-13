@@ -110,7 +110,8 @@ module Clinic
             raise ActiveRecord::StaleObjectError.new(prospect, "update") unless prospect.lock_version == version_text.to_i
             valid = prospect.intent_type == "purchase" && prospect.follow_up_state == "in_progress" &&
               prospect.follow_up_assigned_to_membership_id == reviewer.id &&
-              prospect.status.in?(%w[checkout_pending checkout_expired payment_failed])
+              prospect.status.in?(%w[new checkout_pending checkout_expired payment_failed]) &&
+              (prospect.account_user_id.nil? || (prospect.account_activated_at && prospect.account_user.active?))
             raise TransitionProspect::InvalidTransition, "Start the signup call before taking payment by phone." if start && !valid
             prospect
           end

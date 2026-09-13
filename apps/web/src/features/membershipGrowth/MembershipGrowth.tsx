@@ -37,16 +37,11 @@ import type {
   MembershipStorefront,
 } from "./types";
 
-const relationshipFilters = [
-  "prospective_patient",
-  "patient",
-  "closed",
-] as const;
+const relationshipFilters = ["prospective_patient", "closed"] as const;
 type RelationshipFilter = (typeof relationshipFilters)[number];
 
 const relationshipLabels: Record<RelationshipFilter, string> = {
   prospective_patient: "Prospective patients",
-  patient: "Patients",
   closed: "Closed",
 };
 
@@ -104,6 +99,19 @@ function statusColor(state: MembershipProspectState) {
   return "default" as const;
 }
 
+function enrollmentLabel(prospect: MembershipProspect) {
+  if (prospect.enrollment_stage === "email_verification_pending")
+    return "Account created · email verification pending";
+  if (
+    prospect.enrollment_stage === "payment_pending" &&
+    prospect.account_activated_at
+  )
+    return "Email verified · payment incomplete";
+  if (prospect.enrollment_stage === "patient_onboarding")
+    return "Payment verified · moved to patient onboarding";
+  return statusLabels[prospect.status];
+}
+
 function matchesFilter(prospect: MembershipProspect, filter: PipelineFilter) {
   if (filter === "all") return true;
   if (filter === "closed") return prospect.status === "declined";
@@ -117,7 +125,7 @@ export function MembershipGrowth() {
     "/api/clinic/membership_prospects",
     { retainDataOnRefresh: true },
   );
-  const [filter, setFilter] = useState<PipelineFilter>("all");
+  const [filter, setFilter] = useState<PipelineFilter>("prospective_patient");
   const [selected, setSelected] = useState<MembershipProspect | null>(null);
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
@@ -289,9 +297,9 @@ export function MembershipGrowth() {
             Growth
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 820 }}>
-            Publish this clinic’s membership page and manage everyone who has
-            shared a name plus a reachable contact. They remain prospective
-            patients until payment is verified.
+            Follow up with people who requested contact or started a membership
+            account. They stay in Growth until payment is verified, then move to
+            patient onboarding.
           </Typography>
         </Box>
         {!resource.data && !resource.error && (
@@ -406,10 +414,11 @@ export function MembershipGrowth() {
                   Membership pipeline
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                  A name plus an email address or phone number creates a
-                  prospective patient. An incomplete checkout does not remove
-                  them. Only a verified payment creates a patient, portal
-                  invitation, receipt email, and front-desk onboarding task.
+                  Account created → email verified → payment. Unpaid signups
+                  stay here for follow-up. Verified payment moves them to the
+                  patient flow with their existing login, receipt email, and
+                  front-desk onboarding task. No second account invitation is
+                  needed.
                 </Typography>
               </Box>
               <Tabs
@@ -447,7 +456,7 @@ export function MembershipGrowth() {
                         <TableCell>Person</TableCell>
                         <TableCell>Path</TableCell>
                         <TableCell>Membership</TableCell>
-                        <TableCell>Relationship</TableCell>
+                        <TableCell>Enrollment stage</TableCell>
                         <TableCell>Submitted</TableCell>
                         <TableCell align="right">Action</TableCell>
                       </TableRow>
@@ -492,7 +501,7 @@ export function MembershipGrowth() {
                               color="text.secondary"
                               sx={{ mt: 0.5 }}
                             >
-                              {statusLabels[prospect.status]}
+                              {enrollmentLabel(prospect)}
                             </Typography>
                           </TableCell>
                           <TableCell>{dateTime(prospect.created_at)}</TableCell>
@@ -548,14 +557,15 @@ export function MembershipGrowth() {
               )}
               {selected.intent_type === "purchase" &&
                 [
+                  "new",
                   "checkout_pending",
                   "checkout_expired",
                   "payment_failed",
                 ].includes(selected.status) && (
                   <Alert severity="warning">
-                    Worker action required. Call this person, confirm the
-                    selected membership, and take payment by phone. They remain
-                    a prospective patient until payment is verified.
+                    {selected.enrollment_stage === "email_verification_pending"
+                      ? "Account created; email verification is pending. Follow up to help them finish the emailed verification link before taking payment."
+                      : "Payment is incomplete. Call to help them finish signup or take payment by phone with their authorization. They remain in Growth until payment is verified."}
                   </Alert>
                 )}
               <Box>
@@ -635,41 +645,44 @@ export function MembershipGrowth() {
                             </Button>
                           )}
                         </Stack>
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          spacing={1.5}
-                          sx={{ alignItems: { sm: "center" } }}
-                        >
-                          <FormControlLabel
-                            sx={{ flex: 1, m: 0 }}
-                            control={
-                              <Checkbox
-                                checked={recurringAuthorization}
-                                onChange={(event) =>
-                                  setRecurringAuthorization(
-                                    event.target.checked,
-                                  )
-                                }
-                              />
-                            }
-                            label={`I confirmed the caller authorizes ${subscriptionMoney(
-                              selected.selected_terms.total ||
-                                selected.selected_terms.amount,
-                              selected.selected_terms.currency,
-                            )} monthly until canceled and explained the cancellation terms.`}
-                          />
-                          <Button
-                            disabled={actionBusy || !recurringAuthorization}
-                            onClick={() => void startPhonePayment()}
-                            variant="contained"
-                            sx={{
-                              flexShrink: 0,
-                              alignSelf: { xs: "stretch", sm: "center" },
-                            }}
+                        {selected.enrollment_stage !==
+                          "email_verification_pending" && (
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={1.5}
+                            sx={{ alignItems: { sm: "center" } }}
                           >
-                            Take recurring payment by phone
-                          </Button>
-                        </Stack>
+                            <FormControlLabel
+                              sx={{ flex: 1, m: 0 }}
+                              control={
+                                <Checkbox
+                                  checked={recurringAuthorization}
+                                  onChange={(event) =>
+                                    setRecurringAuthorization(
+                                      event.target.checked,
+                                    )
+                                  }
+                                />
+                              }
+                              label={`I confirmed the caller authorizes ${subscriptionMoney(
+                                selected.selected_terms.total ||
+                                  selected.selected_terms.amount,
+                                selected.selected_terms.currency,
+                              )} monthly until canceled and explained the cancellation terms.`}
+                            />
+                            <Button
+                              disabled={actionBusy || !recurringAuthorization}
+                              onClick={() => void startPhonePayment()}
+                              variant="contained"
+                              sx={{
+                                flexShrink: 0,
+                                alignSelf: { xs: "stretch", sm: "center" },
+                              }}
+                            >
+                              Take recurring payment by phone
+                            </Button>
+                          </Stack>
+                        )}
                       </Stack>
                     )}
                   </Paper>
@@ -700,7 +713,7 @@ export function MembershipGrowth() {
               )}
               <Typography variant="body2" color="text.secondary">
                 Submitted {dateTime(selected.created_at)} ·{" "}
-                {statusLabels[selected.status]}
+                {enrollmentLabel(selected)}
               </Typography>
             </Stack>
           )}
@@ -717,14 +730,15 @@ export function MembershipGrowth() {
           </Button>
           {selected && resource.data?.capabilities.review && (
             <>
-              {["new", "paid_onboarding"].includes(selected.status) && (
-                <Button
-                  disabled={actionBusy}
-                  onClick={() => void performAction("contacted")}
-                >
-                  Mark contacted
-                </Button>
-              )}
+              {selected.intent_type === "outreach" &&
+                selected.status === "new" && (
+                  <Button
+                    disabled={actionBusy}
+                    onClick={() => void performAction("contacted")}
+                  >
+                    Mark contacted
+                  </Button>
+                )}
               {selected.intent_type === "outreach" &&
                 selected.status === "contacted" && (
                   <Button
@@ -736,6 +750,7 @@ export function MembershipGrowth() {
                 )}
               {selected.intent_type === "purchase" &&
                 [
+                  "new",
                   "checkout_pending",
                   "checkout_expired",
                   "payment_failed",

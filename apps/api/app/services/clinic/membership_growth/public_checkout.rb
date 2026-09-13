@@ -23,12 +23,20 @@ module Clinic
         def start_for_account(practice:, prospect:, user:, gateway: Clinic::Billing::StripeGateway.new)
           raise Clinic::Billing::StripeGateway::Unavailable, "Stripe sandbox is not configured." unless
             Clinic::Billing::StripeGateway.configured?
-          unless prospect.practice_id == practice.id && prospect.intent_type == "purchase" &&
-              prospect.account_user_id == user.id && prospect.account_activated_at && user.active?
-            raise ArgumentError, "Sign in to the membership account that started this enrollment."
-          end
+          prospect.with_lock do
+            unless prospect.practice_id == practice.id && prospect.intent_type == "purchase" &&
+                prospect.account_user_id == user.id && prospect.account_activated_at && user.active?
+              raise ArgumentError, "Verify your email and sign in to the account that started this enrollment."
+            end
+            unless prospect.practice.membership_storefront_enabled? && Clinic::DeploymentAccess.practice_enabled?(practice.id)
+              raise ArgumentError, "Online enrollment is unavailable. Contact the clinic to continue."
+            end
+            if prospect.status_declined? || prospect.recurring_authorized_at
+              raise ArgumentError, "The clinic is handling this enrollment. Contact them to continue."
+            end
 
-          start_for_prospect(practice:, prospect:, replayed: false, gateway:)
+            start_for_prospect(practice:, prospect:, replayed: false, gateway:)
+          end
         end
 
         def start_for_prospect(practice:, prospect:, replayed:, gateway:)
@@ -94,7 +102,8 @@ module Clinic
           end
           return unless prospect
           return unless connection
-          return prospect if prospect.recurring_authorized_at
+          return prospect if prospect.staff_payment_setup_intent_id
+          return prospect if prospect.checkout_session_id && prospect.checkout_session_id != session["id"]
 
           prospect.with_lock do
             prospect.update!(checkout_session_id: session.fetch("id")) unless prospect.checkout_session_id
@@ -177,12 +186,20 @@ module Clinic
         end
 
         def checkout_session(prospect, gateway)
+          key = prospect.checkout_reference
           if prospect.checkout_session_id
-            return gateway.request(:get, "/v1/checkout/sessions/#{prospect.checkout_session_id}",
+            previous = gateway.request(:get, "/v1/checkout/sessions/#{prospect.checkout_session_id}",
               account: prospect.checkout_account_id)
+            verify_session!(prospect, previous)
+            if previous["status"] == "complete"
+              raise ArgumentError, "Your payment is being confirmed. Check your membership account shortly."
+            end
+            return previous unless previous["status"] == "expired" && previous["payment_status"] == "unpaid"
+
+            key = "#{prospect.checkout_reference}:resume:#{prospect.checkout_session_id}"
           end
           gateway.request(:post, "/v1/checkout/sessions", account: prospect.checkout_account_id,
-            key: prospect.checkout_reference, fields: checkout_fields(prospect))
+            key:, fields: checkout_fields(prospect))
         end
 
         def checkout_fields(prospect)
@@ -215,6 +232,9 @@ module Clinic
         end
 
         def storefront_return_url(prospect, outcome)
+          if prospect.account_user_id
+            return Clinic::Billing::StripeGateway.return_url("/memberships/account")
+          end
           slug = prospect.practice.public_membership_slug
           path = "/memberships/#{ERB::Util.url_encode(slug)}?payment=#{outcome}"
           path += "#handoff_token=#{ERB::Util.url_encode(prospect.checkout_reference)}" if outcome == "return"

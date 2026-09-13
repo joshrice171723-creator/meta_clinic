@@ -294,39 +294,94 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert prospect.account_user
     refute prospect.account_user.active?
     assert prospect.account_setup_token_digest
+    assert_equal "open", prospect.follow_up_state
+    assert_equal "email_verification_pending", prospect.enrollment_stage
+    assert_nil prospect.patient_id
     assert_equal 1, ActionMailer::Base.deliveries.count
     setup_mail = ActionMailer::Base.deliveries.sole
     setup_url = setup_mail.text_part.body.decoded.lines.map(&:strip)
       .find { |line| line.include?("/memberships/account/activate#") }
     token = URI.decode_www_form(URI.parse(setup_url).fragment).to_h.fetch("token")
 
-    activated = Clinic::MembershipGrowth::ActivateAccount.call(token: token,
-      password: "Synthetic-account-password-2026!", password_confirmation: "Synthetic-account-password-2026!",
-      accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION)
-    assert activated.user.active?
+    gateway = Gateway.new
+    assert_raises(ArgumentError) do
+      Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: @practice,
+        prospect:, user: prospect.account_user, gateway:)
+    end
+    assert_empty gateway.calls
+    get "/api/clinic/membership_prospects", headers: @headers
+    assert_equal "email_verification_pending", response.parsed_body.fetch("prospects").sole.fetch("enrollment_stage")
+
+    delete "/api/session", headers: csrf_headers
+    post "/api/public/membership_accounts/checkout", headers: csrf_headers, as: :json
+    assert_response :unauthorized
+    password = "Synthetic-account-password-2026!"
+    post "/api/public/membership_accounts/activate", params: { membership_account: {
+      token:, password:, password_confirmation: password,
+      accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "/memberships/account", response.parsed_body.dig("account", "redirect_to")
+    assert prospect.account_user.reload.active?
     assert prospect.reload.account_activated_at
     assert_nil prospect.account_setup_token_digest
+    assert_equal "payment_pending", prospect.enrollment_stage
 
-    gateway = Gateway.new
-    checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: @practice,
-      prospect: prospect.reload, user: activated.user, gateway:)
-    assert_equal "checkout_pending", checkout.prospect.status
+    delete "/api/session", headers: csrf_headers
+    post "/api/session", params: { email_address: prospect.email_address, password: }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "/memberships/account", response.parsed_body.fetch("destination")
+    get "/api/public/membership_accounts/current", headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.dig("enrollment", "can_pay")
+
+    original_gateway_constructor = Clinic::Billing::StripeGateway.method(:new)
+    Clinic::Billing::StripeGateway.define_singleton_method(:new) { gateway }
+    begin
+      post "/api/public/membership_accounts/checkout", headers: csrf_headers, as: :json
+    ensure
+      Clinic::Billing::StripeGateway.define_singleton_method(:new, original_gateway_constructor)
+    end
+    assert_response :success
+    assert_equal "checkout_pending", prospect.reload.status
     assert_equal 0, @practice.patients.count
+    assert_nil prospect.agreement_id
+    assert_nil prospect.onboarding_task_id
+    assert_equal "open", prospect.follow_up_state
+    fields = gateway.calls.find { |method, path, _| method == :post && path == "/v1/checkout/sessions" }.last.fetch(:fields)
+    assert_equal "http://127.0.0.1:3200/memberships/account", fields.fetch("success_url")
+    assert_equal fields.fetch("success_url"), fields.fetch("cancel_url")
 
     gateway.mark_paid
     event = { "type" => "checkout.session.completed", "livemode" => false,
       "account" => @connection.account_id, "data" => { "object" => gateway.session } }
     Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:)
+    Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:)
 
     prospect.reload
     assert prospect.status_paid_onboarding?
-    assert_equal activated.user.id, prospect.portal_identity.user_id
+    assert_equal prospect.account_user_id, prospect.portal_identity.user_id
     assert prospect.portal_identity.active?
     assert_nil prospect.portal_setup_token
     assert_equal 2, ActionMailer::Base.deliveries.count
     receipt_mail = ActionMailer::Base.deliveries.last
     assert_includes receipt_mail.text_part.body.decoded, "/patient-portal"
     refute_includes receipt_mail.text_part.body.decoded, "/patient-portal/activate#"
+    assert_equal 1, @practice.patients.count
+    assert_equal "completed", prospect.follow_up_state
+    assert prospect.onboarding_task
+    get "/api/public/membership_accounts/current", headers: @headers
+    assert_response :success
+    assert_equal "/patient-portal?stripe_payment=return#onboarding", response.parsed_body.dig("enrollment", "redirect_to")
+    get "/api/patient_portal/context", headers: @headers
+    assert_response :success
+
+    sign_in(@admin)
+    get "/api/clinic/membership_prospects", headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("prospects")
+    get "/api/public/membership_accounts/current", headers: @headers
+    assert_response :not_found
   end
 
   test "purchase opens checkout without a patient and verified payment creates onboarding receipt email and portal" do

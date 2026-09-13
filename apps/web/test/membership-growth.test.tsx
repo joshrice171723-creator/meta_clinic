@@ -188,7 +188,7 @@ describe("clinic-specific membership growth", () => {
     expect(html).toContain("/memberships/north-clinic");
     expect(html).toContain("Future Patient");
     expect(html).toContain("North Clinic membership");
-    expect(html).toContain("A name plus an email address or phone number");
+    expect(html).toContain("Account created → email verified → payment");
     expect(html).toContain("Contact first");
     expect(html).toContain("Prospective patient");
   });
@@ -196,7 +196,9 @@ describe("clinic-specific membership growth", () => {
   it("describes verified-payment onboarding separately from contact-first leads", () => {
     const html = renderToStaticMarkup(<MembershipGrowth />);
 
-    expect(html).toContain("Only a verified payment creates a patient");
+    expect(html).toContain("Verified payment moves them to the");
+    expect(html).toContain("existing login");
+    expect(html).toContain("No second account invitation is needed");
     expect(html).toContain("receipt email");
     expect(html).toContain("front-desk onboarding task");
   });

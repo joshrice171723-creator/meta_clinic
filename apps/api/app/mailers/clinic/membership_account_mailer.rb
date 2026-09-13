@@ -6,7 +6,7 @@ module Clinic
       @prospect = Clinic::MembershipProspect.find(prospect_id)
       @practice = @prospect.practice
       @activation_url = "#{site_origin}/memberships/account/activate#token=#{URI.encode_www_form_component(token)}"
-      mail(to: @prospect.email_address, subject: "Create your #{ @practice.name } membership password")
+      mail(to: @prospect.email_address, subject: "Verify your #{ @practice.name } membership account")
     end
 
     private

@@ -5,6 +5,8 @@ module Clinic
         id: prospect.id,
         status: prospect.status,
         relationship_stage: prospect.relationship_stage,
+        enrollment_stage: prospect.enrollment_stage,
+        account_setup_sent_at: timestamp(prospect.account_setup_sent_at),
         display_name: prospect.display_name,
         email_address: prospect.email_address,
         phone_number: prospect.phone_number,

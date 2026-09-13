@@ -268,6 +268,7 @@ export function loginDestination(value: string | null): string {
     return safe.size ? `${path}?${safe}` : recognized ? path : "/portal";
   }
   if (value === "/patient-portal") return value;
+  if (value === "/memberships/account") return value;
   if (/^\/patient-portal\/telehealth\/[0-9a-f-]{36}$/i.test(value))
     return value;
   if (/^\/clinic\/telehealth\/[0-9a-f-]{36}$/i.test(value)) return value;

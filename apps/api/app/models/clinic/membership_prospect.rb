@@ -90,6 +90,16 @@ module Clinic
       patient_id ? "patient" : "prospective_patient"
     end
 
+    def enrollment_stage
+      return "closed" if status_declined?
+      return "patient_onboarding" if patient_id
+      return "contact_requested" if intent_type == "outreach"
+      return "email_verification_pending" if account_user_id && account_activated_at.nil?
+      return "payment_processing" if status_payment_processing? || staff_payment_status == "payment_processing"
+
+      "payment_pending"
+    end
+
     private
 
     def selected_terms_are_an_object

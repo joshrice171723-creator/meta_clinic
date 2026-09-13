@@ -35,7 +35,8 @@ export function Login({
   ).get("next");
   const ownerPortal = returnTo?.startsWith("/owner");
   const employeePortal = returnTo?.startsWith("/clinic");
-  const patientPortal = returnTo?.startsWith("/patient-portal");
+  const membershipAccount = returnTo === "/memberships/account";
+  const patientPortal = returnTo?.startsWith("/patient-portal") || membershipAccount;
   const portalName = ownerPortal
     ? "Owner Command Center"
     : employeePortal
@@ -43,9 +44,13 @@ export function Login({
       : patientPortal
         ? "Patient portal"
         : "Launch & onboarding";
-  const done = () =>
+  const done = (result?: Record<string, unknown>) =>
     window.location.assign(
-      loginDestination(new URLSearchParams(window.location.search).get("next")),
+      loginDestination(
+        typeof result?.destination === "string"
+          ? result.destination
+          : new URLSearchParams(window.location.search).get("next"),
+      ),
     );
   return (
     <main
@@ -84,7 +89,8 @@ export function Login({
           </p>
           {!developmentLogin && (
             <p className="page-fine-print">
-              Meta Clinic issues accounts directly. There is no public signup.
+              Clinic staff accounts are issued by the clinic. Membership
+              customers can create an account from their clinic’s membership page.
             </p>
           )}
         </div>

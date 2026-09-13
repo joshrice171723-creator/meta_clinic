@@ -43,6 +43,16 @@ The subscribed snapshot events are `checkout.session.completed`, `checkout.sessi
 
 ## Manual acceptance walkthrough
 
+### New customer account and Growth flow
+
+The public membership journey is membership selection → account creation → email verification/password setup → payment → patient onboarding. Creating the account immediately records the prospect in Growth with an open follow-up. The verification email is sent before any Checkout session is opened. Account activation completes independently of Stripe availability.
+
+Verified customers resume their saved selection at `/memberships/account`; ordinary password login routes those accounts there. Its session-owned read and checkout endpoints never accept a caller-selected account or clinic. Stripe success and cancellation both return to this authenticated route, preserving the account session. Open Checkout sessions are reused; a verified expired unpaid session can be replaced with an idempotent new session. A complete session or staff payment takeover cannot start another checkout.
+
+Unpaid prospects remain in Growth, with email verification and payment stages shown separately. Staff may follow up before email verification, but an account-backed phone payment requires verification first. Once payment is verified, the active account is linked to the patient portal, the receipt and front-desk onboarding task are created, and the prospect leaves the Growth index. No second invitation or password is issued for that account. Historical accountless telephone prospects retain their existing invitation fallback. Payment conversion remains driven by verified provider events, as described in [Stripe fulfillment](https://docs.stripe.com/checkout/fulfillment).
+
+### Existing patient purchase
+
 Joshua authorized a light automated-testing pass during the non-inventory integration. Focused automated checks support the manual walkthrough below; they do not establish Stripe payment or user acceptance. The earlier testing pause is preserved in the dated handoff as historical evidence.
 
 1. Open `http://127.0.0.1:3000/login`, choose **OmniLogin**, then open `http://127.0.0.1:3000/clinic/billing`. Select **Stripe setup**. After the listener is ready, reload and choose **Connect clinic with Stripe**. Complete the sandbox onboarding yourself, return, and choose **Check connection**. Both card payments and payouts must be enabled.

@@ -14,6 +14,8 @@ Rails.application.routes.draw do
   post "public/membership_storefronts/:slug/checkouts", to: "public/membership_storefronts#checkout"
   post "public/membership_storefronts/:slug/checkouts/handoff", to: "public/membership_storefronts#handoff"
   post "public/membership_accounts/activate", to: "public/membership_storefronts#activate_account"
+  get "public/membership_accounts/current", to: "public/membership_storefronts#current_account"
+  post "public/membership_accounts/checkout", to: "public/membership_storefronts#resume_checkout"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"

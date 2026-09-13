@@ -40,7 +40,7 @@ export function MembershipAccountActivation() {
     }
     setSaving(true);
     try {
-      const result = await api<{ checkout: { url: string } }>(
+      const result = await api<{ account: { redirect_to: string } }>(
         "/api/public/membership_accounts/activate",
         {
           method: "POST",
@@ -55,7 +55,7 @@ export function MembershipAccountActivation() {
           },
         },
       );
-      window.location.assign(result.checkout.url);
+      window.location.assign(result.account.redirect_to);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -101,8 +101,9 @@ export function MembershipAccountActivation() {
             Create your password
           </Typography>
           <Typography color="text.secondary">
-            Your account is ready before payment. Create a password, then
-            continue to secure checkout.
+            This email link verifies your address when you finish creating your
+            password. You’ll use this same account for payment and your patient
+            portal.
           </Typography>
           {!token && (
             <Alert severity="error">
@@ -154,7 +155,7 @@ export function MembershipAccountActivation() {
                 variant="contained"
               >
                 {saving
-                  ? "Preparing secure checkout…"
+                  ? "Verifying your account…"
                   : "Continue to secure payment"}
               </Button>
             </Stack>

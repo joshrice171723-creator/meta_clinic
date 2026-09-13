@@ -11,6 +11,12 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-13 — Account-first membership enrollment clarified
+
+**Founder direction:** select membership, create the account, enter Growth, verify email, then pay. Unpaid customers remain in Growth for staff follow-up. Verified payment moves the customer into patient onboarding using the same account, with no second portal invitation. This supersedes earlier descriptions that placed all portal account creation after payment.
+
+**Implementation/evidence:** [Account-first membership Growth record](../../records/progress/2026/09/2026-09-13-account-first-membership-growth.md) records session-owned resumption, separate account/payment stages, paid queue removal, and verification limits.
+
 ## 2026-09-13 — Worker-assisted recurring telephone payment implemented locally
 
 **Outcome:** replaced the worker's reuse of consumer Stripe Checkout with a dedicated Stripe Terminal Mail Order/Telephone Order flow. The assigned worker records recurring-authorization evidence, the previous open consumer Checkout is closed, and Stripe Customer, SetupIntent and subscription identities remain bound to the selected prospect. Card values stay on the Stripe reader. The prospect does not become a patient until the initial subscription invoice is verified paid.

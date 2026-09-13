@@ -217,7 +217,7 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
     }
     if (intent === "purchase" && !emailAddress.trim()) {
       setError(
-        "Enter an email address to receive your receipt and set up the patient portal.",
+        "Enter an email address to create and verify your membership account before payment.",
       );
       return;
     }
@@ -397,9 +397,9 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
           <DialogContent>
             {accountAcknowledged ? (
               <Alert severity="success" sx={{ mt: 1 }}>
-                Your membership account is ready in the clinic Growth pipeline.
-                Check your email for a one-time link to create your password
-                before payment.
+                Your signup is saved with the clinic. Check your email to verify
+                your address and create your password, then continue to payment.
+                You’ll use this same account for your patient portal.
               </Alert>
             ) : outreachAcknowledged ? (
               <Alert severity="success" sx={{ mt: 1 }}>

@@ -18,7 +18,7 @@ module Clinic
       ability = Ability.new(current_user, practice: current_practice)
       can_review = ability.allowed_permission?("subscriptions.review")
       prospects = if can_review
-        MembershipProspect.where(practice_id: current_practice.id).order(created_at: :desc, id: :desc)
+        MembershipProspect.where(practice_id: current_practice.id, patient_id: nil).order(created_at: :desc, id: :desc)
       else
         MembershipProspect.none
       end

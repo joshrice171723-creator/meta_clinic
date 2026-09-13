@@ -37,7 +37,9 @@ module Identity
         return invalid_credentials unless user
 
         establish_session(user)
-        render json: { user: user.as_json(only: %i[id email_address admin platform_owner]) }
+        enrollment = Clinic::MembershipProspect.find_by(account_user_id: user.id, intent_type: "purchase")
+        destination = "/memberships/account" if enrollment && Clinic::DeploymentAccess.practice_enabled?(enrollment.practice_id)
+        render json: { user: user.as_json(only: %i[id email_address admin platform_owner]), destination: }
       end
 
       def development

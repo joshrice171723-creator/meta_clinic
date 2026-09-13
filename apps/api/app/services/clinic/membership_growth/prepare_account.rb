@@ -29,6 +29,9 @@ module Clinic
           prospect.lock!
           raise ArgumentError, "This membership purchase is already recorded. Sign in to the patient portal." if prospect.agreement_id
           user = prospect.account_user || create_account_user!(prospect)
+          if prospect.follow_up_state == "not_required"
+            prospect.update!(follow_up_state: "open", follow_up_due_at: now)
+          end
           raise ArgumentError, "An account already uses this email address. Sign in to continue." unless user.email_address == prospect.email_address
 
           if prospect.account_activated_at

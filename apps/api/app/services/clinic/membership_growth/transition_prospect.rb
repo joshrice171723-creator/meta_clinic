@@ -83,7 +83,7 @@ module Clinic
 
       def transition_follow_up(prospect, reviewer)
         unless prospect.intent_type == "purchase" &&
-            prospect.status.in?(%w[checkout_pending checkout_expired payment_failed])
+            prospect.status.in?(%w[new checkout_pending checkout_expired payment_failed])
           raise InvalidTransition, "This record does not have an incomplete membership checkout."
         end
 

@@ -3,12 +3,13 @@ module Public
     include Clinic::Api::RequestParameters
     include MemberAuthentication
 
-    rate_limit to: 10, within: 15.minutes, only: %i[create create_account checkout activate_account], name: "membership_storefront_submit_ip",
+    rate_limit to: 10, within: 15.minutes, only: %i[create create_account checkout activate_account resume_checkout], name: "membership_storefront_submit_ip",
       with: -> { render json: { error: "Too many membership requests. Please try again later." }, status: :too_many_requests }
     rate_limit to: 30, within: 15.minutes, only: :handoff, name: "membership_storefront_handoff_ip",
       with: -> { render json: { error: "Portal setup is taking longer than expected. Use the link in your receipt email." },
         status: :too_many_requests }
     before_action -> { response.headers["Cache-Control"] = "no-store" }
+    before_action :require_member, only: %i[current_account resume_checkout]
 
     rescue_from Clinic::MembershipGrowth::CaptureProspect::Conflict do |error|
       render json: { error: error.message, code: "idempotency_conflict" }, status: :conflict
@@ -114,9 +115,31 @@ module Public
       result = Clinic::MembershipGrowth::ActivateAccount.call(token:, password:, password_confirmation:,
         accepted_terms: boolean_param(input[:accepted_terms], field: :accepted_terms), terms_version:)
       establish_session(result.user)
-      checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: result.prospect.practice,
-        prospect: result.prospect.reload, user: result.user)
-      render json: { checkout: { url: checkout.checkout_url, status: checkout.prospect.status } }, status: :created
+      render json: { account: { status: "verified", redirect_to: "/memberships/account" } }, status: :created
+    end
+
+    def current_account
+      prospect = current_account_prospect
+      identity = prospect.portal_identity
+      patient_ready = prospect.paid_at && identity&.active? && identity.user_id == current_user.id
+      session[:patient_portal_identity_id] = identity.id if patient_ready
+      render json: { enrollment: {
+        clinic_name: prospect.practice.name,
+        package_name: prospect.selected_terms.fetch("package_name"),
+        amount: prospect.selected_terms.fetch("total"), currency: prospect.selected_terms.fetch("currency"),
+        renewal: prospect.selected_terms.fetch("renewal"),
+        stage: prospect.enrollment_stage,
+        can_pay: prospect.account_activated_at.present? && prospect.patient_id.nil? &&
+          !prospect.status_declined? && prospect.recurring_authorized_at.nil? && !prospect.status_payment_processing?,
+        redirect_to: patient_ready ? "/patient-portal?stripe_payment=return#onboarding" : nil
+      } }
+    end
+
+    def resume_checkout
+      prospect = current_account_prospect
+      checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: prospect.practice,
+        prospect:, user: current_user)
+      render json: { checkout: { url: checkout.checkout_url } }
     end
 
     def handoff
@@ -138,6 +161,13 @@ module Public
     end
 
     private
+
+    def current_account_prospect
+      prospect = Clinic::MembershipProspect.find_by!(account_user_id: current_user.id, intent_type: "purchase")
+      raise ActiveRecord::RecordNotFound unless Clinic::DeploymentAccess.practice_enabled?(prospect.practice_id)
+
+      prospect
+    end
 
     def storefront_practice
       slug = params[:slug].to_s
