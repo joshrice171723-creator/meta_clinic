@@ -317,7 +317,13 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                     <Alert severity="warning">{optionError}</Alert>
                   )}
                   <Typography component="h2" variant="h6">
-                    How should the clinic reach you?
+                    Your contact details
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Complete these details before secure payment. After a
+                    verified payment, we will send your receipt and patient
+                    portal activation link to this email, and the clinic will
+                    begin onboarding.
                   </Typography>
                   <TextField
                     required
@@ -370,8 +376,8 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                       label={`I agree that ${resource.data?.practice.name || "the clinic"} may contact me about this membership request.`}
                     />
                     <FormHelperText>
-                      This lets the clinic contact you about either your request
-                      or post-payment onboarding. Payment authorization happens
+                      This lets the clinic contact you about this request and
+                      post-payment onboarding. Payment authorization happens
                       only on the secure checkout page.
                     </FormHelperText>
                   </FormControl>
@@ -404,15 +410,12 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                   variant="contained"
                   disabled={
                     busy ||
-                    !displayName.trim() ||
-                    !emailAddress.trim() ||
-                    !outreachConsent ||
                     Boolean(optionError) ||
                     selected?.terms.eligibility_review ||
                     resource.data?.payment.checkout_available !== true
                   }
                 >
-                  {busy ? "Opening checkout…" : "Purchase now"}
+                  {busy ? "Opening checkout…" : "Continue to secure payment"}
                 </Button>
               </>
             )}
