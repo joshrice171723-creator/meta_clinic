@@ -9,7 +9,6 @@ import {
 import {
   Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   List,
@@ -58,9 +57,59 @@ import {
 } from "./Appearance";
 import { ScribeRecordingProvider } from "../scribe/ScribeRecordingProvider";
 import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
+import { requiresLocationSelection } from "./locationSelection";
 
 const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
+
+function LocationSelectionDialog({
+  sites,
+  selectingSiteId,
+  error,
+  onSelect,
+}: {
+  sites: ClinicWorkspaceContext["sites"];
+  selectingSiteId: number | null;
+  error: string;
+  onSelect: (siteId: number) => void;
+}) {
+  return (
+    <Dialog
+      aria-describedby="location-picker-description"
+      aria-labelledby="location-picker-title"
+      open
+    >
+      <DialogTitle id="location-picker-title">Choose your location</DialogTitle>
+      <DialogContent>
+        <Typography
+          color="text.secondary"
+          id="location-picker-description"
+          variant="body2"
+        >
+          Choose a location you are authorized to use before entering the
+          clinic workspace.
+        </Typography>
+        <List aria-label="Available locations" sx={{ mt: 1 }}>
+          {sites.map((site) => (
+            <ListItemButton
+              key={site.id}
+              disabled={selectingSiteId !== null}
+              onClick={() => onSelect(site.id)}
+            >
+              <ListItemText primary={site.name || site.code} />
+            </ListItemButton>
+          ))}
+        </List>
+        {error && (
+          <Typography color="error" role="alert" variant="body2">
+            {error}
+          </Typography>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function useClinic() {
   const clinic = useContext(ClinicContext);
   if (!clinic) throw new Error("Clinic pages require an authorized workspace.");
@@ -303,27 +352,20 @@ export function Workspace({
     error,
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
-  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const locationPickerShown = useRef(false);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
-
-  useEffect(() => {
-    if (data && data.sites.length > 1 && !locationPickerShown.current)
-      setLocationPickerOpen(true);
-  }, [data]);
 
   const selectSite = async (siteId: number) => {
     setSelectingSiteId(siteId);
     setLocationPickerError("");
     try {
-      locationPickerShown.current = true;
       await api("/api/clinic/context", {
         method: "PATCH",
         body: { site_id: siteId },
       });
       await refreshWorkspace();
-      setLocationPickerOpen(false);
+      locationPickerShown.current = true;
     } catch (caught) {
       setLocationPickerError(
         caught instanceof Error
@@ -382,6 +424,19 @@ export function Workspace({
         <main id="main" className="wrap inner-page">
           <LoadState error="Unable to verify this clinic workspace. Reload and check your signed-in account." />
           <a href="/portal">Return to My launch</a>
+        </main>
+      </ClinicAppearanceScope>
+    );
+  if (requiresLocationSelection(data.sites, locationPickerShown.current))
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <main id="main" className="wrap inner-page">
+          <LocationSelectionDialog
+            error={locationPickerError}
+            onSelect={(siteId) => void selectSite(siteId)}
+            selectingSiteId={selectingSiteId}
+            sites={data.sites}
+          />
         </main>
       </ClinicAppearanceScope>
     );
@@ -473,52 +528,6 @@ export function Workspace({
                         environment={environment}
                       />
                     )}
-                    <Dialog
-                      open={locationPickerOpen}
-                      aria-labelledby="location-picker-title"
-                    >
-                      <DialogTitle id="location-picker-title">
-                        Choose your location
-                      </DialogTitle>
-                      <DialogContent>
-                        <Typography color="text.secondary" variant="body2">
-                          Select a location you are authorized to use for this
-                          session.
-                        </Typography>
-                        <List aria-label="Available locations" sx={{ mt: 1 }}>
-                          {data.sites.map((site) => (
-                            <ListItemButton
-                              key={site.id}
-                              disabled={selectingSiteId !== null}
-                              onClick={() => void selectSite(site.id)}
-                              selected={site.id === data.current_site?.id}
-                            >
-                              <ListItemText primary={site.name || site.code} />
-                            </ListItemButton>
-                          ))}
-                        </List>
-                        {locationPickerError && (
-                          <Typography
-                            color="error"
-                            role="alert"
-                            variant="body2"
-                          >
-                            {locationPickerError}
-                          </Typography>
-                        )}
-                      </DialogContent>
-                      <DialogActions>
-                        <Button
-                          disabled={selectingSiteId !== null}
-                          onClick={() => {
-                            locationPickerShown.current = true;
-                            setLocationPickerOpen(false);
-                          }}
-                        >
-                          Continue without selecting
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
                     {!scribePage && (
                       <header
                         className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}

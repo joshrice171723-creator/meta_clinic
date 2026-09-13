@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { requiresLocationSelection } from "../src/features/clinic/locationSelection";
 
 const frame = readFileSync(
   new URL("../src/features/clinic/ClinicFrame.tsx", import.meta.url),
@@ -67,6 +68,34 @@ describe("clinic shell composition", () => {
     expect(workspace).toContain('method: "PATCH"');
     expect(frame).toContain('href="/portal"');
     expect(frame).not.toContain('href="/"');
+  });
+
+  it("requires an explicit location selection before rendering a multi-location workspace", () => {
+    expect(workspace).toContain(
+      "Choose a location you are authorized to use before entering the",
+    );
+    expect(workspace).toContain(
+      "requiresLocationSelection(data.sites, locationPickerShown.current)",
+    );
+    expect(workspace).not.toContain("Continue without selecting");
+    expect(
+      requiresLocationSelection(
+        [
+          { id: 1 },
+          { id: 2 },
+        ],
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      requiresLocationSelection(
+        [
+          { id: 1 },
+          { id: 2 },
+        ],
+        true,
+      ),
+    ).toBe(false);
   });
 
   it("keeps 1024px rail use while moving portrait tablet widths into the drawer fallback", () => {
