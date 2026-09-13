@@ -33,9 +33,13 @@ describe("development account preview", () => {
     expect(html).toContain(">Launch<");
     expect(html).toContain(">Patient<");
     expect(html).toContain(">Clinic<");
+    expect(html).toContain(">Future patient<");
+    expect(html).toContain('href="/memberships"');
     expect(html).toContain("Log in");
     expect(html).toContain("Development tools");
-    expect(html).toContain("Choose a local account for this environment.");
+    expect(html).toContain(
+      "Choose a local account and its permitted destination for this environment.",
+    );
     expect(html).toContain("2032-04-15");
     expect(html).toContain("Apply date");
     expect(html).toContain('min="2000-01-01"');

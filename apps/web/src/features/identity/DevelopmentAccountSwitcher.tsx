@@ -273,6 +273,9 @@ export function DevelopmentControls({
           disabled={switching}
         />
         <DevelopmentDatePicker businessDate={businessDate} />
+        <Button href="/memberships" size="small" variant="outlined">
+          Future patient
+        </Button>
         <Button
           className="development-login-button"
           variant="contained"
