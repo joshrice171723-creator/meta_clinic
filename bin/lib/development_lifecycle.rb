@@ -407,7 +407,7 @@ module Apply
       end
       bundler_output, bundler_ok = capture("bundle", "--version")
       bundler_actual = bundler_output[/([0-9]+(?:\.[0-9]+)+)/, 1]
-      npm_output, npm_ok = capture("npm", "--version")
+      npm_output, npm_ok = capture(npm_command, "--version")
       [
         Check.new(name: "Ruby", ok: RUBY_VERSION == expected_ruby, detail: "#{RUBY_VERSION} (expected #{expected_ruby})"),
         Check.new(name: "Bundler", ok: bundler_ok && bundler_actual == expected_bundler, detail: "#{bundler_actual || 'not found'} (expected #{expected_bundler})"),
@@ -436,7 +436,7 @@ module Apply
 
     def web_dependency_tree_ready?
       File.file?(File.join(@web_root, "node_modules/.bin/vite")) &&
-        capture("npm", "ls", "--depth=0", "--silent", chdir: @web_root).last
+        capture(npm_command, "ls", "--depth=0", "--silent", chdir: @web_root).last
     end
 
     def web_lock_digest_matches?
@@ -456,7 +456,7 @@ module Apply
     def install_web_dependencies!
       return @output.puts("Locked web dependencies are already installed.") if web_dependencies_ready?
 
-      system!("npm", "ci", "--ignore-scripts", chdir: @web_root)
+      system!(npm_command, "ci", "--ignore-scripts", chdir: @web_root)
       fail_with("npm dependency validation fails after installation") unless web_dependency_tree_ready?
       digest = Digest::SHA256.file(File.join(@web_root, "package-lock.json")).hexdigest
       File.write(File.join(@web_root, "node_modules/.apply-lock-digest"), "#{digest}\n")
@@ -769,7 +769,7 @@ module Apply
       when "api"
         [[RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "server", "-b", "127.0.0.1", "-p", @ports.fetch(:api).to_s], @api_root]
       when "web"
-        [["npm", "run", "dev"], @web_root]
+        [[npm_command, "run", "dev"], @web_root]
       when "worker"
         [[RbConfig.ruby, "bin/postgres", "exec", "bin/clinic-worker", "--interval", "15"], @api_root]
       end
@@ -1071,6 +1071,10 @@ module Apply
       paths.any? do |path|
         extensions.any? { |extension| File.executable?(File.join(path, "#{command}#{extension.downcase}")) || File.executable?(File.join(path, "#{command}#{extension.upcase}")) }
       end
+    end
+
+    def npm_command
+      Gem.win_platform? ? "npm.cmd" : "npm"
     end
 
     def capture(*command, chdir: nil)

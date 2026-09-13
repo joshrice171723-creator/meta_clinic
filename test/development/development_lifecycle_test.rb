@@ -62,6 +62,12 @@ class DevelopmentLifecycleTest < Minitest::Test
     assert_includes node_check.detail, "expected major 999"
   end
 
+  def test_npm_command_uses_the_windows_command_shim
+    command = build_lifecycle.send(:npm_command)
+
+    assert_equal(Gem.win_platform? ? "npm.cmd" : "npm", command)
+  end
+
   def test_restart_validates_prerequisites_before_stopping_services
     lifecycle = build_lifecycle
     stopped = false
@@ -233,17 +239,18 @@ class DevelopmentLifecycleTest < Minitest::Test
     FileUtils.mkdir_p(web_root)
     File.write(File.join(web_root, "package-lock.json"), "synthetic lock\n")
     lifecycle = build_lifecycle
+    npm_command = lifecycle.send(:npm_command)
     npm_checks = 0
 
     lifecycle.define_singleton_method(:system!) do |*arguments, **options|
-      raise "unexpected install command" unless arguments == ["npm", "ci", "--ignore-scripts"]
+      raise "unexpected install command" unless arguments == [npm_command, "ci", "--ignore-scripts"]
       raise "unexpected install directory" unless options.fetch(:chdir) == web_root
 
       FileUtils.mkdir_p(File.join(web_root, "node_modules/.bin"))
       File.write(File.join(web_root, "node_modules/.bin/vite"), "")
     end
     lifecycle.define_singleton_method(:capture) do |*arguments, **options|
-      raise "unexpected validation command" unless arguments == ["npm", "ls", "--depth=0", "--silent"]
+      raise "unexpected validation command" unless arguments == [npm_command, "ls", "--depth=0", "--silent"]
       raise "unexpected validation directory" unless options.fetch(:chdir) == web_root
 
       npm_checks += 1
