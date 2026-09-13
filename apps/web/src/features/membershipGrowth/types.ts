@@ -69,6 +69,20 @@ export type MembershipProspect = {
   reviewed_at: string | null;
   invited_at: string | null;
   converted_at: string | null;
+  follow_up_state:
+    "not_required" | "open" | "in_progress" | "waiting" | "completed";
+  follow_up_assigned_to_membership_id: number | null;
+  follow_up_due_at: string | null;
+  follow_up_started_at: string | null;
+  follow_up_attempted_at: string | null;
+  follow_up_attempt_count: number;
+  follow_up_outcome:
+    | "checkout_opened"
+    | "no_answer"
+    | "callback_requested"
+    | "not_interested"
+    | "payment_verified"
+    | null;
 };
 
 export type MembershipProspectIndexResponse = {
@@ -82,4 +96,8 @@ export type MembershipProspectIndexResponse = {
 
 export type MembershipProspectMutationResponse = {
   prospect: MembershipProspect;
+};
+
+export type AssistedCheckoutResponse = MembershipProspectMutationResponse & {
+  checkout_url: string;
 };

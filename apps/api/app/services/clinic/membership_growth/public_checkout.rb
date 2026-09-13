@@ -154,7 +154,9 @@ module Clinic
               checkout_mode: prospect.selected_terms.fetch("renewal") == "automatic" ? "subscription" : "payment",
               application_fee_cents: collect_platform_fee ? Clinic::Billing::StripeMembershipPayments.fee_cents(
                 prospect.selected_terms.fetch("total")
-              ) : 0
+              ) : 0,
+              follow_up_state: prospect.follow_up_state == "not_required" ? "open" : prospect.follow_up_state,
+              follow_up_due_at: prospect.follow_up_state == "not_required" ? Current.business_time : prospect.follow_up_due_at
             )
           end
         end
@@ -271,7 +273,8 @@ module Clinic
               prospect.update!(status: "paid_onboarding", portal_identity: invitation.fetch(:identity),
                 receipt:, onboarding_task: task, invited_at: Current.business_time, paid_at: receipt.issued_at,
                 portal_setup_token: invitation.fetch(:token),
-                portal_setup_expires_at: invitation.fetch(:identity).invitation_expires_at)
+                portal_setup_expires_at: invitation.fetch(:identity).invitation_expires_at,
+                follow_up_state: "completed", follow_up_outcome: "payment_verified", follow_up_due_at: nil)
               delivery = invitation
               Clinic::AuditRecorder.record!(practice: prospect.practice, actor:,
                 action_code: "membership_storefront.payment_onboarding", outcome: :committed,
@@ -305,7 +308,7 @@ module Clinic
         def mark_terminal!(prospect, status)
           prospect.with_lock do
             return if prospect.status_paid_onboarding? || prospect.status_converted?
-            prospect.update!(status:)
+            prospect.update!(status:, follow_up_state: "open", follow_up_due_at: Current.business_time)
           end
           prospect
         end

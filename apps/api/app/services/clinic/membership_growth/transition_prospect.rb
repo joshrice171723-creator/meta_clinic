@@ -8,6 +8,7 @@ module Clinic
         "qualify" => { from: %w[new contacted], to: "qualified" },
         "decline" => { from: %w[new contacted qualified], to: "declined" }
       }.freeze
+      FOLLOW_UP_ACTIONS = %w[begin_call no_answer callback_requested not_interested].freeze
 
       def self.call(practice:, actor:, prospect_id:, action:, lock_version:)
         new(practice:, actor:, prospect_id:, action:, lock_version:).call
@@ -55,6 +56,8 @@ module Clinic
       attr_reader :practice, :actor, :prospect_id, :action, :expected_lock_version
 
       def transition(prospect, reviewer)
+        return transition_follow_up(prospect, reviewer) if FOLLOW_UP_ACTIONS.include?(action)
+
         if prospect.intent_type == "purchase" && action != "contacted"
           raise InvalidTransition, "Paid onboarding can only be marked contacted from this pipeline."
         end
@@ -76,6 +79,42 @@ module Clinic
         complete_onboarding_task!(prospect, reviewer) if prospect.intent_type == "purchase" && action == "contacted"
         record_outcome!(prospect, action)
         Result.new(prospect: prospect)
+      end
+
+      def transition_follow_up(prospect, reviewer)
+        unless prospect.intent_type == "purchase" &&
+            prospect.status.in?(%w[checkout_pending checkout_expired payment_failed])
+          raise InvalidTransition, "This record does not have an incomplete membership checkout."
+        end
+
+        now = Current.business_time
+        case action
+        when "begin_call"
+          unless prospect.follow_up_state.in?(%w[open waiting])
+            raise InvalidTransition, "This signup call is already in progress or complete."
+          end
+          prospect.update!(reviewed_by_membership: reviewer, reviewed_at: now,
+            follow_up_state: "in_progress", follow_up_assigned_to_membership: reviewer,
+            follow_up_started_at: prospect.follow_up_started_at || now, follow_up_attempted_at: now,
+            follow_up_attempt_count: prospect.follow_up_attempt_count + 1, follow_up_outcome: nil,
+            follow_up_due_at: nil)
+        when "no_answer", "callback_requested"
+          require_assigned_call!(prospect, reviewer)
+          prospect.update!(follow_up_state: "waiting", follow_up_outcome: action,
+            follow_up_due_at: now + 1.day)
+        when "not_interested"
+          require_assigned_call!(prospect, reviewer)
+          prospect.update!(status: "declined", follow_up_state: "completed",
+            follow_up_outcome: "not_interested", follow_up_due_at: nil)
+        end
+        record_outcome!(prospect, action)
+        Result.new(prospect: prospect)
+      end
+
+      def require_assigned_call!(prospect, reviewer)
+        unless prospect.follow_up_state == "in_progress" && prospect.follow_up_assigned_to_membership_id == reviewer.id
+          raise InvalidTransition, "Start this signup call with your account before recording an outcome."
+        end
       end
 
       def complete_onboarding_task!(prospect, reviewer)

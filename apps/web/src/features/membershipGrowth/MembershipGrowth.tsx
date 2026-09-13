@@ -28,6 +28,7 @@ import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
 import type {
+  AssistedCheckoutResponse,
   MembershipProspect,
   MembershipProspectIndexResponse,
   MembershipProspectMutationResponse,
@@ -50,19 +51,40 @@ const relationshipLabels: Record<RelationshipFilter, string> = {
 
 const statusLabels: Record<MembershipProspectState, string> = {
   new: "Contact requested",
-  checkout_pending: "Checkout opened",
+  checkout_pending: "Signup call required",
   payment_processing: "Payment processing",
   paid_onboarding: "Paid onboarding",
   contacted: "Contacted",
   qualified: "Qualified lead",
   converted: "Portal activated",
-  checkout_expired: "Checkout not completed",
-  payment_failed: "Checkout not completed",
+  checkout_expired: "Signup call required · checkout expired",
+  payment_failed: "Signup call required · payment failed",
   declined: "Closed",
 };
 
 type PipelineFilter = "all" | RelationshipFilter;
-type ProspectAction = "contacted" | "qualify" | "decline";
+type ProspectAction =
+  | "contacted"
+  | "qualify"
+  | "decline"
+  | "begin_call"
+  | "no_answer"
+  | "callback_requested"
+  | "not_interested";
+
+const actionNotices: Record<ProspectAction, string> = {
+  contacted: "Clinic outreach marked complete.",
+  begin_call:
+    "Signup call started. Confirm the membership and contact details before preparing payment.",
+  no_answer: "No answer recorded. This person remains in the follow-up queue.",
+  callback_requested:
+    "Callback requested. This person remains in the follow-up queue.",
+  not_interested:
+    "Not interested recorded. The incomplete checkout was closed without payment.",
+  qualify:
+    "Lead qualified. Send the storefront link when they are ready to purchase.",
+  decline: "Lead declined. No payment or paid onboarding was created.",
+};
 
 function dateTime(value: string) {
   const parsed = new Date(value);
@@ -99,6 +121,7 @@ export function MembershipGrowth() {
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState("");
   const [slug, setSlug] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [configurationBusy, setConfigurationBusy] = useState(false);
@@ -173,13 +196,7 @@ export function MembershipGrowth() {
         },
       );
       setSelected(result.prospect);
-      setActionNotice(
-        action === "contacted"
-          ? "Clinic outreach marked complete."
-          : action === "qualify"
-            ? "Lead qualified. Send the storefront link when they are ready to purchase."
-            : "Lead declined. No payment or paid onboarding was created.",
-      );
+      setActionNotice(actionNotices[action]);
       resource.refresh();
     } catch (reason) {
       setActionError(
@@ -188,6 +205,39 @@ export function MembershipGrowth() {
           : reason instanceof Error
             ? reason.message
             : "The pipeline action could not be confirmed.",
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function prepareAssistedCheckout() {
+    if (!selected || actionBusy) return;
+    setActionBusy(true);
+    setActionError("");
+    setActionNotice("");
+    setCheckoutUrl("");
+    try {
+      const result = await api<AssistedCheckoutResponse>(
+        `/api/clinic/membership_prospects/${selected.id}/assisted_checkout`,
+        {
+          method: "POST",
+          body: { prospect: { lock_version: selected.lock_version } },
+        },
+      );
+      setSelected(result.prospect);
+      setCheckoutUrl(result.checkout_url);
+      setActionNotice(
+        "Secure checkout is ready. Open it while the customer is on the call; payment remains pending until Stripe verifies it.",
+      );
+      resource.refresh();
+    } catch (reason) {
+      setActionError(
+        reason instanceof ApiError && reason.status === 409
+          ? `${reason.message} Reload the pipeline before preparing payment.`
+          : reason instanceof Error
+            ? reason.message
+            : "Secure checkout could not be prepared.",
       );
     } finally {
       setActionBusy(false);
@@ -416,6 +466,7 @@ export function MembershipGrowth() {
                                 setSelected(prospect);
                                 setActionError("");
                                 setActionNotice("");
+                                setCheckoutUrl("");
                               }}
                             >
                               Review
@@ -434,7 +485,12 @@ export function MembershipGrowth() {
 
       <Dialog
         open={Boolean(selected)}
-        onClose={() => !actionBusy && setSelected(null)}
+        onClose={() => {
+          if (!actionBusy) {
+            setSelected(null);
+            setCheckoutUrl("");
+          }
+        }}
         fullWidth
         maxWidth="sm"
         aria-labelledby="membership-record-title"
@@ -453,6 +509,18 @@ export function MembershipGrowth() {
                   number. Confirm identity before contacting the customer.
                 </Alert>
               )}
+              {selected.intent_type === "purchase" &&
+                [
+                  "checkout_pending",
+                  "checkout_expired",
+                  "payment_failed",
+                ].includes(selected.status) && (
+                  <Alert severity="warning">
+                    Worker action required. Call this person, confirm the
+                    selected membership, and help them finish secure payment.
+                    They remain a prospective patient until payment is verified.
+                  </Alert>
+                )}
               <Box>
                 <Typography component="h2" variant="h6">
                   {selected.display_name}
@@ -483,6 +551,75 @@ export function MembershipGrowth() {
                   )}
                 </Typography>
               </Paper>
+              {selected.intent_type === "purchase" &&
+                selected.follow_up_state !== "not_required" && (
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Typography variant="overline">
+                      Worker enrollment workflow
+                    </Typography>
+                    <Typography component="h3" variant="h6">
+                      {selected.follow_up_state === "in_progress"
+                        ? "Signup call in progress"
+                        : selected.follow_up_state === "waiting"
+                          ? "Follow-up required"
+                          : selected.follow_up_state === "completed"
+                            ? "Follow-up complete"
+                            : "Signup call required"}
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2">
+                      {selected.follow_up_attempt_count} call attempt
+                      {selected.follow_up_attempt_count === 1 ? "" : "s"}
+                      {selected.follow_up_due_at
+                        ? ` · Follow up ${dateTime(selected.follow_up_due_at)}`
+                        : ""}
+                    </Typography>
+                    {selected.follow_up_state === "in_progress" && (
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        sx={{ mt: 1.5 }}
+                      >
+                        {selected.phone_number && (
+                          <Button
+                            component="a"
+                            href={`tel:${selected.phone_number}`}
+                            variant="outlined"
+                          >
+                            Call customer
+                          </Button>
+                        )}
+                        {!selected.phone_number && selected.email_address && (
+                          <Button
+                            component="a"
+                            href={`mailto:${selected.email_address}`}
+                            variant="outlined"
+                          >
+                            Email customer
+                          </Button>
+                        )}
+                      </Stack>
+                    )}
+                  </Paper>
+                )}
+              {checkoutUrl && (
+                <Alert
+                  severity="info"
+                  action={
+                    <Button
+                      component="a"
+                      href={checkoutUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      color="inherit"
+                    >
+                      Open secure checkout
+                    </Button>
+                  }
+                >
+                  Use Stripe’s secure page for payment details. Do not enter or
+                  store card details in Meta Clinic.
+                </Alert>
+              )}
               {selected.paid_at && (
                 <Alert
                   severity={selected.receipt_sent_at ? "success" : "warning"}
@@ -502,7 +639,13 @@ export function MembershipGrowth() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button disabled={actionBusy} onClick={() => setSelected(null)}>
+          <Button
+            disabled={actionBusy}
+            onClick={() => {
+              setSelected(null);
+              setCheckoutUrl("");
+            }}
+          >
             Close
           </Button>
           {selected && resource.data?.capabilities.review && (
@@ -523,6 +666,52 @@ export function MembershipGrowth() {
                   >
                     Qualify
                   </Button>
+                )}
+              {selected.intent_type === "purchase" &&
+                [
+                  "checkout_pending",
+                  "checkout_expired",
+                  "payment_failed",
+                ].includes(selected.status) &&
+                ["open", "waiting"].includes(selected.follow_up_state) && (
+                  <Button
+                    disabled={actionBusy}
+                    onClick={() => void performAction("begin_call")}
+                    variant="contained"
+                  >
+                    Start signup call
+                  </Button>
+                )}
+              {selected.intent_type === "purchase" &&
+                selected.follow_up_state === "in_progress" && (
+                  <>
+                    <Button
+                      disabled={actionBusy}
+                      onClick={() => void performAction("no_answer")}
+                    >
+                      No answer
+                    </Button>
+                    <Button
+                      disabled={actionBusy}
+                      onClick={() => void performAction("callback_requested")}
+                    >
+                      Callback requested
+                    </Button>
+                    <Button
+                      color="error"
+                      disabled={actionBusy}
+                      onClick={() => void performAction("not_interested")}
+                    >
+                      Not interested
+                    </Button>
+                    <Button
+                      disabled={actionBusy}
+                      onClick={() => void prepareAssistedCheckout()}
+                      variant="contained"
+                    >
+                      Prepare secure payment
+                    </Button>
+                  </>
                 )}
               {selected.intent_type === "outreach" &&
                 ["new", "contacted", "qualified"].includes(selected.status) && (

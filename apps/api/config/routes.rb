@@ -189,7 +189,9 @@ Rails.application.routes.draw do
     post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"
     get "subscription_catalog", to: "care/subscription_catalog#index"
     resource :membership_storefront, only: %i[show update], controller: "membership_storefront"
-    resources :membership_prospects, only: %i[index show update]
+    resources :membership_prospects, only: %i[index show update] do
+      post :assisted_checkout, on: :member
+    end
     get "subscription_catalog/storefront_preview", to: "care/subscription_catalog#storefront_preview"
     post "subscription_catalog/:kind", to: "care/subscription_catalog#save"
     patch "subscription_catalog/:kind/:id", to: "care/subscription_catalog#save"

@@ -5774,9 +5774,20 @@ CREATE TABLE public.clinic_membership_prospects (
     account_activated_at timestamp(6) without time zone,
     accepted_terms_version character varying(80),
     accepted_terms_at timestamp(6) without time zone,
+    follow_up_state character varying DEFAULT 'not_required'::character varying NOT NULL,
+    follow_up_assigned_to_membership_id bigint,
+    follow_up_due_at timestamp(6) without time zone,
+    follow_up_started_at timestamp(6) without time zone,
+    follow_up_attempted_at timestamp(6) without time zone,
+    follow_up_attempt_count integer DEFAULT 0 NOT NULL,
+    follow_up_outcome character varying,
     CONSTRAINT clinic_membership_prospects_account_setup_token_digest CHECK (((account_setup_token_digest IS NULL) OR ((account_setup_token_digest)::text ~ '^[0-9a-f]{64}$'::text))),
     CONSTRAINT clinic_membership_prospects_conversion_state CHECK ((((status)::text <> 'converted'::text) OR (converted_at IS NOT NULL))),
     CONSTRAINT clinic_membership_prospects_digest_format CHECK ((((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((email_digest IS NULL) OR ((email_digest)::text ~ '^[0-9a-f]{64}$'::text)) AND ((phone_digest IS NULL) OR ((phone_digest)::text ~ '^[0-9a-f]{64}$'::text)) AND ((email_digest IS NOT NULL) OR (phone_digest IS NOT NULL)))),
+    CONSTRAINT clinic_membership_prospects_follow_up_assignment CHECK ((((follow_up_state)::text <> ALL ((ARRAY['in_progress'::character varying, 'waiting'::character varying])::text[])) OR (follow_up_assigned_to_membership_id IS NOT NULL))),
+    CONSTRAINT clinic_membership_prospects_follow_up_attempt_count CHECK ((follow_up_attempt_count >= 0)),
+    CONSTRAINT clinic_membership_prospects_follow_up_outcome CHECK (((follow_up_outcome IS NULL) OR ((follow_up_outcome)::text = ANY ((ARRAY['checkout_opened'::character varying, 'no_answer'::character varying, 'callback_requested'::character varying, 'not_interested'::character varying, 'payment_verified'::character varying])::text[])))),
+    CONSTRAINT clinic_membership_prospects_follow_up_state CHECK (((follow_up_state)::text = ANY ((ARRAY['not_required'::character varying, 'open'::character varying, 'in_progress'::character varying, 'waiting'::character varying, 'completed'::character varying])::text[]))),
     CONSTRAINT clinic_membership_prospects_intent_type CHECK (((intent_type)::text = ANY ((ARRAY['outreach'::character varying, 'purchase'::character varying])::text[]))),
     CONSTRAINT clinic_membership_prospects_onboarding_state CHECK ((((status)::text <> ALL ((ARRAY['paid_onboarding'::character varying, 'converted'::character varying])::text[])) OR ((patient_id IS NOT NULL) AND (portal_identity_id IS NOT NULL) AND (agreement_id IS NOT NULL) AND (receipt_id IS NOT NULL) AND (onboarding_task_id IS NOT NULL) AND (invited_at IS NOT NULL) AND (paid_at IS NOT NULL)))),
     CONSTRAINT clinic_membership_prospects_status CHECK (((status)::text = ANY ((ARRAY['new'::character varying, 'contacted'::character varying, 'qualified'::character varying, 'invited'::character varying, 'converted'::character varying, 'declined'::character varying, 'checkout_pending'::character varying, 'payment_processing'::character varying, 'paid_onboarding'::character varying, 'checkout_expired'::character varying, 'payment_failed'::character varying])::text[])))
@@ -23788,6 +23799,14 @@ ALTER TABLE ONLY public.clinic_membership_prospects
 
 
 --
+-- Name: clinic_membership_prospects fk_membership_prospects_follow_up_assignee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_membership_prospects
+    ADD CONSTRAINT fk_membership_prospects_follow_up_assignee FOREIGN KEY (practice_id, follow_up_assigned_to_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_membership_prospects fk_membership_prospects_onboarding_task; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28458,6 +28477,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260913110000'),
 ('20260913100000'),
 ('20260913090000'),
 ('20260913001000'),

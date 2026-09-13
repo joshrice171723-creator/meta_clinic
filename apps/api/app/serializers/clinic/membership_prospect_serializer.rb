@@ -26,6 +26,13 @@ module Clinic
         reviewed_at: timestamp(prospect.reviewed_at),
         invited_at: timestamp(prospect.invited_at),
         converted_at: timestamp(prospect.converted_at),
+        follow_up_state: prospect.follow_up_state,
+        follow_up_assigned_to_membership_id: prospect.follow_up_assigned_to_membership_id,
+        follow_up_due_at: timestamp(prospect.follow_up_due_at),
+        follow_up_started_at: timestamp(prospect.follow_up_started_at),
+        follow_up_attempted_at: timestamp(prospect.follow_up_attempted_at),
+        follow_up_attempt_count: prospect.follow_up_attempt_count,
+        follow_up_outcome: prospect.follow_up_outcome,
         created_at: timestamp(prospect.created_at),
         updated_at: timestamp(prospect.updated_at),
         lock_version: prospect.lock_version

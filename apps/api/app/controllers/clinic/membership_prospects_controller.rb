@@ -3,10 +3,16 @@ module Clinic
     wrap_parameters false
 
     before_action :require_growth_access, only: :index
-    before_action -> { require_capability("subscriptions.review") }, only: %i[show update]
+    before_action -> { require_capability("subscriptions.review") }, only: %i[show update assisted_checkout]
 
     rescue_from Clinic::MembershipGrowth::TransitionProspect::InvalidTransition do |error|
       render json: { error: error.message, code: "invalid_transition" }, status: :unprocessable_entity
+    end
+    rescue_from Clinic::Billing::StripeGateway::Unavailable do |error|
+      render json: { error: error.message, code: "stripe_unavailable" }, status: :service_unavailable
+    end
+    rescue_from Clinic::Billing::StripeGateway::Invalid do |error|
+      render json: { error: error.message, code: "stripe_invalid" }, status: :unprocessable_entity
     end
     def index
       ability = Ability.new(current_user, practice: current_practice)
@@ -45,6 +51,20 @@ module Clinic
         lock_version: input.fetch(:lock_version)
       )
       render json: { prospect: MembershipProspectSerializer.call(result.prospect) }
+    end
+
+    def assisted_checkout
+      input = parameter_hash!(:prospect, %i[lock_version])
+      result = MembershipGrowth::StaffAssistedCheckout.call(
+        practice: current_practice,
+        actor: current_user,
+        prospect_id: params[:id],
+        lock_version: input.require(:lock_version)
+      )
+      render json: {
+        prospect: MembershipProspectSerializer.call(result.prospect),
+        checkout_url: result.checkout_url
+      }, status: :accepted
     end
 
     private

@@ -335,6 +335,55 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_nil prospect.portal_setup_expires_at
   end
 
+  test "worker owns an incomplete signup call and secure checkout stays prospective until verified payment" do
+    version_id = publish_catalog(@admin, "Assisted")
+    configure_storefront(@admin, "assisted-memberships", enabled: true)
+    gateway = Gateway.new
+    payload = prospect_payload(version_id:, request_key: "assisted-purchase").fetch(:prospect)
+    prospect = Clinic::MembershipGrowth::PublicCheckout.start(practice: @practice, gateway:,
+      **payload.except(:request_key).symbolize_keys, request_key: payload.fetch(:request_key)).prospect.reload
+
+    assert prospect.status_checkout_pending?
+    assert_equal "open", prospect.follow_up_state
+    assert_equal 0, prospect.follow_up_attempt_count
+    assert_nil prospect.patient_id
+
+    sign_in(@admin)
+    transition(prospect, "begin_call")
+    assert_response :success
+    prospect.reload
+    assert_equal "in_progress", prospect.follow_up_state
+    assert_equal @practice.memberships.find_by!(user: @admin).id,
+      prospect.follow_up_assigned_to_membership_id
+    assert_equal 1, prospect.follow_up_attempt_count
+
+    checkout = Clinic::MembershipGrowth::StaffAssistedCheckout.call(practice: @practice, actor: @admin,
+      prospect_id: prospect.id, lock_version: prospect.lock_version, gateway:)
+    assert_equal "https://checkout.stripe.com/c/pay/storefront", checkout.checkout_url
+    prospect.reload
+    assert prospect.status_checkout_pending?
+    assert_equal "waiting", prospect.follow_up_state
+    assert_equal "checkout_opened", prospect.follow_up_outcome
+    assert_nil prospect.patient_id
+    assert_equal 0, @practice.patients.count
+
+    gateway.mark_paid
+    event = { "type" => "checkout.session.completed", "livemode" => false,
+      "account" => @connection.account_id, "data" => { "object" => gateway.session } }
+    Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:)
+
+    prospect.reload
+    assert prospect.status_paid_onboarding?
+    assert_equal "completed", prospect.follow_up_state
+    assert_equal "payment_verified", prospect.follow_up_outcome
+    assert_nil prospect.follow_up_due_at
+    assert prospect.patient_id
+    assert prospect.agreement_id
+    assert prospect.receipt_id
+    assert prospect.portal_identity_id
+    assert prospect.onboarding_task_id
+  end
+
   test "temporary platform sandbox opens checkout without rewriting clinic routing" do
     ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "acct_platformsandbox"
     version_id = publish_catalog(@admin, "PlatformSandbox")

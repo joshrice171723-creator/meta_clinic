@@ -965,6 +965,11 @@
     "/api/clinic/workforce/timecards/:id/approve(.:format)"
   ],
   [
+    "assisted_checkout_api_clinic_membership_prospect",
+    "POST",
+    "/api/clinic/membership_prospects/:id/assisted_checkout(.:format)"
+  ],
+  [
     "batch_preview_api_clinic_reminders",
     "POST",
     "/api/clinic/reminders/batch_preview(.:format)"
