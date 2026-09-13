@@ -193,6 +193,23 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_equal 0, Clinic::Care::SubscriptionAgreement.where(practice: @practice).count
   end
 
+  test "a name and phone number create a prospective patient without requiring email" do
+    version_id = publish_catalog(@admin, "Phone")
+    configure_storefront(@admin, "phone-memberships", enabled: true)
+    payload = prospect_payload(version_id:, request_key: "phone-contact")
+    payload.fetch(:prospect)[:email_address] = nil
+
+    post_prospect("phone-memberships", payload)
+
+    assert_response :created
+    prospect = @practice.membership_prospects.sole
+    assert_nil prospect.email_address
+    assert_equal "555-010-2026", prospect.phone_number
+    assert_equal "prospective_patient", prospect.relationship_stage
+    refute prospect.possible_duplicate?
+    assert_nil prospect.patient_id
+  end
+
   test "purchase opens checkout without a patient and verified payment creates onboarding receipt email and portal" do
     version_id = publish_catalog(@admin, "Purchase")
     configure_storefront(@admin, "purchase-memberships", enabled: true)
@@ -210,6 +227,16 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     fields = gateway.calls.find { |method, path, _| method == :post && path == "/v1/checkout/sessions" }.last.fetch(:fields)
     assert_equal prospect.email_address, fields.fetch("customer_email")
     assert_equal prospect.checkout_reference, fields.fetch("metadata[apply_membership_prospect]")
+    assert_includes fields.fetch("success_url"), "#handoff_token=#{prospect.checkout_reference}"
+
+    post "/api/public/membership_storefronts/purchase-memberships/checkouts/handoff",
+      params: { handoff: { token: prospect.checkout_reference } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "preparing", response.parsed_body.dig("onboarding", "status")
+
+    post "/api/public/membership_storefronts/purchase-memberships/checkouts/handoff",
+      params: { handoff: { token: "ci_#{'0' * 32}" } }, headers: csrf_headers, as: :json
+    assert_response :not_found
 
     gateway.mark_paid
     event = { "type" => "checkout.session.completed", "livemode" => false,
@@ -224,6 +251,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert prospect.receipt_id
     assert prospect.onboarding_task_id
     assert prospect.receipt_sent_at
+    assert prospect.portal_setup_token
+    assert_equal prospect.portal_identity.invitation_expires_at, prospect.portal_setup_expires_at
     assert_equal "open", prospect.onboarding_task.state
     assert_equal "front_desk", prospect.onboarding_task.pool_code
     assert_equal "patient_call", prospect.onboarding_task.task_kind
@@ -234,6 +263,13 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_equal [ prospect.email_address ], mail.to
     assert_includes mail.text_part.body.decoded, "Receipt number: #{prospect.receipt_id}"
     assert_includes mail.text_part.body.decoded, "/patient-portal/activate#token="
+
+    post "/api/public/membership_storefronts/purchase-memberships/checkouts/handoff",
+      params: { handoff: { token: prospect.checkout_reference } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "ready", response.parsed_body.dig("onboarding", "status")
+    assert_includes response.parsed_body.dig("onboarding", "redirect_to"), "/patient-portal/activate#token="
+
     sign_in(@admin)
     transition(prospect.reload, "contacted")
     assert_response :success
@@ -248,6 +284,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     } }, headers: csrf_headers, as: :json
     assert_response :created
     assert prospect.reload.status_converted?
+    assert_nil prospect.portal_setup_token
+    assert_nil prospect.portal_setup_expires_at
   end
 
   test "temporary platform sandbox opens checkout without rewriting clinic routing" do

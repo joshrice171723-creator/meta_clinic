@@ -4,6 +4,7 @@ module Clinic
       {
         id: prospect.id,
         status: prospect.status,
+        relationship_stage: prospect.relationship_stage,
         display_name: prospect.display_name,
         email_address: prospect.email_address,
         phone_number: prospect.phone_number,

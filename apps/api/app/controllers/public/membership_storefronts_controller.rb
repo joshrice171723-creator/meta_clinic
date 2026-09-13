@@ -4,6 +4,9 @@ module Public
 
     rate_limit to: 10, within: 15.minutes, only: %i[create checkout], name: "membership_storefront_submit_ip",
       with: -> { render json: { error: "Too many membership requests. Please try again later." }, status: :too_many_requests }
+    rate_limit to: 30, within: 15.minutes, only: :handoff, name: "membership_storefront_handoff_ip",
+      with: -> { render json: { error: "Portal setup is taking longer than expected. Use the link in your receipt email." },
+        status: :too_many_requests }
     before_action -> { response.headers["Cache-Control"] = "no-store" }
 
     rescue_from Clinic::MembershipGrowth::CaptureProspect::Conflict do |error|
@@ -93,6 +96,24 @@ module Public
         replayed: result.replayed } }, status: result.replayed ? :ok : :created
     end
 
+    def handoff
+      practice = storefront_practice
+      input = parameter_hash!(:handoff, %i[token])
+      token = required_string!(input[:token], field: :token, maximum: 35)
+      raise ActiveRecord::RecordNotFound unless token.match?(/\Aci_[a-f0-9]{32}\z/)
+
+      prospect = practice.membership_prospects.find_by!(checkout_reference: token, intent_type: "purchase")
+      if prospect.status_converted?
+        render json: { onboarding: { status: "active", redirect_to: "/patient-portal" } }
+      elsif prospect.status_paid_onboarding?
+        render_paid_handoff(prospect)
+      elsif prospect.status.in?(%w[checkout_expired payment_failed])
+        render json: { onboarding: { status: "prospective_patient" } }
+      else
+        render json: { onboarding: { status: "preparing" } }
+      end
+    end
+
     private
 
     def storefront_practice
@@ -107,6 +128,23 @@ module Public
       raise ActiveRecord::RecordNotFound unless Clinic::DeploymentAccess.practice_enabled?(practice.id)
 
       practice
+    end
+
+    def render_paid_handoff(prospect)
+      identity = prospect.portal_identity
+      token = prospect.portal_setup_token
+      ready = identity&.invited? && token.present? && identity.invitation_expires_at&.future? &&
+        ActiveSupport::SecurityUtils.secure_compare(identity.invitation_digest,
+          Clinic::PatientPortal::Identity.digest_token(token))
+      unless ready
+        render json: { onboarding: { status: "email_required" } }
+        return
+      end
+
+      render json: { onboarding: {
+        status: "ready",
+        redirect_to: "/patient-portal/activate#token=#{ERB::Util.url_encode(token)}&purpose=activation"
+      } }
     end
   end
 end

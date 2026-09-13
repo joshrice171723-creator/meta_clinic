@@ -1,7 +1,7 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 # Decisions
 
@@ -319,3 +319,7 @@ The recommended Meta Clinic starting profile is primary care with the cash-pay c
 **D-069 — 2026-09-12 / founder's membership storefront direction:** every clinic-specific membership page must offer both self-service purchase and an optional request for clinic contact before payment. Future patients without an account enter through a public clinic directory, then choose that clinic's distinct membership page. A contact-first request remains a pre-purchase lead. Starting checkout is not payment evidence. Only a verified payment event may create the purchased membership, place the customer into patient onboarding, open a clinic outreach task, and trigger a receipt email containing the one-time patient portal activation link.
 
 **D-069 limits:** packages requiring clinic review before payment remain contact-first. The initial implementation uses Stripe test mode and local/test email delivery; it does not authorize live charges, production email, real-patient use, clinical acceptance, legal/privacy approval, or deployment. The browser return URL is informational and never activates onboarding.
+
+**D-070 — 2026-09-13 / founder's prospective-patient and checkout-handoff direction:** the membership growth relationship stage begins when the clinic receives a name plus at least one reachable contact method: an email address or phone number. That person is a **prospective patient**, whether they requested contact, opened Checkout, canceled, abandoned the page, or had an unsuccessful payment. Payment details and checkout outcomes are supporting activity, not separate relationship stages. Only a server-verified successful payment for a self-service eligible membership converts the record into a patient and begins patient onboarding. After verification, the Stripe return flow may continue directly to one-time patient portal password setup; the receipt email carries the same setup path as a fallback.
+
+**D-070 limits:** a browser return or opaque handoff reference cannot create a patient, activate portal access, or prove payment. The handoff remains blocked until the signed server event has created the patient and invitation. Packages requiring clinic review still require acceptance before payment under D-069. These product labels do not independently determine when a legal or clinical patient relationship exists. Stripe remains test-only, and no live-charge, production-email, real-data, clinical, privacy, legal, or deployment approval is implied.

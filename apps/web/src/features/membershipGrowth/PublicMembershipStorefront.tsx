@@ -33,6 +33,20 @@ type CheckoutResponse = {
   checkout: { url: string; status: "checkout_pending"; replayed: boolean };
 };
 
+type CheckoutHandoffResponse = {
+  onboarding: {
+    status:
+      | "preparing"
+      | "ready"
+      | "active"
+      | "prospective_patient"
+      | "email_required";
+    redirect_to?: string;
+  };
+};
+
+type ReturnState = "idle" | "preparing" | "prospective" | "email" | "error";
+
 function selectionError(plan: PublishedPackage, selections: number[]) {
   const groups = [
     ...new Set(
@@ -73,11 +87,26 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [outreachAcknowledged, setOutreachAcknowledged] = useState(false);
+  const [{ paymentOutcome, handoffToken }] = useState(() => {
+    if (typeof window === "undefined") {
+      return { paymentOutcome: null, handoffToken: "" };
+    }
+    const outcome = new URLSearchParams(window.location.search).get("payment");
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const token = fragment.get("handoff_token") || "";
+    if (token) {
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
+    return { paymentOutcome: outcome, handoffToken: token };
+  });
+  const [returnState, setReturnState] = useState<ReturnState>(
+    paymentOutcome === "return" ? "preparing" : "idle",
+  );
   const requestKey = useRef(crypto.randomUUID());
-  const paymentOutcome =
-    typeof window === "undefined"
-      ? null
-      : new URLSearchParams(window.location.search).get("payment");
 
   const optionError = useMemo(
     () => (selected ? selectionError(selected, selections) : ""),
@@ -92,6 +121,56 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
       document.title = previousTitle;
     };
   }, [resource.data]);
+
+  useEffect(() => {
+    if (paymentOutcome !== "return") return;
+    if (!handoffToken) {
+      setReturnState("email");
+      return;
+    }
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    const checkHandoff = async () => {
+      attempts += 1;
+      try {
+        const result = await api<CheckoutHandoffResponse>(
+          `${endpoint}/checkouts/handoff`,
+          {
+            method: "POST",
+            body: { handoff: { token: handoffToken } },
+          },
+        );
+        if (stopped) return;
+        const onboarding = result.onboarding;
+        if (
+          ["ready", "active"].includes(onboarding.status) &&
+          onboarding.redirect_to
+        ) {
+          window.location.replace(onboarding.redirect_to);
+          return;
+        }
+        if (onboarding.status === "prospective_patient") {
+          setReturnState("prospective");
+          return;
+        }
+        if (onboarding.status === "email_required" || attempts >= 20) {
+          setReturnState("email");
+          return;
+        }
+        timer = setTimeout(() => void checkHandoff(), 1000);
+      } catch {
+        if (!stopped) setReturnState("error");
+      }
+    };
+    void checkHandoff();
+
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [endpoint, handoffToken, paymentOutcome]);
 
   function changeIntent(change: () => void) {
     change();
@@ -124,6 +203,18 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
     }
     if (!outreachConsent) {
       setError("Confirm that the clinic may contact you about this request.");
+      return;
+    }
+    if (!emailAddress.trim() && !phoneNumber.trim()) {
+      setError(
+        "Provide an email address or phone number so the clinic can reach you.",
+      );
+      return;
+    }
+    if (intent === "purchase" && !emailAddress.trim()) {
+      setError(
+        "Enter an email address to receive your receipt and set up the patient portal.",
+      );
       return;
     }
     setBusy(true);
@@ -236,17 +327,35 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                 </Button>
               </Box>
             </Box>
-            {paymentOutcome === "return" && (
+            {paymentOutcome === "return" && returnState === "preparing" && (
+              <Alert severity="info">
+                Payment received. We are confirming it and preparing your
+                patient portal password setup now.
+              </Alert>
+            )}
+            {paymentOutcome === "return" && returnState === "prospective" && (
+              <Alert severity="info">
+                Payment was not completed. Your details remain with this clinic
+                as a prospective patient so the clinic can follow up.
+              </Alert>
+            )}
+            {paymentOutcome === "return" && returnState === "email" && (
               <Alert severity="success">
-                Your payment is being verified. Once confirmed, you will receive
-                a receipt and patient portal link by email, and the clinic will
-                begin onboarding.
+                Your payment was received. Use the patient portal setup link in
+                your receipt email if this page does not continue automatically.
+              </Alert>
+            )}
+            {paymentOutcome === "return" && returnState === "error" && (
+              <Alert severity="warning">
+                We could not finish the automatic portal handoff. Use the setup
+                link in your receipt email; the clinic still has your request.
               </Alert>
             )}
             {paymentOutcome === "cancel" && (
               <Alert severity="info">
-                Checkout was canceled. You were not placed into paid onboarding.
-                You may try again or ask the clinic to contact you.
+                Checkout was not completed. You remain a prospective patient,
+                and the clinic can follow up using the contact permission you
+                provided.
               </Alert>
             )}
             <Alert severity="info">
@@ -320,10 +429,10 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                     Your contact details
                   </Typography>
                   <Typography color="text.secondary">
-                    Complete these details before secure payment. After a
-                    verified payment, we will send your receipt and patient
-                    portal activation link to this email, and the clinic will
-                    begin onboarding.
+                    Your name and at least one contact method create a
+                    prospective-patient record before secure payment. A verified
+                    payment converts that record to a patient, emails the
+                    receipt, and opens patient portal password setup.
                   </Typography>
                   <TextField
                     required
@@ -337,12 +446,12 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                     }
                   />
                   <TextField
-                    required
                     fullWidth
                     type="email"
-                    label="Email address"
+                    label="Email address (required for purchase)"
                     value={emailAddress}
                     autoComplete="email"
+                    helperText="Provide an email for a receipt and patient portal setup."
                     slotProps={{ htmlInput: { maxLength: 320 } }}
                     onChange={(event) =>
                       changeIntent(() => setEmailAddress(event.target.value))
@@ -396,7 +505,7 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                   disabled={
                     busy ||
                     !displayName.trim() ||
-                    !emailAddress.trim() ||
+                    (!emailAddress.trim() && !phoneNumber.trim()) ||
                     !outreachConsent ||
                     Boolean(optionError)
                   }
@@ -410,6 +519,9 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                   variant="contained"
                   disabled={
                     busy ||
+                    !displayName.trim() ||
+                    !emailAddress.trim() ||
+                    !outreachConsent ||
                     Boolean(optionError) ||
                     selected?.terms.eligibility_review ||
                     resource.data?.payment.checkout_available !== true

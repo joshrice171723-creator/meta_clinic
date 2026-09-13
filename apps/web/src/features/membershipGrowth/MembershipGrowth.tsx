@@ -35,33 +35,33 @@ import type {
   MembershipStorefront,
 } from "./types";
 
-const pipeline: MembershipProspectState[] = [
-  "new",
-  "checkout_pending",
-  "payment_processing",
-  "paid_onboarding",
-  "contacted",
-  "qualified",
-  "converted",
-  "checkout_expired",
-  "payment_failed",
-  "declined",
-];
+const relationshipFilters = [
+  "prospective_patient",
+  "patient",
+  "closed",
+] as const;
+type RelationshipFilter = (typeof relationshipFilters)[number];
+
+const relationshipLabels: Record<RelationshipFilter, string> = {
+  prospective_patient: "Prospective patients",
+  patient: "Patients",
+  closed: "Closed",
+};
 
 const statusLabels: Record<MembershipProspectState, string> = {
-  new: "New outreach request",
-  checkout_pending: "Checkout started",
+  new: "Contact requested",
+  checkout_pending: "Checkout opened",
   payment_processing: "Payment processing",
   paid_onboarding: "Paid onboarding",
   contacted: "Contacted",
   qualified: "Qualified lead",
   converted: "Portal activated",
-  checkout_expired: "Checkout expired",
-  payment_failed: "Payment failed",
-  declined: "Declined",
+  checkout_expired: "Checkout not completed",
+  payment_failed: "Checkout not completed",
+  declined: "Closed",
 };
 
-type PipelineFilter = "all" | MembershipProspectState;
+type PipelineFilter = "all" | RelationshipFilter;
 type ProspectAction = "contacted" | "qualify" | "decline";
 
 function dateTime(value: string) {
@@ -79,6 +79,14 @@ function statusColor(state: MembershipProspectState) {
   if (state === "paid_onboarding" || state === "qualified")
     return "primary" as const;
   return "default" as const;
+}
+
+function matchesFilter(prospect: MembershipProspect, filter: PipelineFilter) {
+  if (filter === "all") return true;
+  if (filter === "closed") return prospect.status === "declined";
+  return (
+    prospect.status !== "declined" && prospect.relationship_stage === filter
+  );
 }
 
 export function MembershipGrowth() {
@@ -107,14 +115,14 @@ export function MembershipGrowth() {
   const counts = useMemo(() => {
     const records = resource.data?.prospects || [];
     return Object.fromEntries(
-      pipeline.map((state) => [
-        state,
-        records.filter((record) => record.status === state).length,
+      relationshipFilters.map((stage) => [
+        stage,
+        records.filter((record) => matchesFilter(record, stage)).length,
       ]),
-    ) as Record<MembershipProspectState, number>;
+    ) as Record<RelationshipFilter, number>;
   }, [resource.data?.prospects]);
-  const prospects = (resource.data?.prospects || []).filter(
-    (prospect) => filter === "all" || prospect.status === filter,
+  const prospects = (resource.data?.prospects || []).filter((prospect) =>
+    matchesFilter(prospect, filter),
   );
   const canConfigure = resource.data?.capabilities.configure === true;
   const slugValid = /^[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])$/.test(slug);
@@ -194,9 +202,9 @@ export function MembershipGrowth() {
             Growth
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 820 }}>
-            Publish this clinic’s membership page, manage contact-first leads,
-            and follow up with people automatically placed into onboarding after
-            payment.
+            Publish this clinic’s membership page and manage everyone who has
+            shared a name plus a reachable contact. They remain prospective
+            patients until payment is verified.
           </Typography>
         </Box>
         {!resource.data && !resource.error && (
@@ -311,9 +319,10 @@ export function MembershipGrowth() {
                   Membership pipeline
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                  Contact requests stay pre-purchase. Verified payments create a
-                  patient, portal invitation, receipt email, and front-desk
-                  onboarding task.
+                  A name plus an email address or phone number creates a
+                  prospective patient. An incomplete checkout does not remove
+                  them. Only a verified payment creates a patient, portal
+                  invitation, receipt email, and front-desk onboarding task.
                 </Typography>
               </Box>
               <Tabs
@@ -328,11 +337,11 @@ export function MembershipGrowth() {
                   value="all"
                   label={`All (${resource.data.prospects.length})`}
                 />
-                {pipeline.map((state) => (
+                {relationshipFilters.map((stage) => (
                   <Tab
-                    key={state}
-                    value={state}
-                    label={`${statusLabels[state]} (${counts[state]})`}
+                    key={stage}
+                    value={stage}
+                    label={`${relationshipLabels[stage]} (${counts[stage]})`}
                   />
                 ))}
               </Tabs>
@@ -348,10 +357,10 @@ export function MembershipGrowth() {
                   >
                     <TableHead>
                       <TableRow>
-                        <TableCell>Customer</TableCell>
+                        <TableCell>Person</TableCell>
                         <TableCell>Path</TableCell>
                         <TableCell>Membership</TableCell>
-                        <TableCell>Stage</TableCell>
+                        <TableCell>Relationship</TableCell>
                         <TableCell>Submitted</TableCell>
                         <TableCell align="right">Action</TableCell>
                       </TableRow>
@@ -364,7 +373,8 @@ export function MembershipGrowth() {
                               {prospect.display_name}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {prospect.email_address}
+                              {prospect.email_address ||
+                                "No email address provided"}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -378,14 +388,25 @@ export function MembershipGrowth() {
                           <TableCell>
                             <Chip
                               size="small"
-                              label={statusLabels[prospect.status]}
+                              label={
+                                prospect.relationship_stage === "patient"
+                                  ? "Patient"
+                                  : "Prospective patient"
+                              }
                               color={statusColor(prospect.status)}
                               variant={
-                                prospect.status === "converted"
+                                prospect.relationship_stage === "patient"
                                   ? "filled"
                                   : "outlined"
                               }
                             />
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mt: 0.5 }}
+                            >
+                              {statusLabels[prospect.status]}
+                            </Typography>
                           </TableCell>
                           <TableCell>{dateTime(prospect.created_at)}</TableCell>
                           <TableCell align="right">
@@ -436,7 +457,9 @@ export function MembershipGrowth() {
                 <Typography component="h2" variant="h6">
                   {selected.display_name}
                 </Typography>
-                <Typography>{selected.email_address}</Typography>
+                <Typography>
+                  {selected.email_address || "No email address provided"}
+                </Typography>
                 <Typography color="text.secondary">
                   {selected.phone_number || "No phone number provided"}
                 </Typography>

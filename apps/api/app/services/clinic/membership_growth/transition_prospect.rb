@@ -20,7 +20,8 @@ module Clinic
           patient_id: identity.patient_id,
           status: %w[paid_onboarding contacted]
         ).lock.each do |prospect|
-          prospect.update!(status: "converted", converted_at: now)
+          prospect.update!(status: "converted", converted_at: now, portal_setup_token: nil,
+            portal_setup_expires_at: nil)
           Clinic::AuditRecorder.record!(
             practice: identity.practice,
             actor: actor,

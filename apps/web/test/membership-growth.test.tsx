@@ -82,6 +82,7 @@ vi.mock("../src/shared/ui", () => {
                 intent_type: "outreach",
                 source: "membership_storefront",
                 status: "new",
+                relationship_stage: "prospective_patient",
                 possible_duplicate: false,
                 lock_version: 0,
                 created_at: "2026-09-12T12:00:00Z",
@@ -176,17 +177,19 @@ describe("clinic-specific membership growth", () => {
     const html = renderToStaticMarkup(<MembershipGrowth />);
 
     expect(html).toContain("Membership pipeline");
+    expect(html).toContain("Prospective patients");
     expect(html).toContain("/memberships/north-clinic");
     expect(html).toContain("Future Patient");
     expect(html).toContain("North Clinic membership");
-    expect(html).toContain("Contact requests stay pre-purchase");
+    expect(html).toContain("A name plus an email address or phone number");
     expect(html).toContain("Contact first");
+    expect(html).toContain("Prospective patient");
   });
 
   it("describes verified-payment onboarding separately from contact-first leads", () => {
     const html = renderToStaticMarkup(<MembershipGrowth />);
 
-    expect(html).toContain("Verified payments create a patient");
+    expect(html).toContain("Only a verified payment creates a patient");
     expect(html).toContain("receipt email");
     expect(html).toContain("front-desk onboarding task");
   });

@@ -33,15 +33,17 @@ module Clinic
       payment_failed: "payment_failed"
     }, prefix: true, validate: true
 
-    encrypts :display_name, :email_address, :phone_number
+    encrypts :display_name, :email_address, :phone_number, :portal_setup_token
 
     validates :request_key, presence: true, length: { maximum: 160 },
       format: { with: /\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}\z/ }, uniqueness: { scope: :practice_id }
-    validates :request_digest, :email_digest, presence: true, format: { with: /\A\h{64}\z/ }
+    validates :request_digest, presence: true, format: { with: /\A\h{64}\z/ }
+    validates :email_digest, format: { with: /\A\h{64}\z/ }, allow_nil: true
     validates :phone_digest, format: { with: /\A\h{64}\z/ }, allow_nil: true
     validates :display_name, presence: true, length: { maximum: 120 }
-    validates :email_address, presence: true, length: { maximum: 320 }
+    validates :email_address, length: { maximum: 320 }, allow_nil: true
     validates :phone_number, length: { maximum: 40 }, allow_nil: true
+    validates :portal_setup_token, length: { maximum: 200 }, allow_nil: true
     validates :source, length: { maximum: 80 }, allow_nil: true
     validates :selected_terms, presence: true
     validates :outreach_consent, inclusion: { in: [ true, false ] }
@@ -53,22 +55,33 @@ module Clinic
     validates :application_fee_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 },
       allow_nil: true
     validate :selected_terms_are_an_object
+    validate :has_reachable_contact
     validate :related_records_belong_to_practice
     validate :pipeline_state_is_complete
     validate :intake_is_immutable, on: :update
 
     def possible_duplicate?
       candidates = self.class.where(practice_id: practice_id).where.not(id: id).where.not(status: "declined")
-      email_match = candidates.where(email_digest: email_digest)
-      return email_match.exists? unless phone_digest
+      matches = candidates.none
+      matches = matches.or(candidates.where(email_digest: email_digest)) if email_digest
+      matches = matches.or(candidates.where(phone_digest: phone_digest)) if phone_digest
 
-      email_match.or(candidates.where(phone_digest: phone_digest)).exists?
+      matches.exists?
+    end
+
+    def relationship_stage
+      patient_id ? "patient" : "prospective_patient"
     end
 
     private
 
     def selected_terms_are_an_object
       errors.add(:selected_terms, "must be an object") unless selected_terms.is_a?(Hash)
+    end
+
+    def has_reachable_contact
+      errors.add(:base, "Provide an email address or phone number") if email_address.blank? && phone_number.blank?
+      errors.add(:email_address, "is required to purchase a membership") if intent_type == "purchase" && email_address.blank?
     end
 
     def related_records_belong_to_practice

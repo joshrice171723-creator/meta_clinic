@@ -11,6 +11,14 @@ Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadma
 
 Records in `records/progress/2026/09/` are the dated evidence index for current-window outcomes. Shortcut owns current Story status and task tracking; this log is not a competing register.
 
+## 2026-09-13 — Prospective-patient rule and verified portal handoff implemented locally
+
+**Outcome:** the membership pipeline now presents every person with a name plus an email address or phone number as a prospective patient until server-verified payment creates a patient. Incomplete Checkout activity remains supporting detail instead of turning the person into a patient or removing the lead. A successful Stripe return now waits for signed payment processing and then continues directly to the existing one-time patient portal password setup; the receipt email retains the same setup link as fallback.
+
+**Evidence:** the two focused Rails journeys passed 2 runs / 55 assertions, covering phone-only prospective-patient capture, pre-payment handoff denial, wrong-reference denial, verified payment conversion, matching browser/email activation, and token removal after activation. The focused frontend file passed 5 tests, TypeScript type checking and the production build passed, the dependency audit reported zero vulnerabilities, the scoped Ruby style check reported no offenses, and PostgreSQL upgrade, concurrency, restore and fresh-database verification passed. [Failure-first and verification record](../../records/progress/2026/09/2026-09-13-prospective-patient-and-portal-handoff.md).
+
+**Limits:** the earlier full focused Rails file was interrupted after the local PostgreSQL idle-in-transaction timeout occurred during development test-account setup; that infrastructure failure was not a checkout assertion. The broader backend invariant verifier separately failed an existing appointment-reservation concurrency check after its invoice-allocation and address-version checks passed. Full-suite, browser payment completion, external email delivery, hosted behavior, live Stripe, clinical/legal/privacy review, real-patient use and deployment remain unverified or unauthorized.
+
 ## 2026-09-13 — Public membership checkout configuration and anonymous entry corrected locally
 
 **Outcome:** corrected the Stripe test application programming interface version used to create hosted Checkout sessions and now report configuration and authorization failures without suggesting that a buyer create another payment. The public membership directory and each clinic-specific membership page clear an existing application session before they mount. After the saved restricted test key expired, a strictly development/test-only platform-sandbox route was added for current Stripe Command Line Interface temporary sandbox keys; the real connected-clinic route and its immutable history remain unchanged.

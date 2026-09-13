@@ -2182,6 +2182,11 @@
   [
     null,
     "POST",
+    "/api/public/membership_storefronts/:slug/checkouts/handoff(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/public/membership_storefronts/:slug/prospects(.:format)"
   ],
   [

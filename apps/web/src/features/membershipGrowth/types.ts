@@ -44,12 +44,13 @@ export type MembershipProspectState =
 export type MembershipProspect = {
   id: number;
   display_name: string;
-  email_address: string;
+  email_address: string | null;
   phone_number: string | null;
   outreach_consent: boolean;
   intent_type: "outreach" | "purchase";
   source: string | null;
   status: MembershipProspectState;
+  relationship_stage: "prospective_patient" | "patient";
   possible_duplicate: boolean;
   lock_version: number;
   created_at: string;

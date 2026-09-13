@@ -185,7 +185,9 @@ module Clinic
 
         def storefront_return_url(prospect, outcome)
           slug = prospect.practice.public_membership_slug
-          Clinic::Billing::StripeGateway.return_url("/memberships/#{ERB::Util.url_encode(slug)}?payment=#{outcome}")
+          path = "/memberships/#{ERB::Util.url_encode(slug)}?payment=#{outcome}"
+          path += "#handoff_token=#{ERB::Util.url_encode(prospect.checkout_reference)}" if outcome == "return"
+          Clinic::Billing::StripeGateway.return_url(path)
         end
 
         def ensure_purchase_records!(prospect, connection)
@@ -245,7 +247,9 @@ module Clinic
                 task_kind: "patient_call", state: "open", pool_code: "front_desk", due_at: 1.day.from_now,
                 source_type: "manual", source_id: prospect.id, recorded_by_membership: member)
               prospect.update!(status: "paid_onboarding", portal_identity: invitation.fetch(:identity),
-                receipt:, onboarding_task: task, invited_at: Current.business_time, paid_at: receipt.issued_at)
+                receipt:, onboarding_task: task, invited_at: Current.business_time, paid_at: receipt.issued_at,
+                portal_setup_token: invitation.fetch(:token),
+                portal_setup_expires_at: invitation.fetch(:identity).invitation_expires_at)
               delivery = invitation
               Clinic::AuditRecorder.record!(practice: prospect.practice, actor:,
                 action_code: "membership_storefront.payment_onboarding", outcome: :committed,

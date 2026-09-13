@@ -21,11 +21,14 @@ module Clinic
         @display_name = required_text(display_name, "Name", 120)
         @email_address = normalize_email(email_address)
         @phone_number, @normalized_phone = normalize_phone(phone_number)
+        raise ArgumentError, "Provide an email address or phone number." unless @email_address || @phone_number
         @source = optional_text(source, "Source", 80)
         @outreach_consent = boolean(outreach_consent, "Outreach consent")
         raise ArgumentError, "Confirm that the clinic may contact you about this request." unless @outreach_consent
         @intent_type = intent_type.to_s
         raise ArgumentError, "Choose purchase or clinic outreach." unless @intent_type.in?(%w[outreach purchase])
+        raise ArgumentError, "Enter an email address to receive your receipt and set up the patient portal." if
+          @intent_type == "purchase" && @email_address.nil?
         @request_key = Clinic::Care::SubscriptionDefinition.request_key(request_key)
       end
 
@@ -34,7 +37,7 @@ module Clinic
           practice.lock!
           ensure_storefront_available!
           version, selected_terms = selected_quote
-          email_digest = ContactDigest.call(practice_id: practice.id, value: email_address)
+          email_digest = email_address && ContactDigest.call(practice_id: practice.id, value: email_address)
           phone_digest = normalized_phone && ContactDigest.call(practice_id: practice.id, value: normalized_phone)
           digest = request_digest(version:, selected_terms:, email_digest:, phone_digest:)
           prospect = MembershipProspect.find_or_initialize_by(practice_id: practice.id, request_key: request_key)
@@ -123,7 +126,9 @@ module Clinic
       end
 
       def normalize_email(value)
-        email = required_text(value, "Email address", 320).downcase
+        email = optional_text(value, "Email address", 320)&.downcase
+        return nil unless email
+
         raise ArgumentError, "Enter a valid email address." unless URI::MailTo::EMAIL_REGEXP.match?(email)
 
         email

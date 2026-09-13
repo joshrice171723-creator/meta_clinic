@@ -5737,9 +5737,9 @@ CREATE TABLE public.clinic_membership_prospects (
     request_digest character varying(64) NOT NULL,
     status character varying DEFAULT 'new'::character varying NOT NULL,
     display_name text NOT NULL,
-    email_address text NOT NULL,
+    email_address text,
     phone_number text,
-    email_digest character varying(64) NOT NULL,
+    email_digest character varying(64),
     phone_digest character varying(64),
     selected_terms jsonb DEFAULT '{}'::jsonb NOT NULL,
     source character varying(80),
@@ -5765,8 +5765,10 @@ CREATE TABLE public.clinic_membership_prospects (
     onboarding_task_id bigint,
     paid_at timestamp(6) without time zone,
     receipt_sent_at timestamp(6) without time zone,
+    portal_setup_token text,
+    portal_setup_expires_at timestamp(6) without time zone,
     CONSTRAINT clinic_membership_prospects_conversion_state CHECK ((((status)::text <> 'converted'::text) OR (converted_at IS NOT NULL))),
-    CONSTRAINT clinic_membership_prospects_digest_format CHECK ((((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((email_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((phone_digest IS NULL) OR ((phone_digest)::text ~ '^[0-9a-f]{64}$'::text)))),
+    CONSTRAINT clinic_membership_prospects_digest_format CHECK ((((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((email_digest IS NULL) OR ((email_digest)::text ~ '^[0-9a-f]{64}$'::text)) AND ((phone_digest IS NULL) OR ((phone_digest)::text ~ '^[0-9a-f]{64}$'::text)) AND ((email_digest IS NOT NULL) OR (phone_digest IS NOT NULL)))),
     CONSTRAINT clinic_membership_prospects_intent_type CHECK (((intent_type)::text = ANY ((ARRAY['outreach'::character varying, 'purchase'::character varying])::text[]))),
     CONSTRAINT clinic_membership_prospects_onboarding_state CHECK ((((status)::text <> ALL ((ARRAY['paid_onboarding'::character varying, 'converted'::character varying])::text[])) OR ((patient_id IS NOT NULL) AND (portal_identity_id IS NOT NULL) AND (agreement_id IS NOT NULL) AND (receipt_id IS NOT NULL) AND (onboarding_task_id IS NOT NULL) AND (invited_at IS NOT NULL) AND (paid_at IS NOT NULL)))),
     CONSTRAINT clinic_membership_prospects_status CHECK (((status)::text = ANY ((ARRAY['new'::character varying, 'contacted'::character varying, 'qualified'::character varying, 'invited'::character varying, 'converted'::character varying, 'declined'::character varying, 'checkout_pending'::character varying, 'payment_processing'::character varying, 'paid_onboarding'::character varying, 'checkout_expired'::character varying, 'payment_failed'::character varying])::text[])))
@@ -28426,6 +28428,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260913001000'),
 ('20260912003000'),
 ('20260912002000'),
 ('20260912001000'),
