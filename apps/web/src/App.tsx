@@ -742,6 +742,7 @@ function ClinicApplication({
 }
 
 export function App() {
+  const [configurationError, setConfigurationError] = useState(false);
   const [configuration, setConfiguration] = useState<{
     development_login: boolean;
     clinic_available: boolean;
@@ -760,8 +761,9 @@ export function App() {
       .then((next) => {
         setBusinessDate(next.business_date);
         setConfiguration(next);
+        setConfigurationError(false);
       })
-      .catch(() => {});
+      .catch(() => setConfigurationError(true));
   }, []);
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   const publicMembership =
@@ -940,6 +942,7 @@ export function App() {
     path === "/" || path === "/login" ? (
       <Login
         developmentLogin={configuration.development_login}
+        configurationError={configurationError}
         developmentAccounts={configuration.development_accounts}
         environment={configuration.environment}
         businessDate={configuration.business_date}

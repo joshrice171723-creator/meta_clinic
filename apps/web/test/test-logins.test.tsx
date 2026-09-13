@@ -1,7 +1,59 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Login } from "../src/features/identity/Login";
-import { DevelopmentToolbar } from "../src/features/identity/DevelopmentAccountSwitcher";
+import {
+  DevelopmentToolbar,
+  EnvironmentLabel,
+} from "../src/features/identity/DevelopmentAccountSwitcher";
+
+describe("login environment before the server responds", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each(["localhost", "127.0.0.1", "127.0.0.2", "[::1]"])(
+    "identifies %s immediately without granting development access",
+    (hostname) => {
+      vi.stubGlobal("window", { location: { hostname, search: "" } });
+      const html = renderToStaticMarkup(<Login developmentLogin={false} />);
+      expect(html).toContain("Local development");
+      expect(html).not.toContain("Checking");
+      expect(html).not.toContain("Development tools");
+      expect(html).toContain("Password");
+    },
+  );
+
+  it.each([
+    "aimetaclinic.com",
+    "127.0.0.1.example.com",
+    "localhost.example.com",
+  ])(
+    "does not infer development access or production status for %s",
+    (hostname) => {
+      vi.stubGlobal("window", { location: { hostname } });
+      expect(
+        renderToStaticMarkup(<EnvironmentLabel environment="unknown" />),
+      ).toBe("");
+    },
+  );
+
+  it("honors a production server reached through loopback", () => {
+    vi.stubGlobal("window", { location: { hostname: "127.0.0.1" } });
+    const html = renderToStaticMarkup(
+      <EnvironmentLabel environment="production" />,
+    );
+    expect(html).toContain("Production");
+    expect(html).not.toContain("Local development");
+  });
+
+  it("shows a recoverable configuration failure instead of Checking", () => {
+    const html = renderToStaticMarkup(
+      <Login developmentLogin={false} configurationError />,
+    );
+    expect(html).toContain("Unable to load login options");
+    expect(html).toContain("Retry");
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain("Checking");
+  });
+});
 
 describe("development account preview", () => {
   it("shows distinct backend-owned account groups and a business date", () => {

@@ -46,6 +46,12 @@ export function EnvironmentLabel({
 }: {
   environment: RuntimeEnvironment;
 }) {
+  const hostname =
+    typeof window === "undefined" ? "" : window.location.hostname;
+  const local =
+    hostname === "localhost" ||
+    hostname === "[::1]" ||
+    /^127(?:\.(?:\d{1,3})){3}$/.test(hostname);
   const label =
     environment === "production"
       ? "Production"
@@ -53,7 +59,10 @@ export function EnvironmentLabel({
         ? "Test"
         : environment === "development"
           ? "Omni"
-          : "Checking";
+          : local
+            ? "Local development"
+            : null;
+  if (!label) return null;
   return (
     <span className={`environment-label environment-${environment}`}>
       {label}
@@ -75,8 +84,8 @@ export function DevelopmentAccountSwitcher({
   disabled: boolean;
 }) {
   const portalDefinition = DEVELOPMENT_PORTALS[portal];
-  const visibleAccounts = accounts.filter(
-    (account) => portalDefinition.accountTypes.includes(account.account_type),
+  const visibleAccounts = accounts.filter((account) =>
+    portalDefinition.accountTypes.includes(account.account_type),
   );
   const selectedAccount = visibleAccounts.find(
     (account) => account.id === selectedId,
@@ -94,7 +103,8 @@ export function DevelopmentAccountSwitcher({
           onChange={(event) => onSelect(event.target.value)}
           displayEmpty
           renderValue={() =>
-            selectedAccount?.label || `Select ${portalDefinition.accountLabel} account`
+            selectedAccount?.label ||
+            `Select ${portalDefinition.accountLabel} account`
           }
           inputProps={{
             "aria-label": `Select ${portalDefinition.accountLabel} account`,
@@ -250,10 +260,12 @@ export function DevelopmentControls({
         onChange={selectPortal}
         aria-label="Development sign-in destination"
       >
-        {(Object.entries(DEVELOPMENT_PORTALS) as [
-          DevelopmentPortal,
-          (typeof DEVELOPMENT_PORTALS)[DevelopmentPortal],
-        ][]).map(([value, definition]) => (
+        {(
+          Object.entries(DEVELOPMENT_PORTALS) as [
+            DevelopmentPortal,
+            (typeof DEVELOPMENT_PORTALS)[DevelopmentPortal],
+          ][]
+        ).map(([value, definition]) => (
           <ToggleButton key={value} value={value}>
             {definition.label}
           </ToggleButton>
