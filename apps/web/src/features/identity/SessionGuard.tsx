@@ -22,6 +22,7 @@ import {
   SESSION_CHANGED_EVENT,
   setApiActor,
 } from "../../api/client";
+import type { User } from "../../api/contracts";
 
 type SessionPolicy = {
   idle_expires_at: string;
@@ -30,12 +31,24 @@ type SessionPolicy = {
   server_time: string;
 };
 
+export type SessionBootstrap = {
+  user?: User | null;
+  session_policy?: SessionPolicy;
+  clinic_access?: {
+    active: boolean;
+    authorization_generation: number;
+  } | null;
+  error?: string;
+};
+
 export function SessionGuard({
   children,
   expectedUserId,
+  initialSession,
 }: {
   children: ReactNode;
   expectedUserId?: number;
+  initialSession?: SessionBootstrap;
 }) {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [expired, setExpired] = useState(false);
@@ -67,45 +80,45 @@ export function SessionGuard({
     setExpired(expires <= serverTime);
   };
 
+  const acceptResponse = (response: SessionBootstrap) => {
+    if (
+      expectedUserId !== undefined &&
+      response.user?.id !== expectedUserId
+    ) {
+      setExpired(true);
+      return false;
+    }
+    if (response.clinic_access) {
+      if (!response.clinic_access.active) {
+        setExpired(true);
+        return false;
+      }
+      if (authorizationGeneration.current === null) {
+        authorizationGeneration.current =
+          response.clinic_access.authorization_generation;
+      } else if (
+        authorizationGeneration.current !==
+        response.clinic_access.authorization_generation
+      ) {
+        setExpired(true);
+        return false;
+      }
+    }
+    accept(response.session_policy);
+    return true;
+  };
+
   const check = async (extend: boolean) => {
     if (requestActive.current) return;
     requestActive.current = true;
     const activity = lastActivity.current;
     if (extend) setBusy(true);
     try {
-      const response = await api<{
-        session_policy?: SessionPolicy;
-        user?: { id: number };
-        clinic_access?: {
-          active: boolean;
-          authorization_generation: number;
-        } | null;
-      }>("/api/session", { method: extend ? "PATCH" : "GET" });
+      const response = await api<SessionBootstrap>("/api/session", {
+        method: extend ? "PATCH" : "GET",
+      });
       if (!alive.current) return;
-      if (
-        expectedUserId !== undefined &&
-        response.user?.id !== expectedUserId
-      ) {
-        setExpired(true);
-        return;
-      }
-      if (response.clinic_access) {
-        if (!response.clinic_access.active) {
-          setExpired(true);
-          return;
-        }
-        if (authorizationGeneration.current === null) {
-          authorizationGeneration.current =
-            response.clinic_access.authorization_generation;
-        } else if (
-          authorizationGeneration.current !==
-          response.clinic_access.authorization_generation
-        ) {
-          setExpired(true);
-          return;
-        }
-      }
-      accept(response.session_policy);
+      if (!acceptResponse(response)) return;
       if (extend) acknowledgedActivity.current = activity;
       setError("");
     } catch (cause) {
@@ -123,7 +136,14 @@ export function SessionGuard({
 
   useEffect(() => {
     alive.current = true;
-    void check(false);
+    if (initialSession) {
+      try {
+        if (!acceptResponse(initialSession)) return;
+        setError("");
+      } catch {
+        void check(false);
+      }
+    } else void check(false);
     const activity = (event: Event) => {
       if (event.isTrusted && document.visibilityState === "visible")
         lastActivity.current = Date.now();
@@ -162,7 +182,7 @@ export function SessionGuard({
       window.removeEventListener(SESSION_CHANGED_EVENT, lock);
       events.forEach((event) => window.removeEventListener(event, activity));
     };
-  }, [expectedUserId]);
+  }, [expectedUserId, initialSession]);
 
   const signIn = () =>
     window.location.replace(

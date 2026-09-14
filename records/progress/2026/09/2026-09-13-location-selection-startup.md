@@ -6,6 +6,8 @@ A signed-in clinic user with more than one authorized location receives the loca
 
 The same overview request is now limited to Operations and Inventory, the only routes that consume its summary contract. Tracking Board, Schedule, Work Inbox, and the other clinic routes no longer wait on or issue that unused request.
 
+The authenticated shell also reuses the app's already-verified session policy when mounting `SessionGuard`, avoiding a second sequential `/api/session` read. The guard still performs focus/heartbeat rechecks and falls back to a fresh read when the bootstrap policy is missing or invalid.
+
 ## Failure-first review
 
 - **Failure hypothesis:** the picker is coupled to the full `/api/clinic` overview. A slow or unavailable overview therefore hides the required location decision until the browser's 30-second read deadline expires.

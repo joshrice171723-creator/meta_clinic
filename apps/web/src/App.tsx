@@ -20,7 +20,10 @@ import { api, ApiError, csrf, currentLoginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
-import { SessionGuard } from "./features/identity/SessionGuard";
+import {
+  SessionGuard,
+  type SessionBootstrap,
+} from "./features/identity/SessionGuard";
 import {
   AppearanceContext,
   ClinicAppearanceScope,
@@ -790,10 +793,7 @@ export function App() {
       "/workforce/kiosk",
       "/memberships",
     ].includes(path) || (publicMembership !== null && path !== "/memberships/account");
-  const [session, setSession] = useState<{
-    user?: User | null;
-    error?: string;
-  }>({});
+  const [session, setSession] = useState<SessionBootstrap>({});
   useEffect(() => {
     if (publicMembershipRoute) {
       setSession({ user: null });
@@ -801,7 +801,7 @@ export function App() {
     }
     let active = true;
     const check = () =>
-      api<{ user: User }>("/api/session")
+      api<SessionBootstrap>("/api/session")
         .then((s) => {
           if (active) setSession(s);
         })
@@ -850,7 +850,7 @@ export function App() {
   let page: ReactNode;
   if (patientVideo && user)
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
         <RouteBoundary root>
           <TelehealthSessionProvider contextKey={`patient:${user.id}`}>
             <PatientTelehealthVisit visitId={patientVideo[1]} />
@@ -878,7 +878,7 @@ export function App() {
     );
   if (path === "/memberships/account" && user)
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
         <RouteBoundary root><MembershipAccount /></RouteBoundary>
       </SessionGuard>
     );
@@ -918,7 +918,7 @@ export function App() {
     );
   if (path.startsWith("/clinic") && user) {
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
         <ClinicApplication
           user={user}
           developmentAccounts={configuration.development_accounts}
@@ -931,7 +931,7 @@ export function App() {
   if (path === "/owner" && user) {
     return (
       <LaunchLayout user={user} environment={configuration.environment}>
-        <SessionGuard key={user.id} expectedUserId={user.id}>
+        <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
           <MemberLayout key={user.id} user={user}>
             <RouteBoundary>
               <OwnerCommandCenter />
@@ -946,7 +946,7 @@ export function App() {
     user
   )
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id}>
+      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
         <RouteBoundary root>
           <PatientPortal
             user={user}
@@ -997,7 +997,7 @@ export function App() {
         <RouteBoundary root>{page}</RouteBoundary>
       ) : (
         user && (
-          <SessionGuard key={user.id} expectedUserId={user.id}>
+          <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
             <MemberLayout key={user.id} user={user}>
               <RouteBoundary>{page}</RouteBoundary>
             </MemberLayout>
