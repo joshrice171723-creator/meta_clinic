@@ -17,7 +17,7 @@ module Clinic
     has_many :patient_history_reviews, class_name: "Clinic::Care::PatientHistoryReview", foreign_key: :reviewer_membership_id, dependent: :restrict_with_error
     has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error
     has_many :grant_events, class_name: "Clinic::RoleGrantEvent", foreign_key: :grantor_membership_id, dependent: :restrict_with_error
-    validates :user_id, uniqueness: true
+    validates :user_id, uniqueness: { scope: :practice_id }
     validates :authorization_generation, numericality: { only_integer: true, greater_than: 0 }
     scope :active, -> { where(active: true) }
     before_update :bump_authorization_generation, if: :will_save_change_to_active?

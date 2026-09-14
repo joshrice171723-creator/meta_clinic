@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Organization, clinic and location switching
+
+At the founder's request, added one grouped workspace selector for Organization → Clinic → Location. Separate clinic memberships preserve the original assignment; ordinary accounts list their authorized clinics, while the explicitly enabled local Omni session can open other synthetic clinics. Switching clears the old location and stale-tab clinic requests are rejected. The desktop/tablet browser journey verified all three selectors and persisted server context. The selected broad Rails suite exposed failures in billing/scheduling and membership enrollment; those are not completion evidence for this change. Focused checks and the local runtime update are reported in the task handoff. No hosted or real-data release is authorized.
+
 ## 2026-09-14 — New weight-loss clinic and continuing-patient journey implemented
 
 Revision 4 was implemented and locally browser-proved in new clinic 5/site 4 with continuing patient 40 across J0–J7. Specialty setup drives visits, forms and shared context; the proof covers account-first signed local payment, distinct handoff, exact content versions, stock reversal/post-closure reconciliation, corrected lab work, included-visit checkout and the same patient's return with disconnected video/manual fallback. Open source-owned billing and clinical work remains explicit. See the [dated outcome](../../records/progress/2026/09/2026-09-14-weight-loss-connected-journey.md), [evidence owner](../../docs/development/patient-journey-implementation-evidence.md), and current brief checkpoint. Focused Rails, TypeScript/build and scoped lint/format checks passed; no live-provider or launch acceptance is claimed.

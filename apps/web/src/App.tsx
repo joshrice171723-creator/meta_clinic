@@ -710,8 +710,8 @@ function ClinicApplication({
   }, [confirmNavigation]);
 
   const navigation = useMemo(
-    () => ({ navigate, registerBlocker }),
-    [navigate, registerBlocker],
+    () => ({ navigate, registerBlocker, confirmNavigation }),
+    [navigate, registerBlocker, confirmNavigation],
   );
   const home = route.path === "/clinic";
   const page =
@@ -780,7 +780,8 @@ export function App() {
   const publicMembership =
     /^\/memberships\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))$/.exec(path);
   const publicMembershipRoute =
-    path === "/memberships" || (publicMembership !== null && path !== "/memberships/account");
+    path === "/memberships" ||
+    (publicMembership !== null && path !== "/memberships/account");
   const publicPage =
     [
       "/",
@@ -792,7 +793,8 @@ export function App() {
       "/workforce/activate",
       "/workforce/kiosk",
       "/memberships",
-    ].includes(path) || (publicMembership !== null && path !== "/memberships/account");
+    ].includes(path) ||
+    (publicMembership !== null && path !== "/memberships/account");
   const [session, setSession] = useState<SessionBootstrap>({});
   useEffect(() => {
     if (publicMembershipRoute) {
@@ -850,7 +852,11 @@ export function App() {
   let page: ReactNode;
   if (patientVideo && user)
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
+      <SessionGuard
+        key={user.id}
+        expectedUserId={user.id}
+        initialSession={session}
+      >
         <RouteBoundary root>
           <TelehealthSessionProvider contextKey={`patient:${user.id}`}>
             <PatientTelehealthVisit visitId={patientVideo[1]} />
@@ -878,8 +884,14 @@ export function App() {
     );
   if (path === "/memberships/account" && user)
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
-        <RouteBoundary root><MembershipAccount /></RouteBoundary>
+      <SessionGuard
+        key={user.id}
+        expectedUserId={user.id}
+        initialSession={session}
+      >
+        <RouteBoundary root>
+          <MembershipAccount />
+        </RouteBoundary>
       </SessionGuard>
     );
   if (path === "/owner/activate")
@@ -918,7 +930,11 @@ export function App() {
     );
   if (path.startsWith("/clinic") && user) {
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
+      <SessionGuard
+        key={user.id}
+        expectedUserId={user.id}
+        initialSession={session}
+      >
         <ClinicApplication
           user={user}
           developmentAccounts={configuration.development_accounts}
@@ -931,7 +947,11 @@ export function App() {
   if (path === "/owner" && user) {
     return (
       <LaunchLayout user={user} environment={configuration.environment}>
-        <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
+        <SessionGuard
+          key={user.id}
+          expectedUserId={user.id}
+          initialSession={session}
+        >
           <MemberLayout key={user.id} user={user}>
             <RouteBoundary>
               <OwnerCommandCenter />
@@ -946,7 +966,11 @@ export function App() {
     user
   )
     return (
-      <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
+      <SessionGuard
+        key={user.id}
+        expectedUserId={user.id}
+        initialSession={session}
+      >
         <RouteBoundary root>
           <PatientPortal
             user={user}
@@ -997,7 +1021,11 @@ export function App() {
         <RouteBoundary root>{page}</RouteBoundary>
       ) : (
         user && (
-          <SessionGuard key={user.id} expectedUserId={user.id} initialSession={session}>
+          <SessionGuard
+            key={user.id}
+            expectedUserId={user.id}
+            initialSession={session}
+          >
             <MemberLayout key={user.id} user={user}>
               <RouteBoundary>{page}</RouteBoundary>
             </MemberLayout>

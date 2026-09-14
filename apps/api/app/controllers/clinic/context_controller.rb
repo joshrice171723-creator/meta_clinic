@@ -13,6 +13,10 @@ module Clinic
         schema_version: "clinic-context-v1",
         user_id: current_user.id,
         practice: { id: current_practice.id, name: current_practice.name, timezone: current_practice.timezone },
+        practices: available_practices.includes(:organization).order(:name, :id).map do |practice|
+          { id: practice.id, name: practice.name,
+            organization: practice.organization && { id: practice.organization.id, name: practice.organization.name } }
+        end,
         membership_id: clinic_membership.id,
         authorization_generation: clinic_membership.authorization_generation,
         current_clinician_profile_id: current_clinician_profile&.id&.to_s,
@@ -96,12 +100,42 @@ module Clinic
     end
 
     def update
+      return switch_practice if params[:practice_id].present?
+
       site = context_sites.find(requested_id!(params[:site_id], :site_id))
       session[:clinic_site_id] = site.id
       render json: { current_site: FacilitySerializer.site(site) }
     end
 
     private
+
+    def available_practices
+      practices = if development_omni?
+        Practice.all
+      else
+        Practice.where(id: Membership.active.where(user: current_user).select(:practice_id))
+      end
+      return practices unless Rails.env.production?
+
+      practices.where(id: practices.select { |practice| DeploymentAccess.practice_enabled?(practice.id) }.map(&:id))
+    end
+
+    def switch_practice
+      practice = available_practices.find(requested_id!(params[:practice_id], :practice_id))
+      membership = Membership.find_by(user: current_user, practice: practice)
+      if membership.nil? && development_omni?
+        membership = Membership.create!(user: current_user, practice: practice, active: true)
+        clinic_membership.role_grants.active.where(scope_kind: "practice").each do |grant|
+          membership.role_grants.create!(practice: practice, role_version: grant.role_version,
+            scope_kind: "practice", effective_from: Time.current, revision: 1)
+        end
+      end
+      raise Clinic::Authorization::Denied unless membership&.active?
+
+      session[:clinic_membership_id] = membership.id
+      session.delete(:clinic_site_id)
+      render json: { practice_id: practice.id, membership_id: membership.id }
+    end
 
     def context_sites
       sites = accessible_clinic_sites

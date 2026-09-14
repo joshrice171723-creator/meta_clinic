@@ -1159,6 +1159,11 @@ export type ClinicWorkspaceContext = {
   schema_version: "clinic-context-v1";
   user_id: number;
   practice: { id: number; name: string; timezone: string };
+  practices?: {
+    id: number;
+    name: string;
+    organization: { id: number; name: string } | null;
+  }[];
   membership_id: number;
   authorization_generation: number;
   current_clinician_profile_id: string | null;

@@ -14,6 +14,7 @@ export type ClinicNavigateOptions = {
 };
 
 type ClinicNavigationValue = {
+  confirmNavigation?: () => boolean;
   navigate: (href: string, options?: ClinicNavigateOptions) => boolean;
   registerBlocker: (blocker: (() => string | null) | null) => () => void;
 };

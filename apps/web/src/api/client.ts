@@ -22,11 +22,16 @@ type Configuration = {
 let csrfRequest: Promise<Configuration> | undefined;
 let csrfGeneration = 0;
 let expectedActorId: number | undefined;
+let expectedPracticeId: number | undefined;
+export function setClinicPractice(practiceId: number | undefined) {
+  expectedPracticeId = practiceId;
+}
 let actorGeneration = 0;
 export const SESSION_CHANGED_EVENT = "apply:session-changed";
 export function setApiActor(actorId: number | undefined) {
   if (expectedActorId === actorId) return;
   expectedActorId = actorId;
+  expectedPracticeId = undefined;
   actorGeneration += 1;
   clearCsrf();
 }
@@ -127,6 +132,7 @@ export async function api<T>(
     throw new Error("Requests must use the same-origin API.");
   const method = options.method || "GET";
   const requestActor = expectedActorId;
+  const requestPractice = expectedPracticeId;
   const generation = actorGeneration;
   // Initialize the cookie's CSRF state before parallel session/resource reads.
   // Otherwise their earlier cookie snapshots can overwrite that initialization.
@@ -149,7 +155,12 @@ export async function api<T>(
         headers: {
           Accept: "application/json",
           ...(path.startsWith("/api/clinic") && requestActor !== undefined
-            ? { "X-Clinic-Actor": String(requestActor) }
+            ? {
+                "X-Clinic-Actor": String(requestActor),
+                ...(requestPractice !== undefined
+                  ? { "X-Clinic-Practice": String(requestPractice) }
+                  : {}),
+              }
             : {}),
           ...(method === "GET"
             ? {}

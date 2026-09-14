@@ -1,7 +1,7 @@
 ---
 type: design-proposal
 status: tracking-board-ui-prototype
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 # Clinic Workspace Design
 
@@ -10,6 +10,8 @@ Home: [[00 Home]] · Index: [[01 Table of Contents]] · Current visual system: [
 This note preserves clinic design history, workflow proposals, source observations and implementation boundaries. [[Design]] is the canonical forward-looking visual system; where its proposed direction changes current styling, existing behavior remains evidence until a bounded implementation is completed and verified.
 
 ## Direction and scope
+
+**2026-09-14 — Workspace hierarchy:** the founder requested Organization → Clinic → Location dropdowns to reach other locations. This supersedes the historical single-clinic/no-selector restriction below. Each employee assignment remains scoped to its clinic; the selector exposes authorized memberships and locations. The explicitly enabled local Omni session may open other synthetic clinics through separate memberships, preserving its original assignment. This does not authorize hosted access or real-data use.
 
 **Founder input, 2026-08-31 (U-26/U-27), updated by D-055:** explore a sleek, accessible clinic interface on a feature branch. Staff will primarily perform patient intake and triage; the physician will mainly create and sign notes/prescriptions. Staff use both desktop and tablet, and users may select Juniper & porcelain, Cobalt & limestone, Plum & parchment or Saffron & ink. Exact staff roles remain unspecified. This clarifies intended use and cosmetic implementation, not clinical permissions or release approval.
 

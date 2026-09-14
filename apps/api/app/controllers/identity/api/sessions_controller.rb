@@ -105,7 +105,11 @@ module Identity
       end
 
       def clinic_access
-        membership = current_user.clinic_membership
+        membership = if session[:clinic_membership_id].present?
+          current_user.clinic_memberships.find_by(id: session[:clinic_membership_id])
+        else
+          current_user.clinic_membership
+        end
         return nil unless membership
 
         { membership_id: membership.id, practice_id: membership.practice_id, active: membership.active?,

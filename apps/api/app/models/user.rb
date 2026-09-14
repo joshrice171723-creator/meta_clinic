@@ -4,7 +4,8 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(email) { email.strip.downcase }
   has_many :member_sessions, dependent: :destroy
   has_one :preference, class_name: "Identity::Preference", dependent: :destroy
-  has_one :clinic_membership, class_name: "Clinic::Membership", dependent: :restrict_with_error
+  has_one :clinic_membership, -> { order(:id) }, class_name: "Clinic::Membership", dependent: :restrict_with_error
+  has_many :clinic_memberships, class_name: "Clinic::Membership", dependent: :restrict_with_error
   has_many :platform_clinic_invitations, class_name: "Clinic::Workforce::EmployeeInvitation",
     foreign_key: :invited_by_platform_user_id, dependent: :restrict_with_error, inverse_of: :invited_by_platform_user
   has_many :paperworks, class_name: "Launch::Paperwork", dependent: :restrict_with_error

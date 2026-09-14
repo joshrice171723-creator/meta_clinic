@@ -18803,7 +18803,7 @@ CREATE UNIQUE INDEX index_clinic_memberships_on_practice_id_and_user_id ON publi
 -- Name: index_clinic_memberships_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_clinic_memberships_on_user_id ON public.clinic_memberships USING btree (user_id);
+CREATE INDEX index_clinic_memberships_on_user_id ON public.clinic_memberships USING btree (user_id);
 
 
 --
@@ -29191,6 +29191,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260914100500'),
 ('20260914100001'),
 ('20260914100000'),
+('20260914009000'),
 ('20260913120000'),
 ('20260913110000'),
 ('20260913100000'),

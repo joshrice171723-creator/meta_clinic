@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -42,7 +43,8 @@ import type {
   RuntimeEnvironment,
   User,
 } from "../../api/contracts";
-import { api } from "../../api/client";
+import { api, setClinicPractice } from "../../api/client";
+import { ClinicScopeSelector } from "./ClinicScopeSelector";
 import { LoadState, useResource } from "../../shared/ui";
 import { ClinicFrame } from "./ClinicFrame";
 import {
@@ -71,11 +73,13 @@ function LocationSelectionDialog({
   selectingSiteId,
   error,
   onSelect,
+  scopeSelector,
 }: {
   sites: ClinicWorkspaceContext["sites"];
   selectingSiteId: number | null;
   error: string;
   onSelect: (siteId: number) => void;
+  scopeSelector?: ReactNode;
 }) {
   return (
     <Dialog
@@ -85,6 +89,7 @@ function LocationSelectionDialog({
     >
       <DialogTitle id="location-picker-title">Choose your location</DialogTitle>
       <DialogContent>
+        {scopeSelector}
         <Typography
           color="text.secondary"
           id="location-picker-description"
@@ -350,13 +355,18 @@ export function Workspace({
   environment?: RuntimeEnvironment;
   businessDate?: string;
 }) {
-  const { navigate } = useClinicNavigation();
+  const { navigate, confirmNavigation } = useClinicNavigation();
   const {
     data,
     error,
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
   const [locationSelectionMade, setLocationSelectionMade] = useState(false);
+  const [switchingPractice, setSwitchingPractice] = useState(false);
+  useLayoutEffect(() => {
+    setClinicPractice(data?.practice.id);
+    return () => setClinicPractice(undefined);
+  }, [data?.practice.id]);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
   const selectingLocation = useRef(false);
@@ -366,6 +376,7 @@ export function Workspace({
   const selectSite = async (siteId: number) => {
     if (selectingLocation.current) return;
     if (locationSelectionMade && data?.current_site?.id === siteId) return;
+    if (confirmNavigation && !confirmNavigation()) return;
     selectingLocation.current = true;
     setSelectingSiteId(siteId);
     setLocationPickerError("");
@@ -388,6 +399,28 @@ export function Workspace({
     } finally {
       selectingLocation.current = false;
       setSelectingSiteId(null);
+    }
+  };
+  const selectPractice = async (practiceId: number) => {
+    if (selectingLocation.current || practiceId === data?.practice.id) return;
+    if (confirmNavigation && !confirmNavigation()) return;
+    selectingLocation.current = true;
+    setSwitchingPractice(true);
+    setLocationPickerError("");
+    try {
+      await api("/api/clinic/context", {
+        method: "PATCH",
+        body: { practice_id: practiceId },
+      });
+      window.location.replace("/clinic");
+    } catch (caught) {
+      setLocationPickerError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to switch clinics. Try again.",
+      );
+      selectingLocation.current = false;
+      setSwitchingPractice(false);
     }
   };
   const overview = useResource<ClinicOverview>("/api/clinic", {
@@ -450,6 +483,13 @@ export function Workspace({
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
           <LocationSelectionDialog
+            scopeSelector={
+              <ClinicScopeSelector
+                context={data}
+                disabled={switchingPractice || selectingSiteId !== null}
+                onPracticeChange={(id) => void selectPractice(id)}
+              />
+            }
             error={locationPickerError}
             onSelect={(siteId) => void selectSite(siteId)}
             selectingSiteId={selectingSiteId}
@@ -514,8 +554,8 @@ export function Workspace({
                 contextKey={`${user.id}:${data.practice.id}:${data.membership_id}:${data.current_site?.id ?? "all"}`}
               >
                 <div
-                  inert={selectingSiteId !== null}
-                  aria-busy={selectingSiteId !== null}
+                  inert={selectingSiteId !== null || switchingPractice}
+                  aria-busy={selectingSiteId !== null || switchingPractice}
                   onClick={(event) => {
                     if (
                       event.defaultPrevented ||
@@ -554,6 +594,14 @@ export function Workspace({
                   }}
                 >
                   <ClinicFrame
+                    scopeSelector={
+                      <ClinicScopeSelector
+                        context={data}
+                        disabled={switchingPractice || selectingSiteId !== null}
+                        onPracticeChange={(id) => void selectPractice(id)}
+                        onLocationChange={(id) => void selectSite(id)}
+                      />
+                    }
                     practiceName={data.practice.name}
                     timezone={data.practice.timezone}
                     locationName={locationName}

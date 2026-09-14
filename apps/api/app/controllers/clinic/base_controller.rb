@@ -7,6 +7,7 @@ module Clinic
     before_action :require_member
     before_action :require_expected_actor
     before_action :require_clinic
+    before_action :require_expected_practice
     before_action :capture_authorization_generation
     around_action :attribute_clinic_mutations
 
@@ -89,7 +90,11 @@ module Clinic
     end
 
     def clinic_membership
-      @clinic_membership ||= Membership.active.find_by(user: current_user)
+      @clinic_membership ||= if session[:clinic_membership_id].present?
+        Membership.active.find_by(user: current_user, id: session[:clinic_membership_id])
+      else
+        Membership.active.where(user: current_user).order(:id).first
+      end
     end
 
     def current_practice
@@ -97,7 +102,16 @@ module Clinic
     end
 
     def require_clinic
-      render_error("No active clinic assignment. Contact your clinic administrator.", :forbidden) unless clinic_membership
+      unless clinic_membership && DeploymentAccess.practice_enabled?(current_practice.id)
+        render_error("No active clinic assignment. Contact your clinic administrator.", :forbidden)
+      end
+    end
+
+    def require_expected_practice
+      expected = request.headers["X-Clinic-Practice"]
+      return if expected.blank? || expected == current_practice.id.to_s
+
+      render json: { error: "Your clinic changed in another window. Reload before continuing.", code: "clinic_changed" }, status: :conflict
     end
 
     def capture_authorization_generation
