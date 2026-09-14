@@ -46,7 +46,7 @@ Before the first write:
 3. For implementation or vault changes, use the vault table of contents to select only relevant current context.
 4. Read the relevant development and architecture sections, then state scope, conflicts and intended changes.
 
-When provisioning a fresh isolated worktree, run `ruby bin/dev prewarm` once before delegating product work. It reuses the machine-wide Bundler and npm caches, does not start PostgreSQL or application services, and must not be repeated while the lockfiles are unchanged.
+When provisioning a fresh isolated worktree, run `ruby bin/dev prewarm` once before delegating product work. It reuses the machine-wide Bundler and pnpm caches, does not start PostgreSQL or application services, and must not be repeated while the lockfiles are unchanged.
 
 Do not edit, rename, delete, format broadly, install dependencies, run generators, change settings or deploy until the review is complete. External links are not reviewed merely because a vault note references them.
 

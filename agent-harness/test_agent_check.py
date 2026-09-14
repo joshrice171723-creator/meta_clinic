@@ -47,7 +47,7 @@ class AgentCheckTest(unittest.TestCase):
         checks = agent_check.checks_for(paths, "component")
         by_name = {check.name: check for check in checks}
         self.assertIn("frontend related tests", by_name)
-        self.assertEqual(by_name["frontend related tests"].command[0], agent_check.NPM)
+        self.assertEqual(by_name["frontend related tests"].command[0], agent_check.PNPM)
         self.assertIn("src/features/inventory/InventoryApp.tsx", by_name["frontend related tests"].command)
         self.assertIn("frontend incremental typecheck", by_name)
         self.assertIn("frontend formatting", by_name)
@@ -56,7 +56,7 @@ class AgentCheckTest(unittest.TestCase):
         self.assertNotIn("frontend tests", by_name)
         self.assertNotIn("frontend dependency audit", by_name)
 
-        dependency = {check.name for check in agent_check.checks_for({"apps/web/package-lock.json"}, "component")}
+        dependency = {check.name for check in agent_check.checks_for({"apps/web/pnpm-lock.yaml"}, "component")}
         self.assertIn("frontend dependency audit", dependency)
 
     def test_api_component_selects_product_area_tests_and_changed_file_lint(self):

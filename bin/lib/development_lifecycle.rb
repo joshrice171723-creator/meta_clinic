@@ -234,7 +234,7 @@ module Apply
       phase("Validate pinned runtimes") { require_runtime_versions! }
       phase("Prewarm locked API dependencies", category: "dependency") { install_api_dependencies! }
       phase("Prewarm locked web dependencies", category: "dependency") { install_web_dependencies! }
-      @output.puts "Worktree dependencies are ready from the shared Bundler and npm caches."
+      @output.puts "Worktree dependencies are ready from the shared Bundler and pnpm caches."
     end
 
     def refresh(options)
@@ -368,7 +368,7 @@ module Apply
 
     def reconcile_dependencies!(changed_paths)
       api_changed = changed_paths.any? { |path| %w[apps/api/Gemfile apps/api/Gemfile.lock].include?(path) }
-      web_changed = changed_paths.any? { |path| %w[apps/web/package.json apps/web/package-lock.json].include?(path) }
+      web_changed = changed_paths.any? { |path| %w[apps/web/package.json apps/web/pnpm-lock.yaml apps/web/pnpm-workspace.yaml].include?(path) }
       api_ready = api_dependencies_ready?
       web_ready = web_dependencies_ready?
 
@@ -420,19 +420,20 @@ module Apply
       end
       bundler_output, bundler_ok = capture("bundle", "--version")
       bundler_actual = bundler_output[/([0-9]+(?:\.[0-9]+)+)/, 1]
-      npm_output, npm_ok = capture(npm_command, "--version")
+      pnpm_output, pnpm_ok = capture(pnpm_command, "--version", chdir: @web_root)
+      expected_pnpm = JSON.parse(File.read(File.join(@web_root, "package.json"))).fetch("packageManager").delete_prefix("pnpm@")
       [
         Check.new(name: "Ruby", ok: RUBY_VERSION == expected_ruby, detail: "#{RUBY_VERSION} (expected #{expected_ruby})"),
         Check.new(name: "Bundler", ok: bundler_ok && bundler_actual == expected_bundler, detail: "#{bundler_actual || 'not found'} (expected #{expected_bundler})"),
         Check.new(name: "Node", ok: !!node_matches, detail: "#{node_actual || 'not found'} (expected major #{expected_node})"),
-        Check.new(name: "npm", ok: npm_ok, detail: first_line(npm_output))
+        Check.new(name: "pnpm", ok: pnpm_ok && pnpm_output.strip == expected_pnpm, detail: "#{first_line(pnpm_output)} (expected #{expected_pnpm})")
       ]
     end
 
     def require_dependencies!
       checks = [
         Check.new(name: "API dependencies", ok: api_dependencies_ready?, detail: "bundle check"),
-        Check.new(name: "Web dependencies", ok: web_dependencies_ready?, detail: "npm dependency tree")
+        Check.new(name: "Web dependencies", ok: web_dependencies_ready?, detail: "pnpm dependency tree")
       ]
       checks.each { |check| print_check(check) }
       failed = checks.reject(&:ok)
@@ -449,14 +450,19 @@ module Apply
 
     def web_dependency_tree_ready?
       File.file?(File.join(@web_root, "node_modules/.bin/vite")) &&
-        capture(npm_command, "ls", "--depth=0", "--silent", chdir: @web_root).last
+        File.file?(File.join(@web_root, "node_modules/.modules.yaml")) &&
+        capture("node", "scripts/check-dependencies.mjs", chdir: @web_root).last
     end
 
     def web_lock_digest_matches?
-      lockfile = File.join(@web_root, "package-lock.json")
+      lockfile = File.join(@web_root, "pnpm-lock.yaml")
       marker = File.join(@web_root, "node_modules/.apply-lock-digest")
       File.file?(lockfile) && File.file?(marker) &&
-        File.read(marker).strip == Digest::SHA256.file(lockfile).hexdigest
+        File.read(marker).strip == web_dependency_digest
+    end
+
+    def web_dependency_digest
+      Digest::SHA256.hexdigest(%w[package.json pnpm-lock.yaml pnpm-workspace.yaml].map { |name| File.read(File.join(@web_root, name)) }.join("\0"))
     end
 
     def install_api_dependencies!
@@ -469,9 +475,9 @@ module Apply
     def install_web_dependencies!
       return @output.puts("Locked web dependencies are already installed.") if web_dependencies_ready?
 
-      system!(npm_command, "ci", "--ignore-scripts", "--prefer-offline", chdir: @web_root)
-      fail_with("npm dependency validation fails after installation") unless web_dependency_tree_ready?
-      digest = Digest::SHA256.file(File.join(@web_root, "package-lock.json")).hexdigest
+      system!(pnpm_command, "install", "--frozen-lockfile", "--ignore-scripts", "--prefer-offline", chdir: @web_root)
+      fail_with("pnpm dependency validation fails after installation") unless web_dependency_tree_ready?
+      digest = web_dependency_digest
       File.write(File.join(@web_root, "node_modules/.apply-lock-digest"), "#{digest}\n")
     end
 
@@ -782,7 +788,7 @@ module Apply
       when "api"
         [[RbConfig.ruby, "bin/postgres", "exec", "bin/rails", "server", "-b", "127.0.0.1", "-p", @ports.fetch(:api).to_s], @api_root]
       when "web"
-        [[npm_command, "run", "dev"], @web_root]
+        [[pnpm_command, "run", "dev"], @web_root]
       when "worker"
         [[RbConfig.ruby, "bin/postgres", "exec", "bin/clinic-worker", "--interval", "15"], @api_root]
       end
@@ -1092,8 +1098,8 @@ module Apply
       end
     end
 
-    def npm_command
-      Gem.win_platform? ? "npm.cmd" : "npm"
+    def pnpm_command
+      Gem.win_platform? ? "pnpm.cmd" : "pnpm"
     end
 
     def capture(*command, chdir: nil)

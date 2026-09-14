@@ -7,7 +7,7 @@ The repository workflow is `.github/workflows/ci.yml`. It runs on pull requests 
 | `agent_docs` | Read-only structural/link checks for the vault and agent harness. |
 | `scan_ruby` | Brakeman and Bundler Audit. |
 | `lint` | RuboCop. |
-| `frontend` | Locked npm install, Vitest, format check, TypeScript/Vite build and npm audit. |
+| `frontend` | Locked pnpm install, Vitest, format check, TypeScript/Vite build and pnpm audit. |
 | `portable_delivery` | Checks that portable delivery stays loopback-only, commit-pinned, and free of cloud OIDC authority. |
 | `test` | Rails/PostgreSQL tests, eager-loading and backend verification, conversion/restore checks, then the real Vite-to-API HTTP harness. |
 

@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-NPM = "npm.cmd" if sys.platform == "win32" else "npm"
+PNPM = "pnpm.cmd" if sys.platform == "win32" else "pnpm"
 RUBY = "ruby"
 PYTHON = sys.executable
 
@@ -165,27 +165,27 @@ def web_impacted_checks(paths: set[str], level: str) -> list[Check]:
     source_paths = tuple(path for path in code_paths if path.startswith("src/"))
     test_paths = tuple(path for path in code_paths if path.startswith("test/") and ".test." in path)
     format_paths = relative_paths(paths, "apps/web", WEB_FORMAT_SUFFIXES)
-    dependency_changed = any(path in {"apps/web/package.json", "apps/web/package-lock.json"} for path in paths)
+    dependency_changed = any(path in {"apps/web/package.json", "apps/web/pnpm-lock.yaml", "apps/web/pnpm-workspace.yaml"} for path in paths)
     build_changed = bool(source_paths) or dependency_changed or any(path in {"apps/web/index.html", "apps/web/vite.config.ts", "apps/web/tsconfig.json"} for path in paths)
 
     if code_paths or build_changed:
-        checks.append(Check("frontend incremental typecheck", (NPM, "run", "typecheck"), web_root))
+        checks.append(Check("frontend incremental typecheck", (PNPM, "run", "typecheck"), web_root))
     if level == "integration":
-        checks.append(Check("frontend tests", (NPM, "test"), web_root))
+        checks.append(Check("frontend tests", (PNPM, "test"), web_root))
     else:
         if source_paths:
-            checks.append(Check("frontend related tests", (NPM, "exec", "--", "vitest", "related", *source_paths, "--run"), web_root))
+            checks.append(Check("frontend related tests", (PNPM, "exec", "vitest", "related", *source_paths, "--run"), web_root))
         if test_paths:
-            checks.append(Check("frontend changed tests", (NPM, "exec", "--", "vitest", "run", *test_paths), web_root))
+            checks.append(Check("frontend changed tests", (PNPM, "exec", "vitest", "run", *test_paths), web_root))
     if format_paths:
-        command = (NPM, "exec", "--", "prettier", "--check", *format_paths, "--end-of-line", "auto")
+        command = (PNPM, "exec", "prettier", "--check", *format_paths, "--end-of-line", "auto")
         checks.append(Check("frontend formatting", command, web_root))
     if build_changed:
-        checks.append(Check("frontend bundle", (NPM, "run", "build:bundle"), web_root))
+        checks.append(Check("frontend bundle", (PNPM, "run", "build:bundle"), web_root))
     if dependency_changed:
-        checks.append(Check("frontend dependency audit", (NPM, "audit", "--audit-level=high"), web_root))
+        checks.append(Check("frontend dependency audit", (PNPM, "audit", "--audit-level=high"), web_root))
     if "apps/web/scripts/browser-smoke.mjs" in paths:
-        checks.append(Check("browser smoke command", (NPM, "run", "browser:smoke", "--", "--route", "/clinic", "--profile", "clinic-administrator"), web_root))
+        checks.append(Check("browser smoke command", (PNPM, "run", "browser:smoke", "--route", "/clinic", "--profile", "clinic-administrator"), web_root))
     return checks
 
 
@@ -230,7 +230,7 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
             if ruby_paths:
                 checks.append(Check("focused Ruby syntax", (RUBY, "-e", "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }", *ruby_paths)))
         if implementation_change(paths, "apps/web"):
-            checks.append(Check("focused incremental frontend typecheck", (NPM, "run", "typecheck"), ROOT / "apps/web"))
+            checks.append(Check("focused incremental frontend typecheck", (PNPM, "run", "typecheck"), ROOT / "apps/web"))
         return checks
 
     lifecycle_paths = {

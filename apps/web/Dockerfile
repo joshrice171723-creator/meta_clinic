@@ -1,9 +1,10 @@
 FROM node:24-alpine AS build
 WORKDIR /web
-COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --global pnpm@11.19.0 --ignore-scripts
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 FROM nginx:stable-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
 COPY nginx.conf /etc/nginx/nginx.conf

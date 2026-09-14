@@ -234,13 +234,17 @@ jobs:
       - name: Verify legacy conversion, concurrency and restore
         run: bin/verify-postgres
 
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/web/package.json
+          run_install: false
       - uses: actions/setup-node@v6
         with:
           node-version-file: apps/web/.node-version
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
       - name: Install frontend dependencies for transport checks
-        run: npm ci --prefix ../web --ignore-scripts
+        run: pnpm --dir ../web install --frozen-lockfile --ignore-scripts
       - name: Verify the local frontend-to-API boundary
         run: ../../bin/verify-web
 
@@ -257,16 +261,20 @@ jobs:
           sparse-checkout: |
             .github
             apps/web
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/web/package.json
+          run_install: false
       - uses: actions/setup-node@v6
         with:
           node-version-file: apps/web/.node-version
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
-      - run: npm ci --ignore-scripts
-      - run: npm test
-      - run: npm run format:check
-      - run: npm run build
-      - run: npm audit --audit-level=high
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test
+      - run: pnpm run build
+      - run: pnpm audit --audit-level=high
+      - run: pnpm run format:check
 
   portable_delivery:
     runs-on: ubuntu-24.04

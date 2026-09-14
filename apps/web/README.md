@@ -1,6 +1,6 @@
 # APPly frontend
 
-React/TypeScript with Vite and npm. Owns screens, navigation, forms, accessibility and styles. Rails in [../api](../api/README.md) owns sessions, permissions, domain rules, records and integrations.
+React/TypeScript with Vite and pnpm. Owns screens, navigation, forms, accessibility and styles. Rails in [../api](../api/README.md) owns sessions, permissions, domain rules, records and integrations.
 
 ## Ownership
 
@@ -16,22 +16,24 @@ No backend imports, database SDK, persistent browser record/token storage, servi
 
 ## Commands
 
-Use Node 24 (`.node-version`) and the committed npm lockfile.
+Use Node 24 (`.node-version`) and pnpm 11.19.0 (pinned in `packageManager`). Install the manager once with `npm install --global pnpm@11.19.0`; application dependencies use only the committed `pnpm-lock.yaml`.
 
 ```sh
-npm ci --ignore-scripts
-npm run dev
-npm test
-npm run build
-npm run browser:smoke -- --route /clinic --profile clinic-administrator
-npm audit --audit-level=high
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run dev
+pnpm test
+pnpm run build
+pnpm run browser:smoke --route /clinic --profile clinic-administrator
+pnpm audit --audit-level=high
 ```
 
-Dev defaults to 127.0.0.1:3000 and proxies `/api` to 127.0.0.1:3001, preserving Host/Origin. `APPLY_WEB_PORT` and `APPLY_API_PORT` support isolated checkouts. Repository-root `bin/dev` is the canonical combined lifecycle; package-level `npm run dev` remains a frontend-only component command. `bin/verify-web` runs synthetic native-HTTP integration with its own database and processes.
+Dev defaults to 127.0.0.1:3000 and proxies `/api` to 127.0.0.1:3001, preserving Host/Origin. `APPLY_WEB_PORT` and `APPLY_API_PORT` support isolated checkouts. Repository-root `bin/dev` is the canonical combined lifecycle; package-level `pnpm run dev` remains a frontend-only component command. `bin/verify-web` runs synthetic native-HTTP integration with its own database and processes.
 
 `browser:smoke` starts or reuses that managed stack, signs in through the loopback-only development session, opens one requested same-origin route in installed Edge, and saves a screenshot under the ignored `outputs/browser-smoke/` directory. Use `--viewport phone`, `--headed`, or another listed development account when the acceptance contract requires it; run `--help` for all options. It is local synthetic browser evidence, not production or provider verification.
 
-For a fresh isolated worktree, run `ruby bin/dev prewarm` once from the repository root before the first build or test. It uses npm's machine-wide package cache with `--prefer-offline`; normal tests and builds then reuse that worktree's installed dependencies.
+For a fresh isolated worktree, run `ruby bin/dev prewarm` once from the repository root before the first build or test. pnpm reuses a machine-wide content-addressed store with `--prefer-offline` and links packages into each worktree. `pnpm store path` shows the store. Keep worktrees on the same drive for hard-link reuse; cross-drive installs may copy files. Each worktree retains separate dependency links, build output, ports and database. Dependency lifecycle scripts stay disabled.
+
+For an existing npm checkout, stop its managed stack before the first pnpm install. pnpm migrates its dependency layout; do not run two installers in the same worktree. Never modify package files under `node_modules`; use source changes or a reviewed pnpm patch because package content may be shared. The first pnpm installation fills the store; subsequent worktrees reuse it.
 
 The build outputs only static assets. Docker builds independently and serves them as an unprivileged nginx user on 8080, with strict same-origin CSP and no application secrets. The provider-neutral edge in `ops/portable/nginx.conf` sends API requests directly to Rails. No cross-origin credential configuration is necessary.
 

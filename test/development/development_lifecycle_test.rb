@@ -75,13 +75,13 @@ class DevelopmentLifecycleTest < Minitest::Test
 
     assert_equal 0, lifecycle.run(["prewarm"])
     assert_equal %w[boundary runtime api web], events
-    assert_includes @output.string, "shared Bundler and npm caches"
+    assert_includes @output.string, "shared Bundler and pnpm caches"
   end
 
-  def test_npm_command_uses_the_windows_command_shim
-    command = build_lifecycle.send(:npm_command)
+  def test_pnpm_command_uses_the_windows_command_shim
+    command = build_lifecycle.send(:pnpm_command)
 
-    assert_equal(Gem.win_platform? ? "npm.cmd" : "npm", command)
+    assert_equal(Gem.win_platform? ? "pnpm.cmd" : "pnpm", command)
   end
 
   def test_http_readiness_timeouts_can_be_extended_for_deliberate_browser_proof
@@ -256,42 +256,49 @@ class DevelopmentLifecycleTest < Minitest::Test
   def test_web_dependencies_require_the_current_lockfile_digest
     FileUtils.mkdir_p(File.join(@temporary_directory, "apps/web/node_modules/.bin"))
     File.write(File.join(@temporary_directory, "apps/web/node_modules/.bin/vite"), "")
-    File.write(File.join(@temporary_directory, "apps/web/package-lock.json"), "synthetic lock\n")
+    File.write(File.join(@temporary_directory, "apps/web/pnpm-lock.yaml"), "synthetic lock\n")
+    File.write(File.join(@temporary_directory, "apps/web/package.json"), "{}")
+    File.write(File.join(@temporary_directory, "apps/web/pnpm-workspace.yaml"), "ignoreScripts: true\n")
     lifecycle = build_lifecycle
 
     refute lifecycle.send(:web_lock_digest_matches?)
 
-    digest = Digest::SHA256.file(File.join(@temporary_directory, "apps/web/package-lock.json")).hexdigest
+    digest = lifecycle.send(:web_dependency_digest)
     File.write(File.join(@temporary_directory, "apps/web/node_modules/.apply-lock-digest"), "#{digest}\n")
     assert lifecycle.send(:web_lock_digest_matches?)
+    File.write(File.join(@temporary_directory, "apps/web/package.json"), '{"changed":true}')
+    refute lifecycle.send(:web_lock_digest_matches?)
   end
 
   def test_web_install_writes_the_lock_digest_after_dependency_validation
     web_root = File.join(@temporary_directory, "apps/web")
     FileUtils.mkdir_p(web_root)
-    File.write(File.join(web_root, "package-lock.json"), "synthetic lock\n")
+    File.write(File.join(web_root, "pnpm-lock.yaml"), "synthetic lock\n")
+    File.write(File.join(web_root, "package.json"), "{}")
+    File.write(File.join(web_root, "pnpm-workspace.yaml"), "ignoreScripts: true\n")
     lifecycle = build_lifecycle
-    npm_command = lifecycle.send(:npm_command)
-    npm_checks = 0
+    pnpm_command = lifecycle.send(:pnpm_command)
+    pnpm_checks = 0
 
     lifecycle.define_singleton_method(:system!) do |*arguments, **options|
-      raise "unexpected install command" unless arguments == [npm_command, "ci", "--ignore-scripts"]
+      raise "unexpected install command" unless arguments == [pnpm_command, "install", "--frozen-lockfile", "--ignore-scripts", "--prefer-offline"]
       raise "unexpected install directory" unless options.fetch(:chdir) == web_root
 
       FileUtils.mkdir_p(File.join(web_root, "node_modules/.bin"))
       File.write(File.join(web_root, "node_modules/.bin/vite"), "")
+      File.write(File.join(web_root, "node_modules/.modules.yaml"), "")
     end
     lifecycle.define_singleton_method(:capture) do |*arguments, **options|
-      raise "unexpected validation command" unless arguments == [npm_command, "ls", "--depth=0", "--silent"]
+      raise "unexpected validation command" unless arguments == ["node", "scripts/check-dependencies.mjs"]
       raise "unexpected validation directory" unless options.fetch(:chdir) == web_root
 
-      npm_checks += 1
+      pnpm_checks += 1
       ["", true]
     end
 
     lifecycle.send(:install_web_dependencies!)
 
-    assert_equal 1, npm_checks
+    assert_equal 1, pnpm_checks
     assert lifecycle.send(:web_lock_digest_matches?)
   end
 
