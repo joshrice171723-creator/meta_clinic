@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Ownership and parallel progress requirements
+
+Added D-073 and the engineering guide's shared ownership/dependency matrix. Every workflow must identify responsibility, specific blockers, parallel actions, attention and handoff recovery. The implementation tracker now applies this acceptance requirement across features. [Dated record](../../records/progress/2026/09/2026-09-14-workflow-ownership-and-dependencies.md).
+
 ## 2026-09-14 — Vendor-independent workflow preparation adopted
 
 D-072 records the founder's direction to build local insurance, supplier pricing/order, shipment and prescription workflows before vendor access is available. Updated product strategy, engineering acceptance, implementation tracking, PRODUCT and Home. [Dated record](../../records/progress/2026/09/2026-09-14-vendor-independent-workflow-direction.md) distinguishes these requirements from implemented capability; no old proposals were imported.

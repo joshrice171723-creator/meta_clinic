@@ -22,6 +22,44 @@ Use existing React frontend, Rails API, tenant boundaries and source-owned recor
 | Follow-up | Give unresolved work a responsible role and an actionable destination. Preserve failed delivery and retry state; do not equate queued messages with delivery. |
 | Configuration | Keep specialty, payment model, modality, location and services configurable without copying the entire workflow. |
 
+## Ownership, dependencies and attention
+
+Every workflow must distinguish recorded status, responsibility, action prerequisites and urgency. Waiting is not automatically blocked; urgent work does not automatically block unrelated care. Do not implement a global patient-blocked flag from an unfinished task or earlier stage.
+
+Distinguish an optional operational patient coordinator, responsibility for the current encounter, and ownership of each task. A shared team queue is valid ownership without a named individual. Assignment does not grant permissions or professional authority. Reuse existing work records and queues before adding a separate task system.
+
+For every action document: authorized actor; responsible person/team; exact prerequisite and its owning record; blocked action; parallel actions still available; resolution action; due/attention rule; escalation recipient; completion evidence; and reassignment or coverage behavior. Clinical dependencies and urgency thresholds must come from an explicit clinician decision or defined clinic policy, with applicable source review. Do not invent blanket lab or treatment prerequisites.
+
+### Workflow dependency and ownership matrix
+
+This is the shared build matrix. Extend it for each feature; the rows define software behavior, not new clinical protocols or a claim that these controls are implemented.
+
+| Condition | Block only | Work that remains available | Responsible person or team | Attention and resolution |
+| --- | --- | --- | --- | --- |
+| Labs pending | A specifically identified lab-dependent decision | Scheduling, visits, documentation and unrelated orders | Ordering clinical team; designated receipt-follow-up team | Follow defined due date; track receipt; do not invent a universal wait period |
+| Results received, review pending | Marking that review complete without review evidence | Scheduling and unrelated work | Assigned reviewer or clinical review queue | Route according to source priority and clinic policy; record review separately from receipt |
+| Critical result reported | Only decisions explicitly dependent on its clinical handling | Other work unless specifically restricted | Responsible clinician and defined coverage/escalation team | Immediate attention under the clinic's defined policy; record acknowledgment and handling separately |
+| Membership payment unsuccessful | Activating the purchase or a specifically payment-dependent action | Saved information, contact/assistance and outstanding clinical follow-up | Billing/front desk queue | Resolve financial exception; do not silently cancel clinical work; preserve explicit online booking rules |
+| Prescription destination missing | Sending that prescription | Drafting, documentation, labs and scheduling | Authorized prescription support role or prescriber | Select the destination before sending |
+| Vendor unavailable or outcome unconfirmed | External submission/confirmation, or unsafe repeat submission | Preparation, review and appropriate source-labeled manual work | Owning integration operations team | Expose missing connection or reconciliation action; do not falsely mark sent |
+| Medication unavailable in-house | Completing the affected dispensing/administration stock action | Visit, alternative fulfillment planning and follow-up | Medication/inventory team with clinician involvement as needed | Resolve availability or choose an appropriate alternate workflow |
+| Patient/encounter identity mismatch | Clinical writes to the unresolved context | Identity correction and unrelated patients' work | Current operator with support coverage | Immediate correction; preserve drafts without attaching them to the wrong record |
+| Individual task unclaimed | Nothing solely because a person has not claimed team-owned work | Team claim/assignment and other patient work | Responsible team queue | Escalate overdue/unclaimed work under its configured policy |
+
+### Task persistence and handoffs
+
+Maintain task identity, patient and relevant source/encounter links, responsible team and optional assignee, state, creation/updated times, due time when applicable, dependency references, waiting reason, priority source, completion evidence and history. Do not require arbitrary due dates or invent owners. Work lacking an eligible destination must surface in a visible assignment-exception queue; do not silently lose it.
+
+A transfer must preserve responsibility: define whether assignment is direct or requires acceptance, retain coverage while acceptance is pending, and record transfer history. Deactivation, leave or loss of privileges must route open work to authorized coverage or an explicit exception. Claiming work never grants additional privileges. Completion of an encounter must not automatically complete its labs, prescriptions, billing exceptions or follow-up tasks.
+
+Dependency changes must update the owning task without duplication. Receiving results can make review actionable but cannot mark review complete. Handle repeated and out-of-order events and stale claims; a reopened or corrected source must surface relevant renewed work. Reject circular dependency configuration rather than strand tasks.
+
+### Visible parallel work and verification
+
+Patient Flow, patient detail and employee/team work views must expose permitted parallel work: membership, intake, appointment, note, prescriptions, labs and follow-up. Show owner/team, waiting reason, due/attention status and a direct next action. A blocked control must explain its exact prerequisite and resolution. Prior-stage incompleteness must not hide unrelated actions. Use text and icons as well as color; restrict details by existing permissions.
+
+For every changed dependency verify both sides: the dependent action is correctly blocked and an unrelated action still succeeds. Include pending labs with scheduling available, received results creating review work, team claim/transfer and unavailable-owner recovery, wrong-role denial, duplicate events and encounter closure with outstanding tasks. Verify immediate-attention items remain visible to the responsible team without imposing a patient-wide lock. Record only checks actually performed.
+
 ## Vendor-independent workflow preparation
 
 Build complete local behavior while vendor access is unavailable. Use existing domain records and narrowly scoped integration interfaces; do not create a generic integration framework or duplicate ledger merely to prepare for hypothetical vendors. Insurance remains an optional clinic module, with useful local preparation available before a clearinghouse or payer connection.

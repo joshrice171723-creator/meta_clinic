@@ -5,6 +5,12 @@ updated: 2026-09-14
 ---
 # Decisions
 
+## Ownership and action-specific dependencies
+
+**D-073 — 2026-09-14 / founder's explicit direction:** make task ownership, dependencies, urgency and parallel progress part of every workflow's build requirements. Keep patient coordination, encounter responsibility and individual task ownership distinct. Shared team ownership is valid; unclaimed or transferred work must remain visible with coverage. Block the particular action whose prerequisite is missing, not the whole patient journey. Waiting labs must not automatically block scheduling, visits or unrelated work. Immediate attention and blocking are separate dimensions; clinical dependencies and escalation rules must be explicitly defined rather than inferred.
+
+The [engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md) owns the single dependency/ownership matrix and acceptance procedure; [[Meta Clinic Implementation Tracker]] applies it across features and the overnight patient-flow work. This adds build guidance only, not AI scope, runtime implementation, new clinical rules or a separate project-management application.
+
 ## Build local workflows before vendor access
 
 **D-072 — 2026-09-14 / founder's explicit direction:** support insurance alongside the cash-pay core, and prepare vendor-dependent workflows now despite unavailable or unaffordable vendor access. This includes supplier price checks, supplier ordering, shipment tracking, insurance transactions and prescription transmission. Build appropriate data collection, persistence, assigned-role review, request preparation, status history, recovery and replaceable connections. Use backend-based synthetic simulation to verify disconnected workflows; vendor access blocks external execution, not unrelated preparation.

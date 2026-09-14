@@ -17,6 +17,8 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**Cross-cutting acceptance — D-073:** every row must use the ownership, dependencies and attention matrix in the [engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md). Identify the person/team responsible, action-specific prerequisites, parallel work, resolution, urgency source and coverage handoff. Prove unrelated actions remain available while an item waits. This applies to the overnight patient-flow assignment; separate AI brainstorming remains outside its scope. This is an accepted build requirement, not verified implementation.
+
 | ID | Workflow | Baseline and evidence | Remaining work / acceptance target |
 | --- | --- | --- | --- |
 | MC-01 | Clinic setup, specialties and payment model | D-064/D-065 describe configurable ambulatory core, optional insurance and implementation-specialist scope. | Reconcile configuration UI/API; demonstrate a cash-based clinic with insurance off and different specialty settings without losing core functions. |
