@@ -1,6 +1,6 @@
 # Reuse the machine-wide content-addressed store across isolated worktrees.
 packages:
-  - '.'
+  - "."
 nodeLinker: isolated
 packageImportMethod: auto
 ignoreScripts: true

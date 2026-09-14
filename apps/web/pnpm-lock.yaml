@@ -45,6 +45,9 @@ importers:
       playwright-core:
         specifier: latest
         version: 1.63.0
+      postcss:
+        specifier: 8.5.26
+        version: 8.5.26
       prettier:
         specifier: 3.9.6
         version: 3.9.6

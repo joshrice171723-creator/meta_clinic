@@ -31,6 +31,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "playwright-core": "latest",
+    "postcss": "8.5.26",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
     "vite": "8.2.2",

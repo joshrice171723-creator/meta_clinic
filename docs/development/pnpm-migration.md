@@ -8,4 +8,6 @@ Recovery uses the prior committed npm manifest/lock in a separate checkout; it d
 
 The phase-aware selector suite passed all 11 tests. Four focused lifecycle tests passed 10 assertions, covering frozen install arguments, Windows pnpm invocation, dependency markers and prewarming without database/service startup. `verifyDepsBeforeRun: error` prevents implicit installs during ordinary commands.
 
-Clean installation and frontend execution results are pending.
+The local pnpm installation completed in 11m 56.5s while the shared store was being populated. A separate clean directory then installed all 165 packages with `--offline`: 165 reused, zero downloaded, 5m 17.2s. These runs were under concurrent machine load and are not a controlled npm-versus-pnpm benchmark. Windows `fsutil hardlink list` confirmed that the installed icon package shares file content with the pnpm store. Per-worktree file linking still has a measurable cost.
+
+Managed prewarm passed in 56.82s, including runtime and API dependency checks. TypeScript and the Vite production build passed. Initial clean Linux CI exposed two tests importing undeclared `postcss`; it is now declared explicitly at the already-locked 8.5.26 version, without upgrading the package. Final frontend tests and audit are still being checked.
