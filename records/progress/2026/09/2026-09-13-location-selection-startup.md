@@ -4,6 +4,8 @@
 
 A signed-in clinic user with more than one authorized location receives the location picker as soon as the authorized context loads. The full clinic overview loads only after that location is chosen. This is a local browser-flow correction; authorization, session checks, server-selected locations, data model, and hosted behavior are unchanged.
 
+The same overview request is now limited to Operations and Inventory, the only routes that consume its summary contract. Tracking Board, Schedule, Work Inbox, and the other clinic routes no longer wait on or issue that unused request.
+
 ## Failure-first review
 
 - **Failure hypothesis:** the picker is coupled to the full `/api/clinic` overview. A slow or unavailable overview therefore hides the required location decision until the browser's 30-second read deadline expires.

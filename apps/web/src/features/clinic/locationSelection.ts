@@ -8,6 +8,11 @@ export function requiresLocationSelection(
 export function canLoadClinicOverview(
   sites: readonly { id: number }[] | undefined,
   selectionMade: boolean,
+  overviewRequired = true,
 ) {
-  return !!sites && !requiresLocationSelection(sites, selectionMade);
+  return overviewRequired && !!sites && !requiresLocationSelection(sites, selectionMade);
+}
+
+export function clinicOverviewRequired(path: string) {
+  return path === "/clinic/operations" || path.startsWith("/clinic/inventory");
 }

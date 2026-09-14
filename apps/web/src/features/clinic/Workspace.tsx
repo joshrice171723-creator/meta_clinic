@@ -58,6 +58,7 @@ import { ScribeRecordingProvider } from "../scribe/ScribeRecordingProvider";
 import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
 import {
   canLoadClinicOverview,
+  clinicOverviewRequired,
   requiresLocationSelection,
 } from "./locationSelection";
 
@@ -379,7 +380,11 @@ export function Workspace({
     }
   };
   const overview = useResource<ClinicOverview>("/api/clinic", {
-    enabled: canLoadClinicOverview(data?.sites, locationSelectionMade),
+    enabled: canLoadClinicOverview(
+      data?.sites,
+      locationSelectionMade,
+      clinicOverviewRequired(path),
+    ),
   });
   const appearance = useClinicAppearance(user.id);
   const landingDestination = data
@@ -442,7 +447,7 @@ export function Workspace({
         </main>
       </ClinicAppearanceScope>
     );
-  if (!overview.data)
+  if (clinicOverviewRequired(path) && !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
@@ -456,7 +461,11 @@ export function Workspace({
         </main>
       </ClinicAppearanceScope>
     );
-  if (overview.data.practice.id !== data.practice.id)
+  if (
+    clinicOverviewRequired(path) &&
+    overview.data &&
+    overview.data.practice.id !== data.practice.id
+  )
     return (
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
@@ -477,7 +486,7 @@ export function Workspace({
     <ClinicAppearanceScope {...appearance}>
       <AppearanceContext value={appearance}>
         <ClinicContext value={data}>
-          <ClinicOverviewContext value={overview.data}>
+          <ClinicOverviewContext value={overview.data ?? null}>
             <ScribeRecordingProvider
               key={`${user.id}:${data.practice.id}:${data.membership_id ?? "none"}:${data.current_site?.id ?? "all"}`}
             >

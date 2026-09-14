@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   canLoadClinicOverview,
+  clinicOverviewRequired,
   requiresLocationSelection,
 } from "../src/features/clinic/locationSelection";
 
@@ -80,7 +81,7 @@ describe("clinic shell composition", () => {
     expect(workspace).toContain(
       "requiresLocationSelection(data.sites, locationSelectionMade)",
     );
-    expect(workspace).toContain("enabled: canLoadClinicOverview(data?.sites, locationSelectionMade)");
+    expect(workspace).toContain("clinicOverviewRequired(path)");
     expect(workspace).not.toContain("Continue without selecting");
     expect(
       requiresLocationSelection(
@@ -120,6 +121,11 @@ describe("clinic shell composition", () => {
         true,
       ),
     ).toBe(true);
+    expect(canLoadClinicOverview([{ id: 1 }], false, false)).toBe(false);
+    expect(clinicOverviewRequired("/clinic/operations")).toBe(true);
+    expect(clinicOverviewRequired("/clinic/inventory")).toBe(true);
+    expect(clinicOverviewRequired("/clinic")).toBe(false);
+    expect(clinicOverviewRequired("/clinic/work")).toBe(false);
   });
 
   it("keeps 1024px rail use while moving portrait tablet widths into the drawer fallback", () => {
