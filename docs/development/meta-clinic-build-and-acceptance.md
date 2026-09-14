@@ -6,7 +6,7 @@ Direction: [Product strategy](../../APPlyVault/01%20Foundation/Meta%20Clinic%20P
 
 Start each change with an observable patient or employee outcome. Identify the entry point, durable records, responsible role, handoffs, completion evidence and recovery action. Follow the existing [code-change workflow](../../agent-harness/workflows/code-change.md) and scoped repository instructions.
 
-Use existing React frontend, Rails API, tenant boundaries and source-owned records. Extend the owning mechanism rather than creating parallel patient, balance, stock or workflow truths. For substantive healthcare workflow design, use the existing [standards procedure](healthcare-standards.md); standards inform data and behavior without automatically adding license-verification product features.
+Use the React/Rails/PostgreSQL modular architecture and source-owned records. Under [D-078](../architecture/clinic-capability-architecture.md), reuse, refactor or replace development mechanisms on merit; do not create parallel patient, balance, stock or workflow truths or retain weak structures solely for fixture compatibility. For substantive healthcare workflow design, use the [standards procedure](healthcare-standards.md); standards inform data and behavior without automatically adding license-verification product features.
 
 ## Shared behavior
 
@@ -24,20 +24,40 @@ Use existing React frontend, Rails API, tenant boundaries and source-owned recor
 
 ## Configurable capability contract
 
-The strategy's [shared-core and clinic capability map](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md#shared-core-and-composable-capabilities--d-076) owns product composition. Implement capabilities against shared records, not specialty-name conditionals scattered through pages. Specialty presets choose defaults; effective capabilities plus service, modality and permissions determine available actions. Existing practice-feature versions are the initial owner to extend, not proof that full composition exists.
+The strategy's [shared-core and clinic capability map](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md#shared-core-and-composable-capabilities--d-076) owns product composition. The [D-078 architecture contract](../architecture/clinic-capability-architecture.md) owns shared core and clinic/team/FDE change tiers. Implement capabilities against source-owned records, not scattered specialty-name checks. Presets initialize reviewed choices; effective configuration, service, modality and current privileges determine actions. Existing practice-feature versions are a reuse candidate, not a mandated structure or proof that composition exists.
 
 For every new or materially changed configurable capability, deliver together:
 
 | Contract element | Required design/delivery |
 | --- | --- |
 | Identity and ownership | Stable capability key/version; owning existing domain/model/API; supported scope (practice, location or service) and explicit override precedence. Do not introduce per-site overrides until required. |
-| Setup | Applicable presets; reviewable defaults and necessary controls; dependencies/conflicts; effective configuration preview. Avoid silent activation when a preset or software version changes. |
+| Setup | Applicable presets, reviewable defaults, dependencies/conflicts and effective preview; explicit finalization. Classify each later change as clinic-managed, Meta Clinic-managed or FDE-assisted and show its allowed control/request route. Avoid silent activation on preset/software changes. |
 | UI and backend | One effective capability result shared by screens and server checks; component variant/entry points; permission checks independent of visibility; disconnected vendor distinct from disabled service. |
 | Lifecycle | Existing records readable, unfinished work actionable under its own rules, edits versioned, apply/retry idempotent. Disable new use without erasing history. Show conflicts and authorized resolution; do not silently cascade-disable required capabilities. |
 | Composition | State what it reuses and what varies; cash/insurance and virtual/physical independent of specialty. No mandatory room/chair for telehealth-only workflows. Integrity, tenant isolation and source-owned completion are not optional modules. |
-| Acceptance and maintenance | Update applicable strategy map, Clinic Setup, affected matrix IDs and existing tracker row. Prove on/off behavior, server denial, a permitted independent action, persistence, old-config compatibility and relevant combinations. Use focused representative combinations, not an exponential full preset matrix. |
+| Acceptance and maintenance | Update strategy map, Clinic Setup, matrix IDs and tracker row. Prove permitted setting changes, tier/role denial and independent work, persistence and relevant combinations. Historical interpretation uses fresh synthetic records; migrating all old fixtures is not required. No exponential preset matrix. |
 
 Unavailable dependencies prevent only the dependent enable/action transition. Keep drafts and resolution links. A component that swaps rendering must retain owning IDs and transition semantics. Configuration is not a replacement for assigned authorization, clinical review or provider confirmation.
+
+### Capability lifecycle and complexity acceptance
+
+D-078 supersedes the earlier unrestricted-switching interpretation of D-077. Shared core is non-switchable. Clinics change permitted settings; Meta Clinic staff handle supported higher-impact changes through scoped, audited application operations; forward-deployed engineers handle unsupported transitions under separate assignments. Finalized setup is protected from ordinary clinic edits, not permanently immutable. No universal engine, generic administrator bypass or routine direct database intervention is selected.
+
+For each changed operation, specify change tier and applicable configure/use/change/disable/open-work semantics; enable and disable may require different authority. Bind published forms/plans/transactions to the required revision and record explicit actual use where applicable. Historical interpretation never grants obsolete permissions. Draft, approved/current and actually used revisions are distinct; current operational rules do not silently rewrite completed history.
+
+Before applying a change, inspect affected records and dependencies and display the consequences. Preserve drafts, original IDs, completed history and unfinished-task ownership. Incompatible open work requires a visible, action-specific reconciliation path under CF-01–03 and OP-05/10/12, not deletion, a global hold or automatic custom migration. Re-enable without duplicating existing records or silently replaying vendor requests. Rollback is only offered where semantics allow it; irreversible external or completed business effects need their own correction process.
+
+Complexity review for a changed capability must identify:
+
+- Its authoritative domain owner and narrow public contract; do not scatter specialty-name checks through unrelated UI, models and integrations.
+- Which variation is configuration and which needs a distinct implementation; support explicit combinations rather than arbitrary interchangeable behavior.
+- The persisted record/version compatibility contract and exact existing-work transition; avoid a giant untyped payload or duplicate specialty schemas as the default escape hatch.
+- Its dependency direction, transaction boundary and relevant asynchronous effects. Do not select new event infrastructure, services or frameworks merely to achieve modularity.
+- How Clinic Setup and the backend resolve the same effective capability, with independently enforced permissions.
+
+Add one bounded proof to the weight-loss slice: finalize setup; reject a clinic-unauthorized protected change; permit an eligible clinic-managed setting change; preserve interpretation and owned work created within that proof. Show team/FDE routing without claiming unimplemented transitions work. Exercise version-used history for the touched form/plan/note rather than building every treatment-plan feature. Reuse valid paired checks; do not replay all specialty combinations or add a launch audit.
+
+The [research report](../../records/research/2026-09-14-meta-clinic-capability-architecture.md) supports the adopted contract. Existing development structures and data are not design constraints; clean replacements are allowed within a scoped implementation, while resets need explicit target/authority. These criteria describe future product behavior, not a requirement for legacy fixture compatibility or a claim of implementation.
 
 ### Future recurring-service projection contract
 
@@ -79,11 +99,14 @@ Use the six columns below without combining **Action affected** with **What is b
 
 CF-01–03 are product requirements under D-075, not clinical prerequisites. Reuse OP-05 for missing eligible owners, OP-10 for general stale/retry behavior and OP-12 for outstanding work; do not add global setup holds.
 
+CF-04 and CV-10 add D-078 product requirements: change authority and exact revision use. Their classifications are not HL7 clinical gates. CF-04 maps to MC-01/13/15; CV-10 maps to MC-05/06/12. The field contracts below and revision 4 of the weight-loss brief define paired proof, not passed evidence.
+
 | Condition | Action affected | What is blocked | What remains available | Responsible party | Attention |
 | --- | --- | --- | --- | --- | --- |
 | CF-01: Specialty setup lacks a required scoped service, visit type, offer or location reference | Applying configuration or starting its dependent action | Applying invalid references; publishing an incomplete offer or confirming an unconfigured visit, as applicable | Save recoverable setup, configure missing reference, unrelated services and existing patient work | Authorized clinic configuration team | Identify exact missing reference and setup action; optional services are not mandatory clinic-wide |
 | CF-02: Preset application retried or based on stale configuration | Applying specialty starter records/settings | Duplicate generated records, silent overwrite of clinic customization or stale application | Read current settings, preview differences, reconcile and retry with preserved request identity; existing care | Authorized configuration team | Show known application outcome and affected records; no automatic replacement or repeated partial creation |
 | CF-03: Specialty/service/form configuration changes with existing responses or unfinished work | Resolving new forms/services and revisiting prior work | Reinterpreting historical answers under a new form, erasing unfinished tasks, or starting a newly disabled service contrary to effective configuration | Read historical versions, finish/reconcile existing work under its own permissions, unrelated services and new applicable forms | Configuration team and existing domain task owners | Preserve effective versions and history; show changed setup without creating a global patient hold |
+| CF-04: Requested post-finalization change exceeds clinic authority or has no supported transition | Changing configured capability/profile | Applying a protected change through ordinary clinic settings, a generic admin bypass or an unsupported transition | Permitted clinic settings, existing authorized care, impact review and team/FDE request or documented handoff | Authorized clinic requester; scoped Meta Clinic configuration team; assigned FDE only for an authorized engineering task | Show change tier, exact reason and supported next action. Team access does not imply patient-data access. No invented owner, immediate-response promise or automatic migration |
 
 #### Enrollment, membership and scheduling
 
@@ -116,6 +139,7 @@ CF-01–03 are product requirements under D-075, not clinical prerequisites. Reu
 | CV-07: Scribe permission absent, withdrawn or stale after participant/policy change | Recording/transcription | Starting or continuing capture under obsolete permission, including late callbacks | Manual notes and the visit itself where otherwise permitted | Encounter clinician | Reuse purpose/participant/policy-specific consent and retention; no new child/guardian flow; T05 |
 | CV-08: Scribe unavailable, processing failed or draft unreviewed | Scribe-assisted documentation | Treating generated text as reviewed/signed documentation | Manual charting, visit, retry where appropriate | Note author/reviewer | Keep recoverable draft and source; failure must not stall the visit |
 | CV-09: Note unsigned or changed after review | Signing/finalizing note | Claiming signature for an unreviewed version | Draft correction and independent orders/tasks under their own rules | Authorized signing role | Bind signature to reviewed version; retain correction history |
+| CV-10: Required plan/form/note revision-use reference is missing, mismatched or changed since review | Recording an action that depends on that reviewed content | Claiming use/review of an unresolved version; silently substituting latest content or rewriting prior use | Resolve/review the applicable revision, save drafts, view earlier history and perform unrelated scheduling/visit/tasks | Owning author/reviewer team | Show intended versus actually used revision and affected action. A structured plan is not mandatory for every clinic or encounter; source/applicable policy defines the dependency |
 
 #### Prescriptions, labs and fulfillment
 
@@ -152,6 +176,17 @@ CF-01–03 are product requirements under D-075, not clinical prerequisites. Reu
 | OP-11: Dependency cycle or missing source record | Dependency evaluation | Accepting a cycle or treating unresolved prerequisite as satisfied | Correct configuration, restore valid reference, unrelated tasks | Configuration/domain owner | Visible exception; never strand work behind an invisible dependency |
 | OP-12: Encounter closed with outstanding work | Encounter/task lifecycle | Auto-completing child labs, prescriptions, billing or follow-ups | Owned tasks, permitted corrections and future visits | Each task's existing team | Closed encounter must remain discoverable from open tasks |
 | OP-13: Future service falls outside recorded coverage/authorization period, exceeds recorded authorized units, or lacks applicable evidence | Service-linked coverage/authorization review | Claiming verified approval or sufficient authorization; any additional action block requires explicit applicable policy | Local preparation, review, permitted scheduling and unrelated care; no automatic patient contact merely from an expiration date | Insurance/authorization team or visible assignment exception | Distinguish the exact reason and affected visit(s); dates/units/source drive review. No affected future care means no default expiration outreach; ordinary scheduled visits qualify even without a treatment plan |
+
+### D-078 configuration and revision field contract
+
+These are architecture/product fields, not new clinical questions. Change-tier classification belongs to the reviewed capability definition, not an editable clinic dropdown that lets someone promote their own authority. The exact schema is selected during scoped implementation.
+
+| Field / control | Owner and origin | Required for action / recovery and paired proof |
+| --- | --- | --- |
+| Setup state, effective profile revision, applied preset/version | Configuration owner; computed/read-only summary plus explicit authorized Finalize action; preserve actor/time and source | Finalization requires valid scoped dependencies. Protected stale or unauthorized change denied; an independent permitted setting still saves. CF-01/02/04; MC-01/13 |
+| Requested change, affected service/module and reason | Scoped searchable references, bounded supported operation choice and optional explanatory text; clinic requester cannot select elevated authority | Team-owned operation required for protected supported change; FDE handoff for unsupported transition. No live support queue claimed unless implemented. Existing care remains available. CF-04; MC-01/15 |
+| Relevant impact and source versions | Derived preview from owning records/open tasks; show known conflicts/unknowns, not a clinic-entered success flag | Revalidate on apply; reject stale assumptions and keep draft/request context. Current task owners remain visible. CF-02/03/04, OP-10/12 |
+| Intended/actually used content revision, actor and time | Typed scoped source reference; approved-version selection when needed, then recorded action usage; historical view is read-only with explicit amendment | Deny mismatched/review-invalid use; allow draft/re-review and independent work. New content leaves earlier use readable; don't copy signatures. CV-09/10; MC-05/06/12 |
 
 ### Action and field contract before implementation
 

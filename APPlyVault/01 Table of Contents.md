@@ -1,7 +1,7 @@
 ---
 type: index
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 lifecycle: active
 canonical_for: vault-context-routing
 ---
@@ -17,6 +17,7 @@ This is navigation, not a backlog. [[Meta Clinic Implementation Tracker]] owns c
 
 - [[Meta Clinic Product Strategy and Scope]] defines customers, business models, shared-core/ten-clinic capability mapping, composable specialty/modality settings, infusion planning direction and organization-assigned roles.
 - [Engineering build and acceptance guide](../docs/development/meta-clinic-build-and-acceptance.md) defines connected workflow behavior and completion evidence.
+- [Capability architecture](../docs/architecture/clinic-capability-architecture.md) defines D-078 shared-core and clinic/team/FDE change authority, revision-used history and development freedom; [dated research](../records/research/2026-09-14-meta-clinic-capability-architecture.md) supplies rationale, not another plan.
 - [[Meta Clinic Implementation Tracker]] consolidates existing plans and dated evidence into one current workflow inventory.
 
 ## Choose a reading route

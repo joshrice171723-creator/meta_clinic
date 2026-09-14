@@ -25,6 +25,8 @@ Meta Clinic composes shared capabilities into clinic-specific workflows. Special
 
 The guidance portal helps new providers understand and complete the work required to start a clinic, with mentoring, structured knowledge and training.
 
+The [D-078 capability architecture](docs/architecture/clinic-capability-architecture.md) defines one shared, non-switchable core with capabilities chosen during clinic creation. Later changes are clinic-managed, Meta Clinic-managed through supported application operations, or forward-deployed-engineer (FDE)-assisted for unsupported transitions. Classify the specific change by impact; code modularity does not promise unrestricted toggles. Preserve meaningful history and unfinished work through the appropriate operation, not routine direct database intervention. There are no real users: earlier code and synthetic data do not constrain the target design, and no legacy compatibility layer is required solely for fixtures. No data reset is authorized here. The weight-loss journey remains the next scoped build, not all specialties or a universal reconfiguration engine.
+
 The clinic software is a separate configurable product sold to clinics. Its patient tracking board is a shared view of expected, waiting and in-progress work that helps authorized staff and providers understand the current recorded state and choose the next appropriate action.
 
 Success for one product does not imply success, access or authority in the other.

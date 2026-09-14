@@ -1,7 +1,7 @@
 ---
 type: risk-register
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 # Risks and Assumptions
 
@@ -46,6 +46,8 @@ Impact ratings are initial judgments, not quantified probabilities. All entries 
 **R-20 — High / open:** a checkout return, stale provider event, mismatched amount, duplicate delivery, or email failure could falsely activate a membership or leave a paid customer without onboarding access. Current mitigation is test-mode-only checkout; signed-event and fresh-provider reconciliation; clinic/account/amount/currency/fee correlation; idempotent patient, ledger, receipt and task creation; serialized receipt delivery; and an explicit pending-email signal in the clinic pipeline. Production requires live-provider custody, monitored retry and reconciliation, external email deliverability, duplicate-identity recovery, privacy/legal review and hosted acceptance before real use. Owner unassigned.
 
 ## Assumptions to test
+
+**D-078 architecture uncertainty — open, unassigned:** correct capability boundaries, operation-specific change tiers, exact revision-use traceability and repeatable FDE transitions still require implementation evidence. A modular registry does not prove isolation or safe changes. Mitigation: revision 4's bounded setup/continuing-patient proof, CF-04/CV-10 paired checks and current source inspection under the [architecture contract](../../docs/architecture/clinic-capability-architecture.md). No real users means legacy fixture compatibility is not a target constraint; deliberate resets still need exact scope/authority. Repeated FDE interventions should trigger a product-operation review rather than becoming routine manual database work. Linked work: MC-01/05/06/12/13/15; this note does not close older risks or assign a delivery date.
 
 | ID | Hypothesis | Current evidence | What would challenge it? |
 | --- | --- | --- | --- |

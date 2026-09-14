@@ -1,6 +1,6 @@
 # Weight-loss clinic setup and connected patient journey
 
-Revision 3 · 2026-09-14 · Planning authorized; implementation and task dispatch not started.
+Revision 4 · 2026-09-14 · D-078 architecture and clinic/team/FDE change tiers adopted; this follow-on assignment remains planning-only, not dispatched.
 
 ## Current assignment — supersedes the earlier gap-only priority
 
@@ -12,9 +12,13 @@ D-076 adds a current architecture constraint: use the strategy's [shared-core/cl
 
 ### Current source baseline and reuse
 
+D-078 and the [capability architecture](docs/architecture/clinic-capability-architecture.md) supersede the prior broad switching proof. Use one non-switchable core, setup-time composition and operation-specific clinic-managed, Meta Clinic-managed or FDE-assisted changes. Finalize the new clinic's setup, reject a protected edit by clinic staff, and prove a permitted setting change while its fresh synthetic history/open work remain valid. Show the team/FDE request or documented handoff for unsupported changes without building a general reconfiguration platform. For the touched form/plan/note, retain exact revision-used evidence; no full infusion/treatment-plan expansion.
+
+There are no real users. The source notes below describe candidates, not target constraints. Reuse, refactor or replace after bounded inspection; do not preserve weak structures or migrate old synthetic fixtures merely because they exist. Historical integrity is prospective product behavior tested with records created for this journey. A reset needs explicit environment/target authority and reconstruction scope; this brief does not grant blanket deletion permission. Avoid parallel authoritative stores during a replacement.
+
 Inspected planning baseline: main `76c2b47e720e`; prior implementation `af52f9a`. No application tests or browser walkthrough were run for this revision.
 
-- `apps/api/app/services/clinic/configuration/practice_features.rb`: practice-scoped, versioned settings with stale-revision and request-id checks; clinic types do not include weight loss. Extend this existing owner and its API/types rather than introducing a second settings store.
+- `apps/api/app/services/clinic/configuration/practice_features.rb`: practice-scoped, versioned settings with stale-revision and request-id checks; clinic types do not include weight loss at the inspected baseline. Assess reuse/refactor/replacement; retain one authoritative settings owner, not necessarily the current implementation.
 - `apps/web/src/features/clinic/PracticeFeatureSettings.tsx`: reads/writes `/api/clinic/practice_features`; currently selects clinic type, services and assessments. A meaningful preset requires downstream behavior, not just another select option.
 - `apps/api/app/services/clinic/care/previsit_intake.rb`: the shared `meta-clinic-previsit-v3` contains weight-management prior approaches plus goals/measurements. Resolve new forms from effective clinic configuration; reuse the existing renderer and save/review flow, preserving historical forms and answers.
 - Reuse existing storefront/Growth, Patient Flow/WorkInbox, patient/encounter, clinical-plan, ServiceRequest/report, stock/handover, billing and follow-up owners. The evidence table below remains reusable within its stated boundaries.
@@ -61,17 +65,17 @@ Retain original sections 1–10 for every unchanged stage. Before changing a fie
 ### Execution sequence and required connected proof
 
 1. Reconcile current provisioning, configuration, forms and visit-type owners plus reusable evidence; record the actual baseline. Do not re-audit the whole app.
-2. Implement setup-to-workflow behavior and missing specialty components using shared owners, including application recovery and existing-clinic compatibility.
+2. Implement setup-to-workflow behavior, finalization/change-tier enforcement and missing specialty components through shared owners. Select a clean scoped design; prove prospective behavior, not compatibility with every legacy fixture.
 3. Through Clinic Setup create the NEW synthetic clinic/location; configure explicit initial/follow-up visits, staff/availability, membership offer and selected services. Record actual IDs/version. Synthetic example amounts/services are fixture choices, not clinical/commercial recommendations.
 4. Complete the connected path below and repair actual scoped gaps. One runtime/database/browser writer; separate safe source work only when ownership is clear.
 5. Run one consolidated focused verification pass and hand off evidence. Avoid duplicate audits and broad regression.
 
 | Case / owning tracker and matrix | Required observation |
 | --- | --- |
-| J0 — MC-01; CF-01–03 | Browser creates clinic/location via Setup, applies Weight loss, reloads and shows resulting visit types/forms/components. One existing clinic remains unchanged; retry does not duplicate and unauthorized/other-clinic writes fail. |
+| J0 — MC-01/13/15; CF-01–04 | Browser creates clinic/location via Setup, applies Weight loss, finalizes and reloads resulting visit types/forms/components. Protected clinic edit is denied; permitted setting change succeeds. Show honest team/FDE routing. Retry does not duplicate; wrong-role/other-clinic writes fail. A separate supported configuration has no cross-clinic effects; no legacy-fixture migration required. |
 | J1 — MC-02/09; EN-01–09, OP-01 | NEW clinic's public offer → same adult account → payment handoff → server-evidenced local test/simulator activation. Redirect or direct status edit is not proof. Separate unpaid never-member and former-member fixtures prove booking/callback branches. |
 | J2 — MC-04/05/12; CV-01/02, SC-01 | Same patient saves/reopens weight-loss intake, supplies synthetic goals/measurements/history and books the explicit initial visit. Staff sees correct context and outstanding work. |
-| J3 — MC-05/06/07; CV-03–09 | Same patient's initial visit and return cover in-person and telehealth variants; handoff, goal/weight context, manual and existing scribe paths retain encounter links. Unavailable media/scribe gets local intent/manual fallback evidence, never a live-media claim. |
+| J3 — MC-05/06/07; CV-03–10 | Same patient's initial visit and return cover in-person and telehealth variants; handoff, goal/weight context, manual and existing scribe paths retain encounter links. Touched content has an exact revision-use link; newer content does not rewrite prior use. Unavailable media/scribe gets local intent/manual fallback evidence, never a live-media claim. |
 | J4 — MC-06/10/11/15; RX-01–03, LB-01–03, IN-01–03, OP-06–08 | Clinic-selected synthetic prescription reviewed with outside-pharmacy destination, such as a synthetic Walmart destination, and honest disconnected state. Alternate in-house route demonstrates stock/lot, partial handover/remainder/reversal without double fulfillment. Explicit synthetic lab selection, no imposed clinical panel. |
 | J5 — MC-06/12; LB-03–07, OP-02–05 | Pending labs do not block otherwise permitted scheduling/visit. Source-labeled local result, review and contact remain separate. Rx/lab/billing/follow-up open together with visible owners, exact blockers and allowed next actions. |
 | J6 — MC-08/09/11/12; IN-03, OP-01/10/12 | Checkout and recurring state follow owning money evidence. Closure/reload preserves outstanding work; partial fulfillment and corrected post-closure report reconcile on existing source-linked tasks. |
@@ -79,13 +83,13 @@ Retain original sections 1–10 for every unchanged stage. Before changing a fie
 
 Do not create a new patient at every stage. Separate fixtures only for incompatible branches. Reuse valid API recovery proof rather than exercising every permutation in the browser. J0–J7 must have a source/configuration/evidence crosswalk with clinic and continuing-patient IDs. A generic PILOT demonstration is insufficient.
 
-Complete only when the new clinic, meaningful setting-driven behavior and all required LOCAL connected transitions are evidenced, with old forms/clinics preserved. Required blocked local steps stay incomplete. Missing live vendor/media acceptance stays separately labeled and does not authorize purchases, fake confirmations or sending backlog. Patient Flow must expose ownership, exact blocked action, independent work and resolution throughout and after closure. The 10-minute cumulative verification reassessment below remains in force; it is not permission to omit this requested journey.
+Complete only when the new clinic, meaningful setting-driven behavior, change-tier boundaries and all required LOCAL connected transitions are evidenced, with historical meaning preserved for records used in the proof. Preserving every earlier development fixture is not required. Required blocked local steps stay incomplete. Missing live vendor/media acceptance stays separately labeled and does not authorize purchases, fake confirmations or sending backlog. Patient Flow must expose ownership, exact blocked action, independent work and resolution throughout and after closure. The 10-minute cumulative verification reassessment below remains in force; it is not permission to omit this requested journey.
 
-CF-01–03 map to MC-01 and affected MC-04/05/12; remaining J cases map above. Original T01–T10 and W01–W09 remain supporting branch/field detail, not substitutes for J0–J7. Record results in the existing evidence owner, not seven new reports. Human usability feedback and launch acceptance remain separate.
+CF-01–03 map to MC-01 and affected MC-04/05/12; CF-04 to MC-01/13/15; CV-10 to MC-05/06/12. The engineering guide's D-078 field contract defines configuration revision/finalization/change authority and exact content-use fields, controls, provenance and paired checks. Remaining J cases map above. Original T01–T10 and W01–W09 remain supporting detail, not substitutes for J0–J7. Record results in the existing evidence owner, not seven new reports. Human usability feedback and launch acceptance remain separate.
 
 ## Purpose and authority
 
-Close the configuration and connected-journey gaps defined in revision 3 above, reusing the [execution plan](PATIENT_JOURNEY_EXECUTION_PLAN.md). The following retained walkthrough and evidence contracts provide supporting detail. Preserve unresolved defects honestly; do not classify missing browser proof as missing implementation, or completed supporting implementation as proof of the full scenario.
+Close the configuration and connected-journey gaps defined in revision 4 above. The [earlier execution plan](PATIENT_JOURNEY_EXECUTION_PLAN.md) and retained walkthrough below supply compatible detail, not authority to restore superseded architecture or start this follow-on assignment. Preserve unresolved defects honestly; missing browser proof is not necessarily missing implementation, and supporting implementation is not full-scenario proof.
 
 The user authorized preparing this document. Running the follow-on review or implementing its refinements requires explicit execution authorization. Existing authorization for tonight's repairs remains separate. A second specialty is a possible later experiment, not part of this assignment.
 
@@ -122,7 +126,7 @@ Raw local evidence is under `tmp/patient-journey-*` and `outputs/patient-journey
 
 An explicit request to execute this brief authorizes the scoped missing journey proofs, not a general launch audit. The 10-minute rule is a cumulative verification reassessment checkpoint, not an automatic stop or permission to call missing proof complete. At that point report progress, the exact remaining gap and a bounded next step; extend for necessary scoped proof with a reason. Do not reset the budget by starting repeated fresh runs. Diagnose one failed browser attempt and allow at most one justified retry before an alternative or an explicit blocker.
 
-1. Follow revision 3's setup-first sequence and J0–J7 continuing-patient demonstration. Include W05/W06/W08/W09 handover/post-closure proof within that journey: partial handover/remainder, reversal/recovery, corrected lab result after closure, prerequisite denial, independent work, reconciliation and preserved history after reload. Reuse existing API evidence; prior fixture setup failed on inactive-site and receiving-key assumptions.
+1. Follow revision 4's setup-first sequence and J0–J7 continuing-patient demonstration. Include W05/W06/W08/W09 handover/post-closure proof within that journey: partial handover/remainder, reversal/recovery, corrected lab result after closure, prerequisite denial, independent work, reconciliation and preserved history after reload. Reuse valid API evidence; prior fixture setup failed on inactive-site and receiving-key assumptions.
 2. Inspect Patient Flow ownership, next actions and recovery copy on those same screens. Add a narrow-width check only for an affected or previously unverified surface, not another complete device matrix.
 3. Reconcile W01–W09/T01–T10 coverage using existing evidence. Record any remaining disconnected journey segment precisely; do not silently promote partial proofs to a complete clinic-day run. Founder observation is optional pending availability and must remain separately labeled.
 
@@ -223,7 +227,7 @@ After execution authorization, repair bounded defects against accepted requireme
 
 ## Matrix maintenance
 
-The complete existing matrix was reviewed. Revision 3 adds CF-01–03 in the sole engineering-guide matrix for incomplete setup, preset replay/stale edits and configuration changes with existing work. Existing IDs are preserved. Applicable groups also include EN-01–09, SC-01–03, CV-01–09, RX-01–03, LB-01–07, IN-01–03, OP-01–08 and OP-10–12. OP-09 is outside this cash-pay assignment; optional insurance remains off without breaking the core. These rows are product design requirements, not clinical rules or verified implementation.
+The complete applicable matrix was reviewed. Revision 3 introduced CF-01–03; revision 4 adds CF-04 change-tier authority and CV-10 exact revision use in the same engineering-guide matrix. Existing IDs remain. Applicable groups include EN-01–09, SC-01–03, CV-01–10, RX-01–03, LB-01–07, IN-01–03, OP-01–08 and OP-10–12. OP-09 and future SC-04/OP-13 are outside this cash-pay weight-loss increment; insurance stays off without breaking the core. These rows are product requirements, not new clinical rules or verified implementation.
 
 If observation reveals a missing condition, first check existing rows and references. Propose the precise change to the single engineering guide using exactly:
 
@@ -241,11 +245,11 @@ Deliver: what now works with evidence; what was refined and why; unresolved defe
 
 ## Resume checkpoint — planning only
 
-- Completed: revision 3 defines the new weight-loss clinic, meaningful setup behavior, field mapping and J0–J7 proof. Prior `af52f9a` results remain dated scoped evidence, not full-scenario completion. WL-R1/2 were reviewed; measurement source lookup remains unresolved.
-- Current baseline: main `76c2b47e720e` before this document-only revision. No application tests, browser proof or human walkthrough were run to revise this brief.
-- Ownership: this revision updates the brief, guide matrix, tracker, decision and progress log only. No application, fixture or runtime changes. Recheck current source and ownership before execution.
-- Authorization: user authorized reassessment and document revision; follow-on execution remains unstarted.
-- Next unfinished action: after explicit execution authorization, reconcile clinic provisioning and configuration owners, then implement setup-to-workflow behavior and demonstrate J0–J7 in the new clinic. Do not skip enrollment or the return visit in favor of isolated handover checks.
+- Completed planning: revision 4 incorporates D-078, change tiers, CF-04/CV-10 field/paired-check mapping and the unchanged J0–J7 outcome. Prior `af52f9a` results remain dated scoped evidence, not full-scenario completion. WL-R1/2 and the linked architecture sources were reviewed; the earlier measurement lookup gap remains for substantive measurement changes.
+- Current baseline: main `fee9cab9818b` before these documentation-only changes. Older source observations remain dated; no new application tests, browser proof or human walkthrough were run to revise this brief.
+- Ownership: architecture/research, canonical product/vault records, brief and guide only; no application, fixture or runtime changes. Recheck source and concurrent ownership before execution.
+- Authorization: document reconciliation authorized; this follow-on implementation and task dispatch remain unstarted.
+- Next unfinished action: after execution authorization, inspect provisioning/configuration and relevant revision-use owners; choose scoped reuse/refactor/replacement under D-078, then implement setup-to-workflow behavior and demonstrate J0–J7. Do not build a universal support/reconfiguration platform or skip enrollment/return in favor of isolated checks.
 - Open dependencies: usable isolated runtime/fixtures; local raw evidence availability; founder availability for human feedback. Clinical/vendor mappings and live acceptance remain separate unresolved work, not prerequisites to claim local-only proof.
 
 On every start, context reset or handoff, reread this brief and the relevant canonical records, compare the recorded baseline with the current checkout and newer user direction, and reconcile changed assumptions before acting. Update this compact checkpoint after meaningful completed work, new blockers, consequential decisions and before pausing. Keep one current checkpoint, evidence-backed next action and links to results; do not append contradictory active next steps. Saving or reading this file never dispatches work automatically.

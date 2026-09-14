@@ -1,13 +1,15 @@
 ---
 type: architecture
 status: implemented-frontend-api-split
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 # Software Architecture
 
 Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Direction: [Decisions](<../../APPlyVault/03%20Execution/Decisions.md>) · Delivery: [CICD](<../../APPlyVault/03%20Execution/CICD.md>) · Database: [PostgreSQL and Inventory Foundation](<../../APPlyVault/03%20Execution/PostgreSQL%20and%20Inventory%20Foundation.md>) · Roadmap and active tasks: [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Direction and scope
+
+**Current capability contract — D-078:** [Clinic capability architecture](clinic-capability-architecture.md) governs modular composition, setup/change authority, version-used traceability and future evolution. It supersedes conflicting older preservation and transition assumptions in this document: development code/data are not target-design constraints. Historical descriptions below remain dated evidence, not a reason to retain a weak design. No data reset or application change is authorized by this documentation update.
 
 D-033/U-23 supersede the Rails-rendered-UI aspect of D-024/D-025/D-032: **one repository, independent frontend and Rails API**. D-032's launch/care/inventory/staff/identity domain organization remains. T-40 owns implementation status; this note owns the software-organization contract, not another backlog.
 
@@ -18,6 +20,12 @@ This does not merge consultancy, software-company or clinic authority. UI/API se
 **D-044 — 2026-08-31:** the founder now wants a full backend-structure replacement based on [Target-State Clinic ERD](<../../APPlyVault/03%20Execution/Target-State%20Clinic%20ERD.md>), after minor amendments, with PaperTrail integrated into all relevant auditable mutations. [ERD Implementation Prompt](<../../records/prompts/2026-08-31-erd-implementation-prompt-revision-5.md>) revision 5 supersedes the prior hardening-only handoff. Existing schema/models/services/controllers/callbacks may be replaced; their business/security contracts, data and history require explicit mapping and tested transition. This is not an instruction to preserve old physical structure or defer every proposed ERD entity.
 
 The paragraph above records the historical prompt scope. Source commits `600976f` and `5436764` subsequently implemented the target schema/models/workflows/API. [Backend Verification Report](<../../records/verification/2026-08-31-backend-verification.md>) is the 2026-08-31 observed ERD-to-code matrix, tests/seeds and open-gap record; final amendment acceptance is not inferred from those commits. The descriptions below retain the separate frontend/API contract. Keep the separate frontend/API boundary, compatible consumer contracts and non-ERD Launch/Identity behavior unless explicitly transitioned. No database reset, applied-history rewrite, service selection or deployment is authorized. Implement the approved target in reviewable stages, with auditing in each stage rather than postponed to a later rollout.
+
+## Current capability-evolution requirement
+
+D-078 adopts a modular monolith, a non-switchable core, setup-time capability composition and operation-specific clinic/team/FDE change tiers. The [capability architecture](clinic-capability-architecture.md) owns the technical contract; the [engineering guide](../development/meta-clinic-build-and-acceptance.md) owns action/field acceptance and the sole dependency matrix; the [product strategy](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md) owns the clinic capability map.
+
+Supported transitions preserve meaningful records and handle unfinished work without permission bypass; unsupported transitions need scoped FDE assessment, not an ordinary toggle. Demonstrate prospective behavior with fresh synthetic records. Do not preserve legacy development schemas or fixtures solely for compatibility. Research is recorded in the [dated report](../../records/research/2026-09-14-meta-clinic-capability-architecture.md); adopted direction is not a claim of implementation.
 
 ## Repository responsibilities
 

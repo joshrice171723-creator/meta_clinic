@@ -5,6 +5,24 @@ updated: 2026-09-14
 ---
 # Decisions
 
+## Configurable architecture and tiered change authority
+
+**D-078 — 2026-09-14 / founder-approved change tiers and delegated architecture decision:** build one modular Rails/React/PostgreSQL application with source-owned domain records, a shared non-switchable core and capabilities selected during clinic creation. Code modularity does not imply unrestricted runtime switching. After setup finalization, classify each transition as **clinic-managed**, **Meta Clinic-managed through supported application operations**, or **forward-deployed-engineer (FDE)-assisted** for unsupported mappings, restructuring, integration or workflow changes. Classify the operation and its impact, not the feature name alone; enabling and disabling can require different authority. Enforce current scope and privileges server-side, preserve owned unfinished work, and avoid routine direct database intervention. Repeated FDE work should inform supported product operations, not an upfront universal conversion engine.
+
+The [capability architecture contract](../../docs/architecture/clinic-capability-architecture.md) owns implementation rules and trade-offs. Adopt explicit published clinical revision/use links; distinguish definitions, patient plans, intended appointments and performed events. Use typed relational records with bounded validated extensions, narrow vendor adapters and durable asynchronous delivery only where required. FHIR informs healthcare semantics and selected U.S. exchange contracts; it does not dictate the operational schema, internal modules or a universal engine. The [dated research](../../records/research/2026-09-14-meta-clinic-capability-architecture.md) records source versions, applicability and limits.
+
+**Development freedom:** there are no real users. Existing code, synthetic data and earlier plans do not constrain the target design. Reuse, refactor or replace on merit; do not add compatibility machinery solely for disposable fixtures. A data reset still requires explicit target/scope and authorization; this document update deletes nothing. Product history/traceability requirements concern future behavior, provable with newly created synthetic records, not migration of every existing fixture.
+
+This supersedes D-077's expectation of generally low-friction capability switching, any blanket prohibition on FDE-assisted transitions, and conflicting preservation language in older plans. It retains shared integrity, visible ownership and action-specific blockers. No microservices, specialty forks, universal workflow engine, all-specialty build, full event sourcing or general reconfiguration platform is selected. Weight-loss setup and the connected patient journey remain the next scoped assignment. Architecture and plan adoption are not application implementation, vendor acceptance or permission to dispatch work. Revisit on demonstrated boundary failures, recurring FDE needs, actual vendor contracts, measured scaling needs or real-user compatibility obligations.
+
+## Bounded complexity and safe capability changes
+
+Historical decision; its change-authority and development-preservation assumptions are superseded by D-078 above. The pending-research statement below describes the state before that adoption.
+
+**D-077 — 2026-09-14 / founder's architecture clarification:** make low code complexity and changeable clinic capabilities explicit design requirements. Clinic setup must not lock data into incompatible specialty-specific systems requiring routine bespoke conversions. Preserve source-owned identities/history, model compatible extensions and support explicit existing-work reconciliation when a change cannot be immediate. AI assistance is not evidence that the architecture is sound; prove capability changes on populated clinics.
+
+The strategy and engineering guide own the product target and lifecycle acceptance; the weight-loss brief adds one bounded lifecycle proof. This does not promise zero migrations, permit arbitrary incompatible combinations or adopt research recommendations as architecture decisions. No new framework, service split, event engine, code rewrite or implementation dispatch is authorized by this documentation update. Architecture research remains to be synthesized and reviewed.
+
 ## Composable clinic capabilities and service-linked planning
 
 **D-076 — 2026-09-14 / founder's explicit direction:** maintain a shared-core and specialty capability map and make modular composition a current building constraint. Clinic Setup must evolve with new configurable functionality. Separate specialty, delivery (including telehealth-only), payment and operational capabilities; preserve shared integrity and existing records while swapping applicable components. [[Meta Clinic Product Strategy and Scope]] owns the ten-example catalog; the engineering guide owns the feature/setup delivery contract.

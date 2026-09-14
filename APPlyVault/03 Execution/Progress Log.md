@@ -7,6 +7,16 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Architecture and change-authority decision adopted
+
+D-078 adopts one modular application, a shared non-switchable core, setup-time composition and operation-specific clinic-managed, Meta Clinic-managed and FDE-assisted transitions. The [architecture contract](../../docs/architecture/clinic-capability-architecture.md) and [dated research](../../records/research/2026-09-14-meta-clinic-capability-architecture.md) distinguish U.S.-applicable FHIR semantics from our internal design choices and preserve exact revision-used meaning without requiring legacy development compatibility. Updated product/strategy, architecture routing, guide/matrix, tracker and weight-loss brief revision 4. CF-04/CV-10 add change-authority and exact-use prerequisites with permitted independent work. The earlier execution plan now routes to the current brief. No application code, data reset, runtime/browser checks or task dispatch; document verification is reported with the Git handoff. Pending-research statements in earlier entries below are historical, superseded by this adoption.
+
+The final D-078 documentation pass passed scoped diff checks, vault structure/links/Home reachability, harness validation and 14 harness unit tests. Relative Markdown file targets also passed. Vault size/lifecycle advisories remain; no application tests were needed or run for these document changes.
+
+## 2026-09-14 — Capability lifecycle and complexity requirements saved before research
+
+At the founder's request, paused architecture research to update the existing strategy, guide, decision/tracker and weight-loss brief. D-077 records avoiding routine clinic-specific conversion, bounded variation, historical compatibility and supported reconciliation rather than promising every setting is an instant toggle. Revision 3.1 adds one populated-clinic lifecycle proof; researched patterns remain unadopted pending synthesis/review. No application code, fixtures or runtime verification changed in this document-only update.
+
 ## 2026-09-14 — Composable clinic capability map adopted
 
 Expanded the existing [[Meta Clinic Product Strategy and Scope]] rather than adding another product document: shared foundations, independent configuration dimensions, ten clinic examples and the founder's future infusion projection scenario. D-076, PRODUCT, Home, routing, tracker and the engineering contract now require Clinic Setup to evolve with configurable features. SC-04/OP-13 distinguish resource conflicts and service-linked authorization review from global holds or automatic expiration outreach. Reviewed published R4 Schedule/CarePlan and U.S. PAS 2.2.1 for bounded structural guidance; no clinical protocol or vendor conformance claim. Weight loss remains the first implementation assignment; no application code, forecasts or other specialties were built in this documentation turn.
