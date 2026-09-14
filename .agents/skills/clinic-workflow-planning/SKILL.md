@@ -77,6 +77,25 @@ Plan durable local data collection, review, request preparation, owned work, his
 
 Capture available contract mappings and unresolved partner-specific fields. Keep manual, simulated and vendor-confirmed evidence distinct. Use backend synthetic simulation for future verification, not frontend-only dummy data. Preserve request/version identity, correlation and idempotency where supported. Connecting credentials must not automatically transmit a prepared backlog. Missing vendor access blocks the external action, not independent local work.
 
+## Durable implementation brief and drift prevention
+
+For a substantial or long-running assignment, create or update one durable implementation brief when saving planning documents is authorized. Reuse an existing assignment brief rather than creating a new one per turn. Select its location under current repository documentation rules, link it from the owning tracker item, and include its exact path in the handoff. For read-only discussion, present the proposed brief without writing it. A small matrix correction can use the existing brief or tracker entry instead of adding another file.
+
+The brief must contain:
+
+- Assignment identity, revision/date, planning versus implementation authorization, approved outcome, scope and explicit exclusions. Label proposals and unknowns separately from accepted requirements.
+- Links to the canonical plan, decisions, source-to-data mappings and applicable stable matrix IDs. Do not copy the shared matrix or maintain competing versions of product rules.
+- Current implementation baseline and inspected revision, owning records/screens/files to reuse, planned changes and dependency order, including independent work that may proceed in parallel.
+- Assignment-specific data/question/control requirements or links to their canonical mapping; action prerequisites, responsible queues, handoffs and recovery requirements referenced by matrix ID.
+- Acceptance criteria and intended checks, with local API, browser, simulator and live-provider evidence distinguished; remaining decisions, blockers and stop conditions.
+- A concise checkpoint: completed work with evidence, in-progress or unverified work, affected paths/revisions, checks actually run and their results, the next unfinished action and any dependencies needed to resume it.
+
+Include these execution instructions in the brief so a building agent receives them even without loading this skill: read the brief and its relevant canonical references before starting, resuming after a context reset, or accepting a handoff. Compare its recorded baseline and decisions against the current checkout and newer user direction. Reconcile stale assumptions before dependent edits; do not silently change scope, reinstate deferred ideas or repeat completed work solely because conversational context was lost.
+
+Require checkpoint updates at meaningful completed slices, new blockers, material plan changes and before a handoff or pause. Keep checkpoints compact and evidence-backed, not a transcript or a second project-wide status register. The tracker remains the current work inventory; the brief supplies assignment detail and resume context. Update linked records consistently when requirements change, preserving the reason and supersession history. Unresolved scope changes stop only dependent work pending user direction; continue independent authorized work.
+
+The brief is continuity guidance, not authority to execute or proof of completion. Do not mark a criterion complete from a plan, code change or attempted check alone. Finish with remaining gaps and a precise resume point; archive completed assignment detail only under repository retention rules.
+
 ## Acceptance and durable handoff
 
 For every changed dependency, define paired checks: the exact dependent action is blocked and an independent action still succeeds. Include multiple simultaneous open tasks, ownership transfer/coverage, source corrections, denied privileges, interruptions/retries and persistence after encounter closure where applicable. Define browser proof for visible owner, reason, attention and next action without hidden parallel work or color-only meaning.
