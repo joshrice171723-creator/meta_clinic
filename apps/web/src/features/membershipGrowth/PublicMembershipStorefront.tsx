@@ -412,6 +412,13 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
               purchase an eligible membership now or request clinic contact
               before paying.
             </Alert>
+            {resource.data.payment.mode === "local_simulator" && (
+              <Alert severity="warning">
+                Payment completion uses a local simulator for this clinic. No
+                card network, Stripe account, or money is involved, and the
+                result is not vendor-confirmed.
+              </Alert>
+            )}
             {!resource.data.payment.checkout_available && (
               <Alert severity="warning">
                 Online checkout is temporarily unavailable. You can still ask

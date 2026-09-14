@@ -24,20 +24,42 @@ module Clinic
       PREFIX = "MC_INTAKE_V1\n".freeze
       MAX_ANSWER_LENGTH = 600
       ANSWER_STATES = %w[answered unanswered unknown declined not_applicable negative].freeze
+      SPECIALTY_FORMS = {
+        "weight-management-initial-v1" => FIELDS.reject { |field| field[:id] == "symptoms" } + [
+          { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
+        ],
+        "weight-management-follow-up-v1" => FIELDS.select { |field| %w[goals barriers weight care_needs].include?(field[:id]) } + [
+          { id: "changes", label: "What has changed since your last visit?", reusable: false },
+          { id: "history_changes", label: "Have your medicines, supplements, allergies or health history changed?", reusable: false,
+            choices: %w[yes no unknown declined] },
+          { id: "change_details", label: "Describe the change, or save it for discussion at your visit.", reusable: false },
+          { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
+        ]
+      }.freeze
 
       module_function
+
+      def fields(form_id = FORM_ID)
+        SPECIALTY_FORMS.fetch(form_id, FIELDS)
+      end
+
+      def form_for(practice:, appointment: nil, payload: nil)
+        id = payload&.fetch("form_id", nil) || Configuration::StarterProfile.form_id(practice:, appointment:)
+        { id: id, fields: fields(id), answer_states: ANSWER_STATES }
+      end
 
       def medication_options(practice)
         Clinic::Inventory::PharmacyProduct.where(practice: practice, category: "medication", active: true)
           .order(:name, :id).limit(500).pluck(:name)
       end
 
-      def encode(text:, answers:, attested:, status: "submitted", inherited_from: nil, recorder: "patient")
+      def encode(text:, answers:, attested:, status: "submitted", inherited_from: nil, recorder: "patient", form_id: FORM_ID)
+        raise ArgumentError, "Choose a supported form revision." unless ([FORM_ID] + SPECIALTY_FORMS.keys).include?(form_id)
         raise ArgumentError, "Choose draft or submitted intake." unless %w[draft submitted].include?(status)
         raise ArgumentError, "Intake answers must be an object." unless answers.is_a?(Hash)
-        unknown = answers.keys.map(&:to_s) - FIELDS.map { |field| field[:id] }
+        unknown = answers.keys.map(&:to_s) - fields(form_id).map { |field| field[:id] }
         raise ArgumentError, "Choose supported intake questions." if unknown.any?
-        normalized = FIELDS.to_h do |field|
+        normalized = fields(form_id).to_h do |field|
           value = answers[field[:id]] || answers[field[:id].to_sym] || ""
           [field[:id], normalize_answer(value, field, status: status)]
         end
@@ -49,7 +71,7 @@ module Clinic
         end
 
         encoded = PREFIX + JSON.generate(
-          form_id: FORM_ID,
+          form_id: form_id,
           status: status,
           text: additional_text,
           answers: normalized,
@@ -80,6 +102,9 @@ module Clinic
         raise ArgumentError, "Each intake answer must be #{MAX_ANSWER_LENGTH} characters or fewer." if text.length > MAX_ANSWER_LENGTH
         raise ArgumentError, "Only an answered question can contain a value." if state != "answered" && text.present?
         result = { "state" => state, "value" => text }
+        if field[:choices] && state == "answered" && !field[:choices].include?(text)
+          raise ArgumentError, "Choose a listed answer for #{field[:label]}"
+        end
         if field[:units] && state == "answered"
           raise ArgumentError, "Enter a positive measurement." unless text.match?(/\A\d+(?:\.\d+)?\z/) && BigDecimal(text).positive?
           raise ArgumentError, "Choose a supported measurement unit." unless (status == "draft" && value["unit"].blank?) || field[:units].include?(value["unit"])
@@ -107,12 +132,13 @@ module Clinic
       def decode(value)
         return unless value.to_s.start_with?(PREFIX)
         payload = JSON.parse(value.delete_prefix(PREFIX))
-        return unless payload.is_a?(Hash) && ([ FORM_ID ] + LEGACY_FORM_IDS).include?(payload["form_id"]) &&
+        modern = payload.is_a?(Hash) && ([FORM_ID] + SPECIALTY_FORMS.keys).include?(payload["form_id"])
+        return unless payload.is_a?(Hash) && ([ FORM_ID ] + LEGACY_FORM_IDS + SPECIALTY_FORMS.keys).include?(payload["form_id"]) &&
           payload["text"].is_a?(String) && payload["answers"].is_a?(Hash) &&
-          (payload["answers"].keys - FIELDS.map { |field| field[:id] }).empty? &&
-          payload["answers"].values.all? { |answer| answer.is_a?(String) || (payload["form_id"] == FORM_ID && answer.is_a?(Hash)) }
-        return unless payload["form_id"] != FORM_ID || %w[draft submitted].include?(payload["status"])
-        if payload["form_id"] == "meta-clinic-previsit-v2" || (payload["form_id"] == FORM_ID && payload["status"] == "submitted" && payload["recorder"] != "staff")
+          (payload["answers"].keys - fields(payload["form_id"]).map { |field| field[:id] }).empty? &&
+          payload["answers"].values.all? { |answer| answer.is_a?(String) || (modern && answer.is_a?(Hash)) }
+        return unless !modern || %w[draft submitted].include?(payload["status"])
+        if payload["form_id"] == "meta-clinic-previsit-v2" || (modern && payload["status"] == "submitted" && payload["recorder"] != "staff")
           attestation = payload["attestation"]
           return unless attestation.is_a?(Hash) && attestation == {
             "id" => ATTESTATION_ID,
@@ -128,7 +154,7 @@ module Clinic
       def render(value)
         payload = decode(value)
         return value unless payload
-        sections = FIELDS.filter_map do |field|
+        sections = fields(payload["form_id"]).filter_map do |field|
           answer = answer_text(payload["answers"][field[:id]])
           "#{field[:label]}\n#{answer}" if answer.present?
         end

@@ -41,6 +41,7 @@ module Clinic
             expected_updated_at: expected_updated_at.iso8601(6), visit_modality: visit_modality || appointment.visit_modality,
             site_id: next_site&.id, booked_clinician_id: next_clinician&.id, visit_type_id: next_visit_type&.id }
         ) do
+          appointment.practice.lock!
           next_clinician&.lock!
           appointment.with_lock do
             authorize.call
@@ -50,6 +51,9 @@ module Clinic
             end
 
             modality = visit_modality.to_s.presence || appointment.visit_modality
+            if modality == "video" && appointment.visit_modality != "video"
+              Configuration::StarterProfile.require_service!(practice: appointment.practice, service: "telehealth")
+            end
             raise ArgumentError, "Visit format must be in person or video." unless %w[in_person video].include?(modality)
             if modality == "video" && next_clinician.nil?
               raise ArgumentError, "Choose a clinician for a video visit."

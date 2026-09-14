@@ -7,14 +7,22 @@ module Clinic
 
       def self.status(practice)
         record = connection(practice)
-        { configured: StripeGateway.configured?, connected: record&.account_id.present?,
-          charges_enabled: record&.charges_enabled || false, payouts_enabled: record&.payouts_enabled || false,
-          application_fee_percent: "2.1", mode: "test", last_synced_at: record&.last_synced_at&.iso8601 }
+        local_simulator = Development::MembershipPaymentSimulator.connection?(record)
+        result = { configured: StripeGateway.configured?, connected: record&.account_id.present?,
+          charges_enabled: local_simulator ? false : (record&.charges_enabled || false),
+          payouts_enabled: local_simulator ? false : (record&.payouts_enabled || false),
+          application_fee_percent: local_simulator ? "0.0" : "2.1", mode: local_simulator ? "local" : "test",
+          processor: local_simulator ? "local_membership_simulator" : "stripe",
+          last_synced_at: record&.last_synced_at&.iso8601 }
+        result.merge!(source: Development::MembershipPaymentSimulator::SOURCE,
+          vendor_confirmed: false) if local_simulator
+        result
       end
 
       def self.patient_checkout_available?(practice)
         record = connection(practice)
-        StripeGateway.configured? && record&.account_id.present? &&
+        StripeGateway.configured? && !Development::MembershipPaymentSimulator.connection?(record) &&
+          record&.account_id.present? &&
           record.charges_enabled
       end
 

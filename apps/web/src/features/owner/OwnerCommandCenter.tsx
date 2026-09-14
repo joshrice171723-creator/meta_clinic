@@ -407,7 +407,7 @@ export function OwnerCommandCenter() {
 
       <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
         <Stack component="form" onSubmit={submit}>
-          <DialogTitle>Create clinic</DialogTitle>
+          <DialogTitle>Clinic Setup — create clinic</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2.25} sx={{ pt: 0.5 }}>
               {saveError && <Alert severity="error">{saveError}</Alert>}

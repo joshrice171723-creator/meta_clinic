@@ -149,7 +149,10 @@ module Clinic
             dose_units: MedicationRequestRevision::DOSE_UNITS.map { |code, label| { code:, label: } },
             routes: MedicationRequestRevision::ROUTES.map { |code, label| { code:, label: } }
           },
-          assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope)
+          assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope),
+          new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind) },
+          weight_context: weight_context(practice, patient),
+          prior_orders: prior_orders(practice, actor, patient, encounter)
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
@@ -172,6 +175,14 @@ module Clinic
           result_resource: ->(record) { record },
           resource_resolver: resolver(definition.fetch(:klass), encounter)
         ) do
+          practice.lock!
+          raise ArgumentError, "This service is disabled for new work. Clinic Setup owns availability; existing records and unrelated care remain available." unless new_work_available?(practice, kind)
+          if kind.to_sym == :service_requests && values[:request_kind] == "lab"
+            Configuration::StarterProfile.require_service!(practice: practice, service: "external_lab_coordination")
+          end
+          if kind.to_sym == :medication_requests && values[:fulfillment_route] == "take_home"
+            Configuration::StarterProfile.require_service!(practice: practice, service: "take_home_fulfillment")
+          end
           series_id = SecureRandom.uuid
           definition.fetch(:klass).create!(
             values.merge(common_attributes(practice, patient, encounter, membership, request_key, values:,
@@ -473,6 +484,42 @@ module Clinic
         else
           allowed
         end
+      end
+
+      def new_work_available?(practice, kind)
+        service = { medication_requests: "prescription_preparation",
+          procedures: "minor_office_procedures", immunizations: "vaccinations" }[kind.to_sym]
+        !service || Configuration::StarterProfile.service_available?(practice: practice, service: service)
+      end
+
+      def weight_context(practice, patient)
+        profile = Configuration::PracticeFeatures.snapshot(practice:).fetch(:starter_profile)
+        return unless Array(profile["components"]).include?("weight_context")
+        notes = PrevisitNote.where(practice: practice, patient: patient).order(submitted_at: :desc, id: :desc).limit(30)
+        notes.filter_map do |note|
+          content = PrevisitIntake.decode(note.encrypted_text)
+          next unless content && content["status"] == "submitted"
+          { note_id: note.id, revision: note.version_number, form_id: content["form_id"],
+            appointment_id: note.appointment_id, recorded_at: note.submitted_at.iso8601,
+            source: "patient_reported", goals: PrevisitIntake.answer_text(content["answers"]["goals"]),
+            weight: PrevisitIntake.answer_text(content["answers"]["weight"]),
+            progress: PrevisitIntake.answer_text(content["answers"]["changes"]) }
+        end
+      end
+
+      def prior_orders(practice, actor, patient, encounter)
+        %i[medication_requests service_requests].flat_map do |kind|
+          klass = DEFINITIONS.fetch(kind).fetch(:klass)
+          table = klass.table_name
+          klass.where(practice: practice, patient: patient).where.not(encounter: encounter)
+            .where("NOT EXISTS (SELECT 1 FROM #{table} newer WHERE newer.practice_id = #{table}.practice_id AND newer.series_id = #{table}.series_id AND newer.version_number > #{table}.version_number)")
+            .includes(encounter: :site).order(recorded_at: :desc, id: :desc).limit(20).filter_map do |record|
+              next unless allowed?(practice, actor, "clinical_records.read", record.encounter)
+              { kind: kind, id: record.id, revision: record.version_number, encounter_id: record.encounter_id,
+                recorded_at: record.recorded_at.iso8601, status: record.status,
+                label: kind == :medication_requests ? record.medication_name : record.requested_display }
+            end
+        end.sort_by { |record| record[:recorded_at] }.reverse.first(20)
       end
       private_class_method :allowed_statuses
 

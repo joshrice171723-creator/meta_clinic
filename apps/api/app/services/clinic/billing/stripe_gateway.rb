@@ -10,6 +10,7 @@ module Clinic
       class Invalid < StandardError; end
       API_VERSION = "2026-07-29.dahlia"
       SANDBOX_KEY_PATTERN = /\A(?:sk|rk|rkcs)_test_[a-zA-Z0-9_]+\z/
+      LOCAL_SIMULATOR_IDENTIFIER_PATTERN = /\b(?:acct_local|cs_test_local|sub_local|in_local|pi_local|ch_local|evt_local)[a-zA-Z0-9]*\b/
 
       def self.configuration
         return {} unless Rails.env.development? || Rails.env.test?
@@ -66,6 +67,9 @@ module Clinic
       end
 
       def request(method, path, fields: {}, account: nil, key: nil)
+        if local_simulator_identifier?([path, fields, account, key])
+          raise Invalid, "Local simulator payment identifiers cannot be sent to Stripe."
+        end
         raise Unavailable, "Stripe sandbox is not configured on the server." unless self.class.configured?
         raise Invalid, "Invalid Stripe API path." unless path.match?(%r{\A/v[12]/[a-zA-Z0-9_/]+\z})
         raise Invalid, "Invalid Stripe account." if account && !account.match?(/\Aacct_[a-zA-Z0-9]+\z/)
@@ -80,6 +84,19 @@ module Clinic
         raise Unavailable, "Stripe test payments are unavailable for this clinic. Ask the clinic to refresh its Stripe connection before trying again."
       rescue Stripe::StripeError
         raise Unavailable, "Stripe could not confirm this request. Retry the same operation; do not create another payment."
+      end
+
+      private
+
+      def local_simulator_identifier?(value)
+        case value
+        when Hash
+          value.any? { |field, item| local_simulator_identifier?(field) || local_simulator_identifier?(item) }
+        when Array
+          value.any? { |item| local_simulator_identifier?(item) }
+        else
+          value.to_s.match?(LOCAL_SIMULATOR_IDENTIFIER_PATTERN)
+        end
       end
     end
   end

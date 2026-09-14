@@ -22,6 +22,7 @@ export type IntakeField = {
   label: string;
   reusable: boolean;
   units?: string[];
+  choices?: string[];
 };
 export function answerValue(answer: IntakeAnswer | undefined) {
   return typeof answer === "string" ? answer : (answer?.value ?? "");
@@ -87,7 +88,27 @@ export function IntakeQuestions({
                 </MenuItem>
               ))}
             </TextField>
-            {repeatable ? (
+            {field.choices ? (
+              <TextField
+                select
+                label={field.label}
+                value={answerValue(answer)}
+                disabled={disabled}
+                onChange={(event) =>
+                  set(field.id, {
+                    state: event.target.value ? "answered" : "unanswered",
+                    value: event.target.value,
+                  })
+                }
+              >
+                <MenuItem value="">Choose an answer</MenuItem>
+                {field.choices.map((choice) => (
+                  <MenuItem key={choice} value={choice}>
+                    {choice}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : repeatable ? (
               <>
                 {answerValue(answer)
                   .split("\n")

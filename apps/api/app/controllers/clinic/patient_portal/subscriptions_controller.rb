@@ -18,14 +18,26 @@ module Clinic
       def index
         record_portal_read("patient_portal.subscriptions.read")
         checkout_available = Billing::StripeConnect.patient_checkout_available?(portal_practice)
+        connection = Billing::StripeConnect.connection(portal_practice)
+        local_simulator = Development::MembershipPaymentSimulator.connection?(connection)
+        processor = if local_simulator
+          "local_membership_simulator"
+        elsif connection&.account_id
+          "stripe"
+        else
+          "development_fixture"
+        end
+        payment = {
+          checkout_available: checkout_available,
+          next_step: checkout_available ? "checkout" : "clinic_follow_up"
+        }
+        payment.merge!(source: Development::MembershipPaymentSimulator::SOURCE,
+          vendor_confirmed: false) if local_simulator
         render json: { catalog: Care::SubscriptionProjection.catalog(practice: portal_practice),
           subscriptions: Care::SubscriptionProjection.collection(agreements.order(id: :desc)).map { |r| r.except(:patient_id) },
           can_purchase: patient_portal_identity.present? && !development_omni_preview?,
-          processor: Billing::StripeConnect.connection(portal_practice)&.account_id ? "stripe" : "development_fixture",
-          payment: {
-            checkout_available: checkout_available,
-            next_step: checkout_available ? "checkout" : "clinic_follow_up"
-          } }
+          processor: processor,
+          payment: payment }
       end
 
       def quote

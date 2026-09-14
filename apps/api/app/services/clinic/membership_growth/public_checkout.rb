@@ -22,7 +22,7 @@ module Clinic
 
         def start_for_account(practice:, prospect:, user:, gateway: Clinic::Billing::StripeGateway.new)
           raise Clinic::Billing::StripeGateway::Unavailable, "Stripe sandbox is not configured." unless
-            Clinic::Billing::StripeGateway.configured?
+            Clinic::Billing::StripeGateway.configured? || local_simulator_gateway?(gateway, practice)
           prospect.with_lock do
             unless prospect.practice_id == practice.id && prospect.intent_type == "purchase" &&
                 prospect.account_user_id == user.id && prospect.account_activated_at && user.active?
@@ -55,17 +55,20 @@ module Clinic
 
             connection = Clinic::Billing::StripeConnect.connection(practice)
             raise ArgumentError, "The clinic must complete Stripe onboarding before accepting online payment." unless connection&.account_id
+            local_simulator = local_simulator_gateway?(gateway, practice)
             platform_account_id = Clinic::Billing::StripeGateway.configuration["STRIPE_SANDBOX_ACCOUNT_ID"]
-            platform_sandbox = Clinic::Billing::StripeGateway.platform_sandbox_account?(platform_account_id)
+            platform_sandbox = !local_simulator &&
+              Clinic::Billing::StripeGateway.platform_sandbox_account?(platform_account_id)
             checkout_account_id = platform_sandbox ? platform_account_id : connection.account_id
-            unless platform_sandbox
+            unless platform_sandbox || local_simulator
               account = Clinic::Billing::StripeConnect.verified_account(connection, gateway)
               unless account.dig("configuration", "merchant", "capabilities", "card_payments", "status") == "active"
                 raise ArgumentError, "The clinic is not ready to accept online card payments. Ask the clinic to contact you."
               end
             end
 
-            configure_routing!(prospect, checkout_account_id, collect_platform_fee: !platform_sandbox)
+            configure_routing!(prospect, checkout_account_id,
+              collect_platform_fee: !platform_sandbox && !local_simulator)
             session = checkout_session(prospect, gateway)
             unless session["id"].to_s.match?(/\Acs_test_[a-zA-Z0-9]+\z/)
               raise Clinic::Billing::StripeGateway::Invalid, "Stripe returned an invalid checkout session."
@@ -74,8 +77,12 @@ module Clinic
               prospect.update!(checkout_session_id: session.fetch("id"), checkout_status: session.fetch("status"))
             end
             verify_session!(prospect, session)
-            Result.new(prospect:, checkout_url: Clinic::Billing::StripeGateway.external_url(session.fetch("url"),
-              host: "checkout.stripe.com"), replayed:)
+            checkout_url = if local_simulator_gateway?(gateway, practice)
+              gateway.checkout_url
+            else
+              Clinic::Billing::StripeGateway.external_url(session.fetch("url"), host: "checkout.stripe.com")
+            end
+            Result.new(prospect:, checkout_url:, replayed:)
           rescue ArgumentError
             prospect.with_lock { prospect.update!(status: "payment_failed") unless prospect.checkout_session_id }
             raise
@@ -202,10 +209,10 @@ module Clinic
             key = "#{prospect.checkout_reference}:resume:#{prospect.checkout_session_id}"
           end
           gateway.request(:post, "/v1/checkout/sessions", account: prospect.checkout_account_id,
-            key:, fields: checkout_fields(prospect))
+            key:, fields: checkout_fields(prospect, gateway))
         end
 
-        def checkout_fields(prospect)
+        def checkout_fields(prospect, gateway)
           terms = prospect.selected_terms
           fields = {
             "mode" => prospect.checkout_mode,
@@ -217,8 +224,8 @@ module Clinic
             "line_items[0][quantity]" => "1",
             "metadata[apply_membership_prospect]" => prospect.checkout_reference,
             "metadata[apply_collection_intent]" => prospect.checkout_reference,
-            "success_url" => storefront_return_url(prospect, "return"),
-            "cancel_url" => storefront_return_url(prospect, "cancel")
+            "success_url" => storefront_return_url(prospect, "return", gateway),
+            "cancel_url" => storefront_return_url(prospect, "cancel", gateway)
           }
           if prospect.checkout_mode == "subscription"
             raise ArgumentError, "Automatic memberships must renew monthly." unless
@@ -234,7 +241,9 @@ module Clinic
           fields
         end
 
-        def storefront_return_url(prospect, outcome)
+        def storefront_return_url(prospect, outcome, gateway)
+          return gateway.return_url(prospect, outcome) if local_simulator_gateway?(gateway, prospect.practice)
+
           if prospect.account_user_id
             return Clinic::Billing::StripeGateway.return_url("/memberships/account")
           end
@@ -362,6 +371,10 @@ module Clinic
 
         def amount_cents(terms)
           (BigDecimal(terms.fetch("total").to_s) * 100).to_i
+        end
+
+        def local_simulator_gateway?(gateway, practice)
+          Development::MembershipPaymentSimulator.gateway?(gateway, practice:)
         end
       end
     end

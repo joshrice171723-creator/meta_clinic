@@ -233,10 +233,12 @@ export function PatientLabReports({
   patientId,
   patientName,
   encounterId,
+  orderRevision = 0,
 }: {
   patientId: number;
   patientName?: string;
   encounterId?: number;
+  orderRevision?: number;
 }) {
   const { capabilities, practice } = useClinic();
   const [data, setData] = useState<Index>();
@@ -431,7 +433,7 @@ export function PatientLabReports({
           );
       });
     return () => controller.abort();
-  }, [canRead, encounterId, patientId, reload]);
+  }, [canRead, encounterId, patientId, reload, orderRevision]);
   useEffect(() => {
     if (
       !reviewTarget ||

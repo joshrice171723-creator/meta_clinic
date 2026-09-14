@@ -3170,6 +3170,7 @@ export function ProviderEncounterWorkflow({
     Observation[]
   >([]);
   const [handoutOpen, setHandoutOpen] = useState(false);
+  const [orderRevision, setOrderRevision] = useState(0);
   const observations = Array.from(
     new Map(
       [...initialObservations, ...recordedObservations].map((observation) => [
@@ -3239,6 +3240,14 @@ export function ProviderEncounterWorkflow({
 
   return (
     <Stack spacing={2} className="provider-encounter-workflow">
+      {encounter.visit_modality === "video" && !encounter.telehealth && (
+        <Alert severity="info">
+          Video visit requested. The clinic's video connection or visit
+          eligibility is not ready. Clinic setup staff must resolve video access
+          before joining. Intake, manual charting, orders and follow-up remain
+          available; no video session has started.
+        </Alert>
+      )}
       <Paper
         id="chart-patient"
         variant="outlined"
@@ -3579,6 +3588,7 @@ export function ProviderEncounterWorkflow({
                 patientId={patient.id}
                 patientName={patient.display_name}
                 encounterId={encounter.id}
+                orderRevision={orderRevision}
               />
             </Box>
             <MedicationAdministrations
@@ -3587,7 +3597,11 @@ export function ProviderEncounterWorkflow({
               timezone={timezone}
               onChanged={onCareSummaryRefresh}
             />
-            <ClinicalPlanWorkspace patient={patient} encounter={encounter} />
+            <ClinicalPlanWorkspace
+              patient={patient}
+              encounter={encounter}
+              onChanged={() => setOrderRevision((revision) => revision + 1)}
+            />
             {noteWorkspace}
             <VisitWrapUp
               patient={patient}

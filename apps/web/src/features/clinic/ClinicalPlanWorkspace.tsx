@@ -552,9 +552,11 @@ function recordForm(kind: ResourceKind, record: ClinicalRecord): FormState {
 export function ClinicalPlanWorkspace({
   patient,
   encounter,
+  onChanged,
 }: {
   patient: Pick<Patient, "id" | "display_name">;
   encounter: EncounterDetail;
+  onChanged?: () => void;
 }) {
   const clinic = useClinic();
   const { registerBlocker } = useClinicNavigation();
@@ -671,6 +673,7 @@ export function ClinicalPlanWorkspace({
       setEditing(null);
       setNotice(`${humanize(RESOURCE_META[attempt.kind].singular)} saved.`);
       workspace.refresh();
+      onChanged?.();
     } catch (caught) {
       const message =
         caught instanceof Error
@@ -885,6 +888,58 @@ export function ClinicalPlanWorkspace({
             </Button>
           </Stack>
         )}
+        {data.weight_context && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h3">Goals and weight history</Typography>
+            <Typography variant="body2">
+              Patient-reported context remains separate from clinical findings.
+              Original dates, units and form revisions are retained.
+            </Typography>
+            {data.weight_context.length === 0 && (
+              <Typography>No submitted intake yet.</Typography>
+            )}
+            {data.weight_context.map((item) => (
+              <Stack key={item.note_id} sx={{ mt: 1 }}>
+                <Typography>
+                  {item.goals || "Goal not recorded"} ·{" "}
+                  {item.weight || "Weight not recorded"}
+                </Typography>
+                {item.progress && <Typography>{item.progress}</Typography>}
+                <Typography variant="caption">
+                  {item.recorded_at} · {item.form_id} · response {item.note_id},
+                  revision {item.revision} · patient reported
+                </Typography>
+              </Stack>
+            ))}
+          </Paper>
+        )}
+        {!!data.prior_orders?.length && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h3">Orders from previous visits</Typography>
+            <Typography variant="body2">
+              Recent source revisions; open the original visit to review or
+              resolve its work.
+            </Typography>
+            {data.prior_orders.map((order) => (
+              <Stack
+                key={`${order.kind}-${order.id}`}
+                direction={{ xs: "column", sm: "row" }}
+                sx={{ mt: 1, alignItems: { sm: "center" } }}
+              >
+                <Typography>
+                  {order.label} · {humanize(order.status)} · revision{" "}
+                  {order.revision}
+                </Typography>
+                <Button
+                  size="small"
+                  href={`/clinic/patients/${patient.id}/encounters/${order.encounter_id}`}
+                >
+                  Open visit {order.encounter_id}
+                </Button>
+              </Stack>
+            ))}
+          </Paper>
+        )}
         <Tabs
           value={kind}
           onChange={(_event, value: ResourceKind) => {
@@ -915,6 +970,7 @@ export function ClinicalPlanWorkspace({
             variant="contained"
             disabled={
               !data.capabilities[kind] ||
+              data.new_work?.[kind] === false ||
               pendingAttempt !== null ||
               encounter.status !== "open" ||
               (kind === "assessments" && data.assessment_scope.length === 0)
@@ -932,6 +988,13 @@ export function ClinicalPlanWorkspace({
             />
           ))}
         </Stack>
+        {data.new_work?.[kind] === false && (
+          <Alert severity="info">
+            This service is disabled for new work. Ask the clinic configuration
+            team about availability. Existing records remain available for
+            authorized review and reconciliation; unrelated care can continue.
+          </Alert>
+        )}
         {kind === "care_goals" && carePlans.length === 0 && (
           <Alert
             severity="info"

@@ -58,7 +58,8 @@ module Clinic
           patient_id: patient.id,
           encounter_id: encounter.id,
           intake: intake && serialize_intake(intake),
-          questionnaire_form: { fields: PrevisitIntake::FIELDS, answer_states: PrevisitIntake::ANSWER_STATES,
+          questionnaire_form: { **PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment,
+            payload: intake && PrevisitIntake.decode(intake.encrypted_questionnaire)),
             medication_options: PrevisitIntake.medication_options(practice) },
           handoff: handoff && serialize_handoff(handoff),
           tasks: tasks.map { |task| serialize_task(task) },
@@ -75,7 +76,10 @@ module Clinic
         observation_ids:, history_review_ids:)
         authorize!(practice, actor, "intake.write", encounter)
         member = membership!(practice, actor)
-        input = normalize_intake(attributes)
+        previous_intake = latest_intake(practice, encounter)
+        form = PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment,
+          payload: previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire))
+        input = normalize_intake(attributes, form_id: form[:id])
         observations = observations_for(practice, patient, encounter, observation_ids)
         history_reviews = history_reviews_for(practice, patient, encounter, history_review_ids)
         validate_intake_evidence!(input, observations, history_reviews)
@@ -231,7 +235,8 @@ module Clinic
           recorded_by_membership_id: intake.recorded_by_membership_id,
           questionnaire: PrevisitIntake.decode(intake.encrypted_questionnaire),
           questionnaire_text: intake.encrypted_questionnaire.present? ? PrevisitIntake.render(intake.encrypted_questionnaire) : nil,
-          questionnaire_form: { fields: PrevisitIntake::FIELDS, answer_states: PrevisitIntake::ANSWER_STATES }
+          questionnaire_form: PrevisitIntake.form_for(practice: intake.practice,
+            payload: PrevisitIntake.decode(intake.encrypted_questionnaire))
         }
       end
 
@@ -264,7 +269,7 @@ module Clinic
         scope.first
       end
 
-      def normalize_intake(attributes)
+      def normalize_intake(attributes, form_id: PrevisitIntake::FORM_ID)
         input = attributes.to_h.symbolize_keys.slice(*INTAKE_FIELDS)
         missing = INTAKE_FIELDS - input.keys
         raise ArgumentError, "Missing intake field: #{missing.first}." if missing.any?
@@ -274,7 +279,7 @@ module Clinic
           questionnaire = questionnaire.to_h.stringify_keys
           input[:encrypted_questionnaire] = PrevisitIntake.encode(text: questionnaire.fetch("text", ""),
             answers: questionnaire.fetch("answers", {}), status: questionnaire.fetch("status", "draft"),
-            attested: questionnaire["confirmed"] == true, recorder: "staff")
+            attested: questionnaire["confirmed"] == true, recorder: "staff", form_id: form_id)
         end
         input
       end

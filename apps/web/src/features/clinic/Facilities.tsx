@@ -25,6 +25,7 @@ import { LoadState, useResource } from "../../shared/ui";
 import { VisitTypeSettings } from "./VisitTypeSettings";
 import { useClinic } from "./Workspace";
 import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
+import { ClinicianSetup } from "./ClinicianSetup";
 
 const days = [
   [0, "Sunday"],
@@ -199,8 +200,11 @@ export function Facilities() {
           {feedback.text}
         </Alert>
       )}
-      <PracticeFeatureSettings canWrite={canWrite} />
+      <PracticeFeatureSettings
+        canWrite={capabilities.clinic_setup_write === true}
+      />
       <VisitTypeSettings canWrite={canWrite} />
+      {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
         <Paper variant="outlined" className="facilities-list">
           <Stack

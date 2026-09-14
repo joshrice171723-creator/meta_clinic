@@ -16,6 +16,7 @@ module Clinic
         return payload unless detail
 
         payload = payload.merge(
+          visit_modality: encounter.appointment&.visit_modality || "in_person",
           participants: encounter.participants.order(:effective_from, :id).map { |participant|
             {
               id: participant.id.to_s,

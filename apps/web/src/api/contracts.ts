@@ -659,6 +659,29 @@ export type MedicationAdministrationLinkTarget = ClinicalPlanLinkTarget & {
   administering_site_label: string;
 };
 export type ClinicalPlanWorkspace = {
+  prior_orders?: {
+    kind: string;
+    id: number;
+    revision: number;
+    encounter_id: number;
+    recorded_at: string;
+    status: string;
+    label: string;
+  }[];
+  new_work?: Record<string, boolean>;
+  weight_context?:
+    | {
+        note_id: number;
+        revision: number;
+        form_id: string;
+        appointment_id: number;
+        recorded_at: string;
+        source: string;
+        goals: string | null;
+        weight: string | null;
+        progress: string | null;
+      }[]
+    | null;
   schema_version: "clinical-plan-workspace-v2";
   patient_id: number;
   encounter_id: number;
@@ -784,6 +807,7 @@ export type ClinicCapabilities = {
   workforce_payroll_export?: boolean;
   facilities_read?: boolean;
   facilities_write?: boolean;
+  clinic_setup_write?: boolean;
   patient_identity_read?: boolean;
   patient_portal_invite?: boolean;
   appointments_read?: boolean;
@@ -1146,6 +1170,19 @@ export type ClinicWorkspaceContext = {
   sites: ClinicSite[];
 };
 export type PracticeFeatures = {
+  finalized?: boolean;
+  finalized_at?: string | null;
+  selected_services?: ClinicServiceCode[];
+  starter_profile?: {
+    id?: string;
+    version?: number;
+    components?: string[];
+    visits?: Record<
+      string,
+      { name: string; form_id: string; visit_type_id: number }
+    >;
+  };
+  change_handoff?: string;
   core: Record<string, true>;
   optional: {
     insurance_workflows: boolean;
@@ -1166,6 +1203,7 @@ export type PracticeFeatures = {
   effective_from: string | null;
 };
 export type ClinicType =
+  | "weight_loss"
   | "primary_care"
   | "membership_primary_care"
   | "urgent_care"
@@ -1173,6 +1211,8 @@ export type ClinicType =
   | "behavioral_health"
   | "custom_ambulatory";
 export type ClinicServiceCode =
+  | "prescription_preparation"
+  | "take_home_fulfillment"
   | "telehealth"
   | "external_lab_coordination"
   | "minor_office_procedures"
@@ -1254,6 +1294,7 @@ export type Encounter = {
   status: "open" | "completed";
 };
 export type EncounterDetail = Encounter & {
+  visit_modality?: "in_person" | "video";
   participants: {
     id: string;
     membership_id: string;

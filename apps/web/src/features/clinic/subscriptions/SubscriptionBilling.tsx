@@ -479,18 +479,35 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                   </AccordionSummary>
                   <AccordionDetails>
                     <Stack spacing={2}>
-                      {subscription.processor === "stripe" &&
+                      {subscription.processor ===
+                        "local_membership_simulator" && (
+                        <Alert severity="info">
+                          Local simulator evidence. No Stripe account, card
+                          network, or external vendor confirmed this payment.
+                        </Alert>
+                      )}
+                      {["stripe", "local_membership_simulator"].includes(
+                        subscription.processor || "",
+                      ) &&
                         renewalNeedsPayment(subscription) && (
                           <Alert severity="warning">
                             The latest monthly renewal needs payment. Patient
                             access is limited to the last verified paid period
-                            until Stripe confirms payment.
+                            until payment is verified
+                            {subscription.processor ===
+                            "local_membership_simulator"
+                              ? " by another signed local simulator event."
+                              : " by Stripe."}
                           </Alert>
                         )}
                       {subscription.checkout_status === "expired" && (
                         <Alert severity="warning">
-                          The initial Stripe Checkout session expired without a
-                          verified payment. Refresh from Stripe to close this
+                          The initial{" "}
+                          {subscription.processor ===
+                          "local_membership_simulator"
+                            ? "local payment session"
+                            : "Stripe Checkout session"}{" "}
+                          expired without a verified payment. Close this
                           enrollment before the patient starts again.
                         </Alert>
                       )}
@@ -525,7 +542,10 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                           <strong>
                             {subscription.processor === "stripe"
                               ? "Stripe sandbox"
-                              : "Local payment processor"}
+                              : subscription.processor ===
+                                  "local_membership_simulator"
+                                ? "Local membership simulator"
+                                : "Local payment processor"}
                           </strong>
                         </div>
                         <div>
@@ -560,7 +580,12 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                         )}
                         {subscription.renewal_status && (
                           <div>
-                            <span>Stripe subscription</span>
+                            <span>
+                              {subscription.processor ===
+                              "local_membership_simulator"
+                                ? "Local simulated renewal"
+                                : "Stripe subscription"}
+                            </span>
                             <strong>
                               {stateLabel(subscription.renewal_status)}
                             </strong>
@@ -595,7 +620,12 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                         )}
                         {subscription.last_synced_at && (
                           <div>
-                            <span>Last checked with Stripe</span>
+                            <span>
+                              {subscription.processor ===
+                              "local_membership_simulator"
+                                ? "Last local event"
+                                : "Last checked with Stripe"}
+                            </span>
                             <strong>
                               {subscriptionDate(
                                 subscription.last_synced_at,
@@ -682,7 +712,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                         {["processing", "outcome_unknown"].includes(
                           subscription.state,
                         ) &&
-                          subscription.processor !== "stripe" &&
+                          subscription.processor === "development_fixture" &&
                           data.capabilities.reconcile &&
                           data.capabilities.fixture_processor && (
                             <>
@@ -726,6 +756,8 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                             </Button>
                           )}
                         {data.capabilities.reconcile &&
+                          subscription.processor !==
+                            "local_membership_simulator" &&
                           !subscription.renewal_canceled &&
                           ((subscription.terms.renewal === "automatic" &&
                             (subscription.checkout_status === "open" ||
@@ -754,7 +786,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                         {["active", "canceled", "expired"].includes(
                           subscription.state,
                         ) &&
-                          subscription.processor !== "stripe" &&
+                          subscription.processor === "development_fixture" &&
                           subscription.terms.refund_policy ===
                             "manual_review" &&
                           data.capabilities.reconcile &&

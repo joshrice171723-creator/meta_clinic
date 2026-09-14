@@ -10,7 +10,7 @@ module Clinic
     def update
       input = parameter_hash!(
         :features,
-        %i[insurance_workflows_enabled clinic_type expected_revision request_key],
+        %i[insurance_workflows_enabled clinic_type expected_revision request_key finalize],
         arrays: %i[service_scope assessment_scope]
       )
       raise ArgumentError, "insurance_workflows_enabled is required" unless input.key?(:insurance_workflows_enabled)
@@ -23,7 +23,7 @@ module Clinic
         request_key: input[:request_key], expected_revision: input[:expected_revision],
         insurance_workflows_enabled: input[:insurance_workflows_enabled],
         clinic_type: input[:clinic_type], service_scope: input[:service_scope],
-        assessment_scope: input[:assessment_scope]
+        assessment_scope: input[:assessment_scope], finalize: input[:finalize] == true
       )
       render json: { features: features }
     end

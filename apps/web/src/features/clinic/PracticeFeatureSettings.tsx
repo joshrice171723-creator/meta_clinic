@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -31,6 +31,12 @@ const clinicTypes: Array<{
   label: string;
   description: string;
 }> = [
+  {
+    code: "weight_loss",
+    label: "Weight loss",
+    description:
+      "Initial and follow-up intake, explicit visit types, goals and weight history. Choose services separately.",
+  },
   {
     code: "primary_care",
     label: "Primary care",
@@ -75,6 +81,20 @@ const services: Array<{
     code: "telehealth",
     label: "Telehealth visits",
     description: "Remote visit preparation, visit access, and reconciliation.",
+    readiness: "Base workflow",
+  },
+  {
+    code: "prescription_preparation",
+    label: "Prescription preparation",
+    description:
+      "Clinician-reviewed prescriptions and outside-pharmacy destinations. Connection remains separate.",
+    readiness: "Base workflow",
+  },
+  {
+    code: "take_home_fulfillment",
+    label: "Take-home medication handover",
+    description:
+      "Selected stock, lots, partial handover and correction. No medication is selected automatically.",
     readiness: "Base workflow",
   },
   {
@@ -198,6 +218,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
   >([]);
   const [insuranceEnabled, setInsuranceEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const request = useRef<{ signature: string; key: string } | null>(null);
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     text: string;
@@ -252,9 +273,19 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
     setInsuranceEnabled(false);
     setFeedback(null);
   };
-  const save = async () => {
+  const save = async (finalize = false) => {
     setSaving(true);
     setFeedback(null);
+    const signature = JSON.stringify([
+      clinicType,
+      serviceScope,
+      assessmentScope,
+      insuranceEnabled,
+      features.revision,
+      finalize,
+    ]);
+    if (request.current?.signature !== signature)
+      request.current = { signature, key: crypto.randomUUID() };
     try {
       await api("/api/clinic/practice_features", {
         method: "PUT",
@@ -265,13 +296,16 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
             assessment_scope: assessmentScope,
             insurance_workflows_enabled: insuranceEnabled,
             expected_revision: features.revision,
-            request_key: crypto.randomUUID(),
+            request_key: request.current.key,
+            finalize,
           },
         },
       });
       setFeedback({
         tone: "success",
-        text: "Clinic profile saved. Selected services remain subject to implementation and readiness review.",
+        text: finalize
+          ? "Setup finalized. Clinic-managed settings remain available."
+          : "Clinic profile saved. The selected starter forms and visit types are ready to configure.",
       });
       refresh();
     } catch (reason) {
@@ -333,9 +367,32 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
             </Alert>
           )}
           {feedback && <Alert severity={feedback.tone}>{feedback.text}</Alert>}
+          {features.finalized && (
+            <Alert severity="info">
+              Setup finalized {features.finalized_at}. {features.change_handoff}
+            </Alert>
+          )}
+          {clinicType === "weight_loss" && (
+            <Alert severity="info">
+              {features.starter_profile?.id
+                ? "Applied weight-management starter, revision " +
+                  features.starter_profile.version
+                : "Preview: applying Weight loss creates an initial visit and a follow-up visit with distinct intake forms and goal/weight context."}{" "}
+              Membership offers remain drafts until you supply and publish their
+              terms. No medication, laboratory panel, price or follow-up
+              interval is selected for you.
+            </Alert>
+          )}
+          {features.starter_profile?.visits &&
+            Object.values(features.starter_profile.visits).map((visit) => (
+              <Typography key={visit.visit_type_id} variant="body2">
+                {visit.name} · {visit.form_id} · visit type{" "}
+                {visit.visit_type_id}
+              </Typography>
+            ))}
         </Stack>
 
-        <FormControl disabled={!canWrite || saving}>
+        <FormControl disabled={!canWrite || saving || features.finalized}>
           <FormLabel id="clinic-type-label">1. Clinic type</FormLabel>
           <RadioGroup
             aria-labelledby="clinic-type-label"
@@ -405,6 +462,10 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
                   <FormControlLabel
                     control={
                       <Checkbox
+                        disabled={
+                          features.finalized &&
+                          !features.selected_services?.includes(service.code)
+                        }
                         checked={serviceScope.includes(service.code)}
                         onChange={(event) =>
                           toggleService(service.code, event.target.checked)
@@ -507,7 +568,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
         <Stack spacing={1}>
           <Typography variant="h3">4. Payment model</Typography>
           <FormControlLabel
-            disabled={!canWrite || saving}
+            disabled={!canWrite || saving || features.finalized}
             control={
               <Switch
                 checked={insuranceEnabled}
@@ -536,11 +597,19 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
             type="button"
             color="inherit"
             startIcon={<AutoFixHighOutlinedIcon />}
-            disabled={!canWrite || saving}
+            disabled={!canWrite || saving || features.finalized}
             onClick={applyRecommendation}
           >
             Use recommended starting scope
           </Button>
+          {!features.finalized && features.configured && (
+            <Button
+              disabled={!canWrite || saving || changed}
+              onClick={() => void save(true)}
+            >
+              Finalize clinic setup
+            </Button>
+          )}
           <Button
             type="button"
             variant="contained"

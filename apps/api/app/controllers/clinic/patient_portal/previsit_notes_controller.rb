@@ -23,7 +23,7 @@ module Clinic
 
       def create
         appointment = portal_appointment!
-        input = parameter_hash!(:previsit_note, %i[text intake_answers attestation status reused_note_id expected_version request_key])
+        input = parameter_hash!(:previsit_note, %i[text intake_answers attestation status reused_note_id expected_version request_key form_id])
         unless input.key?(:text)
           raise Clinic::Api::RequestParameters::Invalid.new("text is required.", field: :text)
         end
@@ -32,10 +32,17 @@ module Clinic
         ) || ""
         raise ArgumentError, "Send structured intake through the intake answers fields." if text.start_with?(Clinic::Care::PrevisitIntake::PREFIX)
         if params[:previsit_note].key?(:intake_answers) || input.key?(:status)
+          latest = PrevisitNotes.latest(appointment)
+          form = Clinic::Care::PrevisitIntake.form_for(practice: portal_practice, appointment: appointment,
+            payload: latest && Clinic::Care::PrevisitIntake.decode(latest.encrypted_text))
+          if input[:form_id].present? && input[:form_id] != form[:id]
+            raise ArgumentError, "The form revision changed. Reopen this intake before saving; other patient work remains available."
+          end
           answers = params[:previsit_note][:intake_answers] || {}
           answers = answers.to_unsafe_h if answers.is_a?(ActionController::Parameters)
           text = Clinic::Care::PrevisitIntake.encode(
             text: text,
+            form_id: form[:id],
             answers: answers,
             attested: input[:attestation],
             status: input[:status] || "submitted",
@@ -87,12 +94,13 @@ module Clinic
           [ candidate, Clinic::Care::PrevisitIntake.decode(candidate.encrypted_text) ]
         end.find { |_candidate, intake| intake.present? && intake["status"] != "draft" }
         previous, previous_intake = reusable
+        form = Clinic::Care::PrevisitIntake.form_for(practice: portal_practice, appointment: appointment,
+          payload: note && Clinic::Care::PrevisitIntake.decode(note.encrypted_text))
         {
           appointment_id: appointment.id,
           note: Clinic::Care::PrevisitNoteSerializer.call(note),
           intake_form: {
-            id: Clinic::Care::PrevisitIntake::FORM_ID,
-            fields: Clinic::Care::PrevisitIntake::FIELDS,
+            **form,
             max_answer_length: Clinic::Care::PrevisitIntake::MAX_ANSWER_LENGTH,
             answer_states: Clinic::Care::PrevisitIntake::ANSWER_STATES,
             medication_options: Clinic::Care::PrevisitIntake.medication_options(portal_practice),
@@ -108,7 +116,7 @@ module Clinic
             author_id: previous.submitted_by_user_id,
             submitted_at: previous.submitted_at.iso8601(6),
             answers: previous_intake["answers"].slice(
-              *Clinic::Care::PrevisitIntake::FIELDS.select { |field| field[:reusable] }.map { |field| field[:id] }
+              *form[:fields].select { |field| field[:reusable] }.map { |field| field[:id] }
             )
           },
           can_edit: PrevisitNotes.editable?(appointment)

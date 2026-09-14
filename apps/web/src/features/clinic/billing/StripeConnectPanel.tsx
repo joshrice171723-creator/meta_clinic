@@ -10,7 +10,10 @@ export type StripeConnectionStatus = {
   charges_enabled: boolean;
   payouts_enabled: boolean;
   application_fee_percent: string;
-  mode: "test";
+  mode: "test" | "local";
+  processor: "stripe" | "local_membership_simulator";
+  source?: "local_membership_payment_simulator";
+  vendor_confirmed?: false;
   can_manage: boolean;
   last_synced_at?: string | null;
 };
@@ -99,7 +102,8 @@ export function StripeConnectPanel() {
   };
 
   if (!data) return <LoadState error={resource.error} />;
-  const paymentsReady = data.charges_enabled;
+  const localSimulator = data.source === "local_membership_payment_simulator";
+  const paymentsReady = !localSimulator && data.charges_enabled;
   const setupComplete = paymentsReady && data.payouts_enabled;
   return (
     <Stack spacing={2.5}>
@@ -111,15 +115,17 @@ export function StripeConnectPanel() {
           setupComplete ? "success" : data.connected ? "warning" : "info"
         }
       >
-        {!data.configured
-          ? "Platform sandbox configuration is required before clinic setup can begin."
-          : setupComplete
-            ? "Stripe sandbox is ready to collect eligible invoice and membership payments for this clinic."
-            : paymentsReady
-              ? "Card payments are available for eligible invoice and membership payments. Payout setup is still incomplete in Stripe."
-              : data.connected
-                ? "Clinic onboarding is incomplete. Finish setup in Stripe, then check the connection again."
-                : "Connect this clinic to Stripe before collecting eligible invoice or membership payments."}
+        {localSimulator
+          ? "This clinic is using local membership payment simulation. No Stripe account, card network, payout, or external vendor confirmed these events."
+          : !data.configured
+            ? "Platform sandbox configuration is required before clinic setup can begin."
+            : setupComplete
+              ? "Stripe sandbox is ready to collect eligible invoice and membership payments for this clinic."
+              : paymentsReady
+                ? "Card payments are available for eligible invoice and membership payments. Payout setup is still incomplete in Stripe."
+                : data.connected
+                  ? "Clinic onboarding is incomplete. Finish setup in Stripe, then check the connection again."
+                  : "Connect this clinic to Stripe before collecting eligible invoice or membership payments."}
       </Alert>
       {returnMarker && busy && (
         <Alert severity="info">Checking the clinic’s Stripe connection…</Alert>
@@ -140,32 +146,61 @@ export function StripeConnectPanel() {
       >
         <div>
           <span>Environment</span>
-          <Chip size="small" label="Sandbox only" />
+          <Chip
+            size="small"
+            label={localSimulator ? "Local simulator" : "Sandbox only"}
+          />
         </div>
         <div>
           <span>Card payments</span>
-          <strong>{data.charges_enabled ? "Enabled" : "Not enabled"}</strong>
+          <strong>
+            {localSimulator
+              ? "Not contacted"
+              : data.charges_enabled
+                ? "Enabled"
+                : "Not enabled"}
+          </strong>
         </div>
         <div>
           <span>Payouts</span>
-          <strong>{data.payouts_enabled ? "Enabled" : "Not enabled"}</strong>
+          <strong>
+            {localSimulator
+              ? "Not contacted"
+              : data.payouts_enabled
+                ? "Enabled"
+                : "Not enabled"}
+          </strong>
         </div>
         <div>
           <span>Meta Clinic application fee</span>
-          <strong>{data.application_fee_percent}% per payment</strong>
+          <strong>
+            {localSimulator
+              ? "No fee or money movement"
+              : `${data.application_fee_percent}% per payment`}
+          </strong>
         </div>
       </Box>
       <Stack spacing={0.75}>
-        <Typography>
-          Eligible invoice payments, membership payments, and monthly renewals
-          are direct charges on the clinic’s connected account. Stripe
-          processing fees and payouts belong to the clinic.
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Stripe collects bank and business details on its own website. Meta
-          Clinic never collects card details here, and live collection remains
-          disabled.
-        </Typography>
+        {localSimulator ? (
+          <Typography>
+            The dedicated membership account flow records signed local events
+            against the existing membership ledger. Use that flow for local
+            payment, renewal failure, and cancellation evidence.
+          </Typography>
+        ) : (
+          <>
+            <Typography>
+              Eligible invoice payments, membership payments, and monthly
+              renewals are direct charges on the clinic’s connected account.
+              Stripe processing fees and payouts belong to the clinic.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Stripe collects bank and business details on its own website. Meta
+              Clinic never collects card details here, and live collection
+              remains disabled.
+            </Typography>
+          </>
+        )}
         {data.last_synced_at && (
           <Typography variant="body2" color="text.secondary">
             Connection last checked{" "}
@@ -173,14 +208,14 @@ export function StripeConnectPanel() {
           </Typography>
         )}
       </Stack>
-      {!data.configured && (
+      {!localSimulator && !data.configured && (
         <Typography variant="body2">
           A Meta Clinic administrator must securely configure the Stripe sandbox
           API key and Connect webhook outside the browser before clinic
           onboarding can begin.
         </Typography>
       )}
-      {data.can_manage ? (
+      {!localSimulator && data.can_manage ? (
         <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
           <Button
             variant="contained"
@@ -203,12 +238,12 @@ export function StripeConnectPanel() {
             </Button>
           )}
         </Stack>
-      ) : (
+      ) : !localSimulator ? (
         <Typography variant="body2">
           You can review this status. A clinic administrator with membership
           publishing and payment permissions must manage the Stripe connection.
         </Typography>
-      )}
+      ) : null}
     </Stack>
   );
 }

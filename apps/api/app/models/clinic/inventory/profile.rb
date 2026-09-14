@@ -14,7 +14,7 @@ module Clinic
       def self.revise!(practice:, actor:, status:, reason:, operator_reference: nil)
         practice.with_lock do
           Clinic::Inventory::Access.with(practice.id, actor, "configure") do |previous|
-            create!(practice: practice, version: previous.version + 1, status: status, reason: reason, actor_id: actor.id, operator_reference: operator_reference)
+            create!(practice: practice, version: previous&.version.to_i + 1, status: status, reason: reason, actor_id: actor.id, operator_reference: operator_reference)
           end
         end
       end

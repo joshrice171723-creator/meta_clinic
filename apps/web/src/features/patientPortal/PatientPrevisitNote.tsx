@@ -83,6 +83,7 @@ type Attempt = {
       attestation: boolean;
       expected_version: number;
       request_key: string;
+      form_id?: string;
     };
   };
 };
@@ -298,6 +299,7 @@ export function PatientPrevisitNote({
     const current = attempt.current ?? {
       body: {
         previsit_note: {
+          form_id: data.intake_form?.id,
           text: normalizedText,
           intake_answers: answers,
           status,

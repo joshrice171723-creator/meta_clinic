@@ -53,7 +53,9 @@ export type Subscription = {
   invoice_id: number;
   version_id: number;
   state: string;
-  processor?: "stripe" | "development_fixture";
+  processor?: "stripe" | "development_fixture" | "local_membership_simulator";
+  payment_source?: "local_membership_payment_simulator";
+  vendor_confirmed?: false;
   checkout_status?: "open" | "expired" | "complete" | null;
   renewal_status?: string | null;
   renewal_canceled?: boolean;

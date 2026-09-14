@@ -70,6 +70,8 @@ module Clinic
       def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:, reason:,
         visit_modality:, actor:)
         ApplicationRecord.transaction do
+          practice.lock!
+          Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
           CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient,
             starts_at: starts_at, ends_at: ends_at)
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,

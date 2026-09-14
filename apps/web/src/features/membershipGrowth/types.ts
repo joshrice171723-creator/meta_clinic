@@ -18,7 +18,9 @@ export type PublicMembershipStorefrontResponse = {
   catalog: PublishedPackage[];
   payment: {
     checkout_available: boolean;
-    mode: "test";
+    mode: "test" | "local_simulator";
+    source: "stripe_test" | "local_membership_payment_simulator";
+    vendor_confirmed: false;
   };
 };
 

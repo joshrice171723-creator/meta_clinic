@@ -16,6 +16,7 @@ Rails.application.routes.draw do
   post "public/membership_accounts/activate", to: "public/membership_storefronts#activate_account"
   get "public/membership_accounts/current", to: "public/membership_storefronts#current_account"
   post "public/membership_accounts/checkout", to: "public/membership_storefronts#resume_checkout"
+  post "public/membership_accounts/local_payment", to: "public/local_membership_payments#create"
   namespace :clinic do
     root "dashboard#show"
     get "context", to: "context#show"
@@ -73,7 +74,7 @@ Rails.application.routes.draw do
     patch "facilities/:id", to: "facilities#update"
     resource :practice_features, only: %i[show update]
     resources :visit_types, only: %i[create update]
-    resources :clinicians, controller: "clinicians", only: :index
+    resources :clinicians, controller: "clinicians", only: %i[index create]
     resources :role_versions, controller: "role_versions", only: :index
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do
       post :transition, on: :member

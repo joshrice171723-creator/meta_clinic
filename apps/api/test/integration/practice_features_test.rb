@@ -100,6 +100,37 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_equal 1, Clinic::PracticeFeatureVersion.where(practice: @membership.practice).count
   end
 
+  test "finalized starter preserves exact forms and independent clinic operations" do
+    practice = @membership.practice
+    practice.sites.create!(code: "WL", name: "Synthetic weight clinic", status: "active")
+    payload = profile_payload(clinic_type: "weight_loss", service_scope: %w[telehealth prescription_preparation])
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    starter = response.parsed_body.dig("features", "starter_profile")
+    assert_equal 2, starter.fetch("visits").size
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal 2, practice.visit_types.count
+    original = Clinic::Care::PrevisitIntake.encode(text: "", answers: { "goals" => "Synthetic goal" },
+      attested: true, form_id: starter.dig("visits", "initial", "form_id"))
+    payload.merge!(expected_revision: 1, request_key: SecureRandom.uuid, finalize: true)
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert response.parsed_body.dig("features", "finalized")
+    payload.merge!(expected_revision: 2, request_key: SecureRandom.uuid, clinic_type: "primary_care")
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Protected profile change"
+    payload.merge!(clinic_type: "weight_loss", service_scope: %w[telehealth], request_key: SecureRandom.uuid)
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal starter, response.parsed_body.dig("features", "starter_profile")
+    assert_not Clinic::Care::ClinicalPlanWorkflow.new_work_available?(practice, :medication_requests)
+    assert Clinic::Care::ClinicalPlanWorkflow.new_work_available?(practice, :care_plans)
+    assert_equal "Synthetic goal", Clinic::Care::PrevisitIntake.decode(original).dig("answers", "goals", "value")
+    assert_equal "weight-management-initial-v1", Clinic::Care::PrevisitIntake.decode(original).fetch("form_id")
+  end
+
   private
 
   def profile_payload(overrides = {})

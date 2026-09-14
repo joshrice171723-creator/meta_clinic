@@ -60,11 +60,17 @@ module Public
 
     def show
       practice = storefront_practice
+      local_simulator = local_simulator_available?(practice)
       render json: {
         practice: { name: practice.name, slug: practice.public_membership_slug },
         business_date: Current.business_date.iso8601,
         catalog: Clinic::Care::SubscriptionProjection.catalog(practice: practice),
-        payment: { checkout_available: Clinic::Billing::StripeConnect.patient_checkout_available?(practice), mode: "test" }
+        payment: {
+          checkout_available: local_simulator || Clinic::Billing::StripeConnect.patient_checkout_available?(practice),
+          mode: local_simulator ? "local_simulator" : "test",
+          source: local_simulator ? Development::MembershipPaymentSimulator::SOURCE : "stripe_test",
+          vendor_confirmed: false
+        }
       }
     end
 
@@ -132,14 +138,22 @@ module Public
         stage: prospect.enrollment_stage,
         can_pay: prospect.account_activated_at.present? && prospect.patient_id.nil? &&
           !prospect.status_declined? && prospect.recurring_authorized_at.nil? && !prospect.status_payment_processing?,
-        redirect_to: patient_ready ? "/patient-portal?stripe_payment=return#onboarding" : nil
+        redirect_to: patient_ready ? patient_portal_redirect(prospect) : nil,
+        local_simulator: local_simulator_available?(prospect.practice) ?
+          Development::MembershipPaymentSimulator.state(prospect) : { enabled: false }
       } }
     end
 
     def resume_checkout
       prospect = current_account_prospect
-      checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: prospect.practice,
-        prospect:, user: current_user)
+      gateway = if Development::MembershipPaymentSimulator.enabled_for?(prospect.practice)
+        raise ActiveRecord::RecordNotFound unless local_simulator_request?
+
+        Development::MembershipPaymentSimulator.gateway_for!(practice: prospect.practice, prospect:)
+      end
+      arguments = { practice: prospect.practice, prospect:, user: current_user }
+      arguments[:gateway] = gateway if gateway
+      checkout = Clinic::MembershipGrowth::PublicCheckout.start_for_account(**arguments)
       render json: { checkout: { url: checkout.checkout_url } }
     end
 
@@ -184,12 +198,32 @@ module Public
       practice
     end
 
+    def local_simulator_available?(practice)
+      local_simulator_request? && Development::MembershipPaymentSimulator.enabled_for?(practice)
+    end
+
+    def local_simulator_request?
+      Rails.env.test? || DevelopmentAccess.allowed?(request)
+    end
+
+    def patient_portal_redirect(prospect)
+      checkout = Clinic::Billing::StripeCheckout.find_by(
+        practice_id: prospect.practice_id,
+        agreement_id: prospect.agreement_id
+      )
+      if checkout && Development::MembershipPaymentSimulator.connection?(checkout.connection)
+        "/patient-portal?membership_payment=local#onboarding"
+      else
+        "/patient-portal?stripe_payment=return#onboarding"
+      end
+    end
+
     def render_paid_handoff(prospect)
       if prospect.account_user_id
         identity = prospect.portal_identity
         if identity&.active? && current_user&.id == prospect.account_user_id
           session[:patient_portal_identity_id] = identity.id
-          render json: { onboarding: { status: "active", redirect_to: "/patient-portal?stripe_payment=return#onboarding" } }
+          render json: { onboarding: { status: "active", redirect_to: patient_portal_redirect(prospect) } }
         else
           render json: { onboarding: { status: "email_required" } }
         end

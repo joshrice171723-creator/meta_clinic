@@ -54,14 +54,16 @@ function followUpLabel(
 }
 
 function nextChargeLabel(subscription: Subscription) {
-  if (subscription.terms.renewal !== "automatic")
-    return "No automatic charge";
+  if (subscription.terms.renewal !== "automatic") return "No automatic charge";
   if (subscription.state !== "active") return "Unavailable until active";
   if (subscription.renewal_canceled) return "No automatic charge scheduled";
-  if (subscription.processor !== "stripe")
+  if (
+    !["stripe", "local_membership_simulator"].includes(
+      subscription.processor ?? "",
+    )
+  )
     return "No processor-derived amount";
-  if (!subscription.renewal_amount_due)
-    return "Not returned by the processor";
+  if (!subscription.renewal_amount_due) return "Not returned by the processor";
   return subscriptionMoney(
     subscription.renewal_amount_due,
     subscription.currency,
@@ -93,9 +95,8 @@ function PackagePosition({
             Package billing and next charge
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            Amounts below come from recorded package invoices and the payment
-            processor. They do not represent remaining included visits or
-            services.
+            Amounts below come from recorded billing sources. They do not
+            represent remaining included visits or services.
           </Typography>
         </Box>
         {truncated && (
@@ -115,7 +116,9 @@ function PackagePosition({
               automatic &&
               subscription.state === "active" &&
               !subscription.renewal_canceled &&
-              subscription.processor === "stripe" &&
+              ["stripe", "local_membership_simulator"].includes(
+                subscription.processor ?? "",
+              ) &&
               Boolean(subscription.renewal_amount_due);
             return (
               <Box
@@ -135,6 +138,11 @@ function PackagePosition({
                   <Typography color="text.secondary" variant="body2">
                     {subscription.state.replaceAll("_", " ")}
                   </Typography>
+                  {subscription.processor === "local_membership_simulator" && (
+                    <Typography color="text.secondary" variant="body2">
+                      Local payment simulation · no vendor-confirmed transaction
+                    </Typography>
+                  )}
                 </Box>
                 <Box>
                   <Typography color="text.secondary" variant="caption">
@@ -156,7 +164,10 @@ function PackagePosition({
                   </Typography>
                   {processorAmountAvailable && subscription.ends_at && (
                     <Typography color="text.secondary" variant="caption">
-                      Processor-derived amount for renewal around{" "}
+                      {subscription.processor === "local_membership_simulator"
+                        ? "Local simulated amount"
+                        : "Processor-derived amount"}{" "}
+                      for renewal around{" "}
                       {subscriptionDate(subscription.ends_at)}
                     </Typography>
                   )}
@@ -166,10 +177,32 @@ function PackagePosition({
                       sx={{ display: "block" }}
                       variant="caption"
                     >
-                      Last synced {subscriptionDate(subscription.last_synced_at)}
+                      Last synced{" "}
+                      {subscriptionDate(subscription.last_synced_at)}
                     </Typography>
                   )}
                 </Box>
+                {subscription.renewal_invoice_status === "open" &&
+                  subscription.renewal_amount_due &&
+                  !isZero(subscription.renewal_amount_due) && (
+                    <Alert severity="warning" sx={{ gridColumn: "1 / -1" }}>
+                      Renewal invoice remains open:{" "}
+                      {subscriptionMoney(
+                        subscription.renewal_amount_due,
+                        subscription.currency,
+                      )}
+                      .
+                      {subscription.renewal_canceled
+                        ? " Canceling future renewals does not settle this invoice."
+                        : " Billing follow-up is needed."}
+                      <Button
+                        href={`/clinic/subscriptions?patient_id=${subscription.patient_id}`}
+                        size="small"
+                      >
+                        Review membership billing
+                      </Button>
+                    </Alert>
+                  )}
               </Box>
             );
           })
@@ -212,12 +245,12 @@ export function GuidedCheckout({
   const completionMatches =
     completion.data?.patient_id === patientId &&
     completion.data.encounter_id === encounterId;
-  const completionEvidence = completionMatches && completion.data
-    ? completion.data.evidence
-    : undefined;
-  const completionReview = completionMatches && completion.data
-    ? completion.data.completion_review
-    : null;
+  const completionEvidence =
+    completionMatches && completion.data ? completion.data.evidence : undefined;
+  const completionReview =
+    completionMatches && completion.data
+      ? completion.data.completion_review
+      : null;
   const completionReviewMatches =
     completionReview?.patient_id === patientId &&
     completionReview.encounter_id === encounterId;
@@ -259,8 +292,7 @@ export function GuidedCheckout({
   const invoiceSettled =
     invoicePosted === true && isZero(invoice.balance_amount);
   const paymentReady = invoiceSettled;
-  const receiptReady =
-    paymentReady && (!recordedPayment || Boolean(receipt));
+  const receiptReady = paymentReady && (!recordedPayment || Boolean(receipt));
   const followUp = completionEvidence?.follow_up ?? null;
   const followUpRecordValue = followUpRecord.data?.follow_up ?? null;
   const followUpRecordMatches =
@@ -337,7 +369,7 @@ export function GuidedCheckout({
     : paymentReady && recordedPayment
       ? `Recorded payment #${recordedPayment.id} is allocated and the server reports no remaining balance.`
       : paymentReady && !isZero(invoice?.credit_amount ?? "0")
-        ? "The server reports no remaining balance after recorded credits; no payment is represented."
+        ? "The recorded invoice and adjustments leave no amount due; no payment is represented."
         : paymentReady
           ? "The posted invoice has no remaining amount to collect; no payment is represented."
           : invoice?.online_payment.state === "processing" ||
@@ -419,7 +451,8 @@ export function GuidedCheckout({
       recover:
         completion.error ||
         followUpRecord.error ||
-        (completion.data !== undefined && followUpRecord.data !== undefined &&
+        (completion.data !== undefined &&
+          followUpRecord.data !== undefined &&
           !followUpRecordMatches)
           ? {
               label: "Refresh follow-up evidence",

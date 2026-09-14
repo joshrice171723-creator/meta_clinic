@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — New weight-loss clinic and continuing-patient journey implemented
+
+Revision 4 was implemented and locally browser-proved in new clinic 5/site 4 with continuing patient 40 across J0–J7. Specialty setup drives visits, forms and shared context; the proof covers account-first signed local payment, distinct handoff, exact content versions, stock reversal/post-closure reconciliation, corrected lab work, included-visit checkout and the same patient's return with disconnected video/manual fallback. Open source-owned billing and clinical work remains explicit. See the [dated outcome](../../records/progress/2026/09/2026-09-14-weight-loss-connected-journey.md), [evidence owner](../../docs/development/patient-journey-implementation-evidence.md), and current brief checkpoint. Focused Rails, TypeScript/build and scoped lint/format checks passed; no live-provider or launch acceptance is claimed.
+
 ## 2026-09-14 — Architecture and change-authority decision adopted
 
 D-078 adopts one modular application, a shared non-switchable core, setup-time composition and operation-specific clinic-managed, Meta Clinic-managed and FDE-assisted transitions. The [architecture contract](../../docs/architecture/clinic-capability-architecture.md) and [dated research](../../records/research/2026-09-14-meta-clinic-capability-architecture.md) distinguish U.S.-applicable FHIR semantics from our internal design choices and preserve exact revision-used meaning without requiring legacy development compatibility. Updated product/strategy, architecture routing, guide/matrix, tracker and weight-loss brief revision 4. CF-04/CV-10 add change-authority and exact-use prerequisites with permitted independent work. The earlier execution plan now routes to the current brief. No application code, data reset, runtime/browser checks or task dispatch; document verification is reported with the Git handoff. Pending-research statements in earlier entries below are historical, superseded by this adoption.

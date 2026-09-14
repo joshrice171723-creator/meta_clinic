@@ -48,11 +48,20 @@ module Clinic
         invoice = agreement.invoice
         active = events.reverse.find { |event| event.kind == "active" }
         canceled = events.find { |event| event.kind == "canceled" }
-        {
+        local_simulator = stripe_checkout &&
+          Development::MembershipPaymentSimulator.connection?(stripe_checkout.connection)
+        processor = if local_simulator
+          "local_membership_simulator"
+        elsif stripe_checkout
+          "stripe"
+        else
+          "development_fixture"
+        end
+        result = {
           id: agreement.id, invoice_id: invoice.id, patient_id: agreement.patient_id,
           version_id: agreement.version_id, state: state_for(events),
           terms: agreement.snapshot, amount: agreement.amount.to_s("F"), currency: agreement.currency,
-          processor: stripe_checkout ? "stripe" : "development_fixture",
+          processor: processor,
           renewal_status: stripe_checkout&.subscription_status,
           renewal_canceled: stripe_checkout&.cancel_at_period_end || %w[canceled incomplete_expired].include?(stripe_checkout&.subscription_status),
           checkout_status: stripe_checkout&.session_status, last_synced_at: stripe_checkout&.last_synced_at&.iso8601,
@@ -68,6 +77,11 @@ module Clinic
             stripe_checkout&.cancel_at_period_end || stripe_checkout&.subscription_status == "canceled" ? active&.details&.fetch("ends_at", nil) : canceled&.details&.fetch("effective_at", nil),
           events: events.map { |event| { kind: event.kind, occurred_at: event.created_at.iso8601 } }
         }
+        if local_simulator
+          result[:payment_source] = Development::MembershipPaymentSimulator::SOURCE
+          result[:vendor_confirmed] = false
+        end
+        result
       end
 
       def self.state_for(events)

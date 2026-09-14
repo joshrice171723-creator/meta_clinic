@@ -95,9 +95,12 @@ export function PatientSubscriptions({
     catalog: PublishedPackage[];
     subscriptions: Subscription[];
     can_purchase: boolean;
+    processor?: "stripe" | "development_fixture" | "local_membership_simulator";
     payment?: {
       checkout_available: boolean;
       next_step: "checkout" | "clinic_follow_up";
+      source?: "local_membership_payment_simulator";
+      vendor_confirmed?: false;
     };
   }>("/api/patient_portal/subscriptions");
   const [selected, setSelected] = useState<PublishedPackage | null>(null);
@@ -114,6 +117,10 @@ export function PatientSubscriptions({
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("stripe_payment");
+  const membershipPaymentReturn =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("membership_payment");
   const run = async (action: () => Promise<void>, refresh = true) => {
     setBusy(true);
     setError("");
@@ -162,6 +169,13 @@ export function PatientSubscriptions({
             Stripe Checkout was closed before payment was confirmed. Your card
             was not recorded by Meta Clinic. You can safely resume the existing
             Checkout session below.
+          </Alert>
+        )}
+        {(membershipPaymentReturn === "local" ||
+          data?.payment?.source === "local_membership_payment_simulator") && (
+          <Alert severity="info">
+            This membership uses local simulator evidence. No Stripe account,
+            card network, or external vendor confirmed the payment.
           </Alert>
         )}
         <Typography variant="h5" component="h3">
@@ -245,16 +259,21 @@ export function PatientSubscriptions({
                 {renewalNeedsPayment(subscription) && (
                   <Alert severity="warning">
                     Your latest monthly renewal needs payment. Access remains
-                    tied to your last verified paid period. Use Resolve payment
-                    in Stripe below, then check the payment status.
+                    tied to your last verified paid period.
+                    {subscription.processor === "local_membership_simulator"
+                      ? " Return to the local simulator to record the next signed event."
+                      : " Use Resolve payment in Stripe below, then check the payment status."}
                   </Alert>
                 )}
                 {subscription.checkout_status === "expired" && (
                   <Alert severity="warning">
-                    This Stripe Checkout session expired without a verified
-                    payment. Check payment status so the clinic can close this
-                    enrollment; then you can start again from the current
-                    catalog.
+                    This{" "}
+                    {subscription.processor === "local_membership_simulator"
+                      ? "local payment session"
+                      : "Stripe Checkout session"}{" "}
+                    expired without a verified payment. Check payment status so
+                    the clinic can close this enrollment; then you can start
+                    again from the current catalog.
                   </Alert>
                 )}
                 {["processing", "outcome_unknown"].includes(
@@ -262,16 +281,21 @@ export function PatientSubscriptions({
                 ) &&
                   subscription.checkout_status !== "expired" && (
                     <Alert severity="info">
-                      Stripe has not confirmed payment yet. Do not start a
-                      second membership. Resume Checkout or check payment status
-                      below.
+                      Payment is not confirmed yet. Do not start a second
+                      membership.
+                      {subscription.processor === "local_membership_simulator"
+                        ? " Return to the local simulator to continue."
+                        : " Resume Checkout or check payment status below."}
                     </Alert>
                   )}
                 {subscription.state === "payment_failed" &&
                   !renewalNeedsPayment(subscription) && (
                     <Alert severity="error">
                       Payment was not completed. Your membership will activate
-                      only after Stripe confirms a successful charge.
+                      only after{" "}
+                      {subscription.processor === "local_membership_simulator"
+                        ? "a signed local simulator event is verified."
+                        : "Stripe confirms a successful charge."}
                     </Alert>
                   )}
                 {subscription.state === "pending_review" && (
@@ -388,7 +412,9 @@ export function PatientSubscriptions({
                 </Typography>
                 {subscription.renewal_status && (
                   <Typography variant="body2" color="text.secondary">
-                    Stripe subscription:{" "}
+                    {subscription.processor === "local_membership_simulator"
+                      ? "Local simulated renewal: "
+                      : "Stripe subscription: "}
                     {stateLabel(subscription.renewal_status)}
                     {subscription.last_synced_at
                       ? ` · checked ${subscriptionDate(subscription.last_synced_at, true)}`
@@ -476,6 +502,7 @@ export function PatientSubscriptions({
                       </Button>
                     )}
                   {data.can_purchase &&
+                    subscription.processor !== "local_membership_simulator" &&
                     !subscription.renewal_canceled &&
                     ((subscription.terms.renewal === "automatic" &&
                       (subscription.checkout_status === "open" ||
