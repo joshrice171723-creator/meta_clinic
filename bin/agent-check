@@ -12,6 +12,9 @@ from time import monotonic
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dev_resources import run_check
+
 
 ROOT = Path(__file__).resolve().parent.parent
 PNPM = "pnpm.cmd" if sys.platform == "win32" else "pnpm"
@@ -172,12 +175,12 @@ def web_impacted_checks(paths: set[str], level: str) -> list[Check]:
     if code_paths or build_changed:
         checks.append(Check("frontend incremental typecheck", (PNPM, "run", "typecheck"), web_root))
     if level == "integration":
-        checks.append(Check("frontend tests", (PNPM, "test"), web_root))
+        checks.append(Check("frontend tests", (PNPM, "test", "--maxWorkers=1"), web_root))
     else:
         if source_paths:
-            checks.append(Check("frontend related tests", (PNPM, "exec", "vitest", "related", *source_paths, "--run"), web_root))
+            checks.append(Check("frontend related tests", (PNPM, "exec", "vitest", "related", *source_paths, "--run", "--maxWorkers=1"), web_root))
         if test_paths:
-            checks.append(Check("frontend changed tests", (PNPM, "exec", "vitest", "run", *test_paths), web_root))
+            checks.append(Check("frontend changed tests", (PNPM, "exec", "vitest", "run", *test_paths, "--maxWorkers=1"), web_root))
     if format_paths:
         command = (PNPM, "exec", "prettier", "--check", *format_paths, "--end-of-line", "auto")
         checks.append(Check("frontend formatting", command, web_root))
@@ -208,6 +211,8 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         or path
         in {
             "bin/agent-check",
+            "bin/agent-resources",
+            "bin/dev_resources.py",
             "bin/agent-preflight",
             "bin/create-agent-skill",
             "bin/dev",
@@ -385,6 +390,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="Print a machine-readable report to stdout.")
     parser.add_argument("--budget-minutes", type=float, default=10, help="Reassess before starting another check after this elapsed time (default: 10). Does not kill an active check.")
     parser.add_argument("--budget-reason", help="Concrete reason required to extend verification beyond 10 minutes.")
+    parser.add_argument("--reuse-evidence", action="store_true", help="Reuse matching source-only frontend test evidence; never database/browser/build proof.")
     args = parser.parse_args()
     if not 0 < args.budget_minutes < float("inf"):
         parser.error("--budget-minutes must be a positive finite number")
@@ -440,19 +446,14 @@ def main() -> int:
                     print(json.dumps(report, sort_keys=True))
                     return 3
                 try:
-                    result = subprocess.run(
-                        check.command,
-                        cwd=check.cwd,
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                    )
-                except OSError as error:
+                    result = execute_check(check, args.reuse_evidence, capture_output=True)
+                except (OSError, RuntimeError, TimeoutError) as error:
                     outcome.update(status="failed", returncode=127, stderr=str(error))
                     print(json.dumps(report, sort_keys=True))
                     return 127
                 outcome["status"] = "passed" if result.returncode == 0 else "failed"
+                if getattr(result, "reused_evidence", False) is True:
+                    outcome["status"] = "reused"
                 outcome["returncode"] = result.returncode
                 if result.returncode:
                     if result.stdout:
@@ -496,15 +497,22 @@ def main() -> int:
             return 3
         print(f"\n==> {check.name}", flush=True)
         try:
-            result = subprocess.run(check.command, cwd=check.cwd)
-        except OSError as error:
+            result = execute_check(check, args.reuse_evidence)
+        except (OSError, RuntimeError, TimeoutError) as error:
             print(f"check could not start: {check.name}: {error}", file=sys.stderr)
             return 127
         if result.returncode:
             print(f"check failed: {check.name}", file=sys.stderr)
             return result.returncode
-    print("\nAll selected checks passed.")
+    print("\nAll selected checks passed or have explicitly reported matching evidence.")
     return 0
+
+
+def execute_check(check, reuse=False, capture_output=False):
+    if check.cwd in (ROOT / "apps/web", ROOT / "apps/api") or check.command[0] == RUBY:
+        return run_check(ROOT, check.command, check.cwd, check.name, capture_output, reuse)
+    return subprocess.run(check.command, cwd=check.cwd, capture_output=capture_output,
+                          text=True, encoding="utf-8", errors="replace")
 
 
 if __name__ == "__main__":

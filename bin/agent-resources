@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Shared heavy-command queue and two protected prepared worktree slots."""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+from dev_resources import alive, git, lock, shared, run_heavy, write_json
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def slot_path(number):
+    # Fixed names and no reset/delete operations: existing work is never overwritten.
+    return ROOT.parent / f"meta_clinic_prepared_{number}"
+
+
+def prepare(number):
+    directory = shared(ROOT)
+    with lock(directory, f"slot-{number}", timeout=1):
+        state = directory / f"slot-{number}.json"
+        prior = json.loads(state.read_text()) if state.exists() else {}
+        if prior.get("claimed_by"):
+            raise RuntimeError("Slot is claimed; explicit release is required before preparation")
+        path = slot_path(number)
+        if not path.exists():
+            subprocess.run(["git", "worktree", "add", "--detach", str(path), "HEAD"], cwd=ROOT, check=True)
+        elif shared(path) != directory:
+            raise RuntimeError("Existing path belongs to a different repository")
+        if git(path, "status", "--porcelain"):
+            raise RuntimeError("Prepared checkout contains unfinished work; refusing to modify it")
+        # Never switch or advance an existing checkout automatically.
+        entry = {"path": str(path), "revision": git(path, "rev-parse", "HEAD"), "claimed_by": None,
+                 "environment": {"APPLY_WEB_PORT": str(3200 + number * 10), "APPLY_API_PORT": str(3201 + number * 10),
+                                 "APPLY_DEVELOPMENT_DATABASE": f"apply_prepared_{number}_development",
+                                 "APPLY_TEST_DATABASE": f"apply_prepared_{number}_test"}, "ready": False}
+        write_json(state, entry)
+        result = run_heavy(ROOT, ["ruby", "bin/dev", "prewarm"], path)
+        entry["ready"] = result.returncode == 0
+        write_json(state, entry)
+        if result.returncode:
+            raise RuntimeError("Prewarm failed; slot remains unready")
+        print(json.dumps(entry))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("run", "prepare", "status", "claim", "release", "exec"))
+    parser.add_argument("--slot", type=int, choices=(1, 2))
+    parser.add_argument("--owner")
+    argv = sys.argv[1:]
+    split = argv.index("--") if "--" in argv else len(argv)
+    args = parser.parse_args(argv[:split])
+    directory = shared(ROOT)
+    command = argv[split + 1:]
+    if args.action == "status":
+        for path in sorted(directory.glob("slot-*.json")):
+            print(path.read_text())
+        return 0
+    if args.action == "run":
+        if not command:
+            parser.error("run requires -- command")
+        return run_heavy(ROOT, command, Path.cwd()).returncode
+    if not args.slot:
+        parser.error("--slot is required")
+    if args.action == "prepare":
+        prepare(args.slot)
+        return 0
+    if not args.owner:
+        parser.error("--owner is required")
+    with lock(directory, f"slot-{args.slot}", timeout=1):
+        path = directory / f"slot-{args.slot}.json"
+        state = json.loads(path.read_text())
+        if state.get("claimed_by") not in (None, args.owner):
+            raise RuntimeError("Slot belongs to another owner")
+        if args.action == "claim":
+            if not state["ready"]:
+                raise RuntimeError("Slot is not prepared")
+            if not state.get("claimed_by") and git(state["path"], "status", "--porcelain"):
+                raise RuntimeError("Unclaimed slot has unfinished work; reconcile ownership first")
+            state["claimed_by"] = args.owner
+        elif args.action == "release":
+            if git(state["path"], "status", "--porcelain"):
+                raise RuntimeError("Dirty worktree cannot be released; preserve and finish its work")
+            for record in (Path(state["path"]) / "tmp/dev/pids").glob("*"):
+                if record.is_file():
+                    raise RuntimeError("Managed runtime records remain; stop owned services before release")
+            state["claimed_by"] = None
+        elif args.action == "exec":
+            if state.get("claimed_by") != args.owner or not command:
+                raise RuntimeError("Claim slot first and supply -- command")
+            environment = dict(os.environ, **state["environment"])
+            return subprocess.run(command, cwd=state["path"], env=environment).returncode
+        write_json(path, state)
+        print(json.dumps(state))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (RuntimeError, TimeoutError, subprocess.CalledProcessError) as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(2)
