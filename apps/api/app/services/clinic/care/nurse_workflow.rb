@@ -58,6 +58,8 @@ module Clinic
           patient_id: patient.id,
           encounter_id: encounter.id,
           intake: intake && serialize_intake(intake),
+          questionnaire_form: { fields: PrevisitIntake::FIELDS, answer_states: PrevisitIntake::ANSWER_STATES,
+            medication_options: PrevisitIntake.medication_options(practice) },
           handoff: handoff && serialize_handoff(handoff),
           tasks: tasks.map { |task| serialize_task(task) },
           capabilities: {
@@ -88,7 +90,8 @@ module Clinic
           encounter.with_lock do
             current = latest_intake(practice, encounter, lock: true)
             stale!(current&.version_number || 0, expected_version, current || encounter)
-            revision = Clinic::EncounterIntakeRevision.create!(input.merge(
+            saved_input = input.key?(:encrypted_questionnaire) ? input : input.merge(encrypted_questionnaire: current&.encrypted_questionnaire)
+            revision = Clinic::EncounterIntakeRevision.create!(saved_input.merge(
               practice:, patient:, encounter:, version_number: (current&.version_number || 0) + 1,
               recorded_by_membership: member, recorded_at: Current.business_time, request_key:,
               content_digest: Digest::SHA256.hexdigest(payload.to_json)
@@ -218,7 +221,10 @@ module Clinic
           visit_reason_state: intake.visit_reason_state, history_state: intake.history_state,
           vitals_state: intake.vitals_state, observation_ids: intake.observation_refs.map(&:observation_id),
           history_review_ids: intake.history_refs.map(&:history_review_id), recorded_at: intake.recorded_at.iso8601(6),
-          recorded_by_membership_id: intake.recorded_by_membership_id
+          recorded_by_membership_id: intake.recorded_by_membership_id,
+          questionnaire: PrevisitIntake.decode(intake.encrypted_questionnaire),
+          questionnaire_text: intake.encrypted_questionnaire.present? ? PrevisitIntake.render(intake.encrypted_questionnaire) : nil,
+          questionnaire_form: { fields: PrevisitIntake::FIELDS, answer_states: PrevisitIntake::ANSWER_STATES }
         }
       end
 
@@ -256,6 +262,13 @@ module Clinic
         missing = INTAKE_FIELDS - input.keys
         raise ArgumentError, "Missing intake field: #{missing.first}." if missing.any?
         input.transform_values! { |value| value.to_s }
+        questionnaire = attributes[:questionnaire] || attributes["questionnaire"]
+        if questionnaire
+          questionnaire = questionnaire.to_h.stringify_keys
+          input[:encrypted_questionnaire] = PrevisitIntake.encode(text: questionnaire.fetch("text", ""),
+            answers: questionnaire.fetch("answers", {}), status: questionnaire.fetch("status", "draft"),
+            attested: questionnaire["confirmed"] == true, recorder: "staff")
+        end
         input
       end
 

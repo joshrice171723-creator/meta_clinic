@@ -377,6 +377,8 @@ export type PatientCareSummary = {
   review_needed_topics: string[] | null;
 };
 export type EncounterIntakeRevision = {
+  questionnaire?: { answers: import("../features/patientPortal/IntakeQuestions").IntakeAnswers; text: string; status: "draft" | "submitted"; staff_confirmation?: boolean } | null;
+  questionnaire_text?: string | null;
   id: number;
   patient_id: number;
   encounter_id: number;
@@ -442,6 +444,7 @@ export type ClinicalTask = {
   updated_at: string;
 };
 export type NurseWorkspace = {
+  questionnaire_form?: { fields: import("../features/patientPortal/IntakeQuestions").IntakeField[]; answer_states: string[]; medication_options: string[] };
   schema_version: "nurse-workspace-v1";
   patient_id: number;
   encounter_id: number;
