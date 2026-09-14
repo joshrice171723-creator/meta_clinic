@@ -89,6 +89,8 @@ Use the current commands and ownership rules in `docs/development/`, `docs/archi
 - Use local tests, mocks, synthetic fixtures or authorized tabletops first. Do not remove guards to make a test pass.
 - Stop only the blocked or unsafe path; continue independent safe work.
 
+Follow [this workflow](agent-harness/workflows/code-change.md).
+
 ## Verification and handoff
 
 Before finishing:

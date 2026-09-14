@@ -242,6 +242,30 @@ def display(check: Check) -> str:
     return f"(cd {shlex.quote(str(check.cwd.relative_to(ROOT)))} && {command})"
 
 
+def phase_error(
+    phase: str | None,
+    level: str,
+    staged: bool,
+    scopes: list[str],
+    selected_checks: list[str],
+) -> str | None:
+    if phase == "build" and level != "focused":
+        return "Build-phase verification must use --level focused."
+    if phase == "build" and selected_checks:
+        return "Build-phase verification selects the focused set; do not use --check."
+    if phase == "final" and level == "focused":
+        return "Final verification must use --level component or --level integration."
+    if phase == "final" and not staged:
+        return "Final verification requires --staged so checks bind to the frozen candidate."
+    if phase == "final" and selected_checks:
+        return "Final verification runs the complete selected set; do not use --check."
+    if phase == "repair" and not scopes:
+        return "Repair verification requires at least one --path scope."
+    if phase == "repair" and not selected_checks:
+        return "Repair verification requires one or more --check names from the failed or invalidated set."
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default="HEAD", help="Git base for tracked changes; default: HEAD")
@@ -249,8 +273,13 @@ def main() -> int:
     parser.add_argument("--path", action="append", default=[], help="Limit check selection to this file or directory; repeatable.")
     parser.add_argument("--staged", action="store_true", help="Use staged tracked changes instead of the worktree diff.")
     parser.add_argument("--level", choices=("focused", "component", "integration"), default="component")
+    parser.add_argument("--phase", choices=("build", "final", "repair"), help="Enforce the delivery phase's verification boundary.")
+    parser.add_argument("--check", action="append", default=[], help="For --phase repair, run only this selected check name; repeatable.")
     parser.add_argument("--json", action="store_true", help="Print a machine-readable report to stdout.")
     args = parser.parse_args()
+
+    if error := phase_error(args.phase, args.level, args.staged, args.path, args.check):
+        parser.error(error)
 
     try:
         all_paths = changed_paths(args.base, args.staged)
@@ -265,7 +294,7 @@ def main() -> int:
         unrelated |= all_paths - candidate_paths
     if not paths:
         if args.json:
-            print(json.dumps({"base": args.base, "scope": args.path, "level": args.level, "staged": args.staged, "selected_files": [], "unrelated_files": sorted(unrelated), "selected_commands": [], "outcomes": []}, sort_keys=True))
+            print(json.dumps({"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": [], "unrelated_files": sorted(unrelated), "selected_commands": [], "outcomes": []}, sort_keys=True))
         else:
             print("No changes detected in the requested scope.")
             if unrelated:
@@ -275,11 +304,18 @@ def main() -> int:
         return 0
 
     checks = checks_for(paths, args.level, base=args.base, staged=args.staged)
+    if args.check:
+        available = {check.name for check in checks}
+        unknown = sorted(set(args.check) - available)
+        if unknown:
+            parser.error("Unknown selected check(s): " + ", ".join(unknown))
+        requested = set(args.check)
+        checks = [check for check in checks if check.name in requested]
     if args.json:
         outcomes = []
         for check in checks:
             outcomes.append({"name": check.name, "command": display(check), "status": "pending" if args.run else "skipped"})
-        report = {"base": args.base, "scope": args.path, "level": args.level, "staged": args.staged, "selected_files": sorted(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
+        report = {"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": sorted(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
         if args.run:
             for outcome, check in zip(outcomes, checks):
                 result = subprocess.run(check.command, cwd=check.cwd, capture_output=True, text=True)

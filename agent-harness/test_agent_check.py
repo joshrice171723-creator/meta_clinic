@@ -54,8 +54,53 @@ class AgentCheckTest(unittest.TestCase):
         self.assertEqual(report["selected_files"], ["apps/web/src/App.tsx"])
         self.assertEqual(report["unrelated_files"], ["README.md"])
         self.assertEqual(report["level"], "focused")
+        self.assertIsNone(report["phase"])
+        self.assertEqual(report["requested_checks"], [])
         self.assertEqual(report["outcomes"][0]["status"], "skipped")
         self.assertIn("selected_commands", report)
+
+    def test_delivery_phases_reject_broad_build_and_unfrozen_final_checks(self):
+        self.assertEqual(
+            agent_check.phase_error("build", "component", False, ["apps/web"], []),
+            "Build-phase verification must use --level focused.",
+        )
+        self.assertEqual(
+            agent_check.phase_error("final", "component", False, ["apps/web"], []),
+            "Final verification requires --staged so checks bind to the frozen candidate.",
+        )
+        self.assertIsNone(agent_check.phase_error("build", "focused", False, ["apps/web"], []))
+        self.assertIsNone(agent_check.phase_error("final", "integration", True, ["apps/web"], []))
+
+    def test_repair_phase_requires_scoped_named_checks(self):
+        self.assertEqual(
+            agent_check.phase_error("repair", "component", False, [], ["frontend tests"]),
+            "Repair verification requires at least one --path scope.",
+        )
+        self.assertEqual(
+            agent_check.phase_error("repair", "component", False, ["apps/web"], []),
+            "Repair verification requires one or more --check names from the failed or invalidated set.",
+        )
+        self.assertIsNone(
+            agent_check.phase_error("repair", "component", False, ["apps/web"], ["frontend tests"])
+        )
+
+    def test_repair_phase_selects_only_named_invalidated_checks(self):
+        output = io.StringIO()
+        argv = [
+            "agent-check",
+            "--phase",
+            "repair",
+            "--path",
+            "apps/web",
+            "--check",
+            "frontend tests",
+            "--json",
+        ]
+        with patch.object(agent_check, "changed_paths", return_value={"apps/web/src/App.tsx"}), contextlib.redirect_stdout(output), patch.object(sys, "argv", argv):
+            self.assertEqual(agent_check.main(), 0)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["phase"], "repair")
+        self.assertEqual([check["name"] for check in report["selected_commands"]], ["frontend tests"])
 
 
 if __name__ == "__main__":
