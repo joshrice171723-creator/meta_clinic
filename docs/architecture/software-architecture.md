@@ -1,11 +1,11 @@
 ---
 type: architecture
 status: implemented-frontend-api-split
-updated: 2026-09-03
+updated: 2026-09-13
 ---
 # Software Architecture
 
-Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Direction: [Decisions](<../../APPlyVault/03%20Execution/Decisions.md>) · Delivery: [CICD](<../../APPlyVault/03%20Execution/CICD.md>) · Database: [PostgreSQL and Inventory Foundation](<../../APPlyVault/03%20Execution/PostgreSQL%20and%20Inventory%20Foundation.md>) · Roadmap and active tasks: [Shortcut](https://app.shortcut.com/apply-1/roadmap)
+Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Direction: [Decisions](<../../APPlyVault/03%20Execution/Decisions.md>) · Delivery: [CICD](<../../APPlyVault/03%20Execution/CICD.md>) · Database: [PostgreSQL and Inventory Foundation](<../../APPlyVault/03%20Execution/PostgreSQL%20and%20Inventory%20Foundation.md>) · Roadmap and active tasks: [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Direction and scope
 

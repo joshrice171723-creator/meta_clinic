@@ -1,11 +1,11 @@
 ---
 type: implementation
 status: private-hosted-prototype
-updated: 2026-08-31
+updated: 2026-09-13
 ---
 # Client Portal
 
-Home: [[00 Home]] · Website: [[Website MVP]] · Decisions: [[Decisions]] · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Website: [[Website MVP]] · Decisions: [[Decisions]] · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md)
 
 
 **Frontend/API update, D-033:** portal rendering and form state moved to `apps/web`; sessions, account-scoped paperwork/training, signing eligibility and inquiry permissions remain in `apps/api`. The browser uses explicit JSON contracts and an authenticated text-receipt endpoint, never backend credentials or persistent record/token storage. Earlier HTML implementation/test observations below remain historical; see [[Software Architecture]] and the latest [[Progress Log]].
@@ -58,11 +58,11 @@ D-033 supersedes D-024's Rails-rendered frontend: Vite serves local browser page
 
 D-030 adds a separate private production container with independent storage/keys. Production skips sample seeds, creates no demo assignments, hides existing sample material/demo paperwork and rejects demo signing; records are not deleted. Staging keeps synthetic portal content with ordinary login. See [[CICD]] for active staging delivery and pending production activation. No actual client account, confidential release or clinical guard removal is included.
 
-The former private Sites preview is historical and does not serve the current frontend/API pair. Its ChatGPT hosting gate is unrelated to local Rails authentication. Hosted acceptance remains tracked on the Shortcut Roadmap.
+The former private Sites preview is historical and does not serve the current frontend/API pair. Its ChatGPT hosting gate is unrelated to local Rails authentication. Hosted acceptance remains tracked on the Meta Clinic Implementation Tracker.
 
 ## Implementation plan and failure checks
 
-[Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) owns T-23.1–T-23.4 and T-17.1; [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) owns T-12.1 and T-24.1–T-24.6. D-040 accepts the [[Client Access Workflow]] structure with a 12-hour session maximum, adds the local test personas above and defers production admin assignments. T-23.1 retains full lifecycle-tabletop evidence; T-23.2/T-23.3 now have bounded fixture/session work, not implemented activation/recovery. MFA/protected audit and production readiness remain open. Synthetic work need not wait for Kevin's actual documents; actual source review and the released content manifest do.
+[Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) owns T-23.1–T-23.4 and T-17.1; [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) owns T-12.1 and T-24.1–T-24.6. D-040 accepts the [[Client Access Workflow]] structure with a 12-hour session maximum, adds the local test personas above and defers production admin assignments. T-23.1 retains full lifecycle-tabletop evidence; T-23.2/T-23.3 now have bounded fixture/session work, not implemented activation/recovery. MFA/protected audit and production readiness remain open. Synthetic work need not wait for Kevin's actual documents; actual source review and the released content manifest do.
 
 Use [[Working Agreement#Failure-first planning and review]] to challenge wrong-recipient activation, duplicate/partial provisioning, reset-versus-deactivation races, operator self-grants, false inquiry acknowledgment, stale content/progress and cross-client history/export. Acceptance requires observable denial or recoverable error and preserved evidence, not just a working screen. M4/T-25 still owns confidential handling and real signing; the current demo receipt is not a substitute.
 
@@ -76,6 +76,6 @@ Before real use: obtain the actual reviewed packet and reuse rights; map NP/PA/l
 
 The 2026-08-31 frontend/API split recorded 76 Rails tests / 784 assertions, 11 frontend tests, native-HTTP transport checks and both local staging/production container configurations passing. [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]] records their scope. Current commands live in [[CICD]]; the newest progress entry distinguishes any fresh checks from this prior evidence.
 
-The current review and proposed release sequence are in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). The code supports the prototype described above, including the existing local-demo edits. Operator activation/recovery delivery, controlled content administration/versioned learning, durable activity auditing and approved real signing are still development work. Per-user ownership is the implemented boundary; multi-person engagement access is not implemented and must not use shared accounts.
+The current review and proposed release sequence are in [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md). The code supports the prototype described above, including the existing local-demo edits. Operator activation/recovery delivery, controlled content administration/versioned learning, durable activity auditing and approved real signing are still development work. Per-user ownership is the implemented boundary; multi-person engagement access is not implemented and must not use shared accounts.
 
 The earlier sample-seed test failures and nested CI-path defect were corrected; they are historical findings, not current blockers. The guarded navigation and Rails-only increments remain in the dated [[Progress Log]]. Observed main CI and staging cutover are now recorded; M0/T-22 still needs full browser/visual/accessibility acceptance. Production cutover, broader operations and independent security, signature, legal and clinical acceptance remain open. All examples are synthetic; no live EHR, SharePoint, patient files or institutional integration was accessed by this planning review.

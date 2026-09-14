@@ -1,7 +1,7 @@
 ---
 type: dashboard
 status: active
-updated: 2026-09-11
+updated: 2026-09-13
 lifecycle: active
 canonical_for: vault-orientation
 ---
@@ -26,6 +26,9 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Current position
 
+- **Platform strategy:** [[Meta Clinic Product Strategy and Scope]] connects the digital front door and physical front desk across specialties, explicitly including cash-based clinics, walk-ins, telehealth, pharmacy and inventory. Organizations assign employee privileges; independent license verification is not a default platform requirement.
+- **Current implementation tracking:** [[Meta Clinic Implementation Tracker]] consolidates workflow status and remaining proof. The [engineering guide](../docs/development/meta-clinic-build-and-acceptance.md) defines completion criteria. Former external-tracker requirements are retired under D-071.
+
 - **Offer:** provide configurable ambulatory software with FDE-led onboarding, approved integrations and data migration. Subscription tiers, onboarding fees, support limits and acceptance terms remain to define.
 - **Leadership / entity:** product ownership, governance, employment, IP and commercial entity terms remain to be documented. No consultancy launch business is assumed in the current model.
 - **Implementation:** an FDE configures clinic type, services, payment model, visit types, sites and operating hours, then leads authorized integration and migration work. Professional clinical services remain separate and are not implied by the FDE role.
@@ -45,7 +48,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 1. For development, start with [development](../docs/development/README.md) and [architecture](../docs/architecture/README.md). Keep task scope, dependencies and acceptance in the active task context. Agents use the [failure-first workflow](../agent-harness/workflows/failure-first.md); the human agreement remains [[Working Agreement]]. Existing professional and release gates remain in force.
 2. Use [[Customer and Offer]], [[Pricing Strategy]] and [[Texas Diligence]] to define the software offer, FDE integration scope and real-data migration gates.
-3. Use the active task context for workstreams, [[Decisions]] for agreed choices, and [[Progress Log]] for material dated outcomes.
+3. Use [[Meta Clinic Implementation Tracker]] for workstreams, individual tasks for execution, [[Decisions]] for agreed choices, and [[Progress Log]] for material dated outcomes.
 
 ## Workspace map
 
@@ -64,7 +67,7 @@ The retired `reference/` folder was removed by the founder after its useful beha
 - Build toward operator onboarding, FDE integration runbooks and versioned migration/validation procedures. Source-system permissions, data mapping, real-data handling and customer acceptance remain separate dependencies.
 - Finish inventory configuration/permission acceptance and prepare the synthetic clinic workflow walkthrough alongside it; field/layout/clinical acceptance and real-data gates remain open.
 
-Active task status lives in the current task context; this page is a direction summary, not a second task list.
+Current workflow status lives in [[Meta Clinic Implementation Tracker]]; this page is a direction summary, not a second task list.
 
 ## Reading the notes
 

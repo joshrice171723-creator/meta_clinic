@@ -1,13 +1,13 @@
 ---
 type: operating-agreement
 status: active
-updated: 2026-09-03
+updated: 2026-09-13
 lifecycle: active
 canonical_for: team-operating-agreement
 ---
 # Working Agreement
 
-Home: [[00 Home]] · Roadmap: [Shortcut](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]] · History: [[Progress Log]]
+Home: [[00 Home]] · Roadmap: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]] · History: [[Progress Log]]
 
 ## Purpose
 
@@ -18,7 +18,7 @@ Keep direction, evidence, decisions and next actions understandable to the found
 - [[00 Home]] is a short orientation and current-priority summary, not a task register.
 - [[01 Table of Contents]] is the vault navigation and context index.
 - Foundation and product notes own the latest coherent business and product state.
-- The active task context owns task scope, acceptance, claims, owners and status. The vault contains no task register or task briefs.
+- [[Meta Clinic Implementation Tracker]] owns the current workflow inventory, acceptance gaps and implementation status. Individual tasks own bounded execution and report their results to that tracker.
 - [[Decisions]] is the only explicit decision and authority register.
 - [[Risks and Assumptions]] owns uncertainties, hypotheses and evidence needed to resolve them.
 - Research notes and [[Source Register]] own source applicability, review dates and limitations.
@@ -44,9 +44,9 @@ Preserve conflicting evidence and superseded decisions with context. Do not sile
 
 ## Planning and review
 
-Every accepted Shortcut Story has one observable outcome, explicit scope and exclusions, an accountable owner, dependencies and required exit evidence. Due dates are agreed commitments rather than generated estimates. A Story is Done only when its stated evidence exists.
+Every accepted implementation task has one observable outcome, explicit scope and exclusions, an accountable owner, dependencies and required exit evidence. Due dates are agreed commitments rather than generated estimates. A Story is Done only when its stated evidence exists.
 
-The repository's [failure-first procedure](../../agent-harness/workflows/failure-first.md) provides the reusable implementation and review method. The Shortcut Story contains the task-specific failure hypothesis and acceptance; durable evidence records contain the observed controls, recovery and result—not a copy of the procedure.
+The repository's [failure-first procedure](../../agent-harness/workflows/failure-first.md) provides the reusable implementation and review method. The implementation task contains the task-specific failure hypothesis and acceptance; durable evidence records contain the observed controls, recovery and result—not a copy of the procedure.
 
 Professional-review gates require an appropriate reviewer. Hosted work, destructive recovery, external communication, spending, real/confidential data and production changes require their own explicit authority and evidence.
 
@@ -56,16 +56,16 @@ This compatibility heading preserves existing vault links. Agents follow the rep
 
 ## Human review cadence
 
-A weekly 20–30 minute founder/MD review remains a proposal: progress, new field evidence, blockers, decisions and the next three priorities. Record selected priorities on the Shortcut Roadmap and use [[Weekly Review Template]] only after participants and timing are agreed. No reminder, automation or background monitoring is established by this proposal.
+A weekly 20–30 minute founder/MD review remains a proposal: progress, new field evidence, blockers, decisions and the next three priorities. Record selected priorities on the Meta Clinic Implementation Tracker and use [[Weekly Review Template]] only after participants and timing are agreed. No reminder, automation or background monitoring is established by this proposal.
 
 ## Owners and completion
 
-Assign one accountable owner per accepted Story; list contributors separately. Record an explicit decision with the decision-maker and date. When work slips, preserve the reason in Shortcut and agree a new date rather than silently rolling it forward.
+Assign one accountable owner per accepted Story; list contributors separately. Record an explicit decision with the decision-maker and date. When work slips, preserve the reason in the implementation tracker and agree a new date rather than silently rolling it forward.
 
 At review:
 
 1. Reconcile the affected current-state note.
-2. Update the claimed Shortcut Story's scope, owner, blockers, evidence and state; update its Epic when the broad Roadmap changed.
+2. Update the owning implementation tracker row's scope, owner, blockers, evidence and state; link the bounded execution task when assigned.
 3. Add to [[Decisions]] only when a decision was actually made.
 4. Add or update [[Risks and Assumptions]] when uncertainty changed.
 5. Add one concise dated outcome to [[Progress Log]] with a pointer to detailed evidence when the result is material.

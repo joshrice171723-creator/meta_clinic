@@ -1,11 +1,11 @@
 ---
 type: workflow-contract
 status: proposed-with-implemented-synthetic-slice
-updated: 2026-09-09
+updated: 2026-09-13
 ---
 # Clinic Encounter Workflow Contract — Proposed Synthetic Boundary
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Parent task: [T-13](https://app.shortcut.com/apply-1/roadmap) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Existing walkthrough: [[Clinic Intake Handoff Walkthrough]] · Frontend map: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Parent task: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Existing walkthrough: [[Clinic Intake Handoff Walkthrough]] · Frontend map: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
 
 ## Purpose, authority and limits
 

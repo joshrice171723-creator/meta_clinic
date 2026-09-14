@@ -1,11 +1,11 @@
 ---
 type: workflow
 status: draft
-updated: 2026-09-02
+updated: 2026-09-13
 ---
 # Clinic Intake → Clinician Handoff — Synthetic Walkthrough and Scope Map
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Task: [T-13](https://app.shortcut.com/apply-1/roadmap) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Mapping: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Task: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Mapping: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
 
 ## Purpose, evidence and boundary
 

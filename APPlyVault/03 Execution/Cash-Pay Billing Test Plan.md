@@ -1,11 +1,11 @@
 ---
 type: test-plan
 status: active
-updated: 2026-09-04
+updated: 2026-09-13
 ---
 # Cash-Pay Billing Test Plan
 
-Home: [[00 Home]] · Package: [[Cash-Pay Billing Implementation Package]] · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Package: [[Cash-Pay Billing Implementation Package]] · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Evidence: [[Progress Log]]
 
 ## Purpose and test boundary
 

@@ -1,6 +1,6 @@
 # Clinic subscription development workflow
 
-The implementation uses the existing Rails identity, clinic authorization, audit and billing ledger. [sc-246](https://app.shortcut.com/apply-1/story/246) owns implementation coordination. [Dated build evidence](../../records/clinic-subscriptions/2026-09-05-local-build.md) separates source, tests, browser results and approval gaps.
+The implementation uses the existing Rails identity, clinic authorization, audit and billing ledger. [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) owns implementation coordination. [Dated build evidence](../../records/clinic-subscriptions/2026-09-05-local-build.md) separates source, tests, browser results and approval gaps.
 
 ## Local walkthrough
 
@@ -54,4 +54,4 @@ From `apps/web/`, run `npx vitest run test/subscriptions.test.tsx` and `npm run 
 
 Fixed-term development purchases can still use the local `development_fixture` provider. [Stripe sandbox monthly memberships](stripe-memberships.md) add clinic Connect onboarding, hosted Checkout and verified recurring invoice reconciliation. Automatic plans require Stripe; they cannot be activated by fixture/manual payment. Stripe collection remains unavailable in production. A browser redirect is never payment evidence.
 
-Stripe recurring source implementation and its manual acceptance gate are tracked in [sc-294](https://app.shortcut.com/apply-1/story/294). Proration, taxation, service-consumption tracking and production release remain outside this implementation. Finance, privacy/security, clinical eligibility, support/retention ownership and production approvals are not established by this local walkthrough.
+Stripe recurring source implementation and its manual acceptance gate are tracked in [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). Proration, taxation, service-consumption tracking and production release remain outside this implementation. Finance, privacy/security, clinical eligibility, support/retention ownership and production approvals are not established by this local walkthrough.

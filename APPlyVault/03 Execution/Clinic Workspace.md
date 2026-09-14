@@ -1,11 +1,11 @@
 ---
 type: implementation
 status: synthetic-local-prototype
-updated: 2026-09-02
+updated: 2026-09-13
 ---
 # Clinic Workspace
 
-Home: [[00 Home]] · Launch: [[Client Portal]] · Scope: [[Entity and Product Boundary]] · Design: [[Data Modeling]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Authority: [[Decisions]]
+Home: [[00 Home]] · Launch: [[Client Portal]] · Scope: [[Entity and Product Boundary]] · Design: [[Data Modeling]] · Tasks: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Authority: [[Decisions]]
 
 
 **Frontend/API update, D-033/D-047:** the separate clinic interface renders in `apps/web`, with permission-scoped JSON under `/api/clinic` in `apps/api`. D-047's current source permits the record-free static shell through the separately authenticated staging-review server and lets only the exact active `StagingDemoUser` session reach its managed synthetic clinic API. The private/production edge and Rails both keep clinic routes denied; the owner reviewer and ordinary staging accounts receive 404. Backend inventory rules, transactions, ledger/history and one-clinic assignment remain. This source state is not hosted evidence until T-20.4 records a matched release and outside verification.
@@ -106,7 +106,7 @@ Broad pharmacy configurability is confirmed by D-028. T-32 initially lacked veri
 
 ## Supplier pricing integration — deferred
 
-D-029 defers the product/price integration discussion; [[Inventory Price Comparison Sources]] records the source baseline, advertised supplier APIs and purchasing connections, access gaps and proposed extensible design. The corresponding Shortcut Story holds future implementation. No supplier accounts, negotiated-price feed, price-history/comparison module or procurement connection has been added by this work. Public FDA catalog lookup remains separate from pricing and actual stock. The proposed comparison layer must preserve the current exact-unit ledger and historical package semantics and keep prices, approved orders, receipts and invoices distinct. Broad pharmacy work and all existing release limits remain unchanged.
+D-029 defers the product/price integration discussion; [[Inventory Price Comparison Sources]] records the source baseline, advertised supplier APIs and purchasing connections, access gaps and proposed extensible design. The corresponding implementation task holds future implementation. No supplier accounts, negotiated-price feed, price-history/comparison module or procurement connection has been added by this work. Public FDA catalog lookup remains separate from pricing and actual stock. The proposed comparison layer must preserve the current exact-unit ledger and historical package semantics and keep prices, approved orders, receipts and invoices distinct. Broad pharmacy work and all existing release limits remain unchanged.
 
 ## Data and release boundary
 
@@ -120,10 +120,10 @@ D-030 deploys separate private staging and production containers for the applica
 
 ## Verification and next work
 
-Use [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) for remaining inventory configuration/permission/security chunks and [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) for the script → observed walkthrough → reviewed contract → synthetic interaction/handoff sequence. These expand T-34/T-13, not the clinical release scope. [[Working Agreement#Failure-first planning and review]] requires wrong-patient/clinic, excess authority, stale intake, interrupted save, missing owner and stock-reconciliation failure cases; a theme or dashboard is not evidence that those workflows work.
+Use [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) for remaining inventory configuration/permission/security chunks and [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) for the script → observed walkthrough → reviewed contract → synthetic interaction/handoff sequence. These expand T-34/T-13, not the clinical release scope. [[Working Agreement#Failure-first planning and review]] requires wrong-patient/clinic, excess authority, stale intake, interrupted save, missing owner and stock-reconciliation failure cases; a theme or dashboard is not evidence that those workflows work.
 
 Current-split Rails/frontend, native-HTTP and paired-container results are recorded in [[Progress Log#2026-08-31 — Frontend and API separation completed; test database recreated]]. These are not browser interaction acceptance. The checks in the next paragraph exercised earlier Rails-rendered increments, not today's React interface.
 
 Native Rails/HTTP checks cover layouts, explicit login, direct assigned-clinic navigation, fictional drafts, escaped content, other-clinic and per-module denial, revocation, stock invariants/retry behavior, staff-directory isolation and production denial. Historical results and scoped local-browser pharmacy checks: [[Progress Log#2026-08-30 — Pharmacy mapped into the existing EHR layout]]. Earlier navigation results: [[Progress Log#2026-08-30 — Assigned Test Clinic and explicit login navigation]]. Original slice: [[Progress Log#2026-08-30 — Rails migration and two front-facing workspaces]]. Full application browser/accessibility acceptance, hosted clinic verification, independent security assessment and clinical acceptance remain open.
 
-The corresponding Shortcut Story records this bounded slice, not a completed EHR. Full requirements, clinical record/signing workflows, employee identity/lifecycle, audit, MFA, recovery, production boundaries, migration and qualified review stay open in their respective Shortcut Stories and release gates. Canonical status stays in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap).
+The corresponding implementation task records this bounded slice, not a completed EHR. Full requirements, clinical record/signing workflows, employee identity/lifecycle, audit, MFA, recovery, production boundaries, migration and qualified review stay open in their respective implementation tracker items and release gates. Canonical status stays in [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md).

@@ -1,7 +1,7 @@
 ---
 type: delivery-plan
 status: superseded-historical-outline
-updated: 2026-08-31
+updated: 2026-09-13
 ---
 # Clinic Launch Packet
 
@@ -68,7 +68,7 @@ When the materials arrive, index first rather than copying everything into the v
 
 ## Implementation and failure review
 
-[Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) owns the small implementation chunks and their exit evidence. T-12.1 is actual source intake; T-24.1–T-24.5 are synthetic versioning, publishing/assignment, progress, execution evidence and acceptance; T-24.6 is the reviewed content manifest. Actual content is a dependency for the last stage, not for building the synthetic infrastructure. M4/T-25 still gates real confidential documents/signatures.
+[Meta Clinic Implementation Tracker](../03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) owns the small implementation chunks and their exit evidence. T-12.1 is actual source intake; T-24.1–T-24.5 are synthetic versioning, publishing/assignment, progress, execution evidence and acceptance; T-24.6 is the reviewed content manifest. Actual content is a dependency for the last stage, not for building the synthetic infrastructure. M4/T-25 still gates real confidential documents/signatures.
 
 Apply [[Working Agreement#Failure-first planning and review]] to the packet itself, not only its software:
 

@@ -1,5 +1,7 @@
 # Hardening review handoff — 2026-09-07
 
+Tracking update, 2026-09-13: use the [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). References below to the former tracking service describe this dated run only; they impose no current dependency or approval gate.
+
 This is a local, fictional-development review handoff. It records implementation and verification evidence; it does **not** certify APPly as production-ready, HIPAA compliant, clinically accepted, or safe for real payments or patient data.
 
 ## Review focus

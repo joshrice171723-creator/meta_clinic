@@ -1,7 +1,7 @@
 ---
 type: index
 status: active
-updated: 2026-09-03
+updated: 2026-09-13
 lifecycle: active
 canonical_for: vault-context-routing
 ---
@@ -11,7 +11,13 @@ Home: [[00 Home]] · Product: [PRODUCT.md](../PRODUCT.md) · Clinic design: [[De
 
 Use this index to select the relevant notes and sections for a Story; **do not read the entire vault by default**. Read selected notes' scope/limits and the decisions, risks and evidence needed to interpret them. Follow dependencies only as needed. Root [AGENTS.md](../AGENTS.md) defines repository-wide boundaries; [vault instructions](AGENTS.md), nested application/operations instructions and the [agent harness](../agent-harness/README.md) provide scoped procedure. The harness owns agent behavior; this vault owns software knowledge and evidence.
 
-This is navigation, not a backlog. Active task context owns scope, acceptance, claims and status; explicit choices live in [[Decisions]], risks in [[Risks and Assumptions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
+This is navigation, not a backlog. [[Meta Clinic Implementation Tracker]] owns current Meta Clinic work status and acceptance gaps; individual tasks execute its bounded work. Explicit choices live in [[Decisions]], risks in [[Risks and Assumptions]], and dated outcomes in [[Progress Log]]. Historical paths and test results are not current setup instructions.
+
+## Meta Clinic planning and delivery
+
+- [[Meta Clinic Product Strategy and Scope]] defines customers, cash-based business models, hybrid care, pharmacy/inventory scope and organization-assigned roles.
+- [Engineering build and acceptance guide](../docs/development/meta-clinic-build-and-acceptance.md) defines connected workflow behavior and completion evidence.
+- [[Meta Clinic Implementation Tracker]] consolidates existing plans and dated evidence into one current workflow inventory.
 
 ## Choose a reading route
 
@@ -26,7 +32,7 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | Marketing, Contact, login, paperwork or training | [[Website MVP]], [[Client Portal]]; [[Client Access Workflow]] for access lifecycle/operator design | [[Software Architecture#Domain ownership]]; relevant criteria and Stories; D-021/D-022/D-033 |
 | Clinic UI, care or staff prototype | [[Design]], [[Clinic Workspace]], [[Clinic Workspace Design]], [[Clinic Domain and Data Boundaries]] | [Software architecture](../docs/architecture/software-architecture.md); relevant decisions, risks and release limits |
 | ERD-to-frontend integration planning | [[Clinic Domain and Data Boundaries]], [frontend/backend contract](../docs/architecture/clinic-frontend-backend-contract.md), [target-state ERD](../docs/architecture/clinic-target-state-erd.md) | Pointer notes below preserve historical titles; detailed proposal/review/prompt/verification evidence is under [records](../records/README.md) |
-| Inventory schema, receiving, units, holds or counts | [[PostgreSQL and Inventory Foundation]], [[Clinic Workspace#Current PostgreSQL inventory implementation]] | [[Pharmacy Inventory Data Requirements]]; [[Data Modeling#Inventory and commercial boundary]]; current Shortcut Stories |
+| Inventory schema, receiving, units, holds or counts | [[PostgreSQL and Inventory Foundation]], [[Clinic Workspace#Current PostgreSQL inventory implementation]] | [[Pharmacy Inventory Data Requirements]]; [[Data Modeling#Inventory and commercial boundary]]; current implementation tracker items |
 | Supplier prices, procurement or billing | [[Inventory Price Comparison Sources]], [[Business Model]] | D-029 deferral; unresolved fee mechanics; entity/professional questions. Reading is not permission to resume integration |
 | Offer, ownership, support or business planning | [[Company Foundation]], [[Customer and Offer]], [[Entity and Product Boundary]] | [[Business Model]], relevant [[Decisions]] and [[Foundation Questions]] answers; do not reopen deliberately deferred questions |
 | MD materials, applicant packet or research | [[MD Pilot]], [[Clinic Launch Packet]], [[Source Register]] | [[Customer Discovery]], relevant [[Texas Diligence]] issues and source permissions |

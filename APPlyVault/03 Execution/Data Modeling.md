@@ -1,7 +1,7 @@
 ---
 type: architecture-pointer
 status: superseded-proposal-pointer
-updated: 2026-09-03
+updated: 2026-09-13
 lifecycle: superseded
 canonical_for: historical-data-modeling-proposal-pointer
 ---
@@ -15,7 +15,7 @@ This note's former catalog, illustrative SQL and broad security proposal are pre
 
 ## Durable boundary
 
-Practice-local custody, tenant-qualified relationships, immutable clinical/history records, a single authoritative inventory ledger, explicit protected-document ownership, and complementary audit evidence remain the durable design invariants. Current unresolved professional, retention, identity, external-service and release gates remain open in [[Risks and Assumptions]] and [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap).
+Practice-local custody, tenant-qualified relationships, immutable clinical/history records, a single authoritative inventory ledger, explicit protected-document ownership, and complementary audit evidence remain the durable design invariants. Current unresolved professional, retention, identity, external-service and release gates remain open in [[Risks and Assumptions]] and [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md).
 
 ## Auditing design
 

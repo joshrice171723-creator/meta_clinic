@@ -1,7 +1,7 @@
 ---
 type: template
 status: reusable
-updated: 2026-08-31
+updated: 2026-09-13
 ---
 # Evidence Note Template
 
@@ -35,7 +35,7 @@ What actually happened or what the source specifically supports? Separate direct
 
 Follow [[Working Agreement#Failure-first planning and review]]. For source/interview evidence, use a contrary-evidence or applicability challenge instead of inventing a software test.
 
-- Canonical Shortcut Story/chunk and linked risk/assumption:
+- Canonical implementation task/chunk and linked risk/assumption:
 - Failure hypothesis / trigger / harm:
 - Authorized scope, synthetic fixture or tabletop, and code/content version:
 - Expected safe behavior and observable signal:
@@ -48,7 +48,7 @@ Do not paste credentials, real records or restricted originals into this note. A
 
 ## Next action
 
-- Linked Shortcut Story / owner / agreed date:
+- Linked implementation task / owner / agreed date:
 - Decision required:
 - Notes updated:
 

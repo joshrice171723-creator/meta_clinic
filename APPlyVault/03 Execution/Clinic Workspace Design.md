@@ -1,11 +1,11 @@
 ---
 type: design-proposal
 status: tracking-board-ui-prototype
-updated: 2026-09-02
+updated: 2026-09-13
 ---
 # Clinic Workspace Design
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Current visual system: [[Design]] · Current product: [[Clinic Workspace]] · Ownership: [[Software Architecture]] · Requirements: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Evidence: [[Source Register]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Current visual system: [[Design]] · Current product: [[Clinic Workspace]] · Ownership: [[Software Architecture]] · Requirements: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Evidence: [[Source Register]]
 
 This note preserves clinic design history, workflow proposals, source observations and implementation boundaries. [[Design]] is the canonical forward-looking visual system; where its proposed direction changes current styling, existing behavior remains evidence until a bounded implementation is completed and verified.
 
@@ -189,7 +189,7 @@ Target WCAG 2.2 AA, with larger touch targets as a product preference. Sources S
 
 T-13 remains the requirements owner; T-22 retains browser/accessibility acceptance. T-41 records the completed cosmetic slice only; no requirements or professional gate closes from these designs.
 
-[Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) now owns the smaller T-13.1–T-13.4 chunks: synthetic script, actual role/workflow walkthrough, reviewed field/state/permission/API contract and interaction prototype/engineering handoff. Current-theme/device acceptance is T-22.2 under [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). Preserve routes, decimal strings, permissions and the delivered themes; do not repeat their implementation.
+[Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) now owns the smaller T-13.1–T-13.4 chunks: synthetic script, actual role/workflow walkthrough, reviewed field/state/permission/API contract and interaction prototype/engineering handoff. Current-theme/device acceptance is T-22.2 under [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md). Preserve routes, decimal strings, permissions and the delivered themes; do not repeat their implementation.
 
 Apply [[Working Agreement#Failure-first planning and review]] before accepting the layout: show what happens with the wrong patient/visit, missing intake, absent clinician, unaccepted handoff, stale concurrent edit, duplicate submit, lost save response and expired session. Keep identity, authorship, owner and saved/unsaved/unknown states visible. Each applicable case needs an observable safe result and recovery path in the prototype, labeled simulated rather than tested runtime behavior.
 

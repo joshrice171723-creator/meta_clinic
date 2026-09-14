@@ -1,11 +1,11 @@
 ---
 type: discussion-guide
 status: open-for-provider-and-counsel-review
-updated: 2026-08-30
+updated: 2026-09-13
 ---
 # Pharmacy Provider and Counsel Questions
 
-Home: [[00 Home]] · Legal issues: [[Texas Diligence]] · Packet: [[Clinic Launch Packet]] · Product: [[Pharmacy Inventory Data Requirements]] · Sources: [[Source Register]] · Follow-up: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Legal issues: [[Texas Diligence]] · Packet: [[Clinic Launch Packet]] · Product: [[Pharmacy Inventory Data Requirements]] · Sources: [[Source Register]] · Follow-up: [Meta Clinic Implementation Tracker](../03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Purpose and use
 
@@ -30,7 +30,7 @@ First capture a non-sensitive operating profile: profession and roles; operator/
 | PQ-31–PQ-55: What controls and evidence are needed? | Determines product-specific operations, records, incidents and continuity | Responsible pharmacist/clinicians, privacy/security lead and relevant specialists |
 | PQ-56–PQ-60: What can be launched and maintained? | Produces an agreed scope, evidence requirements, exclusions and recheck triggers | Accountable clinic operator and applicable reviewers |
 
-The detailed questions are an agenda and evidence checklist, not a task/status register. If the review is authorized, one bounded Story on the [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) owns its scope and follow-up; L-01–L-08 in [[Texas Diligence]] retain the legal issue statuses.
+The detailed questions are an agenda and evidence checklist, not a task/status register. If the review is authorized, one bounded Story on the [Meta Clinic Implementation Tracker](../03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) owns its scope and follow-up; L-01–L-08 in [[Texas Diligence]] retain the legal issue statuses.
 
 ## Findings that frame the questions
 
@@ -189,7 +189,7 @@ For each answered question, capture the fields below in a permitted non-sensitiv
 | Outcome | Unanswered, facts gathered, awaiting professional review, reviewed within stated scope, or not applicable with rationale |
 | Evidence reference | Controlled original reference plus permitted summary; no charts, SSNs, IDs, signatures, credentials or privileged text here |
 | Consequence | Permitted/prohibited activity or remaining condition, affected packet/control, recheck trigger and residual concern |
-| Follow-up | Existing L issue and Shortcut Story; owner and date only when accepted |
+| Follow-up | Existing L issue and implementation task; owner and date only when accepted |
 
 A reviewed answer does not automatically close an L issue, pass E3 or authorize deployment. Use [[Texas Diligence#Closing an issue]] for scoped findings; record explicit business decisions only when made. Meeting notes may use [[Weekly Review Template]], and evidence summaries may use [[Evidence Note Template]].
 

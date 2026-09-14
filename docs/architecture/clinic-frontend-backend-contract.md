@@ -1,11 +1,11 @@
 ---
 type: implementation-plan
 status: partial-provider-and-administrative-projections-implemented
-updated: 2026-09-02
+updated: 2026-09-13
 ---
 # Clinic Frontend Backend Mapping
 
-Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Index: [01 Table of Contents](<../../APPlyVault/01%20Table%20of%20Contents.md>) · Visual system: [Design](<../../APPlyVault/03%20Execution/Design.md>) · Design history and workflow boundaries: [Clinic Workspace Design](<../../APPlyVault/03%20Execution/Clinic%20Workspace%20Design.md>) · Target: [Target-State Clinic ERD](<../../APPlyVault/03%20Execution/Target-State%20Clinic%20ERD.md>) · Backend handoff: [ERD Implementation Prompt](<../../records/prompts/2026-08-31-erd-implementation-prompt-revision-5.md>) · Roadmap and active tasks: [Shortcut](https://app.shortcut.com/apply-1/roadmap)
+Home: [00 Home](<../../APPlyVault/00%20Home.md>) · Index: [01 Table of Contents](<../../APPlyVault/01%20Table%20of%20Contents.md>) · Visual system: [Design](<../../APPlyVault/03%20Execution/Design.md>) · Design history and workflow boundaries: [Clinic Workspace Design](<../../APPlyVault/03%20Execution/Clinic%20Workspace%20Design.md>) · Target: [Target-State Clinic ERD](<../../APPlyVault/03%20Execution/Target-State%20Clinic%20ERD.md>) · Backend handoff: [ERD Implementation Prompt](<../../records/prompts/2026-08-31-erd-implementation-prompt-revision-5.md>) · Roadmap and active tasks: [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Outcome and boundary
 
@@ -374,7 +374,7 @@ These additions should be reconciled in the ERD/implementation handoff by the ba
 
 ## Delivery sequence and migration
 
-This is a candidate dependency sequence for future Shortcut Stories, not an accepted design, duplicate status list or new deadline. It starts from the APIs that now exist and keeps gaps ahead of their consumers. Run focused tests per slice and full regression/upgrade/restore before accepted integration. This documentation pass is on `feature/frontend-backend-flow-mapping`; it changes no application code.
+This is a candidate dependency sequence for future implementation tracker items, not an accepted design, duplicate status list or new deadline. It starts from the APIs that now exist and keeps gaps ahead of their consumers. Run focused tests per slice and full regression/upgrade/restore before accepted integration. This documentation pass is on `feature/frontend-backend-flow-mapping`; it changes no application code.
 
 | Order | Independently reviewable slice | Entry / exit evidence; canonical ownership |
 | --- | --- | --- |
@@ -431,4 +431,4 @@ Delivered across the planning and minimum implementation passes: a current sourc
 
 Implementation validation and current documentation checks are recorded in the newest [Progress Log](<../../APPlyVault/03%20Execution/Progress%20Log.md>) entry. The local browser verified capability-denied Overview/Operations behavior and 390×844 reflow without horizontal overflow for the active synthetic Test Clinic A session; that session currently has no patient capability, so populated Schedule/Encounter browser rendering was not claimed. Static focused views cover their content boundaries. These checks do not validate encryption, access auditing, clinical acceptance or deployment readiness.
 
-Next review point: reconcile permission/site projection and a correctly provisioned synthetic patient-capable account, then review the bounded read-only routes. Do not begin the live board or protected note editor until their named backend contracts exist. The [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) owns active Epic/Story planning, claims, acceptance and status.
+Next review point: reconcile permission/site projection and a correctly provisioned synthetic patient-capable account, then review the bounded read-only routes. Do not begin the live board or protected note editor until their named backend contracts exist. The [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) owns active Epic/Story planning, claims, acceptance and status.

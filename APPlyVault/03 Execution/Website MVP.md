@@ -1,11 +1,11 @@
 ---
 type: implementation
 status: private-rails-environments
-updated: 2026-08-31
+updated: 2026-09-13
 ---
 # Website MVP
 
-Home: [[00 Home]] · Portal: [[Client Portal]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Direction: [[Decisions]]
+Home: [[00 Home]] · Portal: [[Client Portal]] · Tasks: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Direction: [[Decisions]]
 
 
 **Current implementation, D-033:** browser screens/styles now live in `apps/web` (React/TypeScript), while Rails JSON, permissions and PostgreSQL live in `apps/api`. Same-origin proxying preserves cookie/CSRF protection. Browser URLs, product copy and historical Sites hosting are retained. The earlier Rails-rendered observations below are historical; current ownership, commands and actual checks are in [[Software Architecture]], [[CICD]] and [[Progress Log]].
@@ -44,11 +44,11 @@ The completed D-033 split recorded 76 Rails tests / 784 assertions, 11 frontend 
 
 Full current-frontend browser/visual/accessibility acceptance, production cutover and independent security review remain open. Observed remote CI and staging cutover/recovery are recorded separately above; no clinical/compliance assessment is claimed.
 
-Canonical status/next actions live in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). MD ingestion, real packet validation, SharePoint mapping and the future EHR/inventory product remain distinct workstreams.
+Canonical status/next actions live in [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md). MD ingestion, real packet validation, SharePoint mapping and the future EHR/inventory product remain distinct workstreams.
 
 ## Current review and release plan
 
-[[CICD]] is the developer entry point; [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) is the chunked work plan and [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) rolls up status. Steps 1–3 cover website/portal release acceptance, operator access and synthetic content infrastructure; the existing M0–M6 gates remain. Apply [[Working Agreement#Failure-first planning and review]] to misleading public claims, failed/duplicate inquiry submission, wrong-account access, session expiry and unavailable backend paths. This update changes planning only, not application behavior, public audience or hosted services.
+[[CICD]] is the developer entry point; [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) is the chunked work plan and [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) rolls up status. Steps 1–3 cover website/portal release acceptance, operator access and synthetic content infrastructure; the existing M0–M6 gates remain. Apply [[Working Agreement#Failure-first planning and review]] to misleading public claims, failed/duplicate inquiry submission, wrong-account access, session expiry and unavailable backend paths. This update changes planning only, not application behavior, public audience or hosted services.
 
 The Rails migration corrected “opened the doors” to “worked through the setup,” preserving [[MD Pilot]]'s unknown opening/first-patient status. The 100 removed JavaScript source/config/test files are recoverable from commit 2a25f48. Brand, claims and audience approval remain separate from technical completion.
 

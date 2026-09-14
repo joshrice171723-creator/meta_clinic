@@ -1,13 +1,13 @@
 ---
 type: verification-pointer
 status: dated-report-pointer
-updated: 2026-09-03
+updated: 2026-09-13
 lifecycle: archived
 canonical_for: dated-backend-verification-pointer
 ---
 # Backend Verification Report
 
-Home: [[00 Home]] · Target: [[Target-State Clinic ERD]] · Current source audit: [dated verification record](../../records/verification/2026-08-31-backend-verification.md) · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Target: [[Target-State Clinic ERD]] · Current source audit: [dated verification record](../../records/verification/2026-08-31-backend-verification.md) · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Scope, authority and acceptance
 

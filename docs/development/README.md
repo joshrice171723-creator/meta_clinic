@@ -4,6 +4,7 @@ These documents explain how to work on APPly. They describe current source mecha
 
 - [Getting started](getting-started.md): local prerequisites and the managed development lifecycle.
 - [Contributing](contributing.md): branches, focused changes, checks and review.
+- [Meta Clinic build and acceptance](meta-clinic-build-and-acceptance.md): connected workflow behavior, organization-assigned permissions and completion evidence; links to the canonical product strategy and implementation tracker.
 - [Standards-guided healthcare development](healthcare-standards.md): primary references and the workflow for translating healthcare standards into data, pages and verification.
 - [U.S. healthcare reference map](us-healthcare-reference-map.md): official source URLs mapped to clinic setup, scheduling, charts, medications, vaccinations, labs and other app areas.
 - [CI](ci.md): GitHub checks and the boundary between CI, staging and production.

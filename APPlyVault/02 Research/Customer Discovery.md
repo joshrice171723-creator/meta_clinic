@@ -1,11 +1,11 @@
 ---
 type: research-plan
 status: proposed
-updated: 2026-08-30
+updated: 2026-09-13
 ---
 # Customer Discovery
 
-Home: [[00 Home]] · Hypotheses: [[Customer and Offer]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Hypotheses: [[Customer and Offer]] · Tasks: [Meta Clinic Implementation Tracker](../03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Objective
 

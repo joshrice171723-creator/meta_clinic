@@ -1,5 +1,7 @@
 # Production finalization checkpoint — 2026-09-07
 
+Tracking update, 2026-09-13: use the [Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). Earlier temporary exceptions and external-tracker requirements below are superseded by D-071. Do not authenticate to or wait on the former tracking service to continue work.
+
 Resumed at the user's request. Work remains local; no deployment or push was performed and no usage resets were redeemed. The execution-efficiency review cadence is 45 minutes. The review at 07:46 UTC found meaningful progress and recommended closing delivery intake before moving to another clinic workflow.
 
 ## Last completed milestones

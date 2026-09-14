@@ -1,6 +1,6 @@
 # Stripe sandbox monthly memberships
 
-[sc-294](https://app.shortcut.com/apply-1/story/294) owns the roadmap and acceptance. This extends [clinic subscriptions](clinic-subscriptions.md). [Dated implementation evidence](../../records/clinic-subscriptions/2026-09-06-stripe-sandbox-handoff.md) separates source implementation from observed behavior.
+[Meta Clinic Implementation Tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) owns the roadmap and acceptance. This extends [clinic subscriptions](clinic-subscriptions.md). [Dated implementation evidence](../../records/clinic-subscriptions/2026-09-06-stripe-sandbox-handoff.md) separates source implementation from observed behavior.
 
 ## Local setup
 

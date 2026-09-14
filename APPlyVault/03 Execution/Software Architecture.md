@@ -1,13 +1,13 @@
 ---
 type: architecture-pointer
 status: current-pointer
-updated: 2026-09-03
+updated: 2026-09-13
 lifecycle: active
 canonical_for: software-boundary-pointer
 ---
 # Software Architecture
 
-Home: [[00 Home]] · Developer document: [current software architecture](../../docs/architecture/software-architecture.md) · Status: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Developer document: [current software architecture](../../docs/architecture/software-architecture.md) · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md)
 
 ## Purpose and authority
 

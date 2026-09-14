@@ -1,11 +1,11 @@
 ---
 type: design-system
 status: active
-updated: 2026-09-02
+updated: 2026-09-13
 ---
 # Clinic Software Design
 
-Home: [[00 Home]] · Product truth: [PRODUCT.md](../../PRODUCT.md) · Current implementation: [[Clinic Workspace]] · Design history: [[Clinic Workspace Design]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · Decisions: [[Decisions]]
+Home: [[00 Home]] · Product truth: [PRODUCT.md](../../PRODUCT.md) · Current implementation: [[Clinic Workspace]] · Design history: [[Clinic Workspace Design]] · Tasks: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Decisions: [[Decisions]]
 
 ## Scope and authority
 
@@ -207,7 +207,7 @@ Clinic phone use is not a primary design target. Preserve a safe, operable fallb
 
 ## Implementation plan
 
-Story status remains in [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap). Implement this system in small reviewable slices:
+Story status remains in [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md). Implement this system in small reviewable slices:
 
 1. **Boundary lock:** finish or reconcile the active provider-flow diff before editing its board markup, mapping or tests. Protected current files are `apps/web/src/features/clinic/TrackingBoardPage.tsx`, `trackingBoard.css`, `trackingBoardApi.ts`, `trackingBoardData.ts`, `apps/web/src/api/contracts.ts`, the API tracking-board controller/serializer/test, `provider-flow.test.tsx`, `tracking-board.test.tsx`, `clinic-navigation.test.ts`, the already-dirty clinic vault notes and `apps/api/db/structure.sql`.
 2. **Foundation tokens:** codify clinic-only type, spacing, shape, focus and semantic-color roles without changing API or workflow behavior. The initial safe ownership set is `appearancePreferences.ts`, `Appearance.tsx`, `appearance.css` and narrowly scoped new clinic token or shell files; recheck the worktree before assigning them.

@@ -15,9 +15,15 @@ APPly contains two independent products that share a repository and account infr
 
 ## Product Purpose
 
+Meta Clinic serves independent clinics across specialties, explicitly including cash-based clinics using pay-per-visit, memberships, subscriptions and packages. Its intended scope connects the clinic's digital front door and physical front desk: branded patient acquisition, walk-ins, scheduled and telehealth visits, clinical work, billing, medication/pharmacy operations, inventory and follow-up. Insurance remains an optional module; the cash-pay core remains available when it is disabled.
+
+The [Meta Clinic Product Strategy and Scope](APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md) owns this direction. The [engineering guide](docs/development/meta-clinic-build-and-acceptance.md) defines workflow acceptance, and the [implementation tracker](APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) owns changing work status. These describe intended capabilities separately from dated implementation evidence.
+
+Purchasing organizations assign employee roles and privileges; the platform enforces them. Independent license verification and jurisdiction-based professional eligibility checks are not default features or prerequisites to access. Pharmacy and inventory software remain within scope.
+
 The guidance portal helps new providers understand and complete the work required to start a clinic, with mentoring, structured knowledge and training.
 
-The clinic software is a separate operational package offered to members. Its first design-defining surface is the patient tracking board: a shared view of expected, waiting and in-progress work that helps authorized staff and providers understand the current recorded state and choose the next appropriate action.
+The clinic software is a separate configurable product sold to clinics. Its patient tracking board is a shared view of expected, waiting and in-progress work that helps authorized staff and providers understand the current recorded state and choose the next appropriate action.
 
 Success for one product does not imply success, access or authority in the other.
 
@@ -40,6 +46,7 @@ The clinic software centers its operational experience on an explicit, evidence-
 - Use independently created synthetic data only. No real patient or confidential applicant information belongs in design artifacts, prompts, screenshots, fixtures or tests.
 - Clinic design must prioritize desktop and tablet. Mobile-phone clinic layouts may remain safe and operable where practical, but do not drive density, navigation or table decisions.
 - Guidance-portal design remains responsive through mobile widths.
+- Meta Clinic public websites, enrollment and patient access also require mobile usability; these are distinct from the guidance portal and staff workspace.
 - Visible navigation never establishes authorization; backend capabilities remain authoritative.
 - Missing, stale, partial and unknown clinical-operational information must remain visibly distinct from reassuring or completed states.
 - Schedule timing, queue order, membership and presentation color do not establish clinical priority.

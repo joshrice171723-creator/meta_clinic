@@ -1,11 +1,11 @@
 ---
 type: service-concept
 status: deferred
-updated: 2026-08-30
+updated: 2026-09-13
 ---
 # Knowledge Bank and Mentorship
 
-Home: [[00 Home]] · Boundaries: [[Entity and Product Boundary]] · Tasks: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap)
+Home: [[00 Home]] · Boundaries: [[Entity and Product Boundary]] · Tasks: [Meta Clinic Implementation Tracker](../03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
 Kevin wants to develop a video knowledge bank with mentorship as another service, per the founder's latest answers. This records the concept; no video inventory, released library, selling entity, pricing, or capacity has been established.
 

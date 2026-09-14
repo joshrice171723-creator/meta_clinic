@@ -5,6 +5,14 @@ updated: 2026-09-13
 ---
 # Decisions
 
+## Meta Clinic strategy and implementation tracking
+
+**D-071 — 2026-09-13 / founder's explicit direction:** adopt [[Meta Clinic Product Strategy and Scope]], the [engineering build and acceptance guide](../../docs/development/meta-clinic-build-and-acceptance.md), and [[Meta Clinic Implementation Tracker]]. Serve multiple clinic specialties, explicitly including cash-based clinics; connect public patient acquisition, walk-ins, scheduled/in-person and telehealth visits, cash billing, medication/pharmacy operations, inventory and follow-up. Purchasing organizations assign employee roles; Meta Clinic enforces privileges without default independent license validation or jurisdiction eligibility enforcement.
+
+**Tracking cutover:** retire Shortcut for current work. The implementation tracker is the single current Meta Clinic work inventory; individual tasks execute bounded changes and report evidence back. This supersedes the tracking requirements of D-060/D-061 and older active-task-only wording. Historical decision and progress entries remain dated evidence, not instructions to use the retired service. No external account or historical records are deleted.
+
+**Limits:** this adopts direction and documentation ownership, not a claim of complete implementation, a release, a new verification integration, or a change to existing runtime security controls. Preserve D-064's optional insurance model and D-067's software/onboarding commercial model.
+
 ## Standards as a primary healthcare design input
 
 **D-066 — 2026-09-10 / founder's explicit development direction:** use relevant published FHIR implementation guides as a primary input when designing or substantially revising healthcare workflows, pages, data models and integrations. Combine standards requirements with the actual user workflow and product UX decisions. Relevant official terminology and operational references, including HL7 resources, NLM RxNorm, UCUM, FDA routes, CDC vaccination documentation and CMS CLIA guidance, provide additional domain-specific design inputs. The [development procedure](../../docs/development/healthcare-standards.md) owns source selection, version/applicability review and requirement-to-data/UI/verification mapping.
