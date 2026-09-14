@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-14 — Vendor-independent workflow preparation adopted
+
+D-072 records the founder's direction to build local insurance, supplier pricing/order, shipment and prescription workflows before vendor access is available. Updated product strategy, engineering acceptance, implementation tracking, PRODUCT and Home. [Dated record](../../records/progress/2026/09/2026-09-14-vendor-independent-workflow-direction.md) distinguishes these requirements from implemented capability; no old proposals were imported.
 
 Home: [[00 Home]] · Work: [[Meta Clinic Implementation Tracker]] · Decisions: [[Decisions]] · Risks: [[Risks and Assumptions]]
 

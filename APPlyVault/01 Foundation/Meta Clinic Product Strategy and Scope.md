@@ -1,7 +1,7 @@
 ---
 type: product-strategy
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 lifecycle: active
 canonical_for: meta-clinic-platform-strategy
 ---
@@ -35,6 +35,16 @@ The commercial model remains clinic software subscriptions with separately scope
 - Operational reporting, locations, employees and organization-assigned privileges.
 
 Each workflow uses the appropriate shared patient, organization, encounter and financial records. Pharmacy and inventory records retain their own operational identity and links. Connection must reduce duplicate entry without collapsing distinct states such as payment, arrival, encounter completion and fulfillment.
+
+## Build workflows before vendor access
+
+Insurance is part of Meta Clinic's intended scope, configurable per clinic; it is not excluded because vendor access is currently unaffordable or unavailable. The same principle applies to supplier price checks, supplier orders, package tracking, prescription transmission and other external services.
+
+Build as much of each complete local workflow as possible now: collect the right information, persist it through the backend, prepare requests, support organization-assigned review, retain history, and track outcomes and recovery. Keep vendor-specific connections replaceable so later access does not require rebuilding the patient or employee journey.
+
+Missing access blocks the affected external action, not unrelated preparation or local operations. Preserve the difference between locally recorded work, ready-to-send work, actual transmission and a vendor-confirmed result. Support staff-recorded external actions where appropriate, identifying who recorded them and their source; do not present them as API confirmation. Test with synthetic records and simulated responses through the real backend boundary, not frontend-only dummy data.
+
+Future vendor mapping, onboarding and required testing may remain. Preparation reduces that work but does not promise a universal drop-in connection. Connecting a vendor must not automatically send previously prepared work.
 
 ## Specialty configuration
 

@@ -1,7 +1,7 @@
 ---
 type: dashboard
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 lifecycle: active
 canonical_for: vault-orientation
 ---
@@ -25,6 +25,8 @@ The retired `reference/` folder was removed by the founder after its useful beha
 **Backend verification (2026-08-31):** source commits `600976f`/`5436764` implement the ERD schema, domain workflows and API. [[Backend Verification Report]] records the subsequent full validation, guarded synthetic seeds, corrections and all 68 entities/103 relationships. Structural coverage is present; access auditing, protected-value handling and several clinical workflows remain incomplete. D-044's historical prompt and pending amendment record do not establish clinical approval, database-reset permission or deployment readiness.
 
 ## Current position
+
+- **Vendor preparation:** D-072 directs building usable local workflows for insurance, supplier prices/orders, shipments and prescriptions while vendor access is unavailable. Collect appropriate data, retain prepared work and test replaceable connections through backend simulation. External execution remains separately tracked; connecting a vendor does not automatically send the backlog.
 
 - **Platform strategy:** [[Meta Clinic Product Strategy and Scope]] connects the digital front door and physical front desk across specialties, explicitly including cash-based clinics, walk-ins, telehealth, pharmacy and inventory. Organizations assign employee privileges; independent license verification is not a default platform requirement.
 - **Current implementation tracking:** [[Meta Clinic Implementation Tracker]] consolidates workflow status and remaining proof. The [engineering guide](../docs/development/meta-clinic-build-and-acceptance.md) defines completion criteria. Former external-tracker requirements are retired under D-071.

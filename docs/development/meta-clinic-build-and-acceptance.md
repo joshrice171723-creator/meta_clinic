@@ -22,7 +22,29 @@ Use existing React frontend, Rails API, tenant boundaries and source-owned recor
 | Follow-up | Give unresolved work a responsible role and an actionable destination. Preserve failed delivery and retry state; do not equate queued messages with delivery. |
 | Configuration | Keep specialty, payment model, modality, location and services configurable without copying the entire workflow. |
 
-## Completion evidence
+## Vendor-independent workflow preparation
+
+Build complete local behavior while vendor access is unavailable. Use existing domain records and narrowly scoped integration interfaces; do not create a generic integration framework or duplicate ledger merely to prepare for hypothetical vendors. Insurance remains an optional clinic module, with useful local preparation available before a clearinghouse or payer connection.
+
+| Workflow | Build and verify locally | Connected operation |
+| --- | --- | --- |
+| Supplier prices | Product/supplier identifiers, pack size and units, quantities, quote requests, and manual quotes with source, date, currency and known fees; preserve unknown values | Retrieve vendor prices, availability and quote responses |
+| Supplier orders | Purchase-order preparation, configured review, ship-to details, submission history, partial receiving and reconciliation | Submit an order and ingest supplier acknowledgment, changes or cancellation responses |
+| Shipment tracking | Shipment/order linkage, carrier and tracking identifiers, timestamped manual events and receiving status | Retrieve carrier tracking events; distinguish delivery from clinic receiving |
+| Insurance | Coverage/policyholder/payer information and prepared eligibility requests; support local authorization, claim preparation and response/reconciliation records within the clinic's configured scope | Exchange eligibility, authorization, claim and remittance transactions with the selected service |
+| Prescriptions | Patient/encounter-linked preparation, pharmacy destination, organization-assigned review, versioned transmission request and outcome history | Submit through the prescribing network and ingest acknowledgments, failures and subsequent responses |
+
+Before choosing detailed fields, review applicable current U.S. standards and accessible official interface documentation under the [healthcare standards procedure](healthcare-standards.md). Record source/version, field meaning, units or terminology, conditional requirements and mapping uncertainties. Do not invent inaccessible vendor fields or collect speculative data. A local completeness check is not external acceptance.
+
+Keep domain status separate from delivery attempts. Each integration should distinguish disconnected, prepared, ready, submitted, acknowledged, failed and outcome-unconfirmed as applicable; domain-specific events retain their own meaning. Store durable request/version identity, actor, attempt time, correlation identifiers and source-tagged responses. Preserve unsent work without silently queuing it for automatic submission when credentials become available.
+
+Adapters map existing records to the selected vendor contract and map responses back. Test adapters through a backend simulator with independently created synthetic fixtures. Exercise success, rejection, unavailable service, timeout after possible acceptance, duplicate/out-of-order responses and stale prepared data. Use idempotency or explicit reconciliation where supported; do not blindly retry consequential orders or prescriptions. Provider credentials remain outside source and workflow payloads.
+
+In ordinary UI, show the affected action's connection status and a useful next step. Staff can still save, review and resume local work. Manual external records require provenance and stay distinguishable from vendor-confirmed events. A mock price is not a live quote, saved coverage is not verified eligibility, and a prepared prescription or purchase order has not been sent.
+
+For each capability track local workflow completion, simulator/contract evidence and live connection acceptance separately. When access arrives, finish actual field mapping, onboarding and provider-specific tests, then explicitly enable sending. No automatic replay of the prepared backlog.
+
+## Completion evidence for a workflow
 
 Before closing a tracker item, demonstrate the main journey and its material failure paths with independently created synthetic data. Select meaningful checks proportional to the change:
 

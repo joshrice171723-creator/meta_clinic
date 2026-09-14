@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -34,6 +34,20 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 | MC-13 | Employee privileges and locations | Existing configured-role direction; closeout reports bounded wrong-role/context checks. | Demonstrate administrator assignment, privilege changes/revocation, location isolation and staff recovery; no independent license check is implied. |
 | MC-14 | Reporting and clinic ownership | Product strategy establishes connected reporting and clinic control as intended outcomes. | Inventory current reports/export capability; verify financial/stock/workflow totals against owning records and authorized access. Implementation status unresolved here. |
 | MC-15 | Onboarding, integrations and operations | D-067 and [[CICD]] describe onboarding/migration and operating context. | Reconcile integration inventory, configuration, import/export, recovery and operational acceptance. Track external setup separately from application completeness. |
+
+## Vendor-dependent work: build locally now
+
+D-072 adds the following current direction; it does not revive archived proposals. Missing vendor accounts or budget do not block local workflow implementation. The [engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md) owns data mapping, adapter, simulator and recovery expectations in its vendor-independent workflow preparation section.
+
+| Owning row | Current preparation requirement | External dependency / separate proof |
+| --- | --- | --- |
+| MC-10 | Inspect and finish prescription preparation, destination, assigned review, durable request and response history through the backend | Prescribing-network access, actual mapping and transmission/response acceptance |
+| MC-11 | Inspect and finish supplier product/unit mapping, quote requests and dated manual quotes, purchase orders, configured review and receiving | Supplier access for current prices and actual order submission/acknowledgment |
+| MC-11 | Inspect and finish shipment records, carrier/tracking identifiers, manual events and order/receiving links | Carrier access and live tracking events |
+| MC-16 | Insurance workflow preparation: coverage/policyholder/payer collection, eligibility requests, and local authorization/claim/response/reconciliation work appropriate to configured scope | Payer/clearinghouse access and provider-specific transaction acceptance; insurance remains optional per clinic |
+| MC-15 | Apply the same preparation/connection separation to other selected integrations; reuse existing domain mechanisms and inspect what already exists | Record vendor availability and remaining mapping/onboarding work separately from local completion |
+
+Initial status for these requirements: founder-approved direction; current implementation has not been audited in this documentation change. For each row separately record local behavior, synthetic adapter tests and live vendor evidence. A disconnected action must retain prepared work and must not claim a successful external result or send automatically on connection.
 
 ## Next bounded work
 

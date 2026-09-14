@@ -42,6 +42,8 @@ The clinic software centers its operational experience on an explicit, evidence-
 
 ## Capabilities and Constraints
 
+- Build vendor-dependent local workflows before vendor access is available: insurance, supplier pricing/purchasing, shipment tracking, prescription preparation and other selected integrations. Collect appropriate data, persist prepared work and keep external adapters replaceable. Show actual connection and submission outcomes without blocking unrelated local work. Insurance is supported as an optional clinic module; lack of vendor budget is not a product exclusion. See the [engineering guide](docs/development/meta-clinic-build-and-acceptance.md#vendor-independent-workflow-preparation).
+
 - Preserve the existing React/Vite frontend and Rails JSON/API ownership boundaries.
 - Use independently created synthetic data only. No real patient or confidential applicant information belongs in design artifacts, prompts, screenshots, fixtures or tests.
 - Clinic design must prioritize desktop and tablet. Mobile-phone clinic layouts may remain safe and operable where practical, but do not drive density, navigation or table decisions.

@@ -1,9 +1,15 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 # Decisions
+
+## Build local workflows before vendor access
+
+**D-072 — 2026-09-14 / founder's explicit direction:** support insurance alongside the cash-pay core, and prepare vendor-dependent workflows now despite unavailable or unaffordable vendor access. This includes supplier price checks, supplier ordering, shipment tracking, insurance transactions and prescription transmission. Build appropriate data collection, persistence, assigned-role review, request preparation, status history, recovery and replaceable connections. Use backend-based synthetic simulation to verify disconnected workflows; vendor access blocks external execution, not unrelated preparation.
+
+**Limits:** this is current product/build direction, not a claim that integrations exist or permission to buy services, submit real transactions or automatically send saved work when connected. Keep manual records, simulated responses and vendor-confirmed outcomes distinct. Choose detailed fields from applicable current U.S. standards and accessible interface documentation during each implementation slice; do not inherit stale proposals or assume unknown vendor contracts. D-064's optional insurance configuration remains; cash-based clinics do not need insurance enabled. Current plans and acceptance live in [[Meta Clinic Implementation Tracker]] and the [engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md).
 
 ## Meta Clinic strategy and implementation tracking
 
