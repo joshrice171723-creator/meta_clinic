@@ -1,6 +1,6 @@
 # Tonight's patient journey — execution plan
 
-Created: 2026-09-14. Revision 2: combined founder plan and reviewed skill-test evidence. Assignment: membership-based cash-pay weight-loss clinic, in-person and telehealth. Status: plan saved; implementation not dispatched by this document.
+Created: 2026-09-14. Revision 2 scope: combined founder plan and reviewed skill-test evidence. Assignment: membership-based cash-pay weight-loss clinic, in-person and telehealth. Status: implementation authorized and in progress; current evidence and next action are in the resume checkpoint.
 
 This is the single starting document for the assignment: founder decisions and detailed questions, selected research and source findings, action contracts, acceptance cases and one resume checkpoint. It incorporates useful material from all seven skill-test artifacts without adopting their extra scope or duplicating their files. The test artifacts remain evaluation evidence only; no task depends on their local Desktop paths. Later explicit founder decisions govern conflicts. The [implementation tracker](APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) remains the work inventory; the engineering guide remains the shared matrix owner.
 
