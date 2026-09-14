@@ -17,6 +17,7 @@ export type PrevisitNote = {
   id: number;
   version_number: number;
   text: string;
+  status?: "draft" | "submitted";
   attestation?: { id: string; version: string; accepted: true } | null;
   submitted_at: string;
 };
@@ -29,7 +30,7 @@ type PrevisitNoteResponse = {
 };
 
 export function previsitNoteBlock(note: PrevisitNote) {
-  return `Patient-provided pre-visit note (version ${note.version_number}, submitted ${note.submitted_at}):\n${note.text}`;
+  return `Patient-provided pre-visit note (version ${note.version_number}, ${note.status === "draft" ? "draft saved" : "submitted"} ${note.submitted_at}):\n${note.text}`;
 }
 
 export function appendPrevisitNote(subjective: string, note: PrevisitNote) {
@@ -116,7 +117,7 @@ export function PrevisitNoteImport({
           Before this visit
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Patient-provided · Submitted{" "}
+          Patient-provided · {note.status === "draft" ? "Draft saved" : "Submitted"}{" "}
           {new Date(note.submitted_at).toLocaleString()}
         </Typography>
         <Typography
@@ -125,7 +126,7 @@ export function PrevisitNoteImport({
         >
           {note.attestation?.accepted
             ? "Patient confirmed the intake for care-team review."
-            : "Legacy submission without the current confirmation record."}
+            : note.status === "draft" ? "Draft only. The patient has not confirmed this version." : "Legacy submission without the current confirmation record."}
         </Typography>
         <Typography
           sx={{
@@ -180,7 +181,7 @@ export function PrevisitNoteImport({
             >
               {preview?.attestation?.accepted
                 ? "This submission includes the current patient confirmation for care-team review."
-                : "This is a legacy submission without the current confirmation record. Review it as patient-reported context."}
+                : preview?.status === "draft" ? "This is an unconfirmed draft. It is not a submitted intake." : "This is a legacy submission without the current confirmation record. Review it as patient-reported context."}
             </Alert>
             <Box sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
               {preview?.text}

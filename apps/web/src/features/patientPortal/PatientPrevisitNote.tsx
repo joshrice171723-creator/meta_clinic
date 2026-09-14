@@ -12,15 +12,23 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
+import { IntakeQuestions } from "./IntakeQuestions";
+
+type Answer = string | { state: string; value: string; unit?: string; measured_at?: string; source?: string };
+type Answers = Record<string, Answer>;
+function answerState(answer: Answer | undefined) { return typeof answer === "string" ? (answer.trim() ? "answered" : "unanswered") : answer?.state ?? "unanswered"; }
+function hasAnswers(answers: Answers) { return Object.values(answers).some((answer) => answerState(answer) !== "unanswered"); }
 
 type Note = {
   id: number;
   version_number: number;
   text: string;
   additional_text?: string;
-  intake_answers?: Record<string, string>;
+  intake_answers?: Answers;
+  status?: "draft" | "submitted";
+  inherited_from?: { note_id: number } | null;
   attestation?: { id: string; version: string; accepted: true } | null;
   submitted_at: string;
 };
@@ -30,20 +38,25 @@ type Response = {
   can_edit: boolean;
   intake_form?: {
     id: string;
-    fields: { id: string; label: string; reusable: boolean }[];
+    fields: { id: string; label: string; reusable: boolean; units?: string[] }[];
+    answer_states?: string[];
+    medication_options?: string[];
     max_answer_length: number;
     attestation: { id: string; version: string; label: string };
   };
   reusable_answers?: {
+    source_note_id: number;
     submitted_at: string;
-    answers: Record<string, string>;
+    answers: Answers;
   } | null;
 };
 type Attempt = {
   body: {
     previsit_note: {
       text: string;
-      intake_answers: Record<string, string>;
+      intake_answers: Answers;
+      status: "draft" | "submitted";
+      reused_note_id: number | null;
       attestation: boolean;
       expected_version: number;
       request_key: string;
@@ -70,11 +83,11 @@ function dateLabel(value: string) {
     : date.toLocaleString();
 }
 
-function draftKey(text: string, answers: Record<string, string>) {
+function draftKey(text: string, answers: Answers) {
   return JSON.stringify([
     text.trim(),
     Object.entries(answers)
-      .map(([key, value]) => [key, value.trim()])
+      .map(([key, value]) => [key, typeof value === "string" ? value.trim() : JSON.stringify(value)])
       .filter(([, value]) => value !== "")
       .sort(([left], [right]) => left.localeCompare(right)),
   ]);
@@ -82,7 +95,7 @@ function draftKey(text: string, answers: Record<string, string>) {
 
 export function hasUnsavedPrevisitDraft(
   text: string,
-  answers: Record<string, string>,
+  answers: Answers,
   baseline: string,
 ) {
   return draftKey(text, answers) !== baseline;
@@ -104,8 +117,9 @@ export function PatientPrevisitNote({
   const [data, setData] = useState<Response | null>(null);
   const [text, setText] = useState("");
   const [baseline, setBaseline] = useState("");
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Answers>({});
   const [attested, setAttested] = useState(false);
+  const [reusedNoteId, setReusedNoteId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -118,6 +132,19 @@ export function PatientPrevisitNote({
   const appointmentIdRef = useRef(appointmentId);
   const loadSequenceRef = useRef(0);
   appointmentIdRef.current = appointmentId;
+  useEffect(() => {
+    loadSequenceRef.current += 1;
+    setOpen(false);
+    setData(null);
+    setText("");
+    setAnswers({});
+    setAttested(false);
+    setReusedNoteId(null);
+    setBaseline("");
+    setOutcomeUnknown(false);
+    setBusy(false);
+    attempt.current = null;
+  }, [appointmentId]);
 
   const load = async (preserveDraft = false) => {
     const requestAppointmentId = appointmentId;
@@ -148,6 +175,7 @@ export function PatientPrevisitNote({
         const savedAnswers = result.note?.intake_answers ?? {};
         setText(saved);
         setAnswers(savedAnswers);
+        setReusedNoteId(result.note?.inherited_from?.note_id ?? null);
         setAttested(false);
         setBaseline(draftKey(saved, savedAnswers));
         setConflict(false);
@@ -203,6 +231,7 @@ export function PatientPrevisitNote({
     const savedAnswers = data?.note?.intake_answers ?? {};
     setText(saved);
     setAnswers(savedAnswers);
+    setReusedNoteId(data?.note?.inherited_from?.note_id ?? null);
     setAttested(false);
     setBaseline(draftKey(saved, savedAnswers));
     setConflict(false);
@@ -220,22 +249,23 @@ export function PatientPrevisitNote({
     setLatestReady(false);
     setLatestRefreshFailed(false);
   };
-  const save = async () => {
+  const save = async (status: "draft" | "submitted" = "submitted") => {
     const normalizedText = text.trim() ? text : "";
     const hasContent =
       normalizedText !== "" ||
-      Object.values(answers).some((value) => value.trim());
+      hasAnswers(answers);
     if (
       !data ||
+      data.appointment_id !== appointmentId ||
       busy ||
       conflict ||
-      (!outcomeUnknown && draftKey(normalizedText, answers) === baseline) ||
+      (!outcomeUnknown && draftKey(normalizedText, answers) === baseline && !(data.note?.status === "draft" && status === "submitted")) ||
       (normalizedText === "" &&
-        !Object.values(answers).some((value) => value.trim()) &&
+        !hasAnswers(answers) &&
         !data.note)
     )
       return;
-    if (hasContent && !attested) {
+    if (status === "submitted" && hasContent && !attested) {
       setError(
         "Confirm the intake is current and may be shared with your care team before saving.",
       );
@@ -246,6 +276,8 @@ export function PatientPrevisitNote({
         previsit_note: {
           text: normalizedText,
           intake_answers: answers,
+          status,
+          reused_note_id: reusedNoteId,
           attestation: attested,
           expected_version: data.note?.version_number ?? 0,
           request_key: crypto.randomUUID(),
@@ -253,6 +285,7 @@ export function PatientPrevisitNote({
       },
     };
     attempt.current = current;
+    const requestAppointmentId = appointmentId;
     setBusy(true);
     setError("");
     setNotice("");
@@ -263,6 +296,7 @@ export function PatientPrevisitNote({
       );
       if (result.appointment_id !== appointmentId)
         throw new Error("The saved visit note did not match this appointment.");
+      if (appointmentIdRef.current !== requestAppointmentId) return;
       const saved = savedText(result.note);
       const savedAnswers = result.note?.intake_answers ?? {};
       setData(result);
@@ -271,7 +305,7 @@ export function PatientPrevisitNote({
       setAttested(false);
       setBaseline(draftKey(saved, savedAnswers));
       setNotice(
-        result.note?.text
+        result.note?.status === "draft" ? "Saved as a draft. Confirm when you are ready to send it." : result.note?.text
           ? "Your intake and visit note were saved."
           : "Your intake and visit note were cleared.",
       );
@@ -279,6 +313,7 @@ export function PatientPrevisitNote({
       setOutcomeUnknown(false);
       setConflict(false);
     } catch (reason) {
+      if (appointmentIdRef.current !== requestAppointmentId) return;
       if (reason instanceof ApiError && reason.status === 409) {
         attempt.current = null;
         setOutcomeUnknown(false);
@@ -305,7 +340,7 @@ export function PatientPrevisitNote({
         );
       }
     } finally {
-      setBusy(false);
+      if (appointmentIdRef.current === requestAppointmentId) setBusy(false);
     }
   };
   const canSave =
@@ -313,11 +348,11 @@ export function PatientPrevisitNote({
     !loading &&
     !busy &&
     !conflict &&
-    draftKey(text, answers) !== baseline &&
-    ((!text.trim() && !Object.values(answers).some((value) => value.trim())) ||
+    (draftKey(text, answers) !== baseline || data.note?.status === "draft") &&
+    ((!text.trim() && !hasAnswers(answers)) ||
       attested) &&
     (text.trim() !== "" ||
-      Object.values(answers).some((value) => value.trim()) ||
+      hasAnswers(answers) ||
       data.note !== null);
   const conflictChoiceDisabled =
     busy || outcomeUnknown || loading || !latestReady || latestRefreshFailed;
@@ -372,7 +407,7 @@ export function PatientPrevisitNote({
               <Box>
                 <Typography variant="subtitle2">Saved note</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Submitted {dateLabel(data.note.submitted_at)}
+                  {data.note.status === "draft" ? "Draft saved" : "Submitted"} {dateLabel(data.note.submitted_at)}
                 </Typography>
                 <Typography
                   sx={{
@@ -403,10 +438,11 @@ export function PatientPrevisitNote({
                       disabled={loading || busy || outcomeUnknown || conflict}
                       onClick={() => {
                         const previous = data.reusable_answers?.answers ?? {};
+                        setReusedNoteId(data.reusable_answers?.source_note_id ?? null);
                         setAnswers((current) => {
                           const next = { ...current };
                           for (const [key, value] of Object.entries(previous)) {
-                            if (!next[key]?.trim()) next[key] = value;
+                            if (answerState(next[key]) === "unanswered") next[key] = value;
                           }
                           return next;
                         });
@@ -420,30 +456,11 @@ export function PatientPrevisitNote({
                     </Button>
                   </Box>
                 )}
-                {data.intake_form?.fields.map((field) => (
-                  <TextField
-                    key={field.id}
-                    label={field.label}
-                    value={answers[field.id] ?? ""}
-                    onChange={(event) => {
-                      setAnswers((current) => ({
-                        ...current,
-                        [field.id]: event.target.value,
-                      }));
-                      setAttested(false);
-                    }}
-                    multiline
-                    minRows={2}
-                    fullWidth
-                    disabled={loading || busy || outcomeUnknown || conflict}
-                    slotProps={{
-                      htmlInput: {
-                        maxLength: data.intake_form?.max_answer_length ?? 600,
-                      },
-                    }}
-                    helperText="Optional. Leave blank if unknown; write ‘none’ only when you mean none."
-                  />
-                ))}
+                {data.intake_form && <IntakeQuestions fields={data.intake_form.fields} answers={answers}
+                  states={data.intake_form.answer_states ?? ["answered", "unanswered", "unknown", "declined", "not_applicable", "negative"]}
+                  medicationOptions={data.intake_form.medication_options}
+                  disabled={loading || busy || outcomeUnknown || conflict}
+                  onChange={(next) => { setAnswers(next); setAttested(false); }} />}
                 <TextField
                   label="Anything else the clinic should know?"
                   value={text}
@@ -460,7 +477,7 @@ export function PatientPrevisitNote({
                 />
                 {data.intake_form?.attestation &&
                   (text.trim() !== "" ||
-                    Object.values(answers).some((value) => value.trim())) && (
+                    hasAnswers(answers)) && (
                     <FormControlLabel
                       control={
                         <Checkbox
@@ -492,7 +509,7 @@ export function PatientPrevisitNote({
                 busy ||
                 conflict ||
                 (!text.trim() &&
-                  !Object.values(answers).some((value) => value.trim()))
+                  !hasAnswers(answers))
               }
               onClick={() => {
                 setText("");
@@ -509,6 +526,9 @@ export function PatientPrevisitNote({
             </Button>
           )}
           {data && (
+            <Button disabled={!data.can_edit || loading || busy || conflict || outcomeUnknown || draftKey(text, answers) === baseline} onClick={() => void save("draft")}>Save draft</Button>
+          )}
+          {data && (
             <Button
               variant="contained"
               disabled={busy || (!canSave && !outcomeUnknown)}
@@ -519,7 +539,7 @@ export function PatientPrevisitNote({
                 : outcomeUnknown
                   ? "Retry same request"
                   : !text.trim() &&
-                      !Object.values(answers).some((value) => value.trim()) &&
+                      !hasAnswers(answers) &&
                       data.note
                     ? "Save cleared intake"
                     : "Save intake and note"}

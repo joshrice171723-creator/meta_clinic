@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Checkbox,
+  FormControlLabel,
+  TextField,
   Divider,
   FormControl,
   InputLabel,
@@ -27,6 +30,7 @@ import type {
 } from "../../api/contracts";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { IntakeQuestions, type IntakeAnswers } from "../patientPortal/IntakeQuestions";
 
 type IntakeForm = Pick<
   EncounterIntakeRevision,
@@ -35,7 +39,7 @@ type IntakeForm = Pick<
   | "visit_reason_state"
   | "history_state"
   | "vitals_state"
->;
+> & { questionnaire?: { answers: IntakeAnswers; text: string; status: "draft" | "submitted"; confirmed: boolean } };
 
 const emptyIntake: IntakeForm = {
   status: "incomplete",
@@ -86,6 +90,14 @@ export function NurseEncounterWorkspace({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const contextRef = useRef(`${patient.id}:${encounter.id}`);
+  contextRef.current = `${patient.id}:${encounter.id}`;
+  useEffect(() => {
+    setForm(emptyIntake);
+    setBaseline(emptyIntake);
+    setError("");
+    setNotice("");
+  }, [patient.id, encounter.id]);
   const [taskKind, setTaskKind] =
     useState<ClinicalTask["task_kind"]>("patient_call");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
@@ -115,6 +127,7 @@ export function NurseEncounterWorkspace({
       visit_reason_state: intake.visit_reason_state,
       history_state: intake.history_state,
       vitals_state: intake.vitals_state,
+      questionnaire: { answers: intake.questionnaire?.answers ?? {}, text: intake.questionnaire?.text ?? "", status: intake.questionnaire?.status ?? "draft", confirmed: false },
     };
     setForm(next);
     setBaseline(next);
@@ -235,6 +248,7 @@ export function NurseEncounterWorkspace({
   }
 
   async function saveIntake() {
+    const requestContext = `${patient.id}:${encounter.id}`;
     await perform(async () => {
       const response = await api<{ intake: EncounterIntakeRevision }>(
         `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/intake_revisions`,
@@ -243,6 +257,7 @@ export function NurseEncounterWorkspace({
           body: {
             intake: {
               ...form,
+              questionnaire: JSON.stringify(form.questionnaire) === JSON.stringify(baseline.questionnaire) ? undefined : form.questionnaire,
               expected_version: intakeVersion,
               observation_ids:
                 form.vitals_state === "recorded" ? observationIds : [],
@@ -260,12 +275,14 @@ export function NurseEncounterWorkspace({
         throw new Error(
           "The saved intake response did not match this encounter.",
         );
+      if (contextRef.current !== requestContext) return;
       const saved: IntakeForm = {
         status: response.intake.status,
         identity_state: response.intake.identity_state,
         visit_reason_state: response.intake.visit_reason_state,
         history_state: response.intake.history_state,
         vitals_state: response.intake.vitals_state,
+        questionnaire: { answers: response.intake.questionnaire?.answers ?? {}, text: response.intake.questionnaire?.text ?? "", status: response.intake.questionnaire?.status ?? "draft", confirmed: false },
       };
       setForm(saved);
       setBaseline(saved);
@@ -411,6 +428,21 @@ export function NurseEncounterWorkspace({
           }}
         >
           <Stack spacing={2}>
+            {workspace.questionnaire_form && <Stack spacing={2}>
+              <Typography component="h3" variant="h6">Patient answers · staff assisted</Typography>
+              <Typography color="text.secondary">Save incomplete answers as a draft. Recording answers does not reconcile medicines or allergies, confirm patient consent, or complete clinical review.</Typography>
+              {workspace.intake?.questionnaire_text && <Typography sx={{ whiteSpace: "pre-wrap" }}>{workspace.intake.questionnaire_text}</Typography>}
+              <IntakeQuestions fields={workspace.questionnaire_form.fields} states={workspace.questionnaire_form.answer_states}
+                medicationOptions={workspace.questionnaire_form.medication_options} answers={form.questionnaire?.answers ?? {}}
+                disabled={busy || !workspace.capabilities.intake_write}
+                onChange={(answers) => setForm((current) => ({ ...current, questionnaire: { ...current.questionnaire, text: current.questionnaire?.text ?? "", answers, status: "draft", confirmed: false } }))} />
+              <TextField label="Additional patient-reported context" multiline value={form.questionnaire?.text ?? ""}
+                disabled={busy || !workspace.capabilities.intake_write} slotProps={{ htmlInput: { maxLength: 5000 } }}
+                onChange={(event) => setForm((current) => ({ ...current, questionnaire: { answers: current.questionnaire?.answers ?? {}, text: event.target.value, status: "draft", confirmed: false } }))} />
+              <FormControlLabel label="I confirm I recorded these answers from the patient. This is not a patient attestation or clinical review."
+                control={<Checkbox checked={form.questionnaire?.confirmed ?? false} disabled={busy || !workspace.capabilities.intake_write}
+                  onChange={(event) => setForm((current) => ({ ...current, questionnaire: { answers: current.questionnaire?.answers ?? {}, text: current.questionnaire?.text ?? "", status: event.target.checked ? "submitted" : "draft", confirmed: event.target.checked } }))} />} />
+            </Stack>}
             <Box>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
@@ -744,9 +776,13 @@ export function NurseEncounterWorkspace({
                           {stateLabel(task.state)} ·{" "}
                           {stateLabel(task.pool_code)} pool
                         </Typography>
+                        {(task as ClinicalTask & { waiting_reason?: string }).waiting_reason && <Typography variant="body2">Waiting: {(task as ClinicalTask & { waiting_reason?: string }).waiting_reason}</Typography>}
+                        {(task as ClinicalTask & { assignment_exception?: string }).assignment_exception && <Typography variant="body2">Assignment: {(task as ClinicalTask & { assignment_exception?: string }).assignment_exception}</Typography>}
+                        {(task as ClinicalTask & { pending_assignee_membership_id?: number }).pending_assignee_membership_id && <Typography variant="body2">Transfer awaits acceptance. Current coverage remains responsible.</Typography>}
+                        <Button size="small" href="/clinic/work">Open Patient Flow</Button>
                       </Box>
                       {workspace.capabilities.tasks_write &&
-                        task.state === "open" && (
+                        ["open", "on_hold"].includes(task.state) && (
                           <Button
                             disabled={busy}
                             onClick={() => void transitionTask(task, "claim")}
@@ -758,7 +794,7 @@ export function NurseEncounterWorkspace({
                         task.state === "claimed" &&
                         mine && (
                           <Button
-                            disabled={busy}
+                            disabled={busy || Boolean((task as ClinicalTask & { waiting_reason?: string }).waiting_reason)}
                             onClick={() => void transitionTask(task, "start")}
                           >
                             Start
@@ -768,7 +804,7 @@ export function NurseEncounterWorkspace({
                         task.state === "in_progress" &&
                         mine && (
                           <Button
-                            disabled={busy}
+                            disabled={busy || Boolean((task as ClinicalTask & { source_managed?: boolean }).source_managed)}
                             variant="contained"
                             onClick={() =>
                               void transitionTask(task, "complete")
