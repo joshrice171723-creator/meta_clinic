@@ -324,7 +324,7 @@ export function BillingDashboard() {
   const canUseCashDrawer =
     canRecordPayment || context.capabilities.billing_cash_reconcile === true;
   const [activeTab, setActiveTab] = useState(() =>
-    stripeSetupReturnMarker() ? "subscriptions" : "invoices",
+    stripeSetupReturnMarker() || new URLSearchParams(window.location.search).get("tab") === "subscriptions" ? "subscriptions" : "invoices",
   );
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [currency, setCurrency] = useState("");

@@ -9,7 +9,7 @@ module Clinic
         "accept" => "accepted", "reject" => "rejected", "request_correction" => "correction_requested",
         "complete" => "completed", "cancel" => "cancelled"
       }.freeze
-      TASK_ACTIONS = %w[claim assign start complete cancel reopen].freeze
+      TASK_ACTIONS = %w[claim assign accept_transfer reject_transfer dependencies start complete cancel reopen].freeze
 
       def board_snapshot(encounters)
         ids = encounters.map(&:id)
@@ -26,7 +26,7 @@ module Clinic
             latest[record.encounter_id] ||= record
           end
         task_counts = Clinic::ClinicalTask.where(practice_id: practice_ids.first, encounter_id: ids,
-          state: %w[open claimed in_progress])
+          state: Clinic::ClinicalTask::ACTIVE_STATES)
           .group(:encounter_id).count
         encounters.to_h do |encounter|
           intake = intakes[encounter.id]
@@ -191,22 +191,29 @@ module Clinic
       end
 
       def transition_task(practice:, actor:, task:, action:, expected_version:, request_key:, resolution_code: nil,
-        assignee_membership_id: nil)
-        authorize!(practice, actor, "encounters.write", task.encounter)
+        assignee_membership_id: nil, dependency_ids: nil)
+        authorize!(practice, actor, "encounters.write", task)
         member = membership!(practice, actor)
         action = action.to_s
         raise ArgumentError, "The task action is unsupported." unless TASK_ACTIONS.include?(action)
         assignee = action == "assign" ? eligible_assignee!(practice, actor, task, assignee_membership_id) : nil
-        payload = { task_id: task.id, action:, expected_version:, resolution_code:, assignee_membership_id: assignee&.id }
+        payload = { task_id: task.id, action:, expected_version:, resolution_code:, assignee_membership_id: assignee&.id, dependency_ids: }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "operations.clinical_task.#{action}", request_key:, resource: task,
-          authorization_action: "encounters.write", authorization: -> { authorize!(practice, actor, "encounters.write", task.encounter) },
+          authorization_action: "encounters.write", authorization: -> { authorize!(practice, actor, "encounters.write", task) },
           payload:, result_resource: ->(value) { value },
           resource_resolver: ->(practice:, receipt:) { Clinic::ClinicalTask.find_by(practice:, id: receipt.resource_id) }
         ) do
-          task = Clinic::ClinicalTask.lock.find(task.id)
+          practice.lock! if action == "dependencies"
+          task = Clinic::ClinicalTask.where(practice:).lock.find(task.id)
           stale!(task.lock_version, expected_version, task)
-          transition_task!(task, action, member, resolution_code, assignee)
+          if action == "dependencies"
+            raise ArgumentError, "Only active work can change prerequisites." unless task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
+            TaskContinuity.replace_dependencies!(task, dependency_ids, actor:)
+          else
+            transition_task!(task, action, member, resolution_code, assignee)
+          end
+          TaskContinuity.record!(task, member, action)
           task
         end
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
@@ -247,7 +254,7 @@ module Clinic
           source_type: task.source_type, source_id: task.source_id, resolution_code: task.resolution_code,
           source_kind: task.source_kind,
           version: task.lock_version, updated_at: task.updated_at.iso8601(6)
-        }
+        }.merge(TaskContinuity.projection(task))
       end
 
       def latest_intake(practice, encounter, lock: false)
@@ -311,7 +318,12 @@ module Clinic
       def normalize_task(attributes, practice, encounter)
         value = attributes.to_h.symbolize_keys
         assignee_id = value[:assigned_to_membership_id].presence && Integer(value[:assigned_to_membership_id].to_s, 10)
-        Clinic::Membership.active.find_by!(practice:, id: assignee_id) if assignee_id
+        if assignee_id
+          member = Clinic::Membership.active.includes(:user).find_by!(practice:, id: assignee_id)
+          unless member.user&.active? && Ability.new(member.user, practice:).allowed_permission?("encounters.write", site: encounter.site)
+            raise Clinic::Authorization::Denied
+          end
+        end
         due_at = value[:due_at].present? ? Time.iso8601(value[:due_at].to_s) : nil
         { task_kind: value.fetch(:task_kind).to_s, pool_code: value.fetch(:pool_code).to_s,
           assigned_to_membership_id: assignee_id, due_at:, source_id: nil }
@@ -320,25 +332,47 @@ module Clinic
       end
 
       def transition_task!(task, action, member, resolution_code, assignee = nil)
+        if action.in?(%w[start complete])
+          TaskContinuity.ensure_unblocked!(task)
+        end
+        if action.in?(%w[complete cancel reopen]) && TaskContinuity.source_managed?(task)
+          raise ArgumentError, "Update this work in its source workspace; a task action cannot complete its source."
+        end
         case action
         when "claim"
-          raise ArgumentError, "Only an open task can be claimed." unless task.state == "open"
-          task.update!(state: "claimed", assigned_to_membership: member)
+          available = task.assigned_to_membership_id.nil? || task.assigned_to_membership_id == member.id ||
+            !TaskContinuity.eligible?(task.assigned_to_membership, task)
+          raise ArgumentError, "This task already has an available owner." unless available && task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
+          if task.state.in?(%w[claimed in_progress]) && TaskContinuity.eligible?(task.assigned_to_membership, task)
+            raise ArgumentError, "This task is already claimed. Continue its current action."
+          end
+          task.update!(state: task.state == "on_hold" ? "on_hold" : "claimed", assigned_to_membership: member,
+            pending_assignee_membership: nil)
         when "start"
           raise ArgumentError, "Claim this task before starting it." unless task.state == "claimed" && task.assigned_to_membership_id == member.id
           task.update!(state: "in_progress")
         when "assign"
-          raise ArgumentError, "Only open or active tasks can be assigned." unless task.state.in?(%w[open claimed in_progress])
-          task.update!(assigned_to_membership: assignee)
+          raise ArgumentError, "Only open or active tasks can be assigned." unless task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
+          raise ArgumentError, "The selected staff member already owns this work." if task.assigned_to_membership_id == assignee.id
+          task.update!(pending_assignee_membership: assignee)
+        when "accept_transfer", "reject_transfer"
+          raise ArgumentError, "This transfer is assigned to another staff member." unless task.pending_assignee_membership_id == member.id
+          raise ArgumentError, "Only active work can be transferred." unless task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
+          raise Clinic::Authorization::Denied unless TaskContinuity.eligible?(member, task)
+          attributes = { pending_assignee_membership: nil }
+          if action == "accept_transfer"
+            attributes.merge!(assigned_to_membership: member, state: task.state == "on_hold" ? "on_hold" : "claimed")
+          end
+          task.update!(attributes)
         when "complete"
           raise ArgumentError, "Claim this task before completing it." unless task.state.in?(%w[claimed in_progress]) && task.assigned_to_membership_id == member.id
           resolution = resolution_code.to_s
           raise ArgumentError, "Select a supported task resolution." unless Clinic::ClinicalTask::RESOLUTIONS.include?(resolution)
-          task.update!(state: "completed", resolution_code: resolution, completed_by_membership: member,
+          task.update!(state: "completed", pending_assignee_membership: nil, resolution_code: resolution, completed_by_membership: member,
             completed_at: Current.business_time)
         when "cancel"
           raise ArgumentError, "A completed task cannot be cancelled." if task.state == "completed"
-          task.update!(state: "cancelled", assigned_to_membership: nil)
+          task.update!(state: "cancelled", assigned_to_membership: nil, pending_assignee_membership: nil)
         when "reopen"
           raise ArgumentError, "Only a cancelled task can be reopened." unless task.state == "cancelled"
           task.update!(state: "open", assigned_to_membership: nil)
@@ -349,7 +383,7 @@ module Clinic
         id = Integer(membership_id.to_s, 10)
         membership = practice.memberships.active.includes(:user).find_by(id: id)
         raise ArgumentError, "The selected assignee is not active in this clinic." unless membership&.user&.active?
-        unless Ability.new(membership.user, practice: practice).allowed_permission?("encounters.write", site: task.encounter.site)
+        unless Ability.new(membership.user, practice: practice).allowed_permission?("encounters.write", site: task.site)
           raise Clinic::Authorization::Denied
         end
         membership

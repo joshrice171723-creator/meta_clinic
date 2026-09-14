@@ -8,12 +8,11 @@ module Clinic
         visit = Visit.lock.find_by(practice_id: appointment.practice_id, appointment_id: appointment.id)
         if appointment.visit_modality == "video" && visit.nil?
           setting = Setting.lock.find_by(practice_id: appointment.practice_id)
-          unless setting&.enabled? && setting.active_policy_version&.published?
-            raise Error.new("Telehealth is not enabled with a published policy.", code: "telehealth_disabled")
-          end
+          # Appointment modality is saved local intent, not a provider room or attendance claim.
+          return unless setting&.enabled? && setting.active_policy_version&.published?
           eligibility = Eligibility.call(context: { business_date: Current.business_date }, appointment: appointment,
             policy: setting.active_policy_version)
-          raise Error.new("This appointment is not eligible for video: #{eligibility.code}.", code: eligibility.code) unless eligibility.eligible
+          return unless eligibility.eligible
           visit = Visit.create!(practice_id: appointment.practice_id, patient_id: appointment.patient_id,
             appointment_id: appointment.id, policy_version_id: setting.active_policy_version_id,
             created_by_membership_id: membership.id, status: "scheduled")
