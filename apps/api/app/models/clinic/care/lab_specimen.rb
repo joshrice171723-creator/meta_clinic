@@ -5,7 +5,7 @@ module Clinic
       include Clinic::TenantScoped
       include Clinic::AppendOnly
 
-      CONDITIONS = %w[satisfactory compromised unknown].freeze
+      CONDITIONS = %w[satisfactory compromised unknown rejected].freeze
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :encounter, class_name: "Clinic::Encounter"

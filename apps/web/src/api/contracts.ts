@@ -469,6 +469,21 @@ export type ClinicalRevisionBase = {
   recorded_at: string;
 };
 export type MedicationRequestRevision = ClinicalRevisionBase & {
+  fulfillment_route?: "outside_pharmacy" | "take_home" | "administration" | null;
+  medication_strength?: string | null;
+  medication_form?: string | null;
+  medication_code_system?: string | null;
+  medication_code?: string | null;
+  medication_code_version?: string | null;
+  catalog_source?: string | null;
+  pharmacy_name?: string | null;
+  pharmacy_location?: string | null;
+  pharmacy_identifier?: string | null;
+  prescribed_quantity?: string | null;
+  quantity_unit?: string | null;
+  refills?: number | null;
+  starts_on?: string | null;
+  duration_text?: string | null;
   intent: "proposal" | "plan" | "order";
   transmission_state:
     | "not_requested"
