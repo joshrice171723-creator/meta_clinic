@@ -24,7 +24,10 @@ export function applyResourceResultIfActive<T>(
 
 export function useResource<T>(
   path: string,
-  { retainDataOnRefresh = false }: { retainDataOnRefresh?: boolean } = {},
+  {
+    retainDataOnRefresh = false,
+    enabled = true,
+  }: { retainDataOnRefresh?: boolean; enabled?: boolean } = {},
 ) {
   const [result, setResult] = useState<{
     path: string;
@@ -33,6 +36,10 @@ export function useResource<T>(
   }>({ path });
   const [revision, revise] = useState(0);
   useEffect(() => {
+    if (!enabled) {
+      setResult({ path });
+      return;
+    }
     const abort = new AbortController();
     setResult((current) =>
       retainDataOnRefresh && current.path === path && current.data !== undefined
@@ -62,7 +69,7 @@ export function useResource<T>(
         });
       });
     return () => abort.abort();
-  }, [path, retainDataOnRefresh, revision]);
+  }, [path, retainDataOnRefresh, enabled, revision]);
   return {
     ...(result.path === path ? result : { path }),
     refresh: () => revise((n) => n + 1),

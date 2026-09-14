@@ -2,7 +2,6 @@ import {
   createContext,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -57,7 +56,10 @@ import {
 } from "./Appearance";
 import { ScribeRecordingProvider } from "../scribe/ScribeRecordingProvider";
 import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
-import { requiresLocationSelection } from "./locationSelection";
+import {
+  canLoadClinicOverview,
+  requiresLocationSelection,
+} from "./locationSelection";
 
 const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
@@ -352,7 +354,7 @@ export function Workspace({
     error,
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
-  const locationPickerShown = useRef(false);
+  const [locationSelectionMade, setLocationSelectionMade] = useState(false);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
 
@@ -364,8 +366,8 @@ export function Workspace({
         method: "PATCH",
         body: { site_id: siteId },
       });
-      await refreshWorkspace();
-      locationPickerShown.current = true;
+      setLocationSelectionMade(true);
+      refreshWorkspace();
     } catch (caught) {
       setLocationPickerError(
         caught instanceof Error
@@ -376,7 +378,9 @@ export function Workspace({
       setSelectingSiteId(null);
     }
   };
-  const overview = useResource<ClinicOverview>("/api/clinic");
+  const overview = useResource<ClinicOverview>("/api/clinic", {
+    enabled: canLoadClinicOverview(data?.sites, locationSelectionMade),
+  });
   const appearance = useClinicAppearance(user.id);
   const landingDestination = data
     ? clinicLandingDestination(data.capabilities, path, homeView)
@@ -393,17 +397,16 @@ export function Workspace({
   const scribePage = path.startsWith("/clinic/scribe");
   const locationName =
     data?.current_site?.name || data?.current_site?.code || null;
-  if (!data || !overview.data)
+  if (!data)
     return (
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
-          <LoadState error={error || overview.error} />
-          {(error || overview.error) && (
+          <LoadState error={error} />
+          {error && (
             <Button
               variant="contained"
               onClick={() => {
                 refreshWorkspace();
-                overview.refresh();
               }}
             >
               Try again
@@ -416,8 +419,7 @@ export function Workspace({
   if (
     data.user_id !== user.id ||
     data.schema_version !== "clinic-context-v1" ||
-    data.policy_version !== "clinic-authorization-v1" ||
-    overview.data.practice.id !== data.practice.id
+    data.policy_version !== "clinic-authorization-v1"
   )
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -427,7 +429,7 @@ export function Workspace({
         </main>
       </ClinicAppearanceScope>
     );
-  if (requiresLocationSelection(data.sites, locationPickerShown.current))
+  if (requiresLocationSelection(data.sites, locationSelectionMade))
     return (
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
@@ -437,6 +439,29 @@ export function Workspace({
             selectingSiteId={selectingSiteId}
             sites={data.sites}
           />
+        </main>
+      </ClinicAppearanceScope>
+    );
+  if (!overview.data)
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <main id="main" className="wrap inner-page">
+          <LoadState error={overview.error} />
+          {overview.error && (
+            <Button variant="contained" onClick={overview.refresh}>
+              Try again
+            </Button>
+          )}
+          <a href="/portal">Return to My launch</a>
+        </main>
+      </ClinicAppearanceScope>
+    );
+  if (overview.data.practice.id !== data.practice.id)
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <main id="main" className="wrap inner-page">
+          <LoadState error="Unable to verify this clinic workspace. Reload and check your signed-in account." />
+          <a href="/portal">Return to My launch</a>
         </main>
       </ClinicAppearanceScope>
     );

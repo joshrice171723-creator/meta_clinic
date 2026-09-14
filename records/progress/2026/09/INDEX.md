@@ -10,6 +10,7 @@ One file per material outcome. The active [Progress Log](../../../../APPlyVault/
 | Date | Record |
 | --- | --- |
 | 2026-09-13 | [Account-first membership enrollment and Growth](2026-09-13-account-first-membership-growth.md) |
+| 2026-09-13 | [Location selection startup](2026-09-13-location-selection-startup.md) |
 | 2026-09-02 | [Administrative staff foundation implemented](2026-09-02-administrative-staff-foundation-implemented.md) |
 | 2026-09-02 | [Integrated clinic evidence and schema hardening completed](2026-09-02-integrated-clinic-evidence-and-schema-hardening-completed.md) |
 | 2026-09-02 | [Latest mainline inventory and billing work integrated with the clinic foundation](2026-09-02-latest-mainline-inventory-and-billing-work-integrated-with-the-clinic-foundation.md) |
