@@ -195,6 +195,9 @@ Rails.application.routes.draw do
       post :phone_payment, on: :member
       post :refresh_phone_payment, on: :member
     end
+    resources :callback_requests, controller: "operations/callback_requests", only: :index do
+      post :transition, on: :member
+    end
     get "subscription_catalog/storefront_preview", to: "care/subscription_catalog#storefront_preview"
     post "subscription_catalog/:kind", to: "care/subscription_catalog#save"
     patch "subscription_catalog/:kind/:id", to: "care/subscription_catalog#save"

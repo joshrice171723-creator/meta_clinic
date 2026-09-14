@@ -9,7 +9,8 @@ module Clinic
 
       AUTHORIZATION_ACTIONS = {
         "message" => "billing.write",
-        "refill" => "medication_requests.write"
+        "refill" => "medication_requests.write",
+        "callback" => "appointments.write"
       }.freeze
 
       def self.call(practice:, actor:, request:, status:, review_note: nil, request_key:,
@@ -21,12 +22,12 @@ module Clinic
             actor: actor,
             practice: practice,
             action: authorization_action,
-            any_site: true
+            any_site: !request.callback?
           )
           ensure_clinical_reviewer!(practice, actor) if request.refill? && status.in?(%w[resolved declined])
         }
         authorization.call
-        operation_payload = if request.message?
+        operation_payload = if !request.refill?
           {
             patient_portal_request_id: request.id,
             status: status,
@@ -58,6 +59,9 @@ module Clinic
           }
         ) do
           current = practice.patient_portal_requests.lock.find(request.id)
+          if current.callback? && status.in?(%w[resolved declined]) && review_note.to_s.strip.empty?
+            raise ArgumentError, "Record the actual contact outcome before closing this callback request."
+          end
           allowed = TRANSITIONS.fetch(current.status) { [] }
           unless allowed.include?(status)
             raise ArgumentError, "This support request cannot transition from #{current.status.humanize.downcase}."
@@ -93,7 +97,7 @@ module Clinic
           Clinic::AuditRecorder.record!(
             practice: practice,
             actor: actor,
-            action_code: "patient_portal.#{current.refill? ? 'refill' : 'billing_support'}.#{status}",
+            action_code: "patient_portal.#{current.refill? ? 'refill' : current.callback? ? 'callback' : 'billing_support'}.#{status}",
             outcome: :committed,
             resource_version_ref: "#{current.class.name}:#{current.id}"
           )

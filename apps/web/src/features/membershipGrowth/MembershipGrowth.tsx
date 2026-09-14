@@ -578,6 +578,10 @@ export function MembershipGrowth() {
                 <Typography color="text.secondary">
                   {selected.phone_number || "No phone number provided"}
                 </Typography>
+                {(selected.preferred_contact_method || selected.preferred_contact_time) && (
+                  <Typography color="text.secondary">Preferred contact: {selected.preferred_contact_method || "No method preference"}
+                    {selected.preferred_contact_time ? ` · ${selected.preferred_contact_time}` : ""}</Typography>
+                )}
                 <Typography variant="body2" color="text.secondary">
                   Path:{" "}
                   {selected.intent_type === "purchase"

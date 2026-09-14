@@ -62,6 +62,7 @@ module Public
       practice = storefront_practice
       render json: {
         practice: { name: practice.name, slug: practice.public_membership_slug },
+        business_date: Current.business_date.iso8601,
         catalog: Clinic::Care::SubscriptionProjection.catalog(practice: practice),
         payment: { checkout_available: Clinic::Billing::StripeConnect.patient_checkout_available?(practice), mode: "test" }
       }
@@ -70,7 +71,7 @@ module Public
     def create
       practice = storefront_practice
       input = parameter_hash!(:prospect,
-        %i[version_id display_name email_address phone_number source outreach_consent request_key], arrays: %i[selections])
+        %i[version_id display_name email_address phone_number source outreach_consent request_key preferred_contact_method preferred_contact_time], arrays: %i[selections])
       result = Clinic::MembershipGrowth::CaptureProspect.call(
         practice: practice,
         version_id: input[:version_id],
@@ -80,7 +81,7 @@ module Public
         phone_number: input[:phone_number],
         source: input[:source],
         outreach_consent: boolean_param(input[:outreach_consent], field: :outreach_consent),
-        request_key: input[:request_key]
+        request_key: input[:request_key], preferred_contact_method: input[:preferred_contact_method], preferred_contact_time: input[:preferred_contact_time]
       )
       render json: { inquiry: { status: "received", replayed: result.replayed } },
         status: result.replayed ? :ok : :created
@@ -94,12 +95,12 @@ module Public
     def create_account
       practice = storefront_practice
       input = parameter_hash!(:account,
-        %i[version_id display_name email_address phone_number source outreach_consent request_key], arrays: %i[selections])
+        %i[version_id display_name email_address phone_number date_of_birth source outreach_consent request_key], arrays: %i[selections])
       result = Clinic::MembershipGrowth::PrepareAccount.call(
         practice: practice, version_id: input[:version_id], selections: input[:selections] || [],
         display_name: input[:display_name], email_address: input[:email_address], phone_number: input[:phone_number],
         source: input[:source], outreach_consent: boolean_param(input[:outreach_consent], field: :outreach_consent),
-        request_key: input[:request_key]
+        request_key: input[:request_key], date_of_birth: input[:date_of_birth]
       )
       render json: { account: { status: "email_sent", replayed: result.replayed } },
         status: result.replayed ? :ok : :created

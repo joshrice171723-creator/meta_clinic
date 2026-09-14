@@ -229,7 +229,7 @@ export type Patient = {
     date_of_birth: string | null;
     sex: string;
     primary_language: string;
-    interpreter_required: boolean;
+    interpreter_required: boolean | null;
   } | null;
   contacts?: {
     id: number;

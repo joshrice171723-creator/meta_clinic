@@ -83,6 +83,9 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
   const [displayName, setDisplayName] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [contactMethod, setContactMethod] = useState("");
+  const [contactTime, setContactTime] = useState("");
   const [outreachConsent, setOutreachConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -221,6 +224,26 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
       );
       return;
     }
+    if (intent === "purchase") {
+      const today = resource.data?.business_date;
+      const birth = new Date(`${dateOfBirth}T00:00:00Z`);
+      if (!today || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ||
+          Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== dateOfBirth) {
+        setError("Enter a valid birth date as YYYY-MM-DD.");
+        return;
+      }
+      const [year, month, day] = today.split("-").map(Number);
+      const birthYear = birth.getUTCFullYear();
+      const birthMonth = birth.getUTCMonth() + 1;
+      const birthdayDay = Math.min(birth.getUTCDate(), new Date(Date.UTC(year, birthMonth, 0)).getUTCDate());
+      const age = year - birthYear - (month < birthMonth || (month === birthMonth && day < birthdayDay) ? 1 : 0);
+      if (dateOfBirth > today || age >= 150 || age < 18) {
+        setError(dateOfBirth > today ? "Birth date cannot be in the future." : age >= 150
+          ? "Birth date must indicate an age younger than 150."
+          : "You must be 18 or older to create a membership account.");
+        return;
+      }
+    }
     setBusy(true);
     setError("");
     try {
@@ -236,6 +259,8 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
             display_name: displayName.trim(),
             email_address: emailAddress.trim(),
             phone_number: phoneNumber.trim() || null,
+            ...(intent === "purchase" ? { date_of_birth: dateOfBirth } : {}),
+            ...(intent === "outreach" ? { preferred_contact_method: contactMethod || null, preferred_contact_time: contactTime.trim() || null } : {}),
             outreach_consent: true,
             source: "membership_storefront",
             request_key: requestKey.current,
@@ -477,6 +502,27 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                       changeIntent(() => setPhoneNumber(event.target.value))
                     }
                   />
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Birth date (required to create account)"
+                    value={dateOfBirth}
+                    autoComplete="bday"
+                    helperText="Membership accounts are available from age 18. You can request clinic contact without creating an account."
+                    slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: resource.data?.business_date } }}
+                    onChange={(event) => changeIntent(() => setDateOfBirth(event.target.value))}
+                  />
+                  <TextField fullWidth select label="Preferred contact method (optional)" value={contactMethod}
+                    onChange={(event) => changeIntent(() => setContactMethod(event.target.value))}
+                    slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}>
+                    <option value="">No preference</option>
+                    <option value="email">Email</option>
+                    <option value="phone">Phone</option>
+                  </TextField>
+                  <TextField fullWidth label="Preferred contact time (optional)" value={contactTime}
+                    helperText="Used when you ask the clinic to contact you. Include your time zone."
+                    slotProps={{ htmlInput: { maxLength: 160 } }}
+                    onChange={(event) => changeIntent(() => setContactTime(event.target.value))} />
                   <FormControl
                     required
                     error={Boolean(error && !outreachConsent)}

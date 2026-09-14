@@ -8,7 +8,7 @@ module Clinic
     IMMUTABLE_INTAKE_FIELDS = %w[
       practice_id subscription_version_id request_key request_digest display_name
       email_address phone_number email_digest phone_digest selected_terms source
-      outreach_consent intent_type
+      outreach_consent intent_type preferred_contact_method preferred_contact_time
     ].freeze
 
     belongs_to :subscription_version, class_name: "Clinic::Care::SubscriptionVersion"
@@ -36,7 +36,9 @@ module Clinic
       payment_failed: "payment_failed"
     }, prefix: true, validate: true
 
-    encrypts :display_name, :email_address, :phone_number, :portal_setup_token
+    encrypts :display_name, :email_address, :phone_number, :portal_setup_token, :preferred_contact_time
+    validates :preferred_contact_method, inclusion: { in: %w[email phone] }, allow_nil: true
+    validates :preferred_contact_time, length: { maximum: 160 }, allow_nil: true
 
     validates :request_key, presence: true, length: { maximum: 160 },
       format: { with: /\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}\z/ }, uniqueness: { scope: :practice_id }
@@ -76,6 +78,7 @@ module Clinic
     validate :related_records_belong_to_practice
     validate :pipeline_state_is_complete
     validate :intake_is_immutable, on: :update
+    validate :account_birth_date_is_immutable, on: :update
 
     def possible_duplicate?
       candidates = self.class.where(practice_id: practice_id).where.not(id: id).where.not(status: "declined")
@@ -101,6 +104,12 @@ module Clinic
     end
 
     private
+
+    def account_birth_date_is_immutable
+      if date_of_birth_in_database && will_save_change_to_date_of_birth?
+        errors.add(:date_of_birth, "cannot change after account setup; contact the clinic for a patient record correction")
+      end
+    end
 
     def selected_terms_are_an_object
       errors.add(:selected_terms, "must be an object") unless selected_terms.is_a?(Hash)

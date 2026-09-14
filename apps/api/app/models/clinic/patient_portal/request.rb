@@ -5,7 +5,7 @@ module Clinic
       include Clinic::TenantScoped
       include Clinic::Auditable
 
-      enum :request_type, { message: "message", refill: "refill" }, validate: true
+      enum :request_type, { message: "message", refill: "refill", callback: "callback" }, validate: true
       enum :status, { pending: "pending", in_review: "in_review", resolved: "resolved", declined: "declined" }, validate: true
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"

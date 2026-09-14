@@ -49,7 +49,7 @@ type AppointmentRequest = {
 type AppointmentRequestResponse = {
   appointment_requests: AppointmentRequest[];
   upcoming_appointments: AppointmentSnapshot[];
-  options: { sites: Site[]; visit_types: VisitType[] };
+  options: { sites: Site[]; visit_types: VisitType[]; can_request_new_booking: boolean; booking_requirement: string; video_connection_ready: boolean };
 };
 
 function localDateTime(value: Date) {
@@ -116,6 +116,8 @@ export function PatientAppointmentRequests({
   const [error, setError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [notice, setNotice] = useState("");
+  const [callbackKey, setCallbackKey] = useState(() => crypto.randomUUID());
+  const [callbackSaved, setCallbackSaved] = useState(false);
   const [change, setChange] = useState<{
     appointment: AppointmentSnapshot;
     kind: "reschedule" | "cancel";
@@ -161,7 +163,7 @@ export function PatientAppointmentRequests({
   ]);
 
   async function submit() {
-    if (!siteId || !intervalValid) return;
+    if (!siteId || !intervalValid || !resource.data?.options.can_request_new_booking) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -200,6 +202,22 @@ export function PatientAppointmentRequests({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function requestCallback() {
+    if (busy || callbackSaved) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/patient_portal/requests", { method: "POST", body: {
+        patient_portal_request: { request_key: callbackKey, request_type: "callback", content: "Please call me about scheduling an appointment." },
+      } });
+      setCallbackSaved(true);
+      setCallbackKey(crypto.randomUUID());
+      setNotice("Your callback request is saved for the clinic front desk. No appointment has been booked.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The callback outcome could not be confirmed. Retry the same request.");
+    } finally { setBusy(false); }
   }
 
   return (
@@ -407,8 +425,21 @@ export function PatientAppointmentRequests({
               <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
                 Request a new appointment
               </Typography>
+              {!resource.data.options.can_request_new_booking && (
+                <Alert severity="info" sx={{ mb: 2 }} action={
+                  <Button color="inherit" disabled={busy || callbackSaved} onClick={() => void requestCallback()}>
+                    {callbackSaved ? "Callback requested" : "Request a call"}
+                  </Button>
+                }>{resource.data.options.booking_requirement}</Alert>
+              )}
+              {requestedModality === "video" && !resource.data.options.video_connection_ready && (
+                <Alert severity="info" sx={{ mb: 2 }}>Your video preference can be saved. The clinic must arrange the connection before you can join.</Alert>
+              )}
               <Box
+                component="fieldset"
+                disabled={busy || outcomeUnconfirmed || !resource.data.options.can_request_new_booking}
                 sx={{
+                  border: 0, p: 0, m: 0, minWidth: 0,
                   display: "grid",
                   gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
                   gap: 2,
@@ -527,7 +558,7 @@ export function PatientAppointmentRequests({
                 </Typography>
                 <Button
                   variant="contained"
-                  disabled={busy || !siteId || !intervalValid}
+                  disabled={busy || !siteId || !intervalValid || !resource.data.options.can_request_new_booking}
                   onClick={() => void submit()}
                   startIcon={<EventAvailableOutlinedIcon />}
                 >

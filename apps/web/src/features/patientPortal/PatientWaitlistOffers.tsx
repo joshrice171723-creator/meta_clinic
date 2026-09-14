@@ -11,7 +11,7 @@ type Reply = {
   version: number;
   requestKey: string;
 };
-type OffersResponse = { entries: Offer[] };
+type OffersResponse = { entries: Offer[]; can_accept: boolean; booking_requirement: string };
 
 export function PatientWaitlistOffers() {
   const resource = useResource<OffersResponse>("/api/patient_portal/waitlist");
@@ -100,6 +100,9 @@ export function PatientWaitlistOffers() {
         )}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
+        {resource.data && !resource.data.can_accept && (
+          <Alert severity="info">{resource.data.booking_requirement} You can still decline an offered time.</Alert>
+        )}
         {uncertain && (
           <Alert
             severity="warning"
@@ -151,7 +154,7 @@ export function PatientWaitlistOffers() {
                 <Stack direction="row" spacing={1}>
                   <Button
                     variant="contained"
-                    disabled={busy || uncertain}
+                    disabled={busy || uncertain || !resource.data?.can_accept}
                     onClick={() =>
                       void reply({
                         id: entry.id,

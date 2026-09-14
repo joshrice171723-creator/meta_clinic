@@ -41,6 +41,9 @@ module Clinic
 
         def start_for_prospect(practice:, prospect:, replayed:, gateway:)
           begin
+            unless Clinic::Care::SubscriptionProjection.catalog(practice: practice).any? { |offer| offer.fetch(:id) == prospect.subscription_version_id }
+              raise ArgumentError, "This offer changed. Review the current membership terms with the clinic before continuing."
+            end
             if prospect.agreement_id
               raise ArgumentError, "This membership purchase is already recorded. Use the patient portal or contact the clinic."
             end
@@ -253,6 +256,10 @@ module Clinic
             actor_membership = clinic_membership!(prospect.practice, connection.connected_by)
             patient = prospect.practice.patients.create!(display_name: prospect.display_name,
               reference: "MEM-#{prospect.id.to_s(36).upcase}-#{SecureRandom.hex(4).upcase}")
+            if prospect.date_of_birth
+              patient.create_demographics!(practice: prospect.practice, legal_name: prospect.display_name,
+                date_of_birth: prospect.date_of_birth, sex: "not_recorded", primary_language: "Not recorded", interpreter_required: nil)
+            end
             add_patient_contact!(patient, prospect, "email", prospect.email_address, true)
             add_patient_contact!(patient, prospect, "phone", prospect.phone_number, false) if prospect.phone_number.present?
             patient.create_communication_preference!(practice: prospect.practice, preferred_contact_method: "email",

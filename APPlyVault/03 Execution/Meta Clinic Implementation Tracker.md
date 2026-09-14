@@ -53,6 +53,8 @@ Initial status for these requirements: founder-approved direction; current imple
 
 ## Next bounded work
 
+**2026-09-14 implementation started:** the founder authorized the full patient-journey plan in Meta Clinic. Starting source is `598abf3c1140` on current `main`. MC-02–MC-12/MC-15 are in reconciliation/build, not locally verified. The plan's authorized implementation checkpoint owns exact slice state, source findings, field contracts, file ownership and next action. Applicable matrix/test references remain its B01–B12 and T01–T10 crosswalk; no provider, browser or application acceptance is claimed yet. Insurance/supplier expansion remains outside this cash-pay assignment.
+
 **Assignment document:** [Tonight's patient-journey execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) contains the detailed research-derived questions, controls, final founder clarifications, execution slices, acceptance and resume checkpoint. Use it as the starting document for this assignment, not the isolated skill-test draft. The engineering guide remains the canonical shared matrix; this tracker remains the work inventory. Saving the plan does not dispatch implementation.
 
 Revision 2 integrates selected skill-test research links, bounded current-source findings, action contracts and paired acceptance cases into that one file. Preserve original field detail and entry-first scope; the seven test artifacts are evidence only and not required building instructions. New estimate/dispute/onsite-testing work remains unadopted. Implementation and all application acceptance are still unverified.
