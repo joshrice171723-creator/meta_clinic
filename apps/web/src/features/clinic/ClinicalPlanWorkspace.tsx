@@ -40,6 +40,7 @@ import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ClinicalPlanClosurePanel } from "./ClinicalPlanClosurePanel";
+import { PrescriptionFulfillmentPanel } from "./PrescriptionFulfillmentPanel";
 
 type ResourceKind = keyof ClinicalPlanWorkspaceContract["records"];
 type ClinicalRecord =
@@ -87,7 +88,6 @@ const RESOURCE_META: Record<
     initial: {
       status: "draft",
       intent: "order",
-      transmission_state: "not_requested",
       inventory_product_id: "",
       medication_name: "",
       dose_value: "",
@@ -95,6 +95,9 @@ const RESOURCE_META: Record<
       route_code: "",
       frequency_text: "",
       quantity_text: "",
+      fulfillment_route: "", medication_strength: "", medication_form: "", medication_code_system: "",
+      medication_code: "", medication_code_version: "", catalog_source: "", pharmacy_name: "", pharmacy_location: "",
+      pharmacy_identifier: "", prescribed_quantity: "", quantity_unit: "", refills: "", starts_on: "", duration_text: "",
       scheduled_for: "",
       reason_text: "",
       instructions: "",
@@ -123,18 +126,21 @@ const RESOURCE_META: Record<
       { name: "scheduled_for", label: "Scheduled for", type: "datetime-local" },
       { name: "reason_text", label: "Reason / indication", multiline: true },
       { name: "instructions", label: "Instructions", multiline: true },
-      {
-        name: "transmission_state",
-        label: "Pharmacy transmission",
-        options: [
-          "not_requested",
-          "pending",
-          "accepted",
-          "rejected",
-          "failed",
-          "unknown",
-        ],
-      },
+      { name: "fulfillment_route", label: "Fulfillment", options: ["outside_pharmacy", "take_home", "administration"] },
+      { name: "medication_strength", label: "Strength" },
+      { name: "medication_form", label: "Form" },
+      { name: "medication_code_system", label: "Medication code system" },
+      { name: "medication_code", label: "Medication code" },
+      { name: "medication_code_version", label: "Terminology version" },
+      { name: "catalog_source", label: "Medication source" },
+      { name: "prescribed_quantity", label: "Prescribed quantity" },
+      { name: "quantity_unit", label: "Quantity unit" },
+      { name: "refills", label: "Refills" },
+      { name: "starts_on", label: "Start date, when applicable", type: "date" },
+      { name: "duration_text", label: "Duration, when applicable" },
+      { name: "pharmacy_name", label: "Pharmacy name" },
+      { name: "pharmacy_location", label: "Pharmacy location" },
+      { name: "pharmacy_identifier", label: "Verified pharmacy identifier, if available" },
     ],
   },
   service_requests: {
@@ -447,7 +453,7 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
       value.dose_text,
       value.route_text,
       value.frequency_text,
-      `Transmission: ${humanize(value.transmission_state)}`,
+      "Transmission unavailable",
     ]
       .filter(Boolean)
       .join(" · ");
@@ -980,6 +986,10 @@ export function ClinicalPlanWorkspace({
         />
       </Stack>
 
+      {kind === "medication_requests" && data.records.medication_requests.length > 0 && (
+        <PrescriptionFulfillmentPanel key={`${patient.id}-${encounter.id}`} patientId={patient.id} encounterId={encounter.id}
+          orders={data.records.medication_requests} canWrite={data.capabilities.medication_requests} />
+      )}
       <Dialog
         open={dialogOpen}
         onClose={() => !busy && !pendingAttempt && setDialogOpen(false)}

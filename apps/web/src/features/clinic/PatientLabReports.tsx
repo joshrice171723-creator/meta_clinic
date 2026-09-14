@@ -26,6 +26,7 @@ import { businessTimeAfter } from "../../shared/businessDate";
 import { useClinic } from "./Workspace";
 import { localDateTimeInput } from "./frontDeskModel";
 import { LabResultHistory } from "./LabResultHistory";
+import { LabReportActionsPanel } from "./LabReportActionsPanel";
 import type {
   ClinicalPlanWorkspace,
   ServiceRequestRevision,
@@ -35,6 +36,10 @@ export type LabResult = {
   name: string;
   code: string | null;
   value: string;
+  value_kind?: "text" | "numeric" | "coded" | "absent";
+  absent_reason?: string | null;
+  value_code?: string | null;
+  value_code_system?: string | null;
   unit: string | null;
   reference_range: string | null;
   flag: string | null;
@@ -56,6 +61,7 @@ export type LabReportVersion = {
   recorded_by: number | null;
   reviewed_at: string | null;
   reviewed_by: number | null;
+  actions?: { id: number; kind: string; note: string | null; clinical_task_id: number | null; recorded_at: string }[];
   follow_up: LabFollowUp | null;
 };
 export type LabFollowUp = {
@@ -83,7 +89,7 @@ type LabSpecimen = {
   specimen_identifier: string | null;
   specimen_type_code: string;
   specimen_type_display: string;
-  condition_code: "satisfactory" | "compromised" | "unknown";
+  condition_code: "satisfactory" | "compromised" | "unknown" | "rejected";
   collected_at: string;
   collected_by: number;
 };
@@ -527,7 +533,7 @@ export function PatientLabReports({
       !Number.isFinite(new Date(form.collected_at).getTime()) ||
       !Number.isFinite(new Date(form.issued_at).getTime()) ||
       !form.results.length ||
-      form.results.some((row) => !row.name.trim() || !row.value.trim())
+      form.results.some((row) => !row.name.trim() || (row.value_kind === "absent" ? !row.absent_reason?.trim() : !row.value.trim()))
     ) {
       setError(
         "Choose the exact lab order and specimen, enter the source, title, times, and results, then confirm the patient match.",
@@ -568,6 +574,10 @@ export function PatientLabReports({
               name: row.name.trim(),
               code: row.code?.trim() || null,
               value: row.value.trim(),
+              value_kind: row.value_kind ?? "text",
+              absent_reason: row.absent_reason?.trim() || null,
+              value_code: row.value_code?.trim() || null,
+              value_code_system: row.value_code_system?.trim() || null,
               unit: row.unit?.trim() || null,
               reference_range: row.reference_range?.trim() || null,
               flag: row.flag?.trim() || null,
@@ -1045,6 +1055,8 @@ export function PatientLabReports({
                           variant="outlined"
                         />
                       </Stack>
+                      <LabReportActionsPanel key={`${report.id}-${report.current_version_id}`} report={report}
+                        reports={data?.reports ?? []} canWrite={canReview} onChanged={() => setReload((value) => value + 1)} />
                     </Stack>
                     <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.5 }}>
                       {!report.current_version.reviewed_at && canReview && (
@@ -1145,7 +1157,7 @@ export function PatientLabReports({
                             }}
                           >
                             <Typography variant="body2">
-                              {row.name}: {row.value}
+                              {row.name}: {row.value_kind === "absent" ? `Not available: ${row.absent_reason}` : row.value}
                               {row.unit ? ` ${row.unit}` : ""}
                               {row.reference_range
                                 ? ` (${row.reference_range})`
@@ -1356,7 +1368,7 @@ export function PatientLabReports({
                     }}
                   >
                     <Typography variant="body2">
-                      {row.name}: {row.value}
+                      {row.name}: {row.value_kind === "absent" ? `Not available: ${row.absent_reason}` : row.value}
                       {row.unit ? ` ${row.unit}` : ""} ·{" "}
                       {row.reference_range || "Range not recorded"}
                       {row.flag ? ` · ${row.flag}` : ""}
@@ -1375,6 +1387,8 @@ export function PatientLabReports({
                       )}
                   </Stack>
                 ))}
+                {history && <LabReportActionsPanel key={`history-${version.id}`} report={{ ...history, current_version: version, current_version_id: version.id }}
+                  reports={data?.reports ?? []} canWrite={canReview} onChanged={() => { setReload((value) => value + 1); void openHistory(history); }} />}
               </Paper>
             ))}
           </Stack>
@@ -1435,7 +1449,7 @@ export function PatientLabReports({
                 </Typography>
                 {reviewTarget.version.results.map((row) => (
                   <Typography key={row.name} variant="body2">
-                    {row.name}: {row.value}
+                    {row.name}: {row.value_kind === "absent" ? `Not available: ${row.absent_reason}` : row.value}
                     {row.unit ? ` ${row.unit}` : ""} ·{" "}
                     {row.reference_range || "Range not recorded"}
                     {row.flag ? ` · ${row.flag}` : ""}
@@ -1863,7 +1877,7 @@ function LabForm({
                     })
                   }
                 >
-                  {["satisfactory", "compromised", "unknown"].map(
+                  {["satisfactory", "compromised", "unknown", "rejected"].map(
                     (condition) => (
                       <MenuItem key={condition} value={condition}>
                         {optionLabel(condition)}
@@ -2006,12 +2020,24 @@ function LabForm({
               <TextField
                 fullWidth
                 label="Value"
-                required
+                required={row.value_kind !== "absent"}
+                disabled={row.value_kind === "absent"}
                 value={row.value}
                 onChange={(event) =>
                   result(index, { value: event.target.value })
                 }
               />
+              <TextField select label="Value type" value={row.value_kind ?? "text"} onChange={(event) => result(index, {
+                value_kind: event.target.value as LabResult["value_kind"], value: event.target.value === "absent" ? "" : row.value,
+                absent_reason: null, value_code: null, value_code_system: null,
+              })}>
+                {["text", "numeric", "coded", "absent"].map((value) => <MenuItem key={value} value={value}>{optionLabel(value)}</MenuItem>)}
+              </TextField>
+              {row.value_kind === "absent" && <TextField label="Reason result is unavailable" required value={row.absent_reason ?? ""} onChange={(event) => result(index, { absent_reason: event.target.value })} />}
+              {row.value_kind === "coded" && <>
+                <TextField label="Value code" required value={row.value_code ?? ""} onChange={(event) => result(index, { value_code: event.target.value })} />
+                <TextField label="Value code system" required value={row.value_code_system ?? ""} onChange={(event) => result(index, { value_code_system: event.target.value })} />
+              </>}
               <TextField
                 fullWidth
                 label="Unit"

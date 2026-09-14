@@ -110,6 +110,9 @@ Rails.application.routes.draw do
     post "patients/:patient_id/encounters/:encounter_id/clinical_tasks", to: "care/nurse_workflow#create_task"
     patch "handoffs/:id", to: "care/nurse_workflow#transition_handoff"
     patch "clinical_tasks/:id", to: "care/nurse_workflow#transition_task"
+    get "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#index"
+    post "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#create"
+    post "patients/:patient_id/medication_requests/:medication_request_id/dispenses", to: "care/prescription_events#dispense"
     get "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace",
       to: "care/clinical_plan_workspace#show"
     post "patients/:patient_id/encounters/:encounter_id/medication_requests",
@@ -321,6 +324,7 @@ Rails.application.routes.draw do
         get "versions/:version_id/results/:result_index/history", on: :member,
           action: :result_history, as: :result_history
         post "versions/:version_id/review", on: :member, action: :review, as: :review_version
+        post "versions/:version_id/actions", on: :member, action: :record_action, as: :record_action
         post "versions/:version_id/follow_up", on: :member, action: :record_follow_up, as: :record_follow_up
         post "versions/:version_id/follow_up/complete", on: :member, action: :complete_follow_up, as: :complete_follow_up
       end
