@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Full-journey dependency planning expanded
+
+Expanded the engineering matrix into stable acceptance cases across enrollment, visits, prescriptions, labs, inventory, billing, ownership and integrations, using the founder's exact six columns. Added field-contract and blocker-source requirements, recorded D-074's narrow age/booking rules, and connected the reference journey to the existing tracker. Documentation only; no workflow implementation or overnight dispatch. [Dated record](../../records/progress/2026/09/2026-09-14-patient-journey-dependency-planning.md).
+
 ## 2026-09-14 — Ownership and parallel progress requirements
 
 Added D-073 and the engineering guide's shared ownership/dependency matrix. Every workflow must identify responsibility, specific blockers, parallel actions, attention and handoff recovery. The implementation tracker now applies this acceptance requirement across features. [Dated record](../../records/progress/2026/09/2026-09-14-workflow-ownership-and-dependencies.md).

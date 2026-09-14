@@ -5,6 +5,14 @@ updated: 2026-09-14
 ---
 # Decisions
 
+## Patient-entry scope and dependency planning clarification
+
+**D-074 — 2026-09-14 / founder's enrollment clarification:** require age 18 or older only at public membership account creation, enforced in UI and backend. Do not add age restrictions elsewhere in this increment. Defer child/guardian online-account and special consent workflows. Reject invalid or future birth dates and dates implying age 150 or older; today's birth date remains valid for staff-created records. Calculate age from birth date rather than storing a changing age.
+
+Unpaid prospects who have never held membership cannot self-schedule online. Former members without an active membership may request a call but cannot self-schedule. These rules do not impose a blanket staff-scheduling or clinical-follow-up restriction. Preserve account-first enrollment and server-verified payment conversion; membership eligibility does not bypass scheduling capacity or other action-specific requirements.
+
+**D-073 clarification — 2026-09-14:** expand the engineering matrix using exactly **Condition | Action affected | What is blocked | What remains available | Responsible party | Attention**. Keep affected operation, precise blocked transition, permitted parallel work, ownership and urgency separate. The first reference journey is membership-based cash-pay weight-loss care across in-person and telehealth visits; this is a build reference, not a change to the platform's multi-specialty scope. Clinic-specific medications, labs and clinical prerequisites remain configurable and require applicable source review. Separate AI brainstorming remains excluded; existing scribe integration remains part of the patient journey. These are planning requirements, not implementation or clinical acceptance.
+
 ## Ownership and action-specific dependencies
 
 **D-073 — 2026-09-14 / founder's explicit direction:** make task ownership, dependencies, urgency and parallel progress part of every workflow's build requirements. Keep patient coordination, encounter responsibility and individual task ownership distinct. Shared team ownership is valid; unclaimed or transferred work must remain visible with coverage. Block the particular action whose prerequisite is missing, not the whole patient journey. Waiting labs must not automatically block scheduling, visits or unrelated work. Immediate attention and blocking are separate dimensions; clinical dependencies and escalation rules must be explicitly defined rather than inferred.

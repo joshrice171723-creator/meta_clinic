@@ -53,7 +53,11 @@ Initial status for these requirements: founder-approved direction; current imple
 
 ## Next bounded work
 
-First reconcile one complete cash-based hybrid clinic journey across MC-02–MC-09: online membership enrollment and a separate walk-in entry, staff intake, encounter, checkout and later telehealth follow-up. Use the current implementation before scheduling additions. Record each missing handoff in its owning row; do not assume missing documentation means missing code. This is a recommended sequence, not authorization to perform live payments or launch a clinic.
+First reconcile one complete membership-based cash-pay weight-loss reference journey: online membership enrollment (paid and unpaid branches), a separate staff/walk-in entry, intake, scheduling, in-person or telehealth encounter, existing scribe-assisted and manual documentation, clinician-reviewed prescription preparation, external-pharmacy or in-house fulfillment, labs, checkout, recurring membership and follow-up. This spans MC-02–MC-12 and MC-15; optional insurance preparation remains MC-16, not a prerequisite for the cash-pay journey. Use current implementation before scheduling additions. This is a build reference, not a new universal clinic protocol or authorization for live payments or clinic launch.
+
+For every touched row, record applicable stable matrix IDs from the [engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md), current owning records/screens, source-backed field/question/control mapping, exact action prerequisites, visible parallel actions, responsible queue, handoff/recovery behavior and missing proof. Cover D-074's membership-only age restriction and online booking rules. Missing clinical policy, consent-contract inspection or vendor mapping must be named explicitly; do not invent it or reopen deferred child workflows.
+
+Acceptance must demonstrate both the blocked action and an independent successful action, multiple simultaneous outstanding tasks, ownership transfer/coverage, duplicate or uncertain events, and open work remaining visible after encounter closure. Start with labs pending while scheduling/visits remain available, then prescription preparation while disconnected and billing/follow-up exceptions without patient-wide locks. Record test/browser evidence only after execution. Current matrix expansion is planned behavior, not audited implementation; no overnight task has been dispatched by this planning update.
 
 ## Update format
 
