@@ -40,6 +40,14 @@ module Clinic
       validate :structured_dose_is_complete
       validate :requester_matches
       validate :authorized_inventory_order_is_complete
+      encrypts :medication_strength, :medication_form, :medication_code_system, :medication_code,
+        :medication_code_version, :catalog_source, :pharmacy_name, :pharmacy_location, :pharmacy_identifier, :duration_text
+      validates :fulfillment_route, inclusion: { in: %w[outside_pharmacy take_home administration] }, allow_nil: true
+      validates :prescribed_quantity, numericality: { greater_than: 0, less_than_or_equal_to: 1_000_000 }, allow_nil: true
+      validates :refills, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 999 }, allow_nil: true
+      validates :medication_strength, :medication_form, :medication_code_system, :medication_code,
+        :medication_code_version, :catalog_source, :pharmacy_name, :pharmacy_location, :pharmacy_identifier,
+        :duration_text, :quantity_unit, length: { maximum: 500 }, allow_nil: true
 
       private
 

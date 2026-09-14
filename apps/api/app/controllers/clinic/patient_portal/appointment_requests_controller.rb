@@ -52,6 +52,9 @@ module Clinic
         return render_existing(existing, normalized:) if existing
 
         request = AppointmentRequest.transaction do
+          if normalized[:request_kind] == "new_booking" && !BookingEligibility.active?(practice: portal_practice, patient: portal_patient)
+            raise ArgumentError, BookingEligibility::MESSAGE
+          end
           source_appointment = appointment_change_source!(normalized)
           normalized[:requested_modality] ||= source_appointment&.visit_modality || "in_person" unless normalized[:request_kind] == "cancel"
           validate_request!(normalized, source_appointment)
@@ -188,12 +191,9 @@ module Clinic
       def validate_modality!(normalized, site:, visit_type:)
         return unless normalized[:requested_modality] == "video"
         raise ArgumentError, "Choose a clinic location and visit type for a video request." unless site && visit_type
-        setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
-        ready = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
-          setting.active_policy_version&.published? && setting.health_status == "ready"
         rule = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id,
           visit_type_id: visit_type.id, enabled: true).where(site_id: [ nil, site.id ]).first
-        unless ready && rule
+        unless rule
           raise ArgumentError, "Video is not available for this visit type and clinic location."
         end
       end
@@ -209,13 +209,12 @@ module Clinic
         setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
         video_ready = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
           setting.active_policy_version&.published? && setting.health_status == "ready"
-        video_visit_type_ids = if video_ready
-          Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id, enabled: true)
-            .distinct.pluck(:visit_type_id).index_with(true)
-        else
-          {}
-        end
+        video_visit_type_ids = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id, enabled: true)
+          .distinct.pluck(:visit_type_id).index_with(true)
         {
+          can_request_new_booking: BookingEligibility.active?(practice: portal_practice, patient: portal_patient),
+          booking_requirement: BookingEligibility::MESSAGE,
+          video_connection_ready: !!video_ready,
           sites: portal_practice.sites.where(status: "active").order(:code, :id).map do |site|
             AppointmentRequestSerializer.site(site)
           end,

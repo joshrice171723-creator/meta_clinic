@@ -640,7 +640,12 @@ function registrationValues(patient?: RegistrationPatient): RegistrationValues {
     date_of_birth: d?.date_of_birth ?? "",
     sex: d?.sex ?? "",
     primary_language: d?.primary_language ?? "",
-    interpreter_required: d?.interpreter_required ? "true" : "false",
+    interpreter_required:
+      d?.interpreter_required == null
+        ? "unknown"
+        : d.interpreter_required
+          ? "true"
+          : "false",
     contact_type: c?.contact_type ?? "phone",
     contact_value: c?.contact_value ?? "",
     preferred: c?.preferred ? "true" : "false",
@@ -807,6 +812,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
               required={false}
               value={values.interpreter_required}
               options={[
+                ["unknown", "Unknown"],
                 ["false", "No"],
                 ["true", "Yes"],
               ]}
@@ -1397,7 +1403,11 @@ function PatientDetails({ patient }: { patient: Patient }) {
             <dt>Language</dt>
             <dd>
               {d?.primary_language || "Not recorded"}
-              {d?.interpreter_required ? " · Interpreter required" : ""}
+              {d?.interpreter_required == null
+                ? " · Interpreter need unknown"
+                : d.interpreter_required
+                  ? " · Interpreter required"
+                  : " · No interpreter requested"}
             </dd>
           </div>
         </dl>

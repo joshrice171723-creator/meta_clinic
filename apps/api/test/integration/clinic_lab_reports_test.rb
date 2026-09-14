@@ -472,7 +472,264 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
       completed.values_at("state", "patient_contact_status", "patient_contact_method", "patient_contact_at")
   end
 
+  test "T07 typed and absent results round trip while receipt acknowledgment does not review or close work" do
+    request = create_params(request_key: "journey-partial-results")
+    request[:lab_report].merge!(status: "preliminary", results: [
+      { name: "Synthetic measurement", value: "1.2500", value_kind: "numeric", unit: "mg/L", reference_range: "Source range" },
+      { name: "Synthetic coded finding", value: "Source supplied finding", value_kind: "coded", value_code: "LOCAL-1", value_code_system: "urn:synthetic:lab" },
+      { name: "Synthetic pending analyte", value: "", value_kind: "absent", absent_reason: "Specimen processing continues" }
+    ])
+    post reports_path, params: request, headers: csrf_headers, as: :json
+    assert_response :created
+    report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
+    version = report.current_version
+    assert_equal "1.2500", version.results.first.fetch("value")
+    assert_equal "urn:synthetic:lab", version.results.second.fetch("value_code_system")
+    assert_equal ["", "Specimen processing continues"], version.results.third.values_at("value", "absent_reason")
+
+    body = { lab_action: { kind: "acknowledged", request_key: "journey-partial-ack" } }
+    assert_difference "Clinic::Care::LabReportAction.count", 1 do
+      post lab_actions_path(report, version), params: body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_no_difference ["Clinic::Care::LabReportAction.count", "Clinic::Care::LabResultFollowUp.count"] do
+      post lab_actions_path(report, version), params: body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_nil version.reload.reviewed_at
+    assert_nil version.follow_up
+    post review_path(report, version), params: review_params("journey-review-available-results"), headers: csrf_headers, as: :json
+    assert_response :success
+    assert version.reload.reviewed_at
+    assert_nil version.follow_up
+
+    grant_permissions!(@membership, "service_requests.write", "clinical_records.read")
+    assert_raises(ArgumentError) do
+      Clinic::Care::ClinicalPlanWorkflow.revise(kind: :service_requests, series_id: @lab_order.series_id,
+        practice: @practice, actor: @actor, patient: @patient, encounter: @encounter,
+        attributes: { status: "completed" }, expected_version: @lab_order.version_number, request_key: "journey-missing-result-cannot-complete")
+    end
+    independent = Clinic::Care::ClinicalPlanWorkflow.create(kind: :service_requests, practice: @practice, actor: @actor,
+      patient: @patient, encounter: @encounter, request_key: "journey-independent-preparation",
+      attributes: { request_kind: "referral", requested_display: "Synthetic independent referral", priority: "routine", intent: "plan" })
+    assert_equal "draft", independent.status
+    assert_equal @patient.id, independent.patient_id
+    assert_nil @encounter.reload.ended_at
+  end
+
+  test "T07 missing numeric coded and absent evidence rejects without adding report versions" do
+    cases = [
+      { name: "Synthetic numeric", value: "not a number", value_kind: "numeric" },
+      { name: "Synthetic coded", value: "Meaning", value_kind: "coded", value_code: "X" },
+      { name: "Synthetic absent", value: "", value_kind: "absent" },
+      { name: "Synthetic contradictory", value: "7", value_kind: "absent", absent_reason: "Missing" }
+    ]
+    cases.each_with_index do |result, index|
+      request = create_params(request_key: "journey-invalid-result-#{index}")
+      request[:lab_report][:results] = [result]
+      assert_no_difference ["Clinic::Care::LabReport.count", "Clinic::Care::LabReportVersion.count"] do
+        post reports_path, params: request, headers: csrf_headers, as: :json
+        assert_response :unprocessable_entity
+      end
+    end
+  end
+
+  test "T07 rejected specimen owns one recollection task and requires later same-order evidence after encounter closure" do
+    request = create_params(request_key: "journey-rejected-specimen")
+    request[:lab_report].merge!(specimen_condition: "rejected", status: "preliminary",
+      results: [{ name: "Synthetic requested test", value: "", value_kind: "absent", absent_reason: "Specimen rejected by source" }])
+    assert_difference "Clinic::ClinicalTask.count", 1 do
+      post reports_path, params: request, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
+    version = report.current_version
+    action = Clinic::Care::LabReportAction.find_by!(lab_report_version: version, kind: "recollection_requested")
+    task = action.clinical_task
+    assert_equal ["open", "clinical", "lab_follow_up", action.id], [task.state, task.pool_code, task.source_type, task.source_id]
+    assert_equal @patient.id, task.patient_id
+    assert_no_difference ["Clinic::ClinicalTask.count", "Clinic::Care::LabReportAction.count"] do
+      post reports_path, params: request, headers: csrf_headers, as: :json
+      assert_response :success
+    end
+    completion = { lab_action: { kind: "recollection_completed", note: "Later satisfactory specimen received",
+      replacement_report_id: report.id, request_key: "journey-recollection-invalid" } }
+    post lab_actions_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "open", task.reload.state
+    replacement = create_params(request_key: "journey-recollection-report")
+    replacement[:lab_report].merge!(external_report_id: "ACCN-RECOLLECTED", specimen_identifier: "SPEC-RECOLLECTED",
+      collected_at: "2026-09-07T14:00:00Z", issued_at: "2026-09-07T16:00:00Z")
+    post reports_path, params: replacement, headers: csrf_headers, as: :json
+    assert_response :created
+    replacement_id = response.parsed_body.dig("report", "id")
+    @encounter.close!(ended_at: Time.utc(2026, 9, 7, 17))
+    completion[:lab_action].merge!(replacement_report_id: replacement_id, request_key: "journey-recollection-complete")
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      post lab_actions_path(report, version), params: completion, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_equal "completed", task.reload.state
+    assert_equal @membership.id, task.completed_by_membership_id
+    assert_nil version.reload.reviewed_at
+    assert_no_difference "Clinic::Care::LabReportAction.count" do
+      post lab_actions_path(report, version), params: completion, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+  end
+
+  test "T07 correction reopens original order responsibility and does not reuse an old acknowledgment after closure" do
+    post reports_path, params: create_params(request_key: "journey-correction-base"), headers: csrf_headers, as: :json
+    assert_response :created
+    report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
+    first = report.current_version
+    post lab_actions_path(report, first), params: { lab_action: { kind: "acknowledged", request_key: "journey-ack-first" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    post review_path(report, first), params: review_params("journey-review-first"), headers: csrf_headers, as: :json
+    assert_response :success
+    task = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      task_kind: "order_execution", state: "completed", pool_code: "clinical", source_type: "order",
+      source_kind: "service_request", source_id: @lab_order.id, recorded_by_membership: @membership,
+      resolution_code: "completed", completed_by_membership: @membership, completed_at: Time.utc(2026, 9, 6, 17))
+    @encounter.close!(ended_at: Time.utc(2026, 9, 6, 18))
+    correction = version_params(request_key: "journey-corrected-version", expected_current_version_id: first.id, status: "corrected", value: "4.90")
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      post versions_path(report), params: correction, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    current = report.reload.current_version
+    assert_equal "open", task.reload.state
+    assert_nil task.completed_at
+    assert_nil current.reviewed_at
+    assert first.reload.reviewed_at
+    assert_equal "4.70", first.results.sole.fetch("value")
+    assert_equal "4.90", current.results.sole.fetch("value")
+    assert_empty Clinic::Care::LabReportAction.where(lab_report_version: current)
+    post lab_actions_path(report, first), params: { lab_action: { kind: "acknowledged", request_key: "journey-obsolete-ack" } }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_no_difference ["Clinic::ClinicalTask.count", "Clinic::Care::LabReportVersion.count"] do
+      post versions_path(report), params: correction, headers: csrf_headers, as: :json
+      assert_response :success
+    end
+    get review_queue_path, headers: @headers
+    assert_response :success
+    assert_includes response.parsed_body.fetch("items").pluck("report_id"), report.id
+  end
+
+  test "T07 acknowledgment rejects another patient and a role without current report-write authority" do
+    post reports_path, params: create_params(request_key: "journey-ack-access"), headers: csrf_headers, as: :json
+    assert_response :created
+    report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
+    version = report.current_version
+    body = { lab_action: { kind: "acknowledged", request_key: "journey-ack-denied" } }
+    post "/api/clinic/patients/#{@other_patient.id}/lab_reports/#{report.id}/versions/#{version.id}/actions",
+      params: body, headers: csrf_headers, as: :json
+    assert_response :not_found
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read", "notes.read")
+    assert_no_difference "Clinic::Care::LabReportAction.count" do
+      post lab_actions_path(report, version), params: body, headers: csrf_headers, as: :json
+      assert_response :forbidden
+    end
+    other_site = @practice.sites.create!(code: "OTHER-JOURNEY-LAB")
+    grant_permissions!(@membership, "notes.write", scope_kind: "site", site: other_site)
+    assert_no_difference "Clinic::Care::LabReportAction.count" do
+      post lab_actions_path(report, version), params: body, headers: csrf_headers, as: :json
+      assert_response :forbidden
+    end
+    assert_nil version.reload.reviewed_at
+  end
+
+  test "T07 T10 closed-encounter corrected results reconcile the same order task only after review and prerequisites" do
+    grant_permissions!(@membership, "service_requests.write", "clinical_records.read", "encounters.write")
+    task = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      task_kind: "order_execution", state: "open", pool_code: "clinical", source_type: "order",
+      source_kind: "service_request", source_id: @lab_order.id, recorded_by_membership: @membership)
+    post reports_path, params: create_params(request_key: "journey-reconcile-base"), headers: csrf_headers, as: :json
+    assert_response :created
+    report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
+    first = report.current_version
+    post review_path(report, first), params: review_params("journey-reconcile-base-review"), headers: csrf_headers, as: :json
+    assert_response :success
+    order_path = "/api/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}/service_requests/#{@lab_order.series_id}"
+    patch order_path, params: { service_request: { status: "completed", expected_version: @lab_order.version_number,
+      request_key: "journey-reconcile-initial-completion" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    completed = response.parsed_body.fetch("service_request")
+    assert_equal "completed", task.reload.state
+    @encounter.close!
+    correction = version_params(request_key: "journey-reconcile-correction", expected_current_version_id: first.id,
+      status: "corrected", value: "4.90")
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      post versions_path(report), params: correction, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    current = report.reload.current_version
+    assert_equal "open", task.reload.state
+    assert_nil current.reviewed_at
+    request = { service_request: { reconcile_completion: true, expected_version: completed.fetch("version_number"),
+      request_key: "journey-reconcile-current" } }
+    assert_no_difference "Clinic::Care::ServiceRequestRevision.count" do
+      patch order_path, params: request, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_match(/lab results remain pending/, response.parsed_body.fetch("error"))
+    end
+    post review_path(report, current), params: review_params("journey-reconcile-current-review"), headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "open", task.reload.state
+    prerequisite = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      task_kind: "record_request", state: "claimed", pool_code: "clinical", source_type: "manual",
+      assigned_to_membership: @membership, recorded_by_membership: @membership)
+    patch "/api/clinic/clinical_tasks/#{task.id}", params: { task: { action: "dependencies", dependency_ids: [prerequisite.id],
+      expected_version: task.lock_version, request_key: "journey-reconcile-dependency" } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_no_difference "Clinic::Care::ServiceRequestRevision.count" do
+      patch order_path, params: request, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_match(/prerequisite/, response.parsed_body.fetch("error"))
+    end
+    independent = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      task_kind: "patient_call", state: "claimed", pool_code: "clinical", source_type: "manual",
+      assigned_to_membership: @membership, recorded_by_membership: @membership)
+    [independent, prerequisite].each do |work|
+      patch "/api/clinic/clinical_tasks/#{work.id}", params: { task: { action: "complete", resolution_code: "completed",
+        expected_version: work.lock_version, request_key: "journey-reconcile-manual-#{work.id}" } }, headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal "completed", work.reload.state
+      assert_equal "open", task.reload.state
+    end
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      assert_difference "Clinic::Care::ServiceRequestRevision.count", 1 do
+        patch order_path, params: request, headers: csrf_headers, as: :json
+        assert_response :created
+      end
+    end
+    reconciled = response.parsed_body.fetch("service_request")
+    assert_equal completed.fetch("version_number") + 1, reconciled.fetch("version_number")
+    assert_equal false, reconciled.fetch("completion_reconciliation_required")
+    assert_equal "completed", task.reload.state
+    assert @encounter.reload.ended_at
+    assert_no_difference ["Clinic::Care::ServiceRequestRevision.count", "Clinic::ClinicalTask.count"] do
+      patch order_path, params: request, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal reconciled.fetch("id"), response.parsed_body.dig("service_request", "id")
+    end
+    request[:service_request][:request_key] = "journey-reconcile-obsolete"
+    patch order_path, params: request, headers: csrf_headers, as: :json
+    assert_response :conflict
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read", "clinical_records.read")
+    request[:service_request][:request_key] = "journey-reconcile-current"
+    patch order_path, params: request, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_equal "completed", task.reload.state
+  end
+
   private
+
+  def lab_actions_path(report, version)
+    "#{versions_path(report)}/#{version.id}/actions"
+  end
 
   def reports_path(patient: @patient)
     "/api/clinic/patients/#{patient.id}/lab_reports"

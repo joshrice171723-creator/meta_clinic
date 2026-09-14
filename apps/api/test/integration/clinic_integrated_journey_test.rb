@@ -408,6 +408,8 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
         attributes: { starts_at: 3.hours.from_now, expires_at: 30.minutes.from_now }
       )
       offered_version = waitlist.reload.lock_version
+      patient.patient_memberships.create!(practice:, recorded_by_membership: clinician_membership,
+        status: "member", version: 1, effective_from: 1.day.ago)
       assert_raises(Clinic::Authorization::Denied) do
         Clinic::Scheduling::Waitlist.portal_reply(
           entry: waitlist, identity: foreign_identity, actor: foreign_user, action: "accept",

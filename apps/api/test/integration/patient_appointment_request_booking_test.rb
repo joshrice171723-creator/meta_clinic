@@ -27,6 +27,8 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     @staff_password = SecureRandom.hex(18)
     @staff_user = User.create!(email_address: "appointment-reviewer@example.invalid", password: @staff_password)
     @staff_membership = @practice.memberships.create!(user: @staff_user)
+    @commercial_membership = @patient.patient_memberships.create!(practice: @practice,
+      recorded_by_membership: @staff_membership, status: "member", version: 1, effective_from: 1.day.ago)
     grant_permissions!(@staff_membership, "appointments.read", "appointments.book", "appointments.status_transition")
 
     @site = create_site(@practice, "REQUEST-SITE")
@@ -91,6 +93,45 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     get_patient_requests
     assert_equal [ created.fetch("id") ],
       @patient_session.response.parsed_body.fetch("appointment_requests").map { |request| request.fetch("id") }
+  end
+
+  test "inactive membership blocks new booking while callback and existing visit cancellation remain available" do
+    @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @staff_membership,
+      status: "nonmember", version: 2, effective_from: 1.minute.ago)
+    get_patient_requests
+    assert_equal false, @patient_session.response.parsed_body.dig("options", "can_request_new_booking")
+    starts_at = 2.days.from_now.change(usec: 0)
+    @patient_session.post patient_requests_path,
+      params: patient_request_payload("inactive-denied", starts_at, starts_at + 1.hour), headers: @patient_headers, as: :json
+    assert_equal 422, @patient_session.response.status
+    callback = { patient_portal_request: { request_type: "callback", content: "Please call about scheduling.", request_key: "inactive-callback" } }
+    @patient_session.post "/api/patient_portal/requests", params: callback, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    @patient_session.post "/api/patient_portal/requests", params: callback, headers: @patient_headers, as: :json
+    assert_equal 200, @patient_session.response.status
+    assert_equal 1, @practice.patient_portal_requests.callback.count
+    appointment = create_appointment(starts_at:)
+    @patient_session.post patient_requests_path, params: appointment_change_payload("inactive-cancel", "cancel", appointment),
+      headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    assert_equal "scheduled", appointment.reload.status
+    request = @practice.patient_portal_requests.callback.sole
+    @patient_session.get "/api/clinic/callback_requests", headers: @patient_headers
+    assert_includes [401, 403], @patient_session.response.status
+    grant_permissions!(@staff_membership, "appointments.write")
+    @staff_session.get "/api/clinic/callback_requests", headers: @staff_headers
+    assert_equal 200, @staff_session.response.status
+    assert_equal [request.id], @staff_session.response.parsed_body.fetch("callback_requests").pluck("id")
+    finish = { callback_request: { request_key: "callback-finish", status: "resolved", review_note: "" } }
+    @staff_session.post "/api/clinic/callback_requests/#{request.id}/transition", params: finish, headers: @staff_headers, as: :json
+    assert_equal 422, @staff_session.response.status
+    finish[:callback_request][:review_note] = "Reached patient; discussed available appointment times."
+    2.times do
+      @staff_session.post "/api/clinic/callback_requests/#{request.id}/transition", params: finish, headers: @staff_headers, as: :json
+      assert_equal 200, @staff_session.response.status
+    end
+    assert_equal "resolved", request.reload.status
+    assert_equal "scheduled", appointment.reload.status
   end
 
   test "appointment request options read the telehealth setting once across visit types" do
@@ -396,7 +437,8 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     assert_equal true, @staff_session.response.parsed_body.fetch("replayed")
     assert_equal 0, @practice.appointments.where(patient: @patient).count
 
-    @patient_session.post "/api/patient_portal/requests", params: {}, headers: @patient_headers, as: :json
+    @patient_session.post "/api/patient_portal/reminder_preferences",
+      params: { preference: { channel: "portal", setting: "allowed", timezone: "UTC" } }, headers: @patient_headers, as: :json
     assert_equal 404, @patient_session.response.status
     assert_equal "patient_portal_billing_only", @patient_session.response.parsed_body.fetch("code")
   end

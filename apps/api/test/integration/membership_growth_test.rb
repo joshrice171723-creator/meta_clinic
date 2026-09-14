@@ -288,7 +288,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     payload = prospect_payload(version_id:, request_key: "account-first-request").fetch(:prospect)
 
     prepared = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice,
-      **payload.symbolize_keys)
+      **payload.symbolize_keys, date_of_birth: "1990-02-28")
     prospect = prepared.prospect
     assert prospect.status_new?
     assert prospect.account_user
@@ -368,6 +368,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_includes receipt_mail.text_part.body.decoded, "/patient-portal"
     refute_includes receipt_mail.text_part.body.decoded, "/patient-portal/activate#"
     assert_equal 1, @practice.patients.count
+    assert_equal Date.new(1990, 2, 28), prospect.patient.demographics.date_of_birth
+    assert_nil prospect.patient.demographics.interpreter_required
     assert_equal "completed", prospect.follow_up_state
     assert prospect.onboarding_task
     get "/api/public/membership_accounts/current", headers: @headers
@@ -631,6 +633,36 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       headers: csrf_headers, as: :json
     assert_response :not_found
     assert_equal 0, @practice.membership_prospects.count
+  end
+
+  test "adult account boundaries preserve contact first and interrupted identity without merging people" do
+    travel_to Time.utc(2026, 9, 14, 12) do
+      version_id = publish_catalog(@admin, "AgeBoundary")
+      configure_storefront(@admin, "age-boundary-memberships", enabled: true)
+      attributes = prospect_payload(version_id:, request_key: "adult-account").fetch(:prospect)
+      [nil, "invalid", "2026-02-30", "2026-09-15", "2008-09-15", "1876-09-14"].each do |date|
+        assert_no_difference ["User.count", "Clinic::MembershipProspect.count"] do
+          assert_raises(ArgumentError) do
+            Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes, date_of_birth: date)
+          end
+        end
+      end
+      contact = attributes.merge(request_key: "contact-without-age", preferred_contact_method: "phone",
+        preferred_contact_time: "Afternoons")
+      post_prospect("age-boundary-memberships", { prospect: contact })
+      assert_response :created
+      assert_nil @practice.membership_prospects.order(:id).last.account_user_id
+      first = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes, date_of_birth: "2008-09-14").prospect
+      retry_account = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice,
+        **attributes.merge(request_key: "recovered-browser-key"), date_of_birth: "2008-09-14").prospect
+      assert_equal first.id, retry_account.id
+      assert_equal first.account_user_id, retry_account.account_user_id
+      assert_nil first.patient_id
+      assert_raises(Clinic::MembershipGrowth::CaptureProspect::Conflict) do
+        Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes, date_of_birth: "1990-01-01")
+      end
+      assert_equal Date.new(2008, 9, 14), first.reload.date_of_birth
+    end
   end
 
   private

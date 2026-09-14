@@ -134,6 +134,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   end
 
   test "patient waitlist replies replay the exact committed outcome without double booking" do
+    @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @membership,
+      status: "member", version: 1, effective_from: 1.day.ago)
     site = Clinic::Site.create!(practice: @practice, code: "WAITLIST")
     clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
     visit_type = Clinic::VisitType.create!(practice: @practice, code: "WAITLIST-VISIT")

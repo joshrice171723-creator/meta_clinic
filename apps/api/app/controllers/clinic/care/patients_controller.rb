@@ -315,6 +315,7 @@ module Clinic
 
       def registration_interpreter_required(input, existing)
         return existing.interpreter_required if existing && !input.key?(:interpreter_required)
+        return nil if input[:interpreter_required].nil? || input[:interpreter_required].to_s.in?([ "", "unknown" ])
 
         boolean_or_default(input[:interpreter_required], field: :interpreter_required)
       end

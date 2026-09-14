@@ -117,6 +117,7 @@ vi.mock("../src/shared/ui", () => {
         return {
           data: {
             practice: { name: "North Clinic", slug: "north-clinic" },
+            business_date: "2026-09-14",
             catalog: [published],
             payment: { checkout_available: true, mode: "test" },
           },

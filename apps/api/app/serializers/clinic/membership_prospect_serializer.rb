@@ -10,6 +10,8 @@ module Clinic
         display_name: prospect.display_name,
         email_address: prospect.email_address,
         phone_number: prospect.phone_number,
+        preferred_contact_method: prospect.preferred_contact_method,
+        preferred_contact_time: prospect.preferred_contact_time,
         source: prospect.source,
         outreach_consent: prospect.outreach_consent,
         intent_type: prospect.intent_type,

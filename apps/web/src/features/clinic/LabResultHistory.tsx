@@ -40,6 +40,8 @@ type ResultHistoryItem = {
   issued_at: string | null;
   recorded_at: string;
   value: string;
+  value_kind?: string;
+  absent_reason?: string | null;
   unit: string | null;
   reference_range: string | null;
   flag: string | null;
@@ -225,7 +227,9 @@ export function LabResultHistory({
                                 )}
                               </TableCell>
                               <TableCell>
-                                {item.value}
+                                {item.value_kind === "absent"
+                                  ? `Not available: ${item.absent_reason}`
+                                  : item.value}
                                 {item.unit
                                   ? ` ${item.unit}`
                                   : " Unit not recorded"}

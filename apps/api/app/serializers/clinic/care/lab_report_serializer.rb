@@ -37,6 +37,9 @@ module Clinic
           recorded_by: value.recorded_by_membership_id,
           reviewed_at: iso(value.reviewed_at),
           reviewed_by: value.reviewed_by_membership_id,
+          actions: LabReportAction.where(practice_id: value.practice_id, lab_report_version_id: value.id).order(:id).map { |action|
+            action.slice(:id, :kind, :note, :clinical_task_id, :recorded_by_membership_id).merge(recorded_at: iso(action.recorded_at))
+          },
           follow_up: follow_up(value.follow_up)
         }
       end

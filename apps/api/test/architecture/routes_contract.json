@@ -55,6 +55,11 @@
     "/api/clinic/billing/support_requests(.:format)"
   ],
   [
+    "api_clinic_callback_requests",
+    "GET",
+    "/api/clinic/callback_requests(.:format)"
+  ],
+  [
     "api_clinic_capacity_index",
     "GET",
     "/api/clinic/capacity(.:format)"
@@ -930,6 +935,16 @@
     "/api/public/membership_accounts/activate(.:format)"
   ],
   [
+    "api_public_membership_accounts_checkout",
+    "POST",
+    "/api/public/membership_accounts/checkout(.:format)"
+  ],
+  [
+    "api_public_membership_accounts_current",
+    "GET",
+    "/api/public/membership_accounts/current(.:format)"
+  ],
+  [
     "api_public_membership_storefronts",
     "GET",
     "/api/public/membership_storefronts(.:format)"
@@ -963,11 +978,6 @@
     "approve_api_clinic_workforce_timecard",
     "POST",
     "/api/clinic/workforce/timecards/:id/approve(.:format)"
-  ],
-  [
-    "assisted_checkout_api_clinic_membership_prospect",
-    "POST",
-    "/api/clinic/membership_prospects/:id/assisted_checkout(.:format)"
   ],
   [
     "batch_preview_api_clinic_reminders",
@@ -1235,6 +1245,11 @@
     "/api/clinic/invoices/:id/payment_allocations(.:format)"
   ],
   [
+    "phone_payment_api_clinic_membership_prospect",
+    "POST",
+    "/api/clinic/membership_prospects/:id/phone_payment(.:format)"
+  ],
+  [
     "post_api_clinic_invoice",
     "POST",
     "/api/clinic/invoices/:id/post(.:format)"
@@ -1310,6 +1325,11 @@
     "/api/clinic/subscriptions/:id/reconcile_ledger(.:format)"
   ],
   [
+    "record_action_api_clinic_patient_lab_report",
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/actions(.:format)"
+  ],
+  [
     "record_follow_up_api_clinic_patient_lab_report",
     "POST",
     "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/follow_up(.:format)"
@@ -1318,6 +1338,11 @@
     "recover_api_clinic_reminders",
     "POST",
     "/api/clinic/reminders/recover(.:format)"
+  ],
+  [
+    "refresh_phone_payment_api_clinic_membership_prospect",
+    "POST",
+    "/api/clinic/membership_prospects/:id/refresh_phone_payment(.:format)"
   ],
   [
     "refund_api_clinic_subscription",
@@ -1430,6 +1455,11 @@
     "/api/clinic/appointments/:id/transition(.:format)"
   ],
   [
+    "transition_api_clinic_callback_request",
+    "POST",
+    "/api/clinic/callback_requests/:id/transition(.:format)"
+  ],
+  [
     "transition_api_clinic_refill_request",
     "POST",
     "/api/clinic/refill_requests/:id/transition(.:format)"
@@ -1493,6 +1523,11 @@
     null,
     "GET",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/nurse_workspace(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/events(.:format)"
   ],
   [
     null,
@@ -1958,6 +1993,16 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/lab_reports(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/dispenses(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/events(.:format)"
   ],
   [
     null,

@@ -90,7 +90,7 @@ module Clinic
         education_scope = education_scope.lock if lock
         task_scope = ClinicalTask.where(
           practice_id: encounter.practice_id, patient_id: encounter.patient_id, encounter_id: encounter.id,
-          state: %w[open claimed in_progress]
+          state: Clinic::ClinicalTask::ACTIVE_STATES
         ).order(:id)
         task_scope = task_scope.lock if lock
         education_events = education_scope.to_a.map do |event|
@@ -164,7 +164,11 @@ module Clinic
         {
           "id" => task.id, "version" => task.lock_version, "task_kind" => task.task_kind, "state" => task.state,
           "pool_code" => task.pool_code, "assigned_to_membership_id" => task.assigned_to_membership_id,
-          "due_at" => task.due_at&.iso8601(6)
+          "due_at" => task.due_at&.iso8601(6), "source_type" => task.source_type,
+          "source_kind" => task.source_kind, "source_id" => task.source_id,
+          "pending_assignee_membership_id" => task.pending_assignee_membership_id,
+          "dependency_ids" => task.dependencies.order(:prerequisite_id).pluck(:prerequisite_id),
+          "next_action_href" => "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}"
         }
       end
       private_class_method :task_snapshot

@@ -48,6 +48,10 @@ module Clinic
           lab_version = create_version!(report:, member:, number: 1, attributes: version_payload)
           report.update!(current_version: lab_version)
           create_order_link!(report, order, member, request_key)
+          if specimen_record.condition_code == "rejected"
+            LabReportActions.request_recollection!(practice:, report:, version: lab_version, member:,
+              request_key: "recollection:#{request_key}", note: "The laboratory rejected this specimen. Coordinate recollection for the existing lab order.")
+          end
           audit!(practice:, actor:, action: "lab_report.create", report:, version: lab_version)
           report
         end
@@ -84,6 +88,11 @@ module Clinic
           )
           lab_version = create_version!(report: locked, member:, number: current.version_number + 1, attributes: version_payload)
           locked.update!(current_version: lab_version)
+          root = ServiceRequestRevision.where(practice:, series_id: locked.service_request_revision.series_id, version_number: 1).first!
+          task = Clinic::ClinicalTask.where(practice:, source_type: "order", source_kind: "service_request", source_id: root.id).order(id: :desc).lock.first
+          if task && task.state == "completed"
+            task.update!(state: "open", resolution_code: nil, completed_by_membership: nil, completed_at: nil)
+          end
           audit!(practice:, actor:, action: "lab_report.version.create", report: locked, version: lab_version)
           lab_version
         end
@@ -177,10 +186,24 @@ module Clinic
 
         results.map do |row|
           values = row.to_h.symbolize_keys
+          kind = values[:value_kind].presence || "text"
+          raise ArgumentError, "Choose a supported result value kind." unless %w[text numeric coded absent].include?(kind)
+          value = kind == "absent" ? "" : required_text(values[:value], "result value", 500)
+          if kind == "numeric" && !value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/)
+            raise ArgumentError, "Numeric results require an exact decimal value."
+          end
+          absent_reason = kind == "absent" ? required_text(values[:absent_reason], "absent result reason", 200) : nil
+          raise ArgumentError, "An absent result cannot also carry a value." if kind == "absent" && values[:value].present?
+          value_code = kind == "coded" ? required_text(values[:value_code], "result value code", 200) : nil
+          value_code_system = kind == "coded" ? required_text(values[:value_code_system], "result value code system", 240) : nil
           {
             "name" => required_text(values[:name], "result name", 200),
             "code" => optional_text(values[:code], "result code", 80),
-            "value" => required_text(values[:value], "result value", 500),
+            "value" => value,
+            "value_kind" => kind,
+            "absent_reason" => absent_reason,
+            "value_code" => value_code,
+            "value_code_system" => value_code_system,
             "unit" => optional_text(values[:unit], "result unit", 80),
             "reference_range" => optional_text(values[:reference_range], "reference_range", 200),
             "flag" => optional_text(values[:flag], "result flag", 80)
@@ -209,7 +232,7 @@ module Clinic
           practice: report.practice, patient: report.patient, encounter: order.encounter, site: order.site,
           source_kind: "service_request", service_request_revision: order,
           target_kind: "lab_report", lab_report: report,
-          outcome_summary: "External lab report received",
+          outcome_summary: "Lab report received",
           recorded_by_membership: member, recorded_at: Current.business_time,
           request_key: Digest::SHA256.hexdigest("lab-order-link:#{request_key}")
         )

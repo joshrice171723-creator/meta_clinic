@@ -40,6 +40,7 @@ import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ClinicalPlanClosurePanel } from "./ClinicalPlanClosurePanel";
+import { PrescriptionFulfillmentPanel } from "./PrescriptionFulfillmentPanel";
 
 type ResourceKind = keyof ClinicalPlanWorkspaceContract["records"];
 type ClinicalRecord =
@@ -87,7 +88,6 @@ const RESOURCE_META: Record<
     initial: {
       status: "draft",
       intent: "order",
-      transmission_state: "not_requested",
       inventory_product_id: "",
       medication_name: "",
       dose_value: "",
@@ -95,6 +95,21 @@ const RESOURCE_META: Record<
       route_code: "",
       frequency_text: "",
       quantity_text: "",
+      fulfillment_route: "",
+      medication_strength: "",
+      medication_form: "",
+      medication_code_system: "",
+      medication_code: "",
+      medication_code_version: "",
+      catalog_source: "",
+      pharmacy_name: "",
+      pharmacy_location: "",
+      pharmacy_identifier: "",
+      prescribed_quantity: "",
+      quantity_unit: "",
+      refills: "",
+      starts_on: "",
+      duration_text: "",
       scheduled_for: "",
       reason_text: "",
       instructions: "",
@@ -124,16 +139,26 @@ const RESOURCE_META: Record<
       { name: "reason_text", label: "Reason / indication", multiline: true },
       { name: "instructions", label: "Instructions", multiline: true },
       {
-        name: "transmission_state",
-        label: "Pharmacy transmission",
-        options: [
-          "not_requested",
-          "pending",
-          "accepted",
-          "rejected",
-          "failed",
-          "unknown",
-        ],
+        name: "fulfillment_route",
+        label: "Fulfillment",
+        options: ["outside_pharmacy", "take_home", "administration"],
+      },
+      { name: "medication_strength", label: "Strength" },
+      { name: "medication_form", label: "Form" },
+      { name: "medication_code_system", label: "Medication code system" },
+      { name: "medication_code", label: "Medication code" },
+      { name: "medication_code_version", label: "Terminology version" },
+      { name: "catalog_source", label: "Medication source" },
+      { name: "prescribed_quantity", label: "Prescribed quantity" },
+      { name: "quantity_unit", label: "Quantity unit" },
+      { name: "refills", label: "Refills" },
+      { name: "starts_on", label: "Start date, when applicable", type: "date" },
+      { name: "duration_text", label: "Duration, when applicable" },
+      { name: "pharmacy_name", label: "Pharmacy name" },
+      { name: "pharmacy_location", label: "Pharmacy location" },
+      {
+        name: "pharmacy_identifier",
+        label: "Verified pharmacy identifier, if available",
       },
     ],
   },
@@ -447,7 +472,7 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
       value.dose_text,
       value.route_text,
       value.frequency_text,
-      `Transmission: ${humanize(value.transmission_state)}`,
+      "Transmission unavailable",
     ]
       .filter(Boolean)
       .join(" · ");
@@ -661,6 +686,23 @@ export function ClinicalPlanWorkspace({
     } finally {
       setBusy(false);
     }
+  }
+
+  function reconcileCompletion(record: ClinicalRecord) {
+    void execute({
+      kind,
+      path: `${base}/${kind}/${record.series_id}`,
+      method: "PATCH",
+      seriesId: record.series_id,
+      expectedVersion: record.version_number,
+      body: {
+        [meta.root]: {
+          reconcile_completion: true,
+          expected_version: record.version_number,
+          request_key: crypto.randomUUID(),
+        },
+      },
+    });
   }
 
   function save() {
@@ -954,19 +996,46 @@ export function ClinicalPlanWorkspace({
                       }).format(new Date(record.recorded_at))}
                     </Typography>
                   </Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={
-                      !data.capabilities[kind] ||
-                      pendingAttempt !== null ||
-                      encounter.status !== "open"
-                    }
-                    onClick={() => openEdit(record)}
+                  <Stack
+                    spacing={1}
                     sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
                   >
-                    Revise
-                  </Button>
+                    {record.completion_reconciliation_required && (
+                      <>
+                        <Typography variant="caption">
+                          Updated fulfillment needs completion review.
+                        </Typography>
+                        <Button
+                          size="small"
+                          disabled={
+                            !data.capabilities[kind] ||
+                            busy ||
+                            pendingAttempt !== null
+                          }
+                          onClick={() => reconcileCompletion(record)}
+                        >
+                          Reconcile completion
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={
+                        !data.capabilities[kind] ||
+                        busy ||
+                        pendingAttempt !== null ||
+                        (encounter.status !== "open" &&
+                          !["medication_requests", "service_requests"].includes(
+                            kind,
+                          ))
+                      }
+                      onClick={() => openEdit(record)}
+                      sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
+                    >
+                      Revise
+                    </Button>
+                  </Stack>
                 </Stack>
               </Paper>
             ))}
@@ -975,11 +1044,21 @@ export function ClinicalPlanWorkspace({
         <ClinicalPlanClosurePanel
           data={data}
           base={base}
-          disabled={pendingAttempt !== null || encounter.status !== "open"}
+          disabled={busy || pendingAttempt !== null}
           refresh={workspace.refresh}
         />
       </Stack>
 
+      {kind === "medication_requests" &&
+        data.records.medication_requests.length > 0 && (
+          <PrescriptionFulfillmentPanel
+            key={`${patient.id}-${encounter.id}`}
+            patientId={patient.id}
+            encounterId={encounter.id}
+            orders={data.records.medication_requests}
+            canWrite={data.capabilities.medication_requests}
+          />
+        )}
       <Dialog
         open={dialogOpen}
         onClose={() => !busy && !pendingAttempt && setDialogOpen(false)}

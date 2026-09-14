@@ -1,13 +1,13 @@
 module Clinic
   module PatientPortal
     class RequestsController < BaseController
-      ALLOWED_TYPES = %w[message refill].freeze
+      ALLOWED_TYPES = %w[message refill callback].freeze
 
       def index
         request_type = requested_type
         requests = Request.for_practice(portal_practice).public_send(request_type)
           .where(patient: portal_patient).recent.limit(30)
-        record_portal_read(request_type == "refill" ? "patient_portal.refill.read" : "patient_portal.billing_support.read")
+        record_portal_read("patient_portal.#{request_type == 'message' ? 'billing_support' : request_type}.read")
         render json: { requests: requests.map { |request| request_payload(request) } }
       end
 
@@ -32,7 +32,7 @@ module Clinic
       end
 
       def request_content(input, request_type)
-        if request_type == "message"
+        if request_type.in?(%w[message callback])
           if %i[medication_name pharmacy_destination request_note].any? { |field| input[field].present? }
             raise ArgumentError, "Medication and pharmacy fields are supported only for refill requests."
           end

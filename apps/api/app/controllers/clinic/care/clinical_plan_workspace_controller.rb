@@ -4,7 +4,9 @@ module Clinic
       FIELD_SETS = {
         medication_requests: %i[status intent transmission_state inventory_product_id medication_name dose_value
           dose_unit_code dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text
-          instructions source_medication_statement_id completion_exception],
+          instructions source_medication_statement_id completion_exception fulfillment_route medication_strength medication_form
+          medication_code_system medication_code medication_code_version catalog_source pharmacy_name pharmacy_location
+          pharmacy_identifier prescribed_quantity quantity_unit refills starts_on duration_text],
         service_requests: %i[status request_kind intent priority requested_code_system requested_code requested_display
           destination reason_text due_at completion_exception],
         diagnoses: %i[status classification code_system diagnosis_code diagnosis_display clinical_note],
@@ -104,7 +106,8 @@ module Clinic
         input = record_input(kind, revising: true)
         record = ClinicalPlanWorkflow.revise(
           kind:, series_id: params[:series_id], practice: current_practice, actor: current_user, patient:, encounter:,
-          attributes: normalized_input(kind, input.except(:request_key, :expected_version)),
+          attributes: normalized_input(kind, input.except(:request_key, :expected_version, :reconcile_completion)),
+          reconcile_completion: input.fetch(:reconcile_completion, false),
           expected_version: bounded_integer!(input[:expected_version], field: :expected_version,
             min: 1, max: 2_147_483_647),
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160)
@@ -114,7 +117,7 @@ module Clinic
 
       def record_input(kind, revising:)
         fields = FIELD_SETS.fetch(kind) + %i[request_key]
-        fields += %i[expected_version] if revising
+        fields += %i[expected_version reconcile_completion] if revising
         parameter_hash!(ROOTS.fetch(kind), fields)
       end
 

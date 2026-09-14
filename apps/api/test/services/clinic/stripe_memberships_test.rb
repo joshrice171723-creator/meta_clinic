@@ -194,6 +194,29 @@ class StripeMembershipsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("25.00"), checkout.renewal_amount_due
     assert_equal ends_at, @agreement.events.find_by!(kind: "active").details.fetch("ends_at")
     assert_equal 1, Clinic::Billing::StripeMembershipCycle.where(checkout: checkout).count
+
+    member = @practice.memberships.find_by!(user: @staff)
+    grant_permissions!(member, "patients.read", "encounters.write")
+    site = @practice.sites.create!(code: "RENEWAL-CARE")
+    encounter = @practice.encounters.create!(patient: @patient, site:, started_at: 1.hour.ago, status: "open")
+    task = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter:, site:,
+      task_kind: "patient_call", pool_code: "clinical", state: "open", source_type: "manual", recorded_by_membership: member)
+    work = Clinic::Operations::FollowUpWorklist.call(practice: @practice, actor: @staff)
+    attention = work.fetch(:renewal_exceptions).sole
+    assert_equal checkout.id, attention.fetch(:id)
+    assert_equal @patient.id, attention.fetch(:patient_id)
+    assert_equal "Billing team", attention.fetch(:owner)
+    assert_equal BigDecimal("25.00"), BigDecimal(attention.fetch(:amount_due))
+    assert_includes work.fetch(:clinical_tasks).pluck(:id), task.id
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @staff, task:, action: "claim",
+      expected_version: task.lock_version, request_key: "renewal-independent-claim")
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @staff, task: task.reload, action: "complete",
+      expected_version: task.lock_version, request_key: "renewal-independent-complete", resolution_code: "completed")
+    assert_equal "completed", task.reload.state
+    assert_equal checkout.id, Clinic::Operations::FollowUpWorklist.call(practice: @practice, actor: @staff)
+      .fetch(:renewal_exceptions).sole.fetch(:id)
+    assert_equal BigDecimal("25.00"), checkout.reload.renewal_amount_due
+    assert_equal 1, Clinic::Billing::StripeMembershipCycle.where(checkout: checkout).count
   end
 
   test "signed events cannot route a foreign account or subscription into this ledger" do

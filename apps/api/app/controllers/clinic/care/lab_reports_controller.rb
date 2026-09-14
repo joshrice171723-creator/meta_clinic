@@ -6,7 +6,7 @@ module Clinic
         only: %i[index show review_queue follow_up_queue result_history]
 
       VERSION_FIELDS = %i[title status result_priority collected_at issued_at].freeze
-      RESULT_FIELDS = %i[name code value unit reference_range flag].freeze
+      RESULT_FIELDS = %i[name code value unit reference_range flag value_kind absent_reason value_code value_code_system].freeze
 
       def index
         patient = readable_patient!
@@ -193,6 +193,19 @@ module Clinic
         }
       end
 
+      def record_action
+        patient = readable_patient!
+        report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
+        version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
+        input = parameter_hash!(:lab_action, %i[kind note request_key replacement_report_id])
+        action = LabReportActions.record(practice: current_practice, actor: current_user, report:, version:,
+          kind: required_string!(input[:kind], field: :kind, maximum: 40),
+          note: optional_string(input[:note], field: :note, maximum: 1000),
+          replacement_report_id: optional_id(input[:replacement_report_id], :replacement_report_id),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100))
+        render json: { action: action.slice(:id, :kind, :clinical_task_id), version: LabReportSerializer.version(version) }, status: :created
+      end
+
       def record_follow_up
         patient = readable_patient!
         report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
@@ -263,7 +276,11 @@ module Clinic
           {
             name: required_string!(row[:name], field: "#{field}.name", maximum: 200),
             code: optional_string(row[:code], field: "#{field}.code", maximum: 80),
-            value: required_string!(row[:value], field: "#{field}.value", maximum: 500),
+            value: row[:value_kind] == "absent" ? optional_string(row[:value], field: "#{field}.value", maximum: 500) : required_string!(row[:value], field: "#{field}.value", maximum: 500),
+            value_kind: optional_string(row[:value_kind], field: "#{field}.value_kind", maximum: 20),
+            absent_reason: optional_string(row[:absent_reason], field: "#{field}.absent_reason", maximum: 200),
+            value_code: optional_string(row[:value_code], field: "#{field}.value_code", maximum: 200),
+            value_code_system: optional_string(row[:value_code_system], field: "#{field}.value_code_system", maximum: 240),
             unit: optional_string(row[:unit], field: "#{field}.unit", maximum: 80),
             reference_range: optional_string(row[:reference_range], field: "#{field}.reference_range", maximum: 200),
             flag: optional_string(row[:flag], field: "#{field}.flag", maximum: 80)

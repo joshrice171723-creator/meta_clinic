@@ -10,6 +10,7 @@ export type MembershipStorefront = {
 };
 
 export type PublicMembershipStorefrontResponse = {
+  business_date: string;
   practice: {
     name: string;
     slug: string;
@@ -46,6 +47,8 @@ export type MembershipProspect = {
   display_name: string;
   email_address: string | null;
   phone_number: string | null;
+  preferred_contact_method?: "email" | "phone" | null;
+  preferred_contact_time?: string | null;
   outreach_consent: boolean;
   intent_type: "outreach" | "purchase";
   account_activated_at: string | null;

@@ -18,7 +18,8 @@ BEGIN
     'clinic_patient_address_versions','clinic_staff_address_versions','clinic_supplier_address_versions','clinic_encounter_note_revisions','clinic_encounter_note_signatures','clinic_encounter_completion_reviews','clinic_assessment_revisions',
     'clinic_observation_sources','clinic_payment_events','clinic_payment_allocations','clinic_credit_notes','clinic_refund_events','clinic_coverage_versions',
     'clinic_subscription_versions','clinic_subscription_agreements','clinic_subscription_events','clinic_stripe_membership_cycles',
-    'clinic_message_intents','clinic_message_attachments','clinic_message_delivery_events','clinic_invoice_lines','clinic_insurance_claims'] LOOP
+    'clinic_message_intents','clinic_message_attachments','clinic_message_delivery_events','clinic_invoice_lines','clinic_insurance_claims',
+    'clinic_clinical_task_events','clinic_prescription_events','clinic_medication_dispenses','clinic_lab_report_actions'] LOOP
     EXECUTE format('REVOKE UPDATE, DELETE ON %I FROM apply_runtime',relation);
   END LOOP;
   FOREACH relation IN ARRAY ARRAY['clinic_pharmacy_movements','clinic_stock_movements','schema_migrations','ar_internal_metadata','role_versions','permissions','role_version_permissions'] LOOP

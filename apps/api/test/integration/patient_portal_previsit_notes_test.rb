@@ -115,7 +115,8 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     note = response.parsed_body.fetch("note")
     assert_equal Clinic::Care::PrevisitIntake::FORM_ID, note.fetch("form_id")
     assert_equal true, note.dig("attestation", "accepted")
-    assert_equal "Synthetic allergy answer", note.dig("intake_answers", "allergies")
+    assert_equal "Synthetic allergy answer", note.dig("intake_answers", "allergies", "value")
+    assert_equal "answered", note.dig("intake_answers", "allergies", "state")
 
     plain_note_appointment = create_appointment(patient: @patient, starts_at: 4.days.from_now.change(usec: 0))
     post portal_path(plain_note_appointment), params: { previsit_note: {
@@ -126,7 +127,7 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     second_appointment = create_appointment(patient: @patient, starts_at: 5.days.from_now.change(usec: 0))
     get portal_path(second_appointment), headers: @headers
     assert_response :success
-    assert_equal "Synthetic allergy answer", response.parsed_body.dig("reusable_answers", "answers", "allergies")
+    assert_equal "Synthetic allergy answer", response.parsed_body.dig("reusable_answers", "answers", "allergies", "value")
     assert_equal Clinic::Care::PrevisitIntake::ATTESTATION_VERSION,
       response.parsed_body.dig("intake_form", "attestation", "version")
   end
@@ -234,6 +235,113 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     } }, headers: csrf_headers, as: :json
     assert_response :bad_request
     assert_equal "request_key", response.parsed_body.fetch("field")
+    assert_empty appointment.previsit_notes
+  end
+
+  test "draft answers preserve distinct states and cannot be mistaken for confirmed submission" do
+    appointment = create_appointment(patient: @patient, starts_at: 3.days.from_now)
+    answers = %w[unanswered unknown declined not_applicable negative].zip(
+      %w[goals medications history procedures allergies]
+    ).to_h { |state, field| [field, { state: state, value: "" }] }
+    request = { text: "Synthetic draft context", intake_answers: answers,
+      status: "draft", attestation: false, expected_version: 0, request_key: "journey-draft-states" }
+    post portal_path(appointment), params: { previsit_note: request }, headers: csrf_headers, as: :json
+    assert_response :created
+    saved = response.parsed_body.fetch("note")
+    assert_equal "draft", saved.fetch("status")
+    assert_nil saved.fetch("attestation")
+    answers.each { |field, answer| assert_equal answer[:state], saved.dig("intake_answers", field, "state") }
+    assert_includes saved.fetch("text"), "draft, not confirmed"
+    assert_equal "scheduled", appointment.reload.status
+
+    assert_no_difference "Clinic::Care::PrevisitNote.count" do
+      post portal_path(appointment), params: { previsit_note: request }, headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal saved, response.parsed_body.fetch("note")
+      post portal_path(appointment), params: { previsit_note: request.merge(status: "submitted", expected_version: 1,
+        request_key: "journey-unconfirmed-submit") }, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      post portal_path(appointment), params: { previsit_note: request.merge(request_key: "journey-stale-draft") },
+        headers: csrf_headers, as: :json
+      assert_response :conflict
+    end
+    post portal_path(appointment), params: { previsit_note: request.merge(status: "submitted", attestation: true,
+      expected_version: 1, request_key: "journey-confirm-draft") }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "submitted", response.parsed_body.dig("note", "status")
+    assert_equal true, response.parsed_body.dig("note", "attestation", "accepted")
+    assert_equal "draft", Clinic::Care::PrevisitIntake.decode(appointment.previsit_notes.order(:version_number).first.encrypted_text).fetch("status")
+  end
+
+  test "invalid measurement submission leaves an independently savable draft in the same appointment" do
+    appointment = create_appointment(patient: @patient, starts_at: 3.days.from_now)
+    measurement = { state: "answered", value: "83.5", unit: "kg", measured_at: Date.current.iso8601, source: "patient_reported" }
+    base = { text: "", status: "submitted", attestation: true, expected_version: 0 }
+    [{ unit: "ml" }, { source: "guessed" }, { measured_at: 1.day.from_now.to_date.iso8601 }, { value: "-2" }].each_with_index do |invalid, index|
+      post portal_path(appointment), params: { previsit_note: base.merge(intake_answers: { weight: measurement.merge(invalid) },
+        request_key: "journey-invalid-measurement-#{index}") }, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_empty appointment.previsit_notes
+    post portal_path(appointment), params: { previsit_note: base.merge(status: "draft", attestation: false,
+      intake_answers: { weight: { state: "answered", value: "83.5" }, goals: "Discuss sustainable changes" },
+      request_key: "journey-partial-measurement") }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "draft", response.parsed_body.dig("note", "status")
+    assert_nil response.parsed_body.dig("note", "intake_answers", "weight", "measured_at")
+    assert_equal "scheduled", appointment.reload.status
+    post portal_path(appointment), params: { previsit_note: base.merge(expected_version: 1,
+      intake_answers: { weight: measurement }, request_key: "journey-complete-measurement") }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal measurement.stringify_keys, response.parsed_body.dig("note", "intake_answers", "weight")
+  end
+
+  test "reuse preserves source provenance excludes drafts and denies another patient's source" do
+    source = create_appointment(patient: @patient, starts_at: 3.days.from_now)
+    answers = { medications: { state: "answered", value: "Synthetic supplement\nSynthetic medicine" } }
+    post portal_path(source), params: { previsit_note: { text: "", intake_answers: answers,
+      attestation: true, expected_version: 0, request_key: "journey-reuse-source" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    original = response.parsed_body.fetch("note")
+    target = create_appointment(patient: @patient, starts_at: 4.days.from_now)
+    request = { text: "", intake_answers: answers, status: "draft", attestation: false,
+      reused_note_id: original.fetch("id"), expected_version: 0, request_key: "journey-reuse-draft" }
+    post portal_path(target), params: { previsit_note: request }, headers: csrf_headers, as: :json
+    assert_response :created
+    provenance = response.parsed_body.dig("note", "inherited_from")
+    assert_equal original.fetch("id"), provenance.fetch("note_id")
+    assert_equal @portal_user.id, provenance.fetch("author_id")
+    assert_equal original.fetch("submitted_at"), provenance.fetch("recorded_at")
+    assert_includes provenance.fetch("question_ids"), "medications"
+    next_visit = create_appointment(patient: @patient, starts_at: 5.days.from_now)
+    get portal_path(next_visit), headers: @headers
+    assert_response :success
+    assert_equal original.fetch("id"), response.parsed_body.dig("reusable_answers", "source_note_id")
+
+    other = @practice.patients.create!(display_name: "Synthetic Unrelated Intake", reference: "INTAKE-OTHER")
+    other_visit = create_appointment(patient: other, starts_at: 6.days.from_now)
+    other_note = other_visit.previsit_notes.create!(practice: @practice, patient: other, submitted_by_user: @portal_user,
+      submitted_at: Time.current, version_number: 1, encrypted_text: "Other synthetic context", request_key: "journey-other-source")
+    assert_no_difference "Clinic::Care::PrevisitNote.count" do
+      post portal_path(next_visit), params: { previsit_note: request.merge(reused_note_id: other_note.id,
+        request_key: "journey-wrong-reuse") }, headers: csrf_headers, as: :json
+      assert_response :not_found
+      post portal_path(other_visit), params: { previsit_note: request.merge(request_key: "journey-wrong-write") },
+        headers: csrf_headers, as: :json
+      assert_response :not_found
+    end
+  end
+
+  test "legacy v2 payload remains readable and encoded payload cannot bypass attestation" do
+    legacy = Clinic::Care::PrevisitIntake::PREFIX + JSON.generate(form_id: "meta-clinic-previsit-v2", text: "Legacy context",
+      answers: { allergies: "Legacy reported reaction" }, attestation: {
+        id: Clinic::Care::PrevisitIntake::ATTESTATION_ID, version: Clinic::Care::PrevisitIntake::ATTESTATION_VERSION, accepted: true })
+    assert_equal "Legacy reported reaction", Clinic::Care::PrevisitIntake.decode(legacy).dig("answers", "allergies")
+    assert_includes Clinic::Care::PrevisitIntake.render(legacy), "Legacy reported reaction"
+    appointment = create_appointment(patient: @patient, starts_at: 3.days.from_now)
+    post portal_path(appointment), params: { previsit_note: { text: legacy, expected_version: 0,
+      request_key: "journey-encoded-bypass" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
     assert_empty appointment.previsit_notes
   end
 

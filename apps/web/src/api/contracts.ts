@@ -229,7 +229,7 @@ export type Patient = {
     date_of_birth: string | null;
     sex: string;
     primary_language: string;
-    interpreter_required: boolean;
+    interpreter_required: boolean | null;
   } | null;
   contacts?: {
     id: number;
@@ -377,6 +377,13 @@ export type PatientCareSummary = {
   review_needed_topics: string[] | null;
 };
 export type EncounterIntakeRevision = {
+  questionnaire?: {
+    answers: import("../features/patientPortal/IntakeQuestions").IntakeAnswers;
+    text: string;
+    status: "draft" | "submitted";
+    staff_confirmation?: boolean;
+  } | null;
+  questionnaire_text?: string | null;
   id: number;
   patient_id: number;
   encounter_id: number;
@@ -430,18 +437,39 @@ export type ClinicalTask = {
     | "order_execution"
     | "record_request"
     | "staff_request";
-  state: "open" | "claimed" | "in_progress" | "completed" | "cancelled";
+  state:
+    "open" | "claimed" | "in_progress" | "on_hold" | "completed" | "cancelled";
   pool_code: "clinical" | "front_desk" | "records";
   assigned_to_membership_id: number | null;
   due_at: string | null;
   source_type: string;
   source_kind?: "medication_request" | "service_request" | null;
+  pending_assignee_membership_id?: number | null;
+  dependency_ids?: number[];
+  waiting_on_task_ids?: number[];
+  waiting_reason?: string | null;
+  assignment_exception?: string | null;
+  owner_unavailable?: boolean;
+  source_managed?: boolean;
+  history?: Array<{
+    id: number;
+    action: string;
+    actor_membership_id: number;
+    task_version: number;
+    recorded_at: string;
+    snapshot: Record<string, unknown>;
+  }>;
   source_id: number | null;
   resolution_code: string | null;
   version: number;
   updated_at: string;
 };
 export type NurseWorkspace = {
+  questionnaire_form?: {
+    fields: import("../features/patientPortal/IntakeQuestions").IntakeField[];
+    answer_states: string[];
+    medication_options: string[];
+  };
   schema_version: "nurse-workspace-v1";
   patient_id: number;
   encounter_id: number;
@@ -456,6 +484,7 @@ export type NurseWorkspace = {
   };
 };
 export type ClinicalRevisionBase = {
+  completion_reconciliation_required?: boolean;
   id: number;
   patient_id: number;
   encounter_id: number;
@@ -469,6 +498,22 @@ export type ClinicalRevisionBase = {
   recorded_at: string;
 };
 export type MedicationRequestRevision = ClinicalRevisionBase & {
+  fulfillment_route?:
+    "outside_pharmacy" | "take_home" | "administration" | null;
+  medication_strength?: string | null;
+  medication_form?: string | null;
+  medication_code_system?: string | null;
+  medication_code?: string | null;
+  medication_code_version?: string | null;
+  catalog_source?: string | null;
+  pharmacy_name?: string | null;
+  pharmacy_location?: string | null;
+  pharmacy_identifier?: string | null;
+  prescribed_quantity?: string | null;
+  quantity_unit?: string | null;
+  refills?: number | null;
+  starts_on?: string | null;
+  duration_text?: string | null;
   intent: "proposal" | "plan" | "order";
   transmission_state:
     | "not_requested"

@@ -99,6 +99,9 @@ module Clinic
           raise ActiveRecord::StaleObjectError.new(entry, action) unless entry.lock_version == expected_version
           raise ArgumentError, "This offer has expired or is no longer available." unless entry.effective_state == "offered"
           if action == "accept"
+            unless Clinic::PatientPortal::BookingEligibility.active?(practice: entry.practice, patient: entry.patient)
+              raise ArgumentError, Clinic::PatientPortal::BookingEligibility::MESSAGE
+            end
             book!(entry, actor)
           elsif action == "decline"
             entry.update!(state: "waiting", offer_starts_at: nil, offer_ends_at: nil, offer_expires_at: nil)

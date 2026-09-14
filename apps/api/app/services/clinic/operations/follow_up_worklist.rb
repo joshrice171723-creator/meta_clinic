@@ -25,7 +25,8 @@ module Clinic
         can_read_messages = ability.allowed_permission?("staff_messaging.read", any_site: true)
         can_manage_encounters = ability.allowed_permission?("patients.read", any_site: true) &&
           ability.allowed_permission?("encounters.write", any_site: true)
-        raise Clinic::Authorization::Denied unless can_read_messages || can_manage_encounters
+        can_read_renewals = ability.practice_scope_for?("billing.read") || ability.practice_scope_for?("billing.write")
+        raise Clinic::Authorization::Denied unless can_read_messages || can_manage_encounters || can_read_renewals
 
         base_scope = if can_read_messages
           accessible_conversation_ids = accessible_conversations(member).select(:id)
@@ -72,6 +73,8 @@ module Clinic
           .includes(:patient, :encounter, assigned_to_membership: :user)
           .order(:due_at, :id).limit(LIMIT)
 
+        renewals = can_read_renewals && !site_id && filter.in?(%w[all unassigned]) ? renewal_exceptions : []
+
         {
           summary: summary,
           requests: requests.map { |request| serialize(request, member) },
@@ -82,13 +85,38 @@ module Clinic
           encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
           clinical_task_summary: clinical_task_summary,
           clinical_tasks: clinical_tasks.map { |task| serialize_clinical_task(task, member) },
-          reminder_attention_count: reminder_attention_count
+          reminder_attention_count: reminder_attention_count,
+          renewal_exceptions: renewals.first(LIMIT), renewal_exceptions_truncated: renewals.length > LIMIT
         }
       end
 
       private
 
       attr_reader :practice, :actor, :filter, :site_id, :at
+
+      def renewal_exceptions
+        coverage = practice.memberships.active.includes(:user).any? do |membership|
+          next false unless membership.user.active?
+          permission = Ability.new(membership.user, practice:)
+          permission.practice_scope_for?("billing.payment_record") || permission.practice_scope_for?("billing.write")
+        end
+        Clinic::Billing::StripeCheckout.where(practice:)
+          .where("subscription_status IN (?) OR renewal_invoice_status = ? OR (renewal_invoice_status = ? AND renewal_amount_due > 0)",
+            %w[past_due unpaid incomplete_expired], "uncollectible", "open")
+          .includes(agreement: :patient).order(:updated_at, :id).limit(LIMIT + 1).map do |checkout|
+            agreement = checkout.agreement
+            {
+              id: checkout.id, agreement_id: agreement.id, patient_id: agreement.patient_id,
+              patient_display_name: agreement.patient.display_name, patient_reference: agreement.patient.reference,
+              status: checkout.subscription_status, invoice_status: checkout.renewal_invoice_status,
+              amount_due: checkout.renewal_amount_due&.to_s("F"), currency: agreement.currency,
+              updated_at: checkout.updated_at.iso8601(6), owner: "Billing team",
+              assignment_exception: coverage ? nil : "No eligible billing coverage is configured.",
+              next_action: "Reconcile the current renewal invoice before collecting again. Clinical follow-up remains available.",
+              href: "/clinic/billing?tab=subscriptions"
+            }
+          end
+      end
 
       def accessible_conversations(member)
         scope = Clinic::StaffConversation.active
@@ -176,7 +204,7 @@ module Clinic
       end
 
       def accessible_clinical_tasks(ability)
-        scope = Clinic::ClinicalTask.where(practice_id: practice.id, state: %w[open claimed in_progress])
+        scope = Clinic::ClinicalTask.where(practice_id: practice.id, state: Clinic::ClinicalTask::ACTIVE_STATES)
         if site_id
           site = practice.sites.find(site_id)
           return scope.none unless ability.allowed_permission?("encounters.write", site: site)
@@ -208,6 +236,14 @@ module Clinic
             "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}#nurse-workspace"
           end
         end
+        lab_action = if task.source_type == "lab_follow_up"
+          Clinic::Care::LabReportAction.where(practice_id: task.practice_id, clinical_task_id: task.id,
+            kind: "recollection_requested").includes(:lab_report_version).first
+        end
+        if lab_action
+          version = lab_action.lab_report_version
+          encounter_href = "/clinic/patients/#{task.patient_id}?lab_report_id=#{version.lab_report_id}&lab_version_id=#{version.id}"
+        end
         Clinic::Care::NurseWorkflow.serialize_task(task).merge(
           patient_display_name: task.patient.display_name,
           patient_reference: task.patient.reference,
@@ -215,15 +251,18 @@ module Clinic
           assignee_label: task.assigned_to_membership&.user&.email_address,
           overdue: task.due_at.present? && task.due_at < at,
           eligible_assignees: eligible_assignees_for_task(task),
+          source_label: lab_action ? "Laboratory recollection" : nil,
+          source_note: lab_action && Ability.new(actor, practice:).allowed_permission?("notes.read", site: task.site) ? lab_action.note : nil,
           encounter_href:,
           patient_href: "/clinic/patients/#{task.patient_id}"
         )
       end
 
       def eligible_assignees_for_task(task)
-        return [] unless task.encounter
-
-        eligible_assignees_for_encounter(task.encounter)
+        practice.memberships.active.includes(:user).filter_map do |membership|
+          next unless Clinic::Care::TaskContinuity.eligible?(membership, task)
+          { membership_id: membership.id, label: membership.user.email_address }
+        end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
       end
 
       def eligible_assignees_for_encounter(encounter)

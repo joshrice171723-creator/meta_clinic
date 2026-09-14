@@ -21,7 +21,9 @@ module Clinic
           },
           fields: %i[intent transmission_state inventory_product_id requester_membership_id medication_name dose_value dose_unit_code
             dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text instructions
-            source_medication_statement_id completion_exception]
+            source_medication_statement_id completion_exception fulfillment_route medication_strength medication_form
+            medication_code_system medication_code medication_code_version catalog_source pharmacy_name pharmacy_location
+            pharmacy_identifier prescribed_quantity quantity_unit refills starts_on duration_text]
         },
         service_requests: {
           klass: ServiceRequestRevision,
@@ -161,9 +163,8 @@ module Clinic
         values[:requester_membership_id] = membership.id if kind.to_sym == :medication_requests
         prepare_values!(kind, practice, values, patient:, encounter:)
         validate_references!(kind, practice, patient, encounter, values)
-        series_id = SecureRandom.uuid
         payload = { patient_id: patient.id, encounter_id: encounter.id, site_id: encounter.site_id,
-          series_id:, values: }
+          values: }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: operation_code(kind, :create), request_key:, payload:,
           authorization_action: definition.fetch(:permission),
@@ -171,6 +172,7 @@ module Clinic
           result_resource: ->(record) { record },
           resource_resolver: resolver(definition.fetch(:klass), encounter)
         ) do
+          series_id = SecureRandom.uuid
           definition.fetch(:klass).create!(
             values.merge(common_attributes(practice, patient, encounter, membership, request_key, values:,
               series_id:, version_number: 1, prior_revision: nil))
@@ -179,14 +181,19 @@ module Clinic
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
-      def revise(kind:, series_id:, practice:, actor:, patient:, encounter:, attributes:, expected_version:, request_key:)
+      def revise(kind:, series_id:, practice:, actor:, patient:, encounter:, attributes:, expected_version:, request_key:, reconcile_completion: false)
         definition = definition!(kind)
         ensure_encounter_context!(practice, patient, encounter)
         membership = authorize_write!(practice, actor, encounter, definition)
         series = normalized_series_id!(series_id)
         changes = normalized_attributes(definition, attributes)
+        if kind.to_sym == :medication_requests && changes.key?(:transmission_state)
+          raise ArgumentError, "Transmission evidence is recorded through prescription attempts, not an editable status."
+        end
         payload = { patient_id: patient.id, encounter_id: encounter.id, series_id: series,
           expected_version:, changes: }
+        raise ArgumentError, "Choose whether to reconcile completion." unless [ true, false ].include?(reconcile_completion)
+        payload[:reconcile_completion] = true if reconcile_completion
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: operation_code(kind, :revise), request_key:, payload:,
           authorization_action: definition.fetch(:permission),
@@ -203,7 +210,18 @@ module Clinic
             raise ActiveRecord::StaleObjectError.new(previous, "create revision")
           end
           values = revision_values(definition, previous).merge(changes)
-          validate_revision_change!(kind, definition, previous, changes, values)
+          if kind.to_sym == :medication_requests && PrescriptionWorkflow.unresolved?(previous)
+            raise ArgumentError, "Confirm the previous prescription outcome before changing its destination or instructions."
+          end
+          if kind.to_sym == :medication_requests && MedicationDispensing.records(previous).sum(:quantity).positive?
+            if %i[inventory_product_id quantity_unit fulfillment_route].any? { |field| changes.key?(field) && changes[field] != previous.public_send(field) }
+              raise ArgumentError, "Reconcile recorded handovers before changing fulfillment or stock identity."
+            end
+            if values[:prescribed_quantity] && BigDecimal(values[:prescribed_quantity].to_s) < MedicationDispensing.records(previous).sum(:quantity)
+              raise ArgumentError, "Prescribed quantity cannot be less than the recorded handovers."
+            end
+          end
+          validate_revision_change!(kind, definition, previous, changes, values, reconcile_completion:)
           prepare_values!(kind, practice, values, patient:, encounter:)
           validate_references!(kind, practice, patient, encounter, values)
           record = definition.fetch(:klass).create!(
@@ -227,7 +245,7 @@ module Clinic
           version_number: record.version_number,
           prior_revision_id: record.prior_revision_id,
           status: record.status,
-          allowed_statuses: definition.fetch(:transitions).fetch(record.status, []),
+          allowed_statuses: allowed_statuses(kind, definition, record),
           recorded_by_membership_id: record.recorded_by_membership_id,
           recorded_at: record.recorded_at.iso8601(6)
         }
@@ -242,6 +260,9 @@ module Clinic
           end
         end
         payload.merge!(immunization_administration_evidence(record)) if kind.to_sym == :immunizations
+        if %i[medication_requests service_requests].include?(kind.to_sym)
+          payload[:completion_reconciliation_required] = record.status == "completed" && active_order_tasks(kind, record).exists?
+        end
         payload
       end
 
@@ -419,7 +440,16 @@ module Clinic
       end
       private_class_method :medication_products
 
-      def validate_revision_change!(kind, definition, previous, changes, values)
+      def validate_revision_change!(kind, definition, previous, changes, values, reconcile_completion: false)
+        if reconcile_completion
+          unless %i[medication_requests service_requests].include?(kind.to_sym) && previous.status == "completed" &&
+            active_order_tasks(kind, previous).exists? && changes.none? { |field, value| previous.public_send(field) != value }
+            raise ArgumentError, "Reconcile a completed order's outstanding work without changing its clinical fields."
+          end
+          require_completion_evidence!(kind, previous, values)
+          return
+        end
+        require_completion_evidence!(kind, previous, values) if values[:status] == "completed"
         changed = changes.any? { |field, value| previous.public_send(field) != value }
         raise ArgumentError, "Change at least one field before saving a revision." unless changed
         if kind.to_sym == :immunizations && changes[:status] == "entered_in_error"
@@ -430,16 +460,48 @@ module Clinic
         end
         return unless changes.key?(:status) && changes[:status] != previous.status
 
-        allowed = definition.fetch(:transitions).fetch(previous.status, [])
+        allowed = allowed_statuses(kind, definition, previous)
         raise ArgumentError, "That status transition is not allowed." unless allowed.include?(changes[:status])
-        require_completion_evidence!(kind, previous, values) if changes[:status] == "completed"
       end
       private_class_method :validate_revision_change!
 
+      def allowed_statuses(kind, definition, record)
+        allowed = definition.fetch(:transitions).fetch(record.status, [])
+        if kind.to_sym == :medication_requests && record.status == "completed" && record.fulfillment_route == "take_home" &&
+          MedicationDispensing.records(record).where(status: "reversed").exists? && MedicationDispensing.remaining(record).positive?
+          allowed + [ "authorized" ]
+        else
+          allowed
+        end
+      end
+      private_class_method :allowed_statuses
+
+      def active_order_tasks(kind, record)
+        source_kind = { medication_requests: "medication_request", service_requests: "service_request" }.fetch(kind.to_sym)
+        root_ids = record.class.where(practice_id: record.practice_id, series_id: record.series_id, version_number: 1).select(:id)
+        Clinic::ClinicalTask.where(practice_id: record.practice_id, source_type: "order", source_kind:, source_id: root_ids,
+          state: %w[open claimed in_progress on_hold])
+      end
+      private_class_method :active_order_tasks
+
       def require_completion_evidence!(kind, previous, values)
         return unless %i[medication_requests service_requests].include?(kind.to_sym)
+        active_order_tasks(kind, previous).lock.each { |task| TaskContinuity.ensure_unblocked!(task) }
+        if kind.to_sym == :medication_requests && values[:fulfillment_route] == "take_home"
+          quantity = BigDecimal(values[:prescribed_quantity].to_s, exception: false)
+          unless quantity&.positive? && values[:quantity_unit].present? && quantity == MedicationDispensing.records(previous).sum(:quantity)
+            raise ArgumentError, "The remaining take-home quantity is still open."
+          end
+          return
+        end
 
         revision_ids = previous.class.where(practice_id: previous.practice_id, series_id: previous.series_id).select(:id)
+        if kind.to_sym == :service_requests && previous.request_kind == "lab"
+          reports = LabReport.where(practice_id: previous.practice_id, service_request_revision_id: revision_ids).includes(:current_version)
+          if reports.any? && reports.none? { |report| report.current_version.reviewed_at && %w[final amended corrected].include?(report.current_version.status) && report.current_version.results.none? { |row| row["value_kind"] == "absent" } }
+            raise ArgumentError, "Some lab results remain pending. Review available results or follow up with the laboratory."
+          end
+        end
         linked = if kind.to_sym == :medication_requests
           MedicationAdministration.exists?(practice_id: previous.practice_id,
             medication_request_revision_id: revision_ids, status: "completed") ||
@@ -463,9 +525,10 @@ module Clinic
         active_status = source_kind == "medication_request" ? "authorized" : "active"
         root = record.class.where(practice_id: record.practice_id, series_id: record.series_id, version_number: 1).sole
         task = Clinic::ClinicalTask.where(practice_id: record.practice_id, source_type: "order",
-          source_kind:, source_id: root.id, state: %w[open claimed in_progress]).lock.first
+          source_kind:, source_id: root.id, state: %w[open claimed in_progress on_hold]).lock.first
         if record.status == active_status
           if task
+            task.update!(state: task.assigned_to_membership_id ? "claimed" : "open") if task.state == "on_hold"
             due_at = record.respond_to?(:due_at) ? record.due_at : nil
             task.update!(due_at:) if task.due_at != due_at
           elsif previous.status != active_status
@@ -478,7 +541,9 @@ module Clinic
           if record.status == "completed"
             task.update!(state: "completed", resolution_code: "completed", completed_by_membership: membership,
               completed_at: Current.business_time)
-          elsif record.status.in?(%w[on_hold cancelled entered_in_error])
+          elsif record.status == "on_hold"
+            task.update!(state: "on_hold")
+          elsif record.status.in?(%w[cancelled entered_in_error])
             task.update!(state: "cancelled")
           end
         end

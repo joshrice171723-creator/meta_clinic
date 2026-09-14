@@ -11,13 +11,19 @@ module Clinic
       def index
         entries = scope.where(state: %w[waiting offered booked]).order(created_at: :desc).limit(30)
         record_portal_read("patient_portal.waitlist.read")
-        render json: { entries: entries.map { |entry| Clinic::Scheduling::Waitlist.serialize(entry).except(:reason, :patient_name, :patient_id) } }
+        render json: { entries: entries.map { |entry| Clinic::Scheduling::Waitlist.serialize(entry).except(:reason, :patient_name, :patient_id) },
+          can_accept: BookingEligibility.active?(practice: portal_practice, patient: portal_patient),
+          booking_requirement: BookingEligibility::MESSAGE }
       end
 
       def update
         raise ArgumentError, "An active patient portal identity is required to accept an offer." unless patient_portal_identity
         input = parameter_hash!(:waitlist, %i[action expected_version request_key])
         entry = scope.find(integer_id!(params[:id], field: :id))
+        if input[:action] == "accept" && entry.state != "booked" &&
+            !BookingEligibility.active?(practice: portal_practice, patient: portal_patient)
+          raise ArgumentError, BookingEligibility::MESSAGE
+        end
         updated = Clinic::Scheduling::Waitlist.portal_reply(entry: entry, identity: patient_portal_identity,
           actor: current_user, action: enum_param!(input[:action], field: :action, allowed: %w[accept decline]),
           expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0),

@@ -74,6 +74,8 @@ type EncounterFollowUpItem = EncounterFollowUpRecord & {
 };
 
 type ClinicalTaskItem = ClinicalTask & {
+  source_label?: string | null;
+  source_note?: string | null;
   patient_display_name: string;
   patient_reference: string;
   assigned_to_me: boolean;
@@ -85,6 +87,23 @@ type ClinicalTaskItem = ClinicalTask & {
 };
 
 type FollowUpResponse = {
+  renewal_exceptions_truncated?: boolean;
+  renewal_exceptions?: Array<{
+    id: number;
+    agreement_id: number;
+    patient_id: number;
+    patient_display_name: string;
+    patient_reference: string | null;
+    status: string;
+    invoice_status: string | null;
+    amount_due: string | null;
+    currency: string;
+    updated_at: string;
+    owner: string;
+    assignment_exception: string | null;
+    next_action: string;
+    href: string;
+  }>;
   summary: Summary;
   requests: StaffRequest[];
   encounter_summary: Summary;
@@ -146,6 +165,15 @@ type RefillRequest = {
 };
 
 type RefillResponse = { refill_requests: RefillRequest[] };
+type CallbackRequest = {
+  id: number;
+  status: string;
+  content: string;
+  requested_at: string;
+  reviewed_at: string | null;
+  review_note: string | null;
+  patient: { id: number; display_name: string; reference: string | null };
+};
 
 type WorkExceptionSource = {
   available: boolean;
@@ -255,6 +283,7 @@ type InboxItem = {
   priority?: "routine" | "urgent" | "critical";
   icon: "assignment" | "message" | "lab" | "note" | "payment";
   staffRequest?: StaffRequest;
+  callbackRequest?: CallbackRequest;
   nextAction: string;
   owner: string;
   sourceLabel: string;
@@ -378,27 +407,43 @@ function mutationFailure(error: unknown) {
 function TaskActions({
   task,
   actorMembershipId,
+  availableTasks,
   onChanged,
 }: {
   task: ClinicalTaskItem;
   actorMembershipId: number;
+  availableTasks: ClinicalTaskItem[];
   onChanged: () => void;
 }) {
   const [assigneeId, setAssigneeId] = useState(
     task.assigned_to_membership_id?.toString() || "",
   );
   const [resolutionCode, setResolutionCode] = useState("completed");
+  const [dependencyIds, setDependencyIds] = useState<number[]>(
+    task.dependency_ids || [],
+  );
+  const [showDependencies, setShowDependencies] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const attempts = useRef(new Map<string, string>());
+  const attempts = useRef(new Map<string, { key: string; version: number }>());
 
   async function transition(
-    action: "claim" | "assign" | "start" | "complete",
+    action:
+      | "claim"
+      | "assign"
+      | "accept_transfer"
+      | "reject_transfer"
+      | "dependencies"
+      | "start"
+      | "complete",
     values: Record<string, unknown> = {},
   ) {
     const signature = JSON.stringify([action, values]);
-    const requestKey = attempts.current.get(signature) || crypto.randomUUID();
-    attempts.current.set(signature, requestKey);
+    const attempt = attempts.current.get(signature) || {
+      key: crypto.randomUUID(),
+      version: task.version,
+    };
+    attempts.current.set(signature, attempt);
     setBusy(action);
     setError("");
     try {
@@ -407,8 +452,8 @@ function TaskActions({
         body: {
           task: {
             action,
-            expected_version: task.version,
-            request_key: requestKey,
+            expected_version: attempt.version,
+            request_key: attempt.key,
             ...values,
           },
         },
@@ -424,15 +469,58 @@ function TaskActions({
     }
   }
 
-  const canClaim = task.state === "open" && !task.assigned_to_membership_id;
+  const canClaim =
+    ["open", "claimed", "in_progress", "on_hold"].includes(task.state) &&
+    (!task.assigned_to_membership_id ||
+      task.owner_unavailable ||
+      (task.state === "open" &&
+        task.assigned_to_membership_id === actorMembershipId));
   const canResolve =
     task.assigned_to_membership_id === actorMembershipId &&
-    ["claimed", "in_progress"].includes(task.state);
+    ["claimed", "in_progress"].includes(task.state) &&
+    !task.source_managed &&
+    !task.waiting_reason;
   const canStart =
     task.assigned_to_membership_id === actorMembershipId &&
-    task.state === "claimed";
+    task.state === "claimed" &&
+    !task.waiting_reason;
   return (
     <Stack spacing={1} sx={{ mt: 1.5 }}>
+      {task.assignment_exception && (
+        <Alert severity="warning">{task.assignment_exception}</Alert>
+      )}
+      {task.waiting_reason && (
+        <Alert severity="info">
+          {task.waiting_reason} Ownership and unrelated work remain available.
+        </Alert>
+      )}
+      {task.pending_assignee_membership_id && (
+        <Alert severity="info">
+          This handoff is awaiting acceptance. Current coverage remains
+          responsible. Requested owner:{" "}
+          {task.eligible_assignees.find(
+            (candidate) =>
+              candidate.membership_id === task.pending_assignee_membership_id,
+          )?.label || "no longer eligible; request another transfer"}
+          .
+          {task.pending_assignee_membership_id === actorMembershipId && (
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <Button
+                disabled={Boolean(busy)}
+                onClick={() => transition("accept_transfer")}
+              >
+                Accept transfer
+              </Button>
+              <Button
+                disabled={Boolean(busy)}
+                onClick={() => transition("reject_transfer")}
+              >
+                Decline transfer
+              </Button>
+            </Stack>
+          )}
+        </Alert>
+      )}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
         {canClaim && (
           <Button
@@ -441,7 +529,11 @@ function TaskActions({
             disabled={Boolean(busy)}
             onClick={() => transition("claim")}
           >
-            {busy === "claim" ? "Claiming…" : "Claim"}
+            {busy === "claim"
+              ? "Claiming…"
+              : task.owner_unavailable
+                ? "Claim coverage"
+                : "Claim"}
           </Button>
         )}
         <FormControl size="small" sx={{ minWidth: 190 }}>
@@ -478,7 +570,7 @@ function TaskActions({
             })
           }
         >
-          {busy === "assign" ? "Transferring…" : "Transfer"}
+          {busy === "assign" ? "Requesting…" : "Request transfer"}
         </Button>
       </Stack>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
@@ -532,6 +624,80 @@ function TaskActions({
         )}
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
+      {task.source_managed && (
+        <Typography variant="caption">
+          Completion is recorded in the linked source workspace.
+        </Typography>
+      )}
+      <Button
+        size="small"
+        sx={{ alignSelf: "flex-start" }}
+        onClick={() => setShowDependencies(!showDependencies)}
+      >
+        {showDependencies ? "Hide prerequisites" : "Manage prerequisites"}
+      </Button>
+      {showDependencies && (
+        <Stack spacing={1}>
+          <FormControl size="small">
+            <InputLabel id={`task-dependencies-${task.id}`}>
+              Work required before starting
+            </InputLabel>
+            <Select
+              multiple
+              labelId={`task-dependencies-${task.id}`}
+              label="Work required before starting"
+              value={dependencyIds}
+              onChange={(event) =>
+                setDependencyIds(
+                  Array.from(event.target.value as number[]).map(Number),
+                )
+              }
+            >
+              {availableTasks
+                .filter(
+                  (candidate) =>
+                    candidate.patient_id === task.patient_id &&
+                    candidate.id !== task.id,
+                )
+                .map((candidate) => (
+                  <MenuItem key={candidate.id} value={candidate.id}>
+                    {taskLabels[candidate.task_kind]} ·{" "}
+                    {candidate.source_type.replaceAll("_", " ")} · #
+                    {candidate.id}
+                  </MenuItem>
+                ))}
+              {dependencyIds
+                .filter(
+                  (id) =>
+                    !availableTasks.some((candidate) => candidate.id === id),
+                )
+                .map((id) => (
+                  <MenuItem key={id} value={id}>
+                    Recorded prerequisite #{id}
+                  </MenuItem>
+                ))}
+            </Select>
+          </FormControl>
+          <Typography variant="caption">
+            Only this task's start and completion wait. Use the source workspace
+            for clinical decisions.
+          </Typography>
+          <Button
+            disabled={Boolean(busy)}
+            onClick={() =>
+              transition("dependencies", { dependency_ids: dependencyIds })
+            }
+          >
+            Save prerequisites
+          </Button>
+        </Stack>
+      )}
+      {Boolean(task.history?.length) && (
+        <Typography variant="caption" color="text.secondary">
+          Latest responsibility event:{" "}
+          {task.history?.at(-1)?.action.replaceAll("_", " ")}
+        </Typography>
+      )}
     </Stack>
   );
 }
@@ -891,6 +1057,91 @@ function StaffRequestActions({
   );
 }
 
+function CallbackActions({
+  request,
+  onChanged,
+}: {
+  request: CallbackRequest;
+  onChanged: () => void;
+}) {
+  const { capabilities } = useClinic();
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const attempts = useRef(new Map<string, string>());
+  if (!capabilities.appointments) return null;
+  async function transition(status: "in_review" | "resolved" | "declined") {
+    if (busy) return;
+    if (status !== "in_review" && !note.trim()) {
+      setError("Record the contact outcome before closing this request.");
+      return;
+    }
+    const signature = JSON.stringify([status, note.trim()]);
+    const key = attempts.current.get(signature) || crypto.randomUUID();
+    attempts.current.set(signature, key);
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ callback_request: CallbackRequest }>(
+        `/api/clinic/callback_requests/${request.id}/transition`,
+        {
+          method: "POST",
+          body: {
+            callback_request: {
+              request_key: key,
+              status,
+              review_note: note.trim(),
+            },
+          },
+        },
+      );
+      if (
+        result.callback_request.id !== request.id ||
+        result.callback_request.status !== status
+      )
+        throw new Error(
+          "The callback update was not confirmed. Refresh before retrying.",
+        );
+      attempts.current.delete(signature);
+      onChanged();
+    } catch (reason) {
+      const failure = mutationFailure(reason);
+      if (!failure.outcomeUnknown) attempts.current.delete(signature);
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Stack spacing={1} sx={{ mt: 1.5 }}>
+      <TextField
+        size="small"
+        label="Contact outcome"
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        slotProps={{ htmlInput: { maxLength: 1000 } }}
+      />
+      <Stack direction="row" spacing={1}>
+        {request.status === "pending" && (
+          <Button disabled={busy} onClick={() => transition("in_review")}>
+            Start callback
+          </Button>
+        )}
+        <Button disabled={busy} onClick={() => transition("resolved")}>
+          Record completion
+        </Button>
+        <Button disabled={busy} onClick={() => transition("declined")}>
+          Unable to complete
+        </Button>
+      </Stack>
+      <Typography variant="caption">
+        An attempted call is not confirmed contact. Record the actual outcome.
+      </Typography>
+      {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  );
+}
+
 function InboxRow({
   item,
   work,
@@ -1002,10 +1253,17 @@ function InboxRow({
             Source: {item.sourceLabel}
           </Typography>
         </Stack>
+        {item.callbackRequest && (
+          <CallbackActions
+            request={item.callbackRequest}
+            onChanged={onChanged}
+          />
+        )}
         {item.mutation?.kind === "task" && work && (
           <TaskActions
             task={item.mutation.task}
             actorMembershipId={work.actor_membership_id}
+            availableTasks={work.clinical_tasks}
             onChanged={onChanged}
           />
         )}
@@ -1074,6 +1332,7 @@ function PatientFlowCard({
 export function WorkInbox() {
   const { capabilities, current_site } = useClinic();
   const canLoadWork =
+    capabilities.billing_read === true ||
     capabilities.staff_messaging_read === true ||
     (capabilities.patients === true && capabilities.encounters === true);
   const canLoadLabs =
@@ -1087,6 +1346,10 @@ export function WorkInbox() {
     capabilities.billing_read === true;
   const canLoadScheduledVisits =
     capabilities.patients === true && capabilities.appointments_read === true;
+  const canLoadCallbacks = capabilities.appointments_read === true;
+  const [callbacks, setCallbacks] = useState<
+    SourceState<{ callback_requests: CallbackRequest[] }>
+  >({ loading: canLoadCallbacks });
   const [assignment, setAssignment] = useState<AssignmentFilter>("all");
   const [workType, setWorkType] = useState<WorkType>("all");
   const [refreshRevision, setRefreshRevision] = useState(0);
@@ -1108,6 +1371,22 @@ export function WorkInbox() {
   const [scheduledVisits, setScheduledVisits] = useState<
     SourceState<ClinicTrackingBoard>
   >({ loading: canLoadScheduledVisits });
+
+  useEffect(() => {
+    if (!canLoadCallbacks) return;
+    const abort = new AbortController();
+    setCallbacks({ loading: true });
+    api<{ callback_requests: CallbackRequest[] }>(
+      "/api/clinic/callback_requests",
+      { signal: abort.signal },
+    )
+      .then((data) => setCallbacks({ loading: false, data }))
+      .catch((error: unknown) => {
+        if (!abort.signal.aborted)
+          setCallbacks({ loading: false, error: errorMessage(error) });
+      });
+    return () => abort.abort();
+  }, [canLoadCallbacks, refreshRevision]);
 
   useEffect(() => {
     if (!canLoadWork) return;
@@ -1221,6 +1500,58 @@ export function WorkInbox() {
 
   const items = useMemo(() => {
     const next: InboxItem[] = [];
+    if (assignment === "all") {
+      callbacks.data?.callback_requests
+        .filter((request) => ["pending", "in_review"].includes(request.status))
+        .forEach((request) => {
+          next.push({
+            id: `callback-${request.id}`,
+            type: "patient",
+            title: "Callback requested",
+            patient: request.patient.display_name,
+            patientReference: request.patient.reference,
+            detail: request.content,
+            status: request.status,
+            dueAt: request.requested_at,
+            dateCaption: "Requested",
+            overdue: false,
+            owner: "Front desk team",
+            nextAction: "Contact the patient and record the outcome",
+            sourceLabel: "Patient callback request",
+            href: `/clinic/patients/${request.patient.id}`,
+            action: "Open patient",
+            icon: "message",
+            callbackRequest: request,
+          });
+        });
+      work.data?.renewal_exceptions?.forEach((renewal) =>
+        next.push({
+          id: `renewal-${renewal.id}`,
+          type: "billing",
+          title: "Membership renewal needs attention",
+          patient: renewal.patient_display_name,
+          patientReference: renewal.patient_reference,
+          detail: [
+            renewal.amount_due
+              ? `${renewal.currency} ${renewal.amount_due}`
+              : "Amount not confirmed",
+            renewal.assignment_exception,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          status: renewal.status,
+          dueAt: renewal.updated_at,
+          dateCaption: "Updated",
+          overdue: false,
+          owner: renewal.owner,
+          nextAction: renewal.next_action,
+          sourceLabel: "Membership renewal",
+          href: renewal.href,
+          action: "Open membership billing",
+          icon: "payment",
+        }),
+      );
+    }
     work.data?.clinical_tasks.forEach((task) => {
       next.push({
         id: `task-${task.id}`,
@@ -1228,27 +1559,40 @@ export function WorkInbox() {
         title: taskLabels[task.task_kind],
         patient: task.patient_display_name,
         patientReference: task.patient_reference,
-        detail: taskDetail(task),
+        detail: [
+          task.source_note || taskDetail(task),
+          task.waiting_reason,
+          task.assignment_exception,
+        ]
+          .filter(Boolean)
+          .join(" "),
         status: task.state,
         dueAt: task.due_at,
         dateCaption: "Due",
         overdue: task.overdue,
         assignment: assignmentLabel(task),
-        owner: assignmentLabel(task).replace(/^Assigned to /, ""),
-        nextAction:
-          task.state === "open"
-            ? "Claim or transfer this task"
-            : task.state === "claimed"
-              ? "Start or resolve this task"
-              : "Resolve this task",
-        sourceLabel: "Clinical task",
+        owner: task.assignee_label
+          ? assignmentLabel(task).replace(/^Assigned to /, "")
+          : `${task.pool_code.replaceAll("_", " ")} team`,
+        nextAction: task.pending_assignee_membership_id
+          ? "Accept the requested transfer; current coverage remains responsible"
+          : task.source_managed
+            ? "Continue in the source workspace"
+            : task.waiting_reason
+              ? "Review prerequisite work; other tasks remain available"
+              : task.state === "open"
+                ? "Claim or transfer this task"
+                : task.state === "claimed"
+                  ? "Start or resolve this task"
+                  : "Resolve this task",
+        sourceLabel: task.source_label || "Clinical task",
         scheduleReady:
           task.task_kind === "patient_call" && task.encounter_id === null,
         href: task.encounter_href || task.patient_href,
         action: "Open work item",
         icon: "assignment",
         priority: "routine",
-        mutation: task.encounter_href ? { kind: "task", task } : undefined,
+        mutation: { kind: "task", task },
       });
     });
     work.data?.encounter_follow_ups.forEach((followUp) => {
@@ -1446,6 +1790,7 @@ export function WorkInbox() {
     );
   }, [
     assignment,
+    callbacks.data,
     exceptions.data,
     labFollowUps.data,
     labReviews.data,
@@ -1455,6 +1800,7 @@ export function WorkInbox() {
   ]);
 
   const anyLoading =
+    callbacks.loading ||
     work.loading ||
     labReviews.loading ||
     labFollowUps.loading ||
@@ -1468,6 +1814,7 @@ export function WorkInbox() {
         .filter((message): message is string => Boolean(message))
     : [];
   const sourceErrors = [
+    callbacks.error && "Callback requests",
     work.error && "Assigned work",
     labReviews.error && "Lab review",
     labFollowUps.error && "Lab follow-up",
@@ -1489,6 +1836,7 @@ export function WorkInbox() {
       ]
     : 0;
   const queuesTruncated =
+    work.data?.renewal_exceptions_truncated === true ||
     expectedWorkCount > returnedWorkCount ||
     (assignment === "all" &&
       ((labReviews.data?.pagination.total ?? 0) >
@@ -1498,6 +1846,7 @@ export function WorkInbox() {
         exceptions.data?.sources.unsigned_notes.truncated === true ||
         exceptions.data?.sources.payment_exceptions.truncated === true));
   const hasAnyAccess =
+    canLoadCallbacks ||
     canLoadWork ||
     canLoadLabs ||
     canLoadRefills ||
