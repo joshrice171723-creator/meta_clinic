@@ -22,6 +22,45 @@ Use existing React frontend, Rails API, tenant boundaries and source-owned recor
 | Follow-up | Give unresolved work a responsible role and an actionable destination. Preserve failed delivery and retry state; do not equate queued messages with delivery. |
 | Configuration | Keep specialty, payment model, modality, location and services configurable without copying the entire workflow. |
 
+## Configurable capability contract
+
+The strategy's [shared-core and clinic capability map](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md#shared-core-and-composable-capabilities--d-076) owns product composition. Implement capabilities against shared records, not specialty-name conditionals scattered through pages. Specialty presets choose defaults; effective capabilities plus service, modality and permissions determine available actions. Existing practice-feature versions are the initial owner to extend, not proof that full composition exists.
+
+For every new or materially changed configurable capability, deliver together:
+
+| Contract element | Required design/delivery |
+| --- | --- |
+| Identity and ownership | Stable capability key/version; owning existing domain/model/API; supported scope (practice, location or service) and explicit override precedence. Do not introduce per-site overrides until required. |
+| Setup | Applicable presets; reviewable defaults and necessary controls; dependencies/conflicts; effective configuration preview. Avoid silent activation when a preset or software version changes. |
+| UI and backend | One effective capability result shared by screens and server checks; component variant/entry points; permission checks independent of visibility; disconnected vendor distinct from disabled service. |
+| Lifecycle | Existing records readable, unfinished work actionable under its own rules, edits versioned, apply/retry idempotent. Disable new use without erasing history. Show conflicts and authorized resolution; do not silently cascade-disable required capabilities. |
+| Composition | State what it reuses and what varies; cash/insurance and virtual/physical independent of specialty. No mandatory room/chair for telehealth-only workflows. Integrity, tenant isolation and source-owned completion are not optional modules. |
+| Acceptance and maintenance | Update applicable strategy map, Clinic Setup, affected matrix IDs and existing tracker row. Prove on/off behavior, server denial, a permitted independent action, persistence, old-config compatibility and relevant combinations. Use focused representative combinations, not an exponential full preset matrix. |
+
+Unavailable dependencies prevent only the dependent enable/action transition. Keep drafts and resolution links. A component that swaps rendering must retain owning IDs and transition semantics. Configuration is not a replacement for assigned authorization, clinical review or provider confirmation.
+
+### Future recurring-service projection contract
+
+This is bounded design direction under D-076, not an additional task list or ready implementation. Before implementation, inspect existing care-plan, appointment/resource, stock and insurance owners; extend them, not a parallel forecasting ledger. Do not infer this capability from the presence of a generic care-plan screen.
+
+| Input / purpose | Owner, controls and provenance | Prerequisite and recovery |
+| --- | --- | --- |
+| Plan version, intended service, recurrence and horizon | Existing clinical-plan/service owners; authorized clinician records intent. Integer frequency, bounded period unit, actual start/end dates, timezone and selected days/windows when known; preserve source/version. | Draft may be incomplete. Exact occurrences require resolved recurrence/dates; “Choose dates and a recurrence before calculating sessions.” No clinical frequency or duration default. |
+| Session duration and resources | Existing service/resource scheduling owners; admin configures typed minutes, compatible resource references, actual capacity, operating/maintenance intervals and staff availability; turnover only when specified. | Unknown duration/resource mapping prevents confident availability, not other care. “Add the session duration and required resources.” Check all necessary resources when reserving, atomically. |
+| Material requirements and outlook | Existing plan/order and inventory owners; authorized recorded quantities with typed units/catalog refs; stock, reservations and known inbound evidence inherited with timestamps. | Missing quantity/unit mapping makes demand unknown, not zero. “Resolve the material quantity or unit mapping.” No inferred clinical dose/conversion, automatic stock movement or purchasing. |
+| Coverage versus service authorization | Existing insurance/request-response owners; staff-recorded evidence with source/date or future vendor response. Separate coverage period, authorization reference, service/provider/site scope, validity dates, approved quantities and units, use/reversal evidence. Typed dates/numbers, searchable references, original response preserved. | Unknown approval/limits stay unknown. An affected future service creates review according to configured policy, not an automatic patient-wide hold or claim of approval. “Review coverage or authorization for this visit.” Actual vendor mapping remains unverified. |
+| Projection and owned exception | Derived view with source versions, calculated time, horizon, assumptions and affected occurrence IDs; underlying tasks remain in existing queues. | Mark stale when inputs change; recompute/reconcile, do not silently overwrite confirmed appointments or completed treatments. Team reviews conflict; no invented contact deadline. |
+
+Distinguish forecast, tentative hold, confirmed reservation, delivered treatment and actual stock movement. Deduplicate review work by source/service and reason; one new estimate must not create another outreach task. On plan changes/cancellation, release only relevant holds under existing rules, preserve completed events and recompute remaining demand. Coverage expiry, unknown eligibility, authorization validity and remaining authorized units are distinct. Evaluate affected scheduled care even without a recurring plan; no affected future care means no automatic expiration-driven patient outreach by default. Clinic-defined alternatives or exceptions remain action-scoped.
+
+Source review, 2026-09-14:
+
+- [FHIR R4 Schedule 4.0.1](https://hl7.org/fhir/R4/schedule.html), trial-use resource, sections 12.12.1 and 12.12.1.1–3: resource availability and appointments are separate; multiple required resources may need coordinated checks. Maps to resource inputs and SC-04. This global foundation is considered for the U.S. workflow on the same R4 base used by the reviewed U.S. guide below, not adoption of a standalone U.S. scheduling profile or prescribed scheduling algorithm.
+- [FHIR R4 CarePlan 4.0.1](https://hl7.org/fhir/R4/careplan.html), trial-use resource, scope/resource definition: care intent over time is distinct from performed work. Maps to plan/version and projection inputs. Same documented U.S./R4 applicability; no FHIR-native schema mandate or clinical recurrence rule.
+- [U.S. Da Vinci PAS Claim Response 2.2.1 / STU 2.2](https://hl7.org/fhir/us/davinci-pas/2.2.1/en/StructureDefinition-profile-claimresponse.html), published trial-use, active 2026-03-27, FHIR R4; profile/formal views including `preAuthPeriod`, item preauthorization period and authorization reference. Maps to separate service authorization evidence and OP-13. This is structural source guidance, not an assertion that a payer accepts this version or a default contact/blocking policy. Do not mix this guide's dependencies with another US Core version without explicit mapping.
+
+Projection logic, component composition, notification policy and no-unrelated-block behavior are product decisions. Exact payer rules, approved units interpretation, treatment protocols, resource restrictions and partner transaction mapping need scoped source/clinic review before implementation. No blanket requirement or insurer approval is inferred from these references.
+
 ## Ownership, dependencies and attention
 
 Every workflow must distinguish recorded status, responsibility, action prerequisites and urgency. Waiting is not automatically blocked; urgent work does not automatically block unrelated care. Do not implement a global patient-blocked flag from an unfinished task or earlier stage.
@@ -35,6 +74,16 @@ For every action document: authorized actor; responsible person/team; exact prer
 This is the shared build matrix. Extend it for each feature; the rows define software behavior, not new clinical protocols or a claim that these controls are implemented.
 
 Use the six columns below without combining **Action affected** with **What is blocked**. The former names the workflow operation; the latter states the precise prohibited transition. IDs are stable acceptance references, not a second task register. These are engineering planning cases; clinic-specific clinical prerequisites remain conditional until sourced and configured. Responsible parties name queues/roles to map to actual clinic configuration, not invented staff assignments.
+
+#### Specialty configuration and existing work
+
+CF-01–03 are product requirements under D-075, not clinical prerequisites. Reuse OP-05 for missing eligible owners, OP-10 for general stale/retry behavior and OP-12 for outstanding work; do not add global setup holds.
+
+| Condition | Action affected | What is blocked | What remains available | Responsible party | Attention |
+| --- | --- | --- | --- | --- | --- |
+| CF-01: Specialty setup lacks a required scoped service, visit type, offer or location reference | Applying configuration or starting its dependent action | Applying invalid references; publishing an incomplete offer or confirming an unconfigured visit, as applicable | Save recoverable setup, configure missing reference, unrelated services and existing patient work | Authorized clinic configuration team | Identify exact missing reference and setup action; optional services are not mandatory clinic-wide |
+| CF-02: Preset application retried or based on stale configuration | Applying specialty starter records/settings | Duplicate generated records, silent overwrite of clinic customization or stale application | Read current settings, preview differences, reconcile and retry with preserved request identity; existing care | Authorized configuration team | Show known application outcome and affected records; no automatic replacement or repeated partial creation |
+| CF-03: Specialty/service/form configuration changes with existing responses or unfinished work | Resolving new forms/services and revisiting prior work | Reinterpreting historical answers under a new form, erasing unfinished tasks, or starting a newly disabled service contrary to effective configuration | Read historical versions, finish/reconcile existing work under its own permissions, unrelated services and new applicable forms | Configuration team and existing domain task owners | Preserve effective versions and history; show changed setup without creating a global patient hold |
 
 #### Enrollment, membership and scheduling
 
@@ -52,6 +101,7 @@ Use the six columns below without combining **Action affected** with **What is b
 | SC-01: Slot taken, provider unavailable or capacity exceeded | Appointment confirmation | Confirming the conflicting reservation | Alternate slots, request/callback, permitted staff work | Scheduling team | Explain conflict; recheck capacity atomically on save |
 | SC-02: Cancellation or no-show | Appointment/encounter progression | Claiming attendance or completion that did not occur | Rebooking, outreach, unrelated tasks | Scheduling team | Track disposition and next contact; do not close clinical tasks automatically |
 | SC-03: Walk-in waiting or no room assigned | Rooming/handoff | Claiming room assignment or accepted handoff without evidence | Registration, eligible intake, queue management | Front desk/nursing queue | Show waiting duration; escalation thresholds are configurable |
+| SC-04: Required chair, room, staff or equipment unavailable for a planned session | Resource reservation/confirmation | Confirming the conflicting resource/time allocation or claiming a projection reserves capacity | Alternative resources/times, forecast revision, draft planning and unrelated visits/tasks | Scheduling/resource team | Show exact conflicting resource and affected session; resolve availability under configured constraints, not clinical guesses |
 
 #### Intake, visits and documentation
 
@@ -101,6 +151,7 @@ Use the six columns below without combining **Action affected** with **What is b
 | OP-10: Save failure, stale edit, duplicate/out-of-order event | Record transition | False saved/completed state, silent overwrite or duplicate side effects | Draft recovery, refresh/reconcile and independent work | Current operator; support for persistent failure | Display known outcome and next action; preserve history |
 | OP-11: Dependency cycle or missing source record | Dependency evaluation | Accepting a cycle or treating unresolved prerequisite as satisfied | Correct configuration, restore valid reference, unrelated tasks | Configuration/domain owner | Visible exception; never strand work behind an invisible dependency |
 | OP-12: Encounter closed with outstanding work | Encounter/task lifecycle | Auto-completing child labs, prescriptions, billing or follow-ups | Owned tasks, permitted corrections and future visits | Each task's existing team | Closed encounter must remain discoverable from open tasks |
+| OP-13: Future service falls outside recorded coverage/authorization period, exceeds recorded authorized units, or lacks applicable evidence | Service-linked coverage/authorization review | Claiming verified approval or sufficient authorization; any additional action block requires explicit applicable policy | Local preparation, review, permitted scheduling and unrelated care; no automatic patient contact merely from an expiration date | Insurance/authorization team or visible assignment exception | Distinguish the exact reason and affected visit(s); dates/units/source drive review. No affected future care means no default expiration outreach; ordinary scheduled visits qualify even without a treatment plan |
 
 ### Action and field contract before implementation
 

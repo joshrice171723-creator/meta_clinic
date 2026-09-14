@@ -26,6 +26,8 @@ The retired `reference/` folder was removed by the founder after its useful beha
 
 ## Current position
 
+- **Composable clinic setup:** D-076 and the shared-core/ten-clinic capability map in [[Meta Clinic Product Strategy and Scope]] require configurable components, independent specialty/modality/payment choices and Clinic Setup updates with new functionality. Weight loss is the first implementation reference. Infusion chair/resource, inventory and authorization projections remain future capability direction, not current readiness.
+
 - **Vendor preparation:** D-072 directs building usable local workflows for insurance, supplier prices/orders, shipments and prescriptions while vendor access is unavailable. Collect appropriate data, retain prepared work and test replaceable connections through backend simulation. External execution remains separately tracked; connecting a vendor does not automatically send the backlog.
 
 - **Platform strategy:** [[Meta Clinic Product Strategy and Scope]] connects the digital front door and physical front desk across specialties, explicitly including cash-based clinics, walk-ins, telehealth, pharmacy and inventory. Organizations assign employee privileges; independent license verification is not a default platform requirement.

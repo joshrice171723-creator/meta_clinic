@@ -21,6 +21,8 @@ The [Meta Clinic Product Strategy and Scope](APPlyVault/01%20Foundation/Meta%20C
 
 Purchasing organizations assign employee roles and privileges; the platform enforces them. Independent license verification and jurisdiction-based professional eligibility checks are not default features or prerequisites to access. Pharmacy and inventory software remain within scope.
 
+Meta Clinic composes shared capabilities into clinic-specific workflows. Specialty presets, delivery model (including telehealth-only), payment model and operational modules are independent configuration choices. New configurable functionality must update Clinic Setup and preserve existing records, permissions and unfinished work. The strategy's shared-core/ten-clinic capability map owns this design; weight loss is the first implementation reference, not a separate hardcoded app. Infusion chair scheduling and treatment-plan-driven resource, inventory and authorization projections are future examples, not current implementation claims.
+
 The guidance portal helps new providers understand and complete the work required to start a clinic, with mentoring, structured knowledge and training.
 
 The clinic software is a separate configurable product sold to clinics. Its patient tracking board is a shared view of expected, waiting and in-progress work that helps authorized staff and providers understand the current recorded state and choose the next appropriate action.

@@ -5,6 +5,18 @@ updated: 2026-09-14
 ---
 # Decisions
 
+## Composable clinic capabilities and service-linked planning
+
+**D-076 — 2026-09-14 / founder's explicit direction:** maintain a shared-core and specialty capability map and make modular composition a current building constraint. Clinic Setup must evolve with new configurable functionality. Separate specialty, delivery (including telehealth-only), payment and operational capabilities; preserve shared integrity and existing records while swapping applicable components. [[Meta Clinic Product Strategy and Scope]] owns the ten-example catalog; the engineering guide owns the feature/setup delivery contract.
+
+The founder's infusion example adds future direction for recurring-treatment-driven chair capacity, inventory demand and service-linked coverage/authorization review. A forecast is not a reservation, consumed stock or confirmed insurance. No automatic expiration outreach without affected future care/configured policy, and no blanket exclusion of ordinary clinics that do have affected appointments. Specific treatment rules, partner contracts and implementation details require later scoped planning. The immediate weight-loss plan must establish composable configuration; it does not silently expand to implementing every specialty, forecasting or insurance integrations. This turn saves direction/plans only.
+
+## Weight-loss setup must drive a connected reference journey
+
+**D-075 — 2026-09-14 / founder's explicit direction:** the next planned assignment must create a new synthetic weight-loss clinic through Clinic Setup and make that specialty setting change applicable workflows/components, not merely its label. Use the shared platform and demonstrate one continuing patient from membership entry through return/follow-up. Prior isolated checks do not establish this scenario complete.
+
+The [revision 3 assignment](../../PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md) defines the implementation design: versioned specialty intake, initial/follow-up visit configuration, relevant shared encounter/progress components and configured follow-up, with reviewable/idempotent setup and historical preservation. Clinic-specific offerings, clinical protocols and vendor access remain separate. This authorizes planning records, not application execution, task dispatch, real clinic provisioning or live transactions. CF-01–03 in the [engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md) cover configuration dependencies; [[Meta Clinic Implementation Tracker]] remains the single work inventory.
+
 ## Patient-entry scope and dependency planning clarification
 
 **D-074 — 2026-09-14 / founder's enrollment clarification:** require age 18 or older only at public membership account creation, enforced in UI and backend. Do not add age restrictions elsewhere in this increment. Defer child/guardian online-account and special consent workflows. Reject invalid or future birth dates and dates implying age 150 or older; today's birth date remains valid for staff-created records. Calculate age from birth date rather than storing a changing age.

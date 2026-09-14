@@ -15,7 +15,7 @@ This is navigation, not a backlog. [[Meta Clinic Implementation Tracker]] owns c
 
 ## Meta Clinic planning and delivery
 
-- [[Meta Clinic Product Strategy and Scope]] defines customers, cash-based business models, hybrid care, pharmacy/inventory scope and organization-assigned roles.
+- [[Meta Clinic Product Strategy and Scope]] defines customers, business models, shared-core/ten-clinic capability mapping, composable specialty/modality settings, infusion planning direction and organization-assigned roles.
 - [Engineering build and acceptance guide](../docs/development/meta-clinic-build-and-acceptance.md) defines connected workflow behavior and completion evidence.
 - [[Meta Clinic Implementation Tracker]] consolidates existing plans and dated evidence into one current workflow inventory.
 

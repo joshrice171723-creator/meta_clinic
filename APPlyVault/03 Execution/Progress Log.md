@@ -7,6 +7,14 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Composable clinic capability map adopted
+
+Expanded the existing [[Meta Clinic Product Strategy and Scope]] rather than adding another product document: shared foundations, independent configuration dimensions, ten clinic examples and the founder's future infusion projection scenario. D-076, PRODUCT, Home, routing, tracker and the engineering contract now require Clinic Setup to evolve with configurable features. SC-04/OP-13 distinguish resource conflicts and service-linked authorization review from global holds or automatic expiration outreach. Reviewed published R4 Schedule/CarePlan and U.S. PAS 2.2.1 for bounded structural guidance; no clinical protocol or vendor conformance claim. Weight loss remains the first implementation assignment; no application code, forecasts or other specialties were built in this documentation turn.
+
+## 2026-09-14 — Weight-loss setup and continuous journey gap plan
+
+Saved [revision 3](../../PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md): a new synthetic weight-loss clinic through Clinic Setup, meaningful setting-driven forms/visits/components and one membership-to-return patient demonstration. D-075 records the founder's clarified outcome; tracker MC-01 and shared CF-01–03 capture configuration gaps without duplicating the matrix. Bounded current configuration/intake inspection and U.S. NIDDK/US Core source review inform the plan; measurement-profile lookup remains unresolved. Prior focused evidence is retained, not replayed. Documentation only; no application changes, fixtures, browser tests or execution dispatch.
+
 ## 2026-09-14 — Single execution plan strengthened with skill-test evidence
 
 At the founder's request, revision 2 of [the execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) combines the original scope/questions with selected dated research, code observations, field/action contracts and paired test cases from the seven-file evaluation. It keeps one checkpoint, preserves the shared matrix owner and original sequence, and separates unapproved scope additions. Test artifacts remain evidence, not required instructions. This is document integration, not fresh clinical-source review or application verification; no implementation was launched.
