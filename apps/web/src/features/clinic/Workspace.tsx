@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -89,8 +90,8 @@ function LocationSelectionDialog({
           id="location-picker-description"
           variant="body2"
         >
-          Choose a location you are authorized to use before entering the
-          clinic workspace.
+          Choose a location you are authorized to use before entering the clinic
+          workspace.
         </Typography>
         <List aria-label="Available locations" sx={{ mt: 1 }}>
           {sites.map((site) => (
@@ -358,8 +359,14 @@ export function Workspace({
   const [locationSelectionMade, setLocationSelectionMade] = useState(false);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
+  const selectingLocation = useRef(false);
+  const [previousLocationContext, setPreviousLocationContext] =
+    useState<ClinicWorkspaceContext | null>(null);
 
   const selectSite = async (siteId: number) => {
+    if (selectingLocation.current) return;
+    if (locationSelectionMade && data?.current_site?.id === siteId) return;
+    selectingLocation.current = true;
     setSelectingSiteId(siteId);
     setLocationPickerError("");
     try {
@@ -367,15 +374,19 @@ export function Workspace({
         method: "PATCH",
         body: { site_id: siteId },
       });
+      setPreviousLocationContext(data ?? null);
       setLocationSelectionMade(true);
       refreshWorkspace();
+      overview.refresh();
     } catch (caught) {
+      setPreviousLocationContext(null);
       setLocationPickerError(
         caught instanceof Error
           ? caught.message
           : "Unable to select this location. Try again.",
       );
     } finally {
+      selectingLocation.current = false;
       setSelectingSiteId(null);
     }
   };
@@ -447,6 +458,14 @@ export function Workspace({
         </main>
       </ClinicAppearanceScope>
     );
+  if (data === previousLocationContext)
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <main id="main" className="wrap inner-page">
+          <LoadState />
+        </main>
+      </ClinicAppearanceScope>
+    );
   if (clinicOverviewRequired(path) && !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -495,6 +514,8 @@ export function Workspace({
                 contextKey={`${user.id}:${data.practice.id}:${data.membership_id}:${data.current_site?.id ?? "all"}`}
               >
                 <div
+                  inert={selectingSiteId !== null}
+                  aria-busy={selectingSiteId !== null}
                   onClick={(event) => {
                     if (
                       event.defaultPrevented ||
@@ -538,12 +559,7 @@ export function Workspace({
                     locationName={locationName}
                     locations={data.sites}
                     selectedLocationId={data.current_site?.id}
-                    onLocationChange={(siteId) => {
-                      void api("/api/clinic/context", {
-                        method: "PATCH",
-                        body: { site_id: siteId },
-                      }).then(() => window.location.reload());
-                    }}
+                    onLocationChange={(siteId) => void selectSite(siteId)}
                     navigation={
                       <ClinicNavigation
                         capabilities={data.capabilities}
@@ -592,6 +608,11 @@ export function Workspace({
                       tabIndex={-1}
                       className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}${scribePage ? " scribe-page" : ""}`}
                     >
+                      {locationPickerError && (
+                        <Typography color="error" role="alert">
+                          {locationPickerError}
+                        </Typography>
+                      )}
                       {children}
                     </main>
                   </ClinicFrame>

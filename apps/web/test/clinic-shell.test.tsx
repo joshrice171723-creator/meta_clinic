@@ -20,6 +20,20 @@ const workspace = readFileSync(
 );
 
 describe("clinic shell composition", () => {
+  it("switches from the dropdown without reloading into the initial picker", () => {
+    expect(workspace).toContain(
+      "onLocationChange={(siteId) => void selectSite(siteId)}",
+    );
+    expect(workspace).not.toContain("window.location.reload()");
+    expect(workspace).toContain("setLocationSelectionMade(true)");
+    expect(workspace).toContain("refreshWorkspace();");
+    expect(workspace).toContain("overview.refresh();");
+    expect(workspace).toContain("data === previousLocationContext");
+    expect(workspace).toContain("if (selectingLocation.current) return;");
+    expect(workspace).toContain("setPreviousLocationContext(null)");
+    expect(workspace).toContain("{locationPickerError && (");
+  });
+
   it("uses a compact conventional menu control and preserves drawer safeguards", () => {
     expect(frame).toContain('className="clinic-menu-toggle"');
     expect(frame).toContain("MenuIcon");
@@ -83,44 +97,12 @@ describe("clinic shell composition", () => {
     );
     expect(workspace).toContain("clinicOverviewRequired(path)");
     expect(workspace).not.toContain("Continue without selecting");
-    expect(
-      requiresLocationSelection(
-        [
-          { id: 1 },
-          { id: 2 },
-        ],
-        false,
-      ),
-    ).toBe(true);
-    expect(
-      requiresLocationSelection(
-        [
-          { id: 1 },
-          { id: 2 },
-        ],
-        true,
-      ),
-    ).toBe(false);
+    expect(requiresLocationSelection([{ id: 1 }, { id: 2 }], false)).toBe(true);
+    expect(requiresLocationSelection([{ id: 1 }, { id: 2 }], true)).toBe(false);
     expect(canLoadClinicOverview(undefined, false)).toBe(false);
     expect(canLoadClinicOverview([{ id: 1 }], false)).toBe(true);
-    expect(
-      canLoadClinicOverview(
-        [
-          { id: 1 },
-          { id: 2 },
-        ],
-        false,
-      ),
-    ).toBe(false);
-    expect(
-      canLoadClinicOverview(
-        [
-          { id: 1 },
-          { id: 2 },
-        ],
-        true,
-      ),
-    ).toBe(true);
+    expect(canLoadClinicOverview([{ id: 1 }, { id: 2 }], false)).toBe(false);
+    expect(canLoadClinicOverview([{ id: 1 }, { id: 2 }], true)).toBe(true);
     expect(canLoadClinicOverview([{ id: 1 }], false, false)).toBe(false);
     expect(clinicOverviewRequired("/clinic/operations")).toBe(true);
     expect(clinicOverviewRequired("/clinic/inventory")).toBe(true);
