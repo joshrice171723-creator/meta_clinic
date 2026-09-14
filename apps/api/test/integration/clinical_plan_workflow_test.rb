@@ -348,6 +348,42 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "journey held orders retain their task identity and unrelated preparation remains available" do
+    medication = create_record("medication_requests", "medication_request", {
+      medication_name: "Synthetic held request", intent: "order", dose_text: "Source instruction"
+    }, "journey-hold-create")
+    medication = revise_record("medication_requests", "medication_request", medication,
+      revision_body("medication_request", medication, "authorized", "journey-hold-authorize"))
+    task = Clinic::ClinicalTask.find_by!(practice: @practice, source_kind: "medication_request")
+    medication = revise_record("medication_requests", "medication_request", medication,
+      revision_body("medication_request", medication, "on_hold", "journey-hold-order"))
+    assert_equal "on_hold", task.reload.state
+    assert_nil task.completed_at
+    independent = create_record("service_requests", "service_request", {
+      request_kind: "lab", intent: "order", priority: "routine", requested_display: "Synthetic independent test"
+    }, "journey-held-rx-independent-lab")
+    assert_equal "draft", independent.fetch("status")
+    assert_equal @patient.id, independent.fetch("patient_id")
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      revise_record("medication_requests", "medication_request", medication,
+        revision_body("medication_request", medication, "authorized", "journey-resume-order"))
+    end
+    assert_equal "open", task.reload.state
+  end
+
+  test "journey pharmacy acceptance cannot be supplied through ordinary revision attributes" do
+    medication = create_record("medication_requests", "medication_request", {
+      medication_name: "Synthetic external request", intent: "order"
+    }, "journey-transmission-create")
+    assert_no_difference "Clinic::Care::MedicationRequestRevision.count" do
+      patch "#{workspace_path(@patient)}/medication_requests/#{medication.fetch('series_id')}",
+        params: { medication_request: { transmission_state: "accepted", expected_version: medication.fetch("version_number"),
+          request_key: "journey-transmission-forged" } }, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_equal "not_requested", Clinic::Care::MedicationRequestRevision.find(medication.fetch("id")).transmission_state
+  end
+
   private
 
   def workspace_path(patient)
