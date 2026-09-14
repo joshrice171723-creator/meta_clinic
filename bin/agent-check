@@ -8,6 +8,7 @@ import json
 import shlex
 import subprocess
 import sys
+from time import monotonic
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -136,9 +137,9 @@ def api_impacted_tests(paths: set[str]) -> tuple[str, ...] | None:
         if path.startswith("apps/api/") and path.endswith(".rb") and "/test/" not in path
     }
     if source_paths & API_GLOBAL_PATHS or any(path.startswith("apps/api/config/initializers/") for path in source_paths):
-        return None
+        return tuple(sorted(changed_tests))
     if not source_paths:
-        return tuple(sorted(changed_tests)) if changed_tests else None
+        return tuple(sorted(changed_tests))
 
     areas = api_impact_areas(source_paths)
     source_stems = {
@@ -155,7 +156,7 @@ def api_impacted_tests(paths: set[str]) -> tuple[str, ...] | None:
             continue
         if any(any(term in searchable for term in API_AREA_TERMS[area]) for area in areas):
             selected.add(relative)
-    return tuple(sorted(selected)) if selected else None
+    return tuple(sorted(selected))
 
 
 def web_impacted_checks(paths: set[str], level: str) -> list[Check]:
@@ -282,7 +283,9 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         api_root = ROOT / "apps" / "api"
         ruby_paths = relative_paths(paths, "apps/api", {".rb"})
         impacted_tests = None if level == "integration" else api_impacted_tests(paths)
-        if ruby_paths:
+        if ruby_paths and impacted_tests == ():
+            checks.append(Check("focused Rails test selection required", (PYTHON, "-c", "import sys; print('No focused Rails test mapping: select and run named tests for the changed behavior; broad integration checks require an explicit milestone decision.'); sys.exit(2)")))
+        if ruby_paths and impacted_tests != ():
             checks.append(Check("prepare Rails test database", (RUBY, "bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "db:prepare"), api_root))
             rails_command = (RUBY, "bin/postgres", "exec", "bin/rails", "test", *(impacted_tests or ()))
             checks.append(Check("Rails tests" if impacted_tests is None else "Rails impacted tests", rails_command, api_root))
@@ -298,7 +301,7 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
             path.startswith("apps/api/db/") or path.startswith("apps/api/app/models/")
             for path in paths
         )
-        if migration_change:
+        if migration_change and level == "integration":
             checks.extend(
                 [
                     Check("backend invariants", (RUBY, "bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"),
@@ -319,7 +322,7 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         }
         for path in paths
     )
-    if cross_boundary:
+    if cross_boundary and level == "integration":
         checks.append(Check("frontend/API boundary", (RUBY, "bin/verify-web")))
 
     if level == "integration":
@@ -380,7 +383,13 @@ def main() -> int:
     parser.add_argument("--phase", choices=("build", "final", "repair"), help="Enforce the delivery phase's verification boundary.")
     parser.add_argument("--check", action="append", default=[], help="For --phase repair, run only this selected check name; repeatable.")
     parser.add_argument("--json", action="store_true", help="Print a machine-readable report to stdout.")
+    parser.add_argument("--budget-minutes", type=float, default=10, help="Reassess before starting another check after this elapsed time (default: 10). Does not kill an active check.")
+    parser.add_argument("--budget-reason", help="Concrete reason required to extend verification beyond 10 minutes.")
     args = parser.parse_args()
+    if not 0 < args.budget_minutes < float("inf"):
+        parser.error("--budget-minutes must be a positive finite number")
+    if args.budget_minutes > 10 and not (args.budget_reason or "").strip():
+        parser.error("Extending verification beyond 10 minutes requires --budget-reason.")
 
     if error := phase_error(args.phase, args.level, args.staged, args.path, args.check):
         parser.error(error)
@@ -421,7 +430,15 @@ def main() -> int:
             outcomes.append({"name": check.name, "command": display(check), "status": "pending" if args.run else "skipped"})
         report = {"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": sorted(paths), "product_areas": product_areas(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
         if args.run:
+            started = monotonic()
             for outcome, check in zip(outcomes, checks):
+                if monotonic() - started >= args.budget_minutes * 60:
+                    for remaining in outcomes:
+                        if remaining["status"] == "pending":
+                            remaining["status"] = "deferred"
+                    report.update(status="reassessment_required", budget_minutes=args.budget_minutes, budget_reason=args.budget_reason)
+                    print(json.dumps(report, sort_keys=True))
+                    return 3
                 try:
                     result = subprocess.run(
                         check.command,
@@ -472,7 +489,11 @@ def main() -> int:
         print("\nRun with --run to execute this set.")
         return 0
 
+    started = monotonic()
     for check in checks:
+        if monotonic() - started >= args.budget_minutes * 60:
+            print("Verification checkpoint reached; remaining checks are unverified. Reassess scope and use named repair checks or record a concrete --budget-reason before extending.", file=sys.stderr)
+            return 3
         print(f"\n==> {check.name}", flush=True)
         try:
             result = subprocess.run(check.command, cwd=check.cwd)

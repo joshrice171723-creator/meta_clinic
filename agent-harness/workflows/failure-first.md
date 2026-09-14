@@ -2,7 +2,7 @@
 
 ## When to use
 
-Every bounded change names and checks its principal failure. Use the complete record below for a substantive work chunk and for authentication, authorization, tenancy, protected values, signing, billing, migrations, auditing, clinical workflows, infrastructure or release work.
+Every bounded change names and checks its principal changed-behavior failure. During active development, record that briefly in the task and verify the relevant permissions, money, stock, persistence or lost-work behavior. Use the complete record below at an explicitly selected stable milestone, release or comprehensive audit. A clinical, model, migration or infrastructure edit alone does not require a launch-depth review; preserve the applicable correctness and data-transition protections.
 
 This procedure asks “How is this going to fail?” It challenges mechanisms and evidence, not people, and does not imply that a failure has occurred.
 

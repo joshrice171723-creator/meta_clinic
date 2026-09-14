@@ -84,9 +84,35 @@ class AgentCheckTest(unittest.TestCase):
         self.assertIn("shard: [0, 1]", ci)
         self.assertIn("backend_contracts:", ci)
 
-    def test_cross_boundary_is_selected_for_both_apps(self):
+    def test_cross_boundary_requires_explicit_integration_level(self):
         checks = [check.name for check in agent_check.checks_for({"apps/api/app/a.rb", "apps/web/src/a.tsx"}, "component")]
-        self.assertIn("frontend/API boundary", checks)
+        self.assertNotIn("frontend/API boundary", checks)
+        broad = [check.name for check in agent_check.checks_for({"apps/api/app/a.rb", "apps/web/src/a.tsx"}, "integration")]
+        self.assertIn("frontend/API boundary", broad)
+
+    def test_model_edit_does_not_trigger_restore_rehearsal(self):
+        paths = {"apps/api/app/models/clinic/clinical_task.rb"}
+        lean = {check.name for check in agent_check.checks_for(paths, "component")}
+        self.assertNotIn("PostgreSQL transition/restore", lean)
+        self.assertNotIn("backend invariants", lean)
+        broad = {check.name for check in agent_check.checks_for(paths, "integration")}
+        self.assertIn("PostgreSQL transition/restore", broad)
+
+    def test_unmapped_routes_require_focused_selection_not_silent_full_suite(self):
+        checks = agent_check.checks_for({"apps/api/config/routes.rb"}, "component")
+        self.assertIn("focused Rails test selection required", {c.name for c in checks})
+        self.assertNotIn("Rails tests", {c.name for c in checks})
+
+    def test_budget_defers_remaining_checks_without_claiming_success(self):
+        output = io.StringIO()
+        checks = [agent_check.Check("first", ("dummy",)), agent_check.Check("second", ("dummy",))]
+        argv = ["agent-check", "--run", "--json"]
+        with patch.object(sys, "argv", argv), patch.object(agent_check, "changed_paths", return_value={"README.md"}), patch.object(agent_check, "checks_for", return_value=checks), patch.object(agent_check, "monotonic", side_effect=[0, 0, 601]), patch.object(agent_check.subprocess, "run", return_value=agent_check.subprocess.CompletedProcess([], 0)) as run, contextlib.redirect_stdout(output):
+            self.assertEqual(agent_check.main(), 3)
+        self.assertEqual(run.call_count, 1)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["status"], "reassessment_required")
+        self.assertEqual([r["status"] for r in report["outcomes"]], ["passed", "deferred"])
 
     def test_json_report_shape_and_unrelated_files(self):
         output = io.StringIO()

@@ -29,17 +29,17 @@ Read the applicable `Software Architecture.md` domain/audit sections and [develo
 
 ## Checks
 
-Use the root phase-aware selector. Ordinary component work runs impacted Rails tests and changed-file RuboCop; integration work expands to the full suite and security checks:
+Use the root active-development policy and phase-aware selector. Ordinary component work runs impacted Rails tests and changed-file RuboCop:
 
 ```sh
 python -B ../../bin/agent-check --phase final --staged --path apps/api --level component --run
 ```
 
-Use `integration` for shared authorization, session, routing or cross-domain contracts. Schema, concurrency, migration and history changes additionally select:
+For authorization, session, routing, schema and cross-domain changes, run focused tests of the affected behavior and required migration correctness. Reserve `integration` and these broad verifiers for an explicitly selected stable milestone or prelaunch:
 
 ```sh
 bin/postgres exec bin/verify-backend
 bin/postgres exec bin/verify-postgres
 ```
 
-Bundler Audit is selected only for `Gemfile` or `Gemfile.lock` changes; full security and dependency scans remain parallel CI gates. For browser-consumed contracts, update both sides together and use integration level. Do not claim a check passed unless it ran with its prerequisites.
+Bundler Audit is selected only for `Gemfile` or `Gemfile.lock` changes; existing CI retains broader checks in the background. Update both sides of browser-consumed contracts and verify the changed interaction without automatically launching the full transport suite. Do not claim a check passed unless it ran with its prerequisites.

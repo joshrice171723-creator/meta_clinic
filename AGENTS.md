@@ -80,13 +80,19 @@ Use the current commands and ownership rules in `docs/development/`, `docs/archi
 - Keep ordinary development screens focused on the task. Do not add persistent banners or repetitive UI copy that merely restates the synthetic/development or non-production status; record that context in repository documentation and agent guidance instead. This presentation rule never authorizes removing runtime access controls, real-data restrictions, release gates, or security checks.
 - Apply failure-first review proportionately:
   - For an ordinary local edit, identify the principal failure and test or inspect for it.
-  - For authentication, authorization, tenancy, protected values, signing, billing, migrations, auditing, clinical workflows, infrastructure or release work, use the complete procedure in `agent-harness/workflows/failure-first.md` and the relevant playbook.
+  - Follow `agent-harness/workflows/failure-first.md` proportionately; active-development checks target changed behavior, while complete reviews belong to explicit milestones or release work.
 - Use local tests, mocks, synthetic fixtures or authorized tabletops first. Do not remove guards to make a test pass.
 - Stop only the blocked or unsafe path; continue independent safe work.
 
 Follow [this workflow](agent-harness/workflows/code-change.md).
 
 ## Verification and handoff
+
+### Active development default
+
+Meta Clinic has no production users. Prioritize working journeys with focused tests, applicable build/type checks and one short walkthrough. Check affected permissions, money, stock, persistence and lost-work behavior. Defer broad regression, device matrices, restore rehearsals and operational hardening to explicit milestones or prelaunch; model/route/schema edits alone do not trigger them.
+
+Apply the [code-change workflow](agent-harness/workflows/code-change.md): reassess verification at 10 minutes, reuse valid evidence, bound retries and defer unrelated historical failures. Preserve runtime protections. Report implementation, focused verification and pending launch verification separately. This default supersedes generic launch-depth requirements; explicit user-requested acceptance checks still apply.
 
 Before finishing:
 
