@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Single execution plan strengthened with skill-test evidence
+
+At the founder's request, revision 2 of [the execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) combines the original scope/questions with selected dated research, code observations, field/action contracts and paired test cases from the seven-file evaluation. It keeps one checkpoint, preserves the shared matrix owner and original sequence, and separates unapproved scope additions. Test artifacts remain evidence, not required instructions. This is document integration, not fresh clinical-source review or application verification; no implementation was launched.
+
 ## 2026-09-14 — Detailed patient-journey execution plan saved
 
 Created the founder-requested [execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) from the supplied research conversation and its final clarifications. It preserves field/question/control detail, links the shared matrix, and adds bounded execution/acceptance and resume instructions. The earlier tracker summary was not the full assignment document; the isolated skill-test draft is not adopted. Exact source citations and current code reconciliation remain explicitly identified work, not newly claimed verification. No application changes or overnight dispatch.
