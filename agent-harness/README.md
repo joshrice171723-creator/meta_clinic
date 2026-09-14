@@ -37,6 +37,7 @@ Canonical repository skills live under `.agents/skills/`, the repository locatio
 - `act`: scoped implementation and verification using the current plan or clear request.
 - `vault-context`: targeted retrieval from the APPly knowledge base without loading the entire vault.
 - `create-skill`: create or revise focused repository skills, preferring an available authoritative MCP source for changing upstream context while retaining local-code and explicit-installation boundaries.
+- `clinic-workflow-planning`: plan connected patient/staff journeys using applicable U.S. sources, field-level data requirements and maintenance of the existing six-column ownership/dependency matrix; keeps brainstorming and implementation authority separate.
 - `frontend-ui`: consult the project-configured official MUI MCP, then implement APPly interfaces through existing APPly/Material UI composition; fall back explicitly to installed package source/types and official documentation when the server is unavailable.
 - `startdev`: run the canonical `bin/dev` lifecycle for non-destructive start/restart, fast-forward-only refresh, explicit setup or data reset, stop, and strict status.
 - `task-trace`: explicitly measure observable task execution and return a metadata-only JSON trace plus self-contained SVG timeline; it does not expose private reasoning or provide a CPU profile.
