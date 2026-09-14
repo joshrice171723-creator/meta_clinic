@@ -40,13 +40,10 @@ Read the applicable `Software Architecture.md` domain/transport sections, the re
 
 ## Checks
 
-From `apps/web/` run:
+Use the root phase-aware selector; it runs related Vitest files, incremental TypeScript, changed-file formatting and a bundle for ordinary component work:
 
 ```sh
-npm test
-npm run format:check
-npm run build
-npm audit --audit-level=high
+python -B ../../bin/agent-check --phase final --staged --path apps/web --level component --run
 ```
 
-Use `npm run typecheck` for a faster intermediate check. For transport, authentication, routing or shared response-contract changes also run root `bin/verify-web` and the relevant Rails tests. Perform browser, responsive and accessibility checks when the user-facing behavior warrants them; distinguish those results from unit/build evidence.
+Use `integration` for transport, authentication, routing or shared response contracts. Dependency audit is selected when `package.json` or `package-lock.json` changes; full tests and audits remain parallel CI gates. For user-facing behavior, run `npm run browser:smoke -- --route <route> --profile <development-account>` at each required viewport and distinguish browser proof from unit/build evidence.

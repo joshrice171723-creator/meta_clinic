@@ -29,22 +29,17 @@ Read the applicable `Software Architecture.md` domain/audit sections and [develo
 
 ## Checks
 
-Run the smallest relevant set, expanding for boundary changes:
+Use the root phase-aware selector. Ordinary component work runs impacted Rails tests and changed-file RuboCop; integration work expands to the full suite and security checks:
 
 ```sh
-bin/postgres exec env RAILS_ENV=test bin/rails db:prepare
-bin/postgres exec bin/rails test
-bin/postgres exec env RAILS_ENV=test bin/rails zeitwerk:check
-bin/rubocop
-bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
-bin/bundler-audit check --update
+python -B ../../bin/agent-check --phase final --staged --path apps/api --level component --run
 ```
 
-For schema, concurrency, migration, authorization or history changes also run:
+Use `integration` for shared authorization, session, routing or cross-domain contracts. Schema, concurrency, migration and history changes additionally select:
 
 ```sh
 bin/postgres exec bin/verify-backend
 bin/postgres exec bin/verify-postgres
 ```
 
-For API contracts consumed by the browser, update serializers/types and both sides' tests together, then run root `bin/verify-web`. Do not claim a check passed unless its prerequisites were available and the command actually ran.
+Bundler Audit is selected only for `Gemfile` or `Gemfile.lock` changes; full security and dependency scans remain parallel CI gates. For browser-consumed contracts, update both sides together and use integration level. Do not claim a check passed unless it ran with its prerequisites.

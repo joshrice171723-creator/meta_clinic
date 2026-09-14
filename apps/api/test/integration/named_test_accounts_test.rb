@@ -260,7 +260,7 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       enter("admin")
       assert_response :created
       get "/api/inquiries", headers: @headers
-      assert_response :success
+      assert_response :forbidden
       get "/api/clinic", headers: @headers
       assert_response :forbidden
       enter("client-a")

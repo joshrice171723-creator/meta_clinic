@@ -23,6 +23,7 @@ dist/
 coverage/
 .vite/
 .cache/
+/.runtime/
 __pycache__/
 .pytest_cache/
 *.py[cod]

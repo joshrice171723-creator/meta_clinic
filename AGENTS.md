@@ -4,20 +4,16 @@ These instructions apply to the whole repository. APPly combines business planni
 
 ## Instruction layers
 
-1. This file contains the repository-wide invariants and task router.
-2. Before changing a path, read the nearest applicable nested `AGENTS.md`. Tools that do not discover nested instructions automatically must read them explicitly.
-3. Load the relevant procedure from [`agent-harness/workflows/`](agent-harness/workflows/README.md) only when the task needs it.
-4. Load a repository skill from [`.agents/skills/`](.agents/skills/) only when explicitly invoked or when its description matches the task.
-5. Use the vault for current direction, requirements, decisions, risks and evidence. Keep active work coordination in the current task context rather than a checked-in task tracker.
+1. This file supplies repository-wide invariants. Read the nearest nested `AGENTS.md` before changing its paths.
+2. Load only the applicable procedure from [`agent-harness/workflows/`](agent-harness/workflows/README.md) and matching skill from [`.agents/skills/`](.agents/skills/).
+3. Use the vault for durable direction, decisions, risks and evidence; keep active coordination in the current task.
 
 More-specific instructions may add safeguards or commands; they may not weaken the boundaries in this file. Each explicitly delegated agent reviews the instructions and vault context relevant to its own bounded subtask.
 
 ## Harness and knowledge boundary
 
-- Root and nested `AGENTS.md` files are the stable, always-on policy and path-routing layer. Their location is part of agent discovery, so they remain beside the paths they govern.
-- `agent-harness/workflows/` contains reusable procedures; `.agents/skills/` contains on-demand capabilities; `bin/agent-*` and the verification commands provide deterministic checks. Host integrations are added only when selected, not maintained speculatively.
-- `APPlyVault/` is the software knowledge base for current direction, requirements, decisions, risks, research and dated evidence. Application source, tests, migrations and runbooks are executable truth for implemented behavior.
-- Prompt instructions do not create a runtime permission boundary. A plan/act skill cannot change tool availability, sandboxing, approvals or deployment authority.
+- `AGENTS.md` routes stable policy, workflows hold procedures, skills are on demand, and `bin/agent-*` provides deterministic checks.
+- `APPlyVault/` holds product knowledge; source, tests, migrations and runbooks remain executable truth. Prompt text never grants runtime, deployment or approval authority.
 
 See [`agent-harness/README.md`](agent-harness/README.md) for the component map and skill catalog.
 
@@ -45,13 +41,12 @@ When a missing choice would materially change the result or expand authority, st
 
 Before the first write:
 
-1. Run `git status --short` and preserve all existing and concurrent work. Do not reset, discard or blindly stash another person's changes.
-2. Check the current branch and working tree for overlapping work before editing.
-3. Run `bin/agent-preflight --path <target>` for each major area in scope, or perform the equivalent checks manually.
-4. Read the applicable nested `AGENTS.md` and workflow playbooks.
-6. For implementation or vault changes, read `APPlyVault/00 Home.md` and use `APPlyVault/01 Table of Contents.md` to select only the relevant current notes, decisions, risks and evidence.
-7. Development starts with `docs/development/README.md` and the relevant section of `docs/architecture/software-architecture.md`; use the vault table of contents only for the product, decision, risk and evidence context the change needs.
-8. Briefly state the reviewed scope, material gaps or conflicts and intended changes.
+1. Run `git status --short`; preserve existing work and check for overlapping ownership.
+2. Run `bin/agent-preflight --path <target>` for each major area and read its nested instructions/workflow.
+3. For implementation or vault changes, use the vault table of contents to select only relevant current context.
+4. Read the relevant development and architecture sections, then state scope, conflicts and intended changes.
+
+When provisioning a fresh isolated worktree, run `ruby bin/dev prewarm` once before delegating product work. It reuses the machine-wide Bundler and npm caches, does not start PostgreSQL or application services, and must not be repeated while the lockfiles are unchanged.
 
 Do not edit, rename, delete, format broadly, install dependencies, run generators, change settings or deploy until the review is complete. External links are not reviewed merely because a vault note references them.
 

@@ -7,6 +7,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": "../../.cache/typescript/web.tsbuildinfo",
     "skipLibCheck": true,
     "types": ["vite/client", "node"],
     "allowImportingTsExtensions": true

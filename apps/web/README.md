@@ -23,10 +23,15 @@ npm ci --ignore-scripts
 npm run dev
 npm test
 npm run build
+npm run browser:smoke -- --route /clinic --profile clinic-administrator
 npm audit --audit-level=high
 ```
 
 Dev defaults to 127.0.0.1:3000 and proxies `/api` to 127.0.0.1:3001, preserving Host/Origin. `APPLY_WEB_PORT` and `APPLY_API_PORT` support isolated checkouts. Repository-root `bin/dev` is the canonical combined lifecycle; package-level `npm run dev` remains a frontend-only component command. `bin/verify-web` runs synthetic native-HTTP integration with its own database and processes.
+
+`browser:smoke` starts or reuses that managed stack, signs in through the loopback-only development session, opens one requested same-origin route in installed Edge, and saves a screenshot under the ignored `outputs/browser-smoke/` directory. Use `--viewport phone`, `--headed`, or another listed development account when the acceptance contract requires it; run `--help` for all options. It is local synthetic browser evidence, not production or provider verification.
+
+For a fresh isolated worktree, run `ruby bin/dev prewarm` once from the repository root before the first build or test. It uses npm's machine-wide package cache with `--prefer-offline`; normal tests and builds then reuse that worktree's installed dependencies.
 
 The build outputs only static assets. Docker builds independently and serves them as an unprivileged nginx user on 8080, with strict same-origin CSP and no application secrets. The provider-neutral edge in `ops/portable/nginx.conf` sends API requests directly to Rails. No cross-origin credential configuration is necessary.
 

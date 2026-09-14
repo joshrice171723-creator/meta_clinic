@@ -24,10 +24,7 @@ The physical `AGENTS.md` files remain at repository and subtree boundaries becau
 3. Load only the relevant workflow from `agent-harness/workflows/`.
 4. Use `APPlyVault/01 Table of Contents.md` to retrieve the minimum current product context needed for the task.
 5. Use a skill only when its description or explicit invocation matches the job.
-6. Run `bin/agent-check --path <target> --level <focused|component|integration>`
-   before handoff. Repeat `--path` for a multi-surface change; the report
-   discloses other dirty paths without using them to select checks. Use `--json`
-   for machine-readable output and `--staged` only when reviewing the index.
+6. During a build, use `bin/agent-check --phase build --path <target> --level focused` only for a useful focused signal. After staging the frozen candidate, run one `--phase final --staged` component or integration selection. Repair with named `--check` values only. The report includes impacted product areas and exact selected tests; dependency audits run locally only when dependency files changed.
 7. Report the final checks, evidence and residual risks in the task handoff.
 
 `agent-harness/routes.json` is the machine-readable selector behind `bin/agent-preflight`. It maps repository surfaces to applicable workflows, skills, developer documentation, minimum vault context and checks without duplicating their contents or granting authority.

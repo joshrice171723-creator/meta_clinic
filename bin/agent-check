@@ -13,6 +13,36 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
+NPM = "npm.cmd" if sys.platform == "win32" else "npm"
+RUBY = "ruby"
+PYTHON = sys.executable
+
+API_AREA_TERMS = {
+    "authorization": ("authorization", "permission", "role", "session", "csrf", "identity"),
+    "billing": ("billing", "invoice", "payment", "refund", "subscription"),
+    "care": ("care", "clinical", "encounter", "observation", "procedure", "lab", "vital"),
+    "configuration": ("configuration", "setting"),
+    "documents": ("document", "attachment"),
+    "inventory": ("inventory", "supplier", "purchase", "stock", "recall", "controlled"),
+    "membership_growth": ("membership", "prospect", "storefront"),
+    "messaging": ("messaging", "message", "conversation"),
+    "operations": ("operations", "patient_flow", "tracking_board", "work_item"),
+    "patient_portal": ("patient_portal", "portal", "invitation"),
+    "reminders": ("reminder", "background_work"),
+    "scheduling": ("scheduling", "appointment", "calendar", "visit_type"),
+    "scribe": ("scribe", "transcription", "recording"),
+    "telehealth": ("telehealth", "video", "twilio", "daily"),
+    "workforce": ("workforce", "staff", "timecard", "payroll", "punch"),
+}
+API_GLOBAL_PATHS = {
+    "apps/api/app/controllers/application_controller.rb",
+    "apps/api/config/application.rb",
+    "apps/api/config/environment.rb",
+    "apps/api/config/routes.rb",
+    "apps/api/test/test_helper.rb",
+}
+WEB_CODE_SUFFIXES = {".ts", ".tsx", ".js", ".jsx"}
+WEB_FORMAT_SUFFIXES = WEB_CODE_SUFFIXES | {".mjs", ".json", ".html", ".css", ".md"}
 
 
 @dataclass(frozen=True)
@@ -35,8 +65,9 @@ def git_lines(*args: str) -> set[str]:
 
 
 def changed_paths(base: str, staged: bool = False) -> set[str]:
-    diff_args = ["diff", "--cached", "--name-only"] if staged else ["diff", "--name-only", base]
-    tracked = git_lines(*diff_args, "--")
+    if staged:
+        return git_lines("diff", "--cached", "--name-only", "--")
+    tracked = git_lines("diff", "--name-only", base, "--")
     untracked = git_lines("ls-files", "--others", "--exclude-standard")
     return tracked | untracked
 
@@ -65,6 +96,99 @@ def implementation_change(paths: set[str], prefix: str) -> bool:
     )
 
 
+def relative_paths(paths: set[str], prefix: str, suffixes: set[str] | None = None) -> tuple[str, ...]:
+    root = f"{prefix}/"
+    selected = []
+    for path in sorted(paths):
+        if not path.startswith(root):
+            continue
+        relative = path[len(root):]
+        if suffixes is None or Path(relative).suffix in suffixes:
+            selected.append(relative)
+    return tuple(selected)
+
+
+def api_impact_areas(paths: set[str]) -> set[str]:
+    normalized = "\n".join(path.lower().replace("-", "_") for path in paths)
+    return {
+        area
+        for area, terms in API_AREA_TERMS.items()
+        if f"/{area}/" in normalized or any(term in normalized for term in terms)
+    }
+
+
+def product_areas(paths: set[str]) -> list[str]:
+    areas = {f"api:{area}" for area in api_impact_areas(paths)}
+    for path in paths:
+        parts = Path(path).parts
+        if len(parts) > 4 and parts[:4] == ("apps", "web", "src", "features"):
+            areas.add(f"web:{parts[4]}")
+        elif path.startswith("apps/web/src/api/") or path.startswith("apps/web/src/shared/"):
+            areas.add("web:shared")
+    return sorted(areas)
+
+
+def api_impacted_tests(paths: set[str]) -> tuple[str, ...] | None:
+    changed_tests = set(relative_paths(paths, "apps/api", {".rb"}))
+    changed_tests = {path for path in changed_tests if path.startswith("test/") and path.endswith("_test.rb")}
+    source_paths = {
+        path for path in paths
+        if path.startswith("apps/api/") and path.endswith(".rb") and "/test/" not in path
+    }
+    if source_paths & API_GLOBAL_PATHS or any(path.startswith("apps/api/config/initializers/") for path in source_paths):
+        return None
+    if not source_paths:
+        return tuple(sorted(changed_tests)) if changed_tests else None
+
+    areas = api_impact_areas(source_paths)
+    source_stems = {
+        Path(path).stem.removesuffix("_controller").removesuffix("_serializer")
+        for path in source_paths
+    } - {"application", "base", "current", "concern"}
+    test_root = ROOT / "apps" / "api" / "test"
+    selected = set(changed_tests)
+    for candidate in test_root.rglob("*_test.rb"):
+        relative = candidate.relative_to(ROOT / "apps" / "api").as_posix()
+        searchable = relative.lower().replace("-", "_")
+        if any(stem and stem in searchable for stem in source_stems):
+            selected.add(relative)
+            continue
+        if any(any(term in searchable for term in API_AREA_TERMS[area]) for area in areas):
+            selected.add(relative)
+    return tuple(sorted(selected)) if selected else None
+
+
+def web_impacted_checks(paths: set[str], level: str) -> list[Check]:
+    checks: list[Check] = []
+    web_root = ROOT / "apps" / "web"
+    code_paths = relative_paths(paths, "apps/web", WEB_CODE_SUFFIXES)
+    source_paths = tuple(path for path in code_paths if path.startswith("src/"))
+    test_paths = tuple(path for path in code_paths if path.startswith("test/") and ".test." in path)
+    format_paths = relative_paths(paths, "apps/web", WEB_FORMAT_SUFFIXES)
+    dependency_changed = any(path in {"apps/web/package.json", "apps/web/package-lock.json"} for path in paths)
+    build_changed = bool(source_paths) or dependency_changed or any(path in {"apps/web/index.html", "apps/web/vite.config.ts", "apps/web/tsconfig.json"} for path in paths)
+
+    if code_paths or build_changed:
+        checks.append(Check("frontend incremental typecheck", (NPM, "run", "typecheck"), web_root))
+    if level == "integration":
+        checks.append(Check("frontend tests", (NPM, "test"), web_root))
+    else:
+        if source_paths:
+            checks.append(Check("frontend related tests", (NPM, "exec", "--", "vitest", "related", *source_paths, "--run"), web_root))
+        if test_paths:
+            checks.append(Check("frontend changed tests", (NPM, "exec", "--", "vitest", "run", *test_paths), web_root))
+    if format_paths:
+        command = (NPM, "exec", "--", "prettier", "--check", *format_paths, "--end-of-line", "auto")
+        checks.append(Check("frontend formatting", command, web_root))
+    if build_changed:
+        checks.append(Check("frontend bundle", (NPM, "run", "build:bundle"), web_root))
+    if dependency_changed:
+        checks.append(Check("frontend dependency audit", (NPM, "audit", "--audit-level=high"), web_root))
+    if "apps/web/scripts/browser-smoke.mjs" in paths:
+        checks.append(Check("browser smoke command", (NPM, "run", "browser:smoke", "--", "--route", "/clinic", "--profile", "clinic-administrator"), web_root))
+    return checks
+
+
 def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD", staged: bool = False) -> list[Check]:
     checks: list[Check] = []
     diff_command = ("git", "diff", "--cached" if staged else base, "--check", "--", *sorted(paths))
@@ -76,6 +200,7 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         or path == "README.md"
         or path.startswith("agent-harness/")
         or path.startswith(".agents/")
+        or path == "apps/web/scripts/browser-smoke.mjs"
         or path.startswith("docs/")
         or path.startswith("records/")
         or path == ".github/workflows/ci.yml"
@@ -93,18 +218,19 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         for path in paths
     )
     if level != "focused" and vault_changed:
-        checks.append(Check("vault knowledge base", ("python3", "-B", "bin/verify-vault")))
-        checks.append(Check("vault hygiene report", ("python3", "-B", "bin/vault-audit")))
+        checks.append(Check("vault knowledge base", (PYTHON, "-B", "bin/verify-vault")))
+        checks.append(Check("vault hygiene report", (PYTHON, "-B", "bin/vault-audit")))
     if level != "focused" and harness_changed:
-        checks.append(Check("agent harness", ("python3", "-B", "bin/verify-agent-harness")))
+        checks.append(Check("agent harness", (PYTHON, "-B", "bin/verify-agent-harness")))
+        checks.append(Check("agent harness unit tests", (PYTHON, "-B", "-m", "unittest", "discover", "-s", "agent-harness", "-p", "test_*.py")))
 
     if level == "focused":
         if implementation_change(paths, "apps/api"):
             ruby_paths = tuple(path for path in sorted(paths) if path.endswith(".rb"))
             if ruby_paths:
-                checks.append(Check("focused Ruby syntax", ("ruby", "-e", "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }", *ruby_paths)))
+                checks.append(Check("focused Ruby syntax", (RUBY, "-e", "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }", *ruby_paths)))
         if implementation_change(paths, "apps/web"):
-            checks.append(Check("focused frontend typecheck", ("npm", "run", "typecheck"), ROOT / "apps/web"))
+            checks.append(Check("focused incremental frontend typecheck", (NPM, "run", "typecheck"), ROOT / "apps/web"))
         return checks
 
     lifecycle_paths = {
@@ -127,7 +253,7 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
             Check(
                 "local lifecycle Ruby syntax",
                 (
-                    "ruby",
+                    RUBY,
                     "-e",
                     "ARGV.each { |path| RubyVM::InstructionSequence.compile_file(path) }",
                     "dev_server_startup",
@@ -144,45 +270,30 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
                 ),
             )
         )
-        checks.append(Check("local lifecycle help", ("ruby", "bin/dev", "help")))
-        checks.append(Check("development lifecycle tests", ("ruby", "test/development/development_lifecycle_test.rb")))
-        checks.append(Check("task trace tests", ("ruby", "test/development/task_trace_test.rb")))
+        checks.append(Check("local lifecycle help", (RUBY, "bin/dev", "help")))
+        checks.append(Check("development lifecycle tests", (RUBY, "test/development/development_lifecycle_test.rb")))
+        checks.append(Check("task trace tests", (RUBY, "test/development/task_trace_test.rb")))
 
     api_changed = implementation_change(paths, "apps/api")
     web_changed = implementation_change(paths, "apps/web")
     ops_changed = implementation_change(paths, "ops/portable")
 
     if api_changed:
-        checks.extend(
-            [
-                Check(
-                    "prepare Rails test database",
-                    ("bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "db:prepare"),
-                    ROOT / "apps/api",
-                ),
-                Check(
-                    "Rails tests",
-                    ("bin/postgres", "exec", "bin/rails", "test"),
-                    ROOT / "apps/api",
-                ),
-                Check(
-                    "Rails eager loading",
-                    ("bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "zeitwerk:check"),
-                    ROOT / "apps/api",
-                ),
-                Check("RuboCop", ("bin/rubocop",), ROOT / "apps/api"),
-                Check(
-                    "Brakeman",
-                    ("bin/brakeman", "--quiet", "--no-pager", "--exit-on-warn", "--exit-on-error"),
-                    ROOT / "apps/api",
-                ),
-                Check(
-                    "Bundler Audit",
-                    ("bin/bundler-audit", "check", "--update"),
-                    ROOT / "apps/api",
-                ),
-            ]
-        )
+        api_root = ROOT / "apps" / "api"
+        ruby_paths = relative_paths(paths, "apps/api", {".rb"})
+        impacted_tests = None if level == "integration" else api_impacted_tests(paths)
+        if ruby_paths:
+            checks.append(Check("prepare Rails test database", (RUBY, "bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "db:prepare"), api_root))
+            rails_command = (RUBY, "bin/postgres", "exec", "bin/rails", "test", *(impacted_tests or ()))
+            checks.append(Check("Rails tests" if impacted_tests is None else "Rails impacted tests", rails_command, api_root))
+            if any(path.startswith(("apps/api/app/", "apps/api/config/")) for path in paths):
+                checks.append(Check("Rails eager loading", (RUBY, "bin/postgres", "exec", "env", "RAILS_ENV=test", "bin/rails", "zeitwerk:check"), api_root))
+            rubocop_command = (RUBY, "bin/rubocop") if level == "integration" else (RUBY, "bin/rubocop", *ruby_paths)
+            checks.append(Check("RuboCop", rubocop_command, api_root))
+        if level == "integration" and any(path.startswith(("apps/api/app/", "apps/api/config/")) for path in paths):
+            checks.append(Check("Brakeman", (RUBY, "bin/brakeman", "--quiet", "--no-pager", "--exit-on-warn", "--exit-on-error"), api_root))
+        if any(path in {"apps/api/Gemfile", "apps/api/Gemfile.lock"} for path in paths):
+            checks.append(Check("Bundler Audit", (RUBY, "bin/bundler-audit", "check", "--update"), api_root))
         migration_change = any(
             path.startswith("apps/api/db/") or path.startswith("apps/api/app/models/")
             for path in paths
@@ -190,20 +301,13 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         if migration_change:
             checks.extend(
                 [
-                    Check("backend invariants", ("bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"),
-                    Check("PostgreSQL transition/restore", ("bin/postgres", "exec", "bin/verify-postgres"), ROOT / "apps/api"),
+                    Check("backend invariants", (RUBY, "bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"),
+                    Check("PostgreSQL transition/restore", (RUBY, "bin/postgres", "exec", "bin/verify-postgres"), ROOT / "apps/api"),
                 ]
             )
 
     if web_changed:
-        checks.extend(
-            [
-                Check("frontend tests", ("npm", "test"), ROOT / "apps/web"),
-                Check("frontend formatting", ("npm", "run", "format:check"), ROOT / "apps/web"),
-                Check("frontend build", ("npm", "run", "build"), ROOT / "apps/web"),
-                Check("frontend dependency audit", ("npm", "audit", "--audit-level=high"), ROOT / "apps/web"),
-            ]
-        )
+        checks.extend(web_impacted_checks(paths, level))
 
     cross_boundary = (
         api_changed and web_changed
@@ -216,19 +320,19 @@ def checks_for(paths: set[str], level: str = "component", *, base: str = "HEAD",
         for path in paths
     )
     if cross_boundary:
-        checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
+        checks.append(Check("frontend/API boundary", (RUBY, "bin/verify-web")))
 
     if level == "integration":
         if api_changed and not cross_boundary:
-            checks.append(Check("backend contracts", ("bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"))
+            checks.append(Check("backend contracts", (RUBY, "bin/postgres", "exec", "bin/verify-backend"), ROOT / "apps/api"))
         if web_changed and not cross_boundary:
-            checks.append(Check("frontend/API boundary", ("bin/verify-web",)))
+            checks.append(Check("frontend/API boundary", (RUBY, "bin/verify-web")))
 
     if ops_changed:
         checks.append(
             Check(
                 "portable delivery boundaries",
-                ("ruby", "bin/verify-portable-delivery"),
+                (RUBY, "bin/verify-portable-delivery"),
             )
         )
 
@@ -294,7 +398,7 @@ def main() -> int:
         unrelated |= all_paths - candidate_paths
     if not paths:
         if args.json:
-            print(json.dumps({"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": [], "unrelated_files": sorted(unrelated), "selected_commands": [], "outcomes": []}, sort_keys=True))
+            print(json.dumps({"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": [], "product_areas": [], "unrelated_files": sorted(unrelated), "selected_commands": [], "outcomes": []}, sort_keys=True))
         else:
             print("No changes detected in the requested scope.")
             if unrelated:
@@ -315,10 +419,22 @@ def main() -> int:
         outcomes = []
         for check in checks:
             outcomes.append({"name": check.name, "command": display(check), "status": "pending" if args.run else "skipped"})
-        report = {"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": sorted(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
+        report = {"base": args.base, "scope": args.path, "level": args.level, "phase": args.phase, "requested_checks": args.check, "staged": args.staged, "selected_files": sorted(paths), "product_areas": product_areas(paths), "unrelated_files": sorted(unrelated), "selected_commands": [{"name": c.name, "command": display(c)} for c in checks], "outcomes": outcomes}
         if args.run:
             for outcome, check in zip(outcomes, checks):
-                result = subprocess.run(check.command, cwd=check.cwd, capture_output=True, text=True)
+                try:
+                    result = subprocess.run(
+                        check.command,
+                        cwd=check.cwd,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                    )
+                except OSError as error:
+                    outcome.update(status="failed", returncode=127, stderr=str(error))
+                    print(json.dumps(report, sort_keys=True))
+                    return 127
                 outcome["status"] = "passed" if result.returncode == 0 else "failed"
                 outcome["returncode"] = result.returncode
                 if result.returncode:
@@ -338,6 +454,11 @@ def main() -> int:
         print("\nUnrelated dirty paths (disclosed, not used for check selection):")
         for path in sorted(unrelated):
             print(f"  - {path}")
+    areas = product_areas(paths)
+    if areas:
+        print("\nImpacted product areas:")
+        for area in areas:
+            print(f"  - {area}")
 
     if not checks:
         print("\nNo automated check mapping exists for these paths; inspect the diff manually.")
@@ -353,7 +474,11 @@ def main() -> int:
 
     for check in checks:
         print(f"\n==> {check.name}", flush=True)
-        result = subprocess.run(check.command, cwd=check.cwd)
+        try:
+            result = subprocess.run(check.command, cwd=check.cwd)
+        except OSError as error:
+            print(f"check could not start: {check.name}: {error}", file=sys.stderr)
+            return 127
         if result.returncode:
             print(f"check failed: {check.name}", file=sys.stderr)
             return result.returncode

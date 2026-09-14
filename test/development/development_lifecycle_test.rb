@@ -25,6 +25,7 @@ class DevelopmentLifecycleTest < Minitest::Test
     assert_includes @output.string, "Usage: bin/dev"
     assert_includes @output.string, "start                 Migrate"
     assert_includes @output.string, "reset-data --yes"
+    assert_includes @output.string, "prewarm"
     assert_includes @output.string, "refresh never creates merge commits"
   end
 
@@ -62,10 +63,41 @@ class DevelopmentLifecycleTest < Minitest::Test
     assert_includes node_check.detail, "expected major 999"
   end
 
+  def test_prewarm_installs_dependencies_without_starting_database_or_services
+    lifecycle = build_lifecycle
+    events = []
+    lifecycle.define_singleton_method(:validate_local_boundary!) { events << "boundary" }
+    lifecycle.define_singleton_method(:require_runtime_versions!) { events << "runtime" }
+    lifecycle.define_singleton_method(:install_api_dependencies!) { events << "api" }
+    lifecycle.define_singleton_method(:install_web_dependencies!) { events << "web" }
+    lifecycle.define_singleton_method(:ensure_postgres!) { |_auto_start_docker| raise "database should not start" }
+    lifecycle.define_singleton_method(:spawn_missing_services!) { raise "services should not start" }
+
+    assert_equal 0, lifecycle.run(["prewarm"])
+    assert_equal %w[boundary runtime api web], events
+    assert_includes @output.string, "shared Bundler and npm caches"
+  end
+
   def test_npm_command_uses_the_windows_command_shim
     command = build_lifecycle.send(:npm_command)
 
     assert_equal(Gem.win_platform? ? "npm.cmd" : "npm", command)
+  end
+
+  def test_http_readiness_timeouts_can_be_extended_for_deliberate_browser_proof
+    lifecycle = build_lifecycle(
+      "APPLY_API_READINESS_TIMEOUT" => "120",
+      "APPLY_WEB_READINESS_TIMEOUT" => "150"
+    )
+    observed = []
+    lifecycle.define_singleton_method(:wait_until) do |timeout, &_probe|
+      observed << timeout
+      true
+    end
+
+    lifecycle.send(:require_http_readiness!)
+
+    assert_equal [120, 150], observed
   end
 
   def test_restart_validates_prerequisites_before_stopping_services
@@ -312,6 +344,7 @@ class DevelopmentLifecycleTest < Minitest::Test
 
   def test_process_liveness_uses_the_operating_system_process_table
     lifecycle = build_lifecycle
+    lifecycle.instance_variable_set(:@windows_process_parent_map, {})
 
     assert lifecycle.send(:process_alive?, Process.pid)
     refute lifecycle.send(:process_alive?, 2_147_483_647)

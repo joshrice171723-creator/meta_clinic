@@ -26,21 +26,63 @@ class AgentCheckTest(unittest.TestCase):
         self.assertEqual(unrelated, {"apps/api/app/models/user.rb", "notes.md"})
         self.assertTrue(agent_check.matches_scope("apps/web/src/App.tsx", ["."]))
 
-    def test_staged_only_uses_index_and_excludes_untracked(self):
-        with patch.object(agent_check, "git_lines", side_effect=[{"tracked.rb"}, {"untracked.rb"}]) as git:
-            self.assertEqual(agent_check.changed_paths("HEAD", staged=True), {"tracked.rb", "untracked.rb"})
+    def test_staged_only_uses_frozen_index_and_excludes_untracked(self):
+        with patch.object(agent_check, "git_lines", return_value={"tracked.rb"}) as git:
+            self.assertEqual(agent_check.changed_paths("HEAD", staged=True), {"tracked.rb"})
         self.assertEqual(git.call_args_list[0].args, ("diff", "--cached", "--name-only", "--"))
-        self.assertEqual(len(git.call_args_list), 2)
+        self.assertEqual(len(git.call_args_list), 1)
 
     def test_levels_escalate_checks(self):
         paths = {"apps/web/src/App.tsx"}
         focused = [check.name for check in agent_check.checks_for(paths, "focused")]
         component = [check.name for check in agent_check.checks_for(paths, "component")]
         integration = [check.name for check in agent_check.checks_for(paths, "integration")]
-        self.assertEqual(focused, ["git diff --check", "focused frontend typecheck"])
-        self.assertIn("frontend tests", component)
+        self.assertEqual(focused, ["git diff --check", "focused incremental frontend typecheck"])
+        self.assertIn("frontend related tests", component)
         self.assertIn("frontend/API boundary", integration)
         self.assertGreater(len(integration), len(component))
+
+    def test_frontend_component_uses_related_tests_changed_formatting_and_conditional_audit(self):
+        paths = {"apps/web/src/features/inventory/InventoryApp.tsx"}
+        checks = agent_check.checks_for(paths, "component")
+        by_name = {check.name: check for check in checks}
+        self.assertIn("frontend related tests", by_name)
+        self.assertEqual(by_name["frontend related tests"].command[0], agent_check.NPM)
+        self.assertIn("src/features/inventory/InventoryApp.tsx", by_name["frontend related tests"].command)
+        self.assertIn("frontend incremental typecheck", by_name)
+        self.assertIn("frontend formatting", by_name)
+        self.assertIn("--end-of-line", by_name["frontend formatting"].command)
+        self.assertIn("frontend bundle", by_name)
+        self.assertNotIn("frontend tests", by_name)
+        self.assertNotIn("frontend dependency audit", by_name)
+
+        dependency = {check.name for check in agent_check.checks_for({"apps/web/package-lock.json"}, "component")}
+        self.assertIn("frontend dependency audit", dependency)
+
+    def test_api_component_selects_product_area_tests_and_changed_file_lint(self):
+        path = "apps/api/app/services/clinic/inventory/purchase_cart_checkout.rb"
+        checks = agent_check.checks_for({path}, "component")
+        by_name = {check.name: check for check in checks}
+        self.assertIn("Rails impacted tests", by_name)
+        self.assertTrue(any("inventory" in argument for argument in by_name["Rails impacted tests"].command))
+        self.assertEqual(by_name["RuboCop"].command, (agent_check.RUBY, "bin/rubocop", "app/services/clinic/inventory/purchase_cart_checkout.rb"))
+        self.assertNotIn("Brakeman", by_name)
+        self.assertNotIn("Bundler Audit", by_name)
+        self.assertEqual(agent_check.product_areas({path}), ["api:inventory"])
+
+        integration = {check.name for check in agent_check.checks_for({path}, "integration")}
+        self.assertIn("Rails tests", integration)
+        self.assertIn("Brakeman", integration)
+        dependency = {check.name for check in agent_check.checks_for({"apps/api/Gemfile.lock"}, "component")}
+        self.assertEqual(dependency, {"git diff --check", "Bundler Audit"})
+
+    def test_browser_smoke_and_ci_parallelization_are_part_of_the_harness(self):
+        checks = {check.name for check in agent_check.checks_for({"apps/web/scripts/browser-smoke.mjs"}, "component")}
+        self.assertIn("browser smoke command", checks)
+        ci = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("rails_test:", ci)
+        self.assertIn("shard: [0, 1]", ci)
+        self.assertIn("backend_contracts:", ci)
 
     def test_cross_boundary_is_selected_for_both_apps(self):
         checks = [check.name for check in agent_check.checks_for({"apps/api/app/a.rb", "apps/web/src/a.tsx"}, "component")]
@@ -93,14 +135,14 @@ class AgentCheckTest(unittest.TestCase):
             "--path",
             "apps/web",
             "--check",
-            "frontend tests",
+            "frontend related tests",
             "--json",
         ]
         with patch.object(agent_check, "changed_paths", return_value={"apps/web/src/App.tsx"}), contextlib.redirect_stdout(output), patch.object(sys, "argv", argv):
             self.assertEqual(agent_check.main(), 0)
         report = json.loads(output.getvalue())
         self.assertEqual(report["phase"], "repair")
-        self.assertEqual([check["name"] for check in report["selected_commands"]], ["frontend tests"])
+        self.assertEqual([check["name"] for check in report["selected_commands"]], ["frontend related tests"])
 
 
 if __name__ == "__main__":

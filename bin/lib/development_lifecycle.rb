@@ -18,7 +18,7 @@ module Apply
 
     Check = Struct.new(:name, :ok, :detail, keyword_init: true)
 
-    COMMANDS = %w[start stop restart status setup refresh reset-data].freeze
+    COMMANDS = %w[start stop restart status setup prewarm refresh reset-data].freeze
     PROCESS_ROLES = {
       "api" => {port_key: :api, directory: "apps/api"},
       "web" => {port_key: :web, directory: "apps/web"},
@@ -65,6 +65,8 @@ module Apply
         web: parse_port("APPLY_WEB_PORT", 3000),
         api: parse_port("APPLY_API_PORT", 3001)
       }
+      @api_readiness_timeout = parse_timeout("APPLY_API_READINESS_TIMEOUT", 45)
+      @web_readiness_timeout = parse_timeout("APPLY_WEB_READINESS_TIMEOUT", 60)
       @trace = nil
       @owns_trace = false
       @trace_parent = @environment["APPLY_TASK_TRACE_PARENT"]
@@ -103,6 +105,7 @@ module Apply
           restart               Restart services without reinstalling or resetting data
           status                Run strict runtime, process, database, and HTTP checks
           setup                 Install locked dependencies and prepare the database
+          prewarm               Install locked dependencies from shared caches without starting services
           refresh               Fast-forward a clean checkout, reconcile dependencies, and restart
           reset-data --yes      Replant only the guarded local development database
 
@@ -151,6 +154,8 @@ module Apply
         run_status!
       when "setup"
         setup
+      when "prewarm"
+        prewarm
       when "refresh"
         refresh(options)
       when "reset-data"
@@ -222,6 +227,14 @@ module Apply
       phase("Start PostgreSQL", category: "database") { ensure_postgres!(auto_start_docker: true) }
       phase("Migrate the development database", category: "database") { migrate_database! }
       @output.puts "Setup complete. Run bin/dev start."
+    end
+
+    def prewarm
+      validate_local_boundary!
+      phase("Validate pinned runtimes") { require_runtime_versions! }
+      phase("Prewarm locked API dependencies", category: "dependency") { install_api_dependencies! }
+      phase("Prewarm locked web dependencies", category: "dependency") { install_web_dependencies! }
+      @output.puts "Worktree dependencies are ready from the shared Bundler and npm caches."
     end
 
     def refresh(options)
@@ -456,7 +469,7 @@ module Apply
     def install_web_dependencies!
       return @output.puts("Locked web dependencies are already installed.") if web_dependencies_ready?
 
-      system!(npm_command, "ci", "--ignore-scripts", chdir: @web_root)
+      system!(npm_command, "ci", "--ignore-scripts", "--prefer-offline", chdir: @web_root)
       fail_with("npm dependency validation fails after installation") unless web_dependency_tree_ready?
       digest = Digest::SHA256.file(File.join(@web_root, "package-lock.json")).hexdigest
       File.write(File.join(@web_root, "node_modules/.apply-lock-digest"), "#{digest}\n")
@@ -960,9 +973,9 @@ module Apply
     end
 
     def require_http_readiness!
-      api_ready = wait_until(45) { http_ready?("#{api_url}/up") }
+      api_ready = wait_until(@api_readiness_timeout) { http_ready?("#{api_url}/up") }
       fail_with("API failed readiness; inspect #{@log_root}/api.log") unless api_ready
-      web_ready = wait_until(60) { http_ready?("#{web_url}/login") }
+      web_ready = wait_until(@web_readiness_timeout) { http_ready?("#{web_url}/login") }
       fail_with("frontend failed readiness; inspect #{@log_root}/web.log") unless web_ready
     end
 
@@ -1030,8 +1043,6 @@ module Apply
     end
 
     def process_alive?(pid)
-      return windows_process_parent_map.key?(pid) if Gem.win_platform?
-
       Process.kill(0, pid)
       true
     rescue Errno::ESRCH
@@ -1054,6 +1065,14 @@ module Apply
       port
     rescue ArgumentError
       fail_with("#{key} must be a numeric port")
+    end
+
+    def parse_timeout(key, fallback)
+      timeout = Integer(@environment.fetch(key, fallback.to_s), 10)
+      fail_with("#{key} must be between 5 and 300 seconds") unless timeout.between?(5, 300)
+      timeout
+    rescue ArgumentError
+      fail_with("#{key} must be a whole number of seconds")
     end
 
     def wait_until(timeout_seconds)
