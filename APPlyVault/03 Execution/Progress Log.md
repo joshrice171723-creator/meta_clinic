@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-14 — Detailed patient-journey execution plan saved
+
+Created the founder-requested [execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) from the supplied research conversation and its final clarifications. It preserves field/question/control detail, links the shared matrix, and adds bounded execution/acceptance and resume instructions. The earlier tracker summary was not the full assignment document; the isolated skill-test draft is not adopted. Exact source citations and current code reconciliation remain explicitly identified work, not newly claimed verification. No application changes or overnight dispatch.
+
 ## 2026-09-14 — Full-journey dependency planning expanded
 
 Expanded the engineering matrix into stable acceptance cases across enrollment, visits, prescriptions, labs, inventory, billing, ownership and integrations, using the founder's exact six columns. Added field-contract and blocker-source requirements, recorded D-074's narrow age/booking rules, and connected the reference journey to the existing tracker. Documentation only; no workflow implementation or overnight dispatch. [Dated record](../../records/progress/2026/09/2026-09-14-patient-journey-dependency-planning.md).
