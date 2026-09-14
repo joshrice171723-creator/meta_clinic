@@ -1,11 +1,17 @@
 ---
 type: implementation-package
-status: active
+status: archived
+lifecycle: archived
+archived: 2026-09-14
+historical_status: active
 updated: 2026-09-13
 ---
+
+> Historical plan only. Superseded as build guidance by the [current Meta Clinic strategy](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md) and [implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). Do not execute old prompts or adopt proposed features from this document without current direction. Original dated content follows; see [archive context](README.md).
+
 # Cash-Pay Billing Implementation Package
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Architecture: [[Software Architecture]] · Data boundary: [[Data Modeling]] · Test plan: [[Cash-Pay Billing Test Plan]] · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Architecture: [[Software Architecture]] · Data boundary: [[Data Modeling]] · Test plan: [Cash-Pay Billing Test Plan](Cash-Pay%20Billing%20Test%20Plan.md) · Evidence: [[Progress Log]]
 
 ## Purpose and authority
 
@@ -264,7 +270,7 @@ The adjacent receivables work was reviewed under the same rule: Luna found and r
 
 ## Required continuation checklist for the next AI
 
-The package-specific verification procedure and Luna-only bounded repair rules live in [[Cash-Pay Billing Test Plan]]. Update that matrix and [[Progress Log]] after every gate; never convert an unavailable browser/API or unapproved production contract into a pass.
+The package-specific verification procedure and Luna-only bounded repair rules live in [Cash-Pay Billing Test Plan](Cash-Pay%20Billing%20Test%20Plan.md). Update that matrix and [[Progress Log]] after every gate; never convert an unavailable browser/API or unapproved production contract into a pass.
 
 1. Read this package, [[CICD]], [[Software Architecture]], [[Working Agreement]], current [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md), and the closest `AGENTS.md` files before editing.
 2. Pull and inspect the current branch; preserve unrelated changes. Locate existing billing contracts/tests before adding a migration or UI abstraction.

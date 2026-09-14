@@ -7,6 +7,8 @@ updated: 2026-09-13
 
 ## Meta Clinic strategy and implementation tracking
 
+**D-071 clarification — 2026-09-13 / founder's explicit consolidation correction:** physically remove superseded implementation plans from the active vault and preserve them as historical records. Do not promote old feature ideas, proposed requirements or review gates into the current product merely because they appear in an older document. Current strategy and later explicit founder decisions govern; inspect current implementation before defining missing work.
+
 **D-071 — 2026-09-13 / founder's explicit direction:** adopt [[Meta Clinic Product Strategy and Scope]], the [engineering build and acceptance guide](../../docs/development/meta-clinic-build-and-acceptance.md), and [[Meta Clinic Implementation Tracker]]. Serve multiple clinic specialties, explicitly including cash-based clinics; connect public patient acquisition, walk-ins, scheduled/in-person and telehealth visits, cash billing, medication/pharmacy operations, inventory and follow-up. Purchasing organizations assign employee roles; Meta Clinic enforces privileges without default independent license validation or jurisdiction eligibility enforcement.
 
 **Tracking cutover:** retire Shortcut for current work. The implementation tracker is the single current Meta Clinic work inventory; individual tasks execute bounded changes and report evidence back. This supersedes the tracking requirements of D-060/D-061 and older active-task-only wording. Historical decision and progress entries remain dated evidence, not instructions to use the retired service. No external account or historical records are deleted.

@@ -5,7 +5,7 @@ updated: 2026-09-03
 ---
 # Patient Portal Implementation Roadmap
 
-Home: [[00 Home]] · Execution: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · [[Cash-Pay Billing Implementation Package]] · [[Clinic Encounter Workflow Contract]] · [[Risks and Assumptions]]
+Home: [[00 Home]] · Execution: [Shortcut Roadmap](https://app.shortcut.com/apply-1/roadmap) · [Cash-Pay Billing Implementation Package](../superseded-plans/Cash-Pay%20Billing%20Implementation%20Package.md) · [Clinic Encounter Workflow Contract](../superseded-plans/Clinic%20Encounter%20Workflow%20Contract.md) · [[Risks and Assumptions]]
 
 ## Purpose, scope, and limits
 

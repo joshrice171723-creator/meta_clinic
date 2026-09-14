@@ -1,8 +1,14 @@
 ---
 type: workflow
-status: draft
+status: archived
+lifecycle: archived
+archived: 2026-09-14
+historical_status: draft
 updated: 2026-09-13
 ---
+
+> Historical plan only. Superseded as build guidance by the [current Meta Clinic strategy](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md) and [implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). Do not execute old prompts or adopt proposed features from this document without current direction. Original dated content follows; see [archive context](README.md).
+
 # Clinic Intake → Clinician Handoff — Synthetic Walkthrough and Scope Map
 
 Home: [[00 Home]] · Index: [[01 Table of Contents]] · Task: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Mapping: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]

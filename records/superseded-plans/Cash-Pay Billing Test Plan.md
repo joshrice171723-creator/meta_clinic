@@ -1,15 +1,21 @@
 ---
 type: test-plan
-status: active
+status: archived
+lifecycle: archived
+archived: 2026-09-14
+historical_status: active
 updated: 2026-09-13
 ---
+
+> Historical plan only. Superseded as build guidance by the [current Meta Clinic strategy](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md) and [implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). Do not execute old prompts or adopt proposed features from this document without current direction. Original dated content follows; see [archive context](README.md).
+
 # Cash-Pay Billing Test Plan
 
-Home: [[00 Home]] · Package: [[Cash-Pay Billing Implementation Package]] · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Evidence: [[Progress Log]]
+Home: [[00 Home]] · Package: [Cash-Pay Billing Implementation Package](Cash-Pay%20Billing%20Implementation%20Package.md) · Status: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Evidence: [[Progress Log]]
 
 ## Purpose and test boundary
 
-This plan is the verification companion to [[Cash-Pay Billing Implementation Package]]. It tests the locally implemented, synthetic cash-pay milestone and the owner-approved billing-only patient portal against the current Rails/PostgreSQL ledger and React surfaces. It does not authorize real cash, checks, cards, patient data, document delivery, processor accounts, deployment, or release.
+This plan is the verification companion to [Cash-Pay Billing Implementation Package](Cash-Pay%20Billing%20Implementation%20Package.md). It tests the locally implemented, synthetic cash-pay milestone and the owner-approved billing-only patient portal against the current Rails/PostgreSQL ledger and React surfaces. It does not authorize real cash, checks, cards, patient data, document delivery, processor accounts, deployment, or release.
 
 Rails remains authoritative for practice/actor authorization, invoice state, exact amounts, allocation, drawer expected cash, idempotency, persistence and receipt records. Browser checks verify presentation, request ownership and visible failure states; they never establish financial correctness by themselves.
 
@@ -160,4 +166,4 @@ No escalation was needed because Luna's implementation and focused audit passed.
 
 ## Handoff to the implementation package
 
-After the test gate, return to [[Cash-Pay Billing Implementation Package]] and its whole-milestone status table. Do not repeat completed local cash or billing-only portal work. Select the next phase only when its authority is accepted: check scanning/OCR and image policy, invoice numbering/service dates, approved receipt/PDF/reissue/delivery contract, superbill, Stripe ownership/secrets, portal identity lifecycle/document policy, or release controls.
+After the test gate, return to [Cash-Pay Billing Implementation Package](Cash-Pay%20Billing%20Implementation%20Package.md) and its whole-milestone status table. Do not repeat completed local cash or billing-only portal work. Select the next phase only when its authority is accepted: check scanning/OCR and image policy, invoice numbering/service dates, approved receipt/PDF/reissue/delivery contract, superbill, Stripe ownership/secrets, portal identity lifecycle/document policy, or release controls.

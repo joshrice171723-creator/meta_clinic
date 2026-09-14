@@ -1,11 +1,17 @@
 ---
 type: workflow-contract
-status: proposed-with-implemented-synthetic-slice
+status: archived
+lifecycle: archived
+archived: 2026-09-14
+historical_status: proposed-with-implemented-synthetic-slice
 updated: 2026-09-13
 ---
+
+> Historical plan only. Superseded as build guidance by the [current Meta Clinic strategy](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md) and [implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md). Do not execute old prompts or adopt proposed features from this document without current direction. Original dated content follows; see [archive context](README.md).
+
 # Clinic Encounter Workflow Contract — Proposed Synthetic Boundary
 
-Home: [[00 Home]] · Index: [[01 Table of Contents]] · Parent task: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Existing walkthrough: [[Clinic Intake Handoff Walkthrough]] · Frontend map: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
+Home: [[00 Home]] · Index: [[01 Table of Contents]] · Parent task: [Meta Clinic Implementation Tracker](Meta%20Clinic%20Implementation%20Tracker.md) · Visual system: [[Design]] · Design history and workflow boundaries: [[Clinic Workspace Design]] · Existing walkthrough: [Clinic Intake Handoff Walkthrough](Clinic%20Intake%20Handoff%20Walkthrough.md) · Frontend map: [[Clinic Frontend Backend Mapping]] · Failure method: [[Working Agreement#Failure-first planning and review]]
 
 ## Purpose, authority and limits
 

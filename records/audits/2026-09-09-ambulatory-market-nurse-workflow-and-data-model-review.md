@@ -292,7 +292,7 @@ The go/no-go question for each field should be: **What action, safety check, com
 | HPI fields are composed into subjective note text | [`apps/web/src/features/clinic/HistoryOfPresentIllness.tsx`](../../apps/web/src/features/clinic/HistoryOfPresentIllness.tsx), lines 9–82 |
 | Current vital-sign dictionary | [`apps/api/app/services/clinic/care/vital_signs.rb`](../../apps/api/app/services/clinic/care/vital_signs.rb), lines 3–29 |
 | Current database objects | [`apps/api/db/structure.sql`](../../apps/api/db/structure.sql), beginning at line 1715 for clinic tables; later migrations were also inspected because the dump is behind current migration files |
-| Explicitly proposed/unimplemented arrival, intake, triage, handoff, diagnosis, and discharge contracts | [`APPlyVault/03 Execution/Clinic Encounter Workflow Contract.md`](../../APPlyVault/03%20Execution/Clinic%20Encounter%20Workflow%20Contract.md), lines 20–33 and 132 onward |
+| Explicitly proposed/unimplemented arrival, intake, triage, handoff, diagnosis, and discharge contracts | [`APPlyVault/03 Execution/Clinic Encounter Workflow Contract.md`](../superseded-plans/Clinic%20Encounter%20Workflow%20Contract.md), lines 20–33 and 132 onward |
 | Product statement that exact nurse/staff roles remain unspecified and intake/triage is the intended staff focus | [`APPlyVault/03 Execution/Clinic Workspace Design.md`](../../APPlyVault/03%20Execution/Clinic%20Workspace%20Design.md), lines 14–30 |
 
 ## 9. Verification record and limitations

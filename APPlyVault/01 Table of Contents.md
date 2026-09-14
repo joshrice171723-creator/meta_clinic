@@ -42,6 +42,8 @@ Read Home and this index for orientation, then relevant sections along one or mo
 
 ## Current execution notes and compatibility pointers — 03 Execution
 
+Superseded billing and encounter plans have been removed from the active vault and preserved in the [plan archive](../records/superseded-plans/README.md). Read them only for a specific historical question; their ideas are not current requirements. Use the three Meta Clinic planning and delivery documents above for current direction and work.
+
 | Note | What it owns / how to use it |
 | --- | --- |
 | **[[CICD]]** | Stable vault pointer for delivery state and legacy anchors; current mechanics are in [development docs](../docs/development/README.md) |
@@ -49,16 +51,12 @@ Read Home and this index for orientation, then relevant sections along one or mo
 | [[Clinic Domain and Data Boundaries]] | Compact current clinic-domain, custody, identity, audit and release boundaries |
 | [[PostgreSQL and Inventory Foundation]] | Implemented database/inventory controls, verified staging cutover/recovery and pending production cutover |
 | [[Inventory Integration Handoff]] | Compatibility pointer to the [developer inventory handoff](../docs/development/inventory-integration.md) |
-| [[Cash-Pay Billing Implementation Package]] | Proposed cash-pay receivables roadmap, current ledger mapping, cash/receipt/Stripe boundaries, phased acceptance and next-agent prompt |
-| [[Cash-Pay Billing Test Plan]] | Package-specific positive, negative, authorization, replay, UI, escalation and exit checks with dated evidence status |
 | [[Website MVP]] | Current selling-site scope and source-versus-hosted distinction |
 | [[Client Portal]] | Provisioned access, Contact, synthetic paperwork/signing, training and confidential-release limits |
 | [[Client Access Workflow]] | Accepted client-access structure, 12-hour session maximum, reusable local test personas and operator runbook; activation/recovery implementation and production role assignments remain separate |
 | [[Design]] | Canonical clinic-only visual system: Clinical Wayfinding Ledger, desktop/tablet targets, tokens, hierarchy, components and failure-first acceptance |
 | [[Clinic Workspace]] | Synthetic clinic/inventory scope, permissions and labeled earlier implementation history |
 | [[Clinic Workspace Design]] | Clinic design and implementation history, workflow proposals, account-owned themes and verified versus unimplemented boundaries; current visual authority is [[Design]] |
-| [[Clinic Intake Handoff Walkthrough]] | Synthetic staff-intake-to-clinician-handoff script, evidence distinctions, scope, failure matrix and unresolved review/contract blockers; no approved clinical workflow |
-| [[Clinic Encounter Workflow Contract]] | Proposed synthetic route/stage contract for identity, intake, triage, handoff, unsigned provider exam, diagnosis boundary and discharge; explicit security, migration, audit and acceptance gates |
 | [[Clinic Frontend Backend Mapping]] | Compatibility pointer to the current [frontend/backend contract](../docs/architecture/clinic-frontend-backend-contract.md) |
 | [[Data Modeling]] | Compatibility pointer to the dated proposal; executable schema remains source truth |
 | [[Multi-Clinic ERD Adversarial Review]] | Compatibility pointer to the dated review and preserved adverse cases |

@@ -13,7 +13,7 @@ Home: [[00 Home]] · Direction: [[Meta Clinic Product Strategy and Scope]] · Ac
 
 This is the single current Meta Clinic implementation tracker. Individual tasks execute bounded work and report outcomes here; do not maintain a competing mutable checklist. D-071 supersedes the former Shortcut-only tracking direction. Historical plans remain detailed inputs, not current completion authority.
 
-Consolidated 2026-09-13 from the sources below. This pass reviewed documentation, not every application execution path. No row asserts fresh runtime verification. “Dated local evidence” means a linked record reports scoped passing checks; “reconcile” means inspect current source and rerun appropriate checks before deciding what remains. Owners and deadlines are unassigned unless explicitly agreed.
+Consolidated 2026-09-13 around the founder-approved strategy. Older records supply dated implementation evidence only: they do not add requirements, features, exclusions or approval steps. No row asserts fresh runtime verification. “Dated local evidence” means a linked record reports scoped passing checks; “reconcile” means inspect current source against current direction before deciding what remains. Owners and deadlines are unassigned unless explicitly agreed.
 
 ## Workflow inventory and next proof
 
@@ -26,7 +26,7 @@ Consolidated 2026-09-13 from the sources below. This pass reviewed documentation
 | MC-05 | Intake, rooms and clinician handoffs | Closeout items 2, 5 and 9 report reusable intake, explicit handoff and role-based local evidence. | Reconcile current room/queue path and demonstrate correction, reassignment and cross-role completion. |
 | MC-06 | Encounters, orders, results and clinical work | Closeout items 1, 4, 6 and 8 report inbox, medication administration, immunization and linked order/result/referral work. | Revalidate source-owned completion and exceptions; separately identify external order/result integration gaps. |
 | MC-07 | Telehealth | D-063 telehealth selection and [Twilio setup](../../docs/development/twilio.md) identify provider direction and setup. | Inspect current implementation; demonstrate patient/provider join, two-party media, disconnect recovery and encounter continuity. Current live-provider status is unresolved in this consolidation. |
-| MC-08 | Cash billing, receipts and corrections | [[Cash-Pay Billing Implementation Package]], [[Cash-Pay Billing Test Plan]] and closeout item 7 contain phased requirements and dated evidence. | Reconcile old gap claims against current code. Prove cash collection/refunds, card outcomes, allocations, receipts and reconciliation through checkout. |
+| MC-08 | Cash billing, receipts and corrections | [Cash-Pay Billing Implementation Package](../../records/superseded-plans/Cash-Pay%20Billing%20Implementation%20Package.md), [Cash-Pay Billing Test Plan](../../records/superseded-plans/Cash-Pay%20Billing%20Test%20Plan.md) and closeout item 7 contain phased requirements and dated evidence. | Reconcile old gap claims against current code. Prove cash collection/refunds, card outcomes, allocations, receipts and reconciliation through checkout. |
 | MC-09 | Memberships, subscriptions and packages | Account-first enrollment and [telephone recurring payment](../../records/progress/2026/09/2026-09-13-worker-assisted-recurring-phone-payment.md) record recent work. | Prove signed payment outcomes, renewal/failure/cancellation and package entitlements. Reader/provider transactions remain separate from local evidence. |
 | MC-10 | Medication requests, refills and pharmacy fulfillment | Closeout item 3 reports refill review and medication-request linkage; [[Pharmacy Inventory Data Requirements]] describes broader scope. | Separate internal request/review from prescription transmission, dispensing and delivery. Inventory current adapters and demonstrate intended pharmacy workflow with explicit integration evidence. |
 | MC-11 | Inventory and procurement | [[PostgreSQL and Inventory Foundation]] and [[Pharmacy Inventory Data Requirements]] distinguish implemented foundation and extensions. | Reconcile purchasing, receiving, units, lots, expiration, holds, counts, adjustments and encounter-linked stock use; prove retries and reversals. Supplier integration status remains separate. |
@@ -46,8 +46,8 @@ For each row keep: ID, intended outcome, current source/revision, implementation
 ## Consolidated inputs
 
 - [Archived task register](../../records/tasks/2026-09-03-vault-roadmap-and-task-register.md): historical scope; do not reactivate old tasks automatically.
-- Cash-pay package and test plan: detailed billing requirements; MC-08/09 own current work status.
-- Portal proposal: detailed historical requirements; MC-12 owns current work status.
+- [Superseded plan archive](../../records/superseded-plans/README.md): preserves the old billing plans and encounter proposals outside the active vault. Do not import their ideas or continuation checklists into MC-08/09 or other rows.
+- Portal proposal: historical only. MC-12 follows the approved current strategy and current source; old proposed features are not accepted requirements.
 - Workflow delivery followed by ten-priority closeout: later dated evidence can supersede earlier “not tested” statements for the exact covered slice only.
 - Decisions and recent progress records: retain original dates and limits; later explicit founder direction governs conflicts.
 

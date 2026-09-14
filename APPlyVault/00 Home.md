@@ -9,7 +9,7 @@ canonical_for: vault-orientation
 
 **[[01 Table of Contents|Vault table of contents]] · [Product definition](../PRODUCT.md) · [[Design|Clinic design system]] · [Developer handbook](../docs/README.md)**
 
-Our shared workspace for **Meta Clinic**, a configurable ambulatory software product for NPs and PAs in Sherman and North Texas, focused on cash-pay primary-care / concierge-adjacent clinics. The product uses a software-led Implementation Specialist (FDE) for configuration, approved integrations and data migration. **APPly remains a working name until the product's legal/brand name is confirmed.**
+Our shared workspace for **Meta Clinic**, configurable software for independent clinics across specialties, explicitly including cash-based clinics. It connects digital patient entry, walk-ins, scheduled and telehealth visits, clinical operations, billing, pharmacy, inventory and follow-up. See [[Meta Clinic Product Strategy and Scope]] for current direction. Older geography, customer and launch-model descriptions below are historical context where superseded by that strategy.
 
 ## Developers — start with the handbook
 
