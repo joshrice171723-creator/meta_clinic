@@ -157,6 +157,76 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "walk in intake preserves encrypted staff drafts without impersonating patient confirmation" do
+    assert_nil @encounter.appointment_id
+    questionnaire = { text: "Synthetic staff-assisted goals", status: "draft", confirmed: false,
+      answers: { goals: { state: "answered", value: "Discuss prior approaches" }, allergies: { state: "unknown", value: "" } } }
+    request = { intake: { request_key: "journey-staff-draft", expected_version: 0, status: "incomplete",
+      identity_state: "not_confirmed", visit_reason_state: "not_recorded", history_state: "not_recorded",
+      vitals_state: "not_recorded", observation_ids: [], history_review_ids: [], questionnaire: questionnaire } }
+    post intake_path, params: request, headers: csrf_headers, as: :json
+    assert_response :created
+    first = response.parsed_body.fetch("intake")
+    assert_equal "draft", first.dig("questionnaire", "status")
+    assert_equal "staff", first.dig("questionnaire", "recorder")
+    assert_nil first.dig("questionnaire", "attestation")
+    assert_equal false, first.dig("questionnaire", "staff_confirmation")
+    assert_equal @membership.id, first.fetch("recorded_by_membership_id")
+    raw = ApplicationRecord.connection.select_value(
+      "SELECT encrypted_questionnaire FROM clinic_encounter_intake_revisions WHERE id = #{Integer(first.fetch('id'))}"
+    )
+    assert_not_includes raw, "Synthetic staff-assisted goals"
+    assert_no_difference "Clinic::EncounterIntakeRevision.count" do
+      post intake_path, params: request, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal first, response.parsed_body.fetch("intake")
+      post intake_path, params: { intake: request[:intake].merge(request_key: "journey-staff-stale") }, headers: csrf_headers, as: :json
+      assert_response :conflict
+    end
+
+    rejected = request[:intake].merge(expected_version: 1, request_key: "journey-staff-unconfirmed",
+      questionnaire: questionnaire.merge(status: "submitted"))
+    post intake_path, params: { intake: rejected }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_difference "Clinic::ClinicalTask.count", 1 do
+      post tasks_path, params: { task: { request_key: "journey-staff-independent", task_kind: "patient_call", pool_code: "clinical" } },
+        headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    post intake_path, params: { intake: rejected.merge(request_key: "journey-staff-confirmed",
+      questionnaire: questionnaire.merge(status: "submitted", confirmed: true)) }, headers: csrf_headers, as: :json
+    assert_response :created
+    confirmed = response.parsed_body.fetch("intake")
+    assert_equal true, confirmed.dig("questionnaire", "staff_confirmation")
+    assert_nil confirmed.dig("questionnaire", "attestation")
+    assert_equal "incomplete", confirmed.fetch("status")
+    assert_equal "not_recorded", confirmed.fetch("history_state")
+
+    post intake_path, params: { intake: request[:intake].except(:questionnaire).merge(expected_version: 2,
+      identity_state: "confirmed", request_key: "journey-staff-status-only") }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal confirmed.fetch("questionnaire"), response.parsed_body.dig("intake", "questionnaire")
+    assert_nil @encounter.reload.appointment_id
+  end
+
+  test "staff questionnaire write requires intake permission and the exact encounter patient" do
+    request = { intake: { request_key: "journey-staff-denied", expected_version: 0, status: "incomplete",
+      identity_state: "not_confirmed", visit_reason_state: "not_recorded", history_state: "not_recorded",
+      vitals_state: "not_recorded", observation_ids: [], history_review_ids: [],
+      questionnaire: { text: "Synthetic draft", answers: {}, status: "draft", confirmed: false } } }
+    assert_no_difference "Clinic::EncounterIntakeRevision.count" do
+      post "/api/clinic/patients/#{@other_patient.id}/encounters/#{@encounter.id}/intake_revisions",
+        params: request, headers: csrf_headers, as: :json
+      assert_response :not_found
+      login(@clinician)
+      post intake_path, params: request, headers: csrf_headers, as: :json
+      assert_response :forbidden
+    end
+    login
+    post intake_path, params: request, headers: csrf_headers, as: :json
+    assert_response :created
+  end
+
   private
 
   def workspace_path(patient, encounter)
