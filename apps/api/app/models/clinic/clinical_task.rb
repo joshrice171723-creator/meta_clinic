@@ -5,7 +5,8 @@ module Clinic
     include Auditable
 
     KINDS = %w[intake handoff result_follow_up patient_call order_execution record_request staff_request].freeze
-    STATES = %w[open claimed in_progress completed cancelled].freeze
+    STATES = %w[open claimed in_progress on_hold completed cancelled].freeze
+    ACTIVE_STATES = %w[open claimed in_progress on_hold].freeze
     POOLS = %w[clinical front_desk records].freeze
     SOURCES = %w[manual encounter handoff lab_follow_up message reminder order].freeze
     SOURCE_KINDS = %w[medication_request service_request].freeze
@@ -15,6 +16,9 @@ module Clinic
     belongs_to :encounter, class_name: "Clinic::Encounter", optional: true
     belongs_to :site, class_name: "Clinic::Site", optional: true
     belongs_to :assigned_to_membership, class_name: "Clinic::Membership", optional: true
+    belongs_to :pending_assignee_membership, class_name: "Clinic::Membership", optional: true
+    has_many :events, class_name: "Clinic::ClinicalTaskEvent", foreign_key: :task_id, dependent: :restrict_with_error
+    has_many :dependencies, class_name: "Clinic::ClinicalTaskDependency", foreign_key: :task_id, dependent: :restrict_with_error
     belongs_to :recorded_by_membership, class_name: "Clinic::Membership"
     belongs_to :completed_by_membership, class_name: "Clinic::Membership", optional: true
 
@@ -31,7 +35,7 @@ module Clinic
     private
 
     def context_matches
-      records = [ patient, encounter, site, assigned_to_membership, recorded_by_membership, completed_by_membership ].compact
+      records = [ patient, encounter, site, assigned_to_membership, pending_assignee_membership, recorded_by_membership, completed_by_membership ].compact
       errors.add(:base, "Task context must belong to this practice") if records.any? { |record| record.practice_id != practice_id }
       errors.add(:encounter, "must belong to this patient") if encounter && encounter.patient_id != patient_id
       errors.add(:site, "must match the encounter site") if encounter && site && encounter.site_id != site_id

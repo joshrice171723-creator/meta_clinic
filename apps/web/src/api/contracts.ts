@@ -430,12 +430,20 @@ export type ClinicalTask = {
     | "order_execution"
     | "record_request"
     | "staff_request";
-  state: "open" | "claimed" | "in_progress" | "completed" | "cancelled";
+  state: "open" | "claimed" | "in_progress" | "on_hold" | "completed" | "cancelled";
   pool_code: "clinical" | "front_desk" | "records";
   assigned_to_membership_id: number | null;
   due_at: string | null;
   source_type: string;
   source_kind?: "medication_request" | "service_request" | null;
+  pending_assignee_membership_id?: number | null;
+  dependency_ids?: number[];
+  waiting_on_task_ids?: number[];
+  waiting_reason?: string | null;
+  assignment_exception?: string | null;
+  owner_unavailable?: boolean;
+  source_managed?: boolean;
+  history?: Array<{ id: number; action: string; actor_membership_id: number; task_version: number; recorded_at: string; snapshot: Record<string, unknown> }>;
   source_id: number | null;
   resolution_code: string | null;
   version: number;

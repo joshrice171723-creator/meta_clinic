@@ -83,12 +83,15 @@ module Clinic
     end
 
     def valid_open_work_item?(item)
-      item.is_a?(Hash) && item.keys.map(&:to_s).sort == %w[
+      required = %w[
         assigned_to_membership_id due_at id pool_code state task_kind version
-      ].sort && item["id"].is_a?(Integer) && item["id"].positive? &&
+      ]
+      optional = %w[source_type source_kind source_id pending_assignee_membership_id dependency_ids next_action_href]
+      item.is_a?(Hash) && (required - item.keys.map(&:to_s)).empty? &&
+        (item.keys.map(&:to_s) - required - optional).empty? && item["id"].is_a?(Integer) && item["id"].positive? &&
         item["version"].is_a?(Integer) && item["version"] >= 0 &&
         Clinic::ClinicalTask::KINDS.include?(item["task_kind"].to_s) &&
-        %w[open claimed in_progress].include?(item["state"].to_s) &&
+        Clinic::ClinicalTask::ACTIVE_STATES.include?(item["state"].to_s) &&
         Clinic::ClinicalTask::POOLS.include?(item["pool_code"].to_s)
     end
   end

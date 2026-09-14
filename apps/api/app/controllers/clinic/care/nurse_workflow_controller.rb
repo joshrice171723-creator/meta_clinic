@@ -61,14 +61,14 @@ module Clinic
       def transition_task
         task = Clinic::ClinicalTask.where(practice_id: current_practice.id)
           .includes(:encounter).find(requested_id!(params[:id], :id))
-        raise ArgumentError, "This task is not linked to an encounter." unless task.encounter
-        input = parameter_hash!(:task, %i[action expected_version request_key resolution_code assignee_membership_id])
+        input = parameter_hash!(:task, %i[action expected_version request_key resolution_code assignee_membership_id],
+          arrays: %i[dependency_ids])
         task = NurseWorkflow.transition_task(
           practice: current_practice, actor: current_user, task:,
           action: required_string!(input[:action], field: :action, maximum: 24),
           expected_version: bounded_integer!(input[:expected_version], field: :expected_version, min: 0, max: 2_147_483_647),
           request_key: request_key!(input[:request_key]), resolution_code: input[:resolution_code],
-          assignee_membership_id: input[:assignee_membership_id]
+          assignee_membership_id: input[:assignee_membership_id], dependency_ids: input[:dependency_ids]
         )
         render json: { task: NurseWorkflow.serialize_task(task) }
       end
