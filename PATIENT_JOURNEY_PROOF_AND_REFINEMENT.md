@@ -1,10 +1,10 @@
 # Patient journey proof and refinement
 
-Revision 1 · 2026-09-14 · Planning authorized; follow-on execution not dispatched.
+Revision 2 · 2026-09-14 · Reconciled with completed implementation; follow-on execution not dispatched.
 
 ## Purpose and authority
 
-Prove that the membership-based cash-pay weight-loss journey works as one connected patient and staff experience, then refine observed friction without expanding the product. This is the next assignment brief, not a replacement for [tonight's execution plan](PATIENT_JOURNEY_EXECUTION_PLAN.md). Tonight's agent must still finish its own acceptance obligations. Do not postpone its defects into this brief merely to call tonight complete.
+Close the remaining evidence gaps in the membership-based cash-pay weight-loss journey, then refine observed friction without expanding the product. This is a gap-only follow-up to the completed [execution plan](PATIENT_JOURNEY_EXECUTION_PLAN.md), not a second implementation or full acceptance replay. Preserve unresolved defects honestly; do not classify missing browser proof as missing implementation.
 
 The user authorized preparing this document. Running the follow-on review or implementing its refinements requires explicit execution authorization. Existing authorization for tonight's repairs remains separate. A second specialty is a possible later experiment, not part of this assignment.
 
@@ -22,7 +22,30 @@ Preserve public-signup-only age limits, unpaid/former-member booking rules, clin
 
 ## Baseline and entry gate
 
-Observed during planning: integration checkout HEAD was `598abf3c11402b033008a152cf15aaa8ca0b85ff`, with a large staged implementation candidate. The active agent described B–E as integrated and final checks in progress. Its checkpoint referenced intermediate slice commits; these are not equivalent to a final accepted main revision. No application behavior is independently accepted by this planning brief.
+Rechecked after the implementation task completed: implementation commit `af52f9a`, original brief commit `a949c034fc58e4de0a253aac98049a09ccabb6dc`, on main. The task reported a matching remote and tracked files are clean at this revision's initial inspection; unrelated attachments remain outside Git. The [implementation evidence record](docs/development/patient-journey-implementation-evidence.md#verification-ledger) is the canonical T01–T10 result crosswalk. This document revision reviewed that record and task outputs; it did not rerun application tests or independently operate the browser.
+
+### Evidence to reuse, not repeat automatically
+
+| Area | Completed evidence at implementation handoff | Remaining boundary |
+| --- | --- | --- |
+| T01–T10 focused correctness | 45 distinct Rails cases: 26 core, 10 entry/intake, 6 booking/scribe, 3 final boundaries. Two core failures passed after fixture-scope repair; do not count reruns as extra cases. | Focused cases do not prove every branch of the full acceptance matrix. |
+| Entry, callback, booking and intake (W01–W03) | Contact-first, denied new booking with allowed callback; patient draft save/reload and repaired staff draft/confirmation browser proof. | Not a connected live payment or complete enrollment browser proof. |
+| Visit, orders and labs (W04–W06) | Manual chart, incomplete prescription review rejection with independent lab draft; absent-result reason and acknowledgment separate from review in browser. | No live video, prescribing or lab-provider acceptance. |
+| Continuity and recovery (W08–W09) | Browser dependency/independent-work checks and two-session transfer preserving coverage; API proof of handover authority, retry, reversal and post-closure same-task reconciliation. | Connected handover/post-closure browser proof remains missing. |
+| UI and field contracts | Desktop/tablet/phone intake and queue captures, bounded keyboard/overflow checks; field ownership/provenance recorded in the implementation evidence. | Not a complete accessibility audit or human usability study. |
+| Build and regression | Repaired TypeScript, bundle, 14 related frontend tests and changed-file Ruby lint passed. Earlier 326 frontend tests and schema/restore checks are reusable only where unchanged. | Full Rails regression, HTTP boundary proof and recorded historical failures remain deferred, not passed. |
+
+Raw local evidence is under `tmp/patient-journey-*` and `outputs/patient-journey`; these ignored artifacts may not exist on another machine. Use the committed ledger for discovery, then validate the relevant artifact and source/configuration/dependency match. If required evidence is unavailable, label it unavailable and repeat only the smallest missing proof. Do not add the earlier 326 frontend tests to the later 14 as a unique-test total.
+
+### Execution mode and remaining priority
+
+An explicit request to execute this brief authorizes the scoped missing journey proofs, not a general launch audit. The 10-minute rule is a cumulative verification reassessment checkpoint, not an automatic stop or permission to call missing proof complete. At that point report progress, the exact remaining gap and a bounded next step; extend for necessary scoped proof with a reason. Do not reset the budget by starting repeated fresh runs. Diagnose one failed browser attempt and allow at most one justified retry before an alternative or an explicit blocker.
+
+1. First complete one connected synthetic handover/post-closure walkthrough spanning W05/W06/W08/W09: partial handover and remaining quantity, reversal/recovery, corrected lab result after closure, required review/prerequisite denial, permitted independent work, explicit reconciliation and preserved task/history after reload. Reuse existing API denial/retry evidence instead of replaying all API tests. Fix fixture setup only as needed; prior handover setup failed on inactive-site and receiving-key assumptions.
+2. Inspect Patient Flow ownership, next actions and recovery copy on those same screens. Add a narrow-width check only for an affected or previously unverified surface, not another complete device matrix.
+3. Reconcile W01–W09/T01–T10 coverage using existing evidence. Record any remaining disconnected journey segment precisely; do not silently promote partial proofs to a complete clinic-day run. Founder observation is optional pending availability and must remain separately labeled.
+
+Broad regression, restore rehearsals, unrelated historical CI cleanup, comprehensive device/accessibility coverage, clinical policy selection and live vendor acceptance remain separate milestone/prelaunch work. Missing external access must not trigger purchases, invented configuration or repeated retries.
 
 Before execution:
 
@@ -47,7 +70,7 @@ The execution plan's R01–R16 register remains the broader dated research basel
 
 ## Clinic-day walkthrough
 
-Run the primary adult member through W01–W09 as one continuing record, including return visits and unfinished work. Use separate synthetic fixtures for mutually exclusive branches, but demonstrate each blocked/allowed pair on the same patient/context. Record fixture identities in local synthetic evidence, not real-derived examples. Front desk, nursing, clinician, billing and fulfillment actors use existing configured roles; labels here do not grant privileges.
+W01–W09 below is the coverage reference, not a mandatory fresh nine-part run. Start with the remaining priority above and reuse valid completed evidence. Where a connection itself lacks proof, use one continuing adult synthetic record across the affected stages, including return and unfinished work. Use separate synthetic fixtures for mutually exclusive branches, but demonstrate each new blocked/allowed pair on the same patient/context. Record fixture identities in local synthetic evidence, not real-derived examples. Front desk, nursing, clinician, billing and fulfillment actors use existing configured roles; labels here do not grant privileges.
 
 | Walkthrough / canonical proof | Patient and staff actions | Expected observation and recovery |
 | --- | --- | --- |
@@ -65,7 +88,7 @@ For all walkthroughs record both the exact forbidden transition and an independe
 
 ## Field and question review
 
-Reuse the execution plan's stage-level questions and controls. For every field actually encountered, compare the implemented control and persisted value with that contract; do not invent a new form during review.
+Reuse the execution plan's stage-level questions and controls and the implementation evidence's completed field-ownership tables. Inspect only fields implicated in the missing walkthrough, changed behavior or observed discrepancy; do not rebuild the inventory or invent a new form during review.
 
 Ask: Why is this asked now? Is it already known? Who supplied it? Who can change it? Can an incomplete draft save? Which exact action requires it? Does correction invalidate only affected work? What survives failure/reload?
 
@@ -94,7 +117,7 @@ At W02, W06, W08 and W09 ask the operator to identify, without coaching:
 
 Capture the actual answer, navigation path, hesitation, mistaken action and observed time/click count. These measurements establish a baseline; no arbitrary speed target or small sample proves universal usability. Founder feedback is a walkthrough observation, not a clinic pilot study. An agent-only pass cannot be labeled a human usability test.
 
-Patient mobile, staff desktop and tablet proof must include keyboard/focus, readable errors, non-color-only status, content at narrow widths, preserved context after navigation and visible multiple outstanding tasks. Capture before/after screenshots only with independently synthetic data. Reuse existing passing evidence for unchanged controls; inspect newly affected surfaces.
+For newly affected or unverified surfaces, inspect keyboard/focus, readable errors, non-color-only status, narrow-width content, preserved navigation context and visible outstanding tasks proportionately. Reuse the completed desktop/tablet/phone evidence for unchanged controls; do not repeat the entire device matrix. Capture before/after screenshots only with independently synthetic data.
 
 An undiscoverable next action, hidden outstanding task, unclear owner or apparently global hold is a finding even when the API works. Distinguish confusing terminology/navigation from missing persistence or authorization. No screen is accepted solely because it renders.
 
@@ -131,17 +154,17 @@ Preserve stable IDs; identify source/product/policy authority, resolver, permitt
 
 Report requirement coverage as evidence-bound counts and explicit exceptions, not an impressionistic product percentage. A passed backend test, browser walkthrough and simulator result are separate evidence classes. Live vendor gaps do not count as failed local behavior, but must never be called verified external operation.
 
-Completion requires traceable disposition of all scoped T01–T10 criteria, W01–W09 walkthrough results, field/control discrepancies, and Patient Flow visibility/ownership proof. No observed unresolved violation of an approved acceptance requirement may be hidden by a score or described as polish. For lower-impact optional refinements, record disposition and user choice rather than endlessly perfecting the interface.
+Completion of this follow-up requires the connected missing proof above, disposition of observed field/control and Patient Flow issues, and a coverage reconciliation across W01–W09/T01–T10 labeled reused, newly proved, blocked, deferred or not applicable with reasons. It does not require rerunning every case. A blocked required connected proof means this follow-up remains incomplete; deferred broader checks must not be represented as full journey or launch acceptance. No observed unresolved violation of an approved acceptance requirement may be hidden by a score or described as polish. Record optional refinements for user choice rather than endlessly perfecting the interface.
 
 Deliver: what now works with evidence; what was refined and why; unresolved defects and missing proof; separate unavailable external checks; founder feedback if actually obtained; exact revision and next action. If founder review is unavailable, finish independent authorized checks and label human feedback pending. Do not claim second-specialty fit, clinical acceptance or release readiness.
 
 ## Resume checkpoint — planning only
 
-- Completed: one follow-on brief prepared using clinic-workflow-planning; current plan/tracker and complete shared matrix reviewed; two targeted U.S. profiles reopened; no new product rules or matrix rows adopted.
-- Current baseline: main HEAD `598abf3c11402b033008a152cf15aaa8ca0b85ff` plus the active agent's staged candidate at inspection. Final implementation revision/results must be reconciled after its handoff. No application tests, browser proof or human walkthrough were run in this planning task.
-- Ownership: this task owns only this new document. The implementation agent retains its staged candidate and shared plan/guide/tracker. It acknowledged preserving this file and adding a proposed-follow-on tracker link, then committing it separately; do not mutate its index concurrently.
-- Authorization: planning saved; follow-on execution not started. Tonight's agent retains its original completion obligations.
-- Next unfinished action: after explicit follow-on execution authorization and the current agent's handoff, record the exact accepted candidate/evidence, identify missing proof, and run only the necessary W01–W09 walkthroughs and mapped checks.
-- Open dependencies: final candidate/test/browser results; actual configured services and existing clinic policies; runtime ownership; founder availability for human feedback; unavailable vendor contracts/live proof.
+- Completed: implementation task finished and pushed `af52f9a`; its separate original brief was `a949c03`. Revision 2 reconciles the 45-case focused result, completed browser paths and remaining gaps with the committed evidence ledger. Original source research is retained as dated reference, not freshly repeated research.
+- Current baseline: main `a949c034fc58e4de0a253aac98049a09ccabb6dc` before this document-only revision. No application tests, new browser proof or human walkthrough were run to revise this brief.
+- Ownership: this revision owns only this document; no application, tracker, matrix, fixture or runtime changes. Recheck ownership and current source before future execution.
+- Authorization: user authorized reassessment and document revision; follow-on execution remains unstarted.
+- Next unfinished action: after explicit execution authorization, validate reusable evidence and run the connected synthetic handover/post-closure walkthrough, then record only missing/invalidated proof and observed refinements.
+- Open dependencies: usable isolated runtime/fixtures; local raw evidence availability; founder availability for human feedback. Clinical/vendor mappings and live acceptance remain separate unresolved work, not prerequisites to claim local-only proof.
 
 On every start, context reset or handoff, reread this brief and the relevant canonical records, compare the recorded baseline with the current checkout and newer user direction, and reconcile changed assumptions before acting. Update this compact checkpoint after meaningful completed work, new blockers, consequential decisions and before pausing. Keep one current checkpoint, evidence-backed next action and links to results; do not append contradictory active next steps. Saving or reading this file never dispatches work automatically.
