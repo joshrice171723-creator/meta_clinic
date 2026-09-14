@@ -25,7 +25,7 @@ Add `--no-browser` to `start`, `restart` or `refresh` only when requested or whe
 
 - `start` is non-destructive: it performs no Git operation, installs no dependency and never seeds or replants data.
 - `refresh` requires a clean named branch with an upstream. It fetches the configured remote and permits equal, ahead-only or behind-only states. Behind-only is fast-forwarded; divergence stops before services, dependencies or the database are touched. It never merges, rebases, stashes, resets, pushes or resets data.
-- `setup` and `refresh` may install only versions already locked by `Gemfile.lock` and `package-lock.json`. A dependency-resolution or lockfile change is outside this lifecycle.
+- `setup`, `prewarm` and `refresh` may install only versions already locked by `Gemfile.lock` and `pnpm-lock.yaml`. A dependency-resolution or lockfile change is outside this lifecycle.
 - `reset-data --yes` is the only destructive data action. It is hard-walled to a loopback `apply*_development` database and wholly synthetic seeds. Never infer reset authority from `start`, `restart`, `refresh`, a stale marker or a failing test.
 - All commands reject `DATABASE_URL`, a non-development `RAILS_ENV`, a non-loopback `PGHOST`, an invalid database name or an invalid APPly container name.
 - Do not kill a process merely because it occupies an expected port. Start and status require checkout-bound PID records and listener ownership.
