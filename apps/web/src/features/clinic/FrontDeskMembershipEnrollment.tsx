@@ -415,8 +415,17 @@ export function FrontDeskMembershipEnrollment() {
               </Button>
               {createdProspect.selected_terms.eligibility_review ||
               createdProspect.selected_terms.renewal !==
-                "automatic" ? null : payment?.status ===
-                "paid" ? null : payment?.status === "failed" ? (
+                "automatic" ? null : payment?.status === "paid" ? (
+                createdProspect.patient_id ? (
+                  <Button
+                    component="a"
+                    href={`/clinic/patients/${createdProspect.patient_id}`}
+                    variant="contained"
+                  >
+                    Proceed to onboarding
+                  </Button>
+                ) : null
+              ) : payment?.status === "failed" ? (
                 <Button
                   onClick={() => void startPayment()}
                   variant="contained"
