@@ -1,9 +1,17 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-14
+updated: 2026-09-15
 ---
 # Decisions
+
+## Schedule and patient identity clarification — 2026-09-15
+
+Founder-approved workflow: **Patient Flow → Schedule → Tracking Board**. For the selected weight-loss membership reference journey, verified payment begins patient onboarding/initial contact, the first appointment is scheduled during that contact, and booking alone does not imply arrival. Tracking Board starts with arrival/check-in or an encounter. Initial-contact completion, encounter completion, signing and billing retain independent recorded states.
+
+Meta Clinic owns appointment and availability truth. Reuse existing capacity rules, location hours/exceptions, clinicians, rooms and booking conflict checks; no external scheduling API or duplicate appointment/slot store. Weight loss is the current reference, not a separate hardcoded product. The application review is reconciled against completed calendar work rather than authorizing its reimplementation.
+
+For scheduling, display the selected patient's saved name prominently and label the clinic reference separately. Hide patient search while selected; changing the patient is explicit and may be cancelled without losing the original selection or appointment details. Preserve unknown-outcome retry safeguards. Never infer a full name from an initial or membership reference; corrections use authorized registration editing. This authorizes local synthetic implementation, not identity fabrication, live payments, clinical acceptance or deployment.
 
 ## Configurable architecture and tiered change authority
 

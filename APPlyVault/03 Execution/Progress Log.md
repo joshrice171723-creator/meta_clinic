@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-15 — Review reconciliation and selected-patient scheduling
+
+Reconciled the [application review](../../docs/product-review/meta-clinic-full-application-review.md) against completed calendar work and recorded the founder-approved Patient Flow → Schedule → Tracking Board terminology in [[Decisions]]. The shared booking form now shows the saved patient name with separately labeled identity details, opens one search only when needed, and preserves the original selection when cancelling a patient change. Browser verification confirmed the future-day booking handoff and Change patient / Keep current patient sequence without logout or date/time loss. One inspected synthetic record has a one-character name stored in registration; no replacement identity was invented. The clinic still needs its intended clinician and availability configured before populated booking verification. Focused frontend checks and their final results are reported in the task handoff; no backend, payment, clinical or launch acceptance is implied.
+
 ## 2026-09-15 — In-house Schedule calendar
 
 Implemented a month/day calendar over existing appointments and backend capacity rules, with Patient Flow booking prefills and an arrival-only Tracking Board. The [implementation brief](../../docs/development/clinic-schedule-implementation.md) records FHIR R4 mappings, focused passing calendar/booking tests, frontend build checks, pre-existing wider-suite failures and browser limits. The selected local clinic has no clinician/capacity configuration; no provider or appointment was invented to hide that gap. Populated browser and tablet acceptance remain pending; this is not live or clinical readiness.

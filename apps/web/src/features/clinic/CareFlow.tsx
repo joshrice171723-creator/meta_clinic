@@ -83,6 +83,7 @@ import { NurseEncounterWorkspace } from "./NurseEncounterWorkspace";
 import { PatientEducationPanel } from "./PatientEducationPanel";
 import { ClinicalPlanWorkspace } from "./ClinicalPlanWorkspace";
 import { ClinicSchedule, type CalendarBooking } from "./ClinicSchedule";
+import { BookingPatientPicker } from "./BookingPatientPicker";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -647,6 +648,7 @@ function BookingFormEditor({
     },
   );
   const [patientQuery, setPatientQuery] = useState("");
+  const [changingPatient, setChangingPatient] = useState(false);
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
@@ -800,11 +802,7 @@ function BookingFormEditor({
     [dirty, outcomeUnconfirmed, registerBlocker],
   );
   const resourceError =
-    patients.error ||
-    facilities.error ||
-    rooms.error ||
-    clinicians.error ||
-    visitTypes.error;
+    facilities.error || rooms.error || clinicians.error || visitTypes.error;
   if (!facilities.data || !rooms.data || !clinicians.data || !visitTypes.data)
     return <LoadState error={resourceError} />;
   const clearReplacementPatient = () => {
@@ -833,6 +831,9 @@ function BookingFormEditor({
         ),
       ]
     : (patients.data?.patients ?? []);
+  const selectedPatient = selectablePatients.find(
+    (patient) => String(patient.id) === patientId,
+  );
   const availableRooms = siteId
     ? rooms.data.rooms.filter((room) => room.site_id === Number(siteId))
     : [];
@@ -868,6 +869,8 @@ function BookingFormEditor({
     setPatientId("");
     setReplacementPatientId(undefined);
     setStartsAt(next.startsAt);
+    setReplacementPatient(undefined);
+    setChangingPatient(false);
     setEndsAt(next.endsAt);
     setSiteId("");
     setRoomId("");
@@ -939,23 +942,6 @@ function BookingFormEditor({
             )}
           </Alert>
         )}
-        {replacementPatient && (
-          <Alert
-            severity="info"
-            sx={{ mb: 3 }}
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={clearReplacementPatient}
-              >
-                Clear patient
-              </Button>
-            }
-          >
-            Scheduling for {patientDisplayLabel(replacementPatient)}.
-          </Alert>
-        )}
         <Box
           component="form"
           noValidate
@@ -963,6 +949,10 @@ function BookingFormEditor({
             event.preventDefault();
             if (inFlight.current) return;
             setSubmitError("");
+            if (!bookingAttempt && changingPatient)
+              return setSubmitError(
+                "Choose a replacement patient or keep the current patient before scheduling.",
+              );
             if (!bookingAttempt && !patientId)
               return setSubmitError("Select a patient before scheduling.");
             if (!bookingAttempt && intervalError)
@@ -1065,46 +1055,27 @@ function BookingFormEditor({
           }}
         >
           <Stack spacing={2.5}>
-            <TextField
-              label="Find patient"
-              value={patientQuery}
+            <BookingPatientPicker
+              patient={selectedPatient}
+              editing={changingPatient}
+              query={patientQuery}
+              results={patients.data?.patients ?? []}
+              loading={Boolean(
+                deferredPatientQuery.trim() &&
+                !patients.data &&
+                !patients.error,
+              )}
+              error={patients.error}
               disabled={busy || outcomeUnconfirmed}
-              onChange={(event) => setPatientQuery(event.target.value)}
-              placeholder="Name or clinic reference"
-              helperText="Searches the complete patient directory."
-              fullWidth
-            />
-            <TextField
-              label="Patient"
-              select
-              required
-              disabled={busy || outcomeUnconfirmed}
-              value={patientId}
-              onChange={(event) => {
-                const nextPatientId = event.target.value;
-                setPatientId(nextPatientId);
-                const selected = selectablePatients.find(
-                  (patient) => String(patient.id) === nextPatientId,
-                );
+              onEditingChange={setChangingPatient}
+              canReviewPatient={clinic.capabilities.patients === true}
+              onQueryChange={setPatientQuery}
+              onSelect={(selected) => {
+                setPatientId(String(selected.id));
                 setReplacementPatient(selected);
                 setReplacementPatientId(undefined);
               }}
-              fullWidth
-              helperText={
-                selectablePatients.length
-                  ? "Choose the patient record for this visit."
-                  : "No patients are available to schedule."
-              }
-            >
-              <MenuItem value="" disabled>
-                Select a patient
-              </MenuItem>
-              {selectablePatients.map((patient) => (
-                <MenuItem key={patient.id} value={patient.id.toString()}>
-                  {patientDisplayLabel(patient)}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
             <Box
               sx={{
                 display: "grid",
@@ -1408,7 +1379,8 @@ function BookingFormEditor({
                 type="submit"
                 variant="contained"
                 disabled={
-                  busy || (!outcomeUnconfirmed && !selectablePatients.length)
+                  busy ||
+                  (!outcomeUnconfirmed && (!selectedPatient || changingPatient))
                 }
                 startIcon={
                   busy ? (
