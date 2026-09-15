@@ -304,6 +304,32 @@ const taskLabels: Record<ClinicalTask["task_kind"], string> = {
   staff_request: "Complete staff request",
 };
 
+function taskTitle(task: ClinicalTaskItem) {
+  return task.task_kind === "patient_call" &&
+    task.source_type === "manual" &&
+    task.pool_code === "front_desk"
+    ? "Complete initial contact"
+    : taskLabels[task.task_kind];
+}
+
+function taskNextAction(task: ClinicalTaskItem) {
+  if (
+    task.task_kind === "patient_call" &&
+    task.source_type === "manual" &&
+    task.pool_code === "front_desk" &&
+    task.state === "open"
+  )
+    return "Complete initial contact and schedule the first appointment";
+  if (task.pending_assignee_membership_id)
+    return "Accept the requested transfer; current coverage remains responsible";
+  if (task.source_managed) return "Continue in the source workspace";
+  if (task.waiting_reason)
+    return "Review prerequisite work; other tasks remain available";
+  if (task.state === "open") return "Claim or transfer this task";
+  if (task.state === "claimed") return "Start or resolve this task";
+  return "Resolve this task";
+}
+
 const workTypeLabels: Record<WorkType, string> = {
   all: "All work",
   intake: "Intake & handoffs",
@@ -1556,7 +1582,7 @@ export function WorkInbox() {
       next.push({
         id: `task-${task.id}`,
         type: taskType(task),
-        title: taskLabels[task.task_kind],
+        title: taskTitle(task),
         patient: task.patient_display_name,
         patientReference: task.patient_reference,
         detail: [
@@ -1574,17 +1600,7 @@ export function WorkInbox() {
         owner: task.assignee_label
           ? assignmentLabel(task).replace(/^Assigned to /, "")
           : `${task.pool_code.replaceAll("_", " ")} team`,
-        nextAction: task.pending_assignee_membership_id
-          ? "Accept the requested transfer; current coverage remains responsible"
-          : task.source_managed
-            ? "Continue in the source workspace"
-            : task.waiting_reason
-              ? "Review prerequisite work; other tasks remain available"
-              : task.state === "open"
-                ? "Claim or transfer this task"
-                : task.state === "claimed"
-                  ? "Start or resolve this task"
-                  : "Resolve this task",
+        nextAction: taskNextAction(task),
         sourceLabel: task.source_label || "Clinical task",
         scheduleReady:
           task.task_kind === "patient_call" && task.encounter_id === null,
