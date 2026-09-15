@@ -209,7 +209,12 @@ module Clinic
           site = practice.sites.find(site_id)
           return scope.none unless ability.allowed_permission?("encounters.write", site: site)
 
-          return scope.where(site_id: site.id)
+          # Membership onboarding tasks are created before a first visit exists,
+          # so they are intentionally location-neutral. Keep those tasks visible
+          # in the selected location's front-desk Patient Flow.
+          return scope.where(site_id: site.id).or(
+            scope.where(site_id: nil, task_kind: "patient_call", pool_code: "front_desk", source_type: "manual")
+          )
         end
         return scope if ability.practice_scope_for?("encounters.write")
 
