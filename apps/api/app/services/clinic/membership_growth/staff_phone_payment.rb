@@ -304,7 +304,7 @@ module Clinic
         def result(prospect, status)
           instructions = if status == "awaiting_card"
             if prospect.staff_payment_reader_id.to_s.start_with?("tmr_local")
-              "Development telephone-payment simulator: card entry is simulated; check payment status to continue."
+              "Payment reader is ready. Enter the patient's card details on the reader, then check payment status."
             else
               "Enter the caller's card details on the assigned Stripe reader, then check payment status."
             end

@@ -615,7 +615,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       authorization_version: Clinic::MembershipGrowth::StaffPhonePayment::AUTHORIZATION_VERSION
     )
     assert_equal "awaiting_card", pending.payment.fetch(:status)
-    assert_match(/simulator/i, pending.payment.fetch(:instructions, ""))
+    assert_match(/reader/i, pending.payment.fetch(:instructions, ""))
 
     paid = Clinic::MembershipGrowth::StaffPhonePayment.refresh(
       practice: @practice, actor: @admin, prospect_id: prospect.id

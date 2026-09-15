@@ -191,9 +191,9 @@ export function FrontDeskMembershipEnrollment() {
             {createdProspect ? (
               <Stack spacing={2}>
                 <Alert severity="success">
-                  Enrollment saved for {createdProspect.display_name}. Use the
-                  telephone-style payment step below. No patient record exists
-                  until payment is verified.
+                  Enrollment saved for {createdProspect.display_name}. Complete
+                  payment below; patient onboarding begins after payment is
+                  verified.
                 </Alert>
                 <Typography variant="h6">
                   {createdProspect.selected_terms.package_name}
@@ -217,7 +217,7 @@ export function FrontDeskMembershipEnrollment() {
                         }
                       >
                         {payment.status === "awaiting_card"
-                          ? "The assigned reader is ready. Enter the patient’s card details on the reader for this authorized telephone payment."
+                          ? "The payment reader is ready. Enter the patient’s card details on the reader."
                           : payment.status === "payment_processing"
                             ? "Payment is processing. Check the status again before taking another payment."
                             : payment.status === "paid"
@@ -239,9 +239,8 @@ export function FrontDeskMembershipEnrollment() {
                       />
                     )}
                     <Typography color="text.secondary">
-                      Enter card details only on the assigned Stripe reader for
-                      this telephone payment. Do not type or store card
-                      information in Meta Clinic.
+                      Enter card details only on the assigned payment reader. Do
+                      not type or store card information in Meta Clinic.
                     </Typography>
                   </>
                 )}
@@ -368,7 +367,9 @@ export function FrontDeskMembershipEnrollment() {
         <DialogActions>
           {createdProspect ? (
             <>
-              <Button onClick={startAnother}>Start another enrollment</Button>
+              <Button onClick={closeDialog} disabled={busy}>
+                Cancel
+              </Button>
               {createdProspect.selected_terms
                 .eligibility_review ? null : payment?.status ===
                 "paid" ? null : payment?.status === "failed" ? (
@@ -377,9 +378,7 @@ export function FrontDeskMembershipEnrollment() {
                   variant="contained"
                   disabled={busy || !recurringAuthorization}
                 >
-                  {busy
-                    ? "Starting telephone payment…"
-                    : "Retry telephone payment"}
+                  {busy ? "Starting payment…" : "Retry payment"}
                 </Button>
               ) : payment ? (
                 <Button
@@ -395,9 +394,7 @@ export function FrontDeskMembershipEnrollment() {
                   variant="contained"
                   disabled={busy || !recurringAuthorization}
                 >
-                  {busy
-                    ? "Starting telephone payment…"
-                    : "Take payment by phone"}
+                  {busy ? "Starting payment…" : "Take payment"}
                 </Button>
               )}
             </>
