@@ -620,6 +620,48 @@ type RegistrationDraft = {
 };
 type RegistrationPatient = Patient & { updated_at?: string };
 
+type AddressParts = {
+  address_line1: string;
+  address_line2: string;
+  address_city: string;
+  address_state: string;
+  address_postal_code: string;
+};
+
+function splitAddress(value: string): AddressParts {
+  const empty = {
+    address_line1: "",
+    address_line2: "",
+    address_city: "",
+    address_state: "",
+    address_postal_code: "",
+  };
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const last = parts.at(-1)?.match(/^([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+  if (!last || parts.length < 3) return { ...empty, address_line1: value };
+  return {
+    address_line1: parts[0] ?? "",
+    address_line2: parts.length > 3 ? parts.slice(1, -2).join(", ") : "",
+    address_city: parts.at(-2) ?? "",
+    address_state: last[1],
+    address_postal_code: last[2],
+  };
+}
+
+function formatAddress(values: RegistrationValues): string {
+  const line1 = values.address_line1?.trim() ?? "";
+  const line2 = values.address_line2?.trim() ?? "";
+  const city = values.address_city?.trim() ?? "";
+  const state = values.address_state?.trim().toUpperCase() ?? "";
+  const postal = values.address_postal_code?.trim() ?? "";
+  return [line1, line2, city, [state, postal].filter(Boolean).join(" ")]
+    .filter(Boolean)
+    .join(", ");
+}
+
 function registrationValues(patient?: RegistrationPatient): RegistrationValues {
   const d = patient?.demographics;
   const latestContact =
@@ -637,6 +679,7 @@ function registrationValues(patient?: RegistrationPatient): RegistrationValues {
     legal_name: d?.legal_name ?? patient?.display_name ?? "",
     preferred_name: d?.preferred_name ?? "",
     primary_address: patient?.primary_address?.formatted ?? "",
+    ...splitAddress(patient?.primary_address?.formatted ?? ""),
     date_of_birth: d?.date_of_birth ?? "",
     sex: d?.sex ?? "",
     primary_language: d?.primary_language ?? "",
@@ -1080,8 +1123,12 @@ function PatientRegistrationEditor({
   const snapshotFrom = (form: HTMLFormElement): RegistrationDraft => {
     const values = formBody(new FormData(form))
       .clinic_patient as RegistrationValues;
+    const structuredAddress = formatAddress(values);
+    const officialAddress =
+      structuredAddress || values.primary_address_original || "";
     const officialValues = {
       ...values,
+      primary_address: officialAddress,
       request_key: requestKey.current,
       ...(expectedUpdatedAt.current
         ? { expected_updated_at: expectedUpdatedAt.current }
@@ -1301,12 +1348,51 @@ function PatientRegistrationEditor({
                 )}
             </Box>
             <Field
-              name="clinic_patient[primary_address]"
-              label="Current address (street, city, state, ZIP)"
-              type="textarea"
+              name="clinic_patient[address_line1]"
+              label="Street address"
               required={false}
+              value={initialValues.address_line1}
+              autoComplete="address-line1"
+              maxLength={200}
+            />
+            <Box className="pharmacy-form-grid">
+              <Field
+                name="clinic_patient[address_line2]"
+                label="Apartment, suite, or unit"
+                required={false}
+                value={initialValues.address_line2}
+                autoComplete="address-line2"
+                maxLength={100}
+              />
+              <Field
+                name="clinic_patient[address_city]"
+                label="City"
+                required={false}
+                value={initialValues.address_city}
+                autoComplete="address-level2"
+                maxLength={100}
+              />
+              <Field
+                name="clinic_patient[address_state]"
+                label="State"
+                required={false}
+                value={initialValues.address_state}
+                autoComplete="address-level1"
+                maxLength={2}
+              />
+              <Field
+                name="clinic_patient[address_postal_code]"
+                label="ZIP code"
+                required={false}
+                value={initialValues.address_postal_code}
+                autoComplete="postal-code"
+                maxLength={10}
+              />
+            </Box>
+            <input
+              type="hidden"
+              name="clinic_patient[primary_address_original]"
               value={initialValues.primary_address}
-              maxLength={20000}
             />
             <Typography variant="body2" color="text.secondary">
               Registration covers identity, contact, address, language, and
