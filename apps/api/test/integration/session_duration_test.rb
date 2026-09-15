@@ -44,18 +44,18 @@ class SessionDurationTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "session polling does not extend idle expiry" do
+  test "session polling does not extend the two-hour idle expiry" do
     travel_to Time.utc(2026, 8, 31, 8) do
       sign_in
       record = @user.member_sessions.sole
       initial_activity_at = record.last_activity_at
 
-      travel 14.minutes
+      travel MemberSession::IDLE_DURATION - 1.second
       get "/api/session"
       assert_response :success
       assert_equal initial_activity_at, record.reload.last_activity_at
 
-      travel 1.minute + 1.second
+      travel 2.seconds
       get "/api/session"
       assert_response :unauthorized
     end
@@ -78,10 +78,10 @@ class SessionDurationTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "an expired session cannot be renewed by trusted browser activity" do
+  test "an expired two-hour idle session cannot be renewed by trusted browser activity" do
     sign_in
     record = @user.member_sessions.sole
-    record.update!(last_activity_at: 15.minutes.ago - 1.second)
+    record.update!(last_activity_at: MemberSession::IDLE_DURATION.ago - 1.second)
 
     patch "/api/session", headers: csrf_headers, as: :json
     assert_response :unauthorized

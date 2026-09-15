@@ -1,6 +1,6 @@
 class MemberSession < ApplicationRecord
   MAX_DURATION = 12.hours
-  IDLE_DURATION = 15.minutes
+  IDLE_DURATION = 2.hours
   attr_accessor :revocation_action
 
   belongs_to :user
