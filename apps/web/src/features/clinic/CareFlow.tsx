@@ -576,15 +576,19 @@ function BookingFormEditor({
     };
   }, [initialPatientId, initialVisitModality]);
   const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  const effectiveDraft =
+    initialPatientId && !restoredDraft.patientId
+      ? { ...restoredDraft, patientId: String(initialPatientId) }
+      : restoredDraft;
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
-  const [patientId, setPatientId] = useState(restoredDraft.patientId);
+  const [patientId, setPatientId] = useState(effectiveDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
     number | undefined
-  >(restoredDraft.patientId ? Number(restoredDraft.patientId) : undefined);
+  >(effectiveDraft.patientId ? Number(effectiveDraft.patientId) : undefined);
   const [replacementPatient, setReplacementPatient] = useState<Patient>();
   const [replacementPatientError, setReplacementPatientError] = useState("");
   const [replacementPatientLoading, setReplacementPatientLoading] = useState(
-    Boolean(restoredDraft.patientId),
+    Boolean(effectiveDraft.patientId),
   );
   const [startsAt, setStartsAt] = useState(restoredDraft.startsAt);
   const [endsAt, setEndsAt] = useState(restoredDraft.endsAt);
