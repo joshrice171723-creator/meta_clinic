@@ -172,13 +172,23 @@ describe("clinic-specific membership growth", () => {
 
   it("holds public membership content until the existing session is cleared", () => {
     const html = renderToStaticMarkup(
-      <PublicMembershipEntry>
+      <PublicMembershipEntry preserveSession={false}>
         <span>Public storefront content</span>
       </PublicMembershipEntry>,
     );
 
     expect(html).toContain("Loading this page");
     expect(html).not.toContain("Public storefront content");
+  });
+
+  it("opens a development brochure without clearing the shared staff session", () => {
+    const html = renderToStaticMarkup(
+      <PublicMembershipEntry preserveSession>
+        <span>Public storefront content</span>
+      </PublicMembershipEntry>,
+    );
+    expect(html).toContain("Public storefront content");
+    expect(html).not.toContain("Loading this page");
   });
 
   it("renders the clinic growth pipeline and its clinic-specific public address", () => {

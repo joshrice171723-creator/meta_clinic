@@ -514,31 +514,33 @@ function BookingForm({
   const preserved = useRef<AppointmentWorkingDraft | null | undefined>(
     undefined,
   );
-  if (!workingDraft.ready)
-    return workingDraft.error ? (
-      <Alert
-        severity="error"
-        action={<Button onClick={workingDraft.reload}>Retry recovery</Button>}
-      >
-        {workingDraft.error}
-      </Alert>
-    ) : (
-      <LoadState />
-    );
-
   return (
-    <BookingFormEditor
-      timezone={timezone}
-      onCreated={onCreated}
-      initialPatientId={initialPatientId}
-      initialVisitModality={initialVisitModality}
-      initialDraft={preserved.current ?? workingDraft.restored}
-      workingDraft={workingDraft}
-      onReloadDraft={(snapshot) => {
-        preserved.current = snapshot;
-        workingDraft.reload();
-      }}
-    />
+    <Stack spacing={1.5}>
+      {workingDraft.error && (
+        <Alert
+          severity="warning"
+          action={<Button onClick={workingDraft.reload}>Retry recovery</Button>}
+        >
+          Saved scheduling draft could not be loaded. You can continue with a
+          new appointment.
+        </Alert>
+      )}
+      <BookingFormEditor
+        timezone={timezone}
+        onCreated={onCreated}
+        initialPatientId={initialPatientId}
+        initialVisitModality={initialVisitModality}
+        initialDraft={
+          preserved.current ??
+          (workingDraft.ready ? workingDraft.restored : null)
+        }
+        workingDraft={workingDraft}
+        onReloadDraft={(snapshot) => {
+          preserved.current = snapshot;
+          workingDraft.reload();
+        }}
+      />
+    </Stack>
   );
 }
 

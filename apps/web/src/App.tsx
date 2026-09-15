@@ -304,12 +304,21 @@ function RouteBoundary({
   );
 }
 
-export function PublicMembershipEntry({ children }: { children: ReactNode }) {
+export function PublicMembershipEntry({
+  children,
+  preserveSession = import.meta.env.DEV,
+}: {
+  children: ReactNode;
+  preserveSession?: boolean;
+}) {
   const [state, setState] = useState<"clearing" | "ready" | "failed">(
-    "clearing",
+    preserveSession ? "ready" : "clearing",
   );
 
   useEffect(() => {
+    // Vite reloads every open tab after source edits. A brochure tab must not
+    // revoke the shared clinic cookie while developing the staff workflow.
+    if (preserveSession) return;
     let active = true;
     void api<void>("/api/session", { method: "DELETE" })
       .then(() => {
@@ -321,7 +330,7 @@ export function PublicMembershipEntry({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [preserveSession]);
 
   if (state === "clearing") return <RoutePending root />;
   if (state === "failed")
