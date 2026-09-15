@@ -14,8 +14,10 @@ module Clinic
             authorization_confirmed == true && authorization_version == AUTHORIZATION_VERSION
 
           prospect = locked_prospect!(practice:, reviewer:, prospect_id:, lock_version:, start: true)
+          gateway = development_gateway(practice:, prospect:, gateway:, outcome: "pending")
           connection, account_id, collect_fee = routing!(practice, gateway)
-          reader_id = Clinic::Billing::StripeGateway.moto_reader_id!
+          reader_id = gateway.respond_to?(:local_phone_payment_simulator?) && gateway.local_phone_payment_simulator? ?
+            gateway.phone_reader_id : Clinic::Billing::StripeGateway.moto_reader_id!
           configure_attempt!(prospect, reviewer, account_id, reader_id, collect_fee)
           retire_consumer_checkout!(prospect, gateway)
           if prospect.staff_payment_setup_intent_id
@@ -56,6 +58,7 @@ module Clinic
         def refresh(practice:, actor:, prospect_id:, gateway: Clinic::Billing::StripeGateway.new)
           reviewer = Clinic::Authorization.authorize!(practice:, actor:, action: "subscriptions.review")
           prospect = MembershipProspect.where(practice_id: practice.id).find(prospect_id)
+          gateway = development_gateway(practice:, prospect:, gateway:, outcome: "paid")
           unless prospect.intent_type == "purchase" && prospect.follow_up_assigned_to_membership_id == reviewer.id &&
               prospect.staff_payment_setup_intent_id.present?
             raise TransitionProspect::InvalidTransition, "Start this customer's phone payment before checking it."
@@ -103,6 +106,14 @@ module Clinic
         end
 
         private
+
+        def development_gateway(practice:, prospect:, gateway:, outcome:)
+          return gateway unless gateway.instance_of?(Clinic::Billing::StripeGateway)
+          return gateway unless defined?(Development::MembershipPaymentSimulator) &&
+            Development::MembershipPaymentSimulator.enabled_for?(practice)
+
+          Development::MembershipPaymentSimulator.phone_gateway_for!(practice:, prospect:, outcome:)
+        end
 
         def locked_prospect!(practice:, reviewer:, prospect_id:, lock_version:, start:)
           version_text = lock_version.to_s
@@ -291,9 +302,15 @@ module Clinic
         end
 
         def result(prospect, status)
+          instructions = if status == "awaiting_card"
+            if prospect.staff_payment_reader_id.to_s.start_with?("tmr_local")
+              "Development telephone-payment simulator: card entry is simulated; check payment status to continue."
+            else
+              "Enter the caller's card details on the assigned Stripe reader, then check payment status."
+            end
+          end
           Result.new(prospect: prospect.reload, payment: {
-            status:, instructions: status == "awaiting_card" ?
-              "Enter the caller's card details on the assigned Stripe reader, then check payment status." : nil
+            status:, instructions:
           })
         end
 

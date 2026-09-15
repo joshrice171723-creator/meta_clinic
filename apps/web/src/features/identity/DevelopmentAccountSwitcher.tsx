@@ -132,13 +132,13 @@ export function DevelopmentAccountSwitcher({
             <MenuItem value="" disabled>Select organization</MenuItem>
             {organizations.map(([id, name]) => <MenuItem key={id} value={id}>{name} · ID {id}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Clinic" value={clinicId} disabled={disabled || !organizationId} onChange={(event) => { const nextClinicId = event.target.value; setClinicId(nextClinicId); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: nextClinicId, siteId: "" }); }}>
+          <TextField select size="small" label="Clinic" value={clinicId} disabled={disabled || !organizationId} onChange={(event) => { const nextClinicId = String(event.target.value); setClinicId(nextClinicId); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: nextClinicId, siteId: "" }); }}>
             <MenuItem value="" disabled>Select clinic</MenuItem>
-            {clinicOptions.map((clinic) => <MenuItem key={clinic.id} value={clinic.id}>{clinic.name} · ID {clinic.id}</MenuItem>)}
+            {clinicOptions.map((clinic) => <MenuItem key={clinic.id} value={String(clinic.id)}>{clinic.name} · ID {clinic.id}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Location" value={siteId} disabled={disabled || !clinicId || noLocations} onChange={(event) => { const nextSiteId = event.target.value; setSiteId(nextSiteId); onSelect(""); onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId }); }}>
+          <TextField select size="small" label="Location" value={siteId} disabled={disabled || !clinicId || noLocations} onChange={(event) => { const nextSiteId = String(event.target.value); setSiteId(nextSiteId); onSelect(""); onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId }); }}>
             <MenuItem value="" disabled>{noLocations ? "No accessible locations" : "Select location"}</MenuItem>
-            {locations.map((site) => <MenuItem key={site.id} value={site.id}>{site.name || site.code} · ID {site.id}</MenuItem>)}
+            {locations.map((site) => <MenuItem key={site.id} value={String(site.id)}>{site.name || site.code} · ID {site.id}</MenuItem>)}
           </TextField>
         </>
       )}

@@ -596,6 +596,35 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert prospect.onboarding_task_id
   end
 
+  test "development simulator completes front-desk phone payment without a Stripe reader" do
+    ENV["STRIPE_MOTO_READER_ID"] = "tmr_phonefixture"
+    version_id = publish_catalog(@admin, "LocalPhone", renewal: "automatic")
+    ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = @practice.id.to_s
+    ENV.delete("STRIPE_MOTO_READER_ID")
+    sign_in(@admin)
+    post "/api/clinic/membership_enrollment", params: { enrollment: { version_id:, selections: [],
+      display_name: "Local Phone Patient", email_address: "local.phone@example.invalid",
+      phone_number: "555-010-4040", contact_consent: true, request_key: "local-phone-enrollment" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    prospect = @practice.membership_prospects.sole
+
+    pending = Clinic::MembershipGrowth::StaffEnrollmentPayment.start(
+      practice: @practice, actor: @admin, prospect_id: prospect.id,
+      lock_version: prospect.lock_version, authorization_confirmed: true,
+      authorization_version: Clinic::MembershipGrowth::StaffPhonePayment::AUTHORIZATION_VERSION
+    )
+    assert_equal "awaiting_card", pending.payment.fetch(:status)
+    assert_match(/simulator/i, pending.payment.fetch(:instructions, ""))
+
+    paid = Clinic::MembershipGrowth::StaffPhonePayment.refresh(
+      practice: @practice, actor: @admin, prospect_id: prospect.id
+    )
+    assert_equal "paid", paid.payment.fetch(:status)
+    assert prospect.reload.status_paid_onboarding?
+    assert_equal 1, @practice.patients.count
+  end
+
   test "temporary platform sandbox opens checkout without rewriting clinic routing" do
     ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "acct_platformsandbox"
     version_id = publish_catalog(@admin, "PlatformSandbox")

@@ -8,15 +8,27 @@ module Development
     class Gateway
       attr_reader :practice_id
 
-      def initialize(practice:, prospect:, outcome: "pending")
+      def initialize(practice:, prospect:, outcome: "pending", channel: :checkout)
         @practice = practice
         @practice_id = practice.id
         @prospect = prospect
         @outcome = outcome
+        @channel = channel.to_sym
       end
 
       def local_membership_simulator?
         true
+      end
+
+      def local_phone_payment_simulator?
+        @channel == :phone
+      end
+
+      def phone_reader_id
+        raise Clinic::Billing::StripeGateway::Invalid, "Telephone reader is only available for phone payments." unless
+          local_phone_payment_simulator?
+
+        id("tmr_local", "phone-reader")
       end
 
       def checkout_url
@@ -51,6 +63,8 @@ module Development
       end
 
       def request(method, path, **options)
+        return phone_request(method, path, options) if local_phone_payment_simulator?
+
         value = case [method, path]
         when [:get, "/v2/core/accounts/#{connection.account_id}"]
           account
@@ -88,11 +102,15 @@ module Development
         {
           "id" => id("sub_local", "subscription"),
           "livemode" => false,
-          "metadata" => { "apply_collection_intent" => @prospect.checkout_reference },
+          "customer" => @prospect.staff_payment_customer_id,
+          "default_payment_method" => @prospect.staff_payment_customer_id && id("pm_local", "phone-payment-method"),
+          "metadata" => { "apply_membership_prospect" => @prospect.checkout_reference,
+            "apply_collection_intent" => @prospect.checkout_reference },
           "application_fee_percent" => application_fee_cents.positive? ? "2.1" : nil,
           "items" => { "data" => [{
             "quantity" => 1,
             "price" => {
+              "id" => @prospect.staff_payment_price_id,
               "unit_amount" => amount_cents,
               "currency" => currency,
               "recurring" => { "interval" => "month", "interval_count" => 1 }
@@ -137,6 +155,58 @@ module Development
       end
 
       private
+
+      def phone_request(method, path, options)
+        value = case [method, path]
+        when [:get, "/v2/core/accounts/#{connection.account_id}"]
+          account
+        when [:post, "/v1/checkout/sessions"]
+          checkout_session
+        when [:get, "/v1/checkout/sessions/#{id('cs_test_local', 'checkout')}"]
+          checkout_session
+        when [:post, "/v1/checkout/sessions/#{id('cs_test_local', 'checkout')}/expire"]
+          checkout_session.merge("status" => "expired", "payment_status" => "unpaid")
+        when [:post, "/v1/customers"]
+          { "id" => id("cus_local", "phone-customer"), "livemode" => false }
+        when [:post, "/v1/setup_intents"]
+          phone_setup_intent(status: "requires_payment_method")
+        when [:get, "/v1/setup_intents/#{id('seti_local', 'phone-setup')}"]
+          phone_setup_intent(status: @outcome == "paid" ? "succeeded" : "requires_payment_method")
+        when [:post, "/v1/terminal/readers/#{phone_reader_id}/process_setup_intent"]
+          { "id" => phone_reader_id, "livemode" => false,
+            "action" => { "type" => "process_setup_intent", "status" => "in_progress",
+              "process_setup_intent" => { "setup_intent" => id("seti_local", "phone-setup") } } }
+        when [:post, "/v1/products"]
+          { "id" => id("prod_local", "phone-product"), "livemode" => false }
+        when [:post, "/v1/prices"]
+          { "id" => id("price_local", "phone-price"), "livemode" => false }
+        when [:post, "/v1/subscriptions"]
+          subscription
+        when [:get, "/v1/subscriptions/#{id('sub_local', 'subscription')}"]
+          subscription
+        when [:get, "/v1/invoices/#{id('in_local', 'initial-invoice')}"]
+          invoice(initial: true)
+        when [:get, "/v1/invoice_payments"]
+          invoice_payments(options.fetch(:fields).fetch("invoice"))
+        when [:get, "/v1/payment_intents/#{id('pi_local', 'initial-payment')}"]
+          payment_intent(initial: true)
+        when [:get, "/v1/charges/#{id('ch_local', 'initial-charge')}"]
+          charge(initial: true)
+        else
+          raise Clinic::Billing::StripeGateway::Invalid,
+            "The local telephone-payment simulator received an unsupported payment request."
+        end
+        value.deep_dup
+      end
+
+      def phone_setup_intent(status:)
+        {
+          "id" => id("seti_local", "phone-setup"), "livemode" => false, "status" => status,
+          "customer" => id("cus_local", "phone-customer"),
+          "payment_method" => status == "succeeded" ? id("pm_local", "phone-payment-method") : nil,
+          "metadata" => { "apply_membership_prospect" => @prospect.checkout_reference }
+        }
+      end
 
       def account
         {
@@ -232,7 +302,26 @@ module Development
       def enabled_for?(practice)
         return false unless Rails.env.development? || Rails.env.test?
 
-        ENV.fetch(ENVIRONMENT_KEY, "").split(",").map(&:strip).include?(practice.id.to_s)
+        configured = ENV.fetch(ENVIRONMENT_KEY, "")
+        if configured.blank? && Rails.env.development?
+          path = Rails.root.join("tmp", "stripe-sandbox.json")
+          if path.file?
+            values = JSON.parse(path.read.sub(/\A\uFEFF/, ""))
+            configured = values[ENVIRONMENT_KEY].to_s if values.is_a?(Hash)
+          end
+        end
+        configured.split(",").map(&:strip).include?(practice.id.to_s)
+      rescue JSON::ParserError, IOError, SystemCallError
+        false
+      end
+
+      def phone_gateway_for!(practice:, prospect:, outcome: "pending")
+        ensure_enabled!(practice)
+        connection = Clinic::Billing::StripeConnection.find_by(practice_id: practice.id) || ensure_connection!(practice)
+        raise Clinic::Billing::StripeGateway::Unavailable,
+          "The local telephone-payment simulator needs a clinic payment connection." unless connection&.account_id
+
+        Gateway.new(practice:, prospect:, outcome:, channel: :phone)
       end
 
       def gateway_for!(practice:, prospect:)

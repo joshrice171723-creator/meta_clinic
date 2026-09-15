@@ -13,7 +13,8 @@ Create `apps/api/tmp/stripe-sandbox.json` privately (the directory is Git-ignore
   "STRIPE_SANDBOX_KEY": "",
   "STRIPE_CONNECT_WEBHOOK_SECRET": "",
   "STRIPE_RETURN_ORIGIN": "http://127.0.0.1:3000",
-  "STRIPE_MOTO_READER_ID": ""
+  "STRIPE_MOTO_READER_ID": "",
+  "APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS": ""
 }
 ```
 
@@ -71,6 +72,8 @@ Stripe must first approve Mail Order/Telephone Order (MOTO) access for the proce
 In **Growth**, open the prospective patient's membership record, start the signup call, explain the exact monthly amount, renewal timing, cancellation terms and saved-card purpose, then check the recurring-authorization attestation. **Take recurring payment by phone** first expires the caller's still-open consumer Checkout so both surfaces cannot charge concurrently. Stripe creates a unique Customer and SetupIntent for that prospect and prompts for card number, security code, expiration date and postal code on the assigned reader. Meta Clinic never receives those card values. Choose **Check payment status** after reader entry. The person remains prospective through card setup and subscription processing; only a verified paid initial invoice creates the patient, ledger, receipt, portal invitation and onboarding task. Each subsequent caller receives a different Customer and SetupIntent.
 
 The worker attestation is application evidence that the caller authorized the displayed recurring terms; it is not by itself legal or card-network approval of the clinic's authorization language. Before real use, the clinic must approve the written authorization/retention procedure and Stripe MOTO access, reader custody and Payment Card Industry Data Security Standard responsibilities.
+
+For workflow-only development, a practice can opt into the server-side local telephone-payment simulator by listing its practice ID in `APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS` (or that key in the private sandbox JSON). The simulator creates signed, synthetic reader/setup/subscription evidence and never sends card data or payment requests to Stripe. It is available only in development/test and must be removed before any real payment acceptance.
 
 Immediate month advancement is not built into this UI. Checkout currently creates its own customer without a test clock. An accelerated renewal/failure walkthrough requires a separately reviewed sandbox test-clock customer flow; do not claim that monthly renewal was exercised merely by completing initial Checkout. Focused service tests use stubbed Stripe responses and cannot prove live sandbox delivery or a real monthly charge.
 
