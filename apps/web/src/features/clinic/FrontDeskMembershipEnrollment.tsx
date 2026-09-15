@@ -81,15 +81,26 @@ export function FrontDeskMembershipEnrollment() {
     setError("");
   }
 
-  function closeDialog() {
-    if (!busy) setOpen(false);
-  }
-
-  function startAnother() {
+  function resetDialogState() {
     setDraft(newDraft());
     setCreatedProspect(null);
     setPayment(null);
     setRecurringAuthorization(false);
+    setError("");
+  }
+
+  function closeDialog() {
+    if (busy) return;
+    setOpen(false);
+    resetDialogState();
+  }
+
+  function backToEnrollment() {
+    if (busy) return;
+    setCreatedProspect(null);
+    setPayment(null);
+    setRecurringAuthorization(false);
+    setDraft((current) => ({ ...current, requestKey: crypto.randomUUID() }));
     setError("");
   }
 
@@ -410,6 +421,11 @@ export function FrontDeskMembershipEnrollment() {
         <DialogActions>
           {createdProspect ? (
             <>
+              {payment?.status !== "paid" && (
+                <Button onClick={backToEnrollment} disabled={busy}>
+                  Back
+                </Button>
+              )}
               <Button onClick={closeDialog} disabled={busy}>
                 Cancel
               </Button>
