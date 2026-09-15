@@ -1193,7 +1193,7 @@ function InboxRow({
       sx={{
         py: 2,
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "auto minmax(0, 1fr) auto" },
+        gridTemplateColumns: { xs: "1fr", md: "auto minmax(0, 1fr)" },
         gap: { xs: 1.25, md: 2 },
         alignItems: "center",
       }}
@@ -1318,8 +1318,12 @@ function InboxRow({
       </Box>
       <Button
         variant="outlined"
+        sx={{
+          gridColumn: { xs: "auto", md: "2 / -1" },
+          justifySelf: { xs: "start", md: "start" },
+          mt: { xs: 0.5, md: 1 },
+        }}
         href={item.href}
-        sx={{ justifySelf: { xs: "start", md: "end" } }}
       >
         {item.action}
       </Button>
