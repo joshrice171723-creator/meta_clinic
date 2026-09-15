@@ -1399,6 +1399,20 @@ export function WorkInbox() {
   >({ loading: canLoadScheduledVisits });
 
   useEffect(() => {
+    if (!canLoadWork) return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible")
+        setRefreshRevision((value) => value + 1);
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 15000);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [canLoadWork]);
+
+  useEffect(() => {
     if (!canLoadCallbacks) return;
     const abort = new AbortController();
     setCallbacks({ loading: true });
