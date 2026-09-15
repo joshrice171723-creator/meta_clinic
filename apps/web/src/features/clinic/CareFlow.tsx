@@ -656,6 +656,9 @@ function BookingFormEditor({
   const dirty = hasWorkingDraft || draftChanged;
   const patients = useResource<{ patients: Patient[] }>(
     `/api/clinic/patients/lookup?q=${encodeURIComponent(deferredPatientQuery.trim())}&per_page=25`,
+    {
+      enabled: !replacementPatientId || deferredPatientQuery.trim().length > 0,
+    },
   );
   const facilities = useResource<{ sites: FacilitySite[] }>(
     "/api/clinic/facilities?type=sites",
