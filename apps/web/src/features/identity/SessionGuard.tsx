@@ -62,7 +62,6 @@ export function SessionGuard({
   const alive = useRef(true);
   useLayoutEffect(() => {
     setApiActor(expectedUserId);
-    return () => setApiActor(undefined);
   }, [expectedUserId]);
 
   const accept = (policy: SessionPolicy | undefined) => {
@@ -81,10 +80,7 @@ export function SessionGuard({
   };
 
   const acceptResponse = (response: SessionBootstrap) => {
-    if (
-      expectedUserId !== undefined &&
-      response.user?.id !== expectedUserId
-    ) {
+    if (expectedUserId !== undefined && response.user?.id !== expectedUserId) {
       setExpired(true);
       return false;
     }
