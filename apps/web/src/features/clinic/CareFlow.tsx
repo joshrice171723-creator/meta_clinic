@@ -811,7 +811,7 @@ function BookingFormEditor({
           (patient) => patient.id !== replacementPatient.id,
         ),
       ]
-    : patients.data.patients;
+    : (patients.data?.patients ?? []);
   const availableRooms = siteId
     ? rooms.data.rooms.filter((room) => room.site_id === Number(siteId))
     : [];
