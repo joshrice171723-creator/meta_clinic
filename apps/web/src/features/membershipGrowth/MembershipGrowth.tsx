@@ -139,6 +139,23 @@ export function MembershipGrowth() {
 
   const storefront = resource.data?.storefront;
   useEffect(() => {
+    const selectedId = new URLSearchParams(window.location.search).get(
+      "prospect",
+    );
+    if (!selectedId || !resource.data) return;
+
+    const prospect = resource.data.prospects.find(
+      (record) => record.id === Number(selectedId),
+    );
+    if (prospect) {
+      setSelected(prospect);
+      setActionError("");
+      setActionNotice("");
+      setRecurringAuthorization(false);
+    }
+  }, [resource.data]);
+
+  useEffect(() => {
     if (!storefront) return;
     setSlug(storefront.slug || "");
     setEnabled(storefront.enabled);

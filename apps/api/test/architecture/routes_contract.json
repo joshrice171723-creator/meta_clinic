@@ -280,6 +280,11 @@
     "/api/clinic/lab_reports/review_queue(.:format)"
   ],
   [
+    "api_clinic_membership_enrollment",
+    "GET",
+    "/api/clinic/membership_enrollment(.:format)"
+  ],
+  [
     "api_clinic_membership_prospect",
     "GET",
     "/api/clinic/membership_prospects/:id(.:format)"
@@ -1888,6 +1893,11 @@
     null,
     "POST",
     "/api/clinic/inventory/recalls/:id/disposition(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/membership_enrollment(.:format)"
   ],
   [
     null,

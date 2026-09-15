@@ -282,6 +282,59 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_nil prospect.patient_id
   end
 
+  test "staff can enroll a prospective patient from published terms even when the public page is disabled" do
+    version_id = publish_catalog(@admin, "FrontDesk")
+    sign_in(@admin)
+    payload = { enrollment: { version_id:, selections: [], display_name: "Desk Enrollment",
+      email_address: "desk.enrollment@example.invalid", phone_number: "555-010-3030",
+      contact_consent: true, request_key: "front-desk-enrollment-1" } }
+
+    get "/api/clinic/membership_enrollment", headers: @headers
+    assert_response :success
+    assert_equal [ version_id ], response.parsed_body.fetch("catalog").map { |row| row.fetch("id") }
+
+    post "/api/clinic/membership_enrollment", params: payload, headers: csrf_headers, as: :json
+    assert_response :created
+    prospect = @practice.membership_prospects.sole
+    assert_equal "front_desk_enrollment", prospect.source
+    assert_equal "purchase", prospect.intent_type
+    assert_equal "open", prospect.follow_up_state
+    assert_equal "prospective_patient", prospect.relationship_stage
+    assert_equal 0, @practice.patients.count
+
+    post "/api/clinic/membership_enrollment", params: payload, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("replayed")
+    assert_equal 1, @practice.membership_prospects.count
+  end
+
+  test "staff enrollment saves a review-required membership but blocks phone payment" do
+    version_id = publish_catalog(@admin, "Review", eligibility_review: true)
+    sign_in(@admin)
+    post "/api/clinic/membership_enrollment", params: { enrollment: { version_id:, selections: [],
+      display_name: "Review Enrollment", email_address: "review.enrollment@example.invalid",
+      contact_consent: true, request_key: "review-required-enrollment" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    prospect = @practice.membership_prospects.sole
+
+    transition(prospect, "begin_call")
+    assert_response :success
+    assert_raises(ArgumentError, "This membership requires clinic review before payment.") do
+      Clinic::MembershipGrowth::StaffPhonePayment.start(
+        practice: @practice,
+        actor: @admin,
+        prospect_id: prospect.id,
+        lock_version: prospect.reload.lock_version,
+        authorization_confirmed: true,
+        authorization_version: Clinic::MembershipGrowth::StaffPhonePayment::AUTHORIZATION_VERSION,
+        gateway: Gateway.new
+      )
+    end
+    assert prospect.reload.status_new?
+    assert_nil prospect.staff_payment_status
+    assert_equal 0, @practice.patients.count
+  end
+
   test "membership account is created before checkout and verified payment reuses it for portal access" do
     version_id = publish_catalog(@admin, "AccountFirst")
     configure_storefront(@admin, "account-first-memberships", enabled: true)
@@ -685,7 +738,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  def publish_catalog(user, label, renewal: "none")
+  def publish_catalog(user, label, renewal: "none", eligibility_review: false)
     sign_in(user)
     post "/api/clinic/subscription_catalog/family", params: { item: { name: "#{label} program" } },
       headers: csrf_headers, as: :json
@@ -695,10 +748,11 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     post "/api/clinic/subscription_catalog/service", params: { item: { name: "#{label} included visit" } },
       headers: csrf_headers, as: :json
     service_id = response.parsed_body.fetch("id")
-    post "/api/clinic/subscription_catalog/package", params: { item: { name: "#{label} membership", family_id: family_id,
-      draft: { amount: "79.25", currency: "USD", duration: 1, duration_unit: "months", renewal:,
-        cancellation: renewal == "automatic" ? "end_of_term" : "immediate",
-        terms: "Synthetic fixed membership terms.", components: [{ service_id: service_id, mode: "included" }] } } },
+    draft = { amount: "79.25", currency: "USD", duration: 1, duration_unit: "months", renewal:,
+      cancellation: renewal == "automatic" ? "end_of_term" : "immediate",
+      terms: "Synthetic fixed membership terms.", components: [{ service_id: service_id, mode: "included" }] }
+    draft[:eligibility_review] = true if eligibility_review
+    post "/api/clinic/subscription_catalog/package", params: { item: { name: "#{label} membership", family_id: family_id, draft: } },
       headers: csrf_headers, as: :json
     package_id = response.parsed_body.fetch("id")
     post "/api/clinic/subscription_catalog/packages/#{package_id}/publish",

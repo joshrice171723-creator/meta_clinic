@@ -44,9 +44,11 @@ module Clinic
 
           begin_reader!(prospect, actor, gateway)
         rescue ArgumentError
-          prospect.with_lock do
-            prospect.update!(staff_payment_status: "failed", status: "payment_failed",
-              follow_up_state: "open", follow_up_due_at: Current.business_time)
+          if defined?(prospect) && prospect && !prospect.selected_terms.fetch("eligibility_review", false)
+            prospect.with_lock do
+              prospect.update!(staff_payment_status: "failed", status: "payment_failed",
+                follow_up_state: "open", follow_up_due_at: Current.business_time)
+            end
           end
           raise
         end
@@ -108,6 +110,9 @@ module Clinic
           MembershipProspect.transaction do
             prospect = MembershipProspect.where(practice_id: practice.id).lock.find(prospect_id)
             raise ActiveRecord::StaleObjectError.new(prospect, "update") unless prospect.lock_version == version_text.to_i
+            if prospect.selected_terms.fetch("eligibility_review", false)
+              raise ArgumentError, "This membership requires clinic review before payment."
+            end
             valid = prospect.intent_type == "purchase" && prospect.follow_up_state == "in_progress" &&
               prospect.follow_up_assigned_to_membership_id == reviewer.id &&
               prospect.status.in?(%w[new checkout_pending checkout_expired payment_failed]) &&

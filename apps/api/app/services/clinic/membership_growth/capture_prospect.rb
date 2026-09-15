@@ -8,13 +8,16 @@ module Clinic
       Result = Struct.new(:prospect, :replayed, keyword_init: true)
 
       def self.call(practice:, version_id:, selections:, display_name:, email_address:, phone_number: nil,
-        source: nil, outreach_consent:, request_key:, intent_type: "outreach", preferred_contact_method: nil, preferred_contact_time: nil)
+        source: nil, outreach_consent:, request_key:, intent_type: "outreach", preferred_contact_method: nil, preferred_contact_time: nil,
+        require_storefront: true)
         new(practice:, version_id:, selections:, display_name:, email_address:, phone_number:,
-          source:, outreach_consent:, request_key:, intent_type:, preferred_contact_method:, preferred_contact_time:).call
+          source:, outreach_consent:, request_key:, intent_type:, preferred_contact_method:, preferred_contact_time:,
+          require_storefront:).call
       end
 
       def initialize(practice:, version_id:, selections:, display_name:, email_address:, phone_number:,
-        source:, outreach_consent:, request_key:, intent_type:, preferred_contact_method:, preferred_contact_time:)
+        source:, outreach_consent:, request_key:, intent_type:, preferred_contact_method:, preferred_contact_time:,
+        require_storefront:)
         @practice = practice
         @version_id = positive_id(version_id, "Membership version")
         @selections = selections
@@ -30,6 +33,7 @@ module Clinic
         raise ArgumentError, "Enter an email address to receive your receipt and set up the patient portal." if
           @intent_type == "purchase" && @email_address.nil?
         @request_key = Clinic::Care::SubscriptionDefinition.request_key(request_key)
+        @require_storefront = require_storefront == true
         @contact_preferences = {}
         method = optional_text(preferred_contact_method, "Preferred contact method", 20)
         time = optional_text(preferred_contact_time, "Preferred contact time", 160)
@@ -44,7 +48,7 @@ module Clinic
       def call
         ApplicationRecord.transaction do
           practice.lock!
-          ensure_storefront_available!
+          ensure_storefront_available! if require_storefront
           version, selected_terms = selected_quote
           email_digest = email_address && ContactDigest.call(practice_id: practice.id, value: email_address)
           phone_digest = normalized_phone && ContactDigest.call(practice_id: practice.id, value: normalized_phone)
@@ -82,6 +86,7 @@ module Clinic
       attr_reader :practice, :version_id, :selections, :display_name, :email_address,
         :phone_number, :normalized_phone, :source, :outreach_consent, :request_key
       attr_reader :intent_type
+      attr_reader :require_storefront
 
       def ensure_storefront_available!
         unless practice.membership_storefront_enabled? && practice.public_membership_slug.present? &&

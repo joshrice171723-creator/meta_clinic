@@ -195,6 +195,7 @@ Rails.application.routes.draw do
     post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"
     get "subscription_catalog", to: "care/subscription_catalog#index"
     resource :membership_storefront, only: %i[show update], controller: "membership_storefront"
+    resource :membership_enrollment, only: %i[show create]
     resources :membership_prospects, only: %i[index show update] do
       post :phone_payment, on: :member
       post :refresh_phone_payment, on: :member

@@ -1,5 +1,4 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
-import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -51,6 +50,7 @@ import {
 } from "./frontDeskModel";
 import { useClinic } from "./Workspace";
 import { AppointmentRequestQueue } from "./AppointmentRequestQueue";
+import { FrontDeskMembershipEnrollment } from "./FrontDeskMembershipEnrollment";
 import "./frontDesk.css";
 
 function allowed(capability: boolean | undefined) {
@@ -104,16 +104,7 @@ export function FrontDesk() {
           </Typography>
         </div>
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-          {canMembershipEnrollment && (
-            <Button
-              component="a"
-              href="/clinic/growth"
-              variant="contained"
-              startIcon={<CardMembershipOutlinedIcon />}
-            >
-              Membership enrollment
-            </Button>
-          )}
+          {canMembershipEnrollment && <FrontDeskMembershipEnrollment />}
           {capabilities.telehealth_read && (
             <Button href="/clinic/telehealth" variant="outlined">
               Virtual waiting room

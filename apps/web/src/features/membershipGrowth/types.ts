@@ -115,6 +115,16 @@ export type MembershipProspectMutationResponse = {
   prospect: MembershipProspect;
 };
 
+export type MembershipEnrollmentResponse =
+  MembershipProspectMutationResponse & {
+    replayed: boolean;
+  };
+
+export type MembershipEnrollmentOptions = {
+  practice: { name: string };
+  catalog: PublishedPackage[];
+};
+
 export type StaffPhonePaymentResponse = MembershipProspectMutationResponse & {
   phone_payment: {
     status: "awaiting_card" | "payment_processing" | "paid" | "failed";
