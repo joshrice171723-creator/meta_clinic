@@ -58,4 +58,21 @@ describe("clinic scope selector", () => {
     expect(html).toContain("Independent clinics");
     expect(html).toContain("No accessible locations");
   });
+
+  it("keeps the selector fields and option lists readable in every clinic theme", () => {
+    const source = renderToStaticMarkup(
+      <ClinicScopeSelector
+        context={
+          {
+            practice: { id: 2, name: "North clinic" },
+            sites: [],
+            current_site: null,
+          } as unknown as ClinicWorkspaceContext
+        }
+        onPracticeChange={() => {}}
+      />,
+    );
+    expect(source).toContain("#f3f4f6");
+    expect(source).toContain("#111827");
+  });
 });

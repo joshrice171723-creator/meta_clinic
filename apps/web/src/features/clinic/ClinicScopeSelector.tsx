@@ -1,6 +1,40 @@
 import { MenuItem, Stack, TextField } from "@mui/material";
 import type { ClinicWorkspaceContext } from "../../api/contracts";
 
+const neutralSelectSx = {
+  "& .MuiInputLabel-root": { color: "#374151" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#111827" },
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "#f3f4f6",
+    color: "#111827",
+    "& fieldset": { borderColor: "#9ca3af" },
+    "&:hover fieldset": { borderColor: "#6b7280" },
+    "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+  },
+  "& .MuiSelect-icon": { color: "#111827" },
+  "& .MuiInputBase-root.Mui-disabled": {
+    backgroundColor: "#e5e7eb",
+    color: "#111827",
+  },
+  "& .MuiInputBase-input.Mui-disabled": { WebkitTextFillColor: "#111827" },
+};
+
+const neutralMenuProps = {
+  slotProps: {
+    paper: {
+      sx: {
+        backgroundColor: "#f3f4f6",
+        color: "#111827",
+        "& .MuiMenuItem-root": { color: "#111827" },
+        "& .MuiMenuItem-root.Mui-selected": { backgroundColor: "#d1d5db" },
+        "& .MuiMenuItem-root.Mui-selected:hover": {
+          backgroundColor: "#cbd5e1",
+        },
+      },
+    },
+  },
+};
+
 export function ClinicScopeSelector({
   context,
   disabled = false,
@@ -40,8 +74,9 @@ export function ClinicScopeSelector({
         mt: 1,
         p: 1.25,
         borderRadius: 1,
-        bgcolor: "background.paper",
-        color: "text.primary",
+        bgcolor: "#e5e7eb",
+        color: "#111827",
+        border: "1px solid #9ca3af",
       }}
     >
       <TextField
@@ -52,6 +87,8 @@ export function ClinicScopeSelector({
         fullWidth
         value={organizationKey}
         disabled={disabled || organizations.length < 2}
+        sx={neutralSelectSx}
+        slotProps={{ select: { MenuProps: neutralMenuProps } }}
         onChange={(event) => {
           const practice = practices.find(
             (item) =>
@@ -75,6 +112,8 @@ export function ClinicScopeSelector({
         fullWidth
         value={context.practice.id}
         disabled={disabled || clinics.length < 2}
+        sx={neutralSelectSx}
+        slotProps={{ select: { MenuProps: neutralMenuProps } }}
         onChange={(event) => onPracticeChange(Number(event.target.value))}
       >
         {clinics.map((practice) => (
@@ -92,9 +131,10 @@ export function ClinicScopeSelector({
           fullWidth
           value={context.current_site?.id ?? ""}
           disabled={disabled || context.sites.length < 2}
+          sx={neutralSelectSx}
           slotProps={{
             inputLabel: { shrink: true },
-            select: { displayEmpty: true },
+            select: { displayEmpty: true, MenuProps: neutralMenuProps },
           }}
           onChange={(event) => onLocationChange(Number(event.target.value))}
         >
