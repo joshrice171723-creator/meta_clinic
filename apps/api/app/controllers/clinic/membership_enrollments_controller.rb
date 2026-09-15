@@ -7,6 +7,15 @@ module Clinic
     rescue_from MembershipGrowth::CaptureProspect::Conflict do |error|
       render json: { error: error.message, code: "idempotency_conflict" }, status: :conflict
     end
+    rescue_from MembershipGrowth::TransitionProspect::InvalidTransition do |error|
+      render json: { error: error.message, code: "invalid_transition" }, status: :unprocessable_entity
+    end
+    rescue_from Clinic::Billing::StripeGateway::Unavailable do |error|
+      render json: { error: error.message, code: "stripe_unavailable" }, status: :service_unavailable
+    end
+    rescue_from Clinic::Billing::StripeGateway::Invalid, ArgumentError do |error|
+      render json: { error: error.message, code: "stripe_invalid" }, status: :unprocessable_entity
+    end
 
     def show
       Clinic::AuditRecorder.record!(
