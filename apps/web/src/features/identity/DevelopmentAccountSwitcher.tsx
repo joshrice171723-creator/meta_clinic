@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   Alert,
   Button,
@@ -75,12 +75,14 @@ export function DevelopmentAccountSwitcher({
   portal,
   selectedId,
   onSelect,
+  onScopeChange,
   disabled,
 }: {
   accounts: DevelopmentAccount[];
   portal: DevelopmentPortal;
   selectedId: string;
   onSelect: (id: string) => void;
+  onScopeChange?: (scope: { practiceId: string; siteId: string }) => void;
   disabled: boolean;
 }) {
   const portalDefinition = DEVELOPMENT_PORTALS[portal];
@@ -90,12 +92,50 @@ export function DevelopmentAccountSwitcher({
   const selectedAccount = visibleAccounts.find(
     (account) => account.id === selectedId,
   );
+  const scopedAccounts = visibleAccounts.filter((account) => account.clinic);
+  const organizations = useMemo(
+    () => [...new Map(scopedAccounts.map((account) => [String(account.organization?.id ?? "independent"), account.organization?.name ?? "Independent clinics"])).entries()],
+    [scopedAccounts],
+  );
+  const [organizationId, setOrganizationId] = useState("");
+  const [clinicId, setClinicId] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const clinics = scopedAccounts.filter((account) => String(account.organization?.id ?? "independent") === organizationId);
+  const clinicOptions = [...new Map(clinics.map((account) => [String(account.clinic!.id), account.clinic!])).values()];
+  const locations = [...new Map(clinics.filter((account) => String(account.clinic?.id) === clinicId)
+    .flatMap((account) => account.locations ?? [])
+    .map((site) => [String(site.id), site])).values()];
+  const hierarchyAvailable = portal === "clinic" && scopedAccounts.length > 0;
+
+  useEffect(() => {
+    setOrganizationId("");
+    setClinicId("");
+    setSiteId("");
+    onSelect("");
+    onScopeChange?.({ practiceId: "", siteId: "" });
+  }, [portal]);
 
   return (
     <Stack className="development-account-switcher" spacing={0.75}>
+      {hierarchyAvailable && (
+        <>
+          <TextField select size="small" label="Organization" value={organizationId} disabled={disabled} onChange={(event) => { setOrganizationId(event.target.value); setClinicId(""); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: "", siteId: "" }); }}>
+            <MenuItem value="" disabled>Select organization</MenuItem>
+            {organizations.map(([id, name]) => <MenuItem key={id} value={id}>{name} · ID {id}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Clinic" value={clinicId} disabled={disabled || !organizationId} onChange={(event) => { setClinicId(event.target.value); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: "", siteId: "" }); }}>
+            <MenuItem value="" disabled>Select clinic</MenuItem>
+            {clinicOptions.map((clinic) => <MenuItem key={clinic.id} value={clinic.id}>{clinic.name} · ID {clinic.id}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Location" value={siteId} disabled={disabled || !clinicId} onChange={(event) => { const nextSiteId = event.target.value; setSiteId(nextSiteId); onSelect(""); onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId }); }}>
+            <MenuItem value="" disabled>Select location</MenuItem>
+            {locations.map((site) => <MenuItem key={site.id} value={site.id}>{site.name || site.code} · ID {site.id}</MenuItem>)}
+          </TextField>
+        </>
+      )}
       <FormControl
         size="small"
-        disabled={disabled || visibleAccounts.length === 0}
+        disabled={disabled || visibleAccounts.length === 0 || (hierarchyAvailable && !siteId)}
       >
         <Select
           className="development-account-select"
@@ -114,7 +154,7 @@ export function DevelopmentAccountSwitcher({
           <MenuItem value="" disabled>
             Select {portalDefinition.accountLabel} account
           </MenuItem>
-          {visibleAccounts.map((account) => (
+          {(hierarchyAvailable ? clinics.filter((account) => account.locations?.some((site) => String(site.id) === siteId)) : visibleAccounts).map((account) => (
             <MenuItem key={account.id} value={account.id}>
               {account.label}
             </MenuItem>
@@ -218,6 +258,8 @@ export function DevelopmentControls({
   const [portal, setPortal] = useState<DevelopmentPortal>(initialPortal);
   const [selectedId, setSelectedId] = useState(activeAccount?.id || "");
   const [switching, setSwitching] = useState(false);
+  const [scope, setScope] = useState({ practiceId: "", siteId: "" });
+  const requiresClinicScope = portal === "clinic" && accounts.some((account) => account.clinic);
   const [error, setError] = useState("");
 
   const selectPortal = (
@@ -237,7 +279,7 @@ export function DevelopmentControls({
     try {
       const result = await api<{ destination: string }>(
         "/api/development_session",
-        { method: "POST", body: { profile: selectedId, portal } },
+        { method: "POST", body: { profile: selectedId, portal, practice_id: scope.practiceId, site_id: scope.siteId } },
       );
       window.location.assign(loginDestination(result.destination));
     } catch (caught) {
@@ -282,6 +324,7 @@ export function DevelopmentControls({
           portal={portal}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          onScopeChange={setScope}
           disabled={switching}
         />
         <DevelopmentDatePicker businessDate={businessDate} />
@@ -292,7 +335,7 @@ export function DevelopmentControls({
           className="development-login-button"
           variant="contained"
           size="small"
-          disabled={switching || !selectedId}
+          disabled={switching || !selectedId || (requiresClinicScope && !scope.siteId)}
           onClick={() => void logIn()}
         >
           {switching ? "Entering…" : "Log in"}

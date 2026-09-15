@@ -236,7 +236,7 @@ module Development
         .where(users: { active: true }).where.not(users: { email_address: PROFILES.fetch("omni").fetch(:email) })
         .order("users.email_address", :id)
       memberships = memberships.where(user_id: user_id) if user_id
-      memberships = memberships.to_a
+      memberships = memberships.includes(practice: [ :organization, :sites ]).to_a
       grants = Clinic::RoleGrant.active.where(membership_id: memberships.map(&:id))
         .includes(:role_version).group_by(&:membership_id)
       memberships.map do |membership|
@@ -245,7 +245,10 @@ module Development
             id: "employee-#{membership.user_id}",
             label: roles.join(" · ").presence || "Employee",
             account_type: "employee",
-            destination: "/clinic"
+            destination: "/clinic",
+            organization: membership.practice.organization && { id: membership.practice.organization.id, name: membership.practice.organization.name },
+            clinic: { id: membership.practice.id, name: membership.practice.name },
+            locations: membership.practice.sites.order(:name, :id).map { |site| { id: site.id, name: site.name, code: site.code } }
           }
         end
     end
@@ -270,7 +273,13 @@ module Development
       user = User.find_by(email_address: PROFILES.fetch("omni").fetch(:email), active: true)
       return [] unless user && OmniAccess.profile_for(user).present?
 
-      [ { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic" } ]
+      membership = user.clinic_membership
+      return [] unless membership
+      practice = membership.practice
+      [ { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic",
+          organization: practice.organization && { id: practice.organization.id, name: practice.organization.name },
+          clinic: { id: practice.id, name: practice.name },
+          locations: practice.sites.order(:name, :id).map { |site| { id: site.id, name: site.name, code: site.code } } } ]
     end
     private_class_method :omni_account
 

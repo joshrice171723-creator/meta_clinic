@@ -30,6 +30,9 @@ export type DevelopmentAccount = {
   label: string;
   account_type: "employee" | "patient" | "omni";
   destination: string;
+  organization?: { id: number; name: string } | null;
+  clinic?: { id: number; name: string };
+  locations?: { id: number; name: string; code: string }[];
 };
 export type PatientPortalContext = {
   schema_version: "patient-portal-context-v1";

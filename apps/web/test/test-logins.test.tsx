@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Login } from "../src/features/identity/Login";
 import {
+  DevelopmentControls,
   DevelopmentToolbar,
   EnvironmentLabel,
 } from "../src/features/identity/DevelopmentAccountSwitcher";
@@ -68,6 +69,9 @@ describe("development account preview", () => {
             label: "Clinician",
             account_type: "employee",
             destination: "/clinic",
+            organization: { id: 1, name: "Weight care group" },
+            clinic: { id: 5, name: "Weight management" },
+            locations: [{ id: 4, name: "Main location", code: "MAIN" }],
           },
           {
             id: "patient-14",
@@ -102,6 +106,37 @@ describe("development account preview", () => {
     expect(html).not.toContain(">Sign in<");
     expect(html).not.toContain('href="/workforce/activate"');
     expect(html).not.toContain("clinician1@test.com");
+  });
+
+  it("gates unique clinic scope choices and includes their row IDs", () => {
+    const html = renderToStaticMarkup(
+      <DevelopmentControls
+        businessDate="2032-04-15"
+        initialPortal="clinic"
+        accounts={[
+          {
+            id: "employee-clinician",
+            label: "Clinician",
+            account_type: "employee",
+            destination: "/clinic",
+            organization: { id: 1, name: "Weight care group" },
+            clinic: { id: 5, name: "Weight management" },
+            locations: [{ id: 4, name: "Main location", code: "MAIN" }],
+          },
+          {
+            id: "employee-staff",
+            label: "Clinic staff",
+            account_type: "employee",
+            destination: "/clinic",
+            organization: { id: 1, name: "Weight care group" },
+            clinic: { id: 5, name: "Weight management" },
+            locations: [{ id: 4, name: "Main location", code: "MAIN" }],
+          },
+        ]}
+      />,
+    );
+    for (const text of ["Organization", "Clinic", "Location"])
+      expect(html).toContain(text);
   });
 
   it("keeps account and date controls out of the production login", () => {
