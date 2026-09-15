@@ -191,9 +191,9 @@ export function FrontDeskMembershipEnrollment() {
             {createdProspect ? (
               <Stack spacing={2}>
                 <Alert severity="success">
-                  Enrollment saved for {createdProspect.display_name}. They are
-                  in front of you, so payment can continue here. No patient
-                  record exists until payment is verified.
+                  Enrollment saved for {createdProspect.display_name}. Use the
+                  telephone-style payment step below. No patient record exists
+                  until payment is verified.
                 </Alert>
                 <Typography variant="h6">
                   {createdProspect.selected_terms.package_name}
@@ -217,7 +217,7 @@ export function FrontDeskMembershipEnrollment() {
                         }
                       >
                         {payment.status === "awaiting_card"
-                          ? "The reader is ready. Ask the patient to insert or tap their card."
+                          ? "The assigned reader is ready. Enter the patient’s card details on the reader for this authorized telephone payment."
                           : payment.status === "payment_processing"
                             ? "Payment is processing. Check the status again before taking another payment."
                             : payment.status === "paid"
@@ -235,12 +235,13 @@ export function FrontDeskMembershipEnrollment() {
                             }
                           />
                         }
-                        label="I confirmed the patient authorizes this recurring membership payment and explained cancellation terms."
+                        label="I confirmed the patient authorized this recurring payment by phone and I explained the amount, renewal, and cancellation terms."
                       />
                     )}
                     <Typography color="text.secondary">
-                      Card details stay with the payment reader. Do not type or
-                      store card information in Meta Clinic.
+                      Enter card details only on the assigned Stripe reader for
+                      this telephone payment. Do not type or store card
+                      information in Meta Clinic.
                     </Typography>
                   </>
                 )}
@@ -376,7 +377,9 @@ export function FrontDeskMembershipEnrollment() {
                   variant="contained"
                   disabled={busy || !recurringAuthorization}
                 >
-                  {busy ? "Starting reader…" : "Try payment again"}
+                  {busy
+                    ? "Starting telephone payment…"
+                    : "Retry telephone payment"}
                 </Button>
               ) : payment ? (
                 <Button
@@ -392,7 +395,9 @@ export function FrontDeskMembershipEnrollment() {
                   variant="contained"
                   disabled={busy || !recurringAuthorization}
                 >
-                  {busy ? "Starting reader…" : "Take payment now"}
+                  {busy
+                    ? "Starting telephone payment…"
+                    : "Take payment by phone"}
                 </Button>
               )}
             </>
