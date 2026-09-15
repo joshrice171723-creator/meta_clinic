@@ -105,6 +105,7 @@ export function DevelopmentAccountSwitcher({
   const locations = [...new Map(clinics.filter((account) => String(account.clinic?.id) === clinicId)
     .flatMap((account) => account.locations ?? [])
     .map((site) => [String(site.id), site])).values()];
+  const noLocations = clinicId !== "" && locations.length === 0;
   const hierarchyAvailable = portal === "clinic" && scopedAccounts.length > 0;
 
   useEffect(() => {
@@ -123,19 +124,19 @@ export function DevelopmentAccountSwitcher({
             <MenuItem value="" disabled>Select organization</MenuItem>
             {organizations.map(([id, name]) => <MenuItem key={id} value={id}>{name} · ID {id}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Clinic" value={clinicId} disabled={disabled || !organizationId} onChange={(event) => { setClinicId(event.target.value); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: "", siteId: "" }); }}>
+          <TextField select size="small" label="Clinic" value={clinicId} disabled={disabled || !organizationId} onChange={(event) => { const nextClinicId = event.target.value; setClinicId(nextClinicId); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: nextClinicId, siteId: "" }); }}>
             <MenuItem value="" disabled>Select clinic</MenuItem>
             {clinicOptions.map((clinic) => <MenuItem key={clinic.id} value={clinic.id}>{clinic.name} · ID {clinic.id}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Location" value={siteId} disabled={disabled || !clinicId} onChange={(event) => { const nextSiteId = event.target.value; setSiteId(nextSiteId); onSelect(""); onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId }); }}>
-            <MenuItem value="" disabled>Select location</MenuItem>
+          <TextField select size="small" label="Location" value={siteId} disabled={disabled || !clinicId || noLocations} onChange={(event) => { const nextSiteId = event.target.value; setSiteId(nextSiteId); onSelect(""); onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId }); }}>
+            <MenuItem value="" disabled>{noLocations ? "No accessible locations" : "Select location"}</MenuItem>
             {locations.map((site) => <MenuItem key={site.id} value={site.id}>{site.name || site.code} · ID {site.id}</MenuItem>)}
           </TextField>
         </>
       )}
       <FormControl
         size="small"
-        disabled={disabled || visibleAccounts.length === 0 || (hierarchyAvailable && !siteId)}
+        disabled={disabled || visibleAccounts.length === 0 || (hierarchyAvailable && !siteId && !noLocations)}
       >
         <Select
           className="development-account-select"
@@ -154,7 +155,7 @@ export function DevelopmentAccountSwitcher({
           <MenuItem value="" disabled>
             Select {portalDefinition.accountLabel} account
           </MenuItem>
-          {(hierarchyAvailable ? clinics.filter((account) => account.locations?.some((site) => String(site.id) === siteId)) : visibleAccounts).map((account) => (
+          {(hierarchyAvailable ? clinics.filter((account) => noLocations || account.locations?.some((site) => String(site.id) === siteId)) : visibleAccounts).map((account) => (
             <MenuItem key={account.id} value={account.id}>
               {account.label}
             </MenuItem>
@@ -335,7 +336,7 @@ export function DevelopmentControls({
           className="development-login-button"
           variant="contained"
           size="small"
-          disabled={switching || !selectedId || (requiresClinicScope && !scope.siteId)}
+          disabled={switching || !selectedId || (requiresClinicScope && !scope.practiceId)}
           onClick={() => void logIn()}
         >
           {switching ? "Entering…" : "Log in"}
