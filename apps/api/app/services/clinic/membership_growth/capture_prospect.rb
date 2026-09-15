@@ -4,20 +4,21 @@ module Clinic
   module MembershipGrowth
     class CaptureProspect
       class Conflict < StandardError; end
+      BILLING_MODES = %w[recurring one_time].freeze
 
       Result = Struct.new(:prospect, :replayed, keyword_init: true)
 
       def self.call(practice:, version_id:, selections:, display_name:, email_address:, phone_number: nil,
         source: nil, outreach_consent:, request_key:, intent_type: "outreach", preferred_contact_method: nil, preferred_contact_time: nil,
-        require_storefront: true)
+        require_storefront: true, billing_mode: nil)
         new(practice:, version_id:, selections:, display_name:, email_address:, phone_number:,
           source:, outreach_consent:, request_key:, intent_type:, preferred_contact_method:, preferred_contact_time:,
-          require_storefront:).call
+          require_storefront:, billing_mode:).call
       end
 
       def initialize(practice:, version_id:, selections:, display_name:, email_address:, phone_number:,
         source:, outreach_consent:, request_key:, intent_type:, preferred_contact_method:, preferred_contact_time:,
-        require_storefront:)
+        require_storefront:, billing_mode:)
         @practice = practice
         @version_id = positive_id(version_id, "Membership version")
         @selections = selections
@@ -34,6 +35,8 @@ module Clinic
           @intent_type == "purchase" && @email_address.nil?
         @request_key = Clinic::Care::SubscriptionDefinition.request_key(request_key)
         @require_storefront = require_storefront == true
+        @billing_mode = billing_mode.nil? ? nil : billing_mode.to_s
+        raise ArgumentError, "Choose recurring or one-time billing." if @billing_mode && !BILLING_MODES.include?(@billing_mode)
         @contact_preferences = {}
         method = optional_text(preferred_contact_method, "Preferred contact method", 20)
         time = optional_text(preferred_contact_time, "Preferred contact time", 160)
@@ -101,8 +104,25 @@ module Clinic
         raise ActiveRecord::RecordNotFound unless catalog_entry
 
         version = Clinic::Care::SubscriptionVersion.where(practice_id: practice.id).find(version_id)
-        [ version, Clinic::Care::SubscriptionDefinition.select(version.snapshot, selections) ]
+        terms = Clinic::Care::SubscriptionDefinition.select(version.snapshot, selections)
+        [ version, apply_billing_mode(terms) ]
       end
+
+      def apply_billing_mode(terms)
+        return terms unless billing_mode
+
+        case billing_mode
+        when "recurring"
+          unless terms["duration_unit"] == "months" && terms["duration"] == 1
+            raise ArgumentError, "Recurring billing requires a one-month membership term."
+          end
+          terms.merge("renewal" => "automatic", "cancellation" => "end_of_term")
+        when "one_time"
+          terms.merge("renewal" => "none", "cancellation" => "immediate")
+        end
+      end
+
+      attr_reader :billing_mode
 
       def request_digest(version:, selected_terms:, email_digest:, phone_digest:)
         Clinic::Care::SubscriptionDefinition.fingerprint(
@@ -114,6 +134,7 @@ module Clinic
           "source" => source,
           "outreach_consent" => outreach_consent,
           "intent_type" => intent_type,
+          **(billing_mode ? { "billing_mode" => billing_mode } : {}),
           **@contact_preferences.transform_keys(&:to_s)
         )
       end

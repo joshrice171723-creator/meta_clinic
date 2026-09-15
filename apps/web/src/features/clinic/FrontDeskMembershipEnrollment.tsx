@@ -8,7 +8,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
   FormControlLabel,
+  FormHelperText,
+  FormLabel,
+  Radio,
+  RadioGroup,
   Stack,
   TextField,
   Typography,
@@ -25,6 +30,7 @@ import type {
 
 type Draft = {
   versionId: string;
+  billingMode: "recurring" | "one_time";
   selections: number[];
   displayName: string;
   emailAddress: string;
@@ -36,6 +42,7 @@ type Draft = {
 function newDraft(): Draft {
   return {
     versionId: "",
+    billingMode: "recurring",
     selections: [],
     displayName: "",
     emailAddress: "",
@@ -98,6 +105,7 @@ export function FrontDeskMembershipEnrollment() {
           body: {
             enrollment: {
               version_id: Number(draft.versionId),
+              billing_mode: draft.billingMode,
               selections: draft.selections,
               display_name: draft.displayName,
               email_address: draft.emailAddress,
@@ -191,9 +199,10 @@ export function FrontDeskMembershipEnrollment() {
             {createdProspect ? (
               <Stack spacing={2}>
                 <Alert severity="success">
-                  Enrollment saved for {createdProspect.display_name}. Complete
-                  payment below; patient onboarding begins after payment is
-                  verified.
+                  Enrollment saved for {createdProspect.display_name}.
+                  {createdProspect.selected_terms.renewal === "automatic"
+                    ? " Complete payment below; patient onboarding begins after payment is verified."
+                    : " Use the clinic’s one-time billing workflow to record payment; patient onboarding begins after payment is verified."}
                 </Alert>
                 <Typography variant="h6">
                   {createdProspect.selected_terms.package_name}
@@ -203,6 +212,11 @@ export function FrontDeskMembershipEnrollment() {
                     This membership requires clinic review before payment. Keep
                     the enrollment in the pipeline and do not promise
                     eligibility or take payment.
+                  </Alert>
+                ) : createdProspect.selected_terms.renewal !== "automatic" ? (
+                  <Alert severity="info">
+                    This enrollment is one-time. Use the clinic’s one-time
+                    billing workflow to record payment.
                   </Alert>
                 ) : (
                   <>
@@ -292,6 +306,35 @@ export function FrontDeskMembershipEnrollment() {
                         }
                       />
                     )}
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend">Billing</FormLabel>
+                      <RadioGroup
+                        row
+                        value={draft.billingMode}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            billingMode: event.target
+                              .value as Draft["billingMode"],
+                          }))
+                        }
+                      >
+                        <FormControlLabel
+                          value="recurring"
+                          control={<Radio />}
+                          label="Recurring monthly"
+                        />
+                        <FormControlLabel
+                          value="one_time"
+                          control={<Radio />}
+                          label="One time"
+                        />
+                      </RadioGroup>
+                      <FormHelperText>
+                        Recurring billing renews monthly until canceled.
+                        One-time billing ends after this term.
+                      </FormHelperText>
+                    </FormControl>
                     {selectedPackage?.terms.eligibility_review && (
                       <Alert severity="warning">
                         This membership needs clinic review before payment. Save
@@ -370,8 +413,9 @@ export function FrontDeskMembershipEnrollment() {
               <Button onClick={closeDialog} disabled={busy}>
                 Cancel
               </Button>
-              {createdProspect.selected_terms
-                .eligibility_review ? null : payment?.status ===
+              {createdProspect.selected_terms.eligibility_review ||
+              createdProspect.selected_terms.renewal !==
+                "automatic" ? null : payment?.status ===
                 "paid" ? null : payment?.status === "failed" ? (
                 <Button
                   onClick={() => void startPayment()}
@@ -381,13 +425,24 @@ export function FrontDeskMembershipEnrollment() {
                   {busy ? "Starting payment…" : "Retry payment"}
                 </Button>
               ) : payment ? (
-                <Button
-                  onClick={() => void refreshPayment()}
-                  variant="contained"
-                  disabled={busy}
-                >
-                  {busy ? "Checking…" : "Check payment status"}
-                </Button>
+                <Stack direction="row" spacing={1}>
+                  {payment.simulation_available && (
+                    <Button
+                      onClick={() => void refreshPayment()}
+                      variant="outlined"
+                      disabled={busy}
+                    >
+                      {busy ? "Simulating…" : "Simulate card payment"}
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => void refreshPayment()}
+                    variant="contained"
+                    disabled={busy}
+                  >
+                    {busy ? "Checking…" : "Check payment status"}
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   onClick={() => void startPayment()}

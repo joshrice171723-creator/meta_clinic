@@ -129,5 +129,6 @@ export type StaffPhonePaymentResponse = MembershipProspectMutationResponse & {
   phone_payment: {
     status: "awaiting_card" | "payment_processing" | "paid" | "failed";
     instructions: string | null;
+    simulation_available?: boolean;
   };
 };

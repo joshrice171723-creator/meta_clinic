@@ -310,7 +310,8 @@ module Clinic
             end
           end
           Result.new(prospect: prospect.reload, payment: {
-            status:, instructions:
+            status:, instructions:,
+            simulation_available: prospect.staff_payment_reader_id.to_s.start_with?("tmr_local")
           })
         end
 

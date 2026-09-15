@@ -616,6 +616,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     )
     assert_equal "awaiting_card", pending.payment.fetch(:status)
     assert_match(/reader/i, pending.payment.fetch(:instructions, ""))
+    assert_equal true, pending.payment.fetch(:simulation_available)
 
     paid = Clinic::MembershipGrowth::StaffPhonePayment.refresh(
       practice: @practice, actor: @admin, prospect_id: prospect.id
@@ -623,6 +624,18 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_equal "paid", paid.payment.fetch(:status)
     assert prospect.reload.status_paid_onboarding?
     assert_equal 1, @practice.patients.count
+  end
+
+  test "front-desk enrollment records the selected billing mode" do
+    version_id = publish_catalog(@admin, "BillingMode", renewal: "automatic")
+    sign_in(@admin)
+    post "/api/clinic/membership_enrollment", params: { enrollment: { version_id:, selections: [],
+      display_name: "One Time Patient", email_address: "one.time@example.invalid",
+      contact_consent: true, billing_mode: "one_time", request_key: "one-time-enrollment" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "none", response.parsed_body.dig("prospect", "selected_terms", "renewal")
+    assert_equal "immediate", response.parsed_body.dig("prospect", "selected_terms", "cancellation")
   end
 
   test "temporary platform sandbox opens checkout without rewriting clinic routing" do

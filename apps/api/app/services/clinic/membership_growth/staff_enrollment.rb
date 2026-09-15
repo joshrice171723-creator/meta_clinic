@@ -4,7 +4,7 @@ module Clinic
       Result = Struct.new(:prospect, :replayed, keyword_init: true)
 
       def self.call(practice:, actor:, version_id:, selections:, display_name:, email_address:, phone_number:,
-        contact_consent:, request_key:)
+        contact_consent:, request_key:, billing_mode: "recurring")
         reviewer = Clinic::Authorization.authorize!(practice:, actor:, action: "subscriptions.review")
         raise ArgumentError, "Confirm that the prospective patient agrees the clinic may contact them about this enrollment." unless
           contact_consent == true
@@ -21,7 +21,8 @@ module Clinic
             outreach_consent: true,
             request_key:,
             intent_type: "purchase",
-            require_storefront: false
+            require_storefront: false,
+            billing_mode:
           )
           prospect = captured.prospect
           unless captured.replayed

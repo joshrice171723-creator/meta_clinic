@@ -32,7 +32,7 @@ module Clinic
 
     def create
       input = parameter_hash!(:enrollment,
-        %i[version_id display_name email_address phone_number contact_consent request_key], arrays: [ :selections ])
+        %i[version_id display_name email_address phone_number contact_consent request_key billing_mode], arrays: [ :selections ])
       result = MembershipGrowth::StaffEnrollment.call(
         practice: current_practice,
         actor: current_user,
@@ -42,7 +42,8 @@ module Clinic
         email_address: input.require(:email_address),
         phone_number: input[:phone_number],
         contact_consent: boolean_param(input[:contact_consent], field: :contact_consent),
-        request_key: input.require(:request_key)
+        request_key: input.require(:request_key),
+        billing_mode: input[:billing_mode].presence || "recurring"
       )
       render json: {
         prospect: MembershipProspectSerializer.call(result.prospect),
