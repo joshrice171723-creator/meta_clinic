@@ -93,6 +93,22 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     assert_equal true, patient.communication_preference.general_communications_consent
   end
 
+  test "registration update cannot change the clinic reference" do
+    original_name = @patient.display_name
+    original_reference = @patient.reference
+
+    patch "/api/clinic/patients/#{@patient.id}", params: {
+      clinic_patient: {
+        display_name: "Synthetic renamed patient",
+        reference: "SYNTHETIC-REFERENCE-CHANGE"
+      }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal "Clinic reference cannot be changed after registration.", response.parsed_body.fetch("error")
+    assert_equal [ original_name, original_reference ], @patient.reload.attributes.values_at("display_name", "reference")
+  end
+
   test "registration preserves stable identity names language contact and current address history" do
     post "/api/clinic/patients", params: {
       clinic_patient: {

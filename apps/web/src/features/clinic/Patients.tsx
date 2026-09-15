@@ -773,7 +773,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
           <Box>
             <Typography sx={{ fontWeight: 700 }}>Demographics</Typography>
             <Typography variant="body2" color="text.secondary">
-              Identity details and language needs
+              Date of birth, administrative sex, language, and interpreter needs
             </Typography>
           </Box>
         </AccordionSummary>
@@ -788,7 +788,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             />
             <Field
               name="clinic_patient[sex]"
-              label="Sex"
+              label="Administrative sex"
               required
               value={values.sex}
               options={[
@@ -801,7 +801,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             />
             <Field
               name="clinic_patient[primary_language]"
-              label="Primary language"
+              label="Preferred language"
               required={false}
               value={values.primary_language}
               maxLength={80}
@@ -824,10 +824,10 @@ function PatientFields({ values }: { values: RegistrationValues }) {
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Box>
             <Typography sx={{ fontWeight: 700 }}>
-              Contact preferences
+              Contact details and communication preferences
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Contact destination, preferred method, and consent
+              Primary contact point, preferred method, and consent
             </Typography>
           </Box>
         </AccordionSummary>
@@ -835,21 +835,21 @@ function PatientFields({ values }: { values: RegistrationValues }) {
           <Box className="pharmacy-form-grid">
             <Field
               name="clinic_patient[contact_type]"
-              label="Contact type"
+              label="Primary contact type"
               required={false}
               value={values.contact_type}
               options={["phone", "email"]}
             />
             <Field
               name="clinic_patient[contact_value]"
-              label="Phone or email"
+              label="Primary contact detail"
               required={false}
               value={values.contact_value}
               maxLength={320}
             />
             <Field
               name="clinic_patient[preferred]"
-              label="Preferred contact"
+              label="Use as preferred contact point"
               required={false}
               value={values.preferred}
               options={[
@@ -859,7 +859,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             />
             <Field
               name="clinic_patient[preferred_contact_method]"
-              label="Preferred contact method"
+              label="Preferred communication method"
               required={false}
               value={values.preferred_contact_method}
               options={["portal", "text", "phone", "email"]}
@@ -935,9 +935,12 @@ function PatientFields({ values }: { values: RegistrationValues }) {
       <Accordion disableGutters>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Box>
-            <Typography sx={{ fontWeight: 700 }}>Social history</Typography>
+            <Typography sx={{ fontWeight: 700 }}>
+              Optional clinical context
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Optional context that can be completed later
+              Complete during clinical intake when relevant; this is not
+              required to register the patient
             </Typography>
           </Box>
         </AccordionSummary>
@@ -1247,26 +1250,29 @@ function PatientRegistrationEditor({
             <Box>
               <Typography sx={{ fontWeight: 700 }}>Patient identity</Typography>
               <Typography variant="body2" color="text.secondary">
-                Start with the name and clinic reference used to find this
-                record.
+                Capture the names staff use to identify the patient.{" "}
+                {patient
+                  ? "The clinic reference is assigned once and stays fixed for reliable lookup."
+                  : "Use a stable clinic reference staff can use for reliable lookup."}
               </Typography>
             </Box>
             <Box className="pharmacy-form-grid">
               <Field
                 name="clinic_patient[display_name]"
-                label="Chart display name"
+                label="Name shown in chart"
                 value={initialValues.display_name}
                 maxLength={120}
               />
               <Field
                 name="clinic_patient[legal_name]"
-                label="Legal name"
+                label="Legal name (if different)"
+                required={false}
                 value={initialValues.legal_name}
                 maxLength={160}
               />
               <Field
                 name="clinic_patient[preferred_name]"
-                label="Name to use"
+                label="Preferred name"
                 required={false}
                 value={initialValues.preferred_name}
                 maxLength={160}
@@ -1275,9 +1281,14 @@ function PatientRegistrationEditor({
                 patientReferenceLabel(patient.reference)) && (
                 <Field
                   name="clinic_patient[reference]"
-                  label="Clinic reference"
+                  label={
+                    patient
+                      ? "Clinic reference (system assigned)"
+                      : "Clinic reference"
+                  }
                   value={initialValues.reference}
                   maxLength={32}
+                  readOnly={Boolean(patient)}
                 />
               )}
               {patient?.reference &&
@@ -1291,12 +1302,17 @@ function PatientRegistrationEditor({
             </Box>
             <Field
               name="clinic_patient[primary_address]"
-              label="Current address"
+              label="Current address (street, city, state, ZIP)"
               type="textarea"
               required={false}
               value={initialValues.primary_address}
               maxLength={20000}
             />
+            <Typography variant="body2" color="text.secondary">
+              Registration covers identity, contact, address, language, and
+              communication needs. Record symptoms and other clinical history in
+              the visit intake.
+            </Typography>
             <PatientFields values={initialValues} />
           </Stack>
         </Box>

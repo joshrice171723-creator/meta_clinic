@@ -97,7 +97,11 @@ module Clinic
               if expected_updated_at && patient.updated_at != expected_updated_at
                 raise ActiveRecord::StaleObjectError.new(patient, "update registration")
               end
-              patient.update!(display_name: required_string!(input[:display_name], field: :display_name, maximum: 120), reference: required_string!(input[:reference], field: :reference, maximum: 32))
+              reference = required_string!(input[:reference], field: :reference, maximum: 32)
+              if reference != patient.reference
+                raise ArgumentError, "Clinic reference cannot be changed after registration."
+              end
+              patient.update!(display_name: required_string!(input[:display_name], field: :display_name, maximum: 120))
               parent_changed = patient.saved_changes?
               registration_changed = save_registration!(patient, input)
               patient.touch if registration_changed && !parent_changed

@@ -108,6 +108,7 @@ export function Field({
   max,
   step,
   autoComplete = "off",
+  readOnly = false,
 }: {
   name: string;
   label: string;
@@ -120,9 +121,17 @@ export function Field({
   max?: number;
   step?: number;
   autoComplete?: string;
+  readOnly?: boolean;
 }) {
   const id = useId();
-  const props = { name, id, required, defaultValue: value, autoComplete };
+  const props = {
+    name,
+    id,
+    required,
+    defaultValue: value,
+    autoComplete,
+    readOnly,
+  };
   return (
     <div className="form-field">
       <label htmlFor={id}>
