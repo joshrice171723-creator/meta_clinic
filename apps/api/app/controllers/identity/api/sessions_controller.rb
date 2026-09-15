@@ -58,7 +58,8 @@ module Identity
         if portal && (!portal_definition || !portal_definition.fetch(:account_types).include?(preview&.fetch(:account_type)))
           return render json: { error: "The selected account cannot enter that portal." }, status: :unprocessable_entity
         end
-        if portal == "clinic" && !valid_development_clinic_scope?(preview)
+        site_id = params[:site_id].presence || preview&.fetch(:locations, [])&.one? && preview.fetch(:locations).first.fetch(:id).to_s
+        if portal == "clinic" && !valid_development_clinic_scope?(preview, site_id: site_id)
           return render json: { error: "Choose an authorized organization, clinic, and location." }, status: :unprocessable_entity
         end
 
@@ -66,7 +67,7 @@ module Identity
         session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
         session[:development_test_profile] = profile
-        session[:clinic_site_id] = params[:site_id].presence if portal == "clinic"
+        session[:clinic_site_id] = site_id if portal == "clinic"
         render json: {
           user: session_user(user),
           destination: portal_definition&.fetch(:destination) || preview&.fetch(:destination, nil) || "/portal"
@@ -147,15 +148,15 @@ module Identity
         DevelopmentAccess.allowed?(request) ? Development::TestAccounts.preview_accounts : []
       end
 
-      def valid_development_clinic_scope?(preview)
-        return true unless params[:practice_id].present? || params[:site_id].present?
+      def valid_development_clinic_scope?(preview, site_id: params[:site_id].presence)
+        return true unless params[:practice_id].present? || site_id.present?
 
         clinic = preview&.fetch(:clinic, nil)
         locations = preview&.fetch(:locations, []) || []
         return true unless clinic
 
         params[:practice_id].to_s == clinic.fetch(:id).to_s &&
-          (locations.empty? || locations.any? { |site| site.fetch(:id).to_s == params[:site_id].to_s })
+          (locations.empty? || locations.any? { |site| site.fetch(:id).to_s == site_id.to_s })
       end
 
       def runtime_environment

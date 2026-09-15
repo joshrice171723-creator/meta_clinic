@@ -109,6 +109,14 @@ export function DevelopmentAccountSwitcher({
   const hierarchyAvailable = portal === "clinic" && scopedAccounts.length > 0;
 
   useEffect(() => {
+    if (!clinicId || locations.length !== 1) return;
+    const onlyLocation = String(locations[0].id);
+    if (siteId === onlyLocation) return;
+    setSiteId(onlyLocation);
+    onScopeChange?.({ practiceId: clinicId, siteId: onlyLocation });
+  }, [clinicId, locations, onScopeChange, siteId]);
+
+  useEffect(() => {
     setOrganizationId("");
     setClinicId("");
     setSiteId("");
