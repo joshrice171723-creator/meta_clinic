@@ -19,6 +19,8 @@ import { PackageCard } from "./subscriptions/PackageCard";
 import type {
   MembershipEnrollmentOptions,
   MembershipEnrollmentResponse,
+  MembershipProspect,
+  StaffPhonePaymentResponse,
 } from "../membershipGrowth/types";
 
 type Draft = {
@@ -52,7 +54,12 @@ export function FrontDeskMembershipEnrollment() {
   const [draft, setDraft] = useState<Draft>(newDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [createdId, setCreatedId] = useState<number | null>(null);
+  const [createdProspect, setCreatedProspect] =
+    useState<MembershipProspect | null>(null);
+  const [recurringAuthorization, setRecurringAuthorization] = useState(false);
+  const [payment, setPayment] = useState<
+    StaffPhonePaymentResponse["phone_payment"] | null
+  >(null);
 
   const selectedPackage = useMemo(
     () =>
@@ -73,7 +80,9 @@ export function FrontDeskMembershipEnrollment() {
 
   function startAnother() {
     setDraft(newDraft());
-    setCreatedId(null);
+    setCreatedProspect(null);
+    setPayment(null);
+    setRecurringAuthorization(false);
     setError("");
   }
 
@@ -99,12 +108,65 @@ export function FrontDeskMembershipEnrollment() {
           },
         },
       );
-      setCreatedId(result.prospect.id);
+      setCreatedProspect(result.prospect);
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
           : "The enrollment could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startPayment() {
+    if (!createdProspect || busy || !recurringAuthorization) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<StaffPhonePaymentResponse>(
+        `/api/clinic/membership_enrollment/${createdProspect.id}/payment`,
+        {
+          method: "POST",
+          body: {
+            payment: {
+              lock_version: createdProspect.lock_version,
+              authorization_confirmed: recurringAuthorization,
+              authorization_version: "membership-recurring-phone-v1",
+            },
+          },
+        },
+      );
+      setCreatedProspect(result.prospect);
+      setPayment(result.phone_payment);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "The card reader could not be started.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshPayment() {
+    if (!createdProspect || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<StaffPhonePaymentResponse>(
+        `/api/clinic/membership_prospects/${createdProspect.id}/refresh_phone_payment`,
+        { method: "POST" },
+      );
+      setCreatedProspect(result.prospect);
+      setPayment(result.phone_payment);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Payment status could not be confirmed.",
       );
     } finally {
       setBusy(false);
@@ -126,12 +188,63 @@ export function FrontDeskMembershipEnrollment() {
           <Stack spacing={2} sx={{ pt: 1 }}>
             {resource.error && <Alert severity="error">{resource.error}</Alert>}
             {error && <Alert severity="error">{error}</Alert>}
-            {createdId ? (
-              <Alert severity="success">
-                The prospective-patient enrollment is saved. Open payment to
-                confirm the membership and recurring-payment authorization. Do
-                not enter card details here.
-              </Alert>
+            {createdProspect ? (
+              <Stack spacing={2}>
+                <Alert severity="success">
+                  Enrollment saved for {createdProspect.display_name}. They are
+                  in front of you, so payment can continue here. No patient
+                  record exists until payment is verified.
+                </Alert>
+                <Typography variant="h6">
+                  {createdProspect.selected_terms.package_name}
+                </Typography>
+                {createdProspect.selected_terms.eligibility_review ? (
+                  <Alert severity="warning">
+                    This membership requires clinic review before payment. Keep
+                    the enrollment in the pipeline and do not promise
+                    eligibility or take payment.
+                  </Alert>
+                ) : (
+                  <>
+                    {payment && (
+                      <Alert
+                        severity={
+                          payment.status === "paid"
+                            ? "success"
+                            : payment.status === "failed"
+                              ? "error"
+                              : "info"
+                        }
+                      >
+                        {payment.status === "awaiting_card"
+                          ? "The reader is ready. Ask the patient to insert or tap their card."
+                          : payment.status === "payment_processing"
+                            ? "Payment is processing. Check the status again before taking another payment."
+                            : payment.status === "paid"
+                              ? "Payment verified. Patient onboarding can now continue."
+                              : "Payment did not complete. Confirm the details before retrying."}
+                      </Alert>
+                    )}
+                    {payment?.status !== "paid" && (
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={recurringAuthorization}
+                            onChange={(_, checked) =>
+                              setRecurringAuthorization(checked)
+                            }
+                          />
+                        }
+                        label="I confirmed the patient authorizes this recurring membership payment and explained cancellation terms."
+                      />
+                    )}
+                    <Typography color="text.secondary">
+                      Card details stay with the payment reader. Do not type or
+                      store card information in Meta Clinic.
+                    </Typography>
+                  </>
+                )}
+              </Stack>
             ) : (
               <>
                 <Typography color="text.secondary">
@@ -252,16 +365,36 @@ export function FrontDeskMembershipEnrollment() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          {createdId ? (
+          {createdProspect ? (
             <>
               <Button onClick={startAnother}>Start another enrollment</Button>
-              <Button
-                component="a"
-                href={`/clinic/growth?prospect=${createdId}`}
-                variant="contained"
-              >
-                Continue to payment
-              </Button>
+              {createdProspect.selected_terms
+                .eligibility_review ? null : payment?.status ===
+                "paid" ? null : payment?.status === "failed" ? (
+                <Button
+                  onClick={() => void startPayment()}
+                  variant="contained"
+                  disabled={busy || !recurringAuthorization}
+                >
+                  {busy ? "Starting reader…" : "Try payment again"}
+                </Button>
+              ) : payment ? (
+                <Button
+                  onClick={() => void refreshPayment()}
+                  variant="contained"
+                  disabled={busy}
+                >
+                  {busy ? "Checking…" : "Check payment status"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => void startPayment()}
+                  variant="contained"
+                  disabled={busy || !recurringAuthorization}
+                >
+                  {busy ? "Starting reader…" : "Take payment now"}
+                </Button>
+              )}
             </>
           ) : (
             <>

@@ -40,5 +40,21 @@ module Clinic
         replayed: result.replayed
       }, status: result.replayed ? :ok : :created
     end
+
+    def payment
+      input = parameter_hash!(:payment, %i[lock_version authorization_confirmed authorization_version])
+      result = MembershipGrowth::StaffEnrollmentPayment.start(
+        practice: current_practice,
+        actor: current_user,
+        prospect_id: requested_id!(params[:id], :id),
+        lock_version: input.require(:lock_version),
+        authorization_confirmed: input[:authorization_confirmed] == true,
+        authorization_version: required_string!(input[:authorization_version], field: :authorization_version, maximum: 80)
+      )
+      render json: {
+        prospect: MembershipProspectSerializer.call(result.prospect),
+        phone_payment: result.payment
+      }, status: :accepted
+    end
   end
 end

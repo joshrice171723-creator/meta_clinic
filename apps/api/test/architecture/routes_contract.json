@@ -1902,6 +1902,11 @@
   [
     null,
     "POST",
+    "/api/clinic/membership_enrollment/:id/payment(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients(.:format)"
   ],
   [

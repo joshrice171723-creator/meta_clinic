@@ -2,7 +2,7 @@
 
 ## Purpose and boundary
 
-This is the staff-led counterpart to the public membership path. It lets an authorized front-desk member select a **published** clinic membership, record a prospective patient's contact details and move that enrollment into the existing membership-payment workflow.
+This is the staff-led counterpart to the public membership path. It lets an authorized front-desk member select a **published** clinic membership, record a prospective patient's contact details and move that enrollment into a dedicated in-person payment step.
 
 It does not create a patient, confirm a payment, store or collect card details, determine eligibility, prescribe medication, schedule a clinical visit or establish a clinical relationship. This document records a product workflow and synthetic-development verification target; it is not clinical, legal, privacy, payment-provider or release approval.
 
@@ -11,7 +11,7 @@ It does not create a patient, confirm a payment, store or collect card details, 
 1. A staff member with `subscriptions.review` opens **Enroll membership** from Front desk.
 2. The server provides the current practice's published membership versions. The staff member selects one, including any required service choices.
 3. Staff records the prospective patient's name, email address (required for a receipt and future portal setup), optional phone number and explicit permission for clinic follow-up. The server creates an immutable `membership_prospect` with source `front_desk_enrollment`, intent `purchase` and relationship stage `prospective_patient`.
-4. The enrollment is placed in the membership pipeline with an open follow-up. Staff opens the linked record, starts the signup conversation, and repeats the existing recurring-payment authorization confirmation immediately before the payment action.
+4. The enrollment remains in the front-desk dialog and presents **Take payment now**. An in-person patient does not enter the Growth call workflow. Staff repeats the recurring-payment authorization confirmation immediately before starting payment.
 5. The existing staff phone-payment operation uses the configured Stripe reader path. Meta Clinic never receives raw card details. A failed, canceled, unknown or unconfirmed payment leaves the record out of patient onboarding and recoverable in the pipeline.
 6. Only the existing server-verified payment completion can create the patient, activate membership onboarding, create the receipt/invitation and create the front-desk onboarding task. The browser return or a staff click is not proof of payment.
 
@@ -46,6 +46,6 @@ No selected U.S. FHIR implementation guide governs commercial membership sign-up
 
 1. Sign in as an authorized synthetic front-desk member and open Front desk.
 2. Select **Enroll membership**, choose a published GLP-1 or diet-management membership, enter synthetic contact details and save.
-3. Confirm the result is a prospective patient, not a patient, then use **Continue to payment** to open that exact pipeline record.
-4. Start the signup call, confirm recurring-payment authorization and use the existing reader flow. Confirm activation only after the server reports verified payment.
+3. Confirm the result is a prospective patient, not a patient, then use **Take payment now** in the same dialog.
+4. Confirm recurring-payment authorization and use the reader flow. Check payment status before retrying, and confirm activation only after the server reports verified payment.
 5. Repeat with a review-required membership and confirm the record saves but payment is blocked.

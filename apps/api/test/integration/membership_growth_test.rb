@@ -283,7 +283,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   end
 
   test "staff can enroll a prospective patient from published terms even when the public page is disabled" do
-    version_id = publish_catalog(@admin, "FrontDesk")
+    version_id = publish_catalog(@admin, "FrontDesk", renewal: "automatic")
     sign_in(@admin)
     payload = { enrollment: { version_id:, selections: [], display_name: "Desk Enrollment",
       email_address: "desk.enrollment@example.invalid", phone_number: "555-010-3030",
@@ -300,6 +300,21 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_equal "purchase", prospect.intent_type
     assert_equal "open", prospect.follow_up_state
     assert_equal "prospective_patient", prospect.relationship_stage
+    assert_equal 0, @practice.patients.count
+
+    payment = Clinic::MembershipGrowth::StaffEnrollmentPayment.start(
+      practice: @practice,
+      actor: @admin,
+      prospect_id: prospect.id,
+      lock_version: prospect.lock_version,
+      authorization_confirmed: true,
+      authorization_version: Clinic::MembershipGrowth::StaffPhonePayment::AUTHORIZATION_VERSION,
+      gateway: Gateway.new
+    )
+    assert_equal "awaiting_card", payment.payment.fetch(:status)
+    assert prospect.reload.status_payment_processing?
+    assert_equal "waiting", prospect.follow_up_state
+    assert_nil prospect.patient_id
     assert_equal 0, @practice.patients.count
 
     post "/api/clinic/membership_enrollment", params: payload, headers: csrf_headers, as: :json
