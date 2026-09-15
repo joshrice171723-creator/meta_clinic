@@ -82,6 +82,7 @@ import { EncounterFollowUpPanel } from "./EncounterFollowUp";
 import { NurseEncounterWorkspace } from "./NurseEncounterWorkspace";
 import { PatientEducationPanel } from "./PatientEducationPanel";
 import { ClinicalPlanWorkspace } from "./ClinicalPlanWorkspace";
+import { ClinicSchedule, type CalendarBooking } from "./ClinicSchedule";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -501,19 +502,23 @@ function BookingForm({
   onCreated,
   initialPatientId,
   initialVisitModality = "in_person",
+  initialSlot,
 }: {
   timezone: string;
   onCreated?: (appointment: Appointment) => void;
   identityLookup?: boolean;
   initialPatientId?: number;
   initialVisitModality?: VisitModality;
+  initialSlot?: CalendarBooking;
 }) {
   const workingDraft = useWorkingDraft<AppointmentWorkingDraft>({
     kind: "appointment",
+    patientId: initialPatientId,
   });
   const preserved = useRef<AppointmentWorkingDraft | null | undefined>(
     undefined,
   );
+  if (!workingDraft.ready && !workingDraft.error) return <LoadState />;
   return (
     <Stack spacing={1.5}>
       {workingDraft.error && (
@@ -530,6 +535,7 @@ function BookingForm({
         onCreated={onCreated}
         initialPatientId={initialPatientId}
         initialVisitModality={initialVisitModality}
+        initialSlot={initialSlot}
         initialDraft={
           preserved.current ??
           (workingDraft.ready ? workingDraft.restored : null)
@@ -549,6 +555,7 @@ function BookingFormEditor({
   onCreated,
   initialPatientId,
   initialVisitModality = "in_person",
+  initialSlot,
   initialDraft,
   workingDraft,
   onReloadDraft,
@@ -557,6 +564,7 @@ function BookingFormEditor({
   onCreated?: (appointment: Appointment) => void;
   initialPatientId?: number;
   initialVisitModality?: VisitModality;
+  initialSlot?: CalendarBooking;
   initialDraft: AppointmentWorkingDraft | null;
   workingDraft: ReturnType<typeof useWorkingDraft<AppointmentWorkingDraft>>;
   onReloadDraft: (snapshot: AppointmentWorkingDraft) => void;
@@ -567,17 +575,36 @@ function BookingFormEditor({
     const defaults = appointmentDefaults();
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
-      startsAt: defaults.startsAt,
-      endsAt: defaults.endsAt,
-      siteId: "",
-      roomId: "",
-      clinicianId: "",
+      startsAt: initialSlot?.starts_at
+        ? localDateTimeValue(new Date(initialSlot.starts_at))
+        : defaults.startsAt,
+      endsAt: initialSlot?.ends_at
+        ? localDateTimeValue(new Date(initialSlot.ends_at))
+        : defaults.endsAt,
+      siteId: initialSlot ? String(initialSlot.site_id) : "",
+      roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
+      clinicianId: initialSlot?.clinician_id
+        ? String(initialSlot.clinician_id)
+        : "",
       visitTypeId: "",
       reason: "",
       visitModality: initialVisitModality,
     };
-  }, [initialPatientId, initialVisitModality]);
-  const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  }, [initialPatientId, initialVisitModality, initialSlot]);
+  const restoredDraft = initialDraft?.attempt
+    ? initialDraft.draft
+    : {
+        ...(initialDraft?.draft ?? defaultDraft),
+        ...(initialSlot
+          ? {
+              startsAt: defaultDraft.startsAt,
+              endsAt: defaultDraft.endsAt,
+              siteId: defaultDraft.siteId,
+              roomId: defaultDraft.roomId,
+              clinicianId: defaultDraft.clinicianId,
+            }
+          : {}),
+      };
   const effectiveDraft =
     initialPatientId && !restoredDraft.patientId
       ? { ...restoredDraft, patientId: String(initialPatientId) }
@@ -663,7 +690,7 @@ function BookingFormEditor({
   const patients = useResource<{ patients: Patient[] }>(
     `/api/clinic/patients/lookup?q=${encodeURIComponent(deferredPatientQuery.trim())}&per_page=25`,
     {
-      enabled: !replacementPatientId || deferredPatientQuery.trim().length > 0,
+      enabled: deferredPatientQuery.trim().length > 0,
     },
   );
   const facilities = useResource<{ sites: FacilitySite[] }>(
@@ -778,13 +805,7 @@ function BookingFormEditor({
     rooms.error ||
     clinicians.error ||
     visitTypes.error;
-  if (
-    (!patients.data && !replacementPatientId) ||
-    !facilities.data ||
-    !rooms.data ||
-    !clinicians.data ||
-    !visitTypes.data
-  )
+  if (!facilities.data || !rooms.data || !clinicians.data || !visitTypes.data)
     return <LoadState error={resourceError} />;
   const clearReplacementPatient = () => {
     setPatientId("");
@@ -888,6 +909,13 @@ function BookingFormEditor({
           </Box>
           <Chip label="Schedule only" size="small" variant="outlined" />
         </Stack>
+        {clinicians.data.clinicians.length === 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            No clinicians are configured for this clinic. Add a clinician in
+            clinic setup before booking. Your selected patient and draft are
+            preserved.
+          </Alert>
+        )}
         {created && (
           <Alert
             severity="success"
@@ -1615,27 +1643,24 @@ export function Schedule({
     Number.isSafeInteger(replacementPatientId) && replacementPatientId > 0
       ? replacementPatientId
       : undefined;
-  const [page, setPage] = useState(1);
-  const { data, error, refresh } = useResource<{
-    appointments: Appointment[];
-    pagination: PageInfo;
-  }>(`/api/clinic/appointments?page=${page}`, {
-    retainDataOnRefresh: true,
-  });
-  if (!data) return <LoadState error={error} />;
   return (
-    <ScheduleView
-      context={context}
-      appointments={data.appointments}
-      pagination={data.pagination}
-      onAppointmentCreated={() => refresh()}
-      onPageChange={setPage}
+    <ClinicSchedule
+      key={initialPatientId ?? "schedule"}
       initialPatientId={initialPatientId}
-      initialVisitModality={
-        new URLSearchParams(search).get("visit_modality") === "video"
-          ? "video"
-          : "in_person"
-      }
+      canBook={bookingAvailability(context.capabilities).visible}
+      renderBooking={(slot, onCreated) => (
+        <BookingForm
+          timezone={context.practice.timezone}
+          initialPatientId={initialPatientId}
+          initialSlot={slot}
+          initialVisitModality={
+            new URLSearchParams(search).get("visit_modality") === "video"
+              ? "video"
+              : "in_person"
+          }
+          onCreated={onCreated}
+        />
+      )}
     />
   );
 }

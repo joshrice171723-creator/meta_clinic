@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-14
+updated: 2026-09-15
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -30,7 +30,7 @@ CF-04 maps to MC-01/13/15: classify transition, protect team-managed changes and
 | MC-01 | Clinic setup, specialties and payment model | D-064/D-065 dated baseline; D-075/078 require meaningful weight-loss configuration and tiered change authority. At `76c2b47`, inspected practice-feature types lack weight loss; current design/creation path must be inspected, not automatically preserved. | Revision 4: NEW synthetic clinic/location through Clinic Setup; specialty drives forms, explicit visits and shared components. Prove finalization, CF-01–04, allowed clinic setting, protected-change denial, honest team/FDE route, persistence/retry and another clinic's isolation. No migration of every old fixture. Implemented locally: practice 5/site 4, recipe v1, explicit visits 9/10, forms, finalization and allowed/protected/isolation pairs. See revision-4 evidence below. |
 | MC-02 | Branded digital front door and Growth | D-069/D-070 and [account-first enrollment](../../records/progress/2026/09/2026-09-13-account-first-membership-growth.md) document public memberships, prospects and account/payment handoffs. | Inventory broader website/service branding and lead tools; prove clinic isolation, contact-first and self-service journeys. Do not rebuild existing membership entry. |
 | MC-03 | Registration, walk-ins and hybrid patient identity | [Clinic-day closeout](../../records/implementation/2026-09-11-ten-audit-dod-closeout.md) reports bounded role-based journey evidence. | Prove walk-in registration and later online/telehealth return use the correct patient record without requiring membership purchase or duplicating identity. |
-| MC-04 | Scheduling, capacity and waiting | Closeout item 10 reports capacity, waitlist and cancellation/no-show recovery. | Revalidate current booking, walk-in handling, expiring offers and interrupted accept/decline; demonstrate staff recovery. |
+| MC-04 | Scheduling, capacity and waiting | Closeout item 10 reports capacity, waitlist and cancellation/no-show recovery. The 2026-09-15 [calendar implementation brief](../../docs/development/clinic-schedule-implementation.md) tracks the in-house month/day workspace and arrival-only Tracking Board boundary. | Revalidate current booking, walk-in handling, expiring offers and interrupted accept/decline; demonstrate staff recovery. Calendar verification and missing local clinician setup are distinguished in the brief; no live readiness claim. |
 | MC-05 | Intake, rooms and clinician handoffs | Closeout items 2, 5 and 9 report reusable intake, explicit handoff and role-based local evidence. | Reconcile current room/queue path and demonstrate correction, reassignment and cross-role completion. |
 | MC-06 | Encounters, orders, results and clinical work | Closeout items 1, 4, 6 and 8 report inbox, medication administration, immunization and linked order/result/referral work. | Revalidate source-owned completion and exceptions; separately identify external order/result integration gaps. |
 | MC-07 | Telehealth | D-063 telehealth selection and [Twilio setup](../../docs/development/twilio.md) identify provider direction and setup. | Inspect current implementation; demonstrate patient/provider join, two-party media, disconnect recovery and encounter continuity. Current live-provider status is unresolved in this consolidation. |

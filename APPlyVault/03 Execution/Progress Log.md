@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-14
+updated: 2026-09-15
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-15 — In-house Schedule calendar
+
+Implemented a month/day calendar over existing appointments and backend capacity rules, with Patient Flow booking prefills and an arrival-only Tracking Board. The [implementation brief](../../docs/development/clinic-schedule-implementation.md) records FHIR R4 mappings, focused passing calendar/booking tests, frontend build checks, pre-existing wider-suite failures and browser limits. The selected local clinic has no clinician/capacity configuration; no provider or appointment was invented to hide that gap. Populated browser and tablet acceptance remain pending; this is not live or clinical readiness.
 
 ## 2026-09-14 — Organization, clinic and location switching
 

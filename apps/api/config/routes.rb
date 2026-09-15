@@ -84,6 +84,7 @@ Rails.application.routes.draw do
       post :decline, on: :member
     end
     get "tracking_board", to: "scheduling/tracking_board#show"
+    get "schedule_calendar", to: "scheduling/calendar#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
       patch "encounter_follow_ups/:id", to: "encounter_follow_ups#update"

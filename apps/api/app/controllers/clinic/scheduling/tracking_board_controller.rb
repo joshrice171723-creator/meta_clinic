@@ -16,13 +16,6 @@ module Clinic
           .where(patient: current_practice.patients.accessible_by(current_ability, :read))
           .includes(:patient, :site, :room, appointment: %i[visit_type site room])
           .order(started_at: :desc, id: :desc).limit(MAX_VISITS + 1).to_a
-        appointments = scoped_to_board_sites(current_practice.appointments, site_ids)
-          .where(status: %w[scheduled confirmed])
-          .where(starts_at: board_day(as_of))
-          .where(patient: current_practice.patients.accessible_by(current_ability, :read))
-          .left_outer_joins(:encounter).where(clinic_encounters: { id: nil })
-          .includes(:patient, :encounter, :visit_type, :site, :room)
-          .order(starts_at: :asc, id: :asc).limit(MAX_VISITS + 1).to_a
         active_invoice_encounter_ids = current_practice.invoices.where.not(status: "void")
           .where.not(encounter_id: nil).select(:encounter_id)
         checkout_exceptions = scoped_to_board_sites(
@@ -32,7 +25,7 @@ module Clinic
         ).where(patient: current_practice.patients.accessible_by(current_ability, :read))
           .includes(:patient, :site, :room, appointment: %i[visit_type site room])
           .order(ended_at: :desc, id: :desc).limit(MAX_VISITS + 1).to_a
-        visits = encounters + appointments + checkout_exceptions
+        visits = encounters + checkout_exceptions
         truncated = visits.length > MAX_VISITS
         visits = visits.first(MAX_VISITS)
         encounter_visits = visits.select { |visit| visit.is_a?(Clinic::Encounter) }

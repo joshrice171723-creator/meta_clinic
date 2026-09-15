@@ -495,6 +495,11 @@
     "/api/clinic(.:format)"
   ],
   [
+    "api_clinic_schedule_calendar",
+    "GET",
+    "/api/clinic/schedule_calendar(.:format)"
+  ],
+  [
     "api_clinic_scribe_encounter",
     "GET",
     "/api/clinic/scribe/encounters/:id(.:format)"

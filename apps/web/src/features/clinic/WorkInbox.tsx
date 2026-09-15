@@ -24,7 +24,11 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "../../api/client";
-import type { ClinicalTask, ClinicTrackingBoard } from "../../api/contracts";
+import type {
+  Appointment,
+  ClinicalTask,
+  Pagination,
+} from "../../api/contracts";
 import { isBeforeBusinessTime } from "../../shared/businessDate";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
@@ -1458,7 +1462,7 @@ export function WorkInbox() {
     SourceState<WorkExceptionsResponse>
   >({ loading: canLoadExceptions });
   const [scheduledVisits, setScheduledVisits] = useState<
-    SourceState<ClinicTrackingBoard>
+    SourceState<{ appointments: Appointment[] }>
   >({ loading: canLoadScheduledVisits });
 
   useEffect(() => {
@@ -1605,16 +1609,37 @@ export function WorkInbox() {
       loading: true,
       error: undefined,
     }));
-    api<ClinicTrackingBoard>("/api/clinic/tracking_board", {
-      signal: abort.signal,
-    })
-      .then((data) => setScheduledVisits({ loading: false, data }))
+    const load = async () => {
+      const appointments: Appointment[] = [];
+      let page = 1;
+      let pages = 1;
+      do {
+        const params = new URLSearchParams({
+          upcoming: "true",
+          per_page: "100",
+          page: String(page),
+        });
+        if (current_site?.id) params.set("site_id", String(current_site.id));
+        const data = await api<{
+          appointments: Appointment[];
+          pagination: Pagination;
+        }>(`/api/clinic/appointments?${params}`, { signal: abort.signal });
+        appointments.push(...data.appointments);
+        pages = data.pagination.total_pages;
+        page += 1;
+      } while (page <= pages);
+      return { appointments };
+    };
+    load()
+      .then((data) => {
+        if (!abort.signal.aborted) setScheduledVisits({ loading: false, data });
+      })
       .catch((error: unknown) => {
         if (!abort.signal.aborted)
           setScheduledVisits({ loading: false, error: errorMessage(error) });
       });
     return () => abort.abort();
-  }, [canLoadScheduledVisits, refreshRevision]);
+  }, [canLoadScheduledVisits, refreshRevision, current_site?.id]);
 
   const items = useMemo(() => {
     const next: InboxItem[] = [];
@@ -1962,22 +1987,21 @@ export function WorkInbox() {
     canLoadScheduledVisits;
 
   const flowItems = useMemo(() => {
-    const scheduled = (scheduledVisits.data?.visits || [])
+    const scheduled = (scheduledVisits.data?.appointments || [])
       .filter(
         (visit) =>
-          visit.row_type === "appointment" &&
-          ["scheduled", "confirmed"].includes(visit.appointment?.status || ""),
+          !visit.encounter_id &&
+          ["scheduled", "confirmed"].includes(visit.status),
       )
       .map<InboxItem>((visit) => ({
         id: `scheduled-${visit.id}`,
         type: "patient",
-        title: visit.appointment?.visit_type_code || "Scheduled visit",
-        patient: visit.patient.display_name,
-        patientReference: visit.patient.reference,
-        detail:
-          visit.appointment?.reason || "Appointment recorded by the clinic",
+        title: "Scheduled visit",
+        patient: visit.patient?.display_name ?? "Patient name unavailable",
+        patientReference: visit.patient?.reference,
+        detail: visit.reason || "Appointment recorded by the clinic",
         status: "scheduled",
-        dueAt: visit.appointment?.starts_at || null,
+        dueAt: visit.starts_at,
         dateCaption: "Due",
         overdue: false,
         owner: "Clinic schedule",

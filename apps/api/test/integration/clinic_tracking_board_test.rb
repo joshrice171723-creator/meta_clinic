@@ -270,7 +270,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "tracking board includes scheduled appointments until an open encounter exists" do
+  test "tracking board excludes scheduled appointments until an encounter exists" do
     travel_to Time.current.tomorrow.beginning_of_day + 12.hours do
       login
       upcoming = @practice.appointments.create!(
@@ -291,13 +291,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
       assert_response :success
       appointments = response.parsed_body.fetch("visits")
         .select { |visit| visit.fetch("row_type") == "appointment" }.index_by { |visit| visit.fetch("id") }
-      assert_equal "upcoming", appointments.fetch(upcoming.id).fetch("operational_state")
-      assert_nil appointments.fetch(upcoming.id).fetch("encounter_id")
-      assert_nil appointments.fetch(upcoming.id).fetch("encounter")
-      assert_nil appointments.fetch(upcoming.id).fetch("care_summary")
-      assert_equal "on_time", appointments.fetch(on_time.id).fetch("operational_state")
-      assert_equal "late", appointments.fetch(late.id).fetch("operational_state")
-      refute appointments.key?(tomorrow.id)
+      assert_empty appointments
 
       opened = @practice.encounters.create!(patient: @patient, appointment: upcoming,
         started_at: Time.current, status: "open")
@@ -305,7 +299,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
       rows = response.parsed_body.fetch("visits")
       appointments = rows.select { |visit| visit.fetch("row_type") == "appointment" }
       encounter = rows.find { |visit| visit.fetch("encounter_id") == opened.id }
-      assert_equal "unrecorded", encounter.fetch("operational_state")
+      assert_equal "waiting_room", encounter.fetch("operational_state")
       assert_not appointments.any? { |visit| visit.fetch("id") == upcoming.id }
     end
   end

@@ -1270,6 +1270,38 @@ export type Appointment = {
 };
 export type FacilitySite = ClinicSite;
 export type FacilityRoom = { id: number; site_id: number; code: string };
+export type CalendarSlot = {
+  starts_at: string;
+  ends_at: string;
+  clinician_id: number;
+  room_ids: number[];
+};
+export type CalendarAppointment = Appointment & {
+  clinician_name: string | null;
+  room_name: string | null;
+  visit_type_name: string | null;
+  calendar_status: string;
+  conflict: boolean;
+};
+export type CalendarDay = {
+  date: string;
+  scheduled: number;
+  confirmed: number;
+  available: number | null;
+  conflicts: number;
+  slots: CalendarSlot[];
+  appointments: CalendarAppointment[];
+};
+export type CalendarResponse = {
+  month: string;
+  timezone: string;
+  site_id: number;
+  slot_minutes: number;
+  capacity_configured: boolean;
+  days: CalendarDay[];
+  clinicians: { id: number; name: string }[];
+  rooms: { id: number; name: string }[];
+};
 export type VisitType = { id: number; code: string; retired_at: string | null };
 export type Clinician = {
   id: number;
