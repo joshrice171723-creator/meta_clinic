@@ -1193,14 +1193,14 @@ function InboxRow({
       sx={{
         py: 2,
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "auto minmax(0, 1fr)" },
+        gridTemplateColumns: "minmax(0, 1fr)",
         gap: { xs: 1.25, md: 2 },
         alignItems: "center",
       }}
     >
       <Box
         sx={{
-          display: { xs: "none", md: "grid" },
+          display: "none",
           placeItems: "center",
           width: 40,
           height: 40,
@@ -1253,7 +1253,7 @@ function InboxRow({
           {item.detail}
         </Typography>
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction="column"
           spacing={{ xs: 0.25, sm: 2 }}
           sx={{ mt: 0.5 }}
         >
@@ -1268,7 +1268,7 @@ function InboxRow({
           </Typography>
         </Stack>
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction="column"
           spacing={{ xs: 0.25, sm: 2 }}
           sx={{ mt: 0.5 }}
         >
@@ -1319,7 +1319,7 @@ function InboxRow({
       <Button
         variant="outlined"
         sx={{
-          gridColumn: { xs: "auto", md: "2 / -1" },
+          gridColumn: "1",
           justifySelf: { xs: "start", md: "start" },
           mt: { xs: 0.5, md: 1 },
         }}
@@ -1348,12 +1348,70 @@ function PatientFlowCard({
   return (
     <Card variant="outlined" sx={{ minWidth: 0 }}>
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <InboxRow item={item} work={work} onChanged={onChanged} />
+        <Stack spacing={1.25} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {item.patient || item.title}
+          </Typography>
+          {item.patient && (
+            <Typography variant="body2">{item.title}</Typography>
+          )}
+          {item.overdue && (
+            <Chip
+              size="small"
+              color="warning"
+              label="Overdue"
+              sx={{ alignSelf: "start" }}
+            />
+          )}
+          <Typography variant="body2" color="text.secondary">
+            {item.nextAction}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {item.dateCaption}: {dateLabel(item.dueAt, "Not recorded")}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Assigned to: {item.owner}
+          </Typography>
+          {!scheduleHref && (
+            <Button
+              href={item.href}
+              variant="contained"
+              sx={{ alignSelf: "start" }}
+            >
+              {item.action}
+            </Button>
+          )}
+        </Stack>
         {scheduleHref && (
-          <Button href={scheduleHref} variant="contained" sx={{ mt: 1 }}>
-            Schedule patient
+          <Button
+            href={scheduleHref}
+            variant="contained"
+            fullWidth
+            sx={{ mt: 2 }}
+          >
+            Schedule first appointment
           </Button>
         )}
+        <Box
+          component="details"
+          sx={{
+            mt: 2,
+            "& summary": { cursor: "pointer", color: "primary.main" },
+          }}
+        >
+          <Typography component="summary" variant="body2">
+            Task details
+          </Typography>
+          {item.patientReference && (
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, overflowWrap: "anywhere" }}
+            >
+              Chart reference: {patientReferenceLabel(item.patientReference)}
+            </Typography>
+          )}
+          <InboxRow item={item} work={work} onChanged={onChanged} />
+        </Box>
       </CardContent>
     </Card>
   );
@@ -1383,6 +1441,7 @@ export function WorkInbox() {
   const [assignment, setAssignment] = useState<AssignmentFilter>("all");
   const [workType, setWorkType] = useState<WorkType>("all");
   const [refreshRevision, setRefreshRevision] = useState(0);
+  const workScope = useRef("");
   const [work, setWork] = useState<SourceState<FollowUpResponse>>({
     loading: canLoadWork,
   });
@@ -1419,7 +1478,11 @@ export function WorkInbox() {
   useEffect(() => {
     if (!canLoadCallbacks) return;
     const abort = new AbortController();
-    setCallbacks({ loading: true });
+    setCallbacks((current) => ({
+      ...current,
+      loading: true,
+      error: undefined,
+    }));
     api<{ callback_requests: CallbackRequest[] }>(
       "/api/clinic/callback_requests",
       { signal: abort.signal },
@@ -1437,14 +1500,25 @@ export function WorkInbox() {
     const abort = new AbortController();
     const params = new URLSearchParams({ filter: assignment });
     if (current_site?.id) params.set("site_id", String(current_site.id));
-    setWork({ loading: true });
+    const scope = params.toString();
+    const retain = workScope.current === scope;
+    workScope.current = scope;
+    setWork((current) => ({
+      ...(retain ? current : {}),
+      loading: true,
+      error: undefined,
+    }));
     api<FollowUpResponse>(`/api/clinic/operations/follow_ups?${params}`, {
       signal: abort.signal,
     })
       .then((data) => setWork({ loading: false, data }))
       .catch((error: unknown) => {
         if (!abort.signal.aborted)
-          setWork({ loading: false, error: errorMessage(error) });
+          setWork((current) => ({
+            ...current,
+            loading: false,
+            error: errorMessage(error),
+          }));
       });
     return () => abort.abort();
   }, [assignment, canLoadWork, current_site?.id, refreshRevision]);
