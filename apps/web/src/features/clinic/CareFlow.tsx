@@ -779,7 +779,7 @@ function BookingFormEditor({
     clinicians.error ||
     visitTypes.error;
   if (
-    !patients.data ||
+    (!patients.data && !replacementPatientId) ||
     !facilities.data ||
     !rooms.data ||
     !clinicians.data ||
@@ -807,7 +807,7 @@ function BookingFormEditor({
   const selectablePatients = replacementPatient
     ? [
         replacementPatient,
-        ...patients.data.patients.filter(
+        ...(patients.data?.patients ?? []).filter(
           (patient) => patient.id !== replacementPatient.id,
         ),
       ]
