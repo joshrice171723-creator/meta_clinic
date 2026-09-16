@@ -723,6 +723,21 @@ type AddressParts = {
   address_postal_code: string;
 };
 
+const registrationFormOnlyFields = [
+  "address_line1",
+  "address_line2",
+  "address_city",
+  "address_state",
+  "address_postal_code",
+  "primary_address_original",
+] as const;
+
+export function registrationApiValues(values: RegistrationValues) {
+  const submitted = { ...values };
+  registrationFormOnlyFields.forEach((field) => delete submitted[field]);
+  return submitted;
+}
+
 function splitAddress(value: string): AddressParts {
   const empty = {
     address_line1: "",
@@ -1279,7 +1294,14 @@ function PatientRegistrationEditor({
             patient
               ? `/api/clinic/patients/${patient.id}`
               : "/api/clinic/patients",
-            { method: patient ? "PATCH" : "POST", body: pending.body },
+            {
+              method: patient ? "PATCH" : "POST",
+              body: {
+                clinic_patient: registrationApiValues(
+                  pending.body.clinic_patient,
+                ),
+              },
+            },
           );
           if (!(await workingDraft.clear())) {
             setOutcomeUnconfirmed(true);

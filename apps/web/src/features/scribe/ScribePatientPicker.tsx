@@ -1,10 +1,7 @@
 import {
   Autocomplete,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  Link,
   Stack,
   TextField,
   Typography,
@@ -12,7 +9,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { ClinicCapabilities, Pagination } from "../../api/contracts";
 import { api } from "../../api/client";
-import { PatientRegistrationForm } from "../clinic/Patients";
 import { patientReferenceLabel } from "../clinic/patientReference";
 import { useClinic } from "../clinic/Workspace";
 
@@ -34,42 +30,14 @@ type LookupResponse = {
   pagination: Pagination;
 };
 
-type CreateResponse = {
-  id: number;
-  patient: PatientOption;
-};
-
 export function patientPickerAccess(
-  capabilities: Pick<
-    ClinicCapabilities,
-    "patient_identity_read" | "patients" | "patients_write"
-  >,
+  capabilities: Pick<ClinicCapabilities, "patient_identity_read" | "patients">,
 ) {
   return {
     canReadIdentity:
       capabilities.patient_identity_read === true ||
       capabilities.patients === true,
-    canCreate: capabilities.patients_write === true,
   };
-}
-
-export function patientFromCreateResponse(
-  raw: Record<string, unknown> | undefined,
-  expectedScope: number | null,
-  currentScope: number,
-): PatientOption | null {
-  const result = raw as CreateResponse | undefined;
-  const patient = result?.patient;
-  if (
-    expectedScope !== currentScope ||
-    !patient ||
-    typeof patient.id !== "number" ||
-    typeof patient.reference !== "string" ||
-    typeof patient.display_name !== "string" ||
-    result.id !== patient.id
-  )
-    return null;
-  return patient;
 }
 
 export function ScribePatientPicker({
@@ -79,18 +47,15 @@ export function ScribePatientPicker({
   scopeKey,
 }: ScribePatientPickerProps) {
   const { capabilities } = useClinic();
-  const { canReadIdentity, canCreate } = patientPickerAccess(capabilities);
+  const { canReadIdentity } = patientPickerAccess(capabilities);
   const [inputValue, setInputValue] = useState("");
   const [options, setOptions] = useState<PatientOption[]>(value ? [value] : []);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
   const requestSequence = useRef(0);
   const scopeGeneration = useRef(0);
-  const creationScope = useRef<number | null>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scopeGeneration.current += 1;
@@ -100,8 +65,6 @@ export function ScribePatientPicker({
     setPage(1);
     setTotalPages(0);
     setError("");
-    setCreateOpen(false);
-    creationScope.current = null;
   }, [scopeKey]);
 
   useEffect(() => {
@@ -175,22 +138,8 @@ export function ScribePatientPicker({
     };
   }, [canReadIdentity, inputValue, page, scopeKey]);
 
-  const handleCreated = (raw: Record<string, unknown> | undefined) => {
-    const patient = patientFromCreateResponse(
-      raw,
-      creationScope.current,
-      scopeGeneration.current,
-    );
-    if (!patient) return;
-    setOptions([patient]);
-    setInputValue(patient.display_name);
-    onChange(patient);
-    creationScope.current = null;
-    setCreateOpen(false);
-  };
-
   return (
-    <Stack ref={pickerRef} spacing={1.5}>
+    <Stack spacing={1.5}>
       <Autocomplete
         value={value}
         inputValue={inputValue}
@@ -258,54 +207,10 @@ export function ScribePatientPicker({
           Load more matches
         </Button>
       )}
-      {canCreate && (
-        <Button
-          variant="outlined"
-          onClick={() => {
-            creationScope.current = scopeGeneration.current;
-            setCreateOpen(true);
-          }}
-          disabled={disabled}
-          sx={{ alignSelf: "flex-start" }}
-        >
-          Create new patient
-        </Button>
-      )}
-      <Dialog
-        open={createOpen}
-        onClose={() => {
-          creationScope.current = null;
-          setCreateOpen(false);
-        }}
-        fullWidth
-        maxWidth="md"
-        aria-labelledby="scribe-create-patient-title"
-        slotProps={{
-          transition: {
-            onExited: () =>
-              pickerRef.current
-                ?.querySelector<HTMLInputElement>("input")
-                ?.focus(),
-          },
-        }}
-      >
-        <DialogTitle id="scribe-create-patient-title">
-          Create new patient
-        </DialogTitle>
-        <DialogContent dividers>
-          <PatientRegistrationForm onSuccess={handleCreated} />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              creationScope.current = null;
-              setCreateOpen(false);
-            }}
-          >
-            Cancel
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <Typography variant="body2" color="text.secondary">
+        Select an existing patient. Register new patients in the{" "}
+        <Link href="/clinic/patients#register-patient">Patient Directory</Link>.
+      </Typography>
     </Stack>
   );
 }

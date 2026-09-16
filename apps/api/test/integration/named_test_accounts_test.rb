@@ -314,6 +314,10 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
         response.parsed_body.dig("development_access", "options").pluck("id")
       get "/api/inquiries", headers: @headers
       assert_response :success
+      get "/api/clinic/context", headers: @headers
+      assert_response :success
+      assert_equal true, response.parsed_body.dig("capabilities", "scribe_read")
+      assert_equal true, response.parsed_body.dig("capabilities", "scribe_write")
 
       patch "/api/development_access", params: { expected_user_id: omni.id, profile: "clinician" },
         headers: csrf, as: :json
@@ -367,6 +371,10 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert omni.reload.admin?
       get "/api/inquiries", headers: @headers
       assert_response :success
+      get "/api/clinic/context", headers: @headers
+      assert_response :success
+      assert_equal true, response.parsed_body.dig("capabilities", "scribe_read")
+      assert_equal true, response.parsed_body.dig("capabilities", "scribe_write")
       assert_equal 1, omni.clinic_membership.role_grants.active.count
 
       assert_no_changes -> { Development::OmniAccess.profile_for(omni.reload) } do

@@ -13,15 +13,15 @@ module Development
         admin: true,
         # Omni authorization is deliberately overridden in Ability. Keep the
         # original immutable role definition stable when new permissions are added.
-        permissions: (TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ] + INVENTORY_DATABASE_PERMISSIONS).uniq
+        permissions: (TestClinic::DEFAULT_PERMISSIONS - [ "notes.read" ] + %w[scribe.read scribe.write scribe.approve scribe.export scribe.delete] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "clinician" => {
         label: "Clinician",
-        description: "Clinician UI label for note and encounter rehearsal; local clinic access remains unrestricted.",
+        description: "Clinician UI label for note, encounter and Scribe rehearsal; local clinic access remains unrestricted.",
         admin: false,
         permissions: (%w[
           patients.read patients.write appointments.write encounters.write
-          notes.write notes.sign observations.write documents.read
+          notes.write notes.sign observations.write documents.read scribe.read scribe.write
         ] + INVENTORY_DATABASE_PERMISSIONS).uniq
       },
       "staff" => {
