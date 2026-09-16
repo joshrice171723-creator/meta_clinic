@@ -107,7 +107,9 @@ export function OperationsReportsCatalog({
       <Alert severity="info" sx={{ mt: 2 }}>
         This catalog links to existing server-owned views. It does not combine
         records into a new cross-domain report, and no consolidated export is
-        currently available.
+        currently available. Each destination keeps its source filters,
+        permission boundary, and export/reference metadata so a report can be
+        reconciled back to the ledger that produced it.
       </Alert>
     </Card>
   );

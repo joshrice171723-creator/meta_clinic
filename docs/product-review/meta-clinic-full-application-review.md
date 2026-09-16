@@ -548,6 +548,31 @@ The historical appendix above predates the authorized implementation follow-thro
 9. Define the membership/account/payment/patient lineage and delayed-event states.
 10. Establish browser, keyboard, responsive, and failure-state acceptance evidence.
 
+### Next ten delivery slice — 2026-09-16
+
+The following ten review gaps were addressed or made explicit in this slice:
+
+1. Patient activity now includes authorized encounter, membership, and payment
+   versions alongside registration, scheduling, notes, invoices, and reminders.
+2. The patient activity panel explains that it is a lineage view and calls out
+   sources that are unavailable instead of presenting a misleading empty state.
+3. Scribe review now states the reviewer/signature boundary, source-span
+   requirement, exact-revision approval, and immutable correction expectation.
+4. Reminder work now shows the draft → approved → queued → sent/failed →
+   acknowledged lifecycle and distinguishes provider acceptance from delivery.
+5. Reports explain source-ledger ownership, permission boundaries, and export
+   provenance rather than implying a consolidated report exists.
+6. The shared resource-state contract now qualifies empty results: zero rows do
+   not prove that the underlying source has no records.
+7. Activity coverage is permission-aware for encounter, payment, and membership
+   history; no cross-practice records are joined.
+8. The data dictionary and workflow matrix remain the authority for field
+   ownership; no new clinical fields were invented from a FHIR profile.
+9. Browser smoke evidence remains a retained-session desktop/phone matrix; a
+   fresh-login and populated-resource walkthrough is still an explicit gate.
+10. Regulatory, clinical, vendor-live, export/retention, and production claims
+    remain open decisions rather than being inferred from local source changes.
+
 ### Five data areas requiring gap classification
 
 1. Canonical cross-domain record lineage.

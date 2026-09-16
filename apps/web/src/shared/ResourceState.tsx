@@ -35,7 +35,8 @@ const defaults: Record<
 > = {
   empty: {
     title: "No results",
-    message: "No records match this view.",
+    message:
+      "No records match this view. This is not evidence that the underlying source has no records.",
   },
   stale: {
     title: "Update unavailable",

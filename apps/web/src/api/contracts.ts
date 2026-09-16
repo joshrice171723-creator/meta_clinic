@@ -223,9 +223,11 @@ export type PatientActivityHistory = {
       | "registration"
       | "appointments"
       | "notes"
+      | "encounters"
       | "invoices"
-      | "reminders"
-      | "encounters";
+      | "payments"
+      | "subscriptions"
+      | "reminders";
     label: string;
     status: "included" | "not_authorized" | "not_included";
   }[];
@@ -233,7 +235,14 @@ export type PatientActivityHistory = {
   entries: {
     id: number;
     source:
-      "registration" | "appointments" | "notes" | "invoices" | "reminders";
+      | "registration"
+      | "appointments"
+      | "notes"
+      | "encounters"
+      | "invoices"
+      | "payments"
+      | "subscriptions"
+      | "reminders";
     section: string;
     record_type: string;
     record_id: number;

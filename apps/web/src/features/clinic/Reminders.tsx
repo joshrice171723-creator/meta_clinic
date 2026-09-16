@@ -1073,6 +1073,13 @@ export function Reminders() {
         </Alert>
       )}
 
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <strong>Message lifecycle:</strong> draft → approved → queued → sent or
+        failed → acknowledged. The status on each reminder is the server record;
+        a queued or provider-accepted sandbox message is not proof that a
+        patient received it.
+      </Alert>
+
       <Paper
         elevation={0}
         sx={{

@@ -14,7 +14,10 @@ module Clinic
       ACTIVITY_SOURCES = [
         { key: "appointments", label: "Appointments", permission: "appointments.read", model: Clinic::Appointment },
         { key: "notes", label: "Encounter notes", permission: "notes.read", model: Clinic::EncounterNote },
+        { key: "encounters", label: "Encounters", permission: "encounters.read", model: Clinic::Encounter },
         { key: "invoices", label: "Invoices", permission: "billing.read", model: Clinic::Invoice },
+        { key: "payments", label: "Payments", permission: "billing.read", model: Clinic::PaymentEvent },
+        { key: "subscriptions", label: "Memberships", permission: "subscriptions.review", model: Clinic::Care::SubscriptionAgreement },
         { key: "reminders", label: "Reminders", permission: "reminders.read", model: Clinic::PatientReminder }
       ].freeze
 
@@ -51,8 +54,6 @@ module Clinic
           sources[model.base_class.name] = source.fetch(:key)
           coverage << { source: source.fetch(:key), label: source.fetch(:label), status: "included" }
         end
-        coverage << { source: "encounters", label: "Encounters", status: "not_included" }
-
         versions = scope.order(occurred_at: :desc, id: :desc).limit(LIMIT + 1).to_a
         {
           coverage: coverage,

@@ -53,6 +53,35 @@ class PatientActivityHistoryTest < ActiveSupport::TestCase
     assert result[:entries].select { |entry| entry[:record_type] == @patient.class.name }.all? { |entry| entry[:record_id] == @patient.id }
   end
 
+  test "authorized lineage includes encounter membership and payment versions" do
+    site = @practice.sites.create!(code: "LINEAGE")
+    appointment = @patient.appointments.create!(practice: @practice, site: site,
+      starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes,
+      status: "scheduled", visit_modality: "in_person")
+    encounter = @patient.encounters.create!(practice: @practice, appointment:, site:,
+      started_at: Time.current, status: "open")
+    invoice = @patient.invoices.create!(practice: @practice, currency: "USD",
+      status: "posted", rounding_policy_version: "v1")
+    @patient.payment_events.create!(practice: @practice, amount: 99, currency: "USD",
+      external_event_reference: "evt_lineage_001")
+    family = Clinic::Care::SubscriptionFamily.create!(practice: @practice, name: "Lineage memberships")
+    package = Clinic::Care::SubscriptionPackage.create!(practice: @practice, family: family, name: "Lineage plan")
+    version = Clinic::Care::SubscriptionVersion.create!(practice: @practice, package: package, number: 1,
+      snapshot: {}, request_key: "lineage-version", request_digest: "lineage-digest")
+    Clinic::Care::SubscriptionAgreement.create!(practice: @practice, patient: @patient, package_version: version,
+      invoice: invoice, snapshot: {}, amount: "99.00", currency: "USD",
+      request_key: "lineage-agreement", request_digest: "lineage-agreement-digest")
+    grant_permissions!(@membership, "encounters.read", "billing.read", "subscriptions.review")
+
+    result = history
+    assert_equal "included", result[:coverage].find { |source| source[:source] == "encounters" }[:status]
+    assert_equal "included", result[:coverage].find { |source| source[:source] == "payments" }[:status]
+    assert_equal "included", result[:coverage].find { |source| source[:source] == "subscriptions" }[:status]
+    assert_includes result[:entries].map { |entry| entry[:source] }, "encounters"
+    assert_includes result[:entries].map { |entry| entry[:source] }, "payments"
+    assert_includes result[:entries].map { |entry| entry[:source] }, "subscriptions"
+  end
+
   test "history is bounded and explicitly reports older events" do
     26.times { |index| @patient.update!(display_name: "Activity revision #{index}") }
     result = history

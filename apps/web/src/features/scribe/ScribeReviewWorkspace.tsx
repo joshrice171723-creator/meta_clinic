@@ -1154,6 +1154,18 @@ export function ScribeReviewWorkspace({
           </Stack>
         </Box>
         <Divider />
+        <Alert
+          severity="info"
+          icon={<FactCheckOutlinedIcon fontSize="inherit" />}
+          sx={{ mx: { xs: 2, sm: 3 }, mt: 2 }}
+        >
+          <strong>Clinical accountability:</strong> Scribe produces a draft from
+          the selected encounter and source spans. A clinician or authorized
+          reviewer must resolve warnings, approve the exact revision, and
+          separately sign the chart note. Edits after approval create a new
+          revision; they never silently replace the approved record.
+        </Alert>
+        <Divider />
         <Stack
           component="section"
           aria-labelledby="scribe-approval-heading"

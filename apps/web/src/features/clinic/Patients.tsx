@@ -485,7 +485,10 @@ function PatientRecord({
         <AccordionDetails>
           <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
             Authorized record activity, newest first. This view shows version
-            metadata only, without previous field values or clinical content.
+            metadata only, without previous field values or clinical content. It
+            follows the patient’s lineage across registration, membership,
+            payment, scheduling, encounters, notes, invoices, and reminders;
+            sources you cannot access are called out instead of appearing empty.
           </Typography>
           {!activityHistory ? (
             <Alert severity="info">Patient activity is unavailable.</Alert>

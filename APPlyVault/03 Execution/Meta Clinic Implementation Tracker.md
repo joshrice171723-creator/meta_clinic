@@ -94,6 +94,15 @@ Initial status for these requirements: founder-approved direction; current imple
 
 ## Next bounded work
 
+**2026-09-16 next-ten slice:** Patient activity now includes permission-aware
+encounter, membership, and payment lineage; the patient UI explains coverage
+and non-evidence-of-none semantics. Scribe review, reminders, reports, and the
+shared resource-state component now make accountability, lifecycle, export
+provenance, and empty-state boundaries visible. These are source-level and
+local-synthetic changes; fresh-login, populated-resource, assistive-technology,
+live-provider, clinical-governance, export/retention, and production evidence
+remain separate gates.
+
 **2026-09-14 local implementation complete:** MC-02–MC-12/MC-15 patient-journey source is integrated under the founder's development-efficiency policy `cc56cc4`. All 45 selected Rails cases pass across the focused runs and bounded fixture repairs. TypeScript, bundle, changed-file Ruby lint and 14 related frontend tests passed; earlier 326-test frontend, migration and PostgreSQL evidence is reused where unchanged. Real Rails-backed patient intake/callback, contact-first enrollment, staff dependency/transfer, typed-result acknowledgment and repaired staff-intake walkthroughs passed. [Field ownership and evidence](../../docs/development/patient-journey-implementation-evidence.md) records exact limits. Full regression, connected handover/post-closure browser proof, selected clinical/vendor mappings and launch acceptance remain pending; they are not labeled passed. The plan's current checkpoint owns the next milestone action. Insurance/supplier expansion remains outside this cash-pay assignment.
 
 **Assignment document:** [Tonight's patient-journey execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) contains the detailed research-derived questions, controls, final founder clarifications, execution slices, acceptance and resume checkpoint. Use it as the starting document for this assignment, not the isolated skill-test draft. The engineering guide remains the canonical shared matrix; this tracker remains the work inventory. Saving the plan does not dispatch implementation.
