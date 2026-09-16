@@ -64,6 +64,7 @@ module Identity
         end
 
         establish_session(user)
+        apply_development_clinic_scope(user, preview, practice_id: params[:practice_id].presence, site_id:) if portal == "clinic"
         session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
         session[:development_test_profile] = profile
@@ -155,10 +156,35 @@ module Identity
         locations = preview&.fetch(:locations, []) || []
         return true unless clinic
 
-        return params[:practice_id].to_s == clinic.fetch(:id).to_s if preview.fetch(:account_type, nil) == "omni"
+        return true if preview.fetch(:account_type, nil) == "omni"
 
         params[:practice_id].to_s == clinic.fetch(:id).to_s &&
           (locations.empty? || locations.any? { |site| site.fetch(:id).to_s == site_id.to_s })
+      end
+
+      def apply_development_clinic_scope(user, preview, practice_id:, site_id:)
+        return unless preview&.fetch(:account_type, nil) == "omni" && practice_id.present?
+
+        practice = Clinic::Practice.find(practice_id)
+        site = practice.sites.find(site_id) if site_id.present?
+        raise ActiveRecord::RecordNotFound if site_id.present? && site.nil?
+
+        membership = Clinic::Membership.find_or_initialize_by(user:, practice:)
+        if membership.new_record?
+          source = user.clinic_memberships.active.order(:id).first
+          raise ActiveRecord::RecordNotFound unless source
+
+          membership.assign_attributes(active: true, patients_access: source.patients_access,
+            billing_access: source.billing_access, operations_access: source.operations_access)
+          membership.save!
+          source.role_grants.active.find_each do |grant|
+            membership.role_grants.create!(practice:, role_version: grant.role_version,
+              scope_kind: grant.scope_kind, site_id: grant.site_id, effective_from: Time.current, revision: 1)
+          end
+        end
+
+        session[:clinic_membership_id] = membership.id
+        session[:clinic_site_id] = site&.id
       end
 
       def runtime_environment

@@ -171,11 +171,11 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "Omni can enter any location in its clinic" do
+  test "Omni can enter any location in any clinic" do
     local_mode do
       Development::TestAccounts.prepare!
       omni = Development::TestAccounts.preview_accounts.find { |account| account.fetch(:id) == "omni" }
-      practice = Clinic::Practice.find(omni.fetch(:clinic).fetch(:id))
+      practice = Clinic::Practice.create!(name: "Secondary synthetic clinic")
       second_site = practice.sites.create!(name: "Secondary synthetic location", code: "SECONDARY")
 
       enter("omni", portal: "clinic", practice_id: practice.id, site_id: second_site.id)
@@ -183,6 +183,8 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_response :created
       assert_equal "/clinic", response.parsed_body.fetch("destination")
       assert_equal "omni", response.parsed_body.dig("user", "development_account_id")
+      assert_equal practice.id, session[:clinic_membership_id] && Clinic::Membership.find(session[:clinic_membership_id]).practice_id
+      assert_equal second_site.id, session[:clinic_site_id]
     end
   end
 
@@ -327,6 +329,8 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_equal true, response.parsed_body.dig("capabilities", "encounters")
       assert_equal true, response.parsed_body.dig("capabilities", "inventory")
       assert_equal true, response.parsed_body.dig("capabilities", "roles")
+      assert_equal true, response.parsed_body.dig("capabilities", "scribe_read")
+      assert_equal true, response.parsed_body.dig("capabilities", "scribe_write")
       get "/api/inquiries", headers: @headers
       assert_response :success
 

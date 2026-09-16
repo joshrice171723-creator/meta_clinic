@@ -245,11 +245,20 @@ export function DevelopmentAccountSwitcher({
             Select {portalDefinition.accountLabel} account
           </MenuItem>
           {(hierarchyAvailable
-            ? clinics.filter(
-                (account) =>
-                  noLocations ||
-                  account.account_type === "omni" ||
-                  account.locations?.some((site) => String(site.id) === siteId),
+            ? [
+                ...clinics.filter(
+                  (account) =>
+                    noLocations ||
+                    account.locations?.some((site) => String(site.id) === siteId),
+                ),
+                ...visibleAccounts.filter(
+                  (account) => account.account_type === "omni",
+                ),
+              ].filter(
+                (account, index, accountsForLocation) =>
+                  accountsForLocation.findIndex(
+                    (candidate) => candidate.id === account.id,
+                  ) === index,
               )
             : visibleAccounts
           ).map((account) => (
