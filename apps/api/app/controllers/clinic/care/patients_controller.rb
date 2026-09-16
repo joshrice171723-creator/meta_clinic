@@ -130,6 +130,7 @@ module Clinic
       def show
         patient = patient_detail_scope.find(integer_id!(params[:id], field: :id))
         render json: { patient: PatientSerializer.call(patient, detail: true),
+          activity_history: PatientActivityHistory.call(patient: patient, ability: current_ability),
           notes: patient.notes.order(created_at: :desc, id: :desc).map { |note| {
             id: note.id, body: note.body, author_id: note.author_id, created_at: note.created_at
           } } }

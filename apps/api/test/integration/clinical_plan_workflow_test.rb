@@ -13,7 +13,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "clinical_records.read", "medication_requests.write",
       "service_requests.write", "diagnoses.write", "procedures.write", "care_plans.write", "immunizations.write",
-      "medication_administrations.write", "inventory.receive", "encounters.write", "intake.write")
+      "medication_administrations.write", "inventory.receive", "encounters.write", "intake.write", "facilities.write")
     @patient = @practice.patients.create!(display_name: "Clinical Plan Patient", reference: "PLAN-001")
     @other_patient = @practice.patients.create!(display_name: "Other Plan Patient", reference: "PLAN-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,

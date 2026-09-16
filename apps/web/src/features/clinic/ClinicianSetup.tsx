@@ -47,7 +47,7 @@ export function ClinicianSetup() {
       });
       setFeedback({
         error: false,
-        text: "Clinician available for scheduling. Set their hours in Scheduling before offering appointments.",
+        text: "Clinician added for scheduling. Set their working hours before offering appointments; capacity limits are optional.",
       });
       refresh();
     } catch (reason) {
@@ -77,7 +77,16 @@ export function ClinicianSetup() {
           </Typography>
         ))}
         {feedback && (
-          <Alert severity={feedback.error ? "error" : "success"}>
+          <Alert
+            severity={feedback.error ? "error" : "success"}
+            action={
+              feedback.error ? undefined : (
+                <Button color="inherit" href="/clinic/waitlist" size="small">
+                  Set hours and capacity
+                </Button>
+              )
+            }
+          >
             {feedback.text}
           </Alert>
         )}
@@ -86,6 +95,7 @@ export function ClinicianSetup() {
             select
             fullWidth
             label="Clinician account"
+            required
             value={member}
             onChange={(e) => setMember(e.target.value)}
             disabled={saving}
@@ -99,6 +109,7 @@ export function ClinicianSetup() {
           <TextField
             fullWidth
             label="Clinician display name"
+            required
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={saving}
@@ -108,6 +119,7 @@ export function ClinicianSetup() {
             select
             fullWidth
             label="Clinician location"
+            required
             value={site}
             onChange={(e) => setSite(e.target.value)}
             disabled={saving}
@@ -121,6 +133,7 @@ export function ClinicianSetup() {
           <TextField
             fullWidth
             label="Clinical department"
+            required
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
             disabled={saving}

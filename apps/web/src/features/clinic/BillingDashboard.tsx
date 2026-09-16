@@ -252,7 +252,7 @@ function InvoiceAuditTimeline({
               <strong>{entry.event}</strong>
               <span>
                 {date(entry.occurred_at, "UTC", true)} ·{" "}
-                {entry.actor_reference ?? "System"}
+                {entry.actor_reference ?? "Actor not recorded"}
               </span>
               {entry.changed_fields.length > 0 && (
                 <small>Changed: {entry.changed_fields.join(", ")}</small>

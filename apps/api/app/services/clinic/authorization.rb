@@ -1,6 +1,15 @@
 module Clinic
   module Authorization
-    class Denied < StandardError; end
+    class Denied < StandardError
+      attr_reader :action_code, :audit_event_id
+
+      def initialize(message = "Your account does not have permission for this clinic action.",
+        action_code: nil, audit_event_id: nil)
+        @action_code = action_code
+        @audit_event_id = audit_event_id
+        super(message)
+      end
+    end
 
     def self.authorize!(actor:, practice:, action:, site: nil, subject: nil, any_site: false, at: Time.current)
       normalized_action = Ability.normalize_permission(action)
@@ -15,8 +24,10 @@ module Clinic
         ability.allowed_permission?(normalized_action, site: site, any_site: any_site)
       end
       unless allowed
-        AuditRecorder.record!(practice: practice, actor: actor, action_code: normalized_action, outcome: :denied)
-        raise Denied, "Your account does not have permission for this clinic action."
+        audit_event = AuditRecorder.record!(
+          practice: practice, actor: actor, action_code: normalized_action, outcome: :denied
+        )
+        raise Denied.new(action_code: normalized_action, audit_event_id: audit_event.id)
       end
 
       ability.membership
@@ -33,8 +44,10 @@ module Clinic
       legacy = Ability.normalize_permission(legacy_action)
       return ability.membership if ability.allowed_permission?(legacy, site: site, any_site: any_site)
 
-      AuditRecorder.record!(practice: practice, actor: actor, action_code: normalized, outcome: :denied)
-      raise Denied, "Your account does not have permission for this clinic action."
+      audit_event = AuditRecorder.record!(
+        practice: practice, actor: actor, action_code: normalized, outcome: :denied
+      )
+      raise Denied.new(action_code: normalized, audit_event_id: audit_event.id)
     end
 
     def self.allowed?(**arguments)

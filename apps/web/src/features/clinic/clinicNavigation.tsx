@@ -25,23 +25,18 @@ const ClinicNavigationContext = createContext<ClinicNavigationValue>({
 });
 
 export function normalizeClinicPath(pathname: string) {
-  const path = pathname.replace(/\/+$/, "") || "/";
-  return path === "/clinic/schedule" ? "/clinic" : path;
+  return pathname.replace(/\/+$/, "") || "/";
 }
 
-function scheduleAliasSearch(search: string) {
+function isLegacyScheduleSearch(search: string) {
   const input = new URLSearchParams(search);
-  const output = new URLSearchParams();
   const patientId = input.get("patient_id");
-  if (
-    patientId &&
-    /^[1-9]\d*$/.test(patientId) &&
-    Number.isSafeInteger(Number(patientId))
-  )
-    output.set("patient_id", String(Number(patientId)));
-  if (input.get("visit_modality") === "video")
-    output.set("visit_modality", "video");
-  return output.size ? `?${output}` : "";
+  return (
+    (patientId !== null &&
+      /^[1-9]\d*$/.test(patientId) &&
+      Number.isSafeInteger(Number(patientId))) ||
+    input.get("visit_modality") === "video"
+  );
 }
 
 export function clinicRoute(
@@ -54,18 +49,14 @@ export function clinicRoute(
     historyView === "schedule" || historyView === "tracking"
       ? historyView
       : undefined;
+  const legacySchedule =
+    originalPath === "/clinic" &&
+    (storedView === "schedule" || isLegacyScheduleSearch(search));
+  const schedule = originalPath === "/clinic/schedule" || legacySchedule;
   return {
-    path: normalizeClinicPath(originalPath),
-    search:
-      originalPath === "/clinic/schedule"
-        ? scheduleAliasSearch(search)
-        : search,
-    homeView:
-      originalPath === "/clinic/schedule"
-        ? "schedule"
-        : originalPath === "/clinic"
-          ? (storedView ?? "tracking")
-          : "tracking",
+    path: schedule ? "/clinic/schedule" : normalizeClinicPath(originalPath),
+    search,
+    homeView: schedule ? "schedule" : "tracking",
   };
 }
 

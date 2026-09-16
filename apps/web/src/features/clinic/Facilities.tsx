@@ -286,8 +286,9 @@ export function Facilities() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 This profile is used for site identity, delivery context and
-                regular operating hours. It does not control appointment
-                availability.
+                regular operating hours. Those hours help determine when
+                appointments can be offered; clinician hours and optional
+                capacity limits further shape availability.
               </Typography>
             </Stack>
             <div className="facility-form-grid">

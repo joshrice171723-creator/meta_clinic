@@ -198,6 +198,7 @@ Rails.application.routes.draw do
     resource :membership_storefront, only: %i[show update], controller: "membership_storefront"
     resource :membership_enrollment, only: %i[show create]
     post "membership_enrollment/:id/payment", to: "membership_enrollments#payment"
+    post "membership_enrollment/:id/one_time_payment", to: "membership_enrollments#one_time_payment"
     resources :membership_prospects, only: %i[index show update] do
       post :phone_payment, on: :member
       post :refresh_phone_payment, on: :member

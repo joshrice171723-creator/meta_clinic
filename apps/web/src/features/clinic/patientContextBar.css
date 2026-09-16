@@ -1,0 +1,63 @@
+.clinic-theme .clinic-patient-context {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 20px;
+  border-bottom: 1px solid var(--clinic-border);
+  background: var(--clinic-soft);
+  color: var(--clinic-text);
+}
+
+.clinic-theme .clinic-patient-context-identity {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.clinic-theme .clinic-patient-context-identity > .MuiTypography-caption {
+  flex: 0 0 auto;
+  color: var(--clinic-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.clinic-theme .clinic-patient-context-identity strong,
+.clinic-theme .clinic-patient-context-identity > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+
+.clinic-theme .clinic-patient-context-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--clinic-muted);
+}
+
+.clinic-theme .clinic-patient-context-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+@media (max-width: 700px) {
+  .clinic-theme .clinic-patient-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+  }
+
+  .clinic-theme .clinic-patient-context-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

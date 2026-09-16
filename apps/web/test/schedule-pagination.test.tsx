@@ -4,6 +4,7 @@ import {
   calendarInstant,
   appointmentTracks,
   shiftCalendarMonth,
+  slotBookingAriaLabel,
   ClinicSchedule,
 } from "../src/features/clinic/ClinicSchedule";
 import { Schedule } from "../src/features/clinic/CareFlow";
@@ -56,6 +57,19 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     );
     expect(calendarInstant("2026-12-16", 9, "America/Chicago")).toBe(
       "2026-12-16T15:00:00.000Z",
+    );
+  });
+  it("gives each bookable slot a clinic-local date, time, and resource name", () => {
+    expect(
+      slotBookingAriaLabel({
+        startsAt: "2026-09-16T14:00:00Z",
+        date: "2026-09-16",
+        timezone: "America/Chicago",
+        clinicianName: "Alex Rowan, NP",
+        roomName: "Infusion room 2",
+      }),
+    ).toBe(
+      "Book 9:00 AM on Wednesday, September 16 with Alex Rowan, NP in Infusion room 2",
     );
   });
   it("carries the Patient Flow patient into calendar and booking", () => {

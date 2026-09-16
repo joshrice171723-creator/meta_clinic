@@ -330,6 +330,17 @@ module Development
         Gateway.new(practice:, prospect:)
       end
 
+      def staff_gateway_for!(practice:, prospect:)
+        ensure_enabled!(practice)
+        connection = Clinic::Billing::StripeConnection.find_by(practice_id: practice.id) || ensure_connection!(practice)
+        unless simulator_compatible_connection?(connection)
+          raise Clinic::Billing::StripeGateway::Unavailable,
+            "The local one-time payment simulator needs a configured clinic test-payment connection."
+        end
+
+        Gateway.new(practice:, prospect:)
+      end
+
       def gateway?(gateway, practice:)
         enabled_for?(practice) && gateway.instance_of?(Gateway) && gateway.practice_id == practice.id
       end
@@ -384,6 +395,39 @@ module Development
         Result.new(prospect: prospect.reload, event_id: event.fetch("event_id"))
       end
 
+      def record_staff_one_time!(practice:, prospect:, actor:, request_key:)
+        ensure_enabled!(practice)
+        validate_staff_one_time!(practice:, prospect:, actor:)
+        Clinic::Care::SubscriptionDefinition.request_key(request_key)
+        gateway = staff_gateway_for!(practice:, prospect:)
+        connection = Clinic::Billing::StripeConnection.find_by!(practice_id: practice.id)
+        prospect.reload
+
+        if prospect.status.in?(%w[paid_onboarding converted])
+          validate_local_checkout_binding!(prospect, connection)
+          verify_outcome!(prospect, "paid", compatible_connection: connection)
+          return Result.new(prospect:, event_id: event_claims(prospect:, outcome: "paid", request_key:).fetch("event_id"))
+        end
+
+        if prospect.checkout_session_id.blank?
+          Clinic::MembershipGrowth::PublicCheckout.start_for_prospect(
+            practice:, prospect:, replayed: false, gateway:
+          )
+          prospect.reload
+        else
+          validate_local_checkout_binding!(prospect, connection)
+        end
+
+        event = verify_event!(sign_event(event_claims(prospect:, outcome: "paid", request_key:)))
+        paid_gateway = Gateway.new(practice:, prospect:, outcome: event.fetch("outcome"))
+        dispatch!(prospect:, outcome: "paid", gateway: paid_gateway)
+        verify_outcome!(prospect.reload, "paid", compatible_connection: connection)
+        Clinic::AuditRecorder.record!(practice:, actor:,
+          action_code: "development.membership_payment_simulator.staff_one_time_paid", outcome: :committed,
+          resource_version_ref: "#{SOURCE}:#{event.fetch('event_id')}:membership_prospect:#{prospect.id}")
+        Result.new(prospect: prospect.reload, event_id: event.fetch("event_id"))
+      end
+
       def signing_key
         Rails.application.key_generator.generate_key("apply/local-membership-payment-simulator/v1", 32)
       end
@@ -426,6 +470,32 @@ module Development
         end
       end
 
+      def validate_staff_one_time!(practice:, prospect:, actor:)
+        membership = practice.memberships.active.find_by(user_id: actor.id)
+        valid = membership && actor.active? && prospect.practice_id == practice.id &&
+          prospect.source == "front_desk_enrollment" && prospect.intent_type == "purchase" &&
+          prospect.selected_terms.fetch("renewal") == "none" &&
+          !prospect.selected_terms.fetch("eligibility_review", false)
+        raise ActiveRecord::RecordNotFound unless valid
+      end
+
+      def validate_local_checkout_binding!(prospect, connection)
+        return if prospect.checkout_session_id.to_s.start_with?("cs_test_local") &&
+          prospect.checkout_account_id == connection.account_id && simulator_compatible_connection?(connection)
+
+        raise Clinic::Billing::StripeGateway::Unavailable,
+          "This enrollment is not bound to this clinic's local payment simulator. Start a new authorized enrollment."
+      end
+
+      def simulator_compatible_connection?(connection)
+        return false unless connection&.practice_id && connection.account_id.to_s.match?(/\Aacct_[a-zA-Z0-9]+\z/)
+        return true if connection?(connection)
+        return false unless Clinic::Billing::StripeGateway.configured?
+        return true if Clinic::Billing::StripeGateway.platform_sandbox_account?(connection.account_id)
+
+        connection.charges_enabled? && connection.last_synced_at.present?
+      end
+
       def repair_local_checkout_binding!(practice:, prospect:, user:, connection:)
         prospect.with_lock do
           locally_started_unpaid = prospect.checkout_session_id.to_s.start_with?("cs_test_local") &&
@@ -448,7 +518,7 @@ module Development
           gateway: Gateway.new(practice:, prospect:))
       end
 
-      def verify_outcome!(prospect, outcome)
+      def verify_outcome!(prospect, outcome, compatible_connection: nil)
         checkout = if prospect.agreement_id
           Clinic::Billing::StripeCheckout.find_by(practice_id: prospect.practice_id,
             agreement_id: prospect.agreement_id)
@@ -456,7 +526,10 @@ module Development
         verified = case outcome
         when "paid"
           prospect.paid_at.present? && prospect.patient_id.present? && prospect.receipt_id.present? &&
-            prospect.portal_identity_id.present? && checkout && connection?(checkout.connection)
+            prospect.portal_identity_id.present? && checkout &&
+            (connection?(checkout.connection) ||
+              (compatible_connection && checkout.connection_id == compatible_connection.id &&
+                simulator_compatible_connection?(compatible_connection)))
         when "renewal_failed"
           checkout && checkout.subscription_status == "past_due" &&
             checkout.renewal_invoice_status == "open" && checkout.renewal_amount_due.to_d.positive?

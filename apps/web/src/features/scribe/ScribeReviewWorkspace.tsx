@@ -172,6 +172,23 @@ function hasContextInput(draft: ScribeDraft) {
     (source) => source.kind === "reviewer_authored_context",
   );
 }
+
+function recordTime(value: string | null) {
+  if (!value) return "Not recorded";
+  const instant = new Date(value);
+  return Number.isNaN(instant.getTime())
+    ? "Time unavailable"
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(instant);
+}
+
+function approvingAccount(draft: ScribeDraft) {
+  return draft.approved_by_account_reference
+    ? `Account #${draft.approved_by_account_reference}`
+    : "Not recorded";
+}
 export function hasUnsavedDraftEdits(
   draft: ScribeDraft | undefined,
   edits: Record<string, string>,
@@ -496,6 +513,14 @@ function ReviewDrawer({
               >
                 Generated draft provenance: {draft.provider} / {draft.model}{" "}
                 {draft.model_version}. Input digest {draft.input_digest}.
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 1.5 }}
+              >
+                Approval recorded: {recordTime(draft.approved_at)} · Approved
+                by: {approvingAccount(draft)}
               </Typography>
               {draft.warnings.length > 0 && (
                 <Alert severity="warning" sx={{ mb: 1.5 }}>
@@ -1175,8 +1200,15 @@ export function ScribeReviewWorkspace({
                 color="text.secondary"
               >
                 Saving to chart writes an unsigned note only after explicit
-                confirmation. Signing remains a separate action.
+                confirmation. Signing remains a separate action. After saving,
+                open the chart note to check its current signature status.
               </Typography>
+              {approved && (
+                <Typography variant="caption" color="text.secondary">
+                  Approved by {approvingAccount(draft)} ·{" "}
+                  {recordTime(draft.approved_at)}
+                </Typography>
+              )}
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               {hasUnsavedEdits && (

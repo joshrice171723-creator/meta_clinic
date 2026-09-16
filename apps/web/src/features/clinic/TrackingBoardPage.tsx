@@ -1412,7 +1412,7 @@ export function TrackingBoardView({
     <section className="tracking-board" aria-label="Tracking Board">
       <header className="tracking-board-header">
         <div>
-          <h1>Patient Flow</h1>
+          <h1>Tracking Board</h1>
           {boardDate && <p className="tracking-board-date">{boardDate}</p>}
           <Typography variant="caption" color="text.secondary">
             All times shown in {timezone}

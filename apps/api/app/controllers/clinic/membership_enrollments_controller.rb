@@ -47,6 +47,7 @@ module Clinic
       )
       render json: {
         prospect: MembershipProspectSerializer.call(result.prospect),
+        one_time_payment: one_time_payment_state(result.prospect),
         replayed: result.replayed
       }, status: result.replayed ? :ok : :created
     end
@@ -65,6 +66,46 @@ module Clinic
         prospect: MembershipProspectSerializer.call(result.prospect),
         phone_payment: result.payment
       }, status: :accepted
+    end
+
+    def one_time_payment
+      input = parameter_hash!(:payment, %i[lock_version request_key])
+      result = MembershipGrowth::StaffEnrollmentPayment.simulate_one_time(
+        practice: current_practice,
+        actor: current_user,
+        prospect_id: requested_id!(params[:id], :id),
+        lock_version: bounded_integer!(
+          input[:lock_version], field: :lock_version, min: 0, max: 2_147_483_647
+        ),
+        request_key: required_string!(input[:request_key], field: :request_key, maximum: 160)
+      )
+      render json: {
+        prospect: MembershipProspectSerializer.call(result.prospect),
+        one_time_payment: one_time_payment_state(result.prospect)
+      }
+    end
+
+    private
+
+    def one_time_payment_state(prospect)
+      return unless prospect.selected_terms.fetch("renewal") == "none"
+
+      available = Development::MembershipPaymentSimulator.enabled_for?(current_practice)
+      paid = prospect.paid_at.present? && prospect.status.in?(%w[paid_onboarding converted])
+      instructions = if paid
+        "Simulated payment verified. Patient onboarding can continue."
+      elsif available
+        "Simulate the one-time card payment. Patient onboarding begins only after the signed local event is verified."
+      else
+        "One-time staff card simulation is not enabled for this clinic. Use an approved production payment workflow."
+      end
+      {
+        status: paid ? "paid" : "ready",
+        simulation_available: available,
+        vendor_confirmed: false,
+        evidence: paid ? "server_signed_local_event" : nil,
+        instructions:
+      }
     end
   end
 end

@@ -168,7 +168,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   setup do
     @previous_environment, @previous_flag = Rails.env, ENV["APP_DEVELOPMENT_LOGIN"]
     @saved_stripe = ENV.to_h.slice("STRIPE_SANDBOX_KEY", "STRIPE_SANDBOX_ACCOUNT_ID",
-      "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN", "STRIPE_MOTO_READER_ID")
+      "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN", "STRIPE_MOTO_READER_ID",
+      "APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS")
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
     ENV["STRIPE_SANDBOX_KEY"] = "rk_test_storefrontfixture"
     ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "disabled"
@@ -194,7 +195,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   teardown do
     Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = @previous_environment, @previous_flag
     %w[STRIPE_SANDBOX_KEY STRIPE_SANDBOX_ACCOUNT_ID STRIPE_CONNECT_WEBHOOK_SECRET STRIPE_RETURN_ORIGIN
-      STRIPE_MOTO_READER_ID].each do |key|
+      STRIPE_MOTO_READER_ID APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS].each do |key|
       @saved_stripe.key?(key) ? ENV[key] = @saved_stripe[key] : ENV.delete(key)
     end
   end
@@ -636,6 +637,106 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_response :created
     assert_equal "none", response.parsed_body.dig("prospect", "selected_terms", "renewal")
     assert_equal "immediate", response.parsed_body.dig("prospect", "selected_terms", "cancellation")
+    assert_equal false, response.parsed_body.dig("one_time_payment", "simulation_available")
+  end
+
+  test "front desk can complete a one-time payment only through the signed local simulator" do
+    practice = Clinic::Practice.create!(name: "Local One-Time Simulator Clinic")
+    admin = create_staff(practice, "local-one-time-admin@example.invalid",
+      "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish",
+      "subscriptions.review", "patients.write", "patient_portal.identity.invite")
+    existing_connection = Clinic::Billing::StripeConnection.create!(
+      practice:, connected_by: admin, reference: "existing-development-sandbox",
+      account_id: "acct_existingdevelopment", charges_enabled: false, payouts_enabled: false
+    )
+    ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = existing_connection.account_id
+    connection_attributes = existing_connection.attributes.except("updated_at")
+    version_id = publish_catalog(admin, "LocalOneTime", renewal: "automatic")
+    ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = practice.id.to_s
+    sign_in(admin)
+    post "/api/clinic/membership_enrollment", params: { enrollment: { version_id:, selections: [],
+      display_name: "Local One Time Patient", email_address: "local.one.time@example.invalid",
+      contact_consent: true, billing_mode: "one_time", request_key: "local-one-time-enrollment" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    prospect = practice.membership_prospects.sole
+    assert_equal [ "ready", true, false, nil ],
+      response.parsed_body.fetch("one_time_payment").values_at(
+        "status", "simulation_available", "vendor_confirmed", "evidence"
+      )
+
+    payment = { payment: { lock_version: prospect.lock_version, request_key: "local-one-time-payment" } }
+    post "/api/clinic/membership_enrollment/#{prospect.id}/one_time_payment",
+      params: { payment: payment.fetch(:payment).merge(lock_version: prospect.lock_version + 1) },
+      headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert prospect.reload.status_new?
+    assert_equal 0, practice.patients.count
+
+    post "/api/clinic/membership_enrollment/#{prospect.id}/one_time_payment",
+      params: payment, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal [ "paid", true, false, "server_signed_local_event" ],
+      response.parsed_body.fetch("one_time_payment").values_at(
+        "status", "simulation_available", "vendor_confirmed", "evidence"
+      )
+    assert_equal "paid_onboarding", response.parsed_body.dig("prospect", "status")
+    assert_equal 1, practice.patients.count
+    assert_equal 1, Clinic::BillingReceipt.where(practice: practice).count
+
+    post "/api/clinic/membership_enrollment/#{prospect.id}/one_time_payment",
+      params: payment, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal 1, practice.patients.count
+    assert_equal 1, Clinic::BillingReceipt.where(practice: practice).count
+    assert_equal 1, practice.audit_events.where(
+      action_code: "development.membership_payment_simulator.staff_one_time_paid", outcome: "committed"
+    ).count
+    assert_equal 1, Clinic::Billing::StripeConnection.where(practice:).count
+    assert_equal connection_attributes, existing_connection.reload.attributes.except("updated_at")
+  end
+
+  test "front desk one-time simulation fails closed when the clinic is not opted in" do
+    version_id = publish_catalog(@admin, "UnsupportedOneTime", renewal: "automatic")
+    sign_in(@admin)
+    post "/api/clinic/membership_enrollment", params: { enrollment: { version_id:, selections: [],
+      display_name: "Unsupported One Time", email_address: "unsupported.one.time@example.invalid",
+      contact_consent: true, billing_mode: "one_time", request_key: "unsupported-one-time-enrollment" } },
+      headers: csrf_headers, as: :json
+    prospect = @practice.membership_prospects.sole
+
+    post "/api/clinic/membership_enrollment/#{prospect.id}/one_time_payment",
+      params: { payment: { lock_version: prospect.lock_version, request_key: "unsupported-one-time-payment" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "configured local development clinic"
+    assert prospect.reload.status_new?
+    assert_nil prospect.paid_at
+    assert_equal 0, @practice.patients.count
+  end
+
+  test "front desk one-time simulation preserves the eligibility review gate" do
+    practice = Clinic::Practice.create!(name: "Review-Gated Simulator Clinic")
+    admin = create_staff(practice, "review-gated-simulator@example.invalid",
+      "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish",
+      "subscriptions.review", "patients.write", "patient_portal.identity.invite")
+    version_id = publish_catalog(admin, "ReviewGatedOneTime", renewal: "automatic", eligibility_review: true)
+    ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = practice.id.to_s
+    sign_in(admin)
+    post "/api/clinic/membership_enrollment", params: { enrollment: { version_id:, selections: [],
+      display_name: "Review Gated One Time", email_address: "review.gated.one.time@example.invalid",
+      contact_consent: true, billing_mode: "one_time", request_key: "review-gated-one-time-enrollment" } },
+      headers: csrf_headers, as: :json
+    prospect = practice.membership_prospects.sole
+
+    post "/api/clinic/membership_enrollment/#{prospect.id}/one_time_payment",
+      params: { payment: { lock_version: prospect.lock_version, request_key: "review-gated-one-time-payment" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "requires clinic review"
+    assert prospect.reload.status_new?
+    assert_nil prospect.checkout_session_id
+    assert_equal 0, practice.patients.count
   end
 
   test "temporary platform sandbox opens checkout without rewriting clinic routing" do

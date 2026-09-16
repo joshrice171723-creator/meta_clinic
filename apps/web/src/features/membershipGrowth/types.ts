@@ -118,7 +118,20 @@ export type MembershipProspectMutationResponse = {
 export type MembershipEnrollmentResponse =
   MembershipProspectMutationResponse & {
     replayed: boolean;
+    one_time_payment: OneTimePaymentState | null;
   };
+
+export type OneTimePaymentState = {
+  status: "ready" | "paid";
+  simulation_available: boolean;
+  vendor_confirmed: false;
+  evidence: "server_signed_local_event" | null;
+  instructions: string;
+};
+
+export type StaffOneTimePaymentResponse = MembershipProspectMutationResponse & {
+  one_time_payment: OneTimePaymentState;
+};
 
 export type MembershipEnrollmentOptions = {
   practice: { name: string };

@@ -647,9 +647,10 @@ function ClinicApplication({
         options.homeView,
       );
       if (options.homeView) next.homeView = options.homeView;
-      const sameHome =
-        routeRef.current.path === "/clinic" && next.path === "/clinic";
-      const method = options.replace || sameHome ? "replaceState" : "pushState";
+      const sameRoute =
+        clinicRouteHref(routeRef.current) === clinicRouteHref(next);
+      const method =
+        options.replace || sameRoute ? "replaceState" : "pushState";
       const historyIndex =
         method === "pushState"
           ? historyIndexRef.current + 1
@@ -722,7 +723,7 @@ function ClinicApplication({
     () => ({ navigate, registerBlocker, confirmNavigation }),
     [navigate, registerBlocker, confirmNavigation],
   );
-  const home = route.path === "/clinic";
+  const home = route.path === "/clinic" || route.path === "/clinic/schedule";
   const page =
     route.path === "/clinic/settings" ? (
       <RouteBoundary key={clinicRouteHref(route)}>
@@ -742,6 +743,7 @@ function ClinicApplication({
           key={user.id}
           user={user}
           path={route.path}
+          search={route.search}
           homeView={route.homeView}
           developmentAccounts={developmentAccounts}
           environment={environment}

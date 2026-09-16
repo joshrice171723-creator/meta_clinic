@@ -173,6 +173,8 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
       params: { expected_version: current.fetch("version") }, headers: csrf_headers, as: :json
     assert_response :success
     approved = response.parsed_body.fetch("draft")
+    assert_equal @user.id.to_s, approved.fetch("approved_by_account_reference")
+    assert approved.fetch("approved_at").present?
 
     export_key = "scribe-chart-#{SecureRandom.hex(8)}"
     export_params = { export: { destination: "parent_record_adapter", idempotency_key: export_key,

@@ -5,6 +5,10 @@ import {
   formBody,
   currentLoginDestination,
 } from "../api/client";
+import { ResourceState } from "./ResourceState";
+
+export { ResourceState } from "./ResourceState";
+export type { ResourceStateName, ResourceStateProps } from "./ResourceState";
 
 export function ErrorMessage({ message }: { message: string }) {
   return (
@@ -77,9 +81,9 @@ export function useResource<T>(
 }
 export function LoadState({ error }: { error?: string }) {
   return error ? (
-    <ErrorMessage message={error} />
+    <ResourceState state="error" message={error} />
   ) : (
-    <p role="status">Loading…</p>
+    <ResourceState state="loading" />
   );
 }
 export function Card({

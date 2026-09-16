@@ -264,7 +264,7 @@ describe("tracking-board identities and waiting times", () => {
     const html = renderToStaticMarkup(
       <TestTrackingBoard visits={[EXAMPLE_VISITS[0]]} />,
     );
-    expect(html).toContain("<h1>Patient Flow</h1>");
+    expect(html).toContain("<h1>Tracking Board</h1>");
     expect(html).toContain(
       '<p class="tracking-board-date">Monday, August 31</p>',
     );
@@ -669,7 +669,7 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).toContain('href="/clinic/operations" aria-current="page"');
-    expect(html).toContain('type="button"');
+    expect(html).not.toContain('type="button"');
     expect(html).toContain("Tracking Board");
     expect(html).toContain("Schedule");
     expect(html).not.toContain("EHR");
@@ -689,11 +689,9 @@ describe("board and Operations presentation boundaries", () => {
         homeView="schedule"
       />,
     );
-    expect(schedule).toContain('type="button" aria-current="page"');
+    expect(schedule).toContain('href="/clinic/schedule" aria-current="page"');
     expect(schedule).toContain("Schedule");
-    expect(schedule).not.toContain(
-      'aria-current="page">Tracking Board</button>',
-    );
+    expect(schedule).not.toContain('href="/clinic" aria-current="page"');
   });
   it("adds Billing navigation and preserves the billing destination", () => {
     const html = renderToStaticMarkup(

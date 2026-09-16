@@ -21,11 +21,14 @@ import {
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { PackageCard } from "./subscriptions/PackageCard";
+import type { PackageTerms } from "./subscriptions/contracts";
 import type {
   MembershipEnrollmentOptions,
   MembershipEnrollmentResponse,
   MembershipProspect,
   StaffPhonePaymentResponse,
+  StaffOneTimePaymentResponse,
+  OneTimePaymentState,
 } from "../membershipGrowth/types";
 
 type Draft = {
@@ -38,6 +41,17 @@ type Draft = {
   contactConsent: boolean;
   requestKey: string;
 };
+
+export function enrollmentTermsPreview(
+  terms: PackageTerms,
+  billingMode: Draft["billingMode"],
+): PackageTerms {
+  return {
+    ...terms,
+    renewal: billingMode === "one_time" ? "none" : "automatic",
+    cancellation: billingMode === "one_time" ? "immediate" : "end_of_term",
+  };
+}
 
 function newDraft(): Draft {
   return {
@@ -67,6 +81,13 @@ export function FrontDeskMembershipEnrollment() {
   const [payment, setPayment] = useState<
     StaffPhonePaymentResponse["phone_payment"] | null
   >(null);
+  const [oneTimePayment, setOneTimePayment] =
+    useState<OneTimePaymentState | null>(null);
+  const [oneTimeRequestKey, setOneTimeRequestKey] = useState(() =>
+    crypto.randomUUID(),
+  );
+  const paymentComplete =
+    payment?.status === "paid" || oneTimePayment?.status === "paid";
 
   const selectedPackage = useMemo(
     () =>
@@ -85,6 +106,8 @@ export function FrontDeskMembershipEnrollment() {
     setDraft(newDraft());
     setCreatedProspect(null);
     setPayment(null);
+    setOneTimePayment(null);
+    setOneTimeRequestKey(crypto.randomUUID());
     setRecurringAuthorization(false);
     setError("");
   }
@@ -99,6 +122,8 @@ export function FrontDeskMembershipEnrollment() {
     if (busy) return;
     setCreatedProspect(null);
     setPayment(null);
+    setOneTimePayment(null);
+    setOneTimeRequestKey(crypto.randomUUID());
     setRecurringAuthorization(false);
     setDraft((current) => ({ ...current, requestKey: crypto.randomUUID() }));
     setError("");
@@ -128,11 +153,43 @@ export function FrontDeskMembershipEnrollment() {
         },
       );
       setCreatedProspect(result.prospect);
+      setOneTimePayment(result.one_time_payment);
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
           : "The enrollment could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function simulateOneTimePayment() {
+    if (!createdProspect || busy || !oneTimePayment?.simulation_available)
+      return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<StaffOneTimePaymentResponse>(
+        `/api/clinic/membership_enrollment/${createdProspect.id}/one_time_payment`,
+        {
+          method: "POST",
+          body: {
+            payment: {
+              lock_version: createdProspect.lock_version,
+              request_key: oneTimeRequestKey,
+            },
+          },
+        },
+      );
+      setCreatedProspect(result.prospect);
+      setOneTimePayment(result.one_time_payment);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "The simulated payment could not be confirmed. Retry to reconcile the same attempt.",
       );
     } finally {
       setBusy(false);
@@ -211,9 +268,9 @@ export function FrontDeskMembershipEnrollment() {
               <Stack spacing={2}>
                 <Alert severity="success">
                   Enrollment saved for {createdProspect.display_name}.
-                  {createdProspect.selected_terms.renewal === "automatic"
-                    ? " Complete payment below; patient onboarding begins after payment is verified."
-                    : " Use the clinic’s one-time billing workflow to record payment; patient onboarding begins after payment is verified."}
+                  {paymentComplete
+                    ? " Patient onboarding can now continue."
+                    : " Complete payment below; patient onboarding begins after payment is verified."}
                 </Alert>
                 <Typography variant="h6">
                   {createdProspect.selected_terms.package_name}
@@ -225,9 +282,13 @@ export function FrontDeskMembershipEnrollment() {
                     eligibility or take payment.
                   </Alert>
                 ) : createdProspect.selected_terms.renewal !== "automatic" ? (
-                  <Alert severity="info">
-                    This enrollment is one-time. Use the clinic’s one-time
-                    billing workflow to record payment.
+                  <Alert
+                    severity={
+                      oneTimePayment?.status === "paid" ? "success" : "info"
+                    }
+                  >
+                    {oneTimePayment?.instructions ??
+                      "One-time payment is unavailable. Reopen the enrollment to check payment options."}
                   </Alert>
                 ) : (
                   <>
@@ -310,7 +371,10 @@ export function FrontDeskMembershipEnrollment() {
                     </TextField>
                     {selectedPackage && (
                       <PackageCard
-                        terms={selectedPackage.terms}
+                        terms={enrollmentTermsPreview(
+                          selectedPackage.terms,
+                          draft.billingMode,
+                        )}
                         selections={draft.selections}
                         onSelect={(selections) =>
                           setDraft((current) => ({ ...current, selections }))
@@ -357,12 +421,13 @@ export function FrontDeskMembershipEnrollment() {
                       required
                       label="Full name"
                       value={draft.displayName}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        const displayName = event.target.value;
                         setDraft((current) => ({
                           ...current,
-                          displayName: event.target.value,
-                        }))
-                      }
+                          displayName,
+                        }));
+                      }}
                       slotProps={{
                         htmlInput: { maxLength: 120, autoComplete: "name" },
                       }}
@@ -373,12 +438,13 @@ export function FrontDeskMembershipEnrollment() {
                       type="email"
                       label="Email for receipt and patient portal"
                       value={draft.emailAddress}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        const emailAddress = event.target.value;
                         setDraft((current) => ({
                           ...current,
-                          emailAddress: event.target.value,
-                        }))
-                      }
+                          emailAddress,
+                        }));
+                      }}
                       slotProps={{
                         htmlInput: { maxLength: 320, autoComplete: "email" },
                       }}
@@ -387,12 +453,13 @@ export function FrontDeskMembershipEnrollment() {
                     <TextField
                       label="Phone number"
                       value={draft.phoneNumber}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        const phoneNumber = event.target.value;
                         setDraft((current) => ({
                           ...current,
-                          phoneNumber: event.target.value,
-                        }))
-                      }
+                          phoneNumber,
+                        }));
+                      }}
                       slotProps={{
                         htmlInput: { maxLength: 40, autoComplete: "tel" },
                       }}
@@ -421,7 +488,7 @@ export function FrontDeskMembershipEnrollment() {
         <DialogActions>
           {createdProspect ? (
             <>
-              {payment?.status !== "paid" && (
+              {!paymentComplete && (
                 <Button onClick={backToEnrollment} disabled={busy}>
                   Back
                 </Button>
@@ -429,9 +496,8 @@ export function FrontDeskMembershipEnrollment() {
               <Button onClick={closeDialog} disabled={busy}>
                 Cancel
               </Button>
-              {createdProspect.selected_terms.eligibility_review ||
-              createdProspect.selected_terms.renewal !==
-                "automatic" ? null : payment?.status === "paid" ? (
+              {createdProspect.selected_terms
+                .eligibility_review ? null : paymentComplete ? (
                 createdProspect.patient_id ? (
                   <Button
                     component="a"
@@ -439,6 +505,16 @@ export function FrontDeskMembershipEnrollment() {
                     variant="contained"
                   >
                     Proceed to onboarding
+                  </Button>
+                ) : null
+              ) : createdProspect.selected_terms.renewal !== "automatic" ? (
+                oneTimePayment?.simulation_available ? (
+                  <Button
+                    onClick={() => void simulateOneTimePayment()}
+                    variant="contained"
+                    disabled={busy}
+                  >
+                    {busy ? "Simulating…" : "Simulate card payment"}
                   </Button>
                 ) : null
               ) : payment?.status === "failed" ? (

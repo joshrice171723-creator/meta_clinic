@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
   Alert,
   Button,
@@ -18,6 +18,8 @@ import type {
 import { api, loginDestination } from "../../api/client";
 
 type DevelopmentPortal = "owner" | "launch" | "patient" | "clinic";
+
+const LOGIN_NAVIGATION_DEADLINE_MS = 8_000;
 
 const DEVELOPMENT_PORTALS: Record<
   DevelopmentPortal,
@@ -94,17 +96,36 @@ export function DevelopmentAccountSwitcher({
   );
   const scopedAccounts = visibleAccounts.filter((account) => account.clinic);
   const organizations = useMemo(
-    () => [...new Map(scopedAccounts.map((account) => [String(account.organization?.id ?? "independent"), account.organization?.name ?? "Independent clinics"])).entries()],
+    () => [
+      ...new Map(
+        scopedAccounts.map((account) => [
+          String(account.organization?.id ?? "independent"),
+          account.organization?.name ?? "Independent clinics",
+        ]),
+      ).entries(),
+    ],
     [scopedAccounts],
   );
   const [organizationId, setOrganizationId] = useState("");
   const [clinicId, setClinicId] = useState("");
   const [siteId, setSiteId] = useState("");
-  const clinics = scopedAccounts.filter((account) => String(account.organization?.id ?? "independent") === organizationId);
-  const clinicOptions = [...new Map(clinics.map((account) => [String(account.clinic!.id), account.clinic!])).values()];
-  const locations = [...new Map(clinics.filter((account) => String(account.clinic?.id) === clinicId)
-    .flatMap((account) => account.locations ?? [])
-    .map((site) => [String(site.id), site])).values()];
+  const clinics = scopedAccounts.filter(
+    (account) =>
+      String(account.organization?.id ?? "independent") === organizationId,
+  );
+  const clinicOptions = [
+    ...new Map(
+      clinics.map((account) => [String(account.clinic!.id), account.clinic!]),
+    ).values(),
+  ];
+  const locations = [
+    ...new Map(
+      clinics
+        .filter((account) => String(account.clinic?.id) === clinicId)
+        .flatMap((account) => account.locations ?? [])
+        .map((site) => [String(site.id), site]),
+    ).values(),
+  ];
   const noLocations = clinicId !== "" && locations.length === 0;
   const hierarchyAvailable = portal === "clinic" && scopedAccounts.length > 0;
 
@@ -128,23 +149,83 @@ export function DevelopmentAccountSwitcher({
     <Stack className="development-account-switcher" spacing={0.75}>
       {hierarchyAvailable && (
         <>
-          <TextField select size="small" label="Organization" value={organizationId} disabled={disabled} onChange={(event) => { setOrganizationId(event.target.value); setClinicId(""); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: "", siteId: "" }); }}>
-            <MenuItem value="" disabled>Select organization</MenuItem>
-            {organizations.map(([id, name]) => <MenuItem key={id} value={id}>{name} · ID {id}</MenuItem>)}
+          <TextField
+            select
+            size="small"
+            label="Organization"
+            value={organizationId}
+            disabled={disabled}
+            onChange={(event) => {
+              setOrganizationId(event.target.value);
+              setClinicId("");
+              setSiteId("");
+              onSelect("");
+              onScopeChange?.({ practiceId: "", siteId: "" });
+            }}
+          >
+            <MenuItem value="" disabled>
+              Select organization
+            </MenuItem>
+            {organizations.map(([id, name]) => (
+              <MenuItem key={id} value={id}>
+                {name} · ID {id}
+              </MenuItem>
+            ))}
           </TextField>
-          <TextField select size="small" label="Clinic" value={clinicId} disabled={disabled || !organizationId} onChange={(event) => { const nextClinicId = String(event.target.value); setClinicId(nextClinicId); setSiteId(""); onSelect(""); onScopeChange?.({ practiceId: nextClinicId, siteId: "" }); }}>
-            <MenuItem value="" disabled>Select clinic</MenuItem>
-            {clinicOptions.map((clinic) => <MenuItem key={clinic.id} value={String(clinic.id)}>{clinic.name} · ID {clinic.id}</MenuItem>)}
+          <TextField
+            select
+            size="small"
+            label="Clinic"
+            value={clinicId}
+            disabled={disabled || !organizationId}
+            onChange={(event) => {
+              const nextClinicId = String(event.target.value);
+              setClinicId(nextClinicId);
+              setSiteId("");
+              onSelect("");
+              onScopeChange?.({ practiceId: nextClinicId, siteId: "" });
+            }}
+          >
+            <MenuItem value="" disabled>
+              Select clinic
+            </MenuItem>
+            {clinicOptions.map((clinic) => (
+              <MenuItem key={clinic.id} value={String(clinic.id)}>
+                {clinic.name} · ID {clinic.id}
+              </MenuItem>
+            ))}
           </TextField>
-          <TextField select size="small" label="Location" value={siteId} disabled={disabled || !clinicId || noLocations} onChange={(event) => { const nextSiteId = String(event.target.value); setSiteId(nextSiteId); onSelect(""); onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId }); }}>
-            <MenuItem value="" disabled>{noLocations ? "No accessible locations" : "Select location"}</MenuItem>
-            {locations.map((site) => <MenuItem key={site.id} value={String(site.id)}>{site.name || site.code} · ID {site.id}</MenuItem>)}
+          <TextField
+            select
+            size="small"
+            label="Location"
+            value={siteId}
+            disabled={disabled || !clinicId || noLocations}
+            onChange={(event) => {
+              const nextSiteId = String(event.target.value);
+              setSiteId(nextSiteId);
+              onSelect("");
+              onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId });
+            }}
+          >
+            <MenuItem value="" disabled>
+              {noLocations ? "No accessible locations" : "Select location"}
+            </MenuItem>
+            {locations.map((site) => (
+              <MenuItem key={site.id} value={String(site.id)}>
+                {site.name || site.code} · ID {site.id}
+              </MenuItem>
+            ))}
           </TextField>
         </>
       )}
       <FormControl
         size="small"
-        disabled={disabled || visibleAccounts.length === 0 || (hierarchyAvailable && !siteId && !noLocations)}
+        disabled={
+          disabled ||
+          visibleAccounts.length === 0 ||
+          (hierarchyAvailable && !siteId && !noLocations)
+        }
       >
         <Select
           className="development-account-select"
@@ -163,7 +244,14 @@ export function DevelopmentAccountSwitcher({
           <MenuItem value="" disabled>
             Select {portalDefinition.accountLabel} account
           </MenuItem>
-          {(hierarchyAvailable ? clinics.filter((account) => noLocations || account.locations?.some((site) => String(site.id) === siteId)) : visibleAccounts).map((account) => (
+          {(hierarchyAvailable
+            ? clinics.filter(
+                (account) =>
+                  noLocations ||
+                  account.locations?.some((site) => String(site.id) === siteId),
+              )
+            : visibleAccounts
+          ).map((account) => (
             <MenuItem key={account.id} value={account.id}>
               {account.label}
             </MenuItem>
@@ -268,8 +356,45 @@ export function DevelopmentControls({
   const [selectedId, setSelectedId] = useState(activeAccount?.id || "");
   const [switching, setSwitching] = useState(false);
   const [scope, setScope] = useState({ practiceId: "", siteId: "" });
-  const requiresClinicScope = portal === "clinic" && accounts.some((account) => account.clinic);
+  const requiresClinicScope =
+    portal === "clinic" && accounts.some((account) => account.clinic);
   const [error, setError] = useState("");
+  const [entryDestination, setEntryDestination] = useState("");
+  const navigationTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (navigationTimer.current !== null)
+        window.clearTimeout(navigationTimer.current);
+    },
+    [],
+  );
+
+  const openWorkspace = (destination: string) => {
+    if (navigationTimer.current !== null)
+      window.clearTimeout(navigationTimer.current);
+    setEntryDestination(destination);
+    setSwitching(true);
+    setError("");
+    navigationTimer.current = window.setTimeout(() => {
+      navigationTimer.current = null;
+      setSwitching(false);
+      setError(
+        "You're signed in, but the workspace did not open. Select Open workspace to continue without signing in again.",
+      );
+    }, LOGIN_NAVIGATION_DEADLINE_MS);
+    try {
+      window.location.assign(destination);
+    } catch {
+      if (navigationTimer.current !== null)
+        window.clearTimeout(navigationTimer.current);
+      navigationTimer.current = null;
+      setSwitching(false);
+      setError(
+        "You're signed in, but the workspace could not open. Select Open workspace to try again without signing in again.",
+      );
+    }
+  };
 
   const selectPortal = (
     _event: MouseEvent<HTMLElement>,
@@ -278,19 +403,32 @@ export function DevelopmentControls({
     if (!nextPortal || nextPortal === portal) return;
     setPortal(nextPortal);
     setSelectedId("");
+    setEntryDestination("");
     setError("");
   };
 
   const logIn = async () => {
+    if (entryDestination) {
+      openWorkspace(entryDestination);
+      return;
+    }
     if (!selectedId) return;
     setSwitching(true);
     setError("");
     try {
       const result = await api<{ destination: string }>(
         "/api/development_session",
-        { method: "POST", body: { profile: selectedId, portal, practice_id: scope.practiceId, site_id: scope.siteId } },
+        {
+          method: "POST",
+          body: {
+            profile: selectedId,
+            portal,
+            practice_id: scope.practiceId,
+            site_id: scope.siteId,
+          },
+        },
       );
-      window.location.assign(loginDestination(result.destination));
+      openWorkspace(loginDestination(result.destination));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -308,6 +446,7 @@ export function DevelopmentControls({
         value={portal}
         exclusive
         size="small"
+        disabled={switching || Boolean(entryDestination)}
         onChange={selectPortal}
         aria-label="Development sign-in destination"
       >
@@ -334,7 +473,7 @@ export function DevelopmentControls({
           selectedId={selectedId}
           onSelect={setSelectedId}
           onScopeChange={setScope}
-          disabled={switching}
+          disabled={switching || Boolean(entryDestination)}
         />
         <DevelopmentDatePicker businessDate={businessDate} />
         <Button href="/memberships" size="small" variant="outlined">
@@ -344,13 +483,40 @@ export function DevelopmentControls({
           className="development-login-button"
           variant="contained"
           size="small"
-          disabled={switching || !selectedId || (requiresClinicScope && !scope.practiceId)}
+          disabled={
+            switching ||
+            (!entryDestination &&
+              (!selectedId || (requiresClinicScope && !scope.practiceId)))
+          }
           onClick={() => void logIn()}
         >
-          {switching ? "Entering…" : "Log in"}
+          {switching
+            ? entryDestination
+              ? "Opening…"
+              : "Entering…"
+            : entryDestination
+              ? "Open workspace"
+              : "Log in"}
         </Button>
       </Stack>
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          action={
+            entryDestination ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => openWorkspace(entryDestination)}
+              >
+                Open workspace
+              </Button>
+            ) : undefined
+          }
+        >
+          {error}
+        </Alert>
+      )}
     </Stack>
   );
 }

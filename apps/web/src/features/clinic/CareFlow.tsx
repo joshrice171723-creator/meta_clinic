@@ -112,6 +112,10 @@ type BookingDraft = {
   reason?: string;
 };
 
+type BookingClinician = Clinician & {
+  display_name?: string | null;
+};
+
 type BookingAttempt = {
   body: {
     appointment: {
@@ -701,7 +705,7 @@ function BookingFormEditor({
   const rooms = useResource<{ rooms: FacilityRoom[] }>(
     "/api/clinic/facilities?type=rooms&per_page=100",
   );
-  const clinicians = useResource<{ clinicians: Clinician[] }>(
+  const clinicians = useResource<{ clinicians: BookingClinician[] }>(
     "/api/clinic/clinicians?per_page=100",
   );
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
@@ -1225,7 +1229,7 @@ function BookingFormEditor({
                       key={clinician.id}
                       value={clinician.id.toString()}
                     >
-                      {clinician.reference ??
+                      {clinician.display_name?.trim() ||
                         `Clinician profile #${clinician.id}`}
                     </MenuItem>
                   ))}

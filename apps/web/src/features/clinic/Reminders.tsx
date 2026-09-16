@@ -7,11 +7,15 @@ import { clinicDateValue } from "./frontDeskModel";
 import type { Appointment, PatientReminder } from "../../api/contracts";
 import { AppointmentReminderBatch } from "./AppointmentReminderBatch";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -510,6 +514,128 @@ function reminderStatus(status: string) {
   return labels[status] || status.replaceAll("_", " ");
 }
 
+function deliveryAttemptStatus(status: string) {
+  const labels: Record<string, string> = {
+    queued: "Queued",
+    accepted: "Accepted by provider",
+    delivered: "Delivered",
+    failed: "Failed",
+    gated: "Held by policy",
+    unknown: "Outcome unknown",
+    suppressed: "Suppressed",
+    cancelled: "Cancelled",
+  };
+  return labels[status] || status.replaceAll("_", " ");
+}
+
+function deliveryAttemptColor(status: string) {
+  if (status === "delivered") return "success" as const;
+  if (status === "failed") return "error" as const;
+  if (status === "unknown") return "warning" as const;
+  return "default" as const;
+}
+
+function deliveryAttemptTime(label: string, value: string | null) {
+  return `${label}: ${value ? dateTimeLabel(value) : "Not recorded"}`;
+}
+
+function DeliveryAttemptHistory({ reminder }: { reminder: PatientReminder }) {
+  const attempts = reminder.delivery_attempts || [];
+  if (attempts.length === 0) {
+    return (
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", mt: 1 }}
+      >
+        No delivery attempts recorded · {reminder.endpoint.masked_value}
+      </Typography>
+    );
+  }
+
+  return (
+    <Accordion
+      disableGutters
+      elevation={0}
+      variant="outlined"
+      sx={{ mt: 1.5, maxWidth: "72ch", "&:before": { display: "none" } }}
+    >
+      <AccordionSummary expandIcon={<ExpandMoreOutlinedIcon />}>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          Delivery attempts ({attempts.length})
+        </Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ pt: 0 }}>
+        <Stack divider={<Divider flexItem />}>
+          {attempts.map((attempt) => {
+            const times = [
+              deliveryAttemptTime("Queued", attempt.queued_at),
+              deliveryAttemptTime("Accepted", attempt.accepted_at),
+              deliveryAttemptTime("Completed", attempt.completed_at),
+            ];
+            return (
+              <Box key={attempt.attempt_number} sx={{ py: 1.5 }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: { sm: "center" },
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    Attempt {attempt.attempt_number}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={deliveryAttemptStatus(attempt.status)}
+                    color={deliveryAttemptColor(attempt.status)}
+                  />
+                </Stack>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.75 }}
+                >
+                  Provider:{" "}
+                  {attempt.provider
+                    ? attempt.provider.replaceAll("_", " ")
+                    : "Not recorded"}{" "}
+                  · Destination:{" "}
+                  {attempt.masked_destination || reminder.endpoint.masked_value}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {times.join(" · ")}
+                </Typography>
+                {attempt.status === "accepted" && (
+                  <Typography variant="body2" color="text.secondary">
+                    Accepted by the provider; delivery is not confirmed.
+                  </Typography>
+                )}
+                {attempt.status === "unknown" && (
+                  <Typography variant="body2" color="text.secondary">
+                    No confirmed delivery outcome is recorded.
+                  </Typography>
+                )}
+                <Typography variant="body2" color="text.secondary">
+                  Failure classification:{" "}
+                  {attempt.failure_class
+                    ? attempt.failure_class.replaceAll("_", " ")
+                    : "None recorded"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Retryable: {attempt.retryable ? "Yes" : "No"}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
+  );
+}
+
 function NeedsAttention({ query }: { query: string }) {
   const { capabilities, membership_id } = useClinic();
   const [page, setPage] = useState(1);
@@ -609,9 +735,13 @@ function NeedsAttention({ query }: { query: string }) {
 function MessageHistory({
   query,
   reminderId,
+  patientId,
+  appointmentId,
 }: {
   query: string;
   reminderId: string | null;
+  patientId: string | null;
+  appointmentId: string | null;
 }) {
   const { capabilities, membership_id } = useClinic();
   const [page, setPage] = useState(1);
@@ -622,12 +752,13 @@ function MessageHistory({
   });
   if (query.trim()) params.set("q", query.trim());
   if (reminderId) params.set("reminder_id", reminderId);
+  if (patientId) params.set("patient_id", patientId);
   const resource = useResource<ReminderResponse>(
     `/api/clinic/reminders?${params}`,
   );
   const reminders = resource.data?.reminders || [];
 
-  useEffect(() => setPage(1), [query, reminderId]);
+  useEffect(() => setPage(1), [query, reminderId, patientId, appointmentId]);
 
   if (!resource.data && !resource.error) {
     return (
@@ -661,7 +792,6 @@ function MessageHistory({
   return (
     <Stack divider={<Divider flexItem />}>
       {reminders.map((reminder) => {
-        const lastAttempt = reminder.delivery_attempts?.at(-1);
         return (
           <Box key={reminder.id} sx={{ py: 2.5 }}>
             <Stack
@@ -691,20 +821,21 @@ function MessageHistory({
                 }
               />
             </Stack>
+            {appointmentId &&
+              reminder.appointment?.id === Number(appointmentId) && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label="Selected appointment"
+                  sx={{ mt: 1 }}
+                />
+              )}
             <Typography
               sx={{ mt: 1.5, maxWidth: "72ch", whiteSpace: "pre-wrap" }}
             >
               {reminder.content || reminder.safe_preview}
             </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mt: 1 }}
-            >
-              {lastAttempt
-                ? `${lastAttempt.provider.replaceAll("_", " ")} · ${lastAttempt.masked_destination || reminder.endpoint.masked_value} · ${lastAttempt.completed_at ? new Date(lastAttempt.completed_at).toLocaleString() : "attempt in progress"}`
-                : reminder.endpoint.masked_value}
-            </Typography>
+            <DeliveryAttemptHistory reminder={reminder} />
             <PersistedStaffHandoff
               reminder={reminder}
               currentMembershipId={membership_id}
@@ -747,15 +878,21 @@ function MessageHistory({
 
 export function Reminders() {
   const clinic = useClinic();
-  const reminderIdParam = new URLSearchParams(window.location.search).get(
-    "reminder_id",
-  );
+  const searchParams = new URLSearchParams(window.location.search);
+  const reminderIdParam = searchParams.get("reminder_id");
   const reminderId =
     reminderIdParam && /^[1-9]\d*$/.test(reminderIdParam)
       ? reminderIdParam
       : null;
-  const attentionView =
-    new URLSearchParams(window.location.search).get("view") === "attention";
+  const patientIdParam = searchParams.get("patient_id");
+  const patientId =
+    patientIdParam && /^[1-9]\d*$/.test(patientIdParam) ? patientIdParam : null;
+  const appointmentIdParam = searchParams.get("appointment_id");
+  const appointmentId =
+    appointmentIdParam && /^[1-9]\d*$/.test(appointmentIdParam)
+      ? appointmentIdParam
+      : null;
+  const attentionView = searchParams.get("view") === "attention";
   const today = useMemo(
     () => clinicDateValue(businessNow(), clinic.practice.timezone),
     [clinic.practice.timezone],
@@ -765,7 +902,9 @@ export function Reminders() {
     value.setUTCDate(value.getUTCDate() + 14);
     return value.toISOString().slice(0, 10);
   }, [today]);
-  const [tab, setTab] = useState(reminderId ? 2 : attentionView ? 1 : 0);
+  const [tab, setTab] = useState(
+    reminderId || patientId ? 2 : attentionView ? 1 : 0,
+  );
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(initialEnd);
   const [patientQuery, setPatientQuery] = useState("");
@@ -907,6 +1046,20 @@ export function Reminders() {
           sx={{ mb: 2 }}
         >
           Showing the selected reminder.
+        </Alert>
+      )}
+      {patientId && !reminderId && (
+        <Alert
+          severity="info"
+          action={
+            <Button color="inherit" size="small" href="/clinic/reminders">
+              Clear selection
+            </Button>
+          }
+          sx={{ mb: 2 }}
+        >
+          Review this patient’s message history before deciding whether another
+          message is needed. Opening this page has not sent a message.
         </Alert>
       )}
       {notice && (
@@ -1263,7 +1416,12 @@ export function Reminders() {
           ) : tab === 1 ? (
             <NeedsAttention query={deferredQuery} />
           ) : (
-            <MessageHistory query={deferredQuery} reminderId={reminderId} />
+            <MessageHistory
+              query={deferredQuery}
+              reminderId={reminderId}
+              patientId={patientId}
+              appointmentId={appointmentId}
+            />
           )}
         </Box>
       </Paper>

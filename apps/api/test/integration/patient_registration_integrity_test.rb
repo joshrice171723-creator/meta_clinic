@@ -34,7 +34,7 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
       }
     }, headers: csrf_headers, as: :json
 
-    assert_response :bad_request
+    assert_response :unprocessable_entity
     assert_equal original_name, @patient.reload.display_name
     assert_equal original_reference, @patient.reference
     assert_equal original_version_count, @patient.versions.count
@@ -167,6 +167,18 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     patient.reload
     assert_equal before, [ patient.address_versions.count, patient.primary_address_version_id, patient.demographics.reload.preferred_name ]
+  end
+
+  test "patient detail exposes bounded metadata but identity lookup does not" do
+    get "/api/clinic/patients/#{@patient.id}", headers: @headers
+    assert_response :success
+    history = response.parsed_body.fetch("activity_history")
+    assert history.fetch("entries").length <= 25
+    assert history.fetch("coverage").any? { |source| source["source"] == "registration" && source["status"] == "included" }
+    get "/api/clinic/patients/lookup", params: { id: @patient.id }, headers: @headers
+    assert_response :success
+    refute response.parsed_body.key?("activity_history")
+    refute response.parsed_body.fetch("patients").first.key?("activity_history")
   end
 
   private

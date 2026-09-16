@@ -55,6 +55,7 @@ module Clinic
           provider: draft.provider, model: draft.model, model_version: draft.model_version,
           prompt_digest: draft.prompt_digest, input_digest: draft.input_digest, output_digest: draft.output_digest,
           warnings: draft.warnings, input_sources: draft.input_sources, export_state: draft.export_state,
+          approved_by_account_reference: draft.approved_by_id&.to_s,
           approved_at: draft.approved_at&.iso8601(6), created_at: draft.created_at&.iso8601(6), version: draft.lock_version,
           sections: ordered_sections(draft).map { |section| section(section, redacted: draft.status == "deleted") },
           exports: ordered_exports(draft).map { |export| export(export) }

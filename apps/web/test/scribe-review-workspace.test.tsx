@@ -164,6 +164,73 @@ describe("synthetic AI scribe review workspace", () => {
     expect(html).toContain("Save to chart");
     expect(html).toContain("Saving to chart writes an unsigned note");
     expect(html).toContain("Signing remains a separate action");
+    expect(html).toContain(
+      "open the chart note to check its current signature status",
+    );
+  });
+
+  it("shows the recorded approval account and time without claiming chart signing", () => {
+    const approvedDraft: ScribeDraft = {
+      ...draft,
+      status: "approved",
+      approved_by_account_reference: "314",
+      approved_at: "2026-09-03T12:30:00Z",
+      sections: draft.sections.map((section) => ({
+        ...section,
+        status: "accepted",
+        warning_codes: [],
+        effective_content: section.effective_content || "Reviewed content.",
+      })),
+    };
+    const html = renderToStaticMarkup(
+      <ScribeReviewWorkspace
+        state={{
+          kind: "ready",
+          encounter: {
+            ...readyState.encounter,
+            status: "approved",
+            drafts: [approvedDraft],
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain("Approved by Account #314 ·");
+    expect(html).toContain("2026");
+    expect(html).not.toContain("Approved by Account #314 · Not recorded");
+    expect(html).toContain("Signing remains a separate action");
+    expect(html).toContain(
+      "open the chart note to check its current signature status",
+    );
+  });
+
+  it("labels missing approval provenance as not recorded", () => {
+    const approvedWithoutProvenance: ScribeDraft = {
+      ...draft,
+      status: "approved",
+      approved_by_account_reference: null,
+      approved_at: null,
+      sections: draft.sections.map((section) => ({
+        ...section,
+        status: "accepted",
+        warning_codes: [],
+        effective_content: section.effective_content || "Reviewed content.",
+      })),
+    };
+    const html = renderToStaticMarkup(
+      <ScribeReviewWorkspace
+        state={{
+          kind: "ready",
+          encounter: {
+            ...readyState.encounter,
+            status: "approved",
+            drafts: [approvedWithoutProvenance],
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain("Approved by Not recorded · Not recorded");
   });
 
   it("renders loading, error, empty, and unknown states with recovery or blocking language", () => {

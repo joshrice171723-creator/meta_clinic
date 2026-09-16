@@ -26,7 +26,12 @@ import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { api, ApiError, formBody } from "../../api/client";
-import type { Encounter, Pagination, Patient } from "../../api/contracts";
+import type {
+  Encounter,
+  Pagination,
+  Patient,
+  PatientActivityHistory,
+} from "../../api/contracts";
 import {
   Card,
   createdPath,
@@ -62,6 +67,7 @@ export function Patients({ id }: { id?: string }) {
   const { data, error, refresh } = useResource<{
     patients?: Patient[];
     patient?: Patient;
+    activity_history?: PatientActivityHistory;
     notes?: LegacyNote[];
     pagination?: Pagination;
   }>(`/api/clinic/patients${id ? `/${id}` : `?page=${page}`}`);
@@ -75,6 +81,7 @@ export function Patients({ id }: { id?: string }) {
         notes={data.notes}
         onRegistrationSaved={refresh}
         patient={data.patient}
+        activityHistory={data.activity_history}
       />
     );
   return (
@@ -328,12 +335,14 @@ function PatientRecord({
   notes,
   onRegistrationSaved,
   patient,
+  activityHistory,
 }: {
   canEditRegistration: boolean;
   canInvitePortal: boolean;
   notes?: LegacyNote[];
   onRegistrationSaved: () => void;
   patient: Patient;
+  activityHistory?: PatientActivityHistory;
 }) {
   const { registerBlocker } = useClinicNavigation();
   const [registrationOpen, setRegistrationOpen] = useState(false);
@@ -441,6 +450,92 @@ function PatientRecord({
         </>
       )}
       <PatientDetails patient={patient} />
+      <Accordion>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography component="h2" variant="subtitle1">
+            Patient activity
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+            Authorized record activity, newest first. This view shows version
+            metadata only, without previous field values or clinical content.
+          </Typography>
+          {!activityHistory ? (
+            <Alert severity="info">Patient activity is unavailable.</Alert>
+          ) : (
+            <Stack spacing={2}>
+              <Box>
+                <Typography component="h3" variant="subtitle2">
+                  Sources checked
+                </Typography>
+                <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 3 }}>
+                  {activityHistory.coverage.map((source) => (
+                    <Typography
+                      component="li"
+                      key={source.source}
+                      variant="body2"
+                    >
+                      {source.label}:{" "}
+                      {source.status === "included"
+                        ? "Included"
+                        : source.status === "not_authorized"
+                          ? "Not available with your access"
+                          : "Not included in this timeline"}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+              {activityHistory.entries.length === 0 ? (
+                <Typography>
+                  No activity events were returned from the included sources.
+                  This does not mean the patient has no activity or that
+                  excluded sources contain none.
+                </Typography>
+              ) : (
+                <Stack component="ol" spacing={2} sx={{ m: 0, pl: 3 }}>
+                  {activityHistory.entries.map((entry) => (
+                    <Box component="li" key={entry.id}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {entry.section} ·{" "}
+                        {entry.event === "create"
+                          ? "Created"
+                          : entry.event === "update"
+                            ? "Updated"
+                            : entry.event}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {entry.occurred_at
+                          ? new Date(entry.occurred_at).toLocaleString()
+                          : "Time not recorded"}
+                        {" · "}
+                        {entry.actor_reference
+                          ? `Actor reference: ${entry.actor_reference}`
+                          : "Actor not recorded"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Record: {entry.record_type.split("::").pop()} #
+                        {entry.record_id}
+                      </Typography>
+                      <Typography variant="body2">
+                        {entry.changed_fields.length
+                          ? `Fields: ${entry.changed_fields.map((field) => field.replaceAll("_", " ")).join(", ")}`
+                          : "Record version updated"}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+              {activityHistory.has_more && (
+                <Typography variant="body2">
+                  Showing the latest 25 events from included sources. Older
+                  version metadata remains in the audit record.
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </AccordionDetails>
+      </Accordion>
       <PatientSupport patientId={patient.id} />
       <Card title="Legacy unsigned drafts">
         <p>These drafts are not encounter notes and cannot be signed.</p>

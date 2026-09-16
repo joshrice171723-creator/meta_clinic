@@ -11,8 +11,8 @@ const readSource = (path: string | URL) =>
   readFileSync(path, "utf8").replaceAll("\r\n", "\n");
 
 describe("clinic-local navigation", () => {
-  it("canonicalizes tracking and schedule as views of the same URL", () => {
-    expect(normalizeClinicPath("/clinic/schedule/")).toBe("/clinic");
+  it("keeps tracking and schedule as canonical routes without dropping context", () => {
+    expect(normalizeClinicPath("/clinic/schedule/")).toBe("/clinic/schedule");
     expect(clinicRoute("/clinic")).toEqual({
       path: "/clinic",
       search: "",
@@ -20,22 +20,46 @@ describe("clinic-local navigation", () => {
     });
     const schedule = clinicRoute("/clinic/schedule", "?page=3");
     expect(schedule).toEqual({
-      path: "/clinic",
-      search: "",
+      path: "/clinic/schedule",
+      search: "?page=3",
       homeView: "schedule",
     });
-    expect(clinicRouteHref(schedule)).toBe("/clinic");
-    const replacement = clinicRoute(
+    expect(clinicRouteHref(schedule)).toBe("/clinic/schedule?page=3");
+    const contextualSchedule = clinicRoute(
       "/clinic/schedule",
       "?page=3&patient_id=105&ignored=value",
     );
-    expect(replacement).toEqual({
-      path: "/clinic",
-      search: "?patient_id=105",
+    expect(contextualSchedule).toEqual({
+      path: "/clinic/schedule",
+      search: "?page=3&patient_id=105&ignored=value",
       homeView: "schedule",
     });
-    expect(clinicRouteHref(replacement)).toBe("/clinic?patient_id=105");
-    expect(clinicRoute("/clinic", "", "schedule").homeView).toBe("schedule");
+    expect(clinicRouteHref(contextualSchedule)).toBe(
+      "/clinic/schedule?page=3&patient_id=105&ignored=value",
+    );
+  });
+
+  it("maps legacy schedule context while preserving the tracking-board route", () => {
+    expect(clinicRoute("/clinic", "?patient_id=105&mode=book")).toEqual({
+      path: "/clinic/schedule",
+      search: "?patient_id=105&mode=book",
+      homeView: "schedule",
+    });
+    expect(clinicRoute("/clinic", "?visit_modality=video")).toEqual({
+      path: "/clinic/schedule",
+      search: "?visit_modality=video",
+      homeView: "schedule",
+    });
+    expect(clinicRoute("/clinic", "?page=3", "schedule")).toEqual({
+      path: "/clinic/schedule",
+      search: "?page=3",
+      homeView: "schedule",
+    });
+    expect(clinicRoute("/clinic", "?page=3", "tracking")).toEqual({
+      path: "/clinic",
+      search: "?page=3",
+      homeView: "tracking",
+    });
   });
 
   it("intercepts only same-origin clinic destinations", () => {
@@ -77,8 +101,11 @@ describe("clinic-local navigation", () => {
     expect(app).toContain("window.history[method]");
     expect(app).toContain('window.addEventListener("popstate", restore)');
     expect(app).toMatch(/<Workspace\s+key=\{user.id\}/);
-    expect(workspace).toContain("const { navigate } = useClinicNavigation();");
+    expect(workspace).toContain(
+      "const { navigate, confirmNavigation } = useClinicNavigation();",
+    );
     expect(workspace).toMatch(/event\.preventDefault\(\);\s+navigate\(/);
+    expect(app).toContain('route.path === "/clinic/schedule"');
   });
 
   it("uses Workforce Employees as the single employee administration destination", () => {
@@ -128,15 +155,15 @@ describe("clinic-local navigation", () => {
     expect(setup).toContain("Hardening required");
   });
 
-  it("keeps schedule paging and board refresh/listeners component-local", () => {
+  it("keeps the calendar handoff and board refresh/listeners component-local", () => {
     const careFlow = readSource(
       new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
     );
     const board = readSource(
       new URL("../src/features/clinic/TrackingBoardPage.tsx", import.meta.url),
     );
-    expect(careFlow).toContain("const [page, setPage] = useState(1);");
-    expect(careFlow).toContain("onPageChange={setPage}");
+    expect(careFlow).toContain("<ClinicSchedule");
+    expect(careFlow).not.toContain("const [page, setPage] = useState(1);");
     expect(careFlow).toContain('data-clinic-view="tracking"');
     expect(careFlow).toContain("Return to tracking board");
     expect(careFlow).not.toContain("window.history.pushState");

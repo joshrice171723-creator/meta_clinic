@@ -213,7 +213,11 @@ function AppointmentDayQueue({
   const busyActionRef = useRef("");
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
-  const [noticePatientId, setNoticePatientId] = useState<number>();
+  const [noticeContext, setNoticeContext] = useState<{
+    patientId: number;
+    appointmentId: number;
+    kind: "cancellation" | "reminders";
+  }>();
   const [refreshedAt, setRefreshedAt] = useState<Date>();
   const [reschedule, setReschedule] = useState<RescheduleDraft>();
   const [confirmation, setConfirmation] = useState<{
@@ -277,7 +281,7 @@ function AppointmentDayQueue({
     setBusyAction(actionKey);
     setActionError("");
     setNotice("");
-    setNoticePatientId(undefined);
+    setNoticeContext(undefined);
     try {
       await api(`/api/clinic/appointments/${appointment.id}/transition`, {
         method: "POST",
@@ -287,9 +291,15 @@ function AppointmentDayQueue({
         to === "confirmed"
           ? `${patientName} is confirmed.`
           : to === "cancelled"
-            ? `${patientName}’s appointment was cancelled.`
+            ? `${patientName}’s appointment was cancelled. No cancellation message was sent by this action.`
             : `${patientName} was marked as a no-show.`,
       );
+      if (to === "cancelled")
+        setNoticeContext({
+          patientId: appointment.patient_id,
+          appointmentId: appointment.id,
+          kind: "cancellation",
+        });
       appointments.refresh();
     } catch (error) {
       if (!unknownMutationFailure(error)) {
@@ -302,9 +312,15 @@ function AppointmentDayQueue({
               to === "confirmed"
                 ? `${patientName} is confirmed.`
                 : to === "cancelled"
-                  ? `${patientName}’s appointment was cancelled.`
+                  ? `${patientName}’s appointment was cancelled. No cancellation message was sent by this action.`
                   : `${patientName} was marked as a no-show.`,
             );
+            if (to === "cancelled")
+              setNoticeContext({
+                patientId: appointment.patient_id,
+                appointmentId: appointment.id,
+                kind: "cancellation",
+              });
           } else if (refreshed.status === appointment.status) {
             setActionError(
               "The schedule confirms that the action was not applied. You can retry it.",
@@ -341,7 +357,7 @@ function AppointmentDayQueue({
     setBusyAction(actionKey);
     setActionError("");
     setNotice("");
-    setNoticePatientId(undefined);
+    setNoticeContext(undefined);
     try {
       const result = await api<{ encounter: EncounterDetail }>(
         `/api/clinic/patients/${appointment.patient_id}/encounters`,
@@ -393,7 +409,7 @@ function AppointmentDayQueue({
   function openReschedule(appointment: FrontDeskAppointment) {
     setActionError("");
     setNotice("");
-    setNoticePatientId(undefined);
+    setNoticeContext(undefined);
     setReschedule({
       appointment,
       startsAt: localDateTimeInput(appointment.starts_at),
@@ -471,7 +487,11 @@ function AppointmentDayQueue({
       setNotice(
         `${patientName}’s appointment was rescheduled. Review reminders and send an updated message if a custom reminder was cancelled.`,
       );
-      setNoticePatientId(reschedule.appointment.patient_id);
+      setNoticeContext({
+        patientId: reschedule.appointment.patient_id,
+        appointmentId: reschedule.appointment.id,
+        kind: "reminders",
+      });
       appointments.refresh();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -615,14 +635,16 @@ function AppointmentDayQueue({
           severity="success"
           className="front-desk-alert"
           action={
-            canReviewReminders && noticePatientId !== undefined ? (
+            canReviewReminders && noticeContext ? (
               <Button
                 component="a"
-                href={`/clinic/reminders?patient_id=${noticePatientId}`}
+                href={`/clinic/reminders?patient_id=${noticeContext.patientId}&appointment_id=${noticeContext.appointmentId}`}
                 color="inherit"
                 size="small"
               >
-                Review reminders
+                {noticeContext.kind === "cancellation"
+                  ? "Review patient message"
+                  : "Review reminders"}
               </Button>
             ) : undefined
           }

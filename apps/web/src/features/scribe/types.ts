@@ -104,6 +104,7 @@ export type ScribeDraft = {
   output_digest: string;
   warnings: string[];
   export_state: string;
+  approved_by_account_reference?: string | null;
   approved_at: string | null;
   created_at: string | null;
   version: number;

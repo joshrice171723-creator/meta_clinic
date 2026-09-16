@@ -4,17 +4,22 @@ import { Card } from "../../shared/ui";
 import { LabReviewWorklist } from "./LabReviewWorklist";
 import { LabFollowUpWorklist } from "./LabFollowUpWorklist";
 import { OperationFollowUps } from "./OperationFollowUps";
+import { OperationsProviderReadiness } from "./OperationsProviderReadiness";
+import { OperationsReportsCatalog } from "./OperationsReportsCatalog";
+import { OperationsWorkflowGuide } from "./OperationsWorkflowGuide";
 import { useClinic, useClinicOverview } from "./Workspace";
 
 export function OperationsView({
   clinic,
   facilitiesRead = false,
   billingRead = false,
+  readinessAndReports,
   followUps,
 }: {
   clinic: ClinicOverview;
   facilitiesRead?: boolean;
   billingRead?: boolean;
+  readinessAndReports?: ReactNode;
   followUps?: ReactNode;
 }) {
   const c = clinic.capabilities;
@@ -26,6 +31,7 @@ export function OperationsView({
         Keep follow-ups moving, review supplies, and manage the clinic's daily
         work.
       </p>
+      {readinessAndReports}
       {followUps}
       <div className="clinic-stats">
         {c.inventory_access && (
@@ -160,6 +166,19 @@ export function Operations() {
         clinic={overview}
         facilitiesRead={context.capabilities.facilities_read === true}
         billingRead={context.capabilities.billing_read === true}
+        readinessAndReports={
+          <>
+            <OperationsWorkflowGuide capabilities={context.capabilities} />
+            <div className="clinic-grid">
+              <OperationsProviderReadiness
+                canConfigureTelehealth={
+                  context.capabilities.telehealth_configure === true
+                }
+              />
+              <OperationsReportsCatalog capabilities={context.capabilities} />
+            </div>
+          </>
+        }
         followUps={
           <>
             <LabReviewWorklist />

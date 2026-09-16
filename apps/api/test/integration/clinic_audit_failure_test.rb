@@ -9,10 +9,64 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "audit-failure@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Synthetic Audit Failure Practice", organization: organization)
     @membership = @practice.memberships.create!(user: @user)
-    grant_permissions!(@membership, "patients.read", "encounters.write")
-    patient = @practice.patients.create!(display_name: "SYN_AuditFailure, Avery", reference: "SYN-AUDIT-FAILURE-001")
-    @encounter = @practice.encounters.create!(patient: patient, started_at: Time.utc(2026, 9, 2, 14), status: "open")
+    grant_permissions!(@membership, "patients.read", "clinical_records.read", "encounters.write")
+    @patient = @practice.patients.create!(display_name: "SYN_AuditFailure, Avery", reference: "SYN-AUDIT-FAILURE-001")
+    @encounter = @practice.encounters.create!(patient: @patient, started_at: Time.utc(2026, 9, 2, 14), status: "open")
+    @follow_up = Clinic::EncounterFollowUp.create!(
+      practice: @practice,
+      patient: @patient,
+      encounter: @encounter,
+      source_kind: "in_person",
+      state: "not_required",
+      plan: "No scheduled follow-up is required.",
+      outcome: "",
+      recorded_by_membership: @membership,
+      updated_by_membership: @membership
+    )
     login
+  end
+
+  test "a denied mutation rolls back its work and retains exactly one denial audit" do
+    post "/api/clinic/patients/#{@patient.id}/clinical_history/allergies",
+      params: denied_allergy_params,
+      headers: csrf_headers,
+      as: :json
+
+    assert_response :forbidden
+    assert_empty @patient.allergies.reload
+    assert_equal 1, @practice.audit_events.where(action_code: "notes.write", outcome: "denied").count
+
+    revoke_all_permissions!(@membership)
+    get "/api/clinic/patients", headers: @headers
+
+    assert_response :forbidden
+    assert_equal 1, @practice.audit_events.where(action_code: "patients.read", outcome: "denied").count
+  end
+
+  test "a denied mutation fails closed when its replacement audit cannot be persisted" do
+    headers = csrf_headers
+    original_record = Clinic::AuditRecorder.method(:record!)
+    denial_records = 0
+    Clinic::AuditRecorder.define_singleton_method(:record!) do |**arguments|
+      if arguments[:action_code] == "notes.write" && arguments[:outcome] == :denied
+        denial_records += 1
+        raise Clinic::AuditRecorder::Unavailable if denial_records == 2
+      end
+      original_record.call(**arguments)
+    end
+
+    post "/api/clinic/patients/#{@patient.id}/clinical_history/allergies",
+      params: denied_allergy_params,
+      headers: headers,
+      as: :json
+
+    assert_response :service_unavailable
+    assert_equal "audit_unavailable", response.parsed_body.fetch("code")
+    assert_equal 2, denial_records
+    assert_empty @patient.allergies.reload
+    assert_not @practice.audit_events.where(action_code: "notes.write", outcome: "denied").exists?
+  ensure
+    Clinic::AuditRecorder.define_singleton_method(:record!, original_record) if original_record
   end
 
   test "a protected read fails closed when required audit evidence cannot be recorded" do
@@ -29,13 +83,13 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
   end
 
   test "a protected close replays the same receipt and rejects changed retry data" do
-    payload = { close: { patient_id: @encounter.patient_id, ended_at: "2026-09-02T15:00:00Z", request_key: "close-retry-001" } }
+    payload = close_payload(request_key: "close-retry-001", ended_at: "2026-09-02T15:00:00Z")
     post "/api/clinic/encounters/#{@encounter.id}/close", params: payload, headers: csrf_headers, as: :json
     assert_response :success
     first_response = response.parsed_body
     committed_encounter = @encounter.reload
     manifest = @practice.audit_events.where(action_code: "encounters.close", outcome: "committed").sole.resource_manifests.sole
-    assert_equal "encounter:#{committed_encounter.id}:#{committed_encounter.updated_at.utc.iso8601(6)}",
+    assert_equal "encounter:#{committed_encounter.id}:completion_review:#{first_response.fetch('completion_review').fetch('id')}",
       manifest.protected_resource_version_ref
 
     post "/api/clinic/encounters/#{@encounter.id}/close", params: payload, headers: csrf_headers, as: :json
@@ -64,7 +118,7 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
 
   test "a keyed close without an explicit time replays the server-timed result" do
     @encounter.update!(started_at: Time.current - 1.hour)
-    payload = { close: { patient_id: @encounter.patient_id, request_key: "close-server-time" } }
+    payload = close_payload(request_key: "close-server-time")
     post "/api/clinic/encounters/#{@encounter.id}/close", params: payload, headers: csrf_headers, as: :json
     assert_response :success
     first = response.parsed_body
@@ -86,7 +140,7 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
     Clinic::AuditRecorder.define_singleton_method(:record!) { |**| raise Clinic::AuditRecorder::Unavailable }
 
     post "/api/clinic/encounters/#{@encounter.id}/close",
-      params: { close: { patient_id: @encounter.patient_id, ended_at: "2026-09-02T15:00:00Z", request_key: "close-fail-001" } },
+      params: close_payload(request_key: "close-fail-001", ended_at: "2026-09-02T15:00:00Z"),
       headers: csrf_headers, as: :json
 
     assert_response :service_unavailable
@@ -112,7 +166,7 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
     end
 
     post "/api/clinic/encounters/#{@encounter.id}/close",
-      params: { close: { patient_id: @encounter.patient_id, request_key: "close-unconfirmed" } },
+      params: close_payload(request_key: "close-unconfirmed"),
       headers: csrf_headers, as: :json
 
     assert_response :conflict
@@ -124,6 +178,42 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def denied_allergy_params
+    {
+      clinical_history: {
+        encounter_id: @encounter.id,
+        request_key: "audit-failure-denied-allergy",
+        allergen_name: "Synthetic allergen",
+        reaction: "Synthetic reaction",
+        category: "medication",
+        clinical_status: "active",
+        verification_status: "confirmed",
+        criticality: "high",
+        severity: "moderate"
+      }
+    }
+  end
+
+  def close_payload(request_key:, ended_at: nil)
+    close = {
+      patient_id: @patient.id,
+      request_key: request_key,
+      disposition_code: "completed_as_planned",
+      instructions_status: "not_required",
+      education_status: "not_required",
+      follow_up_id: @follow_up.id,
+      follow_up_version: @follow_up.lock_version,
+      expected_follow_up_state: @follow_up.state,
+      instruction_note_revision_id: nil,
+      expected_education_event_ids: [],
+      expected_open_task_versions: [],
+      open_work_reviewed: true,
+      exception_note: nil
+    }
+    close[:ended_at] = ended_at if ended_at
+    { close: close }
+  end
 
   def login
     get "/api/csrf", headers: @headers

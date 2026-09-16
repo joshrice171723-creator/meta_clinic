@@ -30,6 +30,38 @@ Follow-up implementation: the booking form now uses one identity summary and an 
 
 ## 1. Scope, evidence, and sources
 
+### Authorized implementation follow-through — 2026-09-15
+
+The founder subsequently authorized implementation of the whole reconciled review. The historical findings below are retained, not rewritten as current failures. The canonical PR-01–PR-10 delivery rows are in the implementation tracker. This follow-through consolidates the existing product instead of replacing its domain records or adding every proposed field as a mandatory question.
+
+Implementation contracts:
+
+- Entry recovery must distinguish a failed login from a successful login whose navigation stalled. Recovery must not repeat an accepted session mutation or invalidate another open session.
+- Schedule has its own `/clinic/schedule` route. Legacy patient-bearing `/clinic` links remain compatible; plain `/clinic` remains the Tracking Board. Patient identity is loaded from the authorized backend, not inferred from a membership reference.
+- Patient context is explicit and URL-derived. Unrelated destinations must not inherit a hidden selected patient. Clinic/site/account changes must not retain another context's identity.
+- Report discovery points to existing billing, stock-movement and payroll sources with their permissions and freshness boundaries. Telehealth health checks are configuration evidence, not proof of live delivery. Missing cross-provider health contracts remain unknown rather than fabricated green indicators.
+- Message history shows the recorded delivery attempts. Provider acceptance, delivery confirmation, failure and unknown outcome remain distinct. Cancellation does not itself authorize a new outbound message.
+- Patient activity history reads existing tenant-bound audit metadata for registration plus separately permission-filtered appointments, notes, invoices and reminders. It excludes protected-value snapshots and request/session metadata, enforces patient and site visibility, and declares unavailable domains. The history is capped at 25 with an explicit older-history indicator; it is not a complete audit export.
+- Existing domain correction mechanisms remain authoritative: append-only contact versions, clinical revisions/signatures, invoice/payment events and inventory movements. A universal mutable audit ledger is not introduced. A combined cross-domain export requires a permission/retention/export contract before implementation.
+
+Standards mapping for this increment: [FHIR R4 4.0.1 Provenance, sections 6.3.1–6.3.2](https://hl7.org/fhir/R4/provenance.html) describes activity, target, agent and time and prefers existing resource provenance where available. Here, `Clinic::ModelVersion` supplies record identity, event, actor reference, changed-field names and occurrence time; the staff-only patient-detail projection exposes that metadata without snapshots. This is a product mapping within the repository's U.S. workflow context, not a FHIR endpoint, US Core conformance assertion, clinical approval or legal retention policy. Missing actors/times are displayed as not recorded, never invented as system actions.
+
+Conditional recommendations retain their stated dependencies: external calendar sync needs an approved partner/use case; overbooking needs an explicit operating policy; personalized views follow settled role navigation; multi-clinic reports require authorized aggregate definitions. Live integrations, professional eligibility/signing policy, jurisdiction-specific clinical requirements and export/retention approval cannot be inferred from this development request. Verification results belong in the tracker after the integrated pass, not in the original review's evidence table.
+
+#### Integrated local verification follow-through
+
+- Browser-proved with independently created synthetic records: front-desk recurring enrollment → configured local payment simulator → paid onboarding patient → initial-contact work item → selected-patient month/day booking → persisted appointment → check-in → Tracking Board waiting room. Before arrival the board returned zero visits; after explicit check-in it returned one. Booking changed the day from 0 to 1 scheduled and 16 to 15 available half-hour slots. No real card, outbound message or clinical treatment was involved.
+- The local clinic lacked a usable clinician/capacity configuration. An independently synthetic clinician profile and Monday 09:00–17:00 UTC capacity were configured through the UI; no account role or clinical privileges were granted. Unconfigured days correctly retain zero availability. The booking form now uses the server-returned clinician name instead of a profile ID.
+- Existing sessions remained signed in through navigation and source reloads. Source hot reload can still reset transient page state; this evidence does not establish every role's fresh-login path or a two-hour elapsed session test.
+- Patient context and appointment identity were checked in the browser. The Tracking Board was visually inspected at desktop and 833 CSS-pixel tablet width: navigation collapses and the dense board uses its own horizontal scroll, with no document-width overflow. This is not a full assistive-technology/device-matrix certification.
+- The shared `ResourceState` contract covers loading, empty, stale, error, success and blocked states. `LoadState` remains compatible; provider readiness demonstrates retaining a labeled last-successful snapshot during refresh/failure with explicit retry.
+- A denied mutation previously lost its denial audit during transaction rollback. The repair retains exactly one server-attributed denial and fails closed when replacement audit persistence fails; focused mutation, read and audit-storage tests cover it.
+- One-time front-desk enrollment previously dead-ended. The local-only signed-event simulator is now exposed through a staff-authorized endpoint and explicit simulation control. It does not implement live one-time MOTO, redirect a shared staff workstation to consumer Checkout, or claim vendor-confirmed payment. Live one-time staff collection remains an integration dependency; tax applicability/configuration also remains a separate prelaunch decision.
+- Browser retry also proved one-time enrollment reaches verified simulated payment and exposes Proceed to onboarding. The local simulator reuses the clinic's exact configured platform sandbox connection without replacing it or contacting Stripe; a focused 18-assertion test covers fulfillment, stale version, replay and unchanged connection attributes. The membership preview now reflects the chosen one-time versus recurring terms before saving.
+- Old patient details whose independent synthetic provenance was unclear were excluded from further inspection and screenshots. No existing record was deleted or rewritten. Verification used new `example.invalid` fixtures instead.
+
+Focused verification is recorded in the canonical tracker. Broad clinical, provider, export/retention, release and jurisdictional acceptance remain separate; historical recommendations below must not be read as either fresh failures or newly granted authority.
+
 The review combined repository mapping, route and component inspection, local runtime checks, a browser walkthrough, frontend verification, focused test execution, and U.S.-relevant external guidance. The repository had concurrent uncommitted scheduling changes during the review; those changes were preserved and are treated as user-owned, provisional work rather than as changes made by this review.
 
 ### Evidence legend

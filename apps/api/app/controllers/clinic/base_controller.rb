@@ -52,20 +52,39 @@ module Clinic
       if request.get? || request.head?
         operation.call
       else
-        ApplicationRecord.transaction do
-          locked = Clinic::Membership.lock.find(clinic_membership.id)
-          unless locked.active? && locked.user.active? && locked.authorization_generation == @authorization_generation
-            raise Clinic::Authorization::Denied, "Your clinic access changed. Reopen the workspace before continuing."
-          end
-          @clinic_membership = locked
-          @current_ability = nil
-          operation.call
-        end
+        attribute_clinic_mutation(operation)
       end
     rescue Clinic::AuditRecorder::Unavailable
       # The action has rendered, but the response must not release protected data
       # when its required evidence cannot be persisted.
       render_audit_unavailable
+    end
+
+    def attribute_clinic_mutation(operation)
+      ApplicationRecord.transaction do
+        locked = Clinic::Membership.lock.find(clinic_membership.id)
+        unless locked.active? && locked.user.active? && locked.authorization_generation == @authorization_generation
+          raise Clinic::Authorization::Denied, "Your clinic access changed. Reopen the workspace before continuing."
+        end
+        @clinic_membership = locked
+        @current_ability = nil
+        operation.call
+      end
+    rescue Clinic::Authorization::Denied => error
+      restore_rolled_back_denial!(error)
+      raise
+    end
+
+    def restore_rolled_back_denial!(error)
+      return if error.action_code.blank?
+      return if error.audit_event_id.present? && current_practice.audit_events.exists?(id: error.audit_event_id)
+
+      Clinic::AuditRecorder.record!(
+        practice: current_practice,
+        actor: current_user,
+        action_code: error.action_code,
+        outcome: :denied
+      )
     end
 
     def render_error(message, status)

@@ -14,7 +14,9 @@ import {
   DialogTitle,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
+  ListSubheader,
   Typography,
 } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -52,6 +54,7 @@ import {
   type ClinicHomeView,
   useClinicNavigation,
 } from "./clinicNavigation";
+import "./clinicNavigation.css";
 import {
   AppearanceContext,
   ClinicAppearanceScope,
@@ -64,9 +67,17 @@ import {
   clinicOverviewRequired,
   requiresLocationSelection,
 } from "./locationSelection";
+import { PatientContextBar } from "./PatientContextBar";
 
 const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
+type ClinicNavigationLink = {
+  href: string;
+  label: string;
+  description?: string;
+  Icon: typeof DashboardIcon;
+  allowed: boolean | undefined;
+};
 
 function LocationSelectionDialog({
   sites,
@@ -138,177 +149,226 @@ export function ClinicNavigation({
   path: string;
   homeView?: ClinicHomeView;
 }) {
-  const { navigate } = useClinicNavigation();
   const frontDesk = [
     capabilities.patient_identity_read,
     capabilities.appointments_read,
     capabilities.appointments_book,
     capabilities.billing_read,
   ].some((value) => value === true);
-  const links = [
+  const groups: {
+    id: string;
+    label: string;
+    links: ClinicNavigationLink[];
+  }[] = [
     {
-      href: "/clinic/work",
-      label: "Work inbox",
-      Icon: InboxOutlinedIcon,
-      allowed: true,
+      id: "care",
+      label: "Care",
+      links: [
+        {
+          href: "/clinic/work",
+          label: "Patient Flow",
+          description: "Pre-scheduling work inbox",
+          Icon: InboxOutlinedIcon,
+          allowed: true,
+        },
+        {
+          href: "/clinic/schedule",
+          label: "Schedule",
+          description: "Booked appointments",
+          Icon: CalendarMonthIcon,
+          allowed:
+            capabilities.appointments_read === true ||
+            capabilities.patients === true,
+        },
+        {
+          href: "/clinic",
+          label: "Tracking Board",
+          description: "Arrival and encounters",
+          Icon: DashboardIcon,
+          allowed: capabilities.patients === true,
+        },
+        {
+          href: "/clinic/patients",
+          label: "Patients",
+          Icon: PersonSearchIcon,
+          allowed: capabilities.patients,
+        },
+        {
+          href: "/clinic/refills",
+          label: "Refill requests",
+          Icon: MedicationOutlinedIcon,
+          allowed:
+            capabilities.patients &&
+            (capabilities.clinical_records_read === true ||
+              capabilities.medication_requests_write === true),
+        },
+        {
+          href: "/clinic/recalls",
+          label: "Recalls and care gaps",
+          Icon: NotificationsNoneIcon,
+          allowed: capabilities.patients && capabilities.encounters,
+        },
+        {
+          href: "/clinic/telehealth",
+          label: "Telehealth",
+          Icon: VideocamOutlinedIcon,
+          allowed: capabilities.telehealth_read === true,
+        },
+        {
+          href: "/clinic/scribe",
+          label: "Scribe",
+          Icon: ReceiptLongIcon,
+          allowed: capabilities.scribe_read === true,
+        },
+      ],
     },
     {
-      href: "/clinic/refills",
-      label: "Refill requests",
-      Icon: MedicationOutlinedIcon,
-      allowed:
-        capabilities.patients &&
-        (capabilities.clinical_records_read === true ||
-          capabilities.medication_requests_write === true),
-    },
-    {
-      href: "/clinic/waitlist",
-      label: "Capacity and waitlist",
-      Icon: CalendarMonthIcon,
-      allowed: capabilities.appointments_read === true,
-    },
-    {
-      href: "/clinic/recalls",
-      label: "Recalls and care gaps",
-      Icon: NotificationsNoneIcon,
-      allowed: capabilities.patients && capabilities.encounters,
-    },
-    {
-      href: "/clinic/front-desk",
-      label: "Front desk",
-      Icon: DeskIcon,
-      allowed: frontDesk,
-    },
-    {
-      href: "/clinic",
-      label: "Tracking Board",
-      Icon: DashboardIcon,
-      allowed: capabilities.patients === true,
-      view: "tracking" as const,
-    },
-    {
-      href: "/clinic/patients",
-      label: "Patients",
-      Icon: PersonSearchIcon,
-      allowed: capabilities.patients,
-    },
-    {
-      href: "/clinic",
-      label: "Schedule",
-      Icon: CalendarMonthIcon,
-      allowed:
-        capabilities.appointments_read === true ||
-        capabilities.patients === true,
-      view: "schedule" as const,
-    },
-    {
-      href: "/clinic/telehealth",
-      label: "Telehealth",
-      Icon: VideocamOutlinedIcon,
-      allowed: capabilities.telehealth_read === true,
-    },
-    {
-      href: "/clinic/operations",
+      id: "operations",
       label: "Operations",
-      Icon: StorefrontIcon,
-      allowed: true,
+      links: [
+        {
+          href: "/clinic/front-desk",
+          label: "Front desk",
+          Icon: DeskIcon,
+          allowed: frontDesk,
+        },
+        {
+          href: "/clinic/waitlist",
+          label: "Capacity and waitlist",
+          Icon: CalendarMonthIcon,
+          allowed: capabilities.appointments_read === true,
+        },
+        {
+          href: "/clinic/operations",
+          label: "Operations overview",
+          Icon: StorefrontIcon,
+          allowed: true,
+        },
+        {
+          href: "/clinic/reminders",
+          label: "Reminders",
+          Icon: NotificationsNoneIcon,
+          allowed: capabilities.reminders === true,
+        },
+        {
+          href: "/clinic/messages",
+          label: "Messages",
+          Icon: ForumOutlinedIcon,
+          allowed: capabilities.staff_messaging_read === true,
+        },
+      ],
     },
     {
-      href: "/clinic/setup",
-      label: "Clinic setup",
-      Icon: SettingsSuggestOutlinedIcon,
-      allowed: capabilities.facilities_read === true,
-    },
-    {
-      href: "/clinic/inventory",
+      id: "inventory",
       label: "Inventory",
-      Icon: Inventory2Icon,
-      allowed: capabilities.inventory,
+      links: [
+        {
+          href: "/clinic/inventory",
+          label: "Inventory",
+          Icon: Inventory2Icon,
+          allowed: capabilities.inventory,
+        },
+      ],
     },
     {
-      href: "/clinic/workforce",
-      label: "Workforce",
-      Icon: PeopleAltIcon,
-      allowed: Object.entries(capabilities).some(
-        ([key, value]) => key.startsWith("workforce_") && value === true,
-      ),
+      id: "people",
+      label: "People",
+      links: [
+        {
+          href: "/clinic/workforce",
+          label: "Workforce",
+          Icon: PeopleAltIcon,
+          allowed: Object.entries(capabilities).some(
+            ([key, value]) => key.startsWith("workforce_") && value === true,
+          ),
+        },
+      ],
     },
     {
-      href: "/clinic/billing",
-      label: "Billing",
-      Icon: ReceiptLongIcon,
-      allowed: capabilities.billing_read === true,
-    },
-    {
-      href: "/clinic/subscriptions",
-      label: "Subscriptions",
-      Icon: ReceiptLongIcon,
-      allowed: capabilities.subscription_catalog_read === true,
-    },
-    {
-      href: "/clinic/growth",
-      label: "Growth",
-      Icon: TrendingUpIcon,
-      allowed:
-        capabilities.subscriptions_review === true ||
-        capabilities.subscription_catalog_publish === true,
-    },
-    {
-      href: "/clinic/reminders",
-      label: "Reminders",
-      Icon: NotificationsNoneIcon,
-      allowed: capabilities.reminders === true,
-    },
-    {
-      href: "/clinic/messages",
-      label: "Messages",
-      Icon: ForumOutlinedIcon,
-      allowed: capabilities.staff_messaging_read === true,
-    },
-    {
-      href: "/clinic/scribe",
-      label: "Scribe",
-      Icon: ReceiptLongIcon,
-      allowed: capabilities.scribe_read === true,
-    },
-    {
-      href: "/clinic/settings",
-      label: "Settings",
-      Icon: SettingsIcon,
-      allowed: true,
+      id: "account",
+      label: "Account",
+      links: [
+        {
+          href: "/clinic/billing",
+          label: "Billing",
+          Icon: ReceiptLongIcon,
+          allowed: capabilities.billing_read === true,
+        },
+        {
+          href: "/clinic/subscriptions",
+          label: "Subscriptions",
+          Icon: ReceiptLongIcon,
+          allowed: capabilities.subscription_catalog_read === true,
+        },
+        {
+          href: "/clinic/growth",
+          label: "Growth",
+          Icon: TrendingUpIcon,
+          allowed:
+            capabilities.subscriptions_review === true ||
+            capabilities.subscription_catalog_publish === true,
+        },
+        {
+          href: "/clinic/setup",
+          label: "Clinic setup",
+          Icon: SettingsSuggestOutlinedIcon,
+          allowed: capabilities.facilities_read === true,
+        },
+        {
+          href: "/clinic/settings",
+          label: "Settings",
+          Icon: SettingsIcon,
+          allowed: true,
+        },
+      ],
     },
   ];
   const currentPath = path.replace(/\/+$/, "") || "/";
   return (
-    <nav aria-label="Clinic navigation">
-      {links
-        .filter((link) => link.allowed)
-        .map(({ href, label, Icon, view }) => {
-          const current = view
-            ? currentPath === "/clinic" && homeView === view
-            : currentPath === href ||
-              (href !== "/clinic" && currentPath.startsWith(href + "/"));
-          return view ? (
-            <button
-              key={`${href}-${view}`}
-              type="button"
-              aria-current={current ? "page" : undefined}
-              onClick={() => navigate(href, { homeView: view })}
+    <nav className="clinic-work-navigation" aria-label="Clinic navigation">
+      {groups.map((group) => {
+        const links = group.links.filter((link) => link.allowed);
+        if (!links.length) return null;
+        const headingId = `clinic-navigation-${group.id}`;
+        return (
+          <section key={group.id} aria-labelledby={headingId}>
+            <List
+              component="div"
+              disablePadding
+              subheader={
+                <ListSubheader component="h2" disableSticky id={headingId}>
+                  {group.label}
+                </ListSubheader>
+              }
             >
-              <Icon aria-hidden="true" fontSize="small" />
-              {label}
-            </button>
-          ) : (
-            <a
-              key={href}
-              href={href}
-              aria-current={current ? "page" : undefined}
-            >
-              <Icon aria-hidden="true" fontSize="small" />
-              {label}
-            </a>
-          );
-        })}
+              {links.map(({ href, label, description, Icon }) => {
+                const current =
+                  href === "/clinic"
+                    ? currentPath === "/clinic" && homeView === "tracking"
+                    : href === "/clinic/schedule"
+                      ? currentPath === "/clinic/schedule" ||
+                        (currentPath === "/clinic" && homeView === "schedule")
+                      : currentPath === href ||
+                        currentPath.startsWith(href + "/");
+                return (
+                  <ListItemButton
+                    component="a"
+                    key={href}
+                    href={href}
+                    selected={current}
+                    aria-current={current ? "page" : undefined}
+                  >
+                    <ListItemIcon>
+                      <Icon aria-hidden="true" fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={label} secondary={description} />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+          </section>
+        );
+      })}
     </nav>
   );
 }
@@ -342,6 +402,7 @@ export function Workspace({
   children,
   user,
   path = typeof window === "undefined" ? "/clinic" : window.location.pathname,
+  search = typeof window === "undefined" ? "" : window.location.search,
   homeView = "tracking",
   developmentAccounts = [],
   environment = "unknown",
@@ -350,6 +411,7 @@ export function Workspace({
   children: ReactNode;
   user: User;
   path?: string;
+  search?: string;
   homeView?: ClinicHomeView;
   developmentAccounts?: DevelopmentAccount[];
   environment?: RuntimeEnvironment;
@@ -651,6 +713,12 @@ export function Workspace({
                         </span>
                       </header>
                     )}
+                    <PatientContextBar
+                      key={`${data.practice.id}:${data.current_site?.id ?? "all"}`}
+                      capabilities={data.capabilities}
+                      path={path}
+                      search={search}
+                    />
                     <main
                       id="main"
                       tabIndex={-1}

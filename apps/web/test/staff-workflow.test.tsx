@@ -122,4 +122,20 @@ describe("administrative clinic foundation", () => {
     expect(css).toContain("min-height: 44px");
     expect(css).toContain("var(--clinic-border)");
   });
+
+  it("marks every field that blocks clinician setup as required", () => {
+    const setup = source("ClinicianSetup.tsx");
+    for (const label of [
+      "Clinician account",
+      "Clinician display name",
+      "Clinician location",
+      "Clinical department",
+    ]) {
+      const labelIndex = setup.indexOf(`label="${label}"`);
+      const field = setup.slice(labelIndex, labelIndex + 240);
+      expect(field).toContain("required");
+    }
+    expect(setup).toContain("capacity limits are optional");
+    expect(setup).toContain('href="/clinic/waitlist"');
+  });
 });

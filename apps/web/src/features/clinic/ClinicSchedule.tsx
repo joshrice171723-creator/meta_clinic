@@ -133,6 +133,29 @@ const dateLabel = (date: string) =>
     day: "numeric",
   });
 
+export function slotBookingAriaLabel({
+  startsAt,
+  date,
+  timezone,
+  clinicianName,
+  roomName,
+}: {
+  startsAt: string;
+  date: string;
+  timezone: string;
+  clinicianName: string;
+  roomName?: string;
+}) {
+  const time = new Date(startsAt).toLocaleTimeString("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `Book ${time} on ${dateLabel(date)} with ${clinicianName}${
+    roomName ? ` in ${roomName}` : ""
+  }`;
+}
+
 export function ClinicSchedule({
   initialPatientId,
   canBook,
@@ -628,6 +651,18 @@ export function ClinicSchedule({
                               key={`${slot.starts_at}-${slot.clinician_id}`}
                               size="small"
                               disabled={!canBook}
+                              aria-label={slotBookingAriaLabel({
+                                startsAt: slot.starts_at,
+                                date: day,
+                                timezone,
+                                clinicianName:
+                                  data.clinicians.find(
+                                    (clinician) =>
+                                      clinician.id === slot.clinician_id,
+                                  )?.name ?? "Clinician",
+                                roomName:
+                                  group === "room" ? lane.name : undefined,
+                              })}
                               sx={{ justifyContent: "flex-start" }}
                               onClick={() =>
                                 setBooking({

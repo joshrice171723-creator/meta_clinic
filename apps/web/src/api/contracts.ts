@@ -217,6 +217,33 @@ export type Item = {
   quantity: number;
   reorder_level: number;
 };
+export type PatientActivityHistory = {
+  coverage: {
+    source:
+      | "registration"
+      | "appointments"
+      | "notes"
+      | "invoices"
+      | "reminders"
+      | "encounters";
+    label: string;
+    status: "included" | "not_authorized" | "not_included";
+  }[];
+  has_more: boolean;
+  entries: {
+    id: number;
+    source:
+      "registration" | "appointments" | "notes" | "invoices" | "reminders";
+    section: string;
+    record_type: string;
+    record_id: number;
+    event: string;
+    actor_reference: string | null;
+    occurred_at: string | null;
+    changed_fields: string[];
+  }[];
+};
+
 export type Patient = {
   id: number;
   updated_at?: string;

@@ -1,0 +1,53 @@
+.clinic-theme .clinic-work-navigation {
+  display: grid;
+  gap: 18px;
+}
+
+.clinic-theme .clinic-work-navigation section {
+  display: grid;
+  gap: 2px;
+}
+
+.clinic-theme .clinic-work-navigation section + section {
+  margin-top: 14px;
+}
+
+.clinic-theme .clinic-work-navigation .MuiListSubheader-root {
+  margin: 0;
+  padding: 0 12px 4px;
+  background: transparent;
+  color: var(--clinic-sidebar-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.clinic-theme .clinic-work-navigation .MuiListItemButton-root {
+  min-height: 44px;
+  border-radius: 5px;
+  color: inherit;
+}
+
+.clinic-theme .clinic-work-navigation .MuiListItemIcon-root {
+  min-width: 30px;
+  color: inherit;
+}
+
+.clinic-theme .clinic-work-navigation .MuiListItemText-root {
+  margin: 0;
+}
+
+.clinic-theme .clinic-work-navigation .MuiListItemText-primary {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.clinic-theme .clinic-work-navigation .MuiListItemText-secondary {
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.78;
+}
