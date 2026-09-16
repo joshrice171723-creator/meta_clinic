@@ -555,14 +555,14 @@ function TaskActions({
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
         useFlexGap
-        sx={{ flexWrap: "wrap", alignItems: "center" }}
+        sx={{ flexWrap: "wrap", alignItems: "stretch" }}
       >
         {canClaim && (
           <Button
             size="small"
             variant="contained"
             disabled={Boolean(busy)}
-            sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
+            sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
             onClick={() => transition("claim")}
           >
             {busy === "claim"
@@ -572,7 +572,10 @@ function TaskActions({
                 : "Claim"}
           </Button>
         )}
-        <FormControl size="small" sx={{ minWidth: 190 }}>
+        <FormControl
+          size="small"
+          sx={{ minWidth: { xs: "100%", sm: 190 }, flex: "1 1 190px" }}
+        >
           <InputLabel id={`task-assignee-${task.id}`}>Owner</InputLabel>
           <Select
             labelId={`task-assignee-${task.id}`}
@@ -605,7 +608,7 @@ function TaskActions({
               assignee_membership_id: Number(assigneeId),
             })
           }
-          sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
+          sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
         >
           {busy === "assign" ? "Requesting…" : "Request transfer"}
         </Button>
@@ -614,14 +617,14 @@ function TaskActions({
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
         useFlexGap
-        sx={{ flexWrap: "wrap", alignItems: "center" }}
+        sx={{ flexWrap: "wrap", alignItems: "stretch" }}
       >
         {canStart && (
           <Button
             size="small"
             variant="outlined"
             disabled={Boolean(busy)}
-            sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
+            sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
             onClick={() => transition("start")}
           >
             {busy === "start" ? "Starting…" : "Start"}
@@ -629,7 +632,10 @@ function TaskActions({
         )}
         {canResolve && (
           <>
-            <FormControl size="small" sx={{ minWidth: 190 }}>
+            <FormControl
+              size="small"
+              sx={{ minWidth: { xs: "100%", sm: 190 }, flex: "1 1 190px" }}
+            >
               <InputLabel id={`task-resolution-${task.id}`}>
                 Resolution
               </InputLabel>
@@ -657,7 +663,7 @@ function TaskActions({
               size="small"
               variant="outlined"
               disabled={Boolean(busy)}
-              sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
+              sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
               onClick={() =>
                 transition("complete", { resolution_code: resolutionCode })
               }
@@ -1340,6 +1346,8 @@ function InboxRow({
           gridColumn: "1",
           justifySelf: { xs: "start", md: "start" },
           mt: { xs: 0.5, md: 1 },
+          minHeight: 40,
+          whiteSpace: "nowrap",
         }}
         href={item.href}
       >
