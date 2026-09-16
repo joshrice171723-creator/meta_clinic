@@ -5,6 +5,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -273,6 +274,8 @@ function PatientLookupResults({ search }: { search: string }) {
       </Typography>
     );
 
+  const data = lookup.data;
+
   return (
     <Stack
       component="ul"
@@ -280,7 +283,7 @@ function PatientLookupResults({ search }: { search: string }) {
       sx={{ listStyle: "none", m: 0, p: 0 }}
       aria-label="Matching patients"
     >
-      {lookup.data.patients.map((patient) => (
+      {data.patients.map((patient) => (
         <Box
           component="li"
           key={patient.id}
@@ -296,9 +299,15 @@ function PatientLookupResults({ search }: { search: string }) {
           }}
         >
           <Box>
-            <Typography sx={{ fontWeight: 600 }}>
-              {patient.display_name}
-            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
+              <Typography sx={{ fontWeight: 600 }}>{patient.display_name}</Typography>
+              <Chip
+                size="small"
+                variant="outlined"
+                color={data.pagination.total > 1 ? "warning" : "default"}
+                label={data.pagination.total > 1 ? "Possible duplicate" : "Candidate match"}
+              />
+            </Stack>
             <Typography color="text.secondary" variant="body2">
               Clinic reference:{" "}
               {patientReferenceLabel(patient.reference) ?? "Not recorded"}
@@ -307,6 +316,11 @@ function PatientLookupResults({ search }: { search: string }) {
               Date of birth: {patient.date_of_birth || "Not recorded"} · Phone:{" "}
               {patient.phone_hint || "Not recorded"}
             </Typography>
+            {data.pagination.total > 1 && (
+              <Typography color="warning.main" variant="caption">
+                Compare the identity details before opening or registering another record.
+              </Typography>
+            )}
           </Box>
           <Button
             component="a"
@@ -317,7 +331,7 @@ function PatientLookupResults({ search }: { search: string }) {
           </Button>
         </Box>
       ))}
-      {lookup.data.pagination.total > lookup.data.patients.length && (
+      {data.pagination.total > data.patients.length && (
         <Box component="li">
           <Typography color="text.secondary" variant="body2">
             More than 25 matches were found. Use a more specific name or clinic
