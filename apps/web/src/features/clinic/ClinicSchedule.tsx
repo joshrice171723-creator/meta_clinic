@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
@@ -171,12 +171,28 @@ export function ClinicSchedule({
   const context = useClinic();
   const timezone = context.practice.timezone;
   const today = calendarDate(businessNow(), timezone);
-  const [month, setMonth] = useState(today.slice(0, 7));
-  const [day, setDay] = useState(today);
-  const [view, setView] = useState<"month" | "day">("month");
-  const [group, setGroup] = useState<"clinician" | "room">("clinician");
+  const routeParams = new URLSearchParams(
+    typeof window === "undefined" ? "" : window.location.search,
+  );
+  const initialMonth = /^\d{4}-\d{2}$/.test(routeParams.get("month") || "")
+    ? routeParams.get("month")!
+    : today.slice(0, 7);
+  const initialDay = /^\d{4}-\d{2}-\d{2}$/.test(routeParams.get("day") || "")
+    ? routeParams.get("day")!
+    : `${initialMonth}-01`;
+  const [month, setMonth] = useState(initialMonth);
+  const [day, setDay] = useState(
+    initialDay.startsWith(initialMonth) ? initialDay : `${initialMonth}-01`,
+  );
+  const [view, setView] = useState<"month" | "day">(
+    routeParams.get("view") === "day" ? "day" : "month",
+  );
+  const [group, setGroup] = useState<"clinician" | "room">(
+    routeParams.get("group") === "room" ? "room" : "clinician",
+  );
   const [siteId, setSiteId] = useState(
-    String(context.current_site?.id ?? context.sites[0]?.id ?? ""),
+    routeParams.get("site_id") ||
+      String(context.current_site?.id ?? context.sites[0]?.id ?? ""),
   );
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
@@ -199,6 +215,21 @@ export function ClinicSchedule({
     calendar.data?.month === month && String(calendar.data.site_id) === siteId
       ? calendar.data
       : undefined;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("month", month);
+    params.set("day", day);
+    params.set("view", view);
+    params.set("group", group);
+    if (siteId) params.set("site_id", siteId);
+    else params.delete("site_id");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}?${params.toString()}`,
+    );
+  }, [day, group, month, siteId, view]);
   const selectedDay = data?.days.find((item) => item.date === day);
   const time = (value: string) =>
     new Date(value).toLocaleTimeString("en-US", {
@@ -228,6 +259,53 @@ export function ClinicSchedule({
       `Appointment scheduled for ${appointment.patient?.display_name ?? "the selected patient"}. Check in when they arrive.`,
     );
     calendar.refresh();
+  }
+  function exportCalendar() {
+    if (!data) return;
+    const appointments =
+      view === "day"
+        ? selectedDay?.appointments || []
+        : data.days.flatMap((item) => item.appointments);
+    const escape = (value: string) =>
+      value
+        .replaceAll("\\", "\\\\")
+        .replaceAll(";", "\\;")
+        .replaceAll(",", "\\,")
+        .replaceAll("\n", "\\n");
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Meta Clinic//Schedule//EN",
+    ];
+    appointments.forEach((appointment) => {
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:meta-clinic-${appointment.id}@local`,
+        `DTSTART:${new Date(appointment.starts_at)
+          .toISOString()
+          .replaceAll("-", "")
+          .replaceAll(":", "")
+          .replace(/\.\d{3}Z$/, "Z")}`,
+        `DTEND:${new Date(appointment.ends_at)
+          .toISOString()
+          .replaceAll("-", "")
+          .replaceAll(":", "")
+          .replace(/\.\d{3}Z$/, "Z")}`,
+        `SUMMARY:${escape(appointment.visit_type_name || "Clinic appointment")}`,
+        `DESCRIPTION:${escape(appointment.patient?.display_name || "Patient appointment")}`,
+        "END:VEVENT",
+      );
+    });
+    lines.push("END:VCALENDAR");
+    const blob = new Blob([`${lines.join("\r\n")}\r\n`], {
+      type: "text/calendar;charset=utf-8",
+    });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `meta-clinic-schedule-${view === "day" ? day : month}.ics`;
+    link.click();
+    URL.revokeObjectURL(href);
   }
   async function checkIn() {
     if (!selected || busy) return;
@@ -439,6 +517,9 @@ export function ClinicSchedule({
           </TextField>
         )}
         <Button onClick={calendar.refresh}>Refresh</Button>
+        <Button variant="outlined" onClick={exportCalendar} disabled={!data}>
+          Export {view === "day" ? "day" : "month"}
+        </Button>
       </Stack>
       {calendar.error && (
         <Alert severity="error">
@@ -456,6 +537,16 @@ export function ClinicSchedule({
               Clinician availability is not configured for this location.
               Appointments are shown; available capacity is unknown.{" "}
               <Button href="/clinic/waitlist">Set clinician capacity</Button>
+            </Alert>
+          )}
+          {(!data.policy ||
+            data.policy.recurrence === "not_configured" ||
+            data.policy.overbook === "not_configured") && (
+            <Alert severity="warning">
+              Recurrence and overbook behavior are not configured for this
+              location. The calendar will only offer explicit free slots from
+              the current capacity rules; external calendar sync is limited to
+              the read-only export above.
             </Alert>
           )}
           {view === "month" ? (

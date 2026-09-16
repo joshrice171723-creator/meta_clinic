@@ -9,11 +9,13 @@ import {
   Box,
   Button,
   Chip,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   InputAdornment,
   MenuItem,
   Paper,
@@ -224,6 +226,8 @@ function AppointmentDayQueue({
     appointment: FrontDeskAppointment;
     action: "start" | "cancelled" | "no_show";
   } | null>(null);
+  const [cancellationMessageAcknowledged, setCancellationMessageAcknowledged] =
+    useState(false);
   const path = buildAppointmentQueuePath({
     date,
     siteId,
@@ -271,6 +275,7 @@ function AppointmentDayQueue({
   ) {
     const patientName = appointment.patient?.display_name || "this patient";
     if (to !== "confirmed" && !confirmed) {
+      if (to === "cancelled") setCancellationMessageAcknowledged(false);
       setConfirmation({ appointment, action: to });
       return;
     }
@@ -784,12 +789,30 @@ function AppointmentDayQueue({
                 ? "Cancel this appointment? This updates the schedule and cancels pending reminders. It does not send a cancellation message to the patient."
                 : "Record that the patient did not attend this appointment?"}
           </Typography>
+          {confirmation?.action === "cancelled" && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={cancellationMessageAcknowledged}
+                  onChange={(event) =>
+                    setCancellationMessageAcknowledged(event.target.checked)
+                  }
+                />
+              }
+              label="I understand that no cancellation message will be sent automatically."
+              sx={{ mt: 1, alignItems: "flex-start" }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmation(null)}>Go back</Button>
           <Button
             variant="contained"
             color={confirmation?.action === "start" ? "primary" : "error"}
+            disabled={
+              confirmation?.action === "cancelled" &&
+              !cancellationMessageAcknowledged
+            }
             onClick={() => {
               if (!confirmation || busyAction) return;
               const confirmed = confirmation;

@@ -94,6 +94,19 @@ Initial status for these requirements: founder-approved direction; current imple
 
 ## Next bounded work
 
+**2026-09-16 remaining-twelve follow-through:** Schedule now preserves
+month/day/site/view/group context in the URL, exports the server-loaded day or
+month as read-only iCalendar, and surfaces recurrence/overbook/external-sync
+policy state instead of implying unsupported behavior. Tracking Board filters
+also survive navigation; cancellation requires acknowledgement that no
+message is sent automatically; owner totals are explicitly aggregate-only; and
+the smoke harness can exercise the visible development login selector with
+`--ui-login`. These local changes close source-owned portions only. Fresh-login
+and populated-resource browser proof, keyboard/zoom/assistive-technology
+acceptance, clinical and communication governance, external calendar/provider
+evidence, recurring/holiday/overbook policy, personalized dashboards, and the
+aggregate metric contract remain open gates.
+
 **2026-09-16 next-ten slice:** Patient activity now includes permission-aware
 encounter, membership, and payment lineage; the patient UI explains coverage
 and non-evidence-of-none semantics. Scribe review, reminders, reports, and the

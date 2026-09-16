@@ -18,7 +18,7 @@ function fail(message) {
 
 function help() {
   process.stdout.write(
-    `Usage: pnpm run browser:smoke [options]\n\nOptions:\n  --route <path>       Route to inspect (default: /clinic)\n  --profile <value>    Account id or clinic-administrator (default)\n  --portal <name>      clinic, launch, owner, or patient (default: clinic)\n  --viewport <name>    desktop or phone (default: desktop)\n  --screenshot <path>  Output PNG (default: outputs/browser-smoke/<timestamp>.png)\n  --matrix             Inspect the core clinic routes in one retained session\n  --base-url <url>     Loopback web URL (default: http://127.0.0.1:3000)\n  --headed             Show the browser window\n  --no-start           Require an already-running managed stack\n  --help               Show this help\n`,
+    `Usage: pnpm run browser:smoke [options]\n\nOptions:\n  --route <path>       Route to inspect (default: /clinic)\n  --profile <value>    Account id or clinic-administrator (default)\n  --portal <name>      clinic, launch, owner, or patient (default: clinic)\n  --viewport <name>    desktop or phone (default: desktop)\n  --screenshot <path>  Output PNG (default: outputs/browser-smoke/<timestamp>.png)\n  --matrix             Inspect the core clinic routes in one retained session\n  --ui-login           Exercise the visible development selector before opening the route\n  --base-url <url>     Loopback web URL (default: http://127.0.0.1:3000)\n  --headed             Show the browser window\n  --no-start           Require an already-running managed stack\n  --help               Show this help\n`,
   );
 }
 
@@ -31,6 +31,7 @@ function options(argv) {
     baseUrl: "http://127.0.0.1:3000",
     headed: false,
     matrix: false,
+    uiLogin: false,
     start: true,
     screenshot: null,
   };
@@ -44,9 +45,11 @@ function options(argv) {
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === "--") continue;
     if (argument === "--help") return { help: true };
     if (argument === "--headed") result.headed = true;
     else if (argument === "--matrix") result.matrix = true;
+    else if (argument === "--ui-login") result.uiLogin = true;
     else if (argument === "--no-start") result.start = false;
     else if (valued.has(argument)) {
       const value = argv[index + 1];
@@ -124,55 +127,109 @@ try {
     new URL(`/login?next=${encodeURIComponent(selected.route)}`, base).href,
     { waitUntil: "domcontentloaded" },
   );
-  const login = await page.evaluate(
-    async ({ profile, portal }) => {
-      const csrfResponse = await fetch("/api/csrf", {
-        credentials: "same-origin",
-      });
-      const csrf = await csrfResponse.json();
-      const accounts = csrf.development_accounts || [];
-      const account =
-        accounts.find((candidate) => candidate.id === profile) ||
-        (profile === "clinic-administrator"
-          ? accounts.find(
-              (candidate) =>
-                candidate.account_type === "employee" &&
-                candidate.label === "Clinic Administrator",
-            )
-          : null);
-      if (!account) {
-        return {
-          status: 422,
-          body: {
-            error: `No available development account matches ${profile}`,
-          },
-          profile: null,
-        };
-      }
-      const locations = account.locations || [];
-      const scope =
-        account.account_type !== "omni" &&
-        account.clinic &&
-        locations.length === 1
-          ? { practice_id: account.clinic.id, site_id: locations[0].id }
-          : {};
-      const response = await fetch("/api/development_session", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrf.csrf_token,
-        },
-        body: JSON.stringify({ profile: account.id, portal, ...scope }),
-      });
+  const visibleLogin = async () => {
+    const account = await page.evaluate(
+      ({ profile }) =>
+        fetch("/api/csrf", { credentials: "same-origin" })
+          .then((response) => response.json())
+          .then((payload) => {
+            const accounts = payload.development_accounts || [];
+            return (
+              accounts.find((candidate) => candidate.id === profile) ||
+              accounts.find(
+                (candidate) =>
+                  candidate.account_type === "employee" &&
+                  candidate.label === "Clinic Administrator",
+              ) ||
+              null
+            );
+          }),
+      { profile: selected.profile },
+    );
+    if (!account)
       return {
-        status: response.status,
-        body: await response.json(),
-        profile: account.id,
+        status: 422,
+        body: {
+          error: `No available development account matches ${selected.profile}`,
+        },
+        profile: null,
       };
-    },
-    { profile: selected.profile, portal: selected.portal },
-  );
+    const chooseFirst = async () => {
+      const options = page
+        .getByRole("option")
+        .filter({ hasNotText: /^Select / });
+      await options.first().click();
+    };
+    const organization = page.getByLabel("Organization");
+    if (await organization.count()) {
+      await organization.click();
+      await chooseFirst();
+      await page.getByLabel("Clinic").click();
+      await chooseFirst();
+      await page.getByLabel("Location").click();
+      await chooseFirst();
+    }
+    await page.getByLabel(/Select .* account/).click();
+    await page
+      .getByRole("option", { name: account.label, exact: true })
+      .click();
+    await page.getByRole("button", { name: "Log in", exact: true }).click();
+    await page.waitForURL((url) => url.pathname !== "/login", {
+      timeout: 15000,
+    });
+    return { status: 201, body: {}, profile: account.id };
+  };
+  const login = selected.uiLogin
+    ? await visibleLogin()
+    : await page.evaluate(
+        async ({ profile, portal }) => {
+          const csrfResponse = await fetch("/api/csrf", {
+            credentials: "same-origin",
+          });
+          const csrf = await csrfResponse.json();
+          const accounts = csrf.development_accounts || [];
+          const account =
+            accounts.find((candidate) => candidate.id === profile) ||
+            (profile === "clinic-administrator"
+              ? accounts.find(
+                  (candidate) =>
+                    candidate.account_type === "employee" &&
+                    candidate.label === "Clinic Administrator",
+                )
+              : null);
+          if (!account) {
+            return {
+              status: 422,
+              body: {
+                error: `No available development account matches ${profile}`,
+              },
+              profile: null,
+            };
+          }
+          const locations = account.locations || [];
+          const scope =
+            account.account_type !== "omni" &&
+            account.clinic &&
+            locations.length === 1
+              ? { practice_id: account.clinic.id, site_id: locations[0].id }
+              : {};
+          const response = await fetch("/api/development_session", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrf.csrf_token,
+            },
+            body: JSON.stringify({ profile: account.id, portal, ...scope }),
+          });
+          return {
+            status: response.status,
+            body: await response.json(),
+            profile: account.id,
+          };
+        },
+        { profile: selected.profile, portal: selected.portal },
+      );
   if (login.status !== 201)
     fail(
       `development login returned HTTP ${login.status}: ${login.body?.error || "unknown response"}`,

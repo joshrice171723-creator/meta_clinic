@@ -533,7 +533,7 @@ No browser screenshot file was available through the active browser-control surf
 
 ### Current status reconciliation — 2026-09-16
 
-The historical appendix above predates the authorized implementation follow-through and is retained as dated evidence. Current source and verification supersede its stale “browser-unverified” labels only for bounded slices with current evidence. The current delivery adds the development login scope repair, retained-session browser matrix, lifecycle/context/ownership/provider UI repairs, and cash-drawer conflict handling; web typecheck/build, focused frontend tests, formatting, and targeted Rails checks pass. The matrix passes on desktop and phone across seven core clinic routes. The Rails impacted rerun is now green for the repaired administrative/role slice (16 runs / 166 assertions); the broader 40-run impacted suite still has unrelated fixture/contract failures and is not a full-suite pass. The remaining rows are not all implemented or browser-proved: encounter/intake/lab detail, telehealth session, billing/refund edge cases, inventory/workforce walkthroughs, complete role/device/accessibility acceptance, and every external, clinical, legal, tax, export/retention or production gate remain open. This reconciliation does not convert source inspection or local synthetic evidence into launch readiness.
+The historical appendix above predates the authorized implementation follow-through and is retained as dated evidence. Current source and verification supersede its stale “browser-unverified” labels only for bounded slices with current evidence. The current delivery adds the development login scope repair, retained-session browser matrix, lifecycle/context/ownership/provider UI repairs, and cash-drawer conflict handling; web typecheck/build, focused frontend tests, formatting, and targeted Rails checks pass. The matrix passes on desktop and phone across seven core clinic routes. The Rails impacted rerun is now green for the repaired administrative/role slice (16 runs / 166 assertions); the broader 40-run impacted suite still has unrelated fixture/contract failures and is not a full-suite pass. The remaining rows are not all implemented or browser-proved: encounter/intake/lab detail, telehealth session, billing/refund edge cases, inventory/workforce walkthroughs, complete role/device/accessibility acceptance, and every external, clinical, legal, tax, export/retention or production gate remain open. The current follow-through also adds read-only schedule export, URL-preserved schedule/board context, cancellation-message acknowledgement, aggregate-only owner copy, and role-catalog v9 permissions. These are local source changes, not external sync or launch readiness.
 
 ### Ten most important changes
 
@@ -572,6 +572,32 @@ The following ten review gaps were addressed or made explicit in this slice:
    fresh-login and populated-resource walkthrough is still an explicit gate.
 10. Regulatory, clinical, vendor-live, export/retention, and production claims
     remain open decisions rather than being inferred from local source changes.
+
+### Remaining twelve follow-through — 2026-09-16
+
+1. Development smoke tooling can exercise the visible selector with `--ui-login`;
+   API-driven login remains available for deterministic route probes.
+2. Schedule month/day/site/view/group context is preserved in the canonical URL.
+3. The schedule offers a read-only `.ics` export from the server-loaded calendar;
+   no external calendar becomes a second source of truth.
+4. Recurrence, overbook, and external-sync readiness are explicit calendar policy
+   state rather than silently implied support.
+5. Cancellation requires acknowledgement that no message is sent automatically;
+   the existing reminder review path remains available.
+6. Tracking Board stage and patient filters are preserved in the URL for safe
+   return, browser history, and shareable operational views.
+7. Organization totals are explicitly aggregate-only; clinic and patient data do
+   not cross the owner boundary.
+8. Encounter, payment, and membership lineage permissions are included in role
+   catalog v9 and the patient activity query.
+9. Scribe review, reminders, reports, empty states, and corrections remain
+   visibly bounded by their source records and approval states.
+10. Fresh-login, populated-resource, keyboard/zoom, and assistive-technology
+    checks remain acceptance evidence to execute, not claims inferred from code.
+11. External calendar sync, recurring/holiday/overbook policy, and personalized
+    dashboards remain deferred until owners and conflict policies are selected.
+12. Multi-clinic aggregate reporting remains limited to existing owner counts
+    until an aggregate metric contract and reconciliation owner are set.
 
 ### Five data areas requiring gap classification
 

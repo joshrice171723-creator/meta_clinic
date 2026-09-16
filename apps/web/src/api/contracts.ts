@@ -1334,6 +1334,11 @@ export type CalendarResponse = {
   site_id: number;
   slot_minutes: number;
   capacity_configured: boolean;
+  policy?: {
+    recurrence: "not_configured" | "configured";
+    overbook: "not_configured" | "configured";
+    external_sync: "read_only_export" | "configured";
+  };
   days: CalendarDay[];
   clinicians: { id: number; name: string }[];
   rooms: { id: number; name: string }[];

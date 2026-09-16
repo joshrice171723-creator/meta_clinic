@@ -299,6 +299,11 @@ export function OwnerCommandCenter() {
           <Typography variant="h4">{memberCount}</Typography>
         </Paper>
       </Stack>
+      <Alert severity="info">
+        Organization totals are aggregate-only counts of clinics and active
+        memberships. Patient identifiers, clinical records, and clinic-level
+        financial details stay inside each clinic workspace.
+      </Alert>
 
       {invitation && (
         <Alert

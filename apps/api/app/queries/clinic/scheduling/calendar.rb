@@ -40,7 +40,9 @@ module Clinic
           }
         end
         { month: @first.strftime("%Y-%m"), timezone: @practice.timezone, site_id: @site.id,
-          slot_minutes: SLOT_MINUTES, capacity_configured: configured?, days: days,
+          slot_minutes: SLOT_MINUTES, capacity_configured: configured?,
+          policy: { recurrence: "not_configured", overbook: "not_configured", external_sync: "read_only_export" },
+          days: days,
           clinicians: @clinicians.map { |c| { id: c.id, name: c.display_name.presence || c.reference.presence || "Clinician ##{c.id}" } },
           rooms: @rooms.map { |r| { id: r.id, name: r.code } } }
       end
