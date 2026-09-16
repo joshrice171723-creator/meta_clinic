@@ -1206,6 +1206,7 @@ export function TrackingBoardView({
   const [patientFilter, setPatientFilter] = useState<"all" | "mine">(
     boardParams.get("patient") === "mine" ? "mine" : "all",
   );
+  const routeInitialized = useRef(false);
   const [columns, setColumns] = useState<ColumnKey[]>(
     storedTrackingBoardColumns,
   );
@@ -1221,12 +1222,35 @@ export function TrackingBoardView({
     else params.set("stage", stage);
     if (patientFilter === "all") params.delete("patient");
     else params.set("patient", patientFilter);
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${window.location.pathname}${params.toString() ? `?${params}` : ""}`,
-    );
+    const nextSearch = params.toString() ? `?${params}` : "";
+    if (nextSearch === window.location.search) {
+      routeInitialized.current = true;
+      return;
+    }
+    const nextUrl = `${window.location.pathname}${nextSearch}`;
+    if (routeInitialized.current) {
+      window.history.pushState(window.history.state, "", nextUrl);
+    } else {
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
+    routeInitialized.current = true;
   }, [patientFilter, stage]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const restoreFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const requested = params.get("stage") || "all";
+      setStage(
+        requested === "all" ||
+          VISIT_STAGES.some((item) => item.id === requested)
+          ? requested
+          : "all",
+      );
+      setPatientFilter(params.get("patient") === "mine" ? "mine" : "all");
+    };
+    window.addEventListener("popstate", restoreFromUrl);
+    return () => window.removeEventListener("popstate", restoreFromUrl);
+  }, []);
   useEffect(() => {
     try {
       window.localStorage.setItem(

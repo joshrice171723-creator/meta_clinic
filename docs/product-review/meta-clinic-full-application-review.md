@@ -5,7 +5,24 @@
 **Scope:** End-to-end product, workflow, information architecture, data-entry, UX, accessibility, persistence, failure-state, and architecture review of the Meta Clinic repository and locally running application.
 
 **Data boundary:** Synthetic/local data only. No real-patient or production records were accessed.
-**Review mode:** Read-only review. No source code, schema, configuration, or application behavior was changed for this review.
+**Review mode:** The original 2026-09-15 review was read-only. Subsequent dated implementation follow-through is recorded below; those entries are not part of the original evidence set.
+
+## Current implementation baseline — 2026-09-16, slices 1–2
+
+The authorized slice work reconciles two source-owned gaps from the historical
+review. Role catalog version 9 is now installed by a forward migration and its
+advisory lock is derived from the catalog version. The web workflow uses one
+canonical status map for membership payment, Patient Flow, appointments,
+encounters, clinical notes and billing, while keeping each record's lifecycle
+independent. Schedule and Tracking Board filters now create real browser history
+entries and restore from Back/Forward; invalid calendar month/day values are
+rejected rather than treated as valid strings.
+
+This is source-level implementation, not fresh browser or provider evidence.
+The visible login and populated Patient Flow → Schedule → Tracking Board
+walkthrough still require a running local stack with configured synthetic
+accounts, clinicians and capacity. Historical statements below remain labeled
+as historical; current acceptance status belongs in the implementation tracker.
 
 ## Reconciliation — 2026-09-15, after calendar commit `13accea`
 

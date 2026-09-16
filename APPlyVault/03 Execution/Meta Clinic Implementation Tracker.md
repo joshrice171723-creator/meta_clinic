@@ -116,6 +116,15 @@ local-synthetic changes; fresh-login, populated-resource, assistive-technology,
 live-provider, clinical-governance, export/retention, and production evidence
 remain separate gates.
 
+**2026-09-16 slices 1–2:** the authorization foundation now has a forward
+role-catalog version 9 migration with a version-derived advisory lock, and the
+clinic UI shares one status map across membership, Patient Flow, appointments,
+encounters, notes and billing. Schedule and Tracking Board filter changes now
+use browser history and restore on Back/Forward; semantically invalid calendar
+month/day query values fall back to a safe date. These are source-level
+changes. Fresh-login and populated-resource browser proof remains open until
+the local API/database stack is available.
+
 **2026-09-14 local implementation complete:** MC-02–MC-12/MC-15 patient-journey source is integrated under the founder's development-efficiency policy `cc56cc4`. All 45 selected Rails cases pass across the focused runs and bounded fixture repairs. TypeScript, bundle, changed-file Ruby lint and 14 related frontend tests passed; earlier 326-test frontend, migration and PostgreSQL evidence is reused where unchanged. Real Rails-backed patient intake/callback, contact-first enrollment, staff dependency/transfer, typed-result acknowledgment and repaired staff-intake walkthroughs passed. [Field ownership and evidence](../../docs/development/patient-journey-implementation-evidence.md) records exact limits. Full regression, connected handover/post-closure browser proof, selected clinical/vendor mappings and launch acceptance remain pending; they are not labeled passed. The plan's current checkpoint owns the next milestone action. Insurance/supplier expansion remains outside this cash-pay assignment.
 
 **Assignment document:** [Tonight's patient-journey execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) contains the detailed research-derived questions, controls, final founder clarifications, execution slices, acceptance and resume checkpoint. Use it as the starting document for this assignment, not the isolated skill-test draft. The engineering guide remains the canonical shared matrix; this tracker remains the work inventory. Saving the plan does not dispatch implementation.

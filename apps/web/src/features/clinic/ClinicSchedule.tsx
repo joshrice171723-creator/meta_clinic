@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
@@ -27,6 +27,7 @@ import { api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { workflowStatusLabel } from "./workflowStatus";
 
 export type CalendarBooking = {
   site_id: number;
@@ -51,6 +52,22 @@ export function shiftCalendarMonth(month: string, offset: number) {
   return new Date(Date.UTC(year, number - 1 + offset, 1))
     .toISOString()
     .slice(0, 7);
+}
+export function isValidCalendarMonth(value: string | null | undefined) {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) return false;
+  const [year, month] = value.split("-").map(Number);
+  return year >= 2000 && year <= 2100 && month >= 1 && month <= 12;
+}
+export function isValidCalendarDay(value: string | null | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  if (year < 2000 || year > 2100 || month < 1 || month > 12) return false;
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return (
+    candidate.getUTCFullYear() === year &&
+    candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day
+  );
 }
 export function calendarInstant(date: string, hour: number, timezone: string) {
   const wall = Date.parse(`${date}T${String(hour).padStart(2, "0")}:00:00Z`);
@@ -85,15 +102,6 @@ function minuteOfDay(value: string, timezone: string) {
     Number(parts.find((p) => p.type === "minute")?.value)
   );
 }
-const statusText: Record<string, string> = {
-  scheduled: "Scheduled",
-  confirmed: "Confirmed",
-  cancelled: "Cancelled",
-  checked_in: "Checked in",
-  in_progress: "In progress",
-  completed: "Completed",
-  no_show: "No-show",
-};
 export function appointmentTracks(appointments: CalendarAppointment[]) {
   const result = new Map<number, { track: number; tracks: number }>();
   let active: { end: number; track: number }[] = [];
@@ -174,10 +182,10 @@ export function ClinicSchedule({
   const routeParams = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   );
-  const initialMonth = /^\d{4}-\d{2}$/.test(routeParams.get("month") || "")
+  const initialMonth = isValidCalendarMonth(routeParams.get("month"))
     ? routeParams.get("month")!
     : today.slice(0, 7);
-  const initialDay = /^\d{4}-\d{2}-\d{2}$/.test(routeParams.get("day") || "")
+  const initialDay = isValidCalendarDay(routeParams.get("day"))
     ? routeParams.get("day")!
     : `${initialMonth}-01`;
   const [month, setMonth] = useState(initialMonth);
@@ -199,6 +207,7 @@ export function ClinicSchedule({
   const [notice, setNotice] = useState("");
   const [mutationError, setMutationError] = useState("");
   const [busy, setBusy] = useState(false);
+  const routeInitialized = useRef(false);
   const patient = useResource<{ patients: Patient[] }>(
     `/api/clinic/patients/lookup?id=${initialPatientId ?? ""}`,
     { enabled: Boolean(initialPatientId) },
@@ -224,12 +233,43 @@ export function ClinicSchedule({
     params.set("group", group);
     if (siteId) params.set("site_id", siteId);
     else params.delete("site_id");
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${window.location.pathname}?${params.toString()}`,
-    );
+    const nextSearch = `?${params.toString()}`;
+    if (nextSearch === window.location.search) {
+      routeInitialized.current = true;
+      return;
+    }
+    const nextUrl = `${window.location.pathname}${nextSearch}`;
+    if (routeInitialized.current) {
+      window.history.pushState(window.history.state, "", nextUrl);
+    } else {
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
+    routeInitialized.current = true;
   }, [day, group, month, siteId, view]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const restoreFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const nextMonth = isValidCalendarMonth(params.get("month"))
+        ? params.get("month")!
+        : today.slice(0, 7);
+      const requestedDay = isValidCalendarDay(params.get("day"))
+        ? params.get("day")!
+        : `${nextMonth}-01`;
+      setMonth(nextMonth);
+      setDay(
+        requestedDay.startsWith(nextMonth) ? requestedDay : `${nextMonth}-01`,
+      );
+      setView(params.get("view") === "day" ? "day" : "month");
+      setGroup(params.get("group") === "room" ? "room" : "clinician");
+      setSiteId(
+        params.get("site_id") ||
+          String(context.current_site?.id ?? context.sites[0]?.id ?? ""),
+      );
+    };
+    window.addEventListener("popstate", restoreFromUrl);
+    return () => window.removeEventListener("popstate", restoreFromUrl);
+  }, [context.current_site?.id, context.sites, today]);
   const selectedDay = data?.days.find((item) => item.date === day);
   const time = (value: string) =>
     new Date(value).toLocaleTimeString("en-US", {
@@ -841,8 +881,7 @@ export function ClinicSchedule({
                           >
                             {time(appointment.starts_at)}–
                             {time(appointment.ends_at)} ·{" "}
-                            {statusText[appointment.calendar_status] ??
-                              appointment.calendar_status}
+                            {workflowStatusLabel(appointment.calendar_status)}
                           </Typography>
                           <Typography
                             variant="caption"
@@ -879,7 +918,7 @@ export function ClinicSchedule({
                   >
                     {appointment.patient?.display_name} ·{" "}
                     {time(appointment.starts_at)} ·{" "}
-                    {statusText[appointment.status]}
+                    {workflowStatusLabel(appointment.status)}
                   </Button>
                 ))}
             </>
@@ -930,10 +969,7 @@ export function ClinicSchedule({
                 </Typography>
                 <Chip
                   sx={{ alignSelf: "start" }}
-                  label={
-                    statusText[selected.calendar_status] ??
-                    selected.calendar_status
-                  }
+                  label={workflowStatusLabel(selected.calendar_status)}
                 />
                 <Typography variant="body2">
                   Check in only after the patient arrives. This opens their

@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { ClinicCapabilities } from "../../api/contracts";
+import { WORKFLOW_STATUS_MAP, workflowStatusLabel } from "./workflowStatus";
 
 function Destination({
   available,
@@ -37,27 +38,6 @@ function Destination({
     </Button>
   );
 }
-
-const WORKFLOW_STAGES = [
-  {
-    label: "Patient Flow",
-    record: "Prospective work item",
-    status: "Open → initial contact complete",
-    next: "Schedule the first appointment",
-  },
-  {
-    label: "Schedule",
-    record: "Appointment",
-    status: "Scheduled → confirmed → cancelled",
-    next: "Check in when the patient arrives",
-  },
-  {
-    label: "Tracking Board",
-    record: "Visit / encounter",
-    status: "Checked in → in progress → completed",
-    next: "Open the encounter and record care",
-  },
-] as const;
 
 export function OperationsWorkflowGuide({
   capabilities,
@@ -155,9 +135,9 @@ export function OperationsWorkflowGuide({
               changes the status of the next stage.
             </Typography>
             <Stack spacing={1}>
-              {WORKFLOW_STAGES.map((stage, index) => (
+              {WORKFLOW_STATUS_MAP.map((stage, index) => (
                 <Stack
-                  key={stage.label}
+                  key={stage.domain}
                   direction={{ xs: "column", sm: "row" }}
                   spacing={1.25}
                   useFlexGap
@@ -171,15 +151,16 @@ export function OperationsWorkflowGuide({
                 >
                   <Chip
                     size="small"
-                    label={`${index + 1}. ${stage.label}`}
+                    label={`${index + 1}. ${stage.record}`}
                     color={index === 0 ? "primary" : "default"}
                   />
                   <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                     <Typography variant="body2">
-                      <strong>{stage.record}</strong> · {stage.status}
+                      <strong>{stage.owner}</strong> ·{" "}
+                      {stage.statuses.map(workflowStatusLabel).join(" → ")}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Next action: {stage.next}
+                      {stage.note}
                     </Typography>
                   </Stack>
                 </Stack>

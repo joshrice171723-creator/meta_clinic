@@ -5,6 +5,8 @@ import {
   appointmentTracks,
   shiftCalendarMonth,
   slotBookingAriaLabel,
+  isValidCalendarMonth,
+  isValidCalendarDay,
   ClinicSchedule,
 } from "../src/features/clinic/ClinicSchedule";
 import { Schedule } from "../src/features/clinic/CareFlow";
@@ -50,6 +52,12 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     expect(shiftCalendarMonth("2026-12", 1)).toBe("2027-01");
     expect(shiftCalendarMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftCalendarMonth("2024-01", 1)).toBe("2024-02");
+  });
+  it("rejects semantically invalid calendar query values", () => {
+    expect(isValidCalendarMonth("2026-13")).toBe(false);
+    expect(isValidCalendarMonth("2026-02")).toBe(true);
+    expect(isValidCalendarDay("2026-02-29")).toBe(false);
+    expect(isValidCalendarDay("2028-02-29")).toBe(true);
   });
   it("prefills the selected calendar day using clinic time across DST", () => {
     expect(calendarInstant("2026-09-16", 9, "America/Chicago")).toBe(

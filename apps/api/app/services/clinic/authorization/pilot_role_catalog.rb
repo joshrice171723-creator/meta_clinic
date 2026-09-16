@@ -95,7 +95,7 @@ module Clinic
       def self.install!
         ApplicationRecord.transaction do
           ApplicationRecord.connection.execute(
-            "SELECT pg_advisory_xact_lock(hashtextextended('clinic:pilot-role-catalog:v8', 0))"
+            "SELECT pg_advisory_xact_lock(hashtextextended('clinic:pilot-role-catalog:v#{VERSION}', 0))"
           )
           DEFINITIONS.each do |role_code, definition|
             role = RoleVersion.find_or_create_by!(role_code:, version: VERSION)
