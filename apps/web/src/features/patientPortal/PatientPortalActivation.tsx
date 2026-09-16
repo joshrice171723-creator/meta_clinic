@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   FormControlLabel,
   Paper,
   Stack,
@@ -111,6 +112,43 @@ export function PatientPortalActivation() {
             selected by your care team. It expires after 30 minutes and cannot
             be reused.
           </Typography>
+          {token && (
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ flexWrap: "wrap" }}
+              aria-label="Patient portal account lifecycle"
+            >
+              <Chip
+                label={
+                  purpose === "recovery"
+                    ? "Recovery link received"
+                    : "Invitation received"
+                }
+                color="success"
+                size="small"
+              />
+              <Chip
+                label="Verify identity"
+                color="primary"
+                size="small"
+                variant="outlined"
+              />
+              <Chip
+                label={
+                  purpose === "recovery" ? "Password reset" : "Account active"
+                }
+                size="small"
+                variant="outlined"
+              />
+              <Chip
+                label="Linked patient record"
+                size="small"
+                variant="outlined"
+              />
+            </Stack>
+          )}
           {!token && (
             <Alert severity="error">
               This invitation is missing or invalid. Contact the clinic support

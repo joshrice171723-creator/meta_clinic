@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   FormControlLabel,
   Paper,
   Stack,
@@ -105,6 +106,29 @@ export function MembershipAccountActivation() {
             password. You’ll use this same account for payment and your patient
             portal.
           </Typography>
+          {token && (
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ flexWrap: "wrap" }}
+              aria-label="Membership account lifecycle"
+            >
+              <Chip label="Invitation received" color="success" size="small" />
+              <Chip
+                label="Verify identity"
+                color="primary"
+                size="small"
+                variant="outlined"
+              />
+              <Chip label="Account active" size="small" variant="outlined" />
+              <Chip
+                label="Patient link after payment"
+                size="small"
+                variant="outlined"
+              />
+            </Stack>
+          )}
           {!token && (
             <Alert severity="error">
               This setup link is missing or invalid. Return to the membership

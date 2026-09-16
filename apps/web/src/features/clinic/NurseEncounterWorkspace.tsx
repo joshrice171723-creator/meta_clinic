@@ -427,6 +427,39 @@ export function NurseEncounterWorkspace({
             {patient.display_name} · Encounter #{encounter.id}. Intake,
             evidence, ownership, and handoff remain separate recorded facts.
           </Typography>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ mt: 1, flexWrap: "wrap" }}
+            aria-label="Encounter status summary"
+          >
+            <Chip
+              label={`Encounter: ${stateLabel(encounter.status)}`}
+              size="small"
+              color={encounter.status === "open" ? "primary" : "success"}
+            />
+            <Chip
+              label={`Intake: ${stateLabel(form.status)}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={`Vitals: ${stateLabel(form.vitals_state)}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={`Site: ${encounter.site_id ?? "Not recorded"}`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={`Room: ${encounter.room_id ?? "Not recorded"}`}
+              size="small"
+              variant="outlined"
+            />
+          </Stack>
         </Box>
         {error && (
           <Alert

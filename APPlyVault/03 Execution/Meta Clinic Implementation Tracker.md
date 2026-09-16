@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-15
+updated: 2026-09-16
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -41,6 +41,8 @@ Do not mark this assignment complete after a single wave or because checks pass 
 **Browser evidence:** independently synthetic front-desk recurring payment → onboarding → Patient Flow → first appointment → check-in → Tracking Board completed using the configured local simulator. Month/day counts and consumed capacity persisted; a scheduled-only patient was absent from the board and appeared in Waiting room only after explicit check-in. Existing login survived navigation and source reloads. Desktop and 833 CSS-pixel tablet board inspected, including contained table scrolling and no page overflow. No live money, outbound communication, clinical treatment or actual clinician credentialing was performed. The new fixture configuration is one synthetic clinician with Monday 09:00–17:00 UTC capacity, not an inferred real clinic schedule.
 
 **Remaining evidence/authority boundaries:** other roles' fresh-login and complete clinical/billing/inventory/workforce/video journeys, full keyboard/screen-reader/device coverage and elapsed two-hour session behavior are not browser-proved here. Live one-time staff MOTO, provider setup, tax applicability, jurisdictional professional policy and export/retention remain explicit dependencies, not silently simulated production capabilities. PR-10 retains its documented later conditions; no blanket application-wide launch acceptance is claimed.
+
+**Two-slice implementation follow-through — 2026-09-16:** activation and recovery screens now expose invitation/recovery, identity verification, account/password completion and patient-link lifecycle steps when a valid token is present. The nurse encounter workspace now exposes encounter, intake, vitals, site and room state beside the patient context. These are source changes using existing server-recorded state; browser acceptance remains open and no new tests were run at the founder's request.
 
 **Final one-time payment repair:** a separate synthetic one-time enrollment now reaches verified local payment and Proceed to onboarding in the browser. Exact configured platform sandbox reuse preserves the existing connection, emits no vendor request and remains development/test opt-in only. Its focused test passed 18 assertions; final two-file Ruby lint passed. Recurring/one-time previews reflect the selected enrollment terms rather than the published package's default renewal choice.
 
