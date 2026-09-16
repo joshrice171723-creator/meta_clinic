@@ -523,6 +523,10 @@ No browser screenshot file was available through the active browser-control surf
 | **Browser-unverified** | Login completion for all roles; patient creation/search; full Patient Flow movement; encounters/charting; billing/payment/refund; reminders/messages; workforce; inventory; portal; telehealth; scribe; responsive/accessibility journeys. |
 | **Missing or not established by evidence** | A reliable local sign-in recovery path; a single accepted canonical status/ownership dictionary; five data elements listed in Section 11; a verified full regression signal; any claim of regulatory, clinical, security, or production readiness. |
 
+### Current status reconciliation — 2026-09-16
+
+The historical appendix above predates the authorized implementation follow-through and is retained as dated evidence. Current source and verification supersede its stale “browser-unverified” labels for the bounded slices actually exercised: local entry recovery, grouped clinic navigation, Patient Flow → Schedule → Tracking Board semantics, selected-patient context, populated scheduling/check-in, local recurring and one-time membership payment simulation, patient activity provenance, provider/report state presentation, cancellation-message boundaries, launch checklist, duplicate-match labeling, and Tracking Board visit context. The full frontend suite currently passes 51 files / 379 tests, and the latest pushed commit is `1bf18db` plus the follow-up UI commits. The remaining rows are not all implemented or browser-proved: encounter/intake/lab detail, telehealth session, billing/refund edge cases, inventory/workforce walkthroughs, complete role/device/accessibility acceptance, and every external, clinical, legal, tax, export/retention or production gate remain open. This reconciliation does not convert source inspection or local synthetic evidence into launch readiness.
+
 ### Ten most important changes
 
 1. Make local sign-in complete or fail with a usable recovery state.
