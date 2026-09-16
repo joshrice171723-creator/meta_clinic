@@ -116,14 +116,18 @@ export function MembershipAccountActivation() {
             >
               <Chip label="Invitation received" color="success" size="small" />
               <Chip
-                label="Verify identity"
+                label="Next: verify identity"
                 color="primary"
                 size="small"
                 variant="outlined"
               />
-              <Chip label="Account active" size="small" variant="outlined" />
               <Chip
-                label="Patient link after payment"
+                label="Next: activate account"
+                size="small"
+                variant="outlined"
+              />
+              <Chip
+                label="After payment: link patient record"
                 size="small"
                 variant="outlined"
               />

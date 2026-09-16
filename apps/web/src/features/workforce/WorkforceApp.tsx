@@ -99,6 +99,9 @@ export function WorkforceApp({ path }: { path: string }) {
         useFlexGap
         sx={{ mb: 1.5, flexWrap: "wrap" }}
         aria-label="Workforce access summary"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
       >
         <Chip
           label={`${pages.length} available section${pages.length === 1 ? "" : "s"}`}

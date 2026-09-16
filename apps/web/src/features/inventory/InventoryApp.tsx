@@ -3041,14 +3041,12 @@ export function InventoryApp({ path }: { path: string }) {
               />
               <Chip
                 label={
-                  data.configuration?.status === "configured" ||
-                  data.configuration?.status === "synthetic"
+                  data.configuration?.status === "configured"
                     ? "Configured"
                     : "Setup required"
                 }
                 color={
-                  data.configuration?.status === "configured" ||
-                  data.configuration?.status === "synthetic"
+                  data.configuration?.status === "configured"
                     ? "success"
                     : "warning"
                 }

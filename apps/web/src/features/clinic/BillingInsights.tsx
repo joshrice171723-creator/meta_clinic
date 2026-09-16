@@ -131,6 +131,8 @@ export function BillingCollectionWorklist({
   onOpenInvoice: (invoiceId: number) => void;
 }) {
   const worklist = data.collection_worklist;
+  const summaryScope =
+    worklist.total_count > worklist.items.length ? "shown" : "total";
   const statusCounts = worklist.items.reduce(
     (counts, item) => {
       counts[item.status] += 1;
@@ -163,20 +165,23 @@ export function BillingCollectionWorklist({
         useFlexGap
         sx={{ mb: 2, flexWrap: "wrap" }}
         aria-label="Collection status summary"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
       >
         <Chip
-          label={`${statusCounts.needs_reconciliation} need reconciliation`}
+          label={`${statusCounts.needs_reconciliation} need reconciliation (${summaryScope})`}
           color={statusCounts.needs_reconciliation > 0 ? "warning" : "success"}
           size="small"
         />
         <Chip
-          label={`${statusCounts.failed} failed`}
+          label={`${statusCounts.failed} failed (${summaryScope})`}
           color={statusCounts.failed > 0 ? "error" : "default"}
           size="small"
           variant="outlined"
         />
         <Chip
-          label={`${statusCounts.paid} paid`}
+          label={`${statusCounts.paid} paid (${summaryScope})`}
           color="success"
           size="small"
           variant="outlined"
@@ -187,6 +192,16 @@ export function BillingCollectionWorklist({
           variant="outlined"
         />
       </Stack>
+      {summaryScope === "shown" && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mb: 2 }}
+        >
+          Counts reflect the latest {worklist.items.length} of{" "}
+          {worklist.total_count} collection records.
+        </Typography>
+      )}
       {!worklist.items.length ? (
         <p className="billing-clear-state">No collection activity yet.</p>
       ) : (

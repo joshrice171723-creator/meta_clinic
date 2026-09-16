@@ -300,9 +300,12 @@ export function TelehealthQueue() {
           useFlexGap
           sx={{ flexWrap: "wrap" }}
           aria-label="Virtual waiting room summary"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
           <Chip
-            label={`${visits.length} visits`}
+            label={`${visits.length}${response.data.next_cursor ? " shown" : ""} visits`}
             color={visits.length > 0 ? "primary" : "default"}
             size="small"
           />

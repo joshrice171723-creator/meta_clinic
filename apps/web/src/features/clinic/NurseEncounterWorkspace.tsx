@@ -433,6 +433,9 @@ export function NurseEncounterWorkspace({
             useFlexGap
             sx={{ mt: 1, flexWrap: "wrap" }}
             aria-label="Encounter status summary"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
           >
             <Chip
               label={`Encounter: ${stateLabel(encounter.status)}`}

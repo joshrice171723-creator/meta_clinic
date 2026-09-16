@@ -364,36 +364,44 @@ export function RefillRequestQueue() {
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       {requests.data && (
-        <Stack
-          direction="row"
-          spacing={1}
-          useFlexGap
-          sx={{ flexWrap: "wrap" }}
-          aria-label="Refill queue summary"
-        >
-          <Chip
-            label={`${requestSummary.pending} pending`}
-            color={requestSummary.pending > 0 ? "warning" : "success"}
-            size="small"
-          />
-          <Chip
-            label={`${requestSummary.in_review} in review`}
-            color="info"
-            size="small"
-            variant="outlined"
-          />
-          <Chip
-            label={`${requestSummary.deliveryFailures} delivery follow-up`}
-            color={requestSummary.deliveryFailures > 0 ? "error" : "default"}
-            size="small"
-            variant="outlined"
-          />
-          <Chip
-            label="Next action: clinician review"
-            size="small"
-            variant="outlined"
-          />
-        </Stack>
+        <>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ flexWrap: "wrap" }}
+            aria-label="Refill queue summary"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <Chip
+              label={`${requestSummary.pending} pending`}
+              color={requestSummary.pending > 0 ? "warning" : "success"}
+              size="small"
+            />
+            <Chip
+              label={`${requestSummary.in_review} in review`}
+              color="info"
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label={`${requestSummary.deliveryFailures} delivery follow-up`}
+              color={requestSummary.deliveryFailures > 0 ? "error" : "default"}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              label="Next action: clinician review"
+              size="small"
+              variant="outlined"
+            />
+          </Stack>
+          <Typography variant="caption" color="text.secondary">
+            Counts reflect the requests returned for this queue (up to 100).
+          </Typography>
+        </>
       )}
 
       {canManage && (

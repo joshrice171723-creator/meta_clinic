@@ -130,20 +130,22 @@ export function PatientPortalActivation() {
                 size="small"
               />
               <Chip
-                label="Verify identity"
+                label="Next: verify identity"
                 color="primary"
                 size="small"
                 variant="outlined"
               />
               <Chip
                 label={
-                  purpose === "recovery" ? "Password reset" : "Account active"
+                  purpose === "recovery"
+                    ? "Next: reset password"
+                    : "Next: activate account"
                 }
                 size="small"
                 variant="outlined"
               />
               <Chip
-                label="Linked patient record"
+                label="Patient record link"
                 size="small"
                 variant="outlined"
               />
