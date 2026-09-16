@@ -155,6 +155,8 @@ module Identity
         locations = preview&.fetch(:locations, []) || []
         return true unless clinic
 
+        return params[:practice_id].to_s == clinic.fetch(:id).to_s if preview.fetch(:account_type, nil) == "omni"
+
         params[:practice_id].to_s == clinic.fetch(:id).to_s &&
           (locations.empty? || locations.any? { |site| site.fetch(:id).to_s == site_id.to_s })
       end

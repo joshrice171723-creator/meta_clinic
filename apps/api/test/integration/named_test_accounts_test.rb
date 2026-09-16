@@ -23,9 +23,11 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     @headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token"))
   end
 
-  def enter(profile, portal: nil)
+  def enter(profile, portal: nil, practice_id: nil, site_id: nil)
     params = { profile: profile }
     params[:portal] = portal if portal
+    params[:practice_id] = practice_id if practice_id
+    params[:site_id] = site_id if site_id
     post "/api/development_session", params: params, headers: csrf, as: :json
   end
 
@@ -166,6 +168,21 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       enter(omni.fetch(:id), portal: "clinic")
       assert_response :created
       assert_equal "/clinic", response.parsed_body.fetch("destination")
+    end
+  end
+
+  test "Omni can enter any location in its clinic" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      omni = Development::TestAccounts.preview_accounts.find { |account| account.fetch(:id) == "omni" }
+      practice = Clinic::Practice.find(omni.fetch(:clinic).fetch(:id))
+      second_site = practice.sites.create!(name: "Secondary synthetic location", code: "SECONDARY")
+
+      enter("omni", portal: "clinic", practice_id: practice.id, site_id: second_site.id)
+
+      assert_response :created
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
+      assert_equal "omni", response.parsed_body.dig("user", "development_account_id")
     end
   end
 

@@ -248,6 +248,7 @@ export function DevelopmentAccountSwitcher({
             ? clinics.filter(
                 (account) =>
                   noLocations ||
+                  account.account_type === "omni" ||
                   account.locations?.some((site) => String(site.id) === siteId),
               )
             : visibleAccounts
