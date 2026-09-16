@@ -18,7 +18,7 @@ function fail(message) {
 
 function help() {
   process.stdout.write(
-    `Usage: pnpm run browser:smoke [options]\n\nOptions:\n  --route <path>       Route to inspect (default: /clinic)\n  --profile <value>    Account id or clinic-administrator (default)\n  --portal <name>      clinic, launch, owner, or patient (default: clinic)\n  --viewport <name>    desktop or phone (default: desktop)\n  --screenshot <path>  Output PNG (default: outputs/browser-smoke/<timestamp>.png)\n  --base-url <url>     Loopback web URL (default: http://127.0.0.1:3000)\n  --headed             Show the browser window\n  --no-start           Require an already-running managed stack\n  --help               Show this help\n`,
+    `Usage: pnpm run browser:smoke [options]\n\nOptions:\n  --route <path>       Route to inspect (default: /clinic)\n  --profile <value>    Account id or clinic-administrator (default)\n  --portal <name>      clinic, launch, owner, or patient (default: clinic)\n  --viewport <name>    desktop or phone (default: desktop)\n  --screenshot <path>  Output PNG (default: outputs/browser-smoke/<timestamp>.png)\n  --matrix             Inspect the core clinic routes in one retained session\n  --base-url <url>     Loopback web URL (default: http://127.0.0.1:3000)\n  --headed             Show the browser window\n  --no-start           Require an already-running managed stack\n  --help               Show this help\n`,
   );
 }
 
@@ -30,6 +30,7 @@ function options(argv) {
     viewport: "desktop",
     baseUrl: "http://127.0.0.1:3000",
     headed: false,
+    matrix: false,
     start: true,
     screenshot: null,
   };
@@ -45,6 +46,7 @@ function options(argv) {
     const argument = argv[index];
     if (argument === "--help") return { help: true };
     if (argument === "--headed") result.headed = true;
+    else if (argument === "--matrix") result.matrix = true;
     else if (argument === "--no-start") result.start = false;
     else if (valued.has(argument)) {
       const value = argv[index + 1];
@@ -147,6 +149,13 @@ try {
           profile: null,
         };
       }
+      const locations = account.locations || [];
+      const scope =
+        account.account_type !== "omni" &&
+        account.clinic &&
+        locations.length === 1
+          ? { practice_id: account.clinic.id, site_id: locations[0].id }
+          : {};
       const response = await fetch("/api/development_session", {
         method: "POST",
         credentials: "same-origin",
@@ -154,7 +163,7 @@ try {
           "Content-Type": "application/json",
           "X-CSRF-Token": csrf.csrf_token,
         },
-        body: JSON.stringify({ profile: account.id, portal }),
+        body: JSON.stringify({ profile: account.id, portal, ...scope }),
       });
       return {
         status: response.status,
@@ -169,20 +178,48 @@ try {
       `development login returned HTTP ${login.status}: ${login.body?.error || "unknown response"}`,
     );
   failures.length = 0;
-  const response = await page.goto(new URL(selected.route, base).href, {
-    waitUntil: "networkidle",
-  });
-  if (!response?.ok())
-    fail(`route returned HTTP ${response?.status() || "unknown"}`);
-  await page
-    .locator("main")
-    .first()
-    .waitFor({ state: "visible", timeout: 15000 });
-  await page.screenshot({ path: screenshot, fullPage: true });
-  if (failures.length)
-    fail(`browser reported errors: ${[...new Set(failures)].join(" | ")}`);
+  const routes = selected.matrix
+    ? [
+        "/clinic",
+        "/clinic/schedule",
+        "/clinic/work",
+        "/clinic/billing",
+        "/clinic/inventory",
+        "/clinic/workforce",
+        "/clinic/telehealth",
+      ]
+    : [selected.route];
+  const observations = [];
+  for (const [index, route] of routes.entries()) {
+    failures.length = 0;
+    const response = await page.goto(new URL(route, base).href, {
+      // Clinic pages poll while visible, so network-idle is not a stable
+      // readiness signal. The route response plus visible main content is the
+      // bounded smoke contract; individual data states are rendered by the
+      // page itself.
+      waitUntil: "domcontentloaded",
+    });
+    if (!response?.ok())
+      fail(`${route} returned HTTP ${response?.status() || "unknown"}`);
+    if (new URL(page.url()).pathname === "/login")
+      fail(`${route} redirected back to login`);
+    await page
+      .locator("main")
+      .first()
+      .waitFor({ state: "visible", timeout: 15000 });
+    const routeScreenshot = selected.matrix
+      ? screenshot.replace(
+          /\.png$/,
+          `-${String(index + 1).padStart(2, "0")}.png`,
+        )
+      : screenshot;
+    await page.screenshot({ path: routeScreenshot, fullPage: true });
+    if (failures.length)
+      fail(`${route} reported errors: ${[...new Set(failures)].join(" | ")}`);
+    observations.push({ route, screenshot: routeScreenshot });
+  }
   process.stdout.write(
-    `${JSON.stringify({ route: selected.route, profile: login.profile, portal: selected.portal, viewport: selected.viewport, screenshot })}\n`,
+    `${JSON.stringify({ routes: observations, profile: login.profile, portal: selected.portal, viewport: selected.viewport })}\n`,
   );
   await context.close();
 } finally {

@@ -150,15 +150,25 @@ module Identity
       end
 
       def valid_development_clinic_scope?(preview, site_id: params[:site_id].presence)
-        return true unless params[:practice_id].present? || site_id.present?
-
         clinic = preview&.fetch(:clinic, nil)
         locations = preview&.fetch(:locations, []) || []
         return true unless clinic
 
         return true if preview.fetch(:account_type, nil) == "omni"
 
-        params[:practice_id].to_s == clinic.fetch(:id).to_s &&
+        # A clinic account with exactly one accessible location has no
+        # meaningful ambiguity. Resolve that scope from the signed-in profile
+        # while still requiring an explicit location for multi-location users.
+        if params[:practice_id].blank? && site_id.blank?
+          return true if locations.empty?
+          return false if locations.length > 1
+        end
+
+        practice_id = params[:practice_id].presence ||
+          (clinic.fetch(:id).to_s if locations.one?)
+        return false unless practice_id.present?
+
+        practice_id.to_s == clinic.fetch(:id).to_s &&
           (locations.empty? || locations.any? { |site| site.fetch(:id).to_s == site_id.to_s })
       end
 

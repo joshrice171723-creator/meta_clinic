@@ -83,6 +83,28 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "clinic login infers the only authorized location when scope ids are omitted" do
+    with_environment do
+      Development::TestAccounts.prepare!
+      user = User.create!(email_address: "single-location-employee@example.invalid", active: true,
+        admin: false, password: SecureRandom.hex(20))
+      membership = Development::TestClinic.create!(user)
+      site = membership.practice.sites.create!(code: "ONLY", name: "Only clinic location")
+      account = Development::TestAccounts.preview_accounts.find { |candidate| candidate.fetch(:id) == "employee-#{user.id}" }
+      assert account
+      assert_equal [ site.id ], account.fetch(:locations).pluck(:id)
+
+      post "/api/development_session", params: { profile: account.fetch(:id), portal: "clinic" }, headers: csrf, as: :json
+      assert_response :created
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
+      assert_equal account.fetch(:id), response.parsed_body.dig("user", "development_account_id")
+
+      get "/api/clinic/context", headers: headers
+      assert_response :success
+      assert_equal account.fetch(:locations).first.fetch(:id), response.parsed_body.dig("current_site", "id")
+    end
+  end
+
   test "existing demo sessions stop working after flag removal or outside development" do
     with_environment { enter_demo }
     [ [ "development", nil ], [ "production", "1" ] ].each do |name, flag|
