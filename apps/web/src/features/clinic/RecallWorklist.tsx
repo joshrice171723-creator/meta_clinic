@@ -202,6 +202,38 @@ function RecallWorklistContent() {
       </Box>
 
       {notice && <Alert severity="success">{notice}</Alert>}
+      {resource.data && (
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+          aria-label="Recall queue summary"
+        >
+          <Chip
+            label={`${resource.data.summary.due} due now`}
+            color={resource.data.summary.due > 0 ? "error" : "success"}
+            size="small"
+          />
+          <Chip
+            label={`${resource.data.summary.upcoming} upcoming`}
+            color="info"
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label={`${resource.data.summary.snoozed} snoozed`}
+            color="warning"
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label="Next action: work due recalls first"
+            size="small"
+            variant="outlined"
+          />
+        </Stack>
+      )}
       <Paper component="section" variant="outlined">
         <Tabs
           value={status}

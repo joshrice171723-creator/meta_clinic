@@ -3039,6 +3039,23 @@ export function InventoryApp({ path }: { path: string }) {
                   fontWeight: 600,
                 }}
               />
+              <Chip
+                label={
+                  data.configuration?.status === "configured" ||
+                  data.configuration?.status === "synthetic"
+                    ? "Configured"
+                    : "Setup required"
+                }
+                color={
+                  data.configuration?.status === "configured" ||
+                  data.configuration?.status === "synthetic"
+                    ? "success"
+                    : "warning"
+                }
+                size="small"
+                variant="outlined"
+                aria-label="Inventory configuration status"
+              />
               <span className="inventory-header-meta">
                 Updated {inventoryDateTime(data.as_of, data.timezone)}
               </span>

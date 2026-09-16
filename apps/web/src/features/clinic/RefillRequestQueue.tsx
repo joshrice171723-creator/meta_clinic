@@ -113,6 +113,25 @@ export function RefillRequestQueue() {
     () => requests.data?.refill_requests ?? [],
     [requests.data],
   );
+  const requestSummary = useMemo(
+    () =>
+      sortedRequests.reduce(
+        (summary, request) => {
+          summary[request.status] += 1;
+          if (request.response_delivery_state === "failed")
+            summary.deliveryFailures += 1;
+          return summary;
+        },
+        {
+          pending: 0,
+          in_review: 0,
+          resolved: 0,
+          declined: 0,
+          deliveryFailures: 0,
+        },
+      ),
+    [sortedRequests],
+  );
 
   const createRequest = async () => {
     if (!canManage || !selectedPatient || busyKey) return;
@@ -344,6 +363,38 @@ export function RefillRequestQueue() {
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {requests.data && (
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+          aria-label="Refill queue summary"
+        >
+          <Chip
+            label={`${requestSummary.pending} pending`}
+            color={requestSummary.pending > 0 ? "warning" : "success"}
+            size="small"
+          />
+          <Chip
+            label={`${requestSummary.in_review} in review`}
+            color="info"
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label={`${requestSummary.deliveryFailures} delivery follow-up`}
+            color={requestSummary.deliveryFailures > 0 ? "error" : "default"}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label="Next action: clinician review"
+            size="small"
+            variant="outlined"
+          />
+        </Stack>
+      )}
 
       {canManage && (
         <Paper

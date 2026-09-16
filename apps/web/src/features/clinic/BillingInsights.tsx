@@ -131,6 +131,20 @@ export function BillingCollectionWorklist({
   onOpenInvoice: (invoiceId: number) => void;
 }) {
   const worklist = data.collection_worklist;
+  const statusCounts = worklist.items.reduce(
+    (counts, item) => {
+      counts[item.status] += 1;
+      return counts;
+    },
+    {
+      requested: 0,
+      processing: 0,
+      paid: 0,
+      failed: 0,
+      needs_reconciliation: 0,
+      canceled: 0,
+    } as Record<BillingCollectionStatus, number>,
+  );
   return (
     <section className="clinic-card billing-ledger-card">
       <div className="billing-section-heading billing-ledger-heading">
@@ -143,6 +157,36 @@ export function BillingCollectionWorklist({
         </div>
         <strong>{worklist.total_count} collection records</strong>
       </div>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ mb: 2, flexWrap: "wrap" }}
+        aria-label="Collection status summary"
+      >
+        <Chip
+          label={`${statusCounts.needs_reconciliation} need reconciliation`}
+          color={statusCounts.needs_reconciliation > 0 ? "warning" : "success"}
+          size="small"
+        />
+        <Chip
+          label={`${statusCounts.failed} failed`}
+          color={statusCounts.failed > 0 ? "error" : "default"}
+          size="small"
+          variant="outlined"
+        />
+        <Chip
+          label={`${statusCounts.paid} paid`}
+          color="success"
+          size="small"
+          variant="outlined"
+        />
+        <Chip
+          label="Next action: resolve uncertain outcomes before recollecting"
+          size="small"
+          variant="outlined"
+        />
+      </Stack>
       {!worklist.items.length ? (
         <p className="billing-clear-state">No collection activity yet.</p>
       ) : (

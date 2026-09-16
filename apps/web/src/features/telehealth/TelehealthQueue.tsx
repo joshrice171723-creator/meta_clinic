@@ -217,6 +217,25 @@ export function TelehealthQueue() {
     return clinician?.reference || "Clinician name unavailable";
   };
   const visits = response?.data.visits || [];
+  const readinessSummary = useMemo(
+    () =>
+      visits.reduce(
+        (summary, visit) => {
+          summary[visit.readiness] += 1;
+          return summary;
+        },
+        {
+          preparation_needed: 0,
+          consent_needed: 0,
+          waiting: 0,
+          admitted: 0,
+          connected: 0,
+          disconnected: 0,
+          ended: 0,
+        } as Record<TelehealthQueueRow["readiness"], number>,
+      ),
+    [visits],
+  );
   return (
     <Stack spacing={2.5}>
       <Stack
@@ -274,6 +293,45 @@ export function TelehealthQueue() {
           </Button>
         </Stack>
       </Stack>
+      {response && (
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+          aria-label="Virtual waiting room summary"
+        >
+          <Chip
+            label={`${visits.length} visits`}
+            color={visits.length > 0 ? "primary" : "default"}
+            size="small"
+          />
+          <Chip
+            label={`${readinessSummary.waiting} waiting`}
+            color={readinessSummary.waiting > 0 ? "warning" : "default"}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label={`${readinessSummary.connected} connected`}
+            color={readinessSummary.connected > 0 ? "success" : "default"}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label={`${readinessSummary.preparation_needed + readinessSummary.consent_needed} need preparation`}
+            color={
+              readinessSummary.preparation_needed +
+                readinessSummary.consent_needed >
+              0
+                ? "warning"
+                : "default"
+            }
+            size="small"
+            variant="outlined"
+          />
+        </Stack>
+      )}
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}

@@ -1,4 +1,4 @@
-import { Alert, Box, Tab, Tabs, Typography } from "@mui/material";
+import { Alert, Box, Chip, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { EmploymentAdminPage } from "./EmploymentAdminPage";
@@ -93,6 +93,24 @@ export function WorkforceApp({ path }: { path: string }) {
       <Typography variant="overline" color="text.secondary">
         Workforce
       </Typography>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ mb: 1.5, flexWrap: "wrap" }}
+        aria-label="Workforce access summary"
+      >
+        <Chip
+          label={`${pages.length} available section${pages.length === 1 ? "" : "s"}`}
+          color={pages.length > 0 ? "success" : "warning"}
+          size="small"
+        />
+        <Chip
+          label="Access is controlled by clinic permissions"
+          size="small"
+          variant="outlined"
+        />
+      </Stack>
       <Tabs
         value={selected?.id ?? false}
         variant="scrollable"
