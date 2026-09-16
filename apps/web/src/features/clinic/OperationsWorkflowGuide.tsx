@@ -5,6 +5,7 @@ import {
   AccordionSummary,
   Alert,
   Button,
+  Chip,
   Divider,
   Stack,
   Typography,
@@ -36,6 +37,27 @@ function Destination({
     </Button>
   );
 }
+
+const WORKFLOW_STAGES = [
+  {
+    label: "Patient Flow",
+    record: "Prospective work item",
+    status: "Open → initial contact complete",
+    next: "Schedule the first appointment",
+  },
+  {
+    label: "Schedule",
+    record: "Appointment",
+    status: "Scheduled → confirmed → cancelled",
+    next: "Check in when the patient arrives",
+  },
+  {
+    label: "Tracking Board",
+    record: "Visit / encounter",
+    status: "Checked in → in progress → completed",
+    next: "Open the encounter and record care",
+  },
+] as const;
 
 export function OperationsWorkflowGuide({
   capabilities,
@@ -117,6 +139,51 @@ export function OperationsWorkflowGuide({
               >
                 Open Tracking Board
               </Destination>
+            </Stack>
+          </Stack>
+
+          <Stack spacing={1}>
+            <Typography
+              component="h3"
+              variant="subtitle1"
+              sx={{ fontWeight: 700 }}
+            >
+              Record and status map
+            </Typography>
+            <Typography variant="body2">
+              These are separate records. Completing one stage never silently
+              changes the status of the next stage.
+            </Typography>
+            <Stack spacing={1}>
+              {WORKFLOW_STAGES.map((stage, index) => (
+                <Stack
+                  key={stage.label}
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.25}
+                  useFlexGap
+                  sx={{
+                    alignItems: { xs: "flex-start", sm: "center" },
+                    p: 1.25,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Chip
+                    size="small"
+                    label={`${index + 1}. ${stage.label}`}
+                    color={index === 0 ? "primary" : "default"}
+                  />
+                  <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                    <Typography variant="body2">
+                      <strong>{stage.record}</strong> · {stage.status}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Next action: {stage.next}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              ))}
             </Stack>
           </Stack>
 

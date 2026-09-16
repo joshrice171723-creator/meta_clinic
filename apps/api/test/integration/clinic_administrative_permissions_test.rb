@@ -20,6 +20,10 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
       grant_permissions!(membership, *permissions)
       [ role, user ]
     end
+    @scheduler_membership = @practice.memberships.find_by!(user: @users.fetch("scheduler"))
+    @clinician = @practice.clinician_profiles.create!(membership: @scheduler_membership,
+      display_name: "Synthetic scheduling clinician")
+    @visit_type = @practice.visit_types.create!(code: "SYN-ADMIN-VISIT")
     @appointment = @practice.appointments.create!(patient: @patient, site: @site,
       starts_at: 1.hour.from_now, ends_at: 90.minutes.from_now, status: "scheduled")
     login(@users.fetch("front_desk"))
@@ -47,7 +51,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
 
     login(@users.fetch("billing_operator"))
-    get "/api/clinic/patients/lookup", headers: @headers
+    get "/api/clinic/patients/lookup", params: { q: @patient.reference }, headers: @headers
     assert_response :success
     get "/api/clinic/appointments", headers: @headers
     assert_response :forbidden
@@ -438,6 +442,8 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
       appointment: {
         patient_id: @patient.id,
         site_id: @site.id,
+        booked_clinician_id: @clinician.id,
+        visit_type_id: @visit_type.id,
         starts_at: 3.hours.from_now.iso8601,
         ends_at: 4.hours.from_now.iso8601
       }

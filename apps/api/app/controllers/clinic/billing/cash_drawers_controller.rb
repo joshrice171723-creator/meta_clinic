@@ -12,7 +12,13 @@ module Clinic
       def create
         input = parameter_hash!(:drawer, %i[site_id opening_float])
         site = current_practice.sites.find(requested_id!(input[:site_id], :site_id))
-        session = current_practice.cash_drawer_sessions.create!(site: site, opened_by: current_user, opening_float: decimal_string!(input[:opening_float], field: :opening_float))
+        if current_practice.cash_drawer_sessions.exists?(site: site, status: "open")
+          return render json: { error: "This location already has an open cash drawer." }, status: :conflict
+        end
+        session = current_practice.cash_drawer_sessions.transaction(requires_new: true) do
+          current_practice.cash_drawer_sessions.create!(site: site, opened_by: current_user,
+            opening_float: decimal_string!(input[:opening_float], field: :opening_float))
+        end
         render json: { drawer: CashDrawer.call(session) }, status: :created
       rescue ActiveRecord::RecordNotUnique
         render json: { error: "This location already has an open cash drawer." }, status: :conflict

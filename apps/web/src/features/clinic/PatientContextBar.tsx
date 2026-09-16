@@ -45,13 +45,18 @@ export function PatientContextBar({
   path,
   search,
   capabilities,
+  practiceName = "Clinic",
+  locationName = "All locations",
 }: {
   path: string;
   search: string;
   capabilities: ClinicCapabilities;
+  practiceName?: string;
+  locationName?: string;
 }) {
   const { navigate } = useClinicNavigation();
   const patientId = clinicPatientContextId(path, search);
+  const encounterId = new URLSearchParams(search).get("encounter_id");
   const canReadIdentity =
     capabilities.patient_identity_read === true ||
     capabilities.patients === true;
@@ -69,6 +74,16 @@ export function PatientContextBar({
   const patient = identity.data?.patients.find((item) => item.id === patientId);
   const reference = patientReferenceLabel(patient?.reference);
   const clearHref = clearPatientContextHref(path, search);
+  const clearContext = () => {
+    if (
+      encounterId &&
+      !window.confirm(
+        "Clear the current patient and encounter context? Unsaved work stays in the current page.",
+      )
+    )
+      return;
+    navigate(clearHref);
+  };
 
   return (
     <section className="clinic-patient-context" aria-label="Current patient">
@@ -89,6 +104,10 @@ export function PatientContextBar({
                 Clinic reference: {reference}
               </Typography>
             )}
+            <Typography variant="caption" color="text.secondary">
+              {practiceName} · {locationName}
+              {encounterId ? ` · Encounter ${encounterId}` : ""}
+            </Typography>
           </>
         ) : (
           <span role="status">Patient identity unavailable</span>
@@ -122,7 +141,7 @@ export function PatientContextBar({
         )}
         <IconButton
           aria-label="Clear current patient"
-          onClick={() => navigate(clearHref)}
+          onClick={clearContext}
           size="small"
         >
           <CloseIcon aria-hidden="true" fontSize="small" />

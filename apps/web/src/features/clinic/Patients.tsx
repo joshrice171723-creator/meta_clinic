@@ -299,13 +299,24 @@ function PatientLookupResults({ search }: { search: string }) {
           }}
         >
           <Box>
-            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
-              <Typography sx={{ fontWeight: 600 }}>{patient.display_name}</Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ alignItems: "center", flexWrap: "wrap" }}
+            >
+              <Typography sx={{ fontWeight: 600 }}>
+                {patient.display_name}
+              </Typography>
               <Chip
                 size="small"
                 variant="outlined"
                 color={data.pagination.total > 1 ? "warning" : "default"}
-                label={data.pagination.total > 1 ? "Possible duplicate" : "Candidate match"}
+                label={
+                  data.pagination.total > 1
+                    ? "Possible duplicate"
+                    : "Candidate match"
+                }
               />
             </Stack>
             <Typography color="text.secondary" variant="body2">
@@ -318,7 +329,8 @@ function PatientLookupResults({ search }: { search: string }) {
             </Typography>
             {data.pagination.total > 1 && (
               <Typography color="warning.main" variant="caption">
-                Compare the identity details before opening or registering another record.
+                Compare the identity details before opening or registering
+                another record.
               </Typography>
             )}
           </Box>
@@ -1440,6 +1452,8 @@ function PatientRegistrationEditor({
                 label="Name shown in chart"
                 value={initialValues.display_name}
                 maxLength={120}
+                description="The name staff see in schedules, queues, and the chart."
+                owner="registration staff"
               />
               <Field
                 name="clinic_patient[legal_name]"
@@ -1447,6 +1461,8 @@ function PatientRegistrationEditor({
                 required={false}
                 value={initialValues.legal_name}
                 maxLength={160}
+                description="Use only when it differs from the chart name."
+                owner="registration staff"
               />
               <Field
                 name="clinic_patient[preferred_name]"
@@ -1454,6 +1470,8 @@ function PatientRegistrationEditor({
                 required={false}
                 value={initialValues.preferred_name}
                 maxLength={160}
+                description="How the patient asks to be addressed."
+                owner="registration staff"
               />
               {(!patient?.reference ||
                 patientReferenceLabel(patient.reference)) && (
@@ -1467,6 +1485,12 @@ function PatientRegistrationEditor({
                   value={initialValues.reference}
                   maxLength={32}
                   readOnly={Boolean(patient)}
+                  description={
+                    patient
+                      ? "This identifier is fixed after registration."
+                      : "Use a stable clinic reference for reliable lookup."
+                  }
+                  owner="clinic system"
                 />
               )}
               {patient?.reference &&
@@ -1485,6 +1509,8 @@ function PatientRegistrationEditor({
               value={initialValues.address_line1}
               autoComplete="address-line1"
               maxLength={200}
+              description="Used for correspondence and patient identity checks."
+              owner="registration staff"
             />
             <Box className="pharmacy-form-grid">
               <Field

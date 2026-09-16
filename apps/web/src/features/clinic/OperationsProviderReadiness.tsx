@@ -6,6 +6,7 @@ import type {
   TelehealthSettingsData,
 } from "../telehealth/types";
 import { Card, ResourceState } from "../../shared/ui";
+import { IntegrationStatusBadge } from "./IntegrationStatusBadge";
 
 type ProviderState = "configured" | "unavailable";
 
@@ -110,12 +111,10 @@ export function OperationsProviderReadiness({
   const readinessDetails = response && readiness && (
     <Stack spacing={1.5}>
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-        <Chip
-          label={
-            readiness.state === "configured" ? "Configured" : "Unavailable"
+        <IntegrationStatusBadge
+          status={
+            readiness.state === "configured" ? "configured" : "unavailable"
           }
-          color={readiness.state === "configured" ? "success" : "default"}
-          variant="outlined"
         />
         <Chip
           label={providerLabel(response.data.provider_code)}

@@ -103,6 +103,8 @@ export function Card({
 export function Field({
   name,
   label,
+  description,
+  owner,
   type = "text",
   required = true,
   value,
@@ -116,6 +118,8 @@ export function Field({
 }: {
   name: string;
   label: string;
+  description?: ReactNode;
+  owner?: string;
   type?: string;
   required?: boolean;
   value?: string | number;
@@ -169,6 +173,12 @@ export function Field({
           max={max}
           step={step}
         />
+      )}
+      {(description || owner) && (
+        <div className="form-field-hint">
+          {description && <span>{description}</span>}
+          {owner && <span>Owner: {owner}</span>}
+        </div>
       )}
     </div>
   );

@@ -718,6 +718,8 @@ export function Workspace({
                       capabilities={data.capabilities}
                       path={path}
                       search={search}
+                      practiceName={data.practice.name}
+                      locationName={locationName || "All locations"}
                     />
                     <main
                       id="main"

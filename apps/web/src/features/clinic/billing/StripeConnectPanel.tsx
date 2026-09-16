@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { api } from "../../../api/client";
 import { LoadState, useResource } from "../../../shared/ui";
 import { subscriptionDate } from "../subscriptions/contracts";
+import { IntegrationStatusBadge } from "../IntegrationStatusBadge";
 
 export type StripeConnectionStatus = {
   configured: boolean;
@@ -105,6 +106,11 @@ export function StripeConnectPanel() {
   const localSimulator = data.source === "local_membership_payment_simulator";
   const paymentsReady = !localSimulator && data.charges_enabled;
   const setupComplete = paymentsReady && data.payouts_enabled;
+  const integrationStatus = localSimulator
+    ? "simulated"
+    : data.configured
+      ? "configured"
+      : "unavailable";
   return (
     <Stack spacing={2.5}>
       {(error || resource.error) && (
@@ -146,8 +152,8 @@ export function StripeConnectPanel() {
       >
         <div>
           <span>Environment</span>
-          <Chip
-            size="small"
+          <IntegrationStatusBadge
+            status={integrationStatus}
             label={localSimulator ? "Local simulator" : "Sandbox only"}
           />
         </div>

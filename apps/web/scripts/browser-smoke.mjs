@@ -207,6 +207,10 @@ try {
       .locator("main")
       .first()
       .waitFor({ state: "visible", timeout: 15000 });
+    await page
+      .locator("main h1, main [role=heading]")
+      .first()
+      .waitFor({ state: "visible", timeout: 15000 });
     const routeScreenshot = selected.matrix
       ? screenshot.replace(
           /\.png$/,
