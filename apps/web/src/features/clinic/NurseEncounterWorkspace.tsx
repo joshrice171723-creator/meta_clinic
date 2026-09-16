@@ -505,7 +505,6 @@ export function NurseEncounterWorkspace({
                 )}
                 <IntakeQuestions
                   fields={workspace.questionnaire_form.fields}
-                  states={workspace.questionnaire_form.answer_states}
                   medicationOptions={
                     workspace.questionnaire_form.medication_options
                   }

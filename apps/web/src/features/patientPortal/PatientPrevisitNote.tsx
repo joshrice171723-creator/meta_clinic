@@ -489,16 +489,6 @@ export function PatientPrevisitNote({
                   <IntakeQuestions
                     fields={data.intake_form.fields}
                     answers={answers}
-                    states={
-                      data.intake_form.answer_states ?? [
-                        "answered",
-                        "unanswered",
-                        "unknown",
-                        "declined",
-                        "not_applicable",
-                        "negative",
-                      ]
-                    }
                     medicationOptions={data.intake_form.medication_options}
                     disabled={loading || busy || outcomeUnknown || conflict}
                     onChange={(next) => {

@@ -109,14 +109,6 @@ describe("typed patient journey intake", () => {
             source: "patient_reported",
           },
         }}
-        states={[
-          "answered",
-          "unanswered",
-          "unknown",
-          "declined",
-          "not_applicable",
-          "negative",
-        ]}
         medicationOptions={["Synthetic medicine"]}
         disabled={false}
         onChange={() => {}}
@@ -125,6 +117,7 @@ describe("typed patient journey intake", () => {
     expect(html).toContain("Synthetic medicine");
     expect(html).toContain("Synthetic supplement");
     expect(html).toContain("Add another");
+    expect(html).not.toContain("answer status");
     expect(html).toContain("Current weight measured at");
     expect(html).toContain("Current weight source");
     expect(html).toContain('type="date"');

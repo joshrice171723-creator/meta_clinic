@@ -38,14 +38,12 @@ export function answerState(answer: IntakeAnswer | undefined) {
 export function IntakeQuestions({
   fields,
   answers,
-  states,
   disabled,
   onChange,
   medicationOptions = [],
 }: {
   fields: IntakeField[];
   answers: IntakeAnswers;
-  states: string[];
   disabled: boolean;
   onChange: (answers: IntakeAnswers) => void;
   medicationOptions?: string[];
@@ -68,26 +66,9 @@ export function IntakeQuestions({
         ].includes(field.id);
         return (
           <Stack key={field.id} spacing={1}>
-            <Typography variant="subtitle2">{field.label}</Typography>
-            <TextField
-              select
-              label={`${field.label} — answer status`}
-              value={answerState(answer)}
-              disabled={disabled}
-              onChange={(event) =>
-                set(field.id, { state: event.target.value, value: "" })
-              }
-            >
-              {states.map((state) => (
-                <MenuItem key={state} value={state}>
-                  {state === "negative"
-                    ? field.id === "allergies"
-                      ? "No known allergies"
-                      : "None / No"
-                    : state.replaceAll("_", " ")}
-                </MenuItem>
-              ))}
-            </TextField>
+            {repeatable && (
+              <Typography variant="subtitle2">{field.label}</Typography>
+            )}
             {field.choices ? (
               <TextField
                 select
@@ -187,6 +168,8 @@ export function IntakeQuestions({
                 disabled={disabled}
                 multiline={!field.units}
                 fullWidth
+                size={field.units ? "small" : "medium"}
+                sx={field.units ? { maxWidth: { sm: 360 } } : undefined}
                 slotProps={{
                   htmlInput: {
                     maxLength: 600,
