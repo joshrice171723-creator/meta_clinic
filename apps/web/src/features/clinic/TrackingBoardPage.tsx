@@ -681,6 +681,14 @@ function TrackingBoardRow({
               </Tooltip>
               <div className="tracking-patient-details">
                 <strong>{tableLabel.identity}</strong>
+                <Typography
+                  variant="caption"
+                  className="tracking-patient-visit-context"
+                  color="text.secondary"
+                >
+                  {visit.visitType} · {stage.label} ·{" "}
+                  {visit.owner ?? "Owner unassigned"}
+                </Typography>
                 {tableLabel.demographics && (
                   <Typography
                     variant="caption"

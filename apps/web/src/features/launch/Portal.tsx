@@ -4,6 +4,24 @@ import { LoadState, useResource } from "../../shared/ui";
 export function Portal({ clinicAvailable }: { clinicAvailable: boolean }) {
   const docs = useResource<{ paperworks: Paperwork[] }>("/api/paperworks");
   const guides = useResource<{ materials: Material[] }>("/api/materials");
+  const checklist = [
+    {
+      label: "Launch paperwork",
+      href: "/paperwork",
+      items: docs.data?.paperworks ?? [],
+      completedCount: (docs.data?.paperworks ?? []).filter(
+        (item) => item.status === "completed",
+      ).length,
+    },
+    {
+      label: "Training and onboarding",
+      href: "/training",
+      items: guides.data?.materials ?? [],
+      completedCount: (guides.data?.materials ?? []).filter(
+        (item) => item.status === "completed",
+      ).length,
+    },
+  ];
   return (
     <>
       <div className="portal-intro">
@@ -65,6 +83,43 @@ export function Portal({ clinicAvailable }: { clinicAvailable: boolean }) {
           )}
         </a>
       </div>
+      <section
+        className="portal-checklist"
+        aria-labelledby="launch-checklist-heading"
+      >
+        <div>
+          <p className="eyebrow">LAUNCH CHECKLIST</p>
+          <h2 id="launch-checklist-heading">
+            What is blocking your next step?
+          </h2>
+          <p>Each item stays with its source workspace and completion owner.</p>
+        </div>
+        <div className="portal-checklist-items">
+          {checklist.map((item) => {
+            const total = item.items.length;
+            const complete = item.completedCount;
+            const status =
+              total === 0 ? "Not assigned" : `${complete} of ${total} complete`;
+            return (
+              <a
+                href={item.href}
+                className="portal-checklist-item"
+                key={item.href}
+              >
+                <strong>{item.label}</strong>
+                <span>{status}</span>
+                <span>
+                  {total === 0
+                    ? "No blocking item is assigned."
+                    : complete === total
+                      ? "Complete"
+                      : "Open source workspace"}
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      </section>
       {clinicAvailable && (
         <section className="portal-bottom">
           <div>
