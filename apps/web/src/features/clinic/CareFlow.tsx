@@ -3468,159 +3468,155 @@ export function ProviderEncounterWorkflow({
       />
 
       {chartConfirmed && (
-        <Box className="provider-chart-layout">
-          <ChartQuickJump />
-          <Stack spacing={2} className="provider-chart-content">
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={1.5}>
-                <Typography
-                  ref={workspaceHeading}
-                  tabIndex={-1}
-                  variant="subtitle2"
-                  component="h2"
-                >
-                  Encounter context
+        <Stack spacing={2}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              <Typography
+                ref={workspaceHeading}
+                tabIndex={-1}
+                variant="subtitle2"
+                component="h2"
+              >
+                Encounter context
+              </Typography>
+              <Box>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  Recorded care details
                 </Typography>
-                <Box>
-                  <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    Recorded care details
+                {careSummaryState.status === "loading" ? (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    role="status"
+                  >
+                    Loading recorded care details…
                   </Typography>
-                  {careSummaryState.status === "loading" ? (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      role="status"
-                    >
-                      Loading recorded care details…
-                    </Typography>
-                  ) : careSummaryState.status === "error" ? (
-                    <Typography variant="body2" color="text.secondary">
-                      Recorded care details could not be loaded.
-                    </Typography>
-                  ) : (
-                    <CareIndicators
-                      state={careSummaryState}
-                      patientLabel={patient.display_name}
-                      timezone={timezone}
-                    />
-                  )}
-                </Box>
-                {reviewNeededTopics.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2">Review needed</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Use the existing review controls to record the outcome for
-                      this encounter.
-                    </Typography>
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={1}
-                      sx={{ mt: 1 }}
-                    >
-                      {reviewNeededTopics.map((topic) => (
-                        <Button
-                          key={topic}
-                          size="small"
-                          variant="outlined"
-                          href={`#clinical-history-${topic}-review`}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            focusReview(topic);
-                          }}
-                        >
-                          Review {topic.replaceAll("_", " ")}
-                        </Button>
-                      ))}
-                    </Stack>
-                  </Box>
+                ) : careSummaryState.status === "error" ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Recorded care details could not be loaded.
+                  </Typography>
+                ) : (
+                  <CareIndicators
+                    state={careSummaryState}
+                    patientLabel={patient.display_name}
+                    timezone={timezone}
+                  />
                 )}
-                <Divider />
+              </Box>
+              {reviewNeededTopics.length > 0 && (
                 <Box>
-                  <Typography variant="subtitle2">Vital signs</Typography>
-                  {displayedObservations.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      No recorded observations are available for this encounter.
-                    </Typography>
-                  ) : (
-                    <>
-                      {sharedObservationTime && (
-                        <Typography variant="caption" color="text.secondary">
-                          Observed {sharedObservationTime}
-                        </Typography>
-                      )}
-                      <Box className="provider-vitals-grid">
-                        {displayedObservations.map((observation) => (
-                          <Box key={observation.id}>
+                  <Typography variant="subtitle2">Review needed</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Use the existing review controls to record the outcome for
+                    this encounter.
+                  </Typography>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    sx={{ mt: 1 }}
+                  >
+                    {reviewNeededTopics.map((topic) => (
+                      <Button
+                        key={topic}
+                        size="small"
+                        variant="outlined"
+                        href={`#clinical-history-${topic}-review`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          focusReview(topic);
+                        }}
+                      >
+                        Review {topic.replaceAll("_", " ")}
+                      </Button>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+              <Divider />
+              <Box>
+                <Typography variant="subtitle2">Vital signs</Typography>
+                {displayedObservations.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No recorded observations are available for this encounter.
+                  </Typography>
+                ) : (
+                  <>
+                    {sharedObservationTime && (
+                      <Typography variant="caption" color="text.secondary">
+                        Observed {sharedObservationTime}
+                      </Typography>
+                    )}
+                    <Box className="provider-vitals-grid">
+                      {displayedObservations.map((observation) => (
+                        <Box key={observation.id}>
+                          <Typography variant="caption" color="text.secondary">
+                            {observation.display_label ||
+                              observationLabel(observation.code)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {observationValue(observation)}
+                          </Typography>
+                          {!sharedObservationTime && (
                             <Typography
                               variant="caption"
                               color="text.secondary"
                             >
-                              {observation.display_label ||
-                                observationLabel(observation.code)}
+                              {clinicDateTime(
+                                observation.observed_at,
+                                timezone,
+                              )}
                             </Typography>
-                            <Typography
-                              variant="body2"
-                              sx={{ fontWeight: 600 }}
-                            >
-                              {observationValue(observation)}
-                            </Typography>
-                            {!sharedObservationTime && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {clinicDateTime(
-                                  observation.observed_at,
-                                  timezone,
-                                )}
-                              </Typography>
-                            )}
-                          </Box>
-                        ))}
-                      </Box>
-                    </>
-                  )}
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Values are displayed as recorded. No review status is inferred
-                  or stored here.
-                </Typography>
-              </Stack>
-            </Paper>
-            <PatientEducationPanel patient={patient} encounter={encounter} />
-            <PatientClinicalHistory
-              patientId={patient.id}
-              encounterId={encounter.id}
-              onChanged={onCareSummaryRefresh}
-            />
-            <Box id="chart-labs">
-              <PatientLabReports
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </>
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Values are displayed as recorded. No review status is inferred
+                or stored here.
+              </Typography>
+            </Stack>
+          </Paper>
+          <Box className="provider-chart-layout">
+            <ChartQuickJump />
+            <Stack spacing={2} className="provider-chart-content">
+              <PatientEducationPanel patient={patient} encounter={encounter} />
+              <PatientClinicalHistory
                 patientId={patient.id}
-                patientName={patient.display_name}
                 encounterId={encounter.id}
-                orderRevision={orderRevision}
+                onChanged={onCareSummaryRefresh}
               />
-            </Box>
-            <MedicationAdministrations
-              encounter={encounter}
-              patient={patient}
-              timezone={timezone}
-              onChanged={onCareSummaryRefresh}
-            />
-            <ClinicalPlanWorkspace
-              patient={patient}
-              encounter={encounter}
-              onChanged={() => setOrderRevision((revision) => revision + 1)}
-            />
-            {noteWorkspace}
-            <VisitWrapUp
-              patient={patient}
-              encounter={encounter}
-              timezone={timezone}
-              onEncounterRefresh={onEncounterRefresh}
-            />
-          </Stack>
-        </Box>
+              <Box id="chart-labs">
+                <PatientLabReports
+                  patientId={patient.id}
+                  patientName={patient.display_name}
+                  encounterId={encounter.id}
+                  orderRevision={orderRevision}
+                />
+              </Box>
+              <MedicationAdministrations
+                encounter={encounter}
+                patient={patient}
+                timezone={timezone}
+                onChanged={onCareSummaryRefresh}
+              />
+              <ClinicalPlanWorkspace
+                patient={patient}
+                encounter={encounter}
+                onChanged={() => setOrderRevision((revision) => revision + 1)}
+              />
+              {noteWorkspace}
+              <VisitWrapUp
+                patient={patient}
+                encounter={encounter}
+                timezone={timezone}
+                onEncounterRefresh={onEncounterRefresh}
+              />
+            </Stack>
+          </Box>
+        </Stack>
       )}
     </Stack>
   );

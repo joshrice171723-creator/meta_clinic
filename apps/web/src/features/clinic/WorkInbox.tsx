@@ -551,12 +551,18 @@ function TaskActions({
           )}
         </Alert>
       )}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        useFlexGap
+        sx={{ flexWrap: "wrap", alignItems: "center" }}
+      >
         {canClaim && (
           <Button
             size="small"
             variant="contained"
             disabled={Boolean(busy)}
+            sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
             onClick={() => transition("claim")}
           >
             {busy === "claim"
@@ -599,16 +605,23 @@ function TaskActions({
               assignee_membership_id: Number(assigneeId),
             })
           }
+          sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
         >
           {busy === "assign" ? "Requesting…" : "Request transfer"}
         </Button>
       </Stack>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        useFlexGap
+        sx={{ flexWrap: "wrap", alignItems: "center" }}
+      >
         {canStart && (
           <Button
             size="small"
             variant="outlined"
             disabled={Boolean(busy)}
+            sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
             onClick={() => transition("start")}
           >
             {busy === "start" ? "Starting…" : "Start"}
@@ -644,6 +657,7 @@ function TaskActions({
               size="small"
               variant="outlined"
               disabled={Boolean(busy)}
+              sx={{ minHeight: 40, whiteSpace: "nowrap", flexShrink: 0 }}
               onClick={() =>
                 transition("complete", { resolution_code: resolutionCode })
               }
