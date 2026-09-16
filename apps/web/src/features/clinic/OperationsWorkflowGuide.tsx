@@ -100,7 +100,7 @@ export function OperationsWorkflowGuide({
               useFlexGap
               sx={{ flexWrap: "wrap" }}
             >
-              <Destination available={canOpenGrowth} href="/clinic/growth">
+              <Destination available={canOpenGrowth} href="/clinic/work">
                 Open Patient Flow
               </Destination>
               <Destination

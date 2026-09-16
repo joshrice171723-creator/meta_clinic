@@ -46,7 +46,7 @@ describe("operations review surfaces", () => {
     expect(html).toContain(
       "provider-accepted reminder is not confirmed delivered",
     );
-    expect(html).toContain('href="/clinic/growth"');
+    expect(html).toContain('href="/clinic/work"');
     expect(html).toContain('data-clinic-view="schedule"');
     expect(html).toContain('data-clinic-view="tracking"');
     expect(html).toContain('href="/clinic/billing"');
