@@ -7,7 +7,7 @@ canonical_for: meta-clinic-implementation-tracking
 ---
 # Meta Clinic Implementation Tracker
 
-Home: [[00 Home]] · Direction: [[Meta Clinic Product Strategy and Scope]] · Acceptance: [Engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md) · Decisions: [[Decisions]] · Outcomes: [[Progress Log]]
+Home: [[00 Home]] · Direction: [[Meta Clinic Product Strategy and Scope]] · Acceptance: [Engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md) · Decisions: [[Decisions]] · Outcomes: [[Progress Log]] · [Remaining-work gap report](../../docs/product-review/meta-clinic-remaining-work.md)
 
 ## Authority and status
 
