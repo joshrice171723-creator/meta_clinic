@@ -50,6 +50,20 @@ Do not mark this assignment complete after a single wave or because checks pass 
 
 **Top-five audit repair — 2026-09-16:** development clinic login now infers scope only for an unambiguous single-location account, while multi-location accounts remain explicitly scoped. The browser smoke harness now supports one retained-session clinic route matrix, and the matrix passes on desktop and phone across seven core clinic routes. Regression coverage was added for the single-location login contract. Rails impacted checks remain unresolved at 40 runs with three failures and two errors caused by existing fixture/contract assumptions; no full-suite pass is claimed.
 
+**P0 verification follow-through — 2026-09-17:** the development Tracking Board
+controller now passes the synthetic scenario projection into its serializer. The
+impacted Tracking Board integration selector is green at 34 runs / 298
+assertions / 0 failures / 0 errors; the broader continuity/checkout/workspace
+selector remains 47 runs / 474 assertions with one unrelated workspace fixture
+failure and three stale scheduling-fixture errors. Fresh browser route entry is
+green through the visible organization → clinic → location → team-account
+selector on desktop, tablet and phone, and role-specific billing, inventory,
+records, workforce and setup entry routes are green. A phone Schedule spot check
+had no horizontal overflow and traversed 38 keyboard focus steps. A mutation-based
+browser walkthrough (new membership/payment, appointment, check-in and stale
+Patient Flow re-walk) plus complete denied-action and assistive-technology
+acceptance remain open; no source-only result is labeled full P0 acceptance.
+
 **Next top-five audit repair — 2026-09-16:** added a visible Patient Flow → Schedule → Tracking Board status map, persistent patient/encounter/site context with guarded clearing, field-level registration ownership/editability hints, shared integration-state badges for telehealth and payments, and savepoint-safe duplicate cash-drawer conflicts. Focused frontend tests (78), web typecheck/build/formatting, and targeted Rails administrative/role checks (16 runs / 166 assertions) pass. Broader clinical, provider, external, accessibility, and release acceptance remains open.
 
 **Final one-time payment repair:** a separate synthetic one-time enrollment now reaches verified local payment and Proceed to onboarding in the browser. Exact configured platform sandbox reuse preserves the existing connection, emits no vendor request and remains development/test opt-in only. Its focused test passed 18 assertions; final two-file Ruby lint passed. Recurring/one-time previews reflect the selected enrollment terms rather than the published package's default renewal choice.

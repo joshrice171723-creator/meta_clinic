@@ -76,6 +76,7 @@ module Clinic
                 care_summary: care_summary_batch.call(visit),
                 # The board only projects persisted operations state. It does
                 # not fabricate progress from development scenarios.
+                synthetic_scenario: Development::BackendSamples.tracking_board_scenario_for(visit),
                 operational_state: visit.status == "open" ? "waiting_room" : "unrecorded",
                 demographics: demographic_projection(demographics[visit.patient_id], board_date),
                 vitals: vitals_batch.call(visit),

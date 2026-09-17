@@ -11,7 +11,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "tracking-board@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Synthetic Tracking Board Practice", organization: organization)
     @membership = @practice.memberships.create!(user: @user)
-    grant_permissions!(@membership, "patients.read", "encounters.write", "observations.write", "notes.read", "notes.write", "notes.sign")
+    grant_permissions!(@membership, "patients.read", "clinical_records.read", "encounters.write", "observations.write", "notes.read", "notes.write", "notes.sign")
     @patient = @practice.patients.create!(display_name: "SYN_Board, Avery", reference: "SYN-BOARD-001")
     @other_patient = @practice.patients.create!(display_name: "SYN_Board, Briar", reference: "SYN-BOARD-002")
     @current = @practice.encounters.create!(patient: @patient, started_at: Time.utc(2026, 9, 2, 14), status: "open")
@@ -37,7 +37,7 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     assert_nil visit.fetch("appointment")
     assert_equal "open", visit.dig("encounter", "status")
     assert_equal "encounter", visit.fetch("row_type")
-    assert_equal "unrecorded", visit.fetch("operational_state")
+    assert_equal "waiting_room", visit.fetch("operational_state")
     assert_equal "patient-care-summary-v1", visit.dig("care_summary", "schema_version")
     assert_equal [ @patient.id, @current.id ], visit.fetch("care_summary").values_at("patient_id", "encounter_id")
     assert_not visit.key?("stage")
@@ -519,9 +519,20 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     assert_equal "open", @current.reload.status
     assert_not Clinic::OperationReceipt.exists?(practice: @practice)
 
+    follow_up = Clinic::EncounterFollowUp.create!(practice: @practice, patient: @patient, encounter: @current,
+      source_kind: "in_person", state: "needed", plan: "Synthetic follow-up", outcome: "",
+      recorded_by_membership: @membership, updated_by_membership: @membership)
+    get "/api/clinic/encounters/#{@current.id}/completion?patient_id=#{@patient.id}", headers: @headers
+    assert_response :success
+    evidence = response.parsed_body.fetch("evidence")
     post "/api/clinic/encounters/#{@current.id}/close",
       params: { close: { patient_id: @patient.id, ended_at: "2026-09-02T15:00:00Z",
-        request_key: "tracking-board-close" } }, headers: csrf_headers, as: :json
+        request_key: "tracking-board-close", disposition_code: "completed_as_planned",
+        instructions_status: "not_required", education_status: "not_required",
+        follow_up_id: follow_up.id, follow_up_version: follow_up.lock_version,
+        expected_follow_up_state: follow_up.state, expected_education_event_ids: [],
+        expected_open_task_versions: evidence.fetch("open_tasks").map { |item| "#{item.fetch('id')}:#{item.fetch('version')}" },
+        open_work_reviewed: true } }, headers: csrf_headers, as: :json
     assert_response :success
     assert_equal "completed", response.parsed_body.dig("encounter", "status")
     assert @current.reload.ended_at
@@ -532,7 +543,8 @@ class ClinicTrackingBoardTest < ActionDispatch::IntegrationTest
     grant_permissions!(@membership, "patients.read")
 
     post "/api/clinic/encounters/#{@current.id}/close",
-      params: { close: { patient_id: @patient.id, request_key: "tracking-board-close-denied" } },
+      params: { close: { patient_id: @patient.id, request_key: "tracking-board-close-denied",
+        open_work_reviewed: true } },
       headers: csrf_headers, as: :json
 
     assert_response :forbidden

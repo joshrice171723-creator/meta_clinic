@@ -18,7 +18,7 @@ function fail(message) {
 
 function help() {
   process.stdout.write(
-    `Usage: pnpm run browser:smoke [options]\n\nOptions:\n  --route <path>       Route to inspect (default: /clinic)\n  --profile <value>    Account id or clinic-administrator (default)\n  --portal <name>      clinic, launch, owner, or patient (default: clinic)\n  --viewport <name>    desktop or phone (default: desktop)\n  --screenshot <path>  Output PNG (default: outputs/browser-smoke/<timestamp>.png)\n  --matrix             Inspect the core clinic routes in one retained session\n  --ui-login           Exercise the visible development selector before opening the route\n  --base-url <url>     Loopback web URL (default: http://127.0.0.1:3000)\n  --headed             Show the browser window\n  --no-start           Require an already-running managed stack\n  --help               Show this help\n`,
+    `Usage: pnpm run browser:smoke [options]\n\nOptions:\n  --route <path>       Route to inspect (default: /clinic)\n  --profile <value>    Account id or clinic-administrator (default)\n  --portal <name>      clinic, launch, owner, or patient (default: clinic)\n  --viewport <name>    desktop, tablet, or phone (default: desktop)\n  --screenshot <path>  Output PNG (default: outputs/browser-smoke/<timestamp>.png)\n  --matrix             Inspect the core clinic routes in one retained session\n  --ui-login           Exercise the visible development selector before opening the route\n  --base-url <url>     Loopback web URL (default: http://127.0.0.1:3000)\n  --headed             Show the browser window\n  --no-start           Require an already-running managed stack\n  --help               Show this help\n`,
   );
 }
 
@@ -71,8 +71,8 @@ if (!selected.route.startsWith("/") || selected.route.startsWith("//"))
   fail("--route must be a same-origin absolute path");
 if (!allowedPortals.has(selected.portal))
   fail("--portal must be clinic, launch, owner, or patient");
-if (!new Set(["desktop", "phone"]).has(selected.viewport))
-  fail("--viewport must be desktop or phone");
+if (!new Set(["desktop", "tablet", "phone"]).has(selected.viewport))
+  fail("--viewport must be desktop, tablet, or phone");
 const base = new URL(selected.baseUrl);
 if (
   !["127.0.0.1", "localhost"].includes(base.hostname) ||
@@ -115,7 +115,9 @@ try {
   const viewport =
     selected.viewport === "phone"
       ? { width: 390, height: 844 }
-      : { width: 1440, height: 1000 };
+      : selected.viewport === "tablet"
+        ? { width: 1024, height: 768 }
+        : { width: 1440, height: 1000 };
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const failures = [];
@@ -154,22 +156,51 @@ try {
         },
         profile: null,
       };
-    const chooseFirst = async () => {
+    const waitForEnabled = async (locator) => {
+      for (let attempt = 0; attempt < 150; attempt += 1) {
+        if (await locator.isEnabled()) return;
+        await page.waitForTimeout(100);
+      }
+      fail("a development selector did not become enabled");
+    };
+    const chooseOption = async (label) => {
       const options = page
         .getByRole("option")
         .filter({ hasNotText: /^Select / });
-      await options.first().click();
+      const target = label
+        ? options.filter({ hasText: label }).first()
+        : options.first();
+      await target.waitFor({ state: "visible", timeout: 15000 });
+      await target.click();
     };
-    const organization = page.getByLabel("Organization");
+    const organization = page.getByRole("combobox", {
+      name: "Organization",
+      exact: true,
+    });
     if (await organization.count()) {
+      await waitForEnabled(organization);
       await organization.click();
-      await chooseFirst();
-      await page.getByLabel("Clinic").click();
-      await chooseFirst();
-      await page.getByLabel("Location").click();
-      await chooseFirst();
+      await chooseOption(account.organization?.name);
+      const clinic = page.getByRole("combobox", {
+        name: "Clinic",
+        exact: true,
+      });
+      await waitForEnabled(clinic);
+      await clinic.click();
+      await chooseOption(account.clinic?.name);
+      const location = page.getByRole("combobox", {
+        name: "Location",
+        exact: true,
+      });
+      await waitForEnabled(location);
+      await location.click();
+      await chooseOption(account.locations?.[0]?.name);
     }
-    await page.getByLabel(/Select .* account/).click();
+    const accountSelector = page.getByRole("combobox", {
+      name: /Select .* account/,
+    });
+    await waitForEnabled(accountSelector);
+    await accountSelector.click();
     await page
       .getByRole("option", { name: account.label, exact: true })
       .click();
@@ -265,7 +296,7 @@ try {
       .first()
       .waitFor({ state: "visible", timeout: 15000 });
     await page
-      .locator("main h1, main [role=heading]")
+      .locator("main h1:visible, main [role=heading]:visible")
       .first()
       .waitFor({ state: "visible", timeout: 15000 });
     const routeScreenshot = selected.matrix

@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `fe6d5bf`
+**Checkout:** `main` at `21f6e23`
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -47,10 +47,10 @@ unless a browser result is called out below.
 
 | Priority | Work item | Current status | Exact remaining work | Acceptance evidence |
 | --- | --- | --- | --- | --- |
-| P0 | Fresh local entry and core paid-member journey | Partially implemented; browser-verified only for a retained synthetic session | Re-run fresh organization → clinic → location → account login, then use the frontend to complete a synthetic paid membership, patient record, initial contact, first appointment, arrival/check-in, and encounter start. Re-walk the stale Patient Flow projection after the latest commit. | Browser screenshots/trace showing patient identity, payment state, Patient Flow removal, Schedule booking, and Tracking Board arrival; no backend-created patient substitute. |
-| P0 | Regression baseline | Unresolved | Reproduce and either repair or explicitly reclassify the 3 Tracking Board failures and 1 error from the final selector. Investigate the unrelated membership `publish_catalog` fixture failure before calling the repository suite green. | Named commands with zero failures for the impacted scope, or documented quarantines with owners and issue references. |
-| P0 | Role and permission acceptance | Source-inspected; browser-unverified | Exercise owner, front desk, nurse, clinician, billing, inventory, workforce, and patient roles from fresh sessions. Prove denied actions stay denied while independent permitted work remains available. | Role matrix with fresh-login screenshots/API traces and cross-tenant/site denial results. |
-| P0 | Accessibility and device acceptance | Unverified | Run keyboard-only, focus/order, screen-reader announcements, contrast, zoom/reflow, and error/retry checks at the supported desktop and tablet sizes; verify phone fallback. | WCAG 2.2-oriented test record covering loading, empty, stale, error, success, blocked, modal, calendar, and login states. |
+| P0 | Fresh local entry and core paid-member journey | Partially implemented; fresh route entry verified, end-to-end mutation still open | Fresh organization → clinic → location → account login now passes in desktop and phone smoke sessions. The local API continuity journey and the schedule/check-in contracts are green, but a new browser-created paid membership, patient record, initial contact, appointment, and check-in still need one captured UI re-walk. | Browser screenshots/trace showing patient identity, payment state, Patient Flow removal, Schedule booking, and Tracking Board arrival; no backend-created patient substitute. |
+| P0 | Regression baseline | Impacted scope green; repository-wide baseline still has unrelated failures | The Tracking Board regression now passes at **34 runs / 298 assertions / 0 failures / 0 errors** after wiring the development scenario into the serializer and updating stale completion-test expectations. A broader 47-test command still exposes one pre-existing workspace assertion and three stale scheduling fixtures; those are not silently reclassified as green. | Named commands with zero failures for the impacted scope, plus explicit follow-up for the unrelated fixture failures before calling the repository suite green. |
+| P0 | Role and permission acceptance | Fresh role-specific route loads verified; action matrix still open | Fresh browser sessions now load permitted landing routes for billing, inventory, records, workforce, and setup, in addition to the clinic administrator/front-desk/clinician matrix. Existing API authorization tests cover independent permissions and tenant/site boundaries; a complete fresh-session denied-action walkthrough remains. | Role matrix with fresh-login screenshots/API traces and cross-tenant/site denial results. |
+| P0 | Accessibility and device acceptance | Partial browser evidence; full WCAG-oriented acceptance still open | Desktop, tablet (1024×768), and phone route smoke pass. A phone Schedule spot check found no horizontal overflow and 38 focus moves; the visible controls use the correct hierarchy and current pages expose retry/status semantics. Screen-reader announcements, contrast/zoom review, and modal/error-state walkthroughs still require a dedicated acceptance pass. | WCAG 2.2-oriented test record covering loading, empty, stale, error, success, blocked, modal, calendar, and login states. |
 | P1 | Patient registration and clinical record detail | Partially implemented; browser-unverified | Walk patient search/duplicate warning, unknown DOB, registration save, encounter/intake, vitals, medication administration, labs/results, notes, amendments, and closure. Confirm patient/encounter/site identity stays visible. | Synthetic browser journey plus focused authorization, stale-save, correction, and persistence tests. |
 | P1 | Billing and payment outcomes | Source-inspected; browser-unverified | Exercise one-time and recurring membership payment paths, delayed/unknown outcomes, refund/void, duplicate charge, cash-drawer reconciliation, invoice application, and payment exception recovery. | Synthetic browser/API evidence for each ledger transition; Stripe-controlled MOTO/provider behavior separately confirmed or marked unavailable. |
 | P1 | Telehealth and communications | Source-inspected; vendor-unverified | Walk configuration, unavailable/simulated/live states, consent, device failure, disconnect/recovery, wrap-up, reminder approval, send/fail/acknowledge, opt-out, and cancellation follow-up. | Browser evidence for local states and provider evidence for actual delivery/session behavior; no automatic-send claim. |
@@ -71,18 +71,27 @@ unless a browser result is called out below.
 - Frontend TypeScript, Prettier, and production bundle: passing.
 - Changed Ruby syntax and RuboCop: passing.
 - Vault verification and harness verification: passing.
-- Final phase selector: **34 runs / 286 assertions / 3 failures / 1 error**,
-  all in the legacy `ClinicTrackingBoardTest` scope; this is not a green full
-  regression result.
+- Tracking Board impacted selector after repair: **34 runs / 298 assertions / 0
+  failures / 0 errors / 0 skips**.
+- One-time membership payment simulation: **3 runs / 34 assertions / 0
+  failures / 0 errors / 0 skips**. Permission/scope checks: **4 runs / 38
+  assertions** plus the clinic scope-switching selector (**4 runs / 30
+  assertions**) with no failures.
+- Broader continuity/checkout/workspace selector: **47 runs / 474 assertions /
+  1 failure / 3 errors**. The remaining failures are outside the repaired
+  Tracking Board scope (a workspace fixture assertion and stale scheduling
+  fixture inputs), so the repository-wide suite is not called green.
 
 ### Browser and runtime evidence
 
-A current synthetic browser walkthrough reached the clinic through the
-organization → clinic → location → team-account selector, loaded Patient Flow,
-opened a selected-patient Schedule view, displayed a populated month/day
-calendar, and showed a separate Tracking Board encounter. It did not create a
-new appointment or check in a patient. The latest stale-projection source repair
-has not yet been re-walked in the browser.
+A current synthetic browser matrix reached the clinic through the organization →
+clinic → location → team-account selector on desktop, tablet, and phone, then
+loaded the core clinic routes. Role-specific fresh sessions loaded billing,
+inventory, records, workforce, and setup. The Schedule phone spot check had no
+horizontal overflow and accepted keyboard focus traversal. This pass did not create a new
+membership or appointment in the browser, and it did not check in a patient;
+the latest stale-projection repair therefore still needs a mutation-based UI
+re-walk.
 
 ### External and approval evidence
 
