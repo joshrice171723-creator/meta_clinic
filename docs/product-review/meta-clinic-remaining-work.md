@@ -51,10 +51,10 @@ unless a browser result is called out below.
 | P0 | Regression baseline | Impacted scope green; repository-wide baseline still has unrelated failures | The Tracking Board regression now passes at **34 runs / 298 assertions / 0 failures / 0 errors** after wiring the development scenario into the serializer and updating stale completion-test expectations. A broader 47-test command still exposes one pre-existing workspace assertion and three stale scheduling fixtures; those are not silently reclassified as green. | Named commands with zero failures for the impacted scope, plus explicit follow-up for the unrelated fixture failures before calling the repository suite green. |
 | P0 | Role and permission acceptance | Fresh role-specific route loads verified; action matrix still open | Fresh browser sessions now load permitted landing routes for billing, inventory, records, workforce, and setup, in addition to the clinic administrator/front-desk/clinician matrix. Existing API authorization tests cover independent permissions and tenant/site boundaries; a complete fresh-session denied-action walkthrough remains. | Role matrix with fresh-login screenshots/API traces and cross-tenant/site denial results. |
 | P0 | Accessibility and device acceptance | Partial browser evidence; full WCAG-oriented acceptance still open | Desktop, tablet (1024×768), and phone route smoke pass. A phone Schedule spot check found no horizontal overflow and 38 focus moves; the visible controls use the correct hierarchy and current pages expose retry/status semantics. Screen-reader announcements, contrast/zoom review, and modal/error-state walkthroughs still require a dedicated acceptance pass. | WCAG 2.2-oriented test record covering loading, empty, stale, error, success, blocked, modal, calendar, and login states. |
-| P1 | Patient registration and clinical record detail | Partially implemented; browser-unverified | Walk patient search/duplicate warning, unknown DOB, registration save, encounter/intake, vitals, medication administration, labs/results, notes, amendments, and closure. Confirm patient/encounter/site identity stays visible. | Synthetic browser journey plus focused authorization, stale-save, correction, and persistence tests. |
-| P1 | Billing and payment outcomes | Source-inspected; browser-unverified | Exercise one-time and recurring membership payment paths, delayed/unknown outcomes, refund/void, duplicate charge, cash-drawer reconciliation, invoice application, and payment exception recovery. | Synthetic browser/API evidence for each ledger transition; Stripe-controlled MOTO/provider behavior separately confirmed or marked unavailable. |
-| P1 | Telehealth and communications | Source-inspected; vendor-unverified | Walk configuration, unavailable/simulated/live states, consent, device failure, disconnect/recovery, wrap-up, reminder approval, send/fail/acknowledge, opt-out, and cancellation follow-up. | Browser evidence for local states and provider evidence for actual delivery/session behavior; no automatic-send claim. |
-| P1 | Inventory and workforce | Source-inspected; browser-unverified | Walk receiving, lots/expiry, counts, recalls, controlled-item exceptions, stock movement from administration, employee activation, schedule, timecard correction, approvals, and payroll export. | Synthetic browser/API traces with unit/lot/actor/audit data and permission boundaries. |
+| P1 | Patient registration and clinical record detail | Local API contracts verified; browser mutation walkthrough open | Walk patient search/duplicate warning, unknown DOB, registration save, encounter/intake, vitals, medication administration, labs/results, notes, amendments, and closure. Confirm patient/encounter/site identity stays visible. | Synthetic browser journey plus focused authorization, stale-save, correction, and persistence tests. |
+| P1 | Billing and payment outcomes | Local payment/checkout contracts verified; browser mutation walkthrough open | Exercise one-time and recurring membership payment paths, delayed/unknown outcomes, refund/void, duplicate charge, cash-drawer reconciliation, invoice application, and payment exception recovery. | Synthetic browser/API evidence for each ledger transition; Stripe-controlled MOTO/provider behavior separately confirmed or marked unavailable. |
+| P1 | Telehealth and communications | Local lifecycle tests present; browser/vendor proof open | Walk configuration, unavailable/simulated/live states, consent, device failure, disconnect/recovery, wrap-up, reminder approval, send/fail/acknowledge, opt-out, and cancellation follow-up. | Browser evidence for local states and provider evidence for actual delivery/session behavior; no automatic-send claim. |
+| P1 | Inventory and workforce | Workforce/API paths verified; pharmacy fixture selector unresolved | Walk receiving, lots/expiry, counts, recalls, controlled-item exceptions, stock movement from administration, employee activation, schedule, timecard correction, approvals, and payroll export. | Synthetic browser/API traces with unit/lot/actor/audit data and permission boundaries. |
 | P1 | Schedule policy completion | Partially implemented; policy decisions open | Decide and encode clinic policy for timezone/DST, holidays/closures, provider absence, recurrence exceptions, overbooking, buffers, and resource capacity. Tighten the legacy clinician-without-assignment compatibility path before any real clinic. | Approved policy record plus API/UI conflict tests and populated calendar browser walkthrough. |
 | P1 | Reporting, exports, audit and retention | Partial | Build or explicitly defer a consolidated report catalog; define source, freshness, filters, timezone, row permissions, export provenance, reconciliation owner, retention, and PHI handling. The existing `.ics` export remains read-only and is not external sync. | Reconciled synthetic report counts, permission tests, export review, retention decision, and audit-history verification. |
 | P1 | Clinical and professional governance | Open human dependency | Define eligible clinical roles, minimum dataset, review/sign rules, AI-scribe accountability, correction policy, medication/lab applicability, and who may approve clinical or financial exceptions. | Signed internal clinical/professional decision record; source changes alone cannot satisfy this gate. |
@@ -62,6 +62,24 @@ unless a browser result is called out below.
 | P2 | External and personalized enhancements | Deferred/conditional | Do not add external calendar sync, advanced recurrence, personalized dashboards, or multi-clinic aggregates until an owner, source of truth, conflict/overbook policy, and aggregate metric contract are approved. | Explicit product decision followed by a bounded implementation brief and provider/metric evidence. |
 
 ## Evidence currently available
+
+### P1 verification follow-through — 2026-09-17
+
+The source-owned P1 integration selector covered registration, recovery,
+billing, membership payment, communications, lab follow-up, scribe,
+inventory, workforce and appointment-request paths. It completed **105 runs /
+1,354 assertions**, with **3 failures and 2 errors** isolated to the legacy
+`PharmacyWorkspaceTest` fixture/route contract; no patient, billing, workforce,
+or clinical-record failure was observed in that selector. The failures are
+kept open rather than relabeled as passed. Existing source already separates
+manual inventory provenance from FDA-import provenance and enforces product
+unit metadata; the failing fixtures need reconciliation before the inventory
+P1 gate can close.
+
+The P1 scope remains partially accepted locally: source contracts and focused
+API behavior are present, while browser mutation walkthroughs, provider/live
+delivery, and human governance/privacy/tax/retention decisions remain separate
+acceptance gates.
 
 ### Automated test evidence
 

@@ -64,6 +64,17 @@ browser walkthrough (new membership/payment, appointment, check-in and stale
 Patient Flow re-walk) plus complete denied-action and assistive-technology
 acceptance remain open; no source-only result is labeled full P0 acceptance.
 
+**P1 verification follow-through — 2026-09-17:** the source-owned registration,
+recovery, billing, membership payment, communications, lab follow-up, scribe,
+inventory, workforce and appointment-request selector completed 105 runs / 1,354
+assertions. Three failures and two errors are isolated to the legacy
+`PharmacyWorkspaceTest` fixture/route contract (required product unit metadata
+and current receiving lookup); they remain open. The registration, payment,
+clinical-record, workforce and scheduling paths otherwise produced no failures
+in this selector. P1 browser mutation walkthroughs and the human/provider
+governance, privacy, tax, retention and live-delivery gates remain separate and
+are not claimed complete.
+
 **Next top-five audit repair — 2026-09-16:** added a visible Patient Flow → Schedule → Tracking Board status map, persistent patient/encounter/site context with guarded clearing, field-level registration ownership/editability hints, shared integration-state badges for telehealth and payments, and savepoint-safe duplicate cash-drawer conflicts. Focused frontend tests (78), web typecheck/build/formatting, and targeted Rails administrative/role checks (16 runs / 166 assertions) pass. Broader clinical, provider, external, accessibility, and release acceptance remains open.
 
 **Final one-time payment repair:** a separate synthetic one-time enrollment now reaches verified local payment and Proceed to onboarding in the browser. Exact configured platform sandbox reuse preserves the existing connection, emits no vendor request and remains development/test opt-in only. Its focused test passed 18 assertions; final two-file Ruby lint passed. Recurring/one-time previews reflect the selected enrollment terms rather than the published package's default renewal choice.
