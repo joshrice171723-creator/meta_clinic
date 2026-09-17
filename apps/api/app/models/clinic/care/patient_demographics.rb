@@ -18,6 +18,10 @@ module Clinic
 
       after_save -> { Clinic::Care::PatientIdentitySearch.refresh!(patient) }
 
+      def date_of_birth_status
+        date_of_birth.present? ? "known" : "unknown"
+      end
+
       private
 
       def plausible_birth_date

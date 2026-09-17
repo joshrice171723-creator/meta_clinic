@@ -11,6 +11,7 @@ module Clinic
         site.lock!
         raise ArgumentError, "Choose an end after the start." unless starts_at && ends_at && ends_at > starts_at
         check_site_hours!(practice: practice, site: site, starts_at: starts_at, ends_at: ends_at)
+        check_clinician_assignment!(practice: practice, clinician: clinician, site: site, starts_at: starts_at)
         rules = CapacityRule.where(practice: practice, clinician: clinician, active: true)
         if rules.where(kind: "block").where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
           raise ArgumentError, "The clinician has blocked time in this interval."
@@ -62,6 +63,20 @@ module Clinic
         raise ArgumentError, "This time is outside the site's operating hours." unless fits
       end
       private_class_method :check_site_hours!
+
+      # Older synthetic fixtures may not have assignment rows yet. Once a
+      # clinician has any practice assignment, however, scheduling must use an
+      # assignment that is active for the selected site and appointment time.
+      # This keeps legacy unassigned development records usable while failing
+      # closed for an explicitly configured clinician/site mismatch.
+      def check_clinician_assignment!(practice:, clinician:, site:, starts_at:)
+        assignments = clinician.assignments.where(practice: practice)
+        return unless assignments.exists?
+        return if assignments.current(starts_at).where(site_id: site.id).exists?
+
+        raise ArgumentError, "The clinician is not assigned to this site for the selected time."
+      end
+      private_class_method :check_clinician_assignment!
 
       def site_timezone(practice, site)
         ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone] ||

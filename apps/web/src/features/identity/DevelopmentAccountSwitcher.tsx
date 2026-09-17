@@ -19,7 +19,7 @@ import { api, loginDestination } from "../../api/client";
 
 type DevelopmentPortal = "owner" | "launch" | "patient" | "clinic";
 
-const LOGIN_NAVIGATION_DEADLINE_MS = 8_000;
+const LOGIN_NAVIGATION_DEADLINE_MS = 30_000;
 
 const DEVELOPMENT_PORTALS: Record<
   DevelopmentPortal,
@@ -249,7 +249,9 @@ export function DevelopmentAccountSwitcher({
                 ...clinics.filter(
                   (account) =>
                     noLocations ||
-                    account.locations?.some((site) => String(site.id) === siteId),
+                    account.locations?.some(
+                      (site) => String(site.id) === siteId,
+                    ),
                 ),
                 ...visibleAccounts.filter(
                   (account) => account.account_type === "omni",

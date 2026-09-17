@@ -968,6 +968,15 @@ function PatientFields({ values }: { values: RegistrationValues }) {
               required={false}
               value={values.date_of_birth}
             />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}
+            >
+              Leave this blank when the patient does not know or declines to
+              provide a date of birth. Do not guess; the record will show it as
+              unknown until the patient provides it.
+            </Typography>
             <Field
               name="clinic_patient[sex]"
               label="Administrative sex"

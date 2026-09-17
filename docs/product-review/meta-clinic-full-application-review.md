@@ -643,6 +643,42 @@ Focused source checks for this slice must verify the calendar export contract
 and transition response. No browser, live-provider, payment, clinical, or
 regulatory readiness claim follows from these source changes.
 
+### Slices 4–10 implementation follow-through — 2026-09-17
+
+The remaining audit slices are now reconciled against the current source:
+
+1. **Clinician/site assignment:** scheduling now rejects a clinician whose
+   configured assignments do not include the selected site at the requested
+   appointment time. Legacy synthetic clinicians with no assignment rows remain
+   usable until workforce setup is configured; this compatibility boundary is
+   intentional and should be tightened before a real clinic is enabled.
+2. **Late/no-show handling:** the API already rejects a future no-show. The
+   front-desk action now also stays unavailable until the appointment start time,
+   so staff do not encounter a predictable transition error.
+3. **Unknown date of birth:** registration keeps date of birth optional, tells
+   staff not to guess, and exposes a detail-only `known`/`unknown` status. The
+   identity lookup contract remains unchanged so DOB is still disclosed only to
+   the permitted matching surface.
+4. **Patient Flow route/state snapshot:** the schedule route already preserves
+   patient, month, day, view, group, and site context in the URL; the selected
+   patient is resolved and displayed before first-appointment scheduling. No
+   second scheduling source of truth was added.
+5. **Frontend timeout recovery:** the local workspace-entry recovery deadline is
+   now 30 seconds, with the existing visible retry path retained. This changes
+   only navigation recovery; it does not replay a session mutation.
+6. **Documentation reconciliation:** this section records the source-level
+   decisions and the remaining acceptance boundary. Browser, provider, payment,
+   clinical, accessibility, and production-readiness checks remain separate
+   evidence requirements.
+7. **Audit scope:** clinician assignments already opt into the tenant-bound,
+   metadata-only `Clinic::Auditable` contract. No universal mutable PaperTrail
+   snapshot or cross-tenant audit path was introduced.
+
+Focused verification for these slices covers the assignment rejection,
+no-show UI guard, navigation deadline contract, TypeScript compilation, and
+Ruby syntax. A populated browser walkthrough and full regression suite remain
+follow-up evidence rather than claims made by this source change.
+
 ### Five data areas requiring gap classification
 
 1. Canonical cross-domain record lineage.

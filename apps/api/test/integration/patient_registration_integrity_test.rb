@@ -67,6 +67,23 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "registration preserves an unknown date of birth without inventing one" do
+    post "/api/clinic/patients", params: {
+      clinic_patient: {
+        display_name: "Unknown birth date patient", reference: "UNKNOWN-DOB-001",
+        sex: "unknown", primary_language: "English"
+      }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :created
+    patient_id = response.parsed_body.fetch("id")
+    get "/api/clinic/patients/#{patient_id}", headers: @headers
+    assert_response :success
+    patient = response.parsed_body.fetch("patient")
+    assert_nil patient.dig("demographics", "date_of_birth")
+    assert_equal "unknown", patient.dig("demographics", "date_of_birth_status")
+  end
+
   test "partial registration edits preserve demographics and communication preferences" do
     post "/api/clinic/patients", params: {
       clinic_patient: {

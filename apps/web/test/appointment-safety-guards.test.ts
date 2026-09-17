@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { appointmentActions } from "../src/features/clinic/frontDeskModel";
 
 function featureSource(path: string) {
   return readFileSync(
@@ -36,5 +37,17 @@ describe("appointment safety guards", () => {
 
     expect(source).toContain('"Appointment details unavailable"');
     expect(source).not.toContain("Appointment #${result.appointment_id}");
+  });
+
+  it("does not offer no-show until the appointment has started", () => {
+    const appointment = {
+      id: 1,
+      patient_id: 2,
+      starts_at: new Date(Date.now() + 60_000).toISOString(),
+      ends_at: new Date(Date.now() + 1_860_000).toISOString(),
+      status: "scheduled",
+      encounter_id: null,
+    } as Parameters<typeof appointmentActions>[0];
+    expect(appointmentActions(appointment).canMarkNoShow).toBe(false);
   });
 });

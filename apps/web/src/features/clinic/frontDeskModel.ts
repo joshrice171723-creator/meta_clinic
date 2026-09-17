@@ -65,6 +65,8 @@ export function appointmentActions(appointment: FrontDeskAppointment) {
   const activeAppointment = ["scheduled", "confirmed"].includes(
     appointment.status,
   );
+  const startsAt = Date.parse(appointment.starts_at);
+  const hasStarted = Number.isFinite(startsAt) && startsAt <= Date.now();
   return {
     canConfirm: !hasEncounter && appointment.status === "scheduled",
     canStartVisit: !hasEncounter && activeAppointment,
@@ -73,7 +75,7 @@ export function appointmentActions(appointment: FrontDeskAppointment) {
     canScheduleReplacement:
       !hasEncounter && ["cancelled", "no_show"].includes(appointment.status),
     canCancel: !hasEncounter && activeAppointment,
-    canMarkNoShow: !hasEncounter && activeAppointment,
+    canMarkNoShow: !hasEncounter && activeAppointment && hasStarted,
   };
 }
 

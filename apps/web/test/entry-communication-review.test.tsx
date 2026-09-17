@@ -23,7 +23,7 @@ describe("entry recovery source contract", () => {
   const controls = source("features/identity/DevelopmentAccountSwitcher.tsx");
 
   it("declares a workspace deadline and navigation-only recovery copy", () => {
-    expect(controls).toContain("const LOGIN_NAVIGATION_DEADLINE_MS = 8_000");
+    expect(controls).toContain("const LOGIN_NAVIGATION_DEADLINE_MS = 30_000");
     expect(controls).toContain("window.setTimeout(() => {");
     expect(controls).toContain(
       "Select Open workspace to continue without signing in again.",

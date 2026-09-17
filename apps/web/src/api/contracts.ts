@@ -266,6 +266,7 @@ export type Patient = {
     legal_name: string | null;
     preferred_name: string | null;
     date_of_birth: string | null;
+    date_of_birth_status?: "known" | "unknown";
     sex: string;
     primary_language: string;
     interpreter_required: boolean | null;

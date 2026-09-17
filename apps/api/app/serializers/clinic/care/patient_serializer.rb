@@ -9,11 +9,13 @@ module Clinic
         }
         return payload unless detail
 
+        demographics = patient.demographics&.as_json(only: %i[legal_name preferred_name date_of_birth sex primary_language interpreter_required])
+        demographics["date_of_birth_status"] = patient.demographics.date_of_birth_status if demographics
         payload.merge(
           primary_address_version_id: patient.primary_address_version_id,
           created_at: patient.created_at,
           updated_at: patient.updated_at.iso8601(6),
-          demographics: patient.demographics&.as_json(only: %i[legal_name preferred_name date_of_birth sex primary_language interpreter_required]),
+          demographics: demographics,
           primary_address: primary_address(patient.primary_address_version),
           contacts: current_versions(patient.contacts, partition_by: :contact_type).map { |c| c.as_json(only: %i[id contact_type contact_value preferred effective_from effective_until]) },
           emergency_contacts: current_versions(patient.emergency_contacts).map { |c| c.as_json(only: %i[id name relationship phone permission_to_contact effective_from effective_until]) },
