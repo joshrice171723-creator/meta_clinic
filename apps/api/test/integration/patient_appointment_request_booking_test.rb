@@ -515,7 +515,7 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
   end
 
   def create_request(practice: @practice, patient: @patient, identity: @identity, key:, site: @site,
-    visit_type: @visit_type, starts_at: 2.days.from_now.change(usec: 0))
+    visit_type: @visit_type, starts_at: 2.days.from_now.change(hour: 9, min: 0, sec: 0, usec: 0))
     Clinic::PatientPortal::AppointmentRequest.create!(
       practice: practice,
       patient: patient,

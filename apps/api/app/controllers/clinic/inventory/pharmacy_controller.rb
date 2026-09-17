@@ -48,6 +48,12 @@ module Clinic
           gudid_catalog.import(params[:device_reference_token], operational_attributes: attributes.slice(:name, :category, :sku, :package_description, :reorder_point, :stock_unit, :quantity_scale, :package_size, :unit_reference))
         else
           products.new(attributes).tap do |product|
+            # Manual catalog entries cannot claim an FDA directory identifier.
+            # Only the signed directory import path may establish NDC
+            # provenance; accepting it here would make an operator-entered
+            # value indistinguishable from a verified external record.
+            product.ndc = nil
+            product.product_ndc = nil
             Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") { product.save! }
           end
         end

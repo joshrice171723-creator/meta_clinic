@@ -121,6 +121,14 @@ Initial status for these requirements: founder-approved direction; current imple
 
 ## Next bounded work
 
+**2026-09-17 remaining source repairs:** Manual pharmacy catalog creation now
+strips unverified NDC identifiers, pharmacy fixtures include the required
+inventory bin and input unit, and time-dependent appointment fixtures use
+clinic-local daytime slots. The consolidated source-owned selector passes 162
+runs / 1,955 assertions with no failures or errors. Desktop and phone browser
+route smoke passes; a fresh mutation walkthrough remains unverified because
+the managed browser accessibility control was unavailable.
+
 **2026-09-17 P2 boundary decision:** The already-approved P2 baseline is now
 recorded as source-complete: Meta Clinic owns scheduling truth, calendar export
 is read-only, recurrence/overbook remain explicitly not configured, and owner

@@ -229,9 +229,10 @@ class PatientJourneyContinuityTest < ActionDispatch::IntegrationTest
       Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: clinician,
         kind: "weekly", weekday:, start_minute: 0, end_minute: 1440, active: true)
     end
+    starts_at = 1.day.from_now.change(hour: 9, min: 0, sec: 0, usec: 0)
     appointment = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @user, patient: @patient,
-      site: @site, booked_clinician: clinician, visit_type:, starts_at: 1.day.from_now,
-      ends_at: 1.day.from_now + 30.minutes, visit_modality: "video", request_key: "disconnected-video")
+      site: @site, booked_clinician: clinician, visit_type:, starts_at: starts_at,
+      ends_at: starts_at + 30.minutes, visit_modality: "video", request_key: "disconnected-video")
     assert_equal "video", appointment.reload.visit_modality
     assert_nil appointment.telehealth_visit
     assert_empty Clinic::Telehealth::RoomAttempt.where(practice: @practice)

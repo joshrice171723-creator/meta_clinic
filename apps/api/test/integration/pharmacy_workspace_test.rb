@@ -14,6 +14,7 @@ class PharmacyWorkspaceTest < ActionDispatch::IntegrationTest
     @other_user = User.create!(email_address: "other-pharmacy@example.invalid", password: @password)
     @other = Development::TestClinic.create!(@other_user).practice
     @product = Clinic::Inventory::PharmacyProduct.create!(practice: @practice, name: "Example tablets", sku: "EXAMPLE-1", reorder_point: 5)
+    @practice.inventory_locations.create!(name: "Test shelf", kind: "storage")
     post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
   end
 
@@ -27,7 +28,7 @@ class PharmacyWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   def receipt
-    { batch: { lot_number: "TEST-LOT", location: "Test shelf", expires_on: (Date.current + 90).to_s, supplier: "Fictional supplier" }, amount: "10", reason: "Synthetic receipt", request_key: SecureRandom.uuid }
+    { batch: { lot_number: "TEST-LOT", location: "Test shelf", expires_on: (Date.current + 90).to_s, supplier: "Fictional supplier" }, amount: "10", input_unit: "package", reason: "Synthetic receipt", request_key: SecureRandom.uuid }
   end
 
   def receive(payload = receipt)
