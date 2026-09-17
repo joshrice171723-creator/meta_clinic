@@ -211,6 +211,10 @@ class PatientJourneyContinuityTest < ActionDispatch::IntegrationTest
   test "T05 disconnected video intent saves without media evidence and manual work remains available" do
     clinician = @practice.clinician_profiles.create!(membership: @member, display_name: "Synthetic Continuity Clinician", reference: "CONT-CLINICIAN")
     visit_type = @practice.visit_types.create!(code: "CONT-VIDEO")
+    7.times do |weekday|
+      Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: clinician,
+        kind: "weekly", weekday:, start_minute: 0, end_minute: 1440, active: true)
+    end
     appointment = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @user, patient: @patient,
       site: @site, booked_clinician: clinician, visit_type:, starts_at: 1.day.from_now,
       ends_at: 1.day.from_now + 30.minutes, visit_modality: "video", request_key: "disconnected-video")

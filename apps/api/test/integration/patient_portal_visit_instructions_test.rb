@@ -69,7 +69,7 @@ class PatientPortalVisitInstructionsTest < ActionDispatch::IntegrationTest
 
     @identity.update!(status: "revoked", revoked_at: Time.current)
     get "/api/patient_portal/visit_instructions", headers: @headers
-    assert_response :forbidden
+    assert_response :not_found
   end
 
   test "keeps signed directions through an unsigned correction then suppresses the signed blank replacement" do

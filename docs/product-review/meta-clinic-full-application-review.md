@@ -7,6 +7,34 @@
 **Data boundary:** Synthetic/local data only. No real-patient or production records were accessed.
 **Review mode:** The original 2026-09-15 review was read-only. Subsequent dated implementation follow-through is recorded below; those entries are not part of the original evidence set.
 
+## Current reconciliation — 2026-09-17, slices 1–3
+
+The first three audit slices are now reconciled against the current source and
+local runtime. The Rails regression subset is green after repairing date-bound
+synthetic workforce fixtures, aligning the revoked-portal assertion with the
+intentional tenant-hiding boundary, and configuring weekly capacity in the
+disconnected-video fixture. The result is **20 runs / 216 assertions / 0
+failures / 0 errors**. The web suite remains at **51 files / 382 tests**.
+
+The fresh browser walkthrough also reached the clinic workspace successfully:
+development organization, clinic, location, and team account selection entered
+the Tracking Board without the former `ENTERING…` hang. Patient Flow loaded
+eight synthetic ready-to-schedule items; opening one preserved the selected
+patient and displayed `R` with clinic reference `MEM-F-D2902A1E`. The month
+calendar showed a populated Monday with 1 appointment and 15 open slots; the
+day view showed the clinician lane and the scheduled patient. The separate
+Tracking Board showed the existing synthetic waiting-room encounter after
+refresh.
+
+This is current local evidence, not a claim that a new appointment was created
+or that check-in was performed in this walkthrough. The populated fixture also
+exposed a remaining workflow-data gap: an older patient-flow task can remain in
+`Ready to schedule` after its appointment has progressed to an active encounter
+and therefore no longer appears in the upcoming scheduled-visits query. That
+stale-task projection is recorded as follow-up work rather than silently
+counted as a completed Patient Flow transition. Provider, payment, clinical,
+accessibility, device-matrix, and external-readiness gates remain separate.
+
 ## Current implementation baseline — 2026-09-16, slices 1–2
 
 The authorized slice work reconciles two source-owned gaps from the historical
@@ -113,6 +141,12 @@ The supplied reference website was a placeholder (`[REFERENCE WEBSITE URL]`), no
 - Repository reference map: `docs/development/us-healthcare-reference-map.md`, including U.S. Core, FDA, CDC, CMS/CLIA, RxNorm, UCUM, and FHIR references.
 
 ## 2. Executive summary
+
+> Historical evidence notice: the original 2026-09-15 observations in this
+> section and the detailed tables below are retained for traceability. The
+> current 2026-09-17 reconciliation above supersedes their login, web-test,
+> and populated-workflow status where it has fresh evidence. Unresolved
+> boundaries remain explicitly listed rather than inferred as complete.
 
 Meta Clinic is a broad clinic-operations product with unusually strong workflow coverage for an early application. It has the beginnings of a coherent operating system: a clinic context, role/capability projection, Patient Flow and Tracking Board, scheduling, encounters, charting, reminders, billing, memberships, inventory, workforce, telehealth, and scribe review. The strongest product decision is the separation between a scheduled administrative event and an arrived/active clinical visit.
 

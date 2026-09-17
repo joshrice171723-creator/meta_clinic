@@ -18,7 +18,8 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     @other_site = @practice.sites.create!(code: "NORTH", name: "North workforce site", status: "active", timezone_override: "America/Chicago")
     [ @employee, @target ].each do |employment|
       [ @site, @other_site ].each do |site|
-        employment.employment_sites.create!(practice: @practice, site: site, active: true, effective_from: 1.day.ago)
+        employment.employment_sites.create!(practice: @practice, site: site, active: true,
+          effective_from: Time.utc(2026, 1, 1))
       end
     end
     Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 1,
@@ -200,7 +201,7 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     membership = Clinic::Membership.create!(practice: practice, user: user)
     staff = Clinic::Staff::Member.create!(practice: practice, display_name: label.capitalize, job_title: "Team member")
     Clinic::Workforce::Employment.create!(practice: practice, staff_member: staff, membership: membership,
-      status: "active", effective_from: 1.day.ago)
+      status: "active", effective_from: Time.utc(2026, 1, 1))
   end
 
   def draft_with_shift(site, employment, local_start, local_end)
