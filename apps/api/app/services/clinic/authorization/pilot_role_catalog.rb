@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class PilotRoleCatalog
-      VERSION = 9
+      VERSION = 10
 
       DEFINITIONS = {
         "workforce-employee" => {
@@ -31,7 +31,7 @@ module Clinic
             workforce.admin workforce.settings workforce.badges workforce.timecards.read
             workforce.timecards.review workforce.timecards.approve workforce.schedule.read workforce.schedule.manage
             workforce.schedule.publish workforce.requests.review workforce.payroll.configure workforce.payroll.export
-            subscription_catalog.read subscription_catalog.write subscription_catalog.publish
+            subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review
           ]).uniq
         },
         "billing-accounting" => {
@@ -42,7 +42,7 @@ module Clinic
         "front-desk-coordinator" => {
           label: "Front Desk Coordinator",
           permissions: %w[patients.read patients.identity.read patients.write appointments.read appointments.write
-            appointments.book appointments.status_transition encounters.read encounters.write staff.read]
+            appointments.book appointments.status_transition encounters.read encounters.write staff.read subscriptions.review]
         },
         "clinician" => {
           label: "Clinician",

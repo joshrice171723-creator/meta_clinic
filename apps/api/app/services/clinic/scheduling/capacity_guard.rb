@@ -16,19 +16,18 @@ module Clinic
           raise ArgumentError, "The clinician has blocked time in this interval."
         end
         weekly = rules.where(kind: "weekly").to_a
-        if weekly.any?
-          weekly_for_site = weekly.select { |rule| rule.site_id == site.id }
-          raise ArgumentError, "The clinician has no capacity configured for this site." if weekly_for_site.empty?
+        weekly_for_site = weekly.select { |rule| rule.site_id == site.id }
+        raise ArgumentError, "The clinician has no capacity configured for this site." if weekly_for_site.empty?
 
-          start_local = starts_at.in_time_zone(practice.timezone)
-          end_local = ends_at.in_time_zone(practice.timezone)
-          start_minute = start_local.hour * 60 + start_local.min
-          end_minute = end_local.hour * 60 + end_local.min
-          fits = start_local.to_date == end_local.to_date && weekly.any? { |rule|
-            rule.site_id == site.id && rule.weekday == start_local.wday && rule.start_minute <= start_minute && rule.end_minute >= end_minute
-          }
-          raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits
-        end
+        timezone = site_timezone(practice, site)
+        start_local = starts_at.in_time_zone(timezone)
+        end_local = ends_at.in_time_zone(timezone)
+        start_minute = start_local.hour * 60 + start_local.min
+        end_minute = end_local.hour * 60 + end_local.min
+        fits = start_local.to_date == end_local.to_date && weekly_for_site.any? { |rule|
+          rule.site_id == site.id && rule.weekday == start_local.wday && rule.start_minute <= start_minute && rule.end_minute >= end_minute
+        }
+        raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits
         appointments = practice.appointments.where(booked_clinician_id: clinician.id, status: %w[scheduled confirmed])
         appointments = appointments.where.not(id: appointment_id) if appointment_id
         if appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?

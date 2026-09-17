@@ -49,6 +49,18 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     assert_equal "checked_in", day.fetch("appointments").first.fetch("calendar_status")
   end
 
+  test "booking rejects a site with no configured capacity" do
+    Clinic::Scheduling::CapacityRule.where(practice: @practice, site: @site).delete_all
+    payload = { appointment: { patient_id: @patient.id, site_id: @site.id, booked_clinician_id: @clinician.id,
+      visit_type_id: @type.id, starts_at: @start.iso8601, ends_at: (@start + 30.minutes).iso8601, request_key: SecureRandom.uuid } }
+
+    assert_no_difference -> { @practice.appointments.count } do
+      post "/api/clinic/appointments", params: payload, headers: csrf_headers, as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_match "no capacity configured", response.parsed_body.fetch("error")
+  end
+
   test "calendar does not disclose another clinic or allow unprivileged reads" do
     other = Clinic::Practice.create!(name: "Other Synthetic Calendar", organization: Organization.create!(name: "Other Synthetic Calendar"))
     site = other.sites.create!(code: "OTHER")

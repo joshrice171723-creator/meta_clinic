@@ -12,4 +12,12 @@ class PilotRoleCatalogTest < ActiveSupport::TestCase
       catalog.install!
     end
   end
+
+  test "clinic administration and front desk roles can review memberships" do
+    catalog = Clinic::Authorization::PilotRoleCatalog
+
+    %w[clinic-administrator front-desk-coordinator].each do |role_code|
+      assert_includes catalog.definition(role_code).fetch(:permissions), "subscriptions.review"
+    end
+  end
 end

@@ -42,6 +42,10 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
       display_name: "Appointment Clinician",
       reference: "APPT-CLINICIAN"
     )
+    7.times do |weekday|
+      Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
+        kind: "weekly", weekday:, start_minute: 0, end_minute: 1440, active: true)
+    end
 
     @patient_session, @patient_headers = authenticated_session(@patient_user, @patient_password, profile: "patient")
     @staff_session, @staff_headers = authenticated_session(@staff_user, @staff_password)

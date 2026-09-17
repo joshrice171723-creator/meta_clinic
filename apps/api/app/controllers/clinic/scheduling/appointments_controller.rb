@@ -7,10 +7,13 @@ module Clinic
       def index
         appointments = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
         appointments = appointments.where(patient_id: requested_id!(params[:patient_id], :patient_id)) if params[:patient_id].present?
-        appointments = appointments.where(site_id: requested_id!(params[:site_id], :site_id)) if params[:site_id].present?
+        site = if params[:site_id].present?
+          current_practice.sites.find(requested_id!(params[:site_id], :site_id))
+        end
+        appointments = appointments.where(site_id: site.id) if site
         if params[:date].present?
           date = date_param!(params[:date], field: :date)
-          zone = ActiveSupport::TimeZone[current_practice.timezone]
+          zone = appointment_timezone(site)
           raise ArgumentError, "The clinic timezone is unavailable." unless zone
 
           appointments = appointments.where(starts_at: zone.local(date.year, date.month, date.day)...zone.local(date.next_day.year, date.next_day.month, date.next_day.day))
@@ -24,7 +27,7 @@ module Clinic
           if through_date < from_date
             raise Clinic::Api::RequestParameters::Invalid.new("through_date must be on or after from_date.", field: :through_date)
           end
-          zone = ActiveSupport::TimeZone[current_practice.timezone]
+          zone = appointment_timezone(site)
           raise ArgumentError, "The clinic timezone is unavailable." unless zone
 
           next_date = through_date.next_day
@@ -117,6 +120,10 @@ module Clinic
       end
 
       private
+
+      def appointment_timezone(site)
+        ActiveSupport::TimeZone[site&.timezone_override.presence || current_practice.timezone]
+      end
 
       def find_optional(scope, value, field)
         value.present? ? scope.find(requested_id!(value, field)) : nil

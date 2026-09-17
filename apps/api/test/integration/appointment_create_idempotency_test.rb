@@ -145,6 +145,8 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     site = practice.sites.create!(code: "CREATE-#{label.upcase}")
     clinician = practice.clinician_profiles.create!(membership:, display_name: "Appointment create #{label} clinician")
     visit_type = practice.visit_types.create!(code: "CREATE-#{label.upcase}-VISIT")
+    Clinic::Scheduling::CapacityRule.create!(practice:, site:, clinician:, kind: "weekly", weekday: 4,
+      start_minute: 0, end_minute: 1440, active: true)
     { practice:, user:, patient:, site:, clinician:, visit_type: }
   end
 

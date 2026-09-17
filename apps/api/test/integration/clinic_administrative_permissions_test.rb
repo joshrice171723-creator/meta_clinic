@@ -24,8 +24,12 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     @clinician = @practice.clinician_profiles.create!(membership: @scheduler_membership,
       display_name: "Synthetic scheduling clinician")
     @visit_type = @practice.visit_types.create!(code: "SYN-ADMIN-VISIT")
+    appointment_start = 1.hour.from_now
+    capacity_start = appointment_start.in_time_zone(@practice.timezone)
+    Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
+      kind: "weekly", weekday: capacity_start.wday, start_minute: 0, end_minute: 1440, active: true)
     @appointment = @practice.appointments.create!(patient: @patient, site: @site,
-      starts_at: 1.hour.from_now, ends_at: 90.minutes.from_now, status: "scheduled")
+      starts_at: appointment_start, ends_at: appointment_start + 30.minutes, status: "scheduled")
     login(@users.fetch("front_desk"))
   end
 

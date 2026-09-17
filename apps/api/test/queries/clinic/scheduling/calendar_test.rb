@@ -20,6 +20,17 @@ class Clinic::Scheduling::CalendarTest < ActiveSupport::TestCase
     assert_empty day[:slots]
   end
 
+  test "uses the selected site's timezone for the calendar projection" do
+    @site.update!(timezone_override: "UTC")
+    weekly
+
+    result = projection
+    slot = result[:days].find { |d| d[:date] == @date.iso8601 }[:slots].first
+
+    assert_equal "UTC", result[:timezone]
+    assert_equal 9, Time.iso8601(slot[:starts_at]).hour
+  end
+
   test "capacity subtracts bookings blocks and room reservations without duplicate slots" do
     2.times { weekly }
     appointment = @practice.appointments.create!(patient: @patient, site: @site, room: @room,

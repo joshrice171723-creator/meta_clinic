@@ -7,7 +7,8 @@ module Clinic
 
       def initialize(practice:, site:, date:, actor:)
         @practice, @site, @actor = practice, site, actor
-        @zone = ActiveSupport::TimeZone[practice.timezone]
+        @timezone_name = site.timezone_override.presence || practice.timezone
+        @zone = ActiveSupport::TimeZone[@timezone_name]
         raise ArgumentError, "The clinic timezone is unavailable." unless @zone
 
         @first = date.beginning_of_month
@@ -39,7 +40,7 @@ module Clinic
             appointments: visits.map { |a| serialize(a) }
           }
         end
-        { month: @first.strftime("%Y-%m"), as_of: Current.business_time.iso8601(6), timezone: @practice.timezone, site_id: @site.id,
+        { month: @first.strftime("%Y-%m"), as_of: Current.business_time.iso8601(6), timezone: @timezone_name, site_id: @site.id,
           slot_minutes: SLOT_MINUTES, capacity_configured: configured?,
           policy: { recurrence: "not_configured", overbook: "not_configured", external_sync: "read_only_export" },
           days: days,

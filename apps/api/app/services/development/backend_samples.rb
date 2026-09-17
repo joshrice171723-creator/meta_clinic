@@ -500,7 +500,12 @@ module Development
       elapsed_minutes = BOARD_SCENARIO_ELAPSED_MINUTES.fetch(index) +
         (generation * BOARD_REPLACEMENT_SPACING_MINUTES)
       starts_at = Time.current - elapsed_minutes.minutes
+      timezone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone]
+      if timezone && starts_at.in_time_zone(timezone).to_date != (starts_at + 30.minutes).in_time_zone(timezone).to_date
+        starts_at -= 30.minutes
+      end
       room = site.rooms.find_by!(code: scenario.fetch(:room_code))
+      ensure_synthetic_capacity!(practice:, site:, clinician:)
       appointment = Clinic::Scheduling::BookAppointment.call(
         practice: practice,
         actor: actor,
@@ -719,11 +724,25 @@ module Development
 
     def self.find_or_book_appointment(practice, actor, patient, site, clinician, visit_type, starts_at)
       practice.appointments.find_by(patient: patient, starts_at: starts_at) ||
-        Clinic::Scheduling::BookAppointment.call(practice: practice, actor: actor, patient: patient, site: site,
-          room: site.rooms.order(:code).first, booked_clinician: clinician, visit_type: visit_type,
-          starts_at: starts_at, ends_at: starts_at + 30.minutes)
+        begin
+          ensure_synthetic_capacity!(practice:, site:, clinician:)
+          Clinic::Scheduling::BookAppointment.call(practice: practice, actor: actor, patient: patient, site: site,
+            room: site.rooms.order(:code).first, booked_clinician: clinician, visit_type: visit_type,
+            starts_at: starts_at, ends_at: starts_at + 30.minutes)
+        end
     end
     private_class_method :find_or_book_appointment
+
+    def self.ensure_synthetic_capacity!(practice:, site:, clinician:)
+      7.times do |weekday|
+        rule = Clinic::Scheduling::CapacityRule.find_or_initialize_by(
+          practice: practice, site: site, clinician: clinician, kind: "weekly", weekday:
+        )
+        rule.assign_attributes(start_minute: 0, end_minute: 1440, active: true)
+        rule.save! if rule.new_record? || rule.changed?
+      end
+    end
+    private_class_method :ensure_synthetic_capacity!
 
     def self.seed_participants(encounter, staff_membership, clinician_membership, started_at)
       { "intake" => staff_membership, "clinician" => clinician_membership }.each do |role, membership|
