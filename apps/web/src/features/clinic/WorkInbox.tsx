@@ -88,6 +88,7 @@ type ClinicalTaskItem = ClinicalTask & {
   encounter_href: string | null;
   patient_href: string;
   eligible_assignees: Array<{ membership_id: number; label: string }>;
+  has_recorded_appointment?: boolean;
 };
 
 type FollowUpResponse = {
@@ -292,6 +293,7 @@ type InboxItem = {
   owner: string;
   sourceLabel: string;
   scheduleReady?: boolean;
+  patientFlowHidden?: boolean;
   mutation?:
     | { kind: "task"; task: ClinicalTaskItem }
     | { kind: "follow_up"; followUp: EncounterFollowUpItem }
@@ -322,8 +324,11 @@ function taskNextAction(task: ClinicalTaskItem) {
     task.source_type === "manual" &&
     task.pool_code === "front_desk" &&
     task.state === "open"
-  )
+  ) {
+    if (task.has_recorded_appointment)
+      return "Complete the initial contact record; appointment already scheduled";
     return "Complete initial contact and schedule the first appointment";
+  }
   if (task.pending_assignee_membership_id)
     return "Accept the requested transfer; current coverage remains responsible";
   if (task.source_managed) return "Continue in the source workspace";
@@ -1718,6 +1723,11 @@ export function WorkInbox() {
       );
     }
     work.data?.clinical_tasks.forEach((task) => {
+      const initialContactTask =
+        task.task_kind === "patient_call" &&
+        task.source_type === "manual" &&
+        task.pool_code === "front_desk" &&
+        task.encounter_id === null;
       next.push({
         id: `task-${task.id}`,
         type: taskType(task),
@@ -1741,8 +1751,9 @@ export function WorkInbox() {
           : `${task.pool_code.replaceAll("_", " ")} team`,
         nextAction: taskNextAction(task),
         sourceLabel: task.source_label || "Clinical task",
-        scheduleReady:
-          task.task_kind === "patient_call" && task.encounter_id === null,
+        scheduleReady: initialContactTask && !task.has_recorded_appointment,
+        patientFlowHidden:
+          initialContactTask && Boolean(task.has_recorded_appointment),
         href: task.encounter_href || task.patient_href,
         action: "Open work item",
         icon: "assignment",
@@ -2009,6 +2020,7 @@ export function WorkInbox() {
     canLoadScheduledVisits;
 
   const flowItems = useMemo(() => {
+    const patientFlowItems = items.filter((item) => !item.patientFlowHidden);
     const scheduled = (scheduledVisits.data?.appointments || [])
       .filter(
         (visit) =>
@@ -2034,7 +2046,7 @@ export function WorkInbox() {
         icon: "assignment",
         priority: "routine",
       }));
-    return [...items, ...scheduled].reduce<
+    return [...patientFlowItems, ...scheduled].reduce<
       Record<PatientFlowColumn, InboxItem[]>
     >(
       (columns, item) => {

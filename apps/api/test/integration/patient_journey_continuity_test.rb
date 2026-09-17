@@ -149,6 +149,20 @@ class PatientJourneyContinuityTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "patient flow projection hides a completed scheduling handoff after an appointment is recorded" do
+    task = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, site: @site,
+      task_kind: "patient_call", pool_code: "front_desk", state: "open", source_type: "manual",
+      recorded_by_membership: @member)
+    Clinic::Appointment.create!(practice: @practice, patient: @patient, site: @site,
+      starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes,
+      status: "scheduled", visit_modality: "in_person")
+
+    get "/api/clinic/operations/follow_ups", headers: @headers
+    assert_response :success
+    projected = response.parsed_body.fetch("clinical_tasks").find { |item| item.fetch("id") == task.id }
+    assert_equal true, projected.fetch("has_recorded_appointment")
+  end
+
   test "T10 stale claim and foreign clinic task cannot replace ownership" do
     task = task_record
     version = task.lock_version

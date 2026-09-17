@@ -27,13 +27,32 @@ Tracking Board showed the existing synthetic waiting-room encounter after
 refresh.
 
 This is current local evidence, not a claim that a new appointment was created
-or that check-in was performed in this walkthrough. The populated fixture also
-exposed a remaining workflow-data gap: an older patient-flow task can remain in
-`Ready to schedule` after its appointment has progressed to an active encounter
-and therefore no longer appears in the upcoming scheduled-visits query. That
-stale-task projection is recorded as follow-up work rather than silently
-counted as a completed Patient Flow transition. Provider, payment, clinical,
-accessibility, device-matrix, and external-readiness gates remain separate.
+or that check-in was performed in this walkthrough. The populated fixture
+exposed and the source repair below closed a workflow-data gap: an older
+patient-flow task could remain in `Ready to schedule` after its appointment had
+progressed to an active encounter and therefore no longer appeared in the
+upcoming scheduled-visits query. The worklist now projects whether an initial-
+contact task has a non-cancelled, non-no-show appointment; Patient Flow hides
+that duplicate task while the general Work Inbox retains it for explicit record
+completion. Provider, payment, clinical, accessibility, device-matrix, and
+external-readiness gates remain separate.
+
+## Stale Patient Flow projection repair — 2026-09-17
+
+The follow-up worklist now derives `has_recorded_appointment` from the
+practice-bound appointment records for manual front-desk initial-contact tasks.
+Cancelled and no-show appointments do not satisfy the handoff, and a
+site-scoped task only matches an appointment at that site. The frontend uses
+that server field to remove only the duplicate task from the Patient Flow
+projection, leaving the underlying work item visible in the general inbox with
+an updated next action. This preserves the independent task record while making
+`Patient Flow → Schedule → Tracking Board` truthful for active encounters.
+
+Focused continuity verification passed 9 runs / 147 assertions, including the
+new recorded-appointment projection case. TypeScript, Prettier, and the
+existing schedule/operations frontend tests also passed. This is source and
+local synthetic evidence; no new booking, check-in, provider, payment, or
+clinical acceptance is claimed.
 
 ## Current implementation baseline — 2026-09-16, slices 1–2
 

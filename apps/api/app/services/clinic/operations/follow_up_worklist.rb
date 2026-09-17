@@ -72,6 +72,7 @@ module Clinic
         clinical_tasks = filtered_clinical_tasks(task_scope, member)
           .includes(:patient, :encounter, assigned_to_membership: :user)
           .order(:due_at, :id).limit(LIMIT)
+        recorded_appointment_keys = recorded_appointment_keys_for(clinical_tasks)
 
         renewals = can_read_renewals && !site_id && filter.in?(%w[all unassigned]) ? renewal_exceptions : []
 
@@ -84,7 +85,10 @@ module Clinic
           encounter_summary: encounter_summary,
           encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
           clinical_task_summary: clinical_task_summary,
-          clinical_tasks: clinical_tasks.map { |task| serialize_clinical_task(task, member) },
+          clinical_tasks: clinical_tasks.map do |task|
+            serialize_clinical_task(task, member,
+              has_recorded_appointment: has_recorded_appointment?(task, recorded_appointment_keys))
+          end,
           reminder_attention_count: reminder_attention_count,
           renewal_exceptions: renewals.first(LIMIT), renewal_exceptions_truncated: renewals.length > LIMIT
         }
@@ -233,7 +237,34 @@ module Clinic
         end
       end
 
-      def serialize_clinical_task(task, member)
+      def recorded_appointment_keys_for(tasks)
+        patient_ids = tasks.filter_map do |task|
+          task.patient_id if initial_contact_task?(task)
+        end.uniq
+        return {} if patient_ids.empty?
+
+        practice.appointments.where(patient_id: patient_ids)
+          .where.not(status: %w[cancelled no_show])
+          .pluck(:patient_id, :site_id)
+          .each_with_object({}) do |(patient_id, site_id), keys|
+            (keys[patient_id] ||= {})[site_id] = true
+          end
+      end
+
+      def initial_contact_task?(task)
+        task.task_kind == "patient_call" && task.source_type == "manual" &&
+          task.pool_code == "front_desk" && task.encounter_id.nil?
+      end
+
+      def has_recorded_appointment?(task, appointment_keys)
+        return false unless initial_contact_task?(task)
+
+        sites = appointment_keys[task.patient_id]
+        return false unless sites
+        task.site_id.nil? || sites.key?(task.site_id)
+      end
+
+      def serialize_clinical_task(task, member, has_recorded_appointment: false)
         encounter_href = if task.encounter_id
           if task.source_type == "order"
             "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}?focus=clinical-plan-workspace"
@@ -259,7 +290,8 @@ module Clinic
           source_label: lab_action ? "Laboratory recollection" : nil,
           source_note: lab_action && Ability.new(actor, practice:).allowed_permission?("notes.read", site: task.site) ? lab_action.note : nil,
           encounter_href:,
-          patient_href: "/clinic/patients/#{task.patient_id}"
+          patient_href: "/clinic/patients/#{task.patient_id}",
+          has_recorded_appointment:
         )
       end
 

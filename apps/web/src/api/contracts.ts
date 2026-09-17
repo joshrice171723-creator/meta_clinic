@@ -491,6 +491,7 @@ export type ClinicalTask = {
   assignment_exception?: string | null;
   owner_unavailable?: boolean;
   source_managed?: boolean;
+  has_recorded_appointment?: boolean;
   history?: Array<{
     id: number;
     action: string;
