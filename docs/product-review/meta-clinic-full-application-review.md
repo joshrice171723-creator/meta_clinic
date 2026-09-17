@@ -616,6 +616,31 @@ The following ten review gaps were addressed or made explicit in this slice:
 12. Multi-clinic aggregate reporting remains limited to existing owner counts
     until an aggregate metric contract and reconciliation owner are set.
 
+### Slices 3–5 implementation follow-through — 2026-09-16
+
+The next three slices are now source-complete for the bounded decisions they
+own:
+
+1. Schedule export is generated from the server calendar projection with an
+   `as_of` timestamp, read-only provenance, UTC `DTSTAMP`, patient-first
+   summaries, room location, explicit tentative/confirmed status, and cancelled
+   or no-show omission. This is an export boundary, not external calendar sync
+   or a second scheduling source of truth.
+2. Appointment status transitions now return an explicit from/to/time result
+   and attach a server-generated causal identifier to the immutable model
+   version. Cancellation still requires the visible acknowledgement that no
+   cancellation message is sent automatically; the existing reminder review
+   route remains the communication handoff.
+3. Reporting and integration surfaces continue to identify source, freshness,
+   permission, and configured/unavailable state. The remaining release work is
+   evidence: fresh login, populated-resource walkthroughs, keyboard/zoom and
+   assistive-technology acceptance, provider/clinical governance, export and
+   retention review, and production approval.
+
+Focused source checks for this slice must verify the calendar export contract
+and transition response. No browser, live-provider, payment, clinical, or
+regulatory readiness claim follows from these source changes.
+
 ### Five data areas requiring gap classification
 
 1. Canonical cross-domain record lineage.

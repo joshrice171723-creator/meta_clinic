@@ -1330,6 +1330,8 @@ export type CalendarDay = {
 };
 export type CalendarResponse = {
   month: string;
+  /** Server time at which this calendar projection was generated. */
+  as_of?: string;
   timezone: string;
   site_id: number;
   slot_minutes: number;

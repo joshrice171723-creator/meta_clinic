@@ -5,6 +5,7 @@ import {
   appointmentTracks,
   shiftCalendarMonth,
   slotBookingAriaLabel,
+  buildCalendarIcs,
   isValidCalendarMonth,
   isValidCalendarDay,
   ClinicSchedule,
@@ -79,6 +80,46 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     ).toBe(
       "Book 9:00 AM on Wednesday, September 16 with Alex Rowan, NP in Infusion room 2",
     );
+  });
+  it("exports a reconciliable read-only calendar and omits cancelled visits", () => {
+    const ics = buildCalendarIcs(
+      [
+        {
+          id: 7,
+          patient_id: 122,
+          starts_at: "2026-09-16T14:00:00Z",
+          ends_at: "2026-09-16T14:30:00Z",
+          status: "confirmed",
+          calendar_status: "confirmed",
+          patient: {
+            id: 122,
+            display_name: "Robin Garrison",
+            reference: "MEM-7",
+          },
+          visit_type_name: "GLP-1 follow-up",
+          room_name: "Room 2",
+        },
+        {
+          id: 8,
+          patient_id: 123,
+          starts_at: "2026-09-16T15:00:00Z",
+          ends_at: "2026-09-16T15:30:00Z",
+          status: "cancelled",
+          calendar_status: "cancelled",
+        },
+      ] as CalendarAppointment[],
+      {
+        calendarName: "Meta Clinic Downtown",
+        generatedAt: "2026-09-16T13:00:00Z",
+      },
+    );
+    expect(ics).toContain("METHOD:PUBLISH");
+    expect(ics).toContain("X-META-CLINIC-SOURCE:server-calendar-read-only");
+    expect(ics).toContain("DTSTAMP:20260916T130000Z");
+    expect(ics).toContain("STATUS:CONFIRMED");
+    expect(ics).toContain("LOCATION:Room 2");
+    expect(ics).toContain("Robin Garrison");
+    expect(ics).not.toContain("UID:meta-clinic-8@local");
   });
   it("carries the Patient Flow patient into calendar and booking", () => {
     const view = Schedule({ search: "?patient_id=122" });

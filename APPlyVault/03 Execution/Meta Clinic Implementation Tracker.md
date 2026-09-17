@@ -125,6 +125,18 @@ month/day query values fall back to a safe date. These are source-level
 changes. Fresh-login and populated-resource browser proof remains open until
 the local API/database stack is available.
 
+**2026-09-16 slices 3–5:** the schedule calendar response now carries a
+server-generated `as_of` timestamp. Its read-only iCalendar export is
+patient-first, includes provenance/DTSTAMP/location and tentative-versus-
+confirmed status, and omits cancelled/no-show visits. Appointment transitions
+return an explicit from/to/time result and persist a server-generated causal id
+with the immutable model version; cancellation remains acknowledgement-gated
+with no automatic patient message. Reporting and integration surfaces retain
+source, freshness, permission and configured/unavailable boundaries. These are
+source-level changes with focused contract coverage; fresh-login, populated
+browser, keyboard/zoom/assistive-technology, clinical/provider governance,
+export/retention and production acceptance remain open evidence gates.
+
 **2026-09-14 local implementation complete:** MC-02–MC-12/MC-15 patient-journey source is integrated under the founder's development-efficiency policy `cc56cc4`. All 45 selected Rails cases pass across the focused runs and bounded fixture repairs. TypeScript, bundle, changed-file Ruby lint and 14 related frontend tests passed; earlier 326-test frontend, migration and PostgreSQL evidence is reused where unchanged. Real Rails-backed patient intake/callback, contact-first enrollment, staff dependency/transfer, typed-result acknowledgment and repaired staff-intake walkthroughs passed. [Field ownership and evidence](../../docs/development/patient-journey-implementation-evidence.md) records exact limits. Full regression, connected handover/post-closure browser proof, selected clinical/vendor mappings and launch acceptance remain pending; they are not labeled passed. The plan's current checkpoint owns the next milestone action. Insurance/supplier expansion remains outside this cash-pay assignment.
 
 **Assignment document:** [Tonight's patient-journey execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) contains the detailed research-derived questions, controls, final founder clarifications, execution slices, acceptance and resume checkpoint. Use it as the starting document for this assignment, not the isolated skill-test draft. The engineering guide remains the canonical shared matrix; this tracker remains the work inventory. Saving the plan does not dispatch implementation.

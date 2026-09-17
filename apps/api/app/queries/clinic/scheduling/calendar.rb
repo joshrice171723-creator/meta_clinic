@@ -39,7 +39,7 @@ module Clinic
             appointments: visits.map { |a| serialize(a) }
           }
         end
-        { month: @first.strftime("%Y-%m"), timezone: @practice.timezone, site_id: @site.id,
+        { month: @first.strftime("%Y-%m"), as_of: Current.business_time.iso8601(6), timezone: @practice.timezone, site_id: @site.id,
           slot_minutes: SLOT_MINUTES, capacity_configured: configured?,
           policy: { recurrence: "not_configured", overbook: "not_configured", external_sync: "read_only_export" },
           days: days,

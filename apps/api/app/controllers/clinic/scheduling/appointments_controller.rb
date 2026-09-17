@@ -81,13 +81,24 @@ module Clinic
       def transition
         input = parameter_hash!(:transition, %i[to expected_status])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
+        previous_status = appointment.status
+        target = enum_param!(input[:to], field: :to, allowed: Clinic::Appointment::TRANSITIONS.keys)
+        # Keep the status change attributable without trusting client-supplied
+        # audit metadata. PaperTrail persists this causal id with the model
+        # version created by the transition.
+        PaperTrail.request.controller_info = PaperTrail.request.controller_info.to_h.merge(
+          causal_id: "appointment-status-transition:#{appointment.id}:#{previous_status}->#{target}"
+        )
         updated = Clinic::Scheduling::TransitionAppointment.call(
           appointment: appointment,
           actor: current_user,
-          to: enum_param!(input[:to], field: :to, allowed: Clinic::Appointment::TRANSITIONS.keys),
+          to: target,
           expected_status: input[:expected_status].presence && enum_param!(input[:expected_status], field: :expected_status, allowed: Clinic::Appointment::TRANSITIONS.keys)
         )
-        render json: { appointment: AppointmentSerializer.call(updated, actor: current_user) }
+        render json: {
+          appointment: AppointmentSerializer.call(updated, actor: current_user),
+          transition: { from: previous_status, to: target, changed_at: Current.business_time.iso8601(6) }
+        }
       end
 
       def update

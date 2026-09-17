@@ -133,6 +133,88 @@ export function appointmentTracks(appointments: CalendarAppointment[]) {
   finish();
   return result;
 }
+
+type CalendarIcsOptions = {
+  calendarName: string;
+  generatedAt?: string;
+};
+
+function icsEscape(value: string) {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll(";", "\\;")
+    .replaceAll(",", "\\,")
+    .replaceAll("\n", "\\n")
+    .replaceAll("\r", "");
+}
+
+function icsUtc(value: string) {
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) return "";
+  return instant
+    .toISOString()
+    .replaceAll("-", "")
+    .replaceAll(":", "")
+    .replace(/\.\d{3}Z$/, "Z");
+}
+
+/**
+ * Builds a read-only iCalendar snapshot from the server-owned projection.
+ * Cancelled/no-show visits are intentionally omitted so an export cannot
+ * suggest that a patient should still arrive. The server snapshot timestamp
+ * is retained in DTSTAMP for reconciliation.
+ */
+export function buildCalendarIcs(
+  appointments: CalendarAppointment[],
+  { calendarName, generatedAt }: CalendarIcsOptions,
+) {
+  const generated = icsUtc(generatedAt || new Date().toISOString());
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Meta Clinic//Schedule//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:${icsEscape(calendarName)}`,
+    `X-META-CLINIC-SOURCE:${icsEscape("server-calendar-read-only")}`,
+  ];
+  appointments
+    .filter(
+      (appointment) => !["cancelled", "no_show"].includes(appointment.status),
+    )
+    .forEach((appointment) => {
+      const start = icsUtc(appointment.starts_at);
+      const end = icsUtc(appointment.ends_at);
+      if (!start || !end) return;
+      const patient =
+        appointment.patient?.display_name || "Patient appointment";
+      const visitType = appointment.visit_type_name || "Clinic appointment";
+      const status = appointment.calendar_status || appointment.status;
+      const icsStatus = status === "scheduled" ? "TENTATIVE" : "CONFIRMED";
+      const description = [
+        `Patient: ${patient}`,
+        `Status: ${status}`,
+        "Source: Meta Clinic server calendar (read-only export)",
+      ].join("\\n");
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:meta-clinic-${appointment.id}@local`,
+        `DTSTAMP:${generated}`,
+        `DTSTART:${start}`,
+        `DTEND:${end}`,
+        `STATUS:${icsStatus}`,
+        `SUMMARY:${icsEscape(`${patient} · ${visitType}`)}`,
+        `DESCRIPTION:${icsEscape(description)}`,
+        ...(appointment.room_name
+          ? [`LOCATION:${icsEscape(appointment.room_name)}`]
+          : []),
+        "END:VEVENT",
+      );
+    });
+  lines.push("END:VCALENDAR");
+  return `${lines.join("\r\n")}\r\n`;
+}
+
 const dateLabel = (date: string) =>
   new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
@@ -306,40 +388,20 @@ export function ClinicSchedule({
       view === "day"
         ? selectedDay?.appointments || []
         : data.days.flatMap((item) => item.appointments);
-    const escape = (value: string) =>
-      value
-        .replaceAll("\\", "\\\\")
-        .replaceAll(";", "\\;")
-        .replaceAll(",", "\\,")
-        .replaceAll("\n", "\\n");
-    const lines = [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "PRODID:-//Meta Clinic//Schedule//EN",
-    ];
-    appointments.forEach((appointment) => {
-      lines.push(
-        "BEGIN:VEVENT",
-        `UID:meta-clinic-${appointment.id}@local`,
-        `DTSTART:${new Date(appointment.starts_at)
-          .toISOString()
-          .replaceAll("-", "")
-          .replaceAll(":", "")
-          .replace(/\.\d{3}Z$/, "Z")}`,
-        `DTEND:${new Date(appointment.ends_at)
-          .toISOString()
-          .replaceAll("-", "")
-          .replaceAll(":", "")
-          .replace(/\.\d{3}Z$/, "Z")}`,
-        `SUMMARY:${escape(appointment.visit_type_name || "Clinic appointment")}`,
-        `DESCRIPTION:${escape(appointment.patient?.display_name || "Patient appointment")}`,
-        "END:VEVENT",
-      );
-    });
-    lines.push("END:VCALENDAR");
-    const blob = new Blob([`${lines.join("\r\n")}\r\n`], {
-      type: "text/calendar;charset=utf-8",
-    });
+    const blob = new Blob(
+      [
+        buildCalendarIcs(appointments, {
+          calendarName: `Meta Clinic ${
+            context.sites.find((site) => String(site.id) === siteId)?.name ||
+            "schedule"
+          }`,
+          generatedAt: data.as_of,
+        }),
+      ],
+      {
+        type: "text/calendar;charset=utf-8",
+      },
+    );
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = href;
@@ -557,10 +619,25 @@ export function ClinicSchedule({
           </TextField>
         )}
         <Button onClick={calendar.refresh}>Refresh</Button>
-        <Button variant="outlined" onClick={exportCalendar} disabled={!data}>
-          Export {view === "day" ? "day" : "month"}
+        <Button
+          variant="outlined"
+          onClick={exportCalendar}
+          disabled={!data}
+          aria-label={`Export ${view === "day" ? "day" : "month"} schedule as a read-only calendar file`}
+        >
+          Export {view === "day" ? "day" : "month"} · read-only
         </Button>
       </Stack>
+      {data && (
+        <Typography variant="caption" color="text.secondary">
+          Read-only export from the selected server calendar. Cancelled and
+          no-show appointments are omitted
+          {data.as_of
+            ? ` · snapshot ${new Date(data.as_of).toLocaleString()}`
+            : ""}
+          .
+        </Typography>
+      )}
       {calendar.error && (
         <Alert severity="error">
           {calendar.error} <Button onClick={calendar.refresh}>Retry</Button>
