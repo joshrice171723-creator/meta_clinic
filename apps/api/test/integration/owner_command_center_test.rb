@@ -80,6 +80,27 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "command center remains aggregate-only across clinic records" do
+    practice = Organization.create!(name: "Aggregate Group").practices.create!(
+      name: "Aggregate Clinic", timezone: "America/Chicago", platform_managed: true
+    )
+    practice.sites.create!(code: "MAIN", name: "Main clinic", status: "active")
+    patient = practice.patients.create!(display_name: "Synthetic Hidden Patient", reference: "AGG-PATIENT")
+    sign_in(@admin)
+
+    get "/api/owner/command_center"
+    assert_response :success
+    payload = response.parsed_body
+    serialized = payload.to_json
+
+    assert_includes serialized, "Aggregate Clinic"
+    refute_includes serialized, patient.display_name
+    refute_includes serialized, "AGG-PATIENT"
+    refute_includes serialized, "patient_id"
+    aggregate = payload.fetch("organizations").find { |entry| entry.fetch("name") == "Aggregate Group" }
+    assert_equal 0, aggregate.fetch("clinics").sole.fetch("member_count")
+  end
+
   test "platform owner can add a clinic to an existing organization" do
     organization = Organization.create!(name: "North Shore Medical Group")
     sign_in(@admin)

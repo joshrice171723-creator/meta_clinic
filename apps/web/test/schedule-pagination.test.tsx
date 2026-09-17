@@ -8,6 +8,7 @@ import {
   buildCalendarIcs,
   isValidCalendarMonth,
   isValidCalendarDay,
+  calendarTimezone,
   ClinicSchedule,
 } from "../src/features/clinic/ClinicSchedule";
 import { Schedule } from "../src/features/clinic/CareFlow";
@@ -48,6 +49,22 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     expect(
       calendarDate(new Date("2026-09-16T02:00:00Z"), "America/Chicago"),
     ).toBe("2026-09-15");
+  });
+  it("uses a selected location override for calendar times", () => {
+    expect(
+      calendarTimezone(
+        [{ id: 7, timezone_override: "UTC" }],
+        "7",
+        "America/Chicago",
+      ),
+    ).toBe("UTC");
+    expect(
+      calendarTimezone(
+        [{ id: 7, timezone_override: null }],
+        "7",
+        "America/Chicago",
+      ),
+    ).toBe("America/Chicago");
   });
   it("moves across year and leap-month boundaries", () => {
     expect(shiftCalendarMonth("2026-12", 1)).toBe("2027-01");

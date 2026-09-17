@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `21f6e23`
+**Checkout:** `main` at `0ac2543` before this audit; audit changes are pending commit.
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -59,7 +59,7 @@ unless a browser result is called out below.
 | P1 | Reporting, exports, audit and retention | Partial | Build or explicitly defer a consolidated report catalog; define source, freshness, filters, timezone, row permissions, export provenance, reconciliation owner, retention, and PHI handling. The existing `.ics` export remains read-only and is not external sync. | Reconciled synthetic report counts, permission tests, export review, retention decision, and audit-history verification. |
 | P1 | Clinical and professional governance | Open human dependency | Define eligible clinical roles, minimum dataset, review/sign rules, AI-scribe accountability, correction policy, medication/lab applicability, and who may approve clinical or financial exceptions. | Signed internal clinical/professional decision record; source changes alone cannot satisfy this gate. |
 | P1 | Privacy, security, legal, tax and operations | Open human/external dependency | Complete security/privacy review, jurisdiction and service applicability, tax treatment, incident/restore/deletion ownership, export controls, support ownership, and operational runbooks. | Human-approved records and controlled tabletop evidence; no compliance or production claim before approval. |
-| P2 | External and personalized enhancements | Deferred/conditional | Do not add external calendar sync, advanced recurrence, personalized dashboards, or multi-clinic aggregates until an owner, source of truth, conflict/overbook policy, and aggregate metric contract are approved. | Explicit product decision followed by a bounded implementation brief and provider/metric evidence. |
+| P2 | External and personalized enhancements | Bounded baseline implemented; conditional extensions deferred | The source now explicitly exposes the safe baseline: Meta Clinic remains the schedule source of truth, `.ics` is a read-only export, recurrence and overbook are `not_configured`, and owner command-center totals remain aggregate-only. Do not enable external sync, advanced recurrence/overbook, personalized dashboards, or broader multi-clinic reporting until an owner, source-of-truth/conflict policy, role-preference contract, and aggregate metric contract are approved. | Calendar policy contract test, owner aggregate-boundary test, and an explicit product decision followed by a bounded implementation brief and provider/metric evidence for each extension. |
 
 ## Evidence currently available
 
@@ -80,6 +80,20 @@ The P1 scope remains partially accepted locally: source contracts and focused
 API behavior are present, while browser mutation walkthroughs, provider/live
 delivery, and human governance/privacy/tax/retention decisions remain separate
 acceptance gates.
+
+### P2 boundary and implementation decision — 2026-09-17
+
+The P2 baseline is source-complete for the decisions already made: the
+authoritative in-house calendar and read-only iCalendar export are available,
+and the API advertises recurrence and overbook as `not_configured` rather than
+silently implying support. The owner command center exposes only clinic and
+active-membership counts; patient identifiers, clinical records, and clinic
+financial detail remain inside the clinic workspace. No external calendar
+provider, recurrence engine, overbooking behavior, personalized saved-view
+store, or new cross-clinic metric ledger was added. Those extensions remain
+blocked until their owner, conflict/source-of-truth, role-preference, and
+aggregate-metric decisions are recorded. This is an intentional safety and
+ownership boundary, not a claim that the conditional features are complete.
 
 ### Automated test evidence
 

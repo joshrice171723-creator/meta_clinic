@@ -121,6 +121,16 @@ Initial status for these requirements: founder-approved direction; current imple
 
 ## Next bounded work
 
+**2026-09-17 P2 boundary decision:** The already-approved P2 baseline is now
+recorded as source-complete: Meta Clinic owns scheduling truth, calendar export
+is read-only, recurrence/overbook remain explicitly not configured, and owner
+views expose aggregate-only clinic/member counts. External calendar sync,
+advanced recurrence/overbook, personalized dashboards, and broader
+multi-clinic reporting remain conditional; no provider, second source of
+truth, preference store, or cross-clinic metric ledger is enabled without an
+owner, conflict/source-of-truth policy, role-preference contract, and
+aggregate-metric definition.
+
 **2026-09-16 remaining-twelve follow-through:** Schedule now preserves
 month/day/site/view/group context in the URL, exports the server-loaded day or
 month as read-only iCalendar, and surfaces recurrence/overbook/external-sync

@@ -20,6 +20,14 @@ class Clinic::Scheduling::CalendarTest < ActiveSupport::TestCase
     assert_empty day[:slots]
   end
 
+  test "conditional P2 scheduling features remain explicit and read-only" do
+    policy = projection.fetch(:policy)
+
+    assert_equal "not_configured", policy[:recurrence]
+    assert_equal "not_configured", policy[:overbook]
+    assert_equal "read_only_export", policy[:external_sync]
+  end
+
   test "uses the selected site's timezone for the calendar projection" do
     @site.update!(timezone_override: "UTC")
     weekly

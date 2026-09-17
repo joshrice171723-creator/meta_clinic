@@ -37,6 +37,17 @@ export type CalendarBooking = {
   ends_at?: string;
 };
 
+export function calendarTimezone(
+  sites: { id: number; timezone_override?: string | null }[],
+  siteId: string,
+  fallback: string,
+) {
+  return (
+    sites.find((site) => String(site.id) === siteId)?.timezone_override ||
+    fallback
+  );
+}
+
 export function calendarDate(value: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
@@ -259,11 +270,19 @@ export function ClinicSchedule({
   ) => ReactNode;
 }) {
   const context = useClinic();
-  const timezone = context.practice.timezone;
-  const today = calendarDate(businessNow(), timezone);
   const routeParams = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   );
+  const [siteId, setSiteId] = useState(
+    routeParams.get("site_id") ||
+      String(context.current_site?.id ?? context.sites[0]?.id ?? ""),
+  );
+  const timezone = calendarTimezone(
+    context.sites,
+    siteId,
+    context.practice.timezone,
+  );
+  const today = calendarDate(businessNow(), timezone);
   const initialMonth = isValidCalendarMonth(routeParams.get("month"))
     ? routeParams.get("month")!
     : today.slice(0, 7);
@@ -279,10 +298,6 @@ export function ClinicSchedule({
   );
   const [group, setGroup] = useState<"clinician" | "room">(
     routeParams.get("group") === "room" ? "room" : "clinician",
-  );
-  const [siteId, setSiteId] = useState(
-    routeParams.get("site_id") ||
-      String(context.current_site?.id ?? context.sites[0]?.id ?? ""),
   );
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
