@@ -118,6 +118,9 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     expect(ics).toContain("DTSTAMP:20260916T130000Z");
     expect(ics).toContain("STATUS:CONFIRMED");
     expect(ics).toContain("LOCATION:Room 2");
+    expect(ics).toContain(
+      "DESCRIPTION:Patient: Robin Garrison\\nStatus: confirmed",
+    );
     expect(ics).toContain("Robin Garrison");
     expect(ics).not.toContain("UID:meta-clinic-8@local");
   });

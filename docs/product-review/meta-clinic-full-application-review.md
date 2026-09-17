@@ -10,8 +10,9 @@
 ## Current implementation baseline — 2026-09-16, slices 1–2
 
 The authorized slice work reconciles two source-owned gaps from the historical
-review. Role catalog version 9 is now installed by a forward migration and its
-advisory lock is derived from the catalog version. The web workflow uses one
+review. Role catalog version 9 is now installed by a forward migration; a
+follow-up reconciliation migration uses a version-derived advisory lock to
+carry forward active and future grants. The web workflow uses one
 canonical status map for membership payment, Patient Flow, appointments,
 encounters, clinical notes and billing, while keeping each record's lifecycle
 independent. Schedule and Tracking Board filters now create real browser history
@@ -626,9 +627,10 @@ own:
    summaries, room location, explicit tentative/confirmed status, and cancelled
    or no-show omission. This is an export boundary, not external calendar sync
    or a second scheduling source of truth.
-2. Appointment status transitions now return an explicit from/to/time result
-   and attach a server-generated causal identifier to the immutable model
-   version. Cancellation still requires the visible acknowledgement that no
+2. Every appointment status transition now returns an explicit from/to/time
+   result and attaches a server-generated causal identifier to the immutable
+   model version, including trusted internal and patient-portal paths.
+   The staff cancellation endpoint requires explicit acknowledgement that no
    cancellation message is sent automatically; the existing reminder review
    route remains the communication handoff.
 3. Reporting and integration surfaces continue to identify source, freshness,

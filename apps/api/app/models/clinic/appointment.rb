@@ -31,6 +31,12 @@ module Clinic
       allowed = TRANSITIONS.fetch(status) { [] }
       raise ArgumentError, "Appointment cannot transition from #{status}." unless allowed.include?(target)
 
+      # Keep every appointment transition attributable, including trusted
+      # internal and patient-portal paths that do not pass through the HTTP
+      # controller. The server derives this value from persisted state.
+      PaperTrail.request.controller_info = PaperTrail.request.controller_info.to_h.merge(
+        causal_id: "appointment-status-transition:#{id}:#{status}->#{target}"
+      )
       update!(status: target)
       self
     end

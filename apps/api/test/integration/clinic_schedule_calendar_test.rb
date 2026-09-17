@@ -8,7 +8,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "calendar-flow@example.invalid", password: password)
     @practice = Clinic::Practice.create!(name: "Synthetic Calendar Flow", organization: Organization.create!(name: "Synthetic Calendar Flow"), timezone: "America/Chicago")
     @membership = @practice.memberships.create!(user: @user)
-    grant_permissions!(@membership, "patients.read", "appointments.read", "appointments.book", "encounters.write")
+    grant_permissions!(@membership, "patients.read", "appointments.read", "appointments.book", "appointments.status_transition", "encounters.write")
     @site = @practice.sites.create!(code: "CAL")
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Calendar Clinician")
     @patient = @practice.patients.create!(display_name: "Synthetic Calendar Patient", reference: "CAL-FLOW")
@@ -58,6 +58,30 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     grant_permissions!(@membership, "patients.read")
     get "/api/clinic/schedule_calendar", params: { site_id: @site.id, date: @date.iso8601 }, headers: @headers
     assert_response :forbidden
+  end
+
+  test "cancellation requires acknowledgement and records its causal transition id" do
+    payload = { appointment: { patient_id: @patient.id, site_id: @site.id, booked_clinician_id: @clinician.id,
+      visit_type_id: @type.id, starts_at: @start.iso8601, ends_at: (@start + 30.minutes).iso8601, request_key: SecureRandom.uuid } }
+    post "/api/clinic/appointments", params: payload, headers: csrf_headers, as: :json
+    assert_response :created
+    appointment = @practice.appointments.find(response.parsed_body.fetch("appointment").fetch("id"))
+
+    post "/api/clinic/appointments/#{appointment.id}/transition",
+      params: { transition: { to: "cancelled", expected_status: "scheduled" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "scheduled", appointment.reload.status
+
+    post "/api/clinic/appointments/#{appointment.id}/transition",
+      params: { transition: { to: "cancelled", expected_status: "scheduled", cancellation_message_acknowledged: true } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal({ "from" => "scheduled", "to" => "cancelled" }, response.parsed_body.fetch("transition").slice("from", "to"))
+    assert Clinic::ModelVersion.where(
+      item_type: "Clinic::Appointment", item_id: appointment.id,
+      causal_id: "appointment-status-transition:#{appointment.id}:scheduled->cancelled"
+    ).exists?
   end
 
   private

@@ -130,6 +130,7 @@ describe("cancellation communication review source contract", () => {
     expect(transition).toContain(
       "`/api/clinic/appointments/${appointment.id}/transition`",
     );
+    expect(transition).toContain("cancellation_message_acknowledged: true");
     expect(transition).not.toContain("/api/clinic/reminders");
     expect(transition).not.toContain("queueReminder");
     expect(transition).not.toContain("sendMessage");

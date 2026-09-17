@@ -195,7 +195,7 @@ export function buildCalendarIcs(
         `Patient: ${patient}`,
         `Status: ${status}`,
         "Source: Meta Clinic server calendar (read-only export)",
-      ].join("\\n");
+      ].join("\n");
       lines.push(
         "BEGIN:VEVENT",
         `UID:meta-clinic-${appointment.id}@local`,

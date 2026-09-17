@@ -36,7 +36,7 @@ The founder explicitly requested completion of the entire [reconciled applicatio
 
 Do not mark this assignment complete after a single wave or because checks pass for only part of it. Each recommendation must be linked to an implemented result, verified existing behavior, or a concrete unresolved dependency. Detailed technical boundaries and evidence remain in the linked review and owning implementation briefs.
 
-**Integrated evidence — 2026-09-15/16:** 35 related frontend files / 291 tests passed after narrow repairs; the full frontend suite now passes 51 files / 379 tests after the launch-checklist, workflow-link, tracking-context and duplicate-match additions. Current TypeScript, changed-file Prettier and Vite bundle passed. Focused Rails history/registration/clinical/scribe/authorization checks passed after repairing stale fixtures and denial-audit rollback; the final audit file passed 7 tests / 52 assertions. Rails eager loading and 15 changed Ruby files passed RuboCop. Vault verification passed 43 notes / 509 links; harness verification and 23 harness tests passed earlier in the unchanged harness. The full membership test file is not green: an unrelated pre-existing adult-account fixture errors in `publish_catalog`; it is not evidence of a passing whole-repository suite. New one-time payment tests separately cover paid fulfillment, idempotent retry, stale version, disabled simulation and eligibility denial.
+**Integrated evidence — 2026-09-15/16:** 35 related frontend files / 291 tests passed after narrow repairs; the full frontend suite now passes 51 files / 381 tests after the launch-checklist, workflow-link, tracking-context, duplicate-match and calendar-export additions. Current TypeScript, changed-file Prettier and Vite bundle passed. Focused Rails history/registration/clinical/scribe/authorization checks passed after repairing stale fixtures and denial-audit rollback; the final audit file passed 7 tests / 52 assertions. Rails eager loading and 15 changed Ruby files passed RuboCop. Vault verification passed 43 notes / 509 links; harness verification and 23 harness tests passed earlier in the unchanged harness. The full membership test file is not green: an unrelated pre-existing adult-account fixture errors in `publish_catalog`; it is not evidence of a passing whole-repository suite. New one-time payment tests separately cover paid fulfillment, idempotent retry, stale version, disabled simulation and eligibility denial.
 
 **Browser evidence:** independently synthetic front-desk recurring payment → onboarding → Patient Flow → first appointment → check-in → Tracking Board completed using the configured local simulator. Month/day counts and consumed capacity persisted; a scheduled-only patient was absent from the board and appeared in Waiting room only after explicit check-in. Existing login survived navigation and source reloads. Desktop and 833 CSS-pixel tablet board inspected, including contained table scrolling and no page overflow. No live money, outbound communication, clinical treatment or actual clinician credentialing was performed. The new fixture configuration is one synthetic clinician with Monday 09:00–17:00 UTC capacity, not an inferred real clinic schedule.
 
@@ -128,14 +128,16 @@ the local API/database stack is available.
 **2026-09-16 slices 3–5:** the schedule calendar response now carries a
 server-generated `as_of` timestamp. Its read-only iCalendar export is
 patient-first, includes provenance/DTSTAMP/location and tentative-versus-
-confirmed status, and omits cancelled/no-show visits. Appointment transitions
-return an explicit from/to/time result and persist a server-generated causal id
-with the immutable model version; cancellation remains acknowledgement-gated
-with no automatic patient message. Reporting and integration surfaces retain
-source, freshness, permission and configured/unavailable boundaries. These are
-source-level changes with focused contract coverage; fresh-login, populated
-browser, keyboard/zoom/assistive-technology, clinical/provider governance,
-export/retention and production acceptance remain open evidence gates.
+confirmed status, and omits cancelled/no-show visits. Every appointment model
+transition persists a server-generated causal id with the immutable model
+version; the staff cancellation endpoint is acknowledgement-gated with no
+automatic patient message. A forward reconciliation migration carries active
+and future role grants onto catalog version 9 under a version-derived advisory
+lock. Reporting and integration surfaces retain source, freshness, permission
+and configured/unavailable boundaries. These are source-level changes with
+focused contract coverage; fresh-login, populated browser, keyboard/zoom/
+assistive-technology, clinical/provider governance, export/retention and
+production acceptance remain open evidence gates.
 
 **2026-09-14 local implementation complete:** MC-02–MC-12/MC-15 patient-journey source is integrated under the founder's development-efficiency policy `cc56cc4`. All 45 selected Rails cases pass across the focused runs and bounded fixture repairs. TypeScript, bundle, changed-file Ruby lint and 14 related frontend tests passed; earlier 326-test frontend, migration and PostgreSQL evidence is reused where unchanged. Real Rails-backed patient intake/callback, contact-first enrollment, staff dependency/transfer, typed-result acknowledgment and repaired staff-intake walkthroughs passed. [Field ownership and evidence](../../docs/development/patient-journey-implementation-evidence.md) records exact limits. Full regression, connected handover/post-closure browser proof, selected clinical/vendor mappings and launch acceptance remain pending; they are not labeled passed. The plan's current checkpoint owns the next milestone action. Insurance/supplier expansion remains outside this cash-pay assignment.
 

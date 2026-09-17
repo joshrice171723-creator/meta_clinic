@@ -79,16 +79,13 @@ module Clinic
       end
 
       def transition
-        input = parameter_hash!(:transition, %i[to expected_status])
+        input = parameter_hash!(:transition, %i[to expected_status cancellation_message_acknowledged])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
         previous_status = appointment.status
         target = enum_param!(input[:to], field: :to, allowed: Clinic::Appointment::TRANSITIONS.keys)
-        # Keep the status change attributable without trusting client-supplied
-        # audit metadata. PaperTrail persists this causal id with the model
-        # version created by the transition.
-        PaperTrail.request.controller_info = PaperTrail.request.controller_info.to_h.merge(
-          causal_id: "appointment-status-transition:#{appointment.id}:#{previous_status}->#{target}"
-        )
+        if target == "cancelled" && input[:cancellation_message_acknowledged] != true
+          raise ArgumentError, "Confirm that no cancellation message will be sent automatically before cancelling this appointment."
+        end
         updated = Clinic::Scheduling::TransitionAppointment.call(
           appointment: appointment,
           actor: current_user,
@@ -97,7 +94,7 @@ module Clinic
         )
         render json: {
           appointment: AppointmentSerializer.call(updated, actor: current_user),
-          transition: { from: previous_status, to: target, changed_at: Current.business_time.iso8601(6) }
+          transition: { from: previous_status, to: target, changed_at: updated.updated_at.iso8601(6) }
         }
       end
 

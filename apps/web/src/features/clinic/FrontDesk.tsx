@@ -290,7 +290,15 @@ function AppointmentDayQueue({
     try {
       await api(`/api/clinic/appointments/${appointment.id}/transition`, {
         method: "POST",
-        body: { transition: { to, expected_status: appointment.status } },
+        body: {
+          transition: {
+            to,
+            expected_status: appointment.status,
+            ...(to === "cancelled"
+              ? { cancellation_message_acknowledged: true }
+              : {}),
+          },
+        },
       });
       setNotice(
         to === "confirmed"
