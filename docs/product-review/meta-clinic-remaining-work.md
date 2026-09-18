@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `e3b5c56` (fresh browser closeout evidence; source baseline `33f74f2`).
+**Checkout:** `main` at `ec19503` (fresh browser closeout evidence; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -13,8 +13,9 @@ The application source baseline remains `33f74f2`; `e05ae15` contains the
 runbook documentation only. The recorded current evidence is unchanged:
 the bounded Rails selector is green at 162 runs / 1,955 assertions, the
 frontend suite is recorded at 51 files / 383 tests, and desktop/tablet/phone
-route smoke passed. A fresh browser mutation walkthrough after the stale
-Patient Flow projection repair remains open.
+route smoke passed. The fresh mutation walkthrough is now recorded in the
+step-3 reconciliation below; the broader role, device, negative/recovery, and
+human/provider gates remain open.
 
 Older counts (including 45/392, 105/1,354, 47/474, and 51/382) are retained as
 historical, selector-scoped evidence. The weight-loss brief's statement that
