@@ -38,7 +38,9 @@ Do not mark this assignment complete after a single wave or because checks pass 
 
 **Integrated evidence — 2026-09-15/17:** 35 related frontend files / 291 tests passed after narrow repairs; the full frontend suite now passes 51 files / 382 tests after the launch-checklist, workflow-link, tracking-context, duplicate-match and calendar-export additions. Current TypeScript, changed-file Prettier and Vite bundle passed. The repaired Rails regression subset (workforce scheduling, patient-portal visit instructions, and patient-journey continuity) passes 20 runs / 216 assertions with 0 failures and 0 errors. Focused Rails history/registration/clinical/scribe/authorization checks passed after repairing stale fixtures and denial-audit rollback; the final audit file passed 7 tests / 52 assertions. Rails eager loading and 15 changed Ruby files passed RuboCop. Vault verification passed 43 notes / 509 links; harness verification and 23 harness tests passed earlier in the unchanged harness. The full membership test file is not green: an unrelated pre-existing adult-account fixture errors in `publish_catalog`; it is not evidence of a passing whole-repository suite. New one-time payment tests separately cover paid fulfillment, idempotent retry, stale version, disabled simulation and eligibility denial.
 
-**Browser evidence:** a fresh local login completed through the synthetic organization → clinic → location → team-account selector. Patient Flow loaded eight ready-to-schedule synthetic items; opening one preserved and displayed the selected patient (`R`, clinic reference `MEM-F-D2902A1E`). The month calendar showed a populated day with one appointment and 15 open slots; the day view showed the clinician lane and appointment; the separate Tracking Board showed the existing synthetic waiting-room encounter after refresh. This current walkthrough did not create a new appointment or perform a new check-in. The source repair now prevents an older active encounter's initial-contact task from being projected as a duplicate Patient Flow scheduling card while retaining it in the general Work Inbox. No live money, outbound communication, clinical treatment or actual clinician credentialing was performed. The fixture configuration is synthetic, not an inferred real clinic schedule.
+**Closeout Steps 4–7 — 2026-09-17:** the broader continuity/checkout/workspace selector is now green at 50 runs / 525 assertions / 0 failures / 0 errors / 0 skips after repairing hard-coded past appointment fixtures and aligning the workspace test with practice-scoped multiple memberships. The paired negative/recovery selector covering appointment idempotency, stale writes, visit recovery, Tracking Board ownership, invoice/payment retry, administrative permissions and provider assignment passes 87 runs / 724 assertions / 0 failures / 0 errors / 0 skips. The retained-session browser smoke matrix passes on desktop, tablet and phone for the seven core clinic routes when pointed at the running stack's `localhost` loopback host; the initial `127.0.0.1` attempt did not enable the development selector and is retained as a harness-host assumption. The fresh synthetic paid-member mutation journey is browser-proven through payment simulation, Patient Flow, Schedule, front-desk check-in and post-arrival Tracking Board. Full assistive-technology, contrast/zoom, two-hour session, provider/live-delivery, clinical, tax, privacy, retention, release and pilot acceptance remain open and unassigned.
+
+**Browser evidence:** a fresh local login completed through the synthetic organization → clinic → location → team-account selector. Patient Flow loaded the ready-to-schedule synthetic items; opening the new synthetic paid patient preserved and displayed the selected patient, payment state and clinic reference. The month calendar showed capacity, the day view showed the clinician lane and appointment, and the separate Tracking Board remained absent until the appointment was checked in. The source repair prevents an older active encounter's initial-contact task from being projected as a duplicate Patient Flow scheduling card while retaining it in the general Work Inbox. No live money, outbound communication, clinical treatment or actual clinician credentialing was performed. The fixture configuration is synthetic, not an inferred real clinic schedule.
 
 **2026-09-17 stale-projection repair:** the worklist projects `has_recorded_appointment` for manual front-desk initial-contact tasks from tenant-bound appointment state. Patient Flow suppresses only the duplicate task after a non-cancelled, non-no-show appointment exists; the underlying task remains actionable in the general inbox. Focused continuity verification passes 9 runs / 147 assertions; frontend TypeScript, Prettier, and the existing schedule/operations tests pass. Browser re-walk and external/provider/clinical acceptance remain separate.
 
@@ -54,15 +56,14 @@ Do not mark this assignment complete after a single wave or because checks pass 
 controller now passes the synthetic scenario projection into its serializer. The
 impacted Tracking Board integration selector is green at 34 runs / 298
 assertions / 0 failures / 0 errors; the broader continuity/checkout/workspace
-selector remains 47 runs / 474 assertions with one unrelated workspace fixture
-failure and three stale scheduling-fixture errors. Fresh browser route entry is
-green through the visible organization → clinic → location → team-account
-selector on desktop, tablet and phone, and role-specific billing, inventory,
-records, workforce and setup entry routes are green. A phone Schedule spot check
-had no horizontal overflow and traversed 38 keyboard focus steps. A mutation-based
-browser walkthrough (new membership/payment, appointment, check-in and stale
-Patient Flow re-walk) plus complete denied-action and assistive-technology
-acceptance remain open; no source-only result is labeled full P0 acceptance.
+selector is now green at 50 runs / 525 assertions after stale fixture repairs.
+Fresh browser route entry and the retained-session seven-route matrix are green
+through the visible organization → clinic → location → team-account selector on
+desktop, tablet and phone. The mutation-based browser walkthrough now covers a
+new membership/payment, Patient Flow projection, selected-patient appointment,
+front-desk check-in and post-arrival Tracking Board row. Denied-action,
+assistive-technology, elapsed-session and external/provider acceptance remain
+open; no source-only result is labeled full P0 acceptance.
 
 **P1 verification follow-through — 2026-09-17:** the source-owned registration,
 recovery, billing, membership payment, communications, lab follow-up, scribe,

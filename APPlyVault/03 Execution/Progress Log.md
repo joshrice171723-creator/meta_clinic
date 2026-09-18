@@ -1,11 +1,40 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-15
+updated: 2026-09-17
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-17 — Closeout Steps 4–7 negative, device and recovery pass
+
+Completed the closeout negative/recovery and browser acceptance pass for the
+bounded local clinic journey. The repaired continuity/checkout/workspace
+selector now passes **50 runs / 525 assertions / 0 failures / 0 errors / 0
+skips**. A paired boundary selector covering appointment idempotency, stale
+writes, visit recovery, Tracking Board ownership, invoice/payment retry,
+administrative permissions and provider assignment passes **87 runs / 724
+assertions / 0 failures / 0 errors / 0 skips**. Repairs were limited to stale
+test fixtures: reschedule cases now use future capacity-backed appointments,
+and the workspace assertion now matches the practice-scoped multiple-membership
+migration. No runtime guard was weakened.
+
+The retained-session browser smoke matrix passed on desktop, tablet and phone
+for `/clinic`, `/clinic/schedule`, `/clinic/work`, `/clinic/billing`,
+`/clinic/inventory`, `/clinic/workforce` and `/clinic/telehealth` after the
+verified `localhost` loopback selector. The fresh synthetic paid-member flow
+also remains browser-proven through payment simulation, Patient Flow, Schedule,
+Front desk check-in and the post-arrival Tracking Board row. The first smoke
+attempt against `127.0.0.1` did not enable the selector; rerunning against the
+running stack's `localhost` host passed, so this is recorded as a harness-host
+assumption rather than a product failure.
+
+Steps 6–7 remain bounded: schedule recurrence/overbook/DST policy, clinical
+governance, Stripe/provider custody, communications, tax, privacy, retention,
+release and pilot decisions have no assigned human owner or external evidence
+in this sandbox. They remain deferred/open under the existing decisions and
+risk register; no approval or production readiness is inferred.
 
 ## 2026-09-15 — Review reconciliation and selected-patient scheduling
 

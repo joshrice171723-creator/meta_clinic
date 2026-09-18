@@ -862,7 +862,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_equal @practice.id, @user.reload.clinic_membership.practice_id
   end
 
-  test "a login has one clinic and setup never changes or reactivates its membership" do
+  test "setup never changes or reactivates its membership and memberships remain practice-scoped" do
     @membership.update!(active: false, patients_access: false)
     assert_no_difference [ "Clinic::Practice.count", "Clinic::Membership.count" ] do
       assert_equal @membership, Development::TestClinic.create!(@user)
@@ -870,8 +870,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_not @membership.reload.active?
     assert_not @membership.patients_access?
     duplicate = Clinic::Membership.new(user: @user, practice: @other)
-    assert_not duplicate.valid?
-    assert_includes duplicate.errors[:user_id], "has already been taken"
+    assert duplicate.valid?
+    assert_empty duplicate.errors[:user_id]
   end
 
   test "patient creation and append-only draft scoped to clinic regardless of submitted ownership" do

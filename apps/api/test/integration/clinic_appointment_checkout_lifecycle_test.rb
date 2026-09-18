@@ -10,6 +10,10 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     @site = @practice.sites.create!(code: "CHECKOUT")
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Checkout Clinician")
     @visit_type = @practice.visit_types.create!(code: "CHECKOUT-VISIT")
+    7.times do |weekday|
+      Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
+        kind: "weekly", weekday:, start_minute: 0, end_minute: 1440, active: true)
+    end
     @patient = @practice.patients.create!(display_name: "SYN_Checkout, Avery", reference: "SYN-CHECKOUT-001")
     @other_patient = @practice.patients.create!(display_name: "SYN_Checkout, Briar", reference: "SYN-CHECKOUT-002")
   end
@@ -89,8 +93,9 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
   end
 
   test "an incomplete saved appointment can be corrected before the visit starts" do
+    starts_at = 2.days.from_now.change(min: 0, sec: 0, usec: 0)
     appointment = @practice.appointments.create!(
-      patient: @patient, starts_at: Time.utc(2026, 9, 7, 11), ends_at: Time.utc(2026, 9, 7, 11, 30), status: "scheduled"
+      patient: @patient, starts_at: starts_at, ends_at: starts_at + 30.minutes, status: "scheduled"
     )
 
     corrected = Clinic::Scheduling::RescheduleAppointment.call(
@@ -230,7 +235,7 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
 
   private
 
-  def appointment_for(patient, status: "scheduled", starts_at: Time.utc(2026, 9, 7, 9))
+  def appointment_for(patient, status: "scheduled", starts_at: 2.days.from_now.change(min: 0, sec: 0, usec: 0))
     @practice.appointments.create!(
       patient: patient, site: @site, booked_clinician: @clinician, visit_type: @visit_type,
       starts_at: starts_at, ends_at: starts_at + 30.minutes, status: status

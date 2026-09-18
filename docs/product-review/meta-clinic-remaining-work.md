@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `ec19503` (fresh browser closeout evidence; source baseline `33f74f2`).
+**Checkout:** `main` at `77cf951` (closeout steps 4–7 evidence; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -20,8 +20,9 @@ human/provider gates remain open.
 Older counts (including 45/392, 105/1,354, 47/474, and 51/382) are retained as
 historical, selector-scoped evidence. The weight-loss brief's statement that
 no additional J0–J7 browser action remains is superseded for this closeout
-because the latest repair still needs a fresh mutation re-walk. The 56/100
-weighted score is retained as historical and is not recalculated in this
+because this report records a separate application-wide mutation walkthrough;
+that walkthrough does not expand the weight-loss brief's specialty scope. The
+56/100 weighted score is retained as historical and is not recalculated in this
 closeout step.
 
 ## Executive assessment
@@ -78,6 +79,34 @@ label exposes the full patient name. This is not a workflow or identity
 failure, but the visual patient-identity treatment should be reviewed before
 human acceptance. The browser trace also confirmed the selected-patient
 schedule context and no duplicate initial-contact card after booking.
+
+## Closeout reconciliation — steps 4–7 — 2026-09-17
+
+Step 4's paired negative/recovery selector passes **87 runs / 724 assertions /
+0 failures / 0 errors / 0 skips** across appointment idempotency, stale writes,
+visit recovery, Tracking Board ownership, invoice/payment retry,
+administrative permissions and provider assignment. Step 7 repaired only stale
+test assumptions: reschedule fixtures now use future, capacity-backed times,
+and the workspace test matches the practice-scoped multiple-membership
+migration. No runtime guard, authorization check or source-of-truth boundary
+was weakened. The broader continuity/checkout/workspace selector now passes
+**50 runs / 525 assertions / 0 failures / 0 errors / 0 skips**.
+
+Step 5's retained-session browser smoke matrix passed on desktop, tablet and
+phone for `/clinic`, `/clinic/schedule`, `/clinic/work`, `/clinic/billing`,
+`/clinic/inventory`, `/clinic/workforce` and `/clinic/telehealth`. The initial
+`127.0.0.1` harness attempt did not enable the development selector; rerunning
+against the running stack's `localhost` loopback host passed. This is recorded
+as a harness-host assumption. Full assistive-technology, contrast/zoom,
+two-hour idle/session and modal/error-state acceptance remain open.
+
+Step 6 has no new human decision authority in this sandbox. Timezone/DST,
+closures, recurrence/overbook, provider absence, clinical roles and signing,
+Stripe/MOTO custody, messaging/telehealth/pharmacy/laboratory providers, tax,
+privacy, retention, support, deployment, pilot and release gates remain
+explicitly deferred/open under the existing decisions and risk register, with
+owners unassigned. No external transaction, provider connection or professional
+approval was performed or inferred.
 
 ## What is already complete for bounded source slices
 
