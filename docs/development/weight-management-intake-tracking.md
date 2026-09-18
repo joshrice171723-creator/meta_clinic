@@ -1,6 +1,6 @@
 # Medical Weight-Management Intake Tracking
 
-Status: M1–M3 implemented and verified; remaining milestones are planning work
+Status: M1–M4 implemented and verified; remaining milestones are planning work
 
 Revision: 2 · 2026-09-18
 
@@ -58,7 +58,7 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 | M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | Complete | Five guided chunks save progressively; explicit answer states, staff confirmation, provenance, and Version 5 survive reload |
 | M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | Complete | Existing profile values are reused read-only; synthetic room 19 is recorded and remains present after reload |
 | M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | Complete | Synthetic 200 lb / 70 in measurement records with date and units; server-calculated BMI displays as 28.7 kg/m² and is not editable |
-| M4 | Previous treatment and procedure history | Treatment attempts, medication history, procedures, outcomes, and reasons for stopping are repeatable records | M1, M3 | Not started | Multiple records persist independently; approximate/unknown dates are supported |
+| M4 | Previous treatment and procedure history | Treatment attempts, medication history, procedures, outcomes, and reasons for stopping are repeatable records | M1, M3 | Complete | Structured treatment/procedure entries persist independently; approximate and unknown dates survive reload; API and browser evidence pass |
 | M5 | Medical, family, and current-symptom history | Structured conditions and symptoms open relevant follow-ups without collapsing history into one text box | M1, M2 | Not started | Selected condition details, family-history uncertainty, and current symptom routing are visible |
 | M6 | Medication, supplement, allergy, and actual-use reconciliation | Medication records distinguish prescribed from actually taken products and distinguish allergy from intolerance | M1, M4, M5 | Not started | Search/catalog selection, “Other,” dose/unit uncertainty, reactions, and source/date are preserved |
 | M7 | Reproductive and medication-specific safety branches | Treatment selection opens the approved product-specific questions and clarification paths | M5, M6; clinical approval gate | Not started | GLP-1 and non-GLP-1 branches are distinct; unknown answers create review work rather than rejection |
@@ -68,14 +68,15 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 | M11 | Patient confirmation and clinician review | The patient/staff can confirm what was recorded while the clinician sees unresolved risks first | M1–M10 | Not started | Confirmation is not clinical approval; review queue prioritizes unresolved safety facts, symptoms, actual medication use, and missing evidence |
 | M12 | Follow-up and longitudinal change | A shorter follow-up updates treatment response and access without repeating the full initial intake | M3, M6, M7, M9, M11 | Not started | Follow-up version is separate; refill/dose decisions remain distinct clinician actions; changed facts reopen affected review |
 
-## M1–M3 implementation checkpoint
+## M1–M4 implementation checkpoint
 
 - **Implemented:** persisted confirmed chunk progress and questionnaire version/provenance metadata; explicit answer-state controls; patient-profile reuse; encounter-scoped video-location question; existing observation-based vital-sign entry with server-calculated BMI.
 - **Changed paths:** `apps/api/app/controllers/clinic/scheduling/encounters_controller.rb`, `apps/api/app/services/clinic/care/previsit_intake.rb`, `apps/api/app/services/clinic/care/nurse_workflow.rb`, `apps/api/test/integration/nurse_workflow_test.rb`, `apps/web/src/api/contracts.ts`, `apps/web/src/features/patientPortal/IntakeQuestions.tsx`, and `apps/web/src/features/clinic/NurseEncounterWorkspace.tsx`.
 - **Verified:** Ruby syntax; focused API integration suite (11 runs / 218 assertions / 0 failures); frontend TypeScript; 51 web test files / 384 tests; production frontend build; and targeted Prettier checks for changed UI files.
 - **Browser proof:** On the synthetic encounter page, room assignment records room 19 (`M1-M3-EXAM-1`), all five guided groups can be answered and confirmed in sequence, explicit `Unknown` states remain visible, the intake reloads at Version 5, and recorded 200 lb / 70 in measurements display server-calculated BMI 28.7 kg/m². The room and confirmations persist after reload.
+- **M4 proof:** The same synthetic encounter records a prior medicine through the searchable/“Other” path with an approximate year and a prior procedure with an unknown date; the saved revision advances to Version 9, the next group unlocks, and both structured entries remain visible after reload. The API integration test also persists two independent treatment records and one procedure record.
 - **Fixes verified:** The room assignment request now uses the API’s nested room payload; the controller validates the required idempotency request key; and the nurse integration fixture assigns a synthetic room through the real scheduling service before exercising the workflow.
-- **Remaining gates:** Clinical approval, jurisdictional review, production/live-integration checks, tablet-width proof, and the later M4–M12 milestones remain separate from this implementation completion.
+- **Remaining gates:** Clinical approval, jurisdictional review, production/live-integration checks, tablet-width proof, and the later M5–M12 milestones remain separate from this implementation completion.
 
 ## Milestone parts at a glance
 

@@ -17,15 +17,25 @@ module Clinic
         { id: "care_needs", label: "Communication, accessibility or other care needs", reusable: true },
         { id: "goals", label: "What would you like help with?", reusable: false },
         { id: "telehealth_location", label: "Where are you physically located for this video visit? (City and state)", reusable: false },
-        { id: "prior_approaches", label: "What have you tried for weight management?", reusable: true },
-        { id: "procedures", label: "Previous procedures", reusable: true },
+        { id: "prior_approaches", label: "Previous treatments and medicines", reusable: true, history_kind: "treatment" },
+        { id: "procedures", label: "Previous procedures, surgeries, or hospitalizations", reusable: true, history_kind: "procedure" },
         { id: "barriers", label: "Anything making your plan difficult to follow?", reusable: false },
         { id: "height", label: "Current height", reusable: false, units: %w[cm [in_i]] },
         { id: "weight", label: "Current weight", reusable: false, units: %w[kg [lb_av]] }
       ].map(&:freeze).freeze
       PREFIX = "MC_INTAKE_V1\n".freeze
       MAX_ANSWER_LENGTH = 600
+      MAX_HISTORY_ENTRIES = 20
       ANSWER_STATES = %w[answered unanswered not_asked unknown declined not_applicable negative].freeze
+      HISTORY_DATE_PRECISIONS = %w[exact approximate unknown].freeze
+      TREATMENT_KINDS = %w[diet_program medication other].freeze
+      TREATMENT_DURATIONS = %w[less_than_month one_to_three_months three_to_six_months six_to_twelve_months more_than_year unknown].freeze
+      TREATMENT_OUTCOMES = %w[no_benefit some_benefit meaningful_benefit_not_maintained unknown].freeze
+      TREATMENT_MAINTENANCE = %w[yes no unknown not_applicable].freeze
+      TREATMENT_STOP_REASONS = %w[completed no_benefit adverse_effect cost_or_access preference clinician_advice ongoing unknown].freeze
+      PROCEDURE_KINDS = %w[procedure surgery hospitalization other].freeze
+      PROCEDURE_OUTCOMES = %w[helpful not_helpful mixed unknown].freeze
+      PROCEDURE_COMPLICATIONS = %w[none_reported known unknown not_applicable].freeze
       SPECIALTY_FORMS = {
         "weight-management-initial-v1" => FIELDS.reject { |field| field[:id] == "symptoms" } + [
           { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
@@ -106,6 +116,8 @@ module Clinic
       private_class_method :normalize_confirmed_chunks
 
       def normalize_answer(value, field, status: "submitted")
+        return normalize_history_answer(value, field, status:) if field[:history_kind]
+
         value = { "state" => value.blank? ? "unanswered" : "answered", "value" => value } if value.is_a?(String)
         raise ArgumentError, "Intake answers must be text or structured answers." unless value.is_a?(Hash)
         value = value.stringify_keys
@@ -144,6 +156,93 @@ module Clinic
           raise ArgumentError, "Measurement details belong only to an answered height or weight."
         end
         result
+      end
+
+      def normalize_history_answer(value, field, status: "submitted")
+        value = { "state" => value.blank? ? "unanswered" : "answered", "value" => value } if value.is_a?(String)
+        raise ArgumentError, "Intake answers must be text or structured answers." unless value.is_a?(Hash)
+
+        value = value.stringify_keys
+        raise ArgumentError, "Choose supported history answer details." if (value.keys - %w[state value entries]).any?
+        state = value.fetch("state", "unanswered")
+        raise ArgumentError, "Choose a supported answer state." unless ANSWER_STATES.include?(state)
+        text = value.fetch("value", "")
+        raise ArgumentError, "Intake answer values must be text." unless text.is_a?(String)
+        text = text.strip
+        entries = value.fetch("entries", nil)
+        if entries.nil?
+          raise ArgumentError, "Each intake answer must be #{MAX_ANSWER_LENGTH} characters or fewer." if text.length > MAX_ANSWER_LENGTH
+          state = "unanswered" if state == "answered" && text.blank?
+          raise ArgumentError, "Only an answered question can contain a value." if state != "answered" && text.present?
+          return { "state" => state, "value" => text }
+        end
+
+        raise ArgumentError, "History entries must be an array." unless entries.is_a?(Array)
+        raise ArgumentError, "Add fewer history entries." if entries.length > MAX_HISTORY_ENTRIES
+        raise ArgumentError, "Only an answered question can contain history entries." unless state == "answered"
+        raise ArgumentError, "Answer at least one history entry." if entries.empty?
+
+        normalized_entries = entries.map { |entry| normalize_history_entry(entry, field[:history_kind]) }
+        raise ArgumentError, "Shorten the history details before saving." if JSON.generate(normalized_entries).length > 5_000
+        { "state" => state, "value" => "", "entries" => normalized_entries }
+      end
+
+      def normalize_history_entry(entry, kind)
+        raise ArgumentError, "History entries must be objects." unless entry.is_a?(Hash)
+
+        entry = entry.stringify_keys
+        allowed = %w[kind name date_precision date_value duration outcome maintenance stop_reason adverse_effects adverse_effect_details complication_state complication_details]
+        raise ArgumentError, "Choose supported history entry details." if (entry.keys - allowed).any?
+        name = entry.fetch("name", "").to_s.strip
+        raise ArgumentError, "Name each previous treatment or procedure." if name.blank?
+        raise ArgumentError, "History names must be 240 characters or fewer." if name.length > 240
+        date_precision = entry.fetch("date_precision", "unknown").to_s
+        raise ArgumentError, "Choose a supported date certainty." unless HISTORY_DATE_PRECISIONS.include?(date_precision)
+        date_value = entry.fetch("date_value", "").to_s.strip
+        if date_precision == "exact"
+          raise ArgumentError, "Enter a complete historical date." unless date_value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+          raise ArgumentError, "Historical dates cannot be in the future." if Date.iso8601(date_value) > Current.business_time.to_date
+        elsif date_precision == "approximate"
+          raise ArgumentError, "Enter an approximate year." unless date_value.match?(/\A\d{4}\z/)
+          raise ArgumentError, "Historical dates cannot be in the future." if date_value.to_i > Current.business_time.year
+        else
+          date_value = ""
+        end
+        normalized = { "kind" => entry.fetch("kind", "other").to_s, "name" => name,
+          "date_precision" => date_precision, "date_value" => date_value }
+        if kind == "treatment"
+          normalized["kind"] = enum_history_value(normalized["kind"], TREATMENT_KINDS, "treatment type")
+          normalized["duration"] = enum_history_value(entry.fetch("duration", "unknown"), TREATMENT_DURATIONS, "treatment duration")
+          normalized["outcome"] = enum_history_value(entry.fetch("outcome", "unknown"), TREATMENT_OUTCOMES, "treatment outcome")
+          normalized["maintenance"] = enum_history_value(entry.fetch("maintenance", "unknown"), TREATMENT_MAINTENANCE, "maintenance status")
+          normalized["stop_reason"] = enum_history_value(entry.fetch("stop_reason", "unknown"), TREATMENT_STOP_REASONS, "reason ended")
+          normalized["adverse_effects"] = enum_history_value(entry.fetch("adverse_effects", "unknown"), %w[none_reported reported unknown], "adverse-effect status")
+          normalized["adverse_effect_details"] = bounded_history_text(entry["adverse_effect_details"])
+        else
+          normalized["kind"] = enum_history_value(normalized["kind"], PROCEDURE_KINDS, "procedure type")
+          normalized["outcome"] = enum_history_value(entry.fetch("outcome", "unknown"), PROCEDURE_OUTCOMES, "procedure outcome")
+          normalized["complication_state"] = enum_history_value(entry.fetch("complication_state", "unknown"), PROCEDURE_COMPLICATIONS, "complication status")
+          normalized["complication_details"] = bounded_history_text(entry["complication_details"])
+        end
+        normalized
+      rescue ArgumentError
+        raise
+      rescue Date::Error
+        raise ArgumentError, "Enter a valid historical date."
+      end
+
+      def enum_history_value(value, allowed, label)
+        normalized = value.to_s
+        raise ArgumentError, "Choose a supported #{label}." unless allowed.include?(normalized)
+
+        normalized
+      end
+
+      def bounded_history_text(value)
+        text = value.to_s.strip
+        raise ArgumentError, "History details must be 600 characters or fewer." if text.length > MAX_ANSWER_LENGTH
+
+        text
       end
 
       def decode(value)
@@ -196,6 +295,14 @@ module Clinic
         return nil if answer["state"] == "unanswered"
         return nil unless ANSWER_STATES.include?(answer["state"])
         return answer["state"].tr("_", " ").capitalize unless answer["state"] == "answered"
+        if answer["entries"].is_a?(Array)
+          return answer["entries"].filter_map do |entry|
+            next unless entry.is_a?(Hash)
+
+            details = [ entry["kind"], entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
+            [ entry["name"], details.compact.join(" · ") ].compact.join(" — ")
+          end.join("\n")
+        end
         [ answer["value"], answer["unit"], answer["measured_at"], answer["source"]&.tr("_", " ") ].compact.join(" ")
       end
     end

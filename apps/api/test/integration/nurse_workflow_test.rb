@@ -243,6 +243,46 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal 0, Clinic::EncounterIntakeRevision.where(encounter: @encounter).count
   end
 
+  test "repeatable treatment and procedure history preserves structured records" do
+    answers = Clinic::Care::PrevisitIntake.fields.to_h do |field|
+      [ field.fetch(:id), { state: "not_asked", value: "" } ]
+    end
+    answers["prior_approaches"] = {
+      state: "answered", value: "", entries: [
+        { kind: "medication", name: "Synthetic prior medicine", date_precision: "approximate", date_value: "2024",
+          duration: "three_to_six_months", outcome: "some_benefit", maintenance: "no", stop_reason: "adverse_effect",
+          adverse_effects: "reported", adverse_effect_details: "Synthetic nausea" },
+        { kind: "diet_program", name: "Synthetic nutrition program", date_precision: "unknown", date_value: "",
+          duration: "unknown", outcome: "unknown", maintenance: "unknown", stop_reason: "unknown", adverse_effects: "none_reported" }
+      ]
+    }
+    answers["procedures"] = {
+      state: "answered", value: "", entries: [
+        { kind: "surgery", name: "Synthetic prior procedure", date_precision: "exact", date_value: "2023-04-12",
+          outcome: "helpful", complication_state: "none_reported" }
+      ]
+    }
+    answers["barriers"] = { state: "not_applicable", value: "" }
+
+    last = nil
+    (0..3).each do |chunk|
+      post intake_path, params: { intake: {
+        request_key: "nurse-history-chunk-#{chunk}", expected_version: chunk,
+        status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+        history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [],
+        questionnaire: { text: "", answers:, status: "submitted", confirmed: true, confirmed_chunks: (0..chunk).to_a }
+      } }, headers: csrf_headers, as: :json
+      assert_response :created
+      last = response.parsed_body.fetch("intake")
+    end
+
+    assert_equal 4, last.fetch("version")
+    assert_equal "Synthetic prior medicine", last.dig("questionnaire", "answers", "prior_approaches", "entries", 0, "name")
+    assert_equal "approximate", last.dig("questionnaire", "answers", "prior_approaches", "entries", 0, "date_precision")
+    assert_equal "Synthetic prior procedure", last.dig("questionnaire", "answers", "procedures", "entries", 0, "name")
+    assert_includes last.fetch("questionnaire_text"), "Synthetic prior procedure"
+  end
+
   test "non-video handoff requires a recorded room" do
     @encounter.update!(room: nil)
     post intake_path, params: ready_intake(request_key: "nurse-roomless-intake", history_review_ids: @reviews.map(&:id)),

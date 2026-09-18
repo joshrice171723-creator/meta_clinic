@@ -124,6 +124,54 @@ describe("typed patient journey intake", () => {
     expect(html).toContain("2026-09-01");
   });
 
+  it("renders structured treatment history with bounded choices and searchable medicines", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          {
+            id: "prior_approaches",
+            label: "Previous treatments and medicines",
+            reusable: true,
+            history_kind: "treatment",
+          },
+        ]}
+        answers={{
+          prior_approaches: {
+            state: "answered",
+            value: "",
+            entries: [
+              {
+                kind: "medication",
+                name: "Synthetic prior medicine",
+                date_precision: "approximate",
+                date_value: "2024",
+                duration: "three_to_six_months",
+                outcome: "some_benefit",
+                maintenance: "no",
+                stop_reason: "adverse_effect",
+                adverse_effects: "reported",
+                adverse_effect_details: "Synthetic nausea",
+                complication_state: "unknown",
+                complication_details: "",
+              },
+            ],
+          },
+        }}
+        medicationOptions={["Synthetic prior medicine"]}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("History record 1");
+    expect(html).toContain("Synthetic prior medicine");
+    expect(html).toContain("Date certainty");
+    expect(html).toContain("Reason it ended");
+    expect(html).toContain("Add another history record");
+    expect(html).not.toContain(
+      "Describe every prior treatment in one text box",
+    );
+  });
+
   it("staff chart imports preserve an unconfirmed draft label and do not duplicate the same version", () => {
     const draft = {
       id: 17,
