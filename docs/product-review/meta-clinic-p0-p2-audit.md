@@ -34,13 +34,26 @@ check, not a claim inferred from those constants. The stale open-walk wording
 and pre-repair test totals in this report were documentation defects and are
 corrected below.
 
-### Part 2 — acceptance and operational gates — not executed in Part 1
+### Part 2 — source-owned acceptance breadth — completed with explicit limits
 
-The second slice remains the complete fresh role/action denial matrix,
-populated-resource workflows outside the membership journey, keyboard/focus
-and screen-reader/zoom/error-state acceptance, elapsed-session proof, and the
-clinical, provider, privacy, tax, retention, support, pilot, and release
-decisions. These are deliberately kept separate from source implementation.
+The source-owned Part 2 selector now passes **135 runs / 1,467 assertions / 0
+failures / 0 errors / 0 skips** across role/site permissions, scheduling,
+registration, billing, inventory, workforce, portal, reminders, scribe, and the
+cross-role integrated clinic journey. It exposed one stale synthetic fixture:
+the waitlist recovery path had no weekly capacity rules for its clinician/site;
+adding those rules repaired the fixture without changing runtime behavior, and
+the full selector was rerun clean. Frontend **51 files / 383 tests**, TypeScript,
+production build, and the desktop/tablet/phone seven-route smoke matrix also
+pass. The package-script tablet invocation had a development-selector harness
+timeout; direct execution of the same browser harness against `localhost`
+passed, so this is recorded as tooling behavior rather than a product failure.
+
+The remaining Part 2 limits are real acceptance gates: fresh browser action
+denials for every role, populated-resource mutation walkthroughs beyond the
+core membership journey, screen-reader/contrast/zoom/modal/error-state review,
+elapsed two-hour session proof, and clinical/provider/privacy/tax/retention,
+support, pilot, and release decisions. Source and local checks do not satisfy
+those human or external gates.
 
 ## Status matrix
 
@@ -73,6 +86,8 @@ decisions. These are deliberately kept separate from source implementation.
 - Reconciled the stale P0–P2 browser-status and selector-total claims with the
   newer closeout evidence; no runtime authorization or source-of-truth change
   was needed for this Part 1 repair.
+- Added weekly synthetic capacity rules to the cross-role integrated journey so
+  its waitlist offer/recovery path exercises the same capacity guard as runtime.
 - Updated the remaining-work report and implementation tracker with the P2
   boundary decision and this audit's evidence limits.
 
@@ -120,15 +135,17 @@ decisions. These are deliberately kept separate from source implementation.
   0 failures / 0 errors / 0 skips**.
 - Closeout paired negative/recovery selector: **87 runs / 724 assertions / 0
   failures / 0 errors / 0 skips**.
+- Part 2 role/populated-workflow selector: **135 runs / 1,467 assertions / 0
+  failures / 0 errors / 0 skips** after the capacity-fixture repair.
 - Pharmacy workspace selector after contract repair: **10 runs / 119
   assertions / 0 failures / 0 errors / 0 skips**.
 - Browser smoke matrix: desktop, tablet, and phone passed for the seven core
   clinic routes; the fresh synthetic paid-member mutation walkthrough also
-  passed. Part 2 still owns full accessibility and elapsed-session evidence.
+  passed. Full accessibility and elapsed-session evidence remain open.
 
 ## Safest next action
 
-Complete Part 2's role/action, accessibility/session, populated-module, and
-human/provider acceptance matrix. Keep the P2 conditional features blocked
-until product owners approve the missing contracts; then implement each
-extension as a separately testable, bounded slice.
+Assign owners for the remaining human/provider acceptance gates and run the
+separate prelaunch matrix. Keep the P2 conditional features blocked until
+product owners approve the missing contracts; then implement each extension as
+a separately testable, bounded slice.

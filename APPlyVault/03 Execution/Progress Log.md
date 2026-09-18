@@ -7,6 +7,26 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-17 — Part 2 acceptance breadth and capacity-fixture repair
+
+Ran the source-owned Part 2 selector across role/site permissions, scheduling,
+registration, billing, inventory, workforce, patient portal, reminders, scribe
+and the cross-role integrated clinic journey. The first run found one stale
+synthetic setup: the waitlist recovery path did not create weekly capacity rules
+for its clinician/site. Adding those rules repaired the fixture without changing
+runtime authorization or scheduling behavior; the affected journey passed 2
+runs / 78 assertions and the full selector was rerun at **135 runs / 1,467
+assertions / 0 failures / 0 errors / 0 skips**.
+
+The frontend suite passed **51 files / 383 tests**; TypeScript and production
+bundle checks passed. Direct browser-harness runs against `localhost` passed the
+seven core clinic routes on desktop, tablet and phone. The package-script tablet
+wrapper timed out while enabling the development selector, but the same harness
+invoked directly passed; this is recorded as tooling behavior. Full fresh action
+denial, populated-resource mutation, screen-reader/zoom/modal/error-state and
+elapsed two-hour session acceptance remain open, as do clinical/provider,
+privacy, tax, retention, support, pilot and release decisions.
+
 ## 2026-09-17 — Closeout Steps 4–7 negative, device and recovery pass
 
 Completed the closeout negative/recovery and browser acceptance pass for the

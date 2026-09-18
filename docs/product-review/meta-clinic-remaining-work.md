@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `5948db7` (Part 1 audit reconciliation; source baseline `33f74f2`).
+**Checkout:** `main` at `2b10204` (Part 2 source acceptance breadth; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -126,6 +126,22 @@ deployment, pilot, and release decisions. Those require a named decision owner
 or external evidence and are not silently converted into source work. The next
 action is to assign those owners and run the separate prelaunch acceptance pass;
 no additional source change is required to close this sandbox session.
+
+## Part 2 acceptance breadth — 2026-09-17
+
+The source-owned Part 2 selector passed **135 runs / 1,467 assertions / 0
+failures / 0 errors / 0 skips** after repairing the synthetic cross-role
+waitlist fixture with weekly capacity rules. The affected integrated journey
+passed 2 runs / 78 assertions. The frontend suite passed 51 files / 383 tests;
+TypeScript and the production bundle passed; and direct browser-harness runs
+passed the seven core clinic routes on desktop, tablet, and phone. The
+package-script tablet wrapper timed out while enabling the development
+selector, while direct harness invocation against `localhost` passed.
+
+This closes the source-owned Part 2 slice, not the entire product gate. Fresh
+action-denial, populated-resource mutation, screen-reader/zoom/modal/error,
+elapsed-session, clinical, provider, privacy, tax, retention, support, pilot,
+and release acceptance remain open or human-owned.
 
 ## What is already complete for bounded source slices
 

@@ -161,6 +161,12 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
     clinician_profile = practice.clinician_profiles.create!(
       membership: clinician_membership, display_name: "Synthetic Clinic Day Clinician"
     )
+    7.times do |weekday|
+      Clinic::Scheduling::CapacityRule.create!(
+        practice:, site:, clinician: clinician_profile, kind: "weekly", weekday:,
+        start_minute: 0, end_minute: 1440, active: true
+      )
+    end
     scheduler, = create_clinic_day_staff(
       practice:, password:, label: "scheduler", permissions: %w[appointments.read]
     )
