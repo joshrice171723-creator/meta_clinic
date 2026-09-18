@@ -133,7 +133,7 @@ Six status-surface corrections were completed on 2026-09-16. Recall and refill q
 
 Top-five audit follow-through on 2026-09-16 repaired the development clinic entry boundary for unambiguous single-location accounts and extended the browser smoke harness with a retained-session clinic route matrix. Multi-location accounts still require explicit organization, clinic, and location scope. The retained-session matrix now passes on desktop and phone across seven core clinic routes. Rails impacted checks remain unresolved (three failures and two errors, including fixture/contract assumptions); this is bounded acceptance evidence, not launch readiness.
 
-The next five high-value repairs on 2026-09-16 added a visible Patient Flow → Schedule → Tracking Board record/status map, persistent patient/encounter/site context with a guarded context clear, field-level ownership and editability hints in registration, shared integration-state badges for telehealth and payments, and savepoint-safe duplicate cash-drawer conflicts. Focused frontend tests (78), typecheck/build, formatting, and the targeted Rails administrative/role checks (16 runs / 166 assertions) pass. Broader clinical, provider, external, accessibility and release acceptance remains open.
+The next five high-value repairs on 2026-09-16 added a visible Patient Flow → Schedule → Tracking Board record/status map, persistent patient/encounter/site context with a guarded context clear, field-level ownership and editability hints in registration, shared integration-state badges for telehealth and payments, and savepoint-safe duplicate cash-drawer conflicts. Focused frontend tests (78), typecheck/build, and the targeted Rails administrative/role checks (16 runs / 166 assertions) pass. Repository-wide formatting still reports five pre-existing unrelated files; no broad formatting rewrite was made. Broader clinical, provider, external, accessibility and release acceptance remains open.
 
 Focused verification is recorded in the canonical tracker. Broad clinical, provider, export/retention, release and jurisdictional acceptance remain separate; historical recommendations below must not be read as either fresh failures or newly granted authority.
 
@@ -602,9 +602,29 @@ No browser screenshot file was available through the active browser-control surf
 | **Browser-unverified** | Login completion for all roles; patient creation/search; full Patient Flow movement; encounters/charting; billing/payment/refund; reminders/messages; workforce; inventory; portal; telehealth; scribe; responsive/accessibility journeys. |
 | **Missing or not established by evidence** | A reliable local sign-in recovery path; a single accepted canonical status/ownership dictionary; five data elements listed in Section 11; a verified full regression signal; any claim of regulatory, clinical, security, or production readiness. |
 
-### Current status reconciliation — 2026-09-16
+### Historical status reconciliation — 2026-09-16
 
-The historical appendix above predates the authorized implementation follow-through and is retained as dated evidence. Current source and verification supersede its stale “browser-unverified” labels only for bounded slices with current evidence. The current delivery adds the development login scope repair, retained-session browser matrix, lifecycle/context/ownership/provider UI repairs, and cash-drawer conflict handling; web typecheck/build, focused frontend tests, formatting, and targeted Rails checks pass. The matrix passes on desktop and phone across seven core clinic routes. The Rails impacted rerun is now green for the repaired administrative/role slice (16 runs / 166 assertions); the broader 40-run impacted suite still has unrelated fixture/contract failures and is not a full-suite pass. The remaining rows are not all implemented or browser-proved: encounter/intake/lab detail, telehealth session, billing/refund edge cases, inventory/workforce walkthroughs, complete role/device/accessibility acceptance, and every external, clinical, legal, tax, export/retention or production gate remain open. The current follow-through also adds read-only schedule export, URL-preserved schedule/board context, cancellation-message acknowledgement, aggregate-only owner copy, and role-catalog v9 permissions. These are local source changes, not external sync or launch readiness.
+The historical appendix above predates the authorized implementation follow-through and is retained as dated evidence. Current source and verification supersede its stale “browser-unverified” labels only for bounded slices with current evidence. The current delivery adds the development login scope repair, retained-session browser matrix, lifecycle/context/ownership/provider UI repairs, and cash-drawer conflict handling; web typecheck/build, focused frontend tests, and targeted Rails checks pass. Repository-wide formatting still reports five pre-existing unrelated files; the matrix passes on desktop and phone across seven core clinic routes. The Rails impacted rerun is now green for the repaired administrative/role slice (16 runs / 166 assertions); the broader 40-run impacted suite still has unrelated fixture/contract failures and is not a full-suite pass. The remaining rows are not all implemented or browser-proved: encounter/intake/lab detail, telehealth session, billing/refund edge cases, inventory/workforce walkthroughs, complete role/device/accessibility acceptance, and every external, clinical, legal, tax, export/retention or production gate remain open. The current follow-through also adds read-only schedule export, URL-preserved schedule/board context, cancellation-message acknowledgement, aggregate-only owner copy, and role-catalog v9 permissions. These are local source changes, not external sync or launch readiness.
+
+### Current requested-gate reconciliation — 2026-09-17
+
+The current checkout has stronger bounded evidence than the historical section:
+the source-owned Part 2 selector passes **135 runs / 1,467 assertions / 0
+failures / 0 errors / 0 skips**, the frontend suite passes **51 files / 383
+tests**, TypeScript and the production bundle pass, and direct browser smoke
+passes on desktop, tablet, and phone across `/clinic`, `/clinic/schedule`,
+`/clinic/work`, `/clinic/billing`, `/clinic/inventory`, `/clinic/workforce`,
+and `/clinic/telehealth`. A separate fresh synthetic journey verified
+membership/payment, patient creation, Patient Flow, selected-patient Schedule,
+appointment creation, check-in, and Tracking Board arrival.
+
+Those results do **not** close the requested acceptance gates. Browser action
+denials for every role/site boundary, populated mutation walkthroughs for all
+listed domains, assistive-technology/contrast/zoom/modal/error acceptance, and
+an actual elapsed two-hour session test were not completed. Scheduling policy,
+reporting/retention/PHI ownership, and clinical/provider/privacy/tax/support,
+pilot, and release approvals remain deferred or human-owned. Local source and
+synthetic tests cannot substitute for those decisions or external evidence.
 
 ### Ten most important changes
 

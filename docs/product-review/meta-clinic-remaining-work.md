@@ -1,7 +1,8 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `2b10204` (Part 2 source acceptance breadth; source baseline `33f74f2`).
+**Checkout:** `main` at the current documentation commit (Part 2 source
+baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -27,6 +28,12 @@ closeout step.
 
 ## Executive assessment
 
+The weighted score below is a **historical 2026-09-16 snapshot**. It is not
+recalculated here because the evidence scope changed: the source-owned Part 2
+selector and a retained-session desktop/tablet/phone route matrix have since
+been rerun, while the broader browser, accessibility, elapsed-session and
+human/provider gates remain open.
+
 Against the complete feature-by-feature review, Meta Clinic is approximately
 **56/100 complete**. This is a weighted evidence score, not a code-coverage
 claim:
@@ -34,8 +41,8 @@ claim:
 | Evidence plane | Score | Basis |
 | --- | ---: | --- |
 | Source implementation | 78/100 | Most reviewed domains and the bounded workflow repairs exist in the current source; encounter/intake/lab detail, consolidated reporting, and some policy controls remain partial. |
-| Automated local verification | 72/100 | Focused API and frontend checks pass, but the final impacted selector still reports 3 legacy Tracking Board failures and 1 error; a full regression pass is not established. |
-| End-to-end browser acceptance | 35/100 | Fresh synthetic login, Patient Flow, Schedule, and Tracking Board were observed; the latest stale-projection repair has not received a fresh browser re-walk, and most domain journeys remain unobserved. |
+| Automated local verification | 72/100 (historical) | Focused API and frontend checks pass; the current source-owned selectors are green, but a repository-wide regression baseline is not established. |
+| End-to-end browser acceptance | 35/100 (historical) | A fresh bounded paid-member journey and retained-session desktop/tablet/phone route matrix are now recorded; action-denial, populated module, and accessibility journeys remain unobserved. |
 | Human/external readiness | 10/100 | No live payment, messaging, telehealth, provider, clinical, legal, tax, retention, or release approval has been established. |
 | **Weighted overall** | **56/100** | Source 40% + automated checks 20% + browser acceptance 25% + human/external readiness 15%. |
 
@@ -143,6 +150,27 @@ action-denial, populated-resource mutation, screen-reader/zoom/modal/error,
 elapsed-session, clinical, provider, privacy, tax, retention, support, pilot,
 and release acceptance remain open or human-owned.
 
+## Current audit of the requested closeout gates — 2026-09-17
+
+The following table is the authoritative status for the eight areas requested
+after the documentation-drift review. “Partial” means source or bounded local
+evidence exists but the requested acceptance evidence is not complete.
+
+| # | Requested area | Status | Evidence now available | Still missing / why it is not closed |
+|---:|---|---|---|---|
+| 1 | Documentation drift reconciliation | **Complete** | This report, the full application review, and the P0–P2 audit now distinguish historical counts from the current 135-run / 1,467-assertion selector and the seven-route desktop/tablet/phone smoke matrix. | Reconciled in the current documentation commit. |
+| 2 | Full browser action-denial testing for every role and site boundary | **Partial** | Focused API/integration permission selectors pass, including role/site boundaries; permitted route smoke passes on desktop, tablet, and phone. | No fresh browser session has exercised every denied mutation/read action across every role, organization, clinic, and location boundary. |
+| 3 | Populated browser workflows for registration, clinical records, billing/refunds, inventory, workforce, telehealth, reminders, and scribe | **Partial** | Source-owned selectors and the bounded membership → payment → Patient Flow → Schedule → check-in journey pass; seven core routes load. | Populated browser mutation walkthroughs for the listed domains, provider delivery, refunds, clinical records, inventory custody, workforce approvals, reminders, and scribe output were not completed. |
+| 4 | Screen-reader, contrast, zoom, modal, loading, stale, and error-state acceptance | **Partial** | Shared resource-state semantics and a phone overflow/focus spot check are source/local evidence. | No screen-reader, contrast measurement, zoom matrix, or systematic modal/loading/stale/error acceptance record exists. |
+| 5 | Actual elapsed two-hour session test | **Not completed** | Source policy is a two-hour idle timeout with a 12-hour absolute ceiling. | No elapsed wall-clock or controlled time-advance session test was run; constants are not behavioral proof. |
+| 6 | Scheduling policy decisions | **Deferred** | Timezone/DST, capacity, closure, conflict, cancellation, and site-assignment guards are implemented; recurrence and overbook remain explicitly `not_configured`. | No approved decisions or owners exist for recurrence, overbooking, buffers, provider absence, or closure exceptions. |
+| 7 | Reporting catalog, retention, export permissions, PHI handling, and reconciliation ownership | **Deferred** | Read-only server calendar export has provenance; owner views remain aggregate-only; domain-specific lineage is permission-aware. | A consolidated catalog, retention/PHI contract, export-permission policy, and named reconciliation owner are not approved. |
+| 8 | Clinical governance, Stripe/MOTO, messaging, telehealth providers, privacy, tax, support, pilot, and release approvals | **Deferred** | Local source states and integration boundaries are labeled; no external transaction or provider connection was performed. | These require named human/professional/provider/operational decisions and evidence; none may be inferred from local code or synthetic tests. |
+
+Accordingly, only item 1 is complete. Items 2–4 are partially evidenced, and
+items 5–8 remain open or human-owned. No real patient data, payment, provider
+credential, external message, or production action was used.
+
 ## What is already complete for bounded source slices
 
 - Development clinic context selection now follows organization → clinic →
@@ -218,7 +246,9 @@ ownership boundary, not a claim that the conditional features are complete.
 - Patient-journey continuity: **9 runs / 147 assertions / 0 failures / 0
   errors / 0 skips**.
 - Frontend focused schedule/operations tests: **13 tests passing**.
-- Frontend TypeScript, Prettier, and production bundle: passing.
+- Frontend TypeScript and production bundle: passing. A repository-wide
+  `format:check` still reports five pre-existing unrelated files; no broad
+  formatting rewrite was made.
 - Changed Ruby syntax and RuboCop: passing.
 - Vault verification and harness verification: passing.
 - Tracking Board impacted selector after repair: **34 runs / 298 assertions / 0
