@@ -67,7 +67,8 @@ module Clinic
             intake_write: allowed?(practice, actor, "intake.write", encounter),
             handoff_request: allowed?(practice, actor, "intake.write", encounter),
             handoff_respond: allowed?(practice, actor, "notes.write", encounter),
-            tasks_write: allowed?(practice, actor, "encounters.write", encounter)
+            tasks_write: allowed?(practice, actor, "encounters.write", encounter),
+            observations_write: allowed?(practice, actor, "observations.write", encounter)
           }
         }
       end
@@ -282,7 +283,8 @@ module Clinic
           questionnaire = questionnaire.to_h.stringify_keys
           input[:encrypted_questionnaire] = PrevisitIntake.encode(text: questionnaire.fetch("text", ""),
             answers: questionnaire.fetch("answers", {}), status: questionnaire.fetch("status", "draft"),
-            attested: questionnaire["confirmed"] == true, recorder: "staff", form_id: form_id)
+            attested: questionnaire["confirmed"] == true, recorder: "staff", form_id: form_id,
+            confirmed_chunks: questionnaire.fetch("confirmed_chunks", []))
         end
         input
       end

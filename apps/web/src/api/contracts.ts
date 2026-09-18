@@ -421,6 +421,10 @@ export type EncounterIntakeRevision = {
     answers: import("../features/patientPortal/IntakeQuestions").IntakeAnswers;
     text: string;
     status: "draft" | "submitted";
+    form_id?: string;
+    questionnaire_version?: number;
+    confirmed_chunks?: number[];
+    recorder?: "patient" | "staff";
     staff_confirmation?: boolean;
   } | null;
   questionnaire_text?: string | null;
@@ -507,8 +511,11 @@ export type ClinicalTask = {
 };
 export type NurseWorkspace = {
   questionnaire_form?: {
+    id: string;
+    version: number;
     fields: import("../features/patientPortal/IntakeQuestions").IntakeField[];
     answer_states: string[];
+    provenance: string[];
     medication_options: string[];
   };
   schema_version: "nurse-workspace-v1";
@@ -522,6 +529,7 @@ export type NurseWorkspace = {
     handoff_request: boolean;
     handoff_respond: boolean;
     tasks_write: boolean;
+    observations_write: boolean;
   };
 };
 export type ClinicalRevisionBase = {

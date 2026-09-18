@@ -7,6 +7,7 @@ module Clinic
       LEGACY_FORM_IDS = %w[meta-clinic-previsit-v1 meta-clinic-previsit-v2].freeze
       ATTESTATION_ID = "patient-confirmed-current-and-care-team-sharing".freeze
       ATTESTATION_VERSION = "2026-09-11".freeze
+      QUESTIONNAIRE_VERSION = 1
       FIELDS = [
         { id: "visit_reason", label: "What brings you in?", reusable: false },
         { id: "symptoms", label: "Symptoms and when they started", reusable: false },
@@ -15,6 +16,7 @@ module Clinic
         { id: "history", label: "Health history and recent changes", reusable: true },
         { id: "care_needs", label: "Communication, accessibility or other care needs", reusable: true },
         { id: "goals", label: "What would you like help with?", reusable: false },
+        { id: "telehealth_location", label: "Where are you physically located for this video visit? (City and state)", reusable: false },
         { id: "prior_approaches", label: "What have you tried for weight management?", reusable: true },
         { id: "procedures", label: "Previous procedures", reusable: true },
         { id: "barriers", label: "Anything making your plan difficult to follow?", reusable: false },
@@ -45,7 +47,8 @@ module Clinic
 
       def form_for(practice:, appointment: nil, payload: nil)
         id = payload&.fetch("form_id", nil) || Configuration::StarterProfile.form_id(practice:, appointment:)
-        { id: id, fields: fields(id), answer_states: ANSWER_STATES }
+        { id: id, version: QUESTIONNAIRE_VERSION, fields: fields(id), answer_states: ANSWER_STATES,
+          provenance: %w[patient_reported staff_recorded inherited imported calculated] }
       end
 
       def medication_options(practice)
@@ -53,10 +56,12 @@ module Clinic
           .order(:name, :id).limit(500).pluck(:name)
       end
 
-      def encode(text:, answers:, attested:, status: "submitted", inherited_from: nil, recorder: "patient", form_id: FORM_ID)
+      def encode(text:, answers:, attested:, status: "submitted", inherited_from: nil, recorder: "patient", form_id: FORM_ID,
+        confirmed_chunks: [])
         raise ArgumentError, "Choose a supported form revision." unless ([FORM_ID] + SPECIALTY_FORMS.keys).include?(form_id)
         raise ArgumentError, "Choose draft or submitted intake." unless %w[draft submitted].include?(status)
         raise ArgumentError, "Intake answers must be an object." unless answers.is_a?(Hash)
+        confirmed_chunks = normalize_confirmed_chunks(confirmed_chunks)
         unknown = answers.keys.map(&:to_s) - fields(form_id).map { |field| field[:id] }
         raise ArgumentError, "Choose supported intake questions." if unknown.any?
         normalized = fields(form_id).to_h do |field|
@@ -72,9 +77,11 @@ module Clinic
 
         encoded = PREFIX + JSON.generate(
           form_id: form_id,
+          questionnaire_version: QUESTIONNAIRE_VERSION,
           status: status,
           text: additional_text,
           answers: normalized,
+          confirmed_chunks: confirmed_chunks,
           inherited_from: inherited_from,
           recorder: recorder,
           staff_confirmation: status == "submitted" && recorder == "staff",
@@ -87,6 +94,16 @@ module Clinic
         raise ArgumentError, "Shorten your intake answers and visit note before saving." if encoded.length > PrevisitNote::MAX_TEXT_LENGTH
         encoded
       end
+
+      def normalize_confirmed_chunks(value)
+        chunks = Array(value).map { |item| Integer(item.to_s, 10) }
+        raise ArgumentError, "Confirmed intake groups must be non-negative integers." if chunks.any?(&:negative?)
+
+        chunks.uniq.sort
+      rescue ArgumentError
+        raise ArgumentError, "Confirmed intake groups must be non-negative integers."
+      end
+      private_class_method :normalize_confirmed_chunks
 
       def normalize_answer(value, field, status: "submitted")
         value = { "state" => value.blank? ? "unanswered" : "answered", "value" => value } if value.is_a?(String)
@@ -137,6 +154,9 @@ module Clinic
           payload["text"].is_a?(String) && payload["answers"].is_a?(Hash) &&
           (payload["answers"].keys - fields(payload["form_id"]).map { |field| field[:id] }).empty? &&
           payload["answers"].values.all? { |answer| answer.is_a?(String) || (modern && answer.is_a?(Hash)) }
+        return if modern && payload["questionnaire_version"].present? && payload["questionnaire_version"] != QUESTIONNAIRE_VERSION
+        return if modern && payload["confirmed_chunks"].present? &&
+          (!payload["confirmed_chunks"].is_a?(Array) || payload["confirmed_chunks"].any? { |item| !item.is_a?(Integer) || item.negative? })
         return unless !modern || %w[draft submitted].include?(payload["status"])
         if payload["form_id"] == "meta-clinic-previsit-v2" || (modern && payload["status"] == "submitted" && payload["recorder"] != "staff")
           attestation = payload["attestation"]

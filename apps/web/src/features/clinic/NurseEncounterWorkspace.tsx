@@ -36,6 +36,7 @@ import {
   IntakeQuestions,
   type IntakeAnswers,
 } from "../patientPortal/IntakeQuestions";
+import { VitalSignsEntry } from "./VitalSignsEntry";
 
 type IntakeForm = Pick<
   EncounterIntakeRevision,
@@ -50,6 +51,7 @@ type IntakeForm = Pick<
     text: string;
     status: "draft" | "submitted";
     confirmed: boolean;
+    confirmed_chunks: number[];
   };
 };
 
@@ -88,9 +90,14 @@ const INTAKE_CHUNKS = [
     fields: ["visit_reason", "symptoms", "goals"],
   },
   {
+    label: "Patient and coordination",
+    description: "Confirm chart context and capture encounter-specific needs.",
+    fields: ["care_needs", "telehealth_location"],
+  },
+  {
     label: "Safety and history",
-    description: "Medicines, allergies, relevant history, and care needs.",
-    fields: ["medications", "allergies", "history", "care_needs"],
+    description: "Medicines, allergies, and relevant health history.",
+    fields: ["medications", "allergies", "history"],
   },
   {
     label: "What has been tried",
@@ -98,11 +105,20 @@ const INTAKE_CHUNKS = [
     fields: ["prior_approaches", "procedures", "barriers"],
   },
   {
-    label: "Measurements",
-    description: "Current measurements, when available.",
+    label: "Measurements and weight",
+    description: "Record dated measurements and review calculated BMI.",
     fields: ["height", "weight"],
   },
 ] as const;
+
+const MEASUREMENT_CODES = new Set([
+  "vital-height",
+  "vital-weight",
+  "vital-bmi",
+  "vital-systolic-bp",
+  "vital-diastolic-bp",
+  "vital-heart-rate",
+]);
 
 export function NurseEncounterWorkspace({
   patient,
@@ -132,6 +148,8 @@ export function NurseEncounterWorkspace({
   const [activeChunk, setActiveChunk] = useState(0);
   const [confirmedChunks, setConfirmedChunks] = useState<number[]>([]);
   const [roomId, setRoomId] = useState<number | null>(encounter.room_id);
+  const [encounterObservations, setEncounterObservations] =
+    useState<Observation[]>(observations);
   const contextRef = useRef(`${patient.id}:${encounter.id}`);
   contextRef.current = `${patient.id}:${encounter.id}`;
   useEffect(() => {
@@ -142,6 +160,7 @@ export function NurseEncounterWorkspace({
     setActiveChunk(0);
     setConfirmedChunks([]);
     setRoomId(encounter.room_id);
+    setEncounterObservations(observations);
   }, [patient.id, encounter.id]);
   const [taskKind, setTaskKind] =
     useState<ClinicalTask["task_kind"]>("patient_call");
@@ -157,10 +176,25 @@ export function NurseEncounterWorkspace({
   );
   const observationIds = useMemo(
     () =>
-      observations
+      encounterObservations
         .filter((item) => item.encounter_id === encounter.id)
         .map((item) => item.id),
-    [encounter.id, observations],
+    [encounter.id, encounterObservations],
+  );
+  const recordedMeasurements = useMemo(
+    () =>
+      encounterObservations
+        .filter(
+          (item) =>
+            item.encounter_id === encounter.id &&
+            MEASUREMENT_CODES.has(item.code),
+        )
+        .sort((left, right) =>
+          `${left.observed_at}:${left.id}`.localeCompare(
+            `${right.observed_at}:${right.id}`,
+          ),
+        ),
+    [encounter.id, encounterObservations],
   );
   const selectedRooms = useMemo(
     () =>
@@ -184,10 +218,17 @@ export function NurseEncounterWorkspace({
         text: intake.questionnaire?.text ?? "",
         status: intake.questionnaire?.status ?? "draft",
         confirmed: false,
+        confirmed_chunks: intake.questionnaire?.confirmed_chunks ?? [],
       },
     };
     setForm(next);
     setBaseline(next);
+    const savedChunks = next.questionnaire?.confirmed_chunks ?? [];
+    setConfirmedChunks(savedChunks);
+    const nextChunk = INTAKE_CHUNKS.findIndex(
+      (_chunk, index) => !savedChunks.includes(index),
+    );
+    setActiveChunk(nextChunk === -1 ? INTAKE_CHUNKS.length - 1 : nextChunk);
   }, [dirty, resource.data?.intake]);
 
   useEffect(() => {
@@ -308,6 +349,20 @@ export function NurseEncounterWorkspace({
   async function saveIntake(formToSave = form, advanceChunk = false) {
     const requestContext = `${patient.id}:${encounter.id}`;
     await perform(async () => {
+      const confirmedChunksToSave = formToSave.questionnaire
+        ? Array.from(
+            new Set([
+              ...(formToSave.questionnaire.confirmed_chunks ?? []),
+              ...(advanceChunk ? [activeChunk] : []),
+            ]),
+          ).sort((left, right) => left - right)
+        : [];
+      const questionnaire = formToSave.questionnaire
+        ? {
+            ...formToSave.questionnaire,
+            confirmed_chunks: confirmedChunksToSave,
+          }
+        : undefined;
       const response = await api<{ intake: EncounterIntakeRevision }>(
         `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/intake_revisions`,
         {
@@ -316,10 +371,10 @@ export function NurseEncounterWorkspace({
             intake: {
               ...formToSave,
               questionnaire:
-                JSON.stringify(formToSave.questionnaire) ===
+                JSON.stringify(questionnaire) ===
                 JSON.stringify(baseline.questionnaire)
                   ? undefined
-                  : formToSave.questionnaire,
+                  : questionnaire,
               expected_version: intakeVersion,
               observation_ids:
                 formToSave.vitals_state === "recorded" ? observationIds : [],
@@ -349,14 +404,15 @@ export function NurseEncounterWorkspace({
           text: response.intake.questionnaire?.text ?? "",
           status: response.intake.questionnaire?.status ?? "draft",
           confirmed: false,
+          confirmed_chunks:
+            response.intake.questionnaire?.confirmed_chunks ?? [],
         },
       };
       setForm(saved);
       setBaseline(saved);
+      const savedChunks = saved.questionnaire?.confirmed_chunks ?? [];
+      setConfirmedChunks(savedChunks);
       if (advanceChunk) {
-        setConfirmedChunks((current) =>
-          current.includes(activeChunk) ? current : [...current, activeChunk],
-        );
         setActiveChunk((current) =>
           Math.min(current + 1, INTAKE_CHUNKS.length - 1),
         );
@@ -561,6 +617,80 @@ export function NurseEncounterWorkspace({
           }}
         >
           <Stack spacing={2}>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1.25}>
+                <Box>
+                  <Typography component="h3" variant="h6">
+                    Patient profile
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Reused from the patient record. Update the owning profile
+                    record when a demographic or contact detail is incorrect.
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                    gap: 1.25,
+                  }}
+                >
+                  <Typography variant="body2">
+                    <strong>Preferred name:</strong>{" "}
+                    {patient.demographics?.preferred_name ||
+                      patient.demographics?.legal_name ||
+                      patient.display_name}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Date of birth:</strong>{" "}
+                    {patient.demographics?.date_of_birth ||
+                      patient.date_of_birth ||
+                      "Not recorded"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Primary language:</strong>{" "}
+                    {patient.demographics?.primary_language ||
+                      careSummary?.communication.primary_language ||
+                      "Not recorded"}
+                    {patient.demographics?.interpreter_required === true &&
+                      " · Interpreter requested"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Phone:</strong>{" "}
+                    {patient.contacts?.find(
+                      (contact) =>
+                        contact.contact_type === "phone" &&
+                        !contact.effective_until,
+                    )?.contact_value ||
+                      patient.phone_hint ||
+                      "Not recorded"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Email:</strong>{" "}
+                    {patient.contacts?.find(
+                      (contact) =>
+                        contact.contact_type === "email" &&
+                        !contact.effective_until,
+                    )?.contact_value || "Not recorded"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Address:</strong>{" "}
+                    {patient.primary_address?.formatted || "Not recorded"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Emergency contact:</strong>{" "}
+                    {patient.emergency_contacts?.find(
+                      (contact) => !contact.effective_until,
+                    )?.name || "Not recorded"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Preferred contact:</strong>{" "}
+                    {patient.communication_preference
+                      ?.preferred_contact_method || "Not recorded"}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Paper>
             {encounter.visit_modality !== "video" && (
               <Paper
                 variant="outlined"
@@ -662,17 +792,83 @@ export function NurseEncounterWorkspace({
                   Recording answers does not reconcile medicines or allergies,
                   confirm patient consent, or complete clinical review.
                 </Typography>
+                {activeChunk === INTAKE_CHUNKS.length - 1 && (
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Stack spacing={1.25}>
+                      <Box>
+                        <Typography component="h4" variant="subtitle1">
+                          Clinical measurements
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Record measurements taken during this encounter. The
+                          server calculates BMI from height and weight; it is
+                          never typed into the chart.
+                        </Typography>
+                      </Box>
+                      {workspace.capabilities.observations_write ? (
+                        <VitalSignsEntry
+                          patientId={patient.id}
+                          patientName={patient.display_name}
+                          encounterId={encounter.id}
+                          onRecorded={(newObservations) => {
+                            setEncounterObservations((current) => {
+                              const byId = new Map(
+                                current.map((item) => [item.id, item]),
+                              );
+                              newObservations.forEach((item) =>
+                                byId.set(item.id, item),
+                              );
+                              return Array.from(byId.values());
+                            });
+                            setForm((current) => ({
+                              ...current,
+                              vitals_state: "recorded",
+                            }));
+                            setNotice(
+                              "Measurements recorded. Confirm and save this group to link them to the intake revision.",
+                            );
+                          }}
+                        />
+                      ) : (
+                        <Alert severity="info">
+                          You can review measurements here, but your role cannot
+                          record new clinical observations.
+                        </Alert>
+                      )}
+                      {recordedMeasurements.length > 0 && (
+                        <Stack spacing={0.5}>
+                          <Typography variant="subtitle2">
+                            Recorded for this encounter
+                          </Typography>
+                          {recordedMeasurements.map((measurement) => (
+                            <Typography key={measurement.id} variant="body2">
+                              {measurement.display_label || measurement.code}:{" "}
+                              {measurement.numeric_value}{" "}
+                              {measurement.unit_label ||
+                                measurement.unit_code ||
+                                ""}
+                            </Typography>
+                          ))}
+                        </Stack>
+                      )}
+                    </Stack>
+                  </Paper>
+                )}
                 {workspace.intake?.questionnaire_text && (
                   <Typography sx={{ whiteSpace: "pre-wrap" }}>
                     {workspace.intake.questionnaire_text}
                   </Typography>
                 )}
                 <IntakeQuestions
-                  fields={workspace.questionnaire_form.fields.filter((field) =>
-                    INTAKE_CHUNKS[activeChunk].fields.some(
-                      (id) => id === field.id,
-                    ),
+                  fields={workspace.questionnaire_form.fields.filter(
+                    (field) =>
+                      INTAKE_CHUNKS[activeChunk].fields.some(
+                        (id) => id === field.id,
+                      ) &&
+                      (field.id !== "telehealth_location" ||
+                        encounter.visit_modality === "video"),
                   )}
+                  answerStates={workspace.questionnaire_form.answer_states}
                   medicationOptions={
                     workspace.questionnaire_form.medication_options
                   }
@@ -687,6 +883,8 @@ export function NurseEncounterWorkspace({
                         answers,
                         status: "draft",
                         confirmed: false,
+                        confirmed_chunks:
+                          current.questionnaire?.confirmed_chunks ?? [],
                       },
                     }))
                   }
@@ -706,6 +904,8 @@ export function NurseEncounterWorkspace({
                           text: event.target.value,
                           status: "draft",
                           confirmed: false,
+                          confirmed_chunks:
+                            current.questionnaire?.confirmed_chunks ?? [],
                         },
                       }))
                     }
@@ -727,6 +927,8 @@ export function NurseEncounterWorkspace({
                               ? "submitted"
                               : "draft",
                             confirmed: event.target.checked,
+                            confirmed_chunks:
+                              current.questionnaire?.confirmed_chunks ?? [],
                           },
                         }))
                       }

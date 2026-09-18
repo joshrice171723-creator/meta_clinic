@@ -24,6 +24,24 @@ export type IntakeField = {
   units?: string[];
   choices?: string[];
 };
+
+const DEFAULT_ANSWER_STATES = [
+  "unanswered",
+  "answered",
+  "unknown",
+  "declined",
+  "not_applicable",
+  "negative",
+] as const;
+
+function stateLabel(value: string) {
+  return value === "negative"
+    ? "No / negative"
+    : value
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase());
+}
+
 export function answerValue(answer: IntakeAnswer | undefined) {
   return typeof answer === "string" ? answer : (answer?.value ?? "");
 }
@@ -41,12 +59,14 @@ export function IntakeQuestions({
   disabled,
   onChange,
   medicationOptions = [],
+  answerStates = [...DEFAULT_ANSWER_STATES],
 }: {
   fields: IntakeField[];
   answers: IntakeAnswers;
   disabled: boolean;
   onChange: (answers: IntakeAnswers) => void;
   medicationOptions?: string[];
+  answerStates?: string[];
 }) {
   const set = (id: string, change: Exclude<IntakeAnswer, string>) =>
     onChange({ ...answers, [id]: change });
@@ -58,6 +78,7 @@ export function IntakeQuestions({
           typeof answer === "object"
             ? answer
             : { state: answerState(answer), value: answerValue(answer) };
+        const state = answerState(answer);
         const repeatable = [
           "medications",
           "allergies",
@@ -69,7 +90,29 @@ export function IntakeQuestions({
             {repeatable && (
               <Typography variant="subtitle2">{field.label}</Typography>
             )}
-            {field.choices ? (
+            <TextField
+              select
+              label={`${field.label} status`}
+              value={state}
+              disabled={disabled}
+              onChange={(event) => {
+                const nextState = event.target.value;
+                set(
+                  field.id,
+                  nextState === "answered"
+                    ? { ...detail, state: nextState, value: detail.value ?? "" }
+                    : { state: nextState, value: "" },
+                );
+              }}
+              helperText="Choose Unknown, Declined, or Not applicable when an answer is not available."
+            >
+              {answerStates.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {stateLabel(option)}
+                </MenuItem>
+              ))}
+            </TextField>
+            {state === "answered" && field.choices ? (
               <TextField
                 select
                 label={field.label}
@@ -89,7 +132,7 @@ export function IntakeQuestions({
                   </MenuItem>
                 ))}
               </TextField>
-            ) : repeatable ? (
+            ) : state === "answered" && repeatable ? (
               <>
                 {answerValue(answer)
                   .split("\n")
@@ -220,7 +263,7 @@ export function IntakeQuestions({
                   Add another
                 </Button>
               </>
-            ) : (
+            ) : state === "answered" ? (
               <TextField
                 label={field.label}
                 value={answerValue(answer)}
@@ -243,9 +286,9 @@ export function IntakeQuestions({
                   })
                 }
               />
-            )}
+            ) : null}
             {field.units &&
-              answerState(answer) === "answered" &&
+              state === "answered" &&
               ["unit", "measured_at", "source"].map((key) => {
                 const options =
                   key === "unit"

@@ -33,6 +33,11 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_nil response.parsed_body.fetch("intake")
     assert_equal "nurse-workspace-v1", response.parsed_body.fetch("schema_version")
+    assert_equal 1, response.parsed_body.dig("questionnaire_form", "version")
+    assert_includes response.parsed_body.dig("questionnaire_form", "fields").map { |field| field.fetch("id") },
+      "telehealth_location"
+    assert_includes response.parsed_body.dig("questionnaire_form", "provenance"), "staff_recorded"
+    assert_equal false, response.parsed_body.dig("capabilities", "observations_write")
 
     incomplete_evidence = ready_intake(request_key: "nurse-intake-missing-history",
       history_review_ids: [ @reviews.first.id ])
@@ -159,7 +164,7 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
 
   test "walk in intake preserves encrypted staff drafts without impersonating patient confirmation" do
     assert_nil @encounter.appointment_id
-    questionnaire = { text: "Synthetic staff-assisted goals", status: "draft", confirmed: false,
+    questionnaire = { text: "Synthetic staff-assisted goals", status: "draft", confirmed: false, confirmed_chunks: [ 0, 2 ],
       answers: { goals: { state: "answered", value: "Discuss prior approaches" }, allergies: { state: "unknown", value: "" } } }
     request = { intake: { request_key: "journey-staff-draft", expected_version: 0, status: "incomplete",
       identity_state: "not_confirmed", visit_reason_state: "not_recorded", history_state: "not_recorded",
@@ -171,6 +176,7 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "staff", first.dig("questionnaire", "recorder")
     assert_nil first.dig("questionnaire", "attestation")
     assert_equal false, first.dig("questionnaire", "staff_confirmation")
+    assert_equal [ 0, 2 ], first.dig("questionnaire", "confirmed_chunks")
     assert_equal @membership.id, first.fetch("recorded_by_membership_id")
     raw = ApplicationRecord.connection.select_value(
       "SELECT encrypted_questionnaire FROM clinic_encounter_intake_revisions WHERE id = #{Integer(first.fetch('id'))}"

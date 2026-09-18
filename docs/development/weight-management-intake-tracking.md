@@ -55,9 +55,9 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 
 | ID | Milestone | Primary outcome | Depends on | Status | Acceptance evidence |
 | --- | --- | --- | --- | --- | --- |
-| M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | Not started | Synthetic draft survives reload; answer states and provenance remain distinct |
-| M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | Not started | Existing chart values are inherited read-only where appropriate; telehealth location is encounter-scoped |
-| M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | Not started | Units/date/source are required for recorded measurements; BMI is calculated and never typed |
+| M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | In verification | Synthetic draft survives reload; answer states and provenance remain distinct |
+| M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | In verification | Existing chart values are inherited read-only where appropriate; telehealth location is encounter-scoped |
+| M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | In verification | Units/date/source are required for recorded measurements; BMI is calculated and never typed |
 | M4 | Previous treatment and procedure history | Treatment attempts, medication history, procedures, outcomes, and reasons for stopping are repeatable records | M1, M3 | Not started | Multiple records persist independently; approximate/unknown dates are supported |
 | M5 | Medical, family, and current-symptom history | Structured conditions and symptoms open relevant follow-ups without collapsing history into one text box | M1, M2 | Not started | Selected condition details, family-history uncertainty, and current symptom routing are visible |
 | M6 | Medication, supplement, allergy, and actual-use reconciliation | Medication records distinguish prescribed from actually taken products and distinguish allergy from intolerance | M1, M4, M5 | Not started | Search/catalog selection, “Other,” dose/unit uncertainty, reactions, and source/date are preserved |
@@ -67,6 +67,14 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 | M10 | Records, labs, consent, and administrative context | Imported evidence and consent records are linked without demanding universal testing | M2, M3, M5, M7 | Not started | Source/date/version are visible; self-pay/insurance, treatment consent, telehealth consent, privacy, and AI disclosures remain separate |
 | M11 | Patient confirmation and clinician review | The patient/staff can confirm what was recorded while the clinician sees unresolved risks first | M1–M10 | Not started | Confirmation is not clinical approval; review queue prioritizes unresolved safety facts, symptoms, actual medication use, and missing evidence |
 | M12 | Follow-up and longitudinal change | A shorter follow-up updates treatment response and access without repeating the full initial intake | M3, M6, M7, M9, M11 | Not started | Follow-up version is separate; refill/dose decisions remain distinct clinician actions; changed facts reopen affected review |
+
+## M1–M3 implementation checkpoint
+
+- **Implemented:** persisted confirmed chunk progress and questionnaire version/provenance metadata; explicit answer-state controls; patient-profile reuse; encounter-scoped video-location question; existing observation-based vital-sign entry with server-calculated BMI.
+- **Changed paths:** `apps/api/app/services/clinic/care/previsit_intake.rb`, `apps/api/app/services/clinic/care/nurse_workflow.rb`, `apps/api/test/integration/nurse_workflow_test.rb`, `apps/web/src/api/contracts.ts`, `apps/web/src/features/patientPortal/IntakeQuestions.tsx`, and `apps/web/src/features/clinic/NurseEncounterWorkspace.tsx`.
+- **Verified:** Ruby syntax; frontend TypeScript; 51 web test files / 384 tests; production frontend build; targeted Prettier checks after formatting the changed UI files.
+- **Blocked verification:** API integration tests still require the local PostgreSQL test connection at `127.0.0.1:54329`, which currently rejects the connection because no password is supplied.
+- **Next action:** restore the repository’s test-database credentials, run the focused API integration tests, then complete a browser walkthrough of the encounter page for chunk resume, profile reuse, video location, and BMI measurement recording.
 
 ## Milestone parts at a glance
 
