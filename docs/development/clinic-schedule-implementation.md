@@ -1,6 +1,6 @@
 # Clinic Schedule implementation brief
 
-Revision: 2026-09-15. Local implementation authorized by the founder; synthetic development only. Baseline: `73cca4d`.
+Revision: 2026-09-17. Local implementation authorized by the founder; synthetic development only. Baseline: `149b45e`.
 
 ## Scope and continuity
 
@@ -26,13 +26,17 @@ U.S. applicability: these are the R4 foundations used by the repository's review
 - MUI `ClinicSchedule` owns month/day presentation and uses the existing BookingForm. Scope drafts to the Patient Flow patient; preserve uncertain booking request identity before allowing another save.
 - All displayed times use the clinic timezone; slot ISO timestamps are converted for the existing workstation-local datetime inputs without changing their instant.
 - Existing matrix **SC-01/SC-04** remains authoritative: slot conflicts block booking only; alternate times, chart work and draft preparation remain available. **SC-02/SC-03** retain disposition and arrival boundaries. No new dependency row is needed.
+- Patient Flow is the authoritative patient-selection context for its scheduling handoff. A recovered appointment draft may restore editable time/resource fields, but it cannot replace the selected patient. An uncertain booking attempt for a different patient is cleared instead of being retried.
 - Verify timezone boundaries, month navigation, patient handoff, missing capacity, booking/block subtraction, site isolation, failed saves and board boundary. Check desktop/tablet rendering and retain sessions; do not restart servers merely for frontend edits.
 
 ## Checkpoint
 
-Implemented locally: month/day UI, clinician/room grouping, overlapping appointment tracks, patient-first labels, calendar-to-booking prefills, patient-scoped draft recovery, authoritative refresh and arrival-only Tracking Board. Work Inbox scheduled items now read appointments rather than depending on pre-arrival Tracking Board rows.
+Implemented locally: month/day UI, clinician/room grouping, overlapping appointment tracks, patient-first labels, calendar-to-booking prefills, patient-scoped draft recovery, explicit schedule patient context, selected-patient draft binding, authoritative refresh and arrival-only Tracking Board. Work Inbox scheduled items now read appointments rather than depending on pre-arrival Tracking Board rows.
 
-Verification on 2026-09-15:
+Verification on 2026-09-17:
+
+- Patient handoff repair: the focused schedule and booking-picker tests pass 17/17; incremental frontend typecheck passes. The new binding test proves that a recovered draft for a different patient cannot replace the Patient Flow selection or retry its uncertain request. The schedule context now shows the selected patient's name and clinic reference when available.
+- Browser mutation acceptance remains separate: the current local clinic still needs a fresh populated booking/check-in walkthrough with configured clinician and capacity. No source test or UI change is being counted as that browser proof.
 
 - Frontend: 98 related tests passed; the five calendar tests passed again after the final identity-label/response-ownership refinement. TypeScript, changed-file formatting and production bundle passed on the final source.
 - Backend: four projection tests and two authenticated integration tests passed (35 assertions). The integration journey proves idempotent booking, month count/capacity refresh, no pre-arrival board entry, check-in board entry, cross-clinic denial and missing-permission denial. The final selected suite ran 31 tests / 174 assertions: the new tests and revised board-boundary test passed; three old failures and one old error remain (old unrecorded-versus-waiting-room expectation, two close-encounter requests missing open_work_reviewed, removed synthetic_scenario metadata).

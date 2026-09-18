@@ -28,6 +28,7 @@ import { businessNow } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { workflowStatusLabel } from "./workflowStatus";
+import { patientReferenceLabel } from "./patientReference";
 
 export type CalendarBooking = {
   site_id: number;
@@ -309,9 +310,10 @@ export function ClinicSchedule({
     `/api/clinic/patients/lookup?id=${initialPatientId ?? ""}`,
     { enabled: Boolean(initialPatientId) },
   );
-  const patientName = patient.data?.patients.find(
+  const selectedPatient = patient.data?.patients.find(
     (item) => item.id === initialPatientId,
-  )?.display_name;
+  );
+  const patientName = selectedPatient?.display_name;
   const calendar = useResource<CalendarResponse>(
     `/api/clinic/schedule_calendar?site_id=${siteId}&date=${month}-01`,
     { enabled: Boolean(siteId), retainDataOnRefresh: true },
@@ -554,10 +556,23 @@ export function ClinicSchedule({
       </Stack>
       {initialPatientId && (
         <Alert severity="info">
-          {patientName
-            ? `Scheduling for ${patientName}.`
-            : "Verifying the patient selected from Patient Flow."}{" "}
-          Choose a day and available time to schedule their first appointment.
+          <Stack spacing={0.25}>
+            <Typography>
+              {patientName
+                ? `Scheduling for ${patientName}.`
+                : "Verifying the patient selected from Patient Flow."}
+            </Typography>
+            {selectedPatient?.reference && (
+              <Typography variant="body2">
+                Clinic reference:{" "}
+                {patientReferenceLabel(selectedPatient.reference)}
+              </Typography>
+            )}
+            <Typography variant="body2">
+              Choose a day and available time to schedule their first
+              appointment.
+            </Typography>
+          </Stack>
         </Alert>
       )}
       {patient.error && (

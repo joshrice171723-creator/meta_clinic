@@ -11,7 +11,7 @@ import {
   calendarTimezone,
   ClinicSchedule,
 } from "../src/features/clinic/ClinicSchedule";
-import { Schedule } from "../src/features/clinic/CareFlow";
+import { bindBookingPatient, Schedule } from "../src/features/clinic/CareFlow";
 import type { CalendarAppointment } from "../src/api/contracts";
 
 vi.mock("../src/features/clinic/Workspace", () => ({
@@ -151,5 +151,35 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     );
     expect(booking.props.initialPatientId).toBe(122);
     expect(booking.props.initialSlot).toEqual({ site_id: 4, clinician_id: 9 });
+  });
+  it("does not let a recovered draft replace the Patient Flow patient", () => {
+    const draft = {
+      patientId: "801",
+      startsAt: "2026-09-16T09:00",
+      endsAt: "2026-09-16T09:30",
+      siteId: "4",
+      roomId: "",
+      clinicianId: "9",
+      visitTypeId: "2",
+      reason: "",
+    };
+    const attempt = {
+      body: {
+        appointment: {
+          patient_id: "801",
+          starts_at: "2026-09-16T14:00:00.000Z",
+          ends_at: "2026-09-16T14:30:00.000Z",
+          site_id: "4",
+          room_id: "",
+          booked_clinician_id: "9",
+          visit_type_id: "2",
+          request_key: "request-801",
+        },
+      },
+    };
+    const bound = bindBookingPatient(draft, attempt, true, 802);
+    expect(bound.draft.patientId).toBe("802");
+    expect(bound.attempt).toBeNull();
+    expect(bound.outcomeUnconfirmed).toBe(false);
   });
 });

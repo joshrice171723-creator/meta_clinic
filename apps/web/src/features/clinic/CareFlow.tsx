@@ -139,6 +139,34 @@ type AppointmentWorkingDraft = {
   outcomeUnconfirmed: boolean;
 };
 
+/**
+ * Patient Flow owns the patient context for a selected scheduling handoff.
+ * A recovered working copy may contain older editable values, but it must not
+ * replace the patient selected by the current workflow. An uncertain attempt
+ * for another patient is unsafe to retry, so it is discarded while the other
+ * draft fields remain recoverable.
+ */
+export function bindBookingPatient(
+  draft: BookingDraft,
+  attempt: BookingAttempt | null,
+  outcomeUnconfirmed: boolean,
+  patientId?: number,
+) {
+  if (!patientId) {
+    return { draft, attempt, outcomeUnconfirmed };
+  }
+  const attemptedPatientId = attempt
+    ? Number(attempt.body.appointment.patient_id)
+    : null;
+  const attemptMatches =
+    attemptedPatientId === null || attemptedPatientId === patientId;
+  return {
+    draft: { ...draft, patientId: String(patientId) },
+    attempt: attemptMatches ? attempt : null,
+    outcomeUnconfirmed: attemptMatches ? outcomeUnconfirmed : false,
+  };
+}
+
 export function bookingDraftHasChanges(
   draft: BookingDraft,
   baseline: BookingDraft,
@@ -610,10 +638,13 @@ function BookingFormEditor({
             }
           : {}),
       };
-  const effectiveDraft =
-    initialPatientId && !restoredDraft.patientId
-      ? { ...restoredDraft, patientId: String(initialPatientId) }
-      : restoredDraft;
+  const boundBooking = bindBookingPatient(
+    restoredDraft,
+    initialDraft?.attempt ?? null,
+    Boolean(initialDraft?.attempt),
+    initialPatientId,
+  );
+  const effectiveDraft = boundBooking.draft;
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
@@ -636,20 +667,26 @@ function BookingFormEditor({
   );
   const [busy, setBusy] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
-    initialDraft?.attempt ?? null,
+    boundBooking.attempt,
   );
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
-    Boolean(initialDraft?.attempt),
+    boundBooking.outcomeUnconfirmed,
   );
   const [hasWorkingDraft, setHasWorkingDraft] = useState(Boolean(initialDraft));
   const autosaveTimer = useRef<number | undefined>(undefined);
   const inFlight = useRef(false);
   const lastWorkingDraft = useRef<AppointmentWorkingDraft>(
-    initialDraft ?? {
-      draft: restoredDraft,
-      attempt: null,
-      outcomeUnconfirmed: false,
-    },
+    initialDraft
+      ? {
+          draft: effectiveDraft,
+          attempt: boundBooking.attempt,
+          outcomeUnconfirmed: boundBooking.outcomeUnconfirmed,
+        }
+      : {
+          draft: effectiveDraft,
+          attempt: null,
+          outcomeUnconfirmed: false,
+        },
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [changingPatient, setChangingPatient] = useState(false);
