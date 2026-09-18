@@ -1,8 +1,11 @@
 # Medical Weight-Management Intake Tracking
 
-Status: proposed implementation plan; planning document only  
-Revision: 1 · 2026-09-18  
-Milestone count: 12 implementation milestones  
+Status: proposed implementation plan; planning document only
+
+Revision: 2 · 2026-09-18
+
+Milestone count: 12 implementation milestones
+
 Approval gate: one separate clinical approval gate, not counted as a milestone
 
 ## Purpose and scope
@@ -65,100 +68,141 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 | M11 | Patient confirmation and clinician review | The patient/staff can confirm what was recorded while the clinician sees unresolved risks first | M1–M10 | Not started | Confirmation is not clinical approval; review queue prioritizes unresolved safety facts, symptoms, actual medication use, and missing evidence |
 | M12 | Follow-up and longitudinal change | A shorter follow-up updates treatment response and access without repeating the full initial intake | M3, M6, M7, M9, M11 | Not started | Follow-up version is separate; refill/dose decisions remain distinct clinician actions; changed facts reopen affected review |
 
+## Milestone parts at a glance
+
+| ID | Parts included | Practical result |
+| --- | --- | --- |
+| M1 | Intake shell; section/chunk navigation; answer states; provenance; draft recovery | A resumable, versioned intake that does not confuse blank with No |
+| M2 | Patient profile; contact and accessibility; care coordination; telehealth location; provider/pharmacy search | The intake reuses chart data and records encounter-specific coordination facts |
+| M3 | Goals; measurements; units and dates; source/verification; BMI; weight history | Goals and measurements are structured, dated, and calculated where appropriate |
+| M4 | Diet/program attempts; prior medicines; procedures/surgeries; outcomes; stop reasons | Treatment history is repeatable and separate from current medications and diagnoses |
+| M5 | Conditions; family history; current symptoms; approved follow-up details; review routing | Structured history opens only the relevant detail and review work |
+| M6 | Medication search; supplements; actual use; dose uncertainty; allergies; intolerance/adverse effects | Medication reconciliation is searchable, source-aware, and clinically reviewable |
+| M7 | Pregnancy/reproductive questions; product-specific branches; GLP-1 questions; non-GLP-1 questions; clarification paths | Safety questions follow the selected product and preserve uncertainty for review |
+| M8 | Nutrition; eating behavior; mental health; substance use; sensitive-question privacy; instruments | Sensitive information is structured, optional where appropriate, and routed to support |
+| M9 | Activity; strength; function; sleep; transportation/cost/food access; caregiving; support tasks | Barriers create actionable support work without becoming a punitive readiness score |
+| M10 | Records; labs; consent; telehealth/privacy; insurance or self-pay; prior authorization; disclosures | Evidence and administrative context are linked without requiring a universal lab panel |
+| M11 | Patient/staff confirmation; clinician review queue; unresolved-item ownership; corrections; changed-fact review | Confirmation is distinct from diagnosis or prescribing approval |
+| M12 | Progress; treatment use; tolerability; changes; access; support; patient questions; longitudinal comparison | Follow-up is shorter and change-focused, while refill and dose actions remain separate |
+
+Each milestone below is broken into four parts:
+
+- **Build:** the product capability to create.
+- **Capture:** the questions or records it must support.
+- **Rules:** the behavior, ownership, and safety boundaries.
+- **Done when:** the evidence needed before marking it complete.
+
 ## Milestone detail
 
 ### M1 — Shared intake shell and source-aware answer model
 
-Build a reusable section/chunk framework on the existing intake revision architecture. Each question needs a stable ID, form/version, label, purpose, answer type, allowed values, conditional rule, required-for status, writer, source, recorded time, and confirmation state.
-
-Use the existing draft/revision and optimistic-concurrency behavior. A failed or uncertain save must preserve the recoverable draft and show one explicit retry/reconcile action. Do not auto-submit or silently overwrite a newer revision.
-
-The answer model must support `answered`, `no`, `unknown`, `not asked`, `not applicable`, and `declined` where clinically meaningful. A blank answer is not a confirmed negative.
+- **Build:** Reusable section/chunk framework on the existing intake revision architecture.
+- **Capture:** Stable question ID, form/version, label, purpose, answer type, allowed values, conditional rule, required-for status, writer, source, recorded time, and confirmation state.
+- **Rules:** Use existing draft/revision and optimistic-concurrency behavior. A failed or uncertain save preserves the recoverable draft and shows one explicit retry/reconcile action. Do not auto-submit or silently overwrite a newer revision.
+- **Answer states:** Support `answered`, `no`, `unknown`, `not asked`, `not applicable`, and `declined` where clinically meaningful. A blank answer is not a confirmed negative.
+- **Done when:** A synthetic draft survives reload and a stale or uncertain save has a visible recovery path.
 
 ### M2 — Patient profile and care coordination
 
-Reuse legal/preferred name, date of birth, phone, email, address, language, accessibility needs, emergency contact, primary-care/specialist references, and pharmacy records from their owning domains. Do not ask for an editable age when date of birth exists.
-
-For telehealth, capture current physical location for the encounter separately from the home address. Keep provider and pharmacy selection searchable, with explicit “none” and “unknown” states.
+- **Build:** Profile and care-coordination section using existing patient, encounter, provider, and pharmacy records.
+- **Capture:** Legal/preferred name, date of birth, phone, email, address, language, accessibility needs, emergency contact, primary-care/specialist references, and pharmacy records.
+- **Rules:** Reuse owning-domain values. Do not ask for an editable age when date of birth exists. Provider and pharmacy selection are searchable with explicit “none” and “unknown” states.
+- **Telehealth branch:** Capture the patient’s current physical location for the encounter separately from the home address.
+- **Done when:** Existing chart values are inherited appropriately, while encounter-specific location and coordination facts remain correctly scoped.
 
 ### M3 — Goals, measurements, and weight history
 
-Support health/function goals and patient-defined priorities without requiring a target weight. Store desired weight, timeline, and historical associations as patient-reported expectations, not promises or diagnoses.
-
-Measurements must be numeric and typed with unit, date, source, and verification state. Support height, weight, blood pressure, pulse, waist circumference, and optional body-composition records. Calculate BMI read-only from the appropriate measurements and preserve the underlying values.
-
-Do not force a patient to invent blood pressure or other measurements. Allow “not measured,” “unknown,” or “declined” when appropriate.
+- **Build:** Goals, measurements, and longitudinal weight-history sections.
+- **Capture:** Health/function goals, patient-defined priorities, desired weight, timeline, historical associations, height, weight, blood pressure, pulse, waist circumference, and optional body-composition records.
+- **Rules:** Store goals and desired weight as patient-reported expectations, not promises or diagnoses. Measurements require numeric value, unit, date, source, and verification state.
+- **Calculation:** Calculate BMI read-only from the appropriate measurements and preserve the underlying values.
+- **Missing data:** Do not force invented measurements. Allow “not measured,” “unknown,” or “declined” when appropriate.
+- **Done when:** Units, dates, sources, and verification state persist, and BMI cannot be typed over.
 
 ### M4 — Previous treatment and procedure history
 
-Use repeating records for diet/program attempts, previous weight-management medicines, procedures, surgeries, and hospitalizations. Each record should support approximate dates, duration, response, maintenance, adverse effects, complications, and reason ended.
-
-Keep treatment history separate from current medications and current diagnoses. Do not reduce the domain to a yes/no dieting question.
+- **Build:** Repeatable treatment-history and procedure-history records.
+- **Capture:** Diet/program attempts, previous weight-management medicines, procedures, surgeries, and hospitalizations.
+- **Record details:** Approximate dates, duration, response, maintenance, adverse effects, complications, and reason ended.
+- **Rules:** Keep treatment history separate from current medications and current diagnoses. Do not reduce the domain to a yes/no dieting question.
+- **Done when:** Multiple records persist independently, including approximate or unknown dates and different outcomes.
 
 ### M5 — Medical, family, and current-symptom history
 
-Use domain-specific condition selections for metabolic, cardiovascular, endocrine/reproductive, gastrointestinal/liver, kidney, respiratory/sleep, neurological/eye, pain/mobility, and other clinically relevant history. A selected condition opens diagnosis date/approximation, current versus past status, treatment, managing clinician, and complications where approved.
-
-Keep symptoms separate from diagnoses. Current abdominal symptoms, vomiting, bowel changes, dizziness, fainting, palpitations, breathing difficulty, and vision changes should route to a clinic-approved triage/review workflow. The intake should not invent urgency thresholds.
-
-Family history is a repeating record: condition, affected relative, age if known, details, and uncertainty. Unknown subtype or age remains unknown.
+- **Build:** Structured condition, family-history, and current-symptom sections.
+- **Capture:** Metabolic, cardiovascular, endocrine/reproductive, gastrointestinal/liver, kidney, respiratory/sleep, neurological/eye, pain/mobility, and other approved condition domains.
+- **Condition details:** A selected condition opens diagnosis date/approximation, current versus past status, treatment, managing clinician, and complications where approved.
+- **Symptom branch:** Keep symptoms separate from diagnoses. Current abdominal symptoms, vomiting, bowel changes, dizziness, fainting, palpitations, breathing difficulty, and vision changes route to the clinic-approved triage/review workflow.
+- **Family history:** Repeat condition, affected relative, age if known, details, and uncertainty. Unknown subtype or age remains unknown.
+- **Boundary:** The intake must not invent urgency thresholds.
+- **Done when:** Selected conditions and symptoms produce visible, owned review work without collapsing history into one text box.
 
 ### M6 — Medication, supplement, allergy, and actual-use reconciliation
 
-Use searchable repeating medication records for prescriptions, over-the-counter products, vitamins, herbs, supplements, and products obtained elsewhere. Capture name/ingredient, strength/concentration, route, prescribed dose, actual dose, frequency, reason, status, last dose, prescriber, pharmacy, source, and uncertainty as applicable.
-
-The UI should prefer the clinic catalog or a verified reference search and provide “Other — enter manually” only when no match exists. Do not infer a dose from syringe units, milliliters, milligrams, or concentration. Unresolved dosing becomes clinician/pharmacist clarification work.
-
-Allergy, intolerance, and adverse effect are separate classifications. Support no-known-allergies and unknown-history states explicitly; an empty list is not a confirmed negative.
+- **Build:** Searchable repeating medication, supplement, allergy, intolerance, and adverse-effect records.
+- **Capture:** Prescriptions, over-the-counter products, vitamins, herbs, supplements, and products obtained elsewhere; name/ingredient, strength/concentration, route, prescribed dose, actual dose, frequency, reason, status, last dose, prescriber, pharmacy, source, and uncertainty as applicable.
+- **Search behavior:** Prefer the clinic catalog or verified reference search. Provide “Other — enter manually” only when no match exists.
+- **Safety rule:** Do not infer a dose from syringe units, milliliters, milligrams, or concentration. Unresolved dosing becomes clinician/pharmacist clarification work.
+- **Classification:** Allergy, intolerance, and adverse effect remain separate. Support explicit no-known-allergies and unknown-history states; an empty list is not a confirmed negative.
+- **Done when:** Actual use can differ from prescribed use and every uncertain medication fact remains visible to review.
 
 ### M7 — Reproductive and medication-specific safety branches
 
-Keep current pregnancy, pregnancy plans, breastfeeding, contraception, and menstrual/reproductive history as separate questions. The actual requiredness and counseling language must be approved for the clinic’s jurisdiction and treatment scope.
-
-Medication branches must be selected from the proposed/actual product, not from a generic GLP-1 checkbox. GLP-1 safety questions should separately address personal/family medullary thyroid carcinoma, multiple endocrine neoplasia type 2, serious product reaction, gastrointestinal disease, pancreatitis/gallbladder history, diabetes treatment and complications, kidney/dehydration concerns, overlapping products, and upcoming anesthesia when applicable to the approved product workflow.
-
-Non-GLP-1 examples such as phentermine/topiramate, naltrexone/bupropion, and orlistat require their own approved branches. These are examples for design, not a complete prescribing checklist.
+- **Build:** Reproductive-health and product-specific safety branches.
+- **Capture:** Current pregnancy, pregnancy plans, breastfeeding, contraception, and menstrual/reproductive history as separate questions.
+- **Approval dependency:** Requiredness and counseling language must be approved for the clinic’s jurisdiction and treatment scope.
+- **Product branch:** Select questions from the proposed/actual product, not from a generic GLP-1 checkbox.
+- **GLP-1 branch:** Separately address personal/family medullary thyroid carcinoma, multiple endocrine neoplasia type 2, serious product reaction, gastrointestinal disease, pancreatitis/gallbladder history, diabetes treatment and complications, kidney/dehydration concerns, overlapping products, and upcoming anesthesia when applicable to the approved workflow.
+- **Other products:** Examples such as phentermine/topiramate, naltrexone/bupropion, and orlistat require their own approved branches. These examples are not a complete prescribing checklist.
+- **Done when:** Unknown answers create clarification work rather than automatic rejection or an inferred negative.
 
 ### M8 — Nutrition, eating behavior, and mental-health support
 
-Capture typical meals/snacks, approximate portions, food/drink recall, meal frequency, beverages, dietary patterns, restrictions, dining out, hunger/fullness, cravings, food preparation, and whether calories/macronutrients are tracked. Do not force estimates the patient does not know; preserve actual foods and portions and label later calculations as estimates.
-
-Sensitive questions must support private presentation, decline/unknown, and a clear route to clinician review. Potential domains include loss-of-control eating, night eating, compensatory behavior, eating-disorder history, mental-health history, substance use, stress, and support.
-
-If a standardized instrument is used, preserve the original item responses, instrument version, scoring method, and score separately. Do not reword a validated instrument through AI and present it as equivalent.
+- **Build:** Nutrition, eating-behavior, mental-health, substance-use, and support sections with private presentation where appropriate.
+- **Capture:** Typical meals/snacks, approximate portions, food/drink recall, meal frequency, beverages, dietary patterns, restrictions, dining out, hunger/fullness, cravings, food preparation, and calorie/macronutrient tracking.
+- **Rules:** Do not force estimates the patient does not know. Preserve actual foods and portions and label later calculations as estimates.
+- **Sensitive domains:** Support loss-of-control eating, night eating, compensatory behavior, eating-disorder history, mental-health history, substance use, stress, and support with decline/unknown states and a clear clinician-review route.
+- **Instruments:** Preserve original item responses, instrument version, scoring method, and score separately. Do not reword a validated instrument through AI and present it as equivalent.
+- **Done when:** Sensitive information is not hidden in a generic note and support routing persists with the response.
 
 ### M9 — Activity, function, sleep, and social barriers
 
-Capture physical activity and strength training as repeating records with days/week and minutes/session; workday activity; functional limitations; sleep duration/timing/quality; snoring or observed pauses; sleep-apnea diagnosis; and actual positive-airway-pressure use.
-
-Capture food access, cooking facilities, work/caregiving/transportation barriers, household support, affordability, portal/telehealth assistance, medication-administration concerns, and preferred support. These records create support needs or tasks; they do not decide whether a patient deserves care.
+- **Build:** Activity, function, sleep, and social-needs sections.
+- **Capture:** Physical activity and strength training as repeating records with days/week and minutes/session; workday activity; functional limitations; sleep duration/timing/quality; snoring or observed pauses; sleep-apnea diagnosis; and actual positive-airway-pressure use.
+- **Support needs:** Food access, cooking facilities, work/caregiving/transportation barriers, household support, affordability, portal/telehealth assistance, medication-administration concerns, and preferred support.
+- **Rules:** Use bounded choices plus optional explanation where possible. Barriers create support needs or tasks; they do not decide whether a patient deserves care.
+- **Done when:** A barrier can become an actionable support task without creating a punitive readiness score.
 
 ### M10 — Records, labs, consent, and administrative context
 
-Reuse existing document and laboratory records where possible. Support source, collection/issue date, test name, value, unit, reference range, laboratory, and version. Add structured glucose, glycated hemoglobin (HbA1c), lipid, kidney, liver, thyroid, or pregnancy results only when clinically relevant or requested by the approved workflow. Do not hardcode a universal laboratory or hormone panel.
-
-Keep self-pay versus insurance, insurance details, prior-authorization evidence, program/membership selection, general treatment consent, telehealth consent, privacy acknowledgment, medication counseling, artificial-intelligence participation/recording disclosure, and optional marketing/photo consent as separate records.
+- **Build:** Records, laboratory, consent, and administrative-context sections that reuse existing domains.
+- **Evidence capture:** Source, collection/issue date, test name, value, unit, reference range, laboratory, and version.
+- **Clinical scope:** Add structured glucose, glycated hemoglobin (HbA1c), lipid, kidney, liver, thyroid, or pregnancy results only when clinically relevant or requested by the approved workflow. Do not hardcode a universal laboratory or hormone panel.
+- **Administrative records:** Keep self-pay versus insurance, insurance details, prior-authorization evidence, and program/membership selection separate.
+- **Consent/disclosures:** Keep general treatment consent, telehealth consent, privacy acknowledgment, medication counseling, artificial-intelligence participation/recording disclosure, and optional marketing/photo consent separate.
+- **Done when:** Evidence source/date/version is visible and imported records are not silently treated as current or verified.
 
 ### M11 — Patient confirmation and clinician review
 
-Patient or staff confirmation must state what was recorded and the source. It must not be presented as a diagnosis, prescription approval, or clinician review.
-
-The clinician review screen should surface, in order:
-
-1. unresolved safety and reproductive questions;
-2. current symptoms requiring the clinic’s review path;
-3. actual medication use and dose/concentration uncertainty;
-4. missing or stale evidence and imported-record source/date;
-5. changed information since the prior version; and
-6. general narrative and goals.
-
-Every unresolved item needs an owner/team, reason, next action, and recovery path. Preserve the prior answer and source when a correction is made.
+- **Confirmation:** Patient or staff confirmation states what was recorded and the source. It is not a diagnosis, prescription approval, or clinician review.
+- **Review order:**
+  1. Unresolved safety and reproductive questions.
+  2. Current symptoms requiring the clinic’s review path.
+  3. Actual medication use and dose/concentration uncertainty.
+  4. Missing or stale evidence and imported-record source/date.
+  5. Changed information since the prior version.
+  6. General narrative and goals.
+- **Ownership:** Every unresolved item needs an owner/team, reason, next action, and recovery path.
+- **Corrections:** Preserve the prior answer and source when a correction is made.
+- **Done when:** A clinician can see what still needs review without mistaking confirmation for clinical approval.
 
 ### M12 — Follow-up and longitudinal change
 
-Do not repeat the complete initial intake monthly. The follow-up form should update dated progress/measurements, patient-defined goal progress, actual product/dose/last dose/time on dose, missed doses or gaps, tolerability, health/medication/allergy/pregnancy/procedure changes, nutrition/hydration, activity/strength/function, access barriers, support needs, and patient questions.
-
-Completing follow-up does not approve a refill, dose increase, or treatment continuation. Those actions require their own authorized clinician workflow and exact current medication/review context.
+- **Build:** A separate, shorter follow-up form/version rather than a repeated initial intake.
+- **Capture:** Dated progress/measurements, patient-defined goal progress, actual product/dose/last dose/time on dose, missed doses or gaps, tolerability, health/medication/allergy/pregnancy/procedure changes, nutrition/hydration, activity/strength/function, access barriers, support needs, and patient questions.
+- **Rules:** Compare changes longitudinally and reopen affected review when a safety-relevant fact changes.
+- **Separate action:** Completing follow-up does not approve a refill, dose increase, or treatment continuation. Those actions require their own authorized clinician workflow and exact current medication/review context.
+- **Done when:** Follow-up is change-focused and the medication decision remains an independently authorized action.
 
 ## Field/control rules
 
@@ -211,4 +255,3 @@ For each completed milestone, record:
 - the next milestone and the exact dependency needed to begin it.
 
 Do not mark a milestone complete from a written plan, source change, passing typecheck, or attempted browser action alone. Clinical readiness, legal review, prescribing approval, live integrations, and production acceptance remain separate gates.
-
