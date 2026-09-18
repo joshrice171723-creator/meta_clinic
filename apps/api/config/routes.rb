@@ -102,6 +102,7 @@ Rails.application.routes.draw do
       resources :medication_administrations, controller: "care/medication_administrations", only: %i[index create]
     end
       get "patients/:patient_id/encounters/:encounter_id/nurse_workspace", to: "care/nurse_workflow#show"
+      patch "patients/:patient_id/encounters/:encounter_id/room", to: "scheduling/encounters#assign_room"
       resources :patients, only: [] do
         resources :encounters, only: [] do
           resources :education_events, controller: "care/patient_education_events", only: %i[index create]

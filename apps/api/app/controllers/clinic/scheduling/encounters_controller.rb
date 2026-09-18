@@ -19,6 +19,17 @@ module Clinic
         render json: { encounter: serialize_detail(encounter) }
       end
 
+      def assign_room
+        patient_id = requested_id!(params[:patient_id], :patient_id)
+        encounter = current_practice.encounters.where(patient_id:).find(requested_id!(params[:encounter_id], :encounter_id))
+        input = parameter_hash!(:room, %i[room_id request_key])
+        updated = Clinic::Scheduling::AssignEncounterRoom.call(
+          practice: current_practice, actor: current_user, encounter:,
+          room_id: requested_id!(input[:room_id], :room_id), request_key: request_key!(input[:request_key])
+        )
+        render json: { encounter: serialize_detail(updated) }
+      end
+
       def create
         patient_id = params[:patient_id].presence || parameter_hash!(:encounter, %i[patient_id appointment_id started_at site_id room_id])[:patient_id]
         input = params[:encounter].is_a?(ActionController::Parameters) ? parameter_hash!(:encounter, %i[patient_id appointment_id started_at site_id room_id]) : ActionController::Parameters.new

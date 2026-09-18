@@ -100,15 +100,53 @@ export function IntakeQuestions({
                       spacing={1}
                     >
                       <Autocomplete
-                        freeSolo
+                        freeSolo={field.id !== "medications"}
                         options={
-                          field.id === "medications" ? medicationOptions : []
+                          field.id === "medications"
+                            ? [...medicationOptions, "Other — enter manually"]
+                            : []
                         }
-                        value={entry}
-                        inputValue={entry}
+                        value={
+                          field.id === "medications" &&
+                          entry &&
+                          !medicationOptions.includes(entry) &&
+                          !entry.startsWith("Other: ")
+                            ? "Other — enter manually"
+                            : field.id === "medications" &&
+                                entry.startsWith("Other: ")
+                              ? "Other — enter manually"
+                              : entry
+                        }
+                        inputValue={
+                          field.id === "medications" &&
+                          (entry.startsWith("Other: ") ||
+                            (entry && !medicationOptions.includes(entry)))
+                            ? "Other — enter manually"
+                            : entry
+                        }
                         disabled={disabled}
                         fullWidth
-                        onInputChange={(_event, value) => {
+                        onChange={(_event, value) => {
+                          if (
+                            field.id !== "medications" ||
+                            typeof value !== "string"
+                          )
+                            return;
+                          const next = [...entries];
+                          next[index] =
+                            value === "Other — enter manually"
+                              ? "Other: "
+                              : value;
+                          const text = next.join("\n");
+                          if (text.length <= 600)
+                            set(field.id, {
+                              state: text.trim() ? "answered" : "unanswered",
+                              value: text,
+                            });
+                        }}
+                        onInputChange={(_event, value, reason) => {
+                          if (reason !== "input" || field.id === "medications")
+                            return;
                           const next = [...entries];
                           next[index] = value.replaceAll("\n", " ");
                           const text = next.join("\n");
@@ -132,6 +170,27 @@ export function IntakeQuestions({
                           />
                         )}
                       />
+                      {field.id === "medications" &&
+                        (entry.startsWith("Other: ") ||
+                          (entry && !medicationOptions.includes(entry))) && (
+                          <TextField
+                            label="Other medicine or supplement"
+                            value={entry.replace(/^Other:\s*/, "")}
+                            disabled={disabled}
+                            onChange={(event) => {
+                              const next = [...entries];
+                              next[index] = `Other: ${event.target.value}`;
+                              const text = next.join("\n");
+                              if (text.length <= 600)
+                                set(field.id, {
+                                  state: text.trim()
+                                    ? "answered"
+                                    : "unanswered",
+                                  value: text,
+                                });
+                            }}
+                          />
+                        )}
                       {entries.length > 1 && (
                         <Button
                           disabled={disabled}

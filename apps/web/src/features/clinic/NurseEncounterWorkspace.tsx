@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -27,6 +28,7 @@ import type {
   Observation,
   Patient,
   PatientCareSummary,
+  FacilityRoom,
 } from "../../api/contracts";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
@@ -79,6 +81,29 @@ function requestKey() {
   return crypto.randomUUID();
 }
 
+const INTAKE_CHUNKS = [
+  {
+    label: "Today’s visit",
+    description: "Why the patient is here and what they want help with.",
+    fields: ["visit_reason", "symptoms", "goals"],
+  },
+  {
+    label: "Safety and history",
+    description: "Medicines, allergies, relevant history, and care needs.",
+    fields: ["medications", "allergies", "history", "care_needs"],
+  },
+  {
+    label: "What has been tried",
+    description: "Previous approaches, procedures, and barriers to the plan.",
+    fields: ["prior_approaches", "procedures", "barriers"],
+  },
+  {
+    label: "Measurements",
+    description: "Current measurements, when available.",
+    fields: ["height", "weight"],
+  },
+] as const;
+
 export function NurseEncounterWorkspace({
   patient,
   encounter,
@@ -95,11 +120,18 @@ export function NurseEncounterWorkspace({
   const resource = useResource<NurseWorkspace>(path, {
     retainDataOnRefresh: true,
   });
+  const roomsResource = useResource<{ rooms: FacilityRoom[] }>(
+    "/api/clinic/facilities?type=rooms&per_page=100",
+    { retainDataOnRefresh: true },
+  );
   const [form, setForm] = useState<IntakeForm>(emptyIntake);
   const [baseline, setBaseline] = useState<IntakeForm>(emptyIntake);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [activeChunk, setActiveChunk] = useState(0);
+  const [confirmedChunks, setConfirmedChunks] = useState<number[]>([]);
+  const [roomId, setRoomId] = useState<number | null>(encounter.room_id);
   const contextRef = useRef(`${patient.id}:${encounter.id}`);
   contextRef.current = `${patient.id}:${encounter.id}`;
   useEffect(() => {
@@ -107,6 +139,9 @@ export function NurseEncounterWorkspace({
     setBaseline(emptyIntake);
     setError("");
     setNotice("");
+    setActiveChunk(0);
+    setConfirmedChunks([]);
+    setRoomId(encounter.room_id);
   }, [patient.id, encounter.id]);
   const [taskKind, setTaskKind] =
     useState<ClinicalTask["task_kind"]>("patient_call");
@@ -126,6 +161,13 @@ export function NurseEncounterWorkspace({
         .filter((item) => item.encounter_id === encounter.id)
         .map((item) => item.id),
     [encounter.id, observations],
+  );
+  const selectedRooms = useMemo(
+    () =>
+      (roomsResource.data?.rooms ?? []).filter(
+        (room) => String(room.site_id) === String(encounter.site_id),
+      ),
+    [encounter.site_id, roomsResource.data?.rooms],
   );
 
   useEffect(() => {
@@ -231,6 +273,7 @@ export function NurseEncounterWorkspace({
       ),
     );
   const readyEvidence =
+    Boolean(roomId) &&
     form.identity_state === "confirmed" &&
     form.visit_reason_state === "confirmed" &&
     form.history_state === "reviewed" &&
@@ -262,7 +305,7 @@ export function NurseEncounterWorkspace({
     }
   }
 
-  async function saveIntake() {
+  async function saveIntake(formToSave = form, advanceChunk = false) {
     const requestContext = `${patient.id}:${encounter.id}`;
     await perform(async () => {
       const response = await api<{ intake: EncounterIntakeRevision }>(
@@ -271,17 +314,17 @@ export function NurseEncounterWorkspace({
           method: "POST",
           body: {
             intake: {
-              ...form,
+              ...formToSave,
               questionnaire:
-                JSON.stringify(form.questionnaire) ===
+                JSON.stringify(formToSave.questionnaire) ===
                 JSON.stringify(baseline.questionnaire)
                   ? undefined
-                  : form.questionnaire,
+                  : formToSave.questionnaire,
               expected_version: intakeVersion,
               observation_ids:
-                form.vitals_state === "recorded" ? observationIds : [],
+                formToSave.vitals_state === "recorded" ? observationIds : [],
               history_review_ids:
-                form.history_state === "reviewed" ? reviewIds : [],
+                formToSave.history_state === "reviewed" ? reviewIds : [],
               request_key: requestKey(),
             },
           },
@@ -310,7 +353,37 @@ export function NurseEncounterWorkspace({
       };
       setForm(saved);
       setBaseline(saved);
-      setNotice("Intake revision saved.");
+      if (advanceChunk) {
+        setConfirmedChunks((current) =>
+          current.includes(activeChunk) ? current : [...current, activeChunk],
+        );
+        setActiveChunk((current) =>
+          Math.min(current + 1, INTAKE_CHUNKS.length - 1),
+        );
+        setNotice(
+          activeChunk < INTAKE_CHUNKS.length - 1
+            ? "Saved and confirmed. The next question group is ready."
+            : "Saved and confirmed. All question groups are available for review.",
+        );
+      } else setNotice("Intake revision saved.");
+    });
+  }
+
+  async function assignRoom(room: FacilityRoom | null) {
+    if (!room) return;
+    await perform(async () => {
+      const response = await api<{ encounter: EncounterDetail }>(
+        `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/room`,
+        {
+          method: "PATCH",
+          body: { room_id: room.id, request_key: requestKey() },
+        },
+      );
+      if (response.encounter.id !== encounter.id) {
+        throw new Error("The saved room did not match this encounter.");
+      }
+      setRoomId(response.encounter.room_id);
+      setNotice(`Room ${room.code} recorded for this encounter.`);
     });
   }
 
@@ -458,7 +531,7 @@ export function NurseEncounterWorkspace({
               variant="outlined"
             />
             <Chip
-              label={`Room: ${encounter.room_id ?? "Not recorded"}`}
+              label={`Room: ${roomId ?? "Not recorded"}`}
               size="small"
               variant="outlined"
             />
@@ -488,15 +561,106 @@ export function NurseEncounterWorkspace({
           }}
         >
           <Stack spacing={2}>
+            {encounter.visit_modality !== "video" && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  bgcolor: roomId ? "background.paper" : "warning.50",
+                }}
+              >
+                <Stack spacing={1.25}>
+                  <Box>
+                    <Typography component="h3" variant="h6">
+                      Record the room
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Choose the physical room before the patient moves into the
+                      encounter. This is required before clinician handoff.
+                    </Typography>
+                  </Box>
+                  <Autocomplete
+                    options={selectedRooms}
+                    value={
+                      selectedRooms.find((room) => room.id === roomId) ?? null
+                    }
+                    getOptionLabel={(room) => room.code}
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    disabled={
+                      busy ||
+                      !workspace.capabilities.intake_write ||
+                      selectedRooms.length === 0
+                    }
+                    onChange={(_event, room) => void assignRoom(room)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Exam room"
+                        placeholder={
+                          selectedRooms.length
+                            ? "Choose a room"
+                            : "No rooms are configured for this site"
+                        }
+                        helperText={
+                          roomId
+                            ? "Room recorded for this encounter."
+                            : "Room is still required."
+                        }
+                      />
+                    )}
+                  />
+                </Stack>
+              </Paper>
+            )}
             {workspace.questionnaire_form && (
               <Stack spacing={2}>
-                <Typography component="h3" variant="h6">
-                  Patient answers · staff assisted
-                </Typography>
+                <Box>
+                  <Typography component="h3" variant="h6">
+                    Guided intake · staff assisted
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Work through one question group at a time. Confirming and
+                    saving a group opens the next one; unanswered, unknown,
+                    declined, and not applicable remain distinct.
+                  </Typography>
+                </Box>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  useFlexGap
+                  sx={{ flexWrap: "wrap" }}
+                  aria-label="Intake question groups"
+                >
+                  {INTAKE_CHUNKS.map((chunk, index) => (
+                    <Chip
+                      key={chunk.label}
+                      label={`${index + 1}. ${chunk.label}`}
+                      color={
+                        confirmedChunks.includes(index)
+                          ? "success"
+                          : index === activeChunk
+                            ? "primary"
+                            : "default"
+                      }
+                      variant={index === activeChunk ? "filled" : "outlined"}
+                      onClick={() =>
+                        index <= Math.max(activeChunk, ...confirmedChunks) &&
+                        setActiveChunk(index)
+                      }
+                      aria-label={`${chunk.label}${confirmedChunks.includes(index) ? ", confirmed" : ""}`}
+                    />
+                  ))}
+                </Stack>
+                <Alert severity={roomId ? "info" : "warning"}>
+                  {roomId
+                    ? `Group ${activeChunk + 1} of ${INTAKE_CHUNKS.length}: ${INTAKE_CHUNKS[activeChunk].description}`
+                    : "Record the room first. You can still save intake drafts, but clinician handoff stays blocked until a room is recorded."}
+                </Alert>
                 <Typography color="text.secondary">
-                  Save incomplete answers as a draft. Recording answers does not
-                  reconcile medicines or allergies, confirm patient consent, or
-                  complete clinical review.
+                  Recording answers does not reconcile medicines or allergies,
+                  confirm patient consent, or complete clinical review.
                 </Typography>
                 {workspace.intake?.questionnaire_text && (
                   <Typography sx={{ whiteSpace: "pre-wrap" }}>
@@ -504,7 +668,11 @@ export function NurseEncounterWorkspace({
                   </Typography>
                 )}
                 <IntakeQuestions
-                  fields={workspace.questionnaire_form.fields}
+                  fields={workspace.questionnaire_form.fields.filter((field) =>
+                    INTAKE_CHUNKS[activeChunk].fields.some(
+                      (id) => id === field.id,
+                    ),
+                  )}
                   medicationOptions={
                     workspace.questionnaire_form.medication_options
                   }
@@ -523,26 +691,28 @@ export function NurseEncounterWorkspace({
                     }))
                   }
                 />
-                <TextField
-                  label="Additional patient-reported context"
-                  multiline
-                  value={form.questionnaire?.text ?? ""}
-                  disabled={busy || !workspace.capabilities.intake_write}
-                  slotProps={{ htmlInput: { maxLength: 5000 } }}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      questionnaire: {
-                        answers: current.questionnaire?.answers ?? {},
-                        text: event.target.value,
-                        status: "draft",
-                        confirmed: false,
-                      },
-                    }))
-                  }
-                />
+                {activeChunk === INTAKE_CHUNKS.length - 1 && (
+                  <TextField
+                    label="Additional patient-reported context"
+                    multiline
+                    value={form.questionnaire?.text ?? ""}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    slotProps={{ htmlInput: { maxLength: 5000 } }}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        questionnaire: {
+                          answers: current.questionnaire?.answers ?? {},
+                          text: event.target.value,
+                          status: "draft",
+                          confirmed: false,
+                        },
+                      }))
+                    }
+                  />
+                )}
                 <FormControlLabel
-                  label="I confirm I recorded these answers from the patient. This is not a patient attestation or clinical review."
+                  label="I confirm I recorded this group from the patient. This is not a patient attestation or clinical review."
                   control={
                     <Checkbox
                       checked={form.questionnaire?.confirmed ?? false}
@@ -563,6 +733,29 @@ export function NurseEncounterWorkspace({
                     />
                   }
                 />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button
+                    variant="contained"
+                    disabled={
+                      busy ||
+                      !dirty ||
+                      !form.questionnaire?.confirmed ||
+                      !workspace.capabilities.intake_write
+                    }
+                    onClick={() => void saveIntake(form, true)}
+                  >
+                    Confirm and save group
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    disabled={
+                      busy || !dirty || !workspace.capabilities.intake_write
+                    }
+                    onClick={() => void saveIntake()}
+                  >
+                    Save draft
+                  </Button>
+                </Stack>
               </Stack>
             )}
             <Box>

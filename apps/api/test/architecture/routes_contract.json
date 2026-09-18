@@ -1687,6 +1687,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/room(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/service_requests/:series_id(.:format)"
   ],
   [

@@ -116,6 +116,9 @@ module Clinic
         authorize!(practice, actor, "intake.write", encounter)
         member = membership!(practice, actor)
         intake = Clinic::EncounterIntakeRevision.where(practice:, patient:, encounter:).find(intake_revision_id)
+        if encounter.appointment&.visit_modality != "video" && encounter.room_id.blank?
+          raise ArgumentError, "Record the room before requesting clinician handoff."
+        end
         raise ArgumentError, "Complete the intake before requesting handoff." unless intake.status == "ready_for_handoff"
         payload = { patient_id: patient.id, encounter_id: encounter.id, intake_revision_id: intake.id }
         outcome = Clinic::Idempotency.execute(
