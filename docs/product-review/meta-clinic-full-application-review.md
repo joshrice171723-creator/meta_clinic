@@ -618,13 +618,27 @@ and `/clinic/telehealth`. A separate fresh synthetic journey verified
 membership/payment, patient creation, Patient Flow, selected-patient Schedule,
 appointment creation, check-in, and Tracking Board arrival.
 
-Those results do **not** close the requested acceptance gates. Browser action
-denials for every role/site boundary, populated mutation walkthroughs for all
-listed domains, assistive-technology/contrast/zoom/modal/error acceptance, and
-an actual elapsed two-hour session test were not completed. Scheduling policy,
-reporting/retention/PHI ownership, and clinical/provider/privacy/tax/support,
-pilot, and release approvals remain deferred or human-owned. Local source and
-synthetic tests cannot substitute for those decisions or external evidence.
+Those results do **not** close all requested acceptance gates. At the time of
+this 2026-09-17 reconciliation, browser action denials, populated mutation
+walkthroughs, assistive-technology/contrast/zoom/modal/error acceptance, and
+an actual elapsed two-hour session test were still open. The 2026-09-18
+follow-up below closes the seeded action-denial matrix and adds bounded route
+and controlled-session evidence; populated domain mutations, human
+assistive-technology review, and wall-clock elapsed time remain open.
+Scheduling policy, reporting/retention/PHI ownership, and
+clinical/provider/privacy/tax/support, pilot, and release approvals remain
+deferred or human-owned. Local source and synthetic tests cannot substitute
+for those decisions or external evidence.
+
+The 2026-09-18 browser follow-up closes the seeded-local action-denial matrix:
+the browser runner covered 12 employee profiles, 48 protected mutation checks,
+and 129 cross-practice/site attempts with zero failures. It also rendered the
+seven core clinic routes for the administrator profile and checked narrow
+layout, visible control names, and explicit reconnect/error states. This is
+browser-verified local evidence, not a claim that every domain mutation,
+screen-reader/contrast/zoom review, or wall-clock two-hour observation is
+complete. The controlled session test passes 6 runs / 24 assertions using
+time advancement; the actual elapsed test remains open.
 
 ### Ten most important changes
 

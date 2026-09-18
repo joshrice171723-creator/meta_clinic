@@ -12,6 +12,7 @@
     "build": "pnpm run typecheck && pnpm run build:bundle",
     "build:bundle": "vite build",
     "browser:smoke": "node scripts/browser-smoke.mjs",
+    "browser:acceptance": "node scripts/browser-acceptance.mjs",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check src test scripts *.json *.md vite.config.ts index.html --end-of-line auto",
     "test": "vitest run"

@@ -1,7 +1,7 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-17
+updated: 2026-09-18
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
@@ -841,3 +841,14 @@ Archived: [full dated entry](<../../records/progress/2026-08.md#2026-08-30%20%E2
 ## 2026-08-30 — Vault initialized
 
 Archived: [full dated entry](<../../records/progress/2026-08.md#2026-08-30%20%E2%80%94%20Vault%20initialized>) · IDs: none recorded in heading/body excerpt.
+## 2026-09-18 — Browser acceptance and session-boundary follow-up
+
+The browser acceptance runner covered all seeded employee profiles and known
+clinic/site boundaries without creating records: 12 profiles, 48 protected
+mutation checks, and 129 cross-practice/site attempts passed. A populated
+administrator walkthrough rendered the seven core clinic routes and passed
+narrow-layout, visible-control-name, and explicit reconnect/error-state checks.
+The controlled session-duration test passed 6 runs / 24 assertions for the
+two-hour idle and twelve-hour absolute limits. This does not replace human
+screen-reader/contrast/zoom review, full domain mutation walkthroughs, or a
+wall-clock two-hour observation.

@@ -159,17 +159,49 @@ evidence exists but the requested acceptance evidence is not complete.
 | # | Requested area | Status | Evidence now available | Still missing / why it is not closed |
 |---:|---|---|---|---|
 | 1 | Documentation drift reconciliation | **Complete** | This report, the full application review, and the P0–P2 audit now distinguish historical counts from the current 135-run / 1,467-assertion selector and the seven-route desktop/tablet/phone smoke matrix. | Reconciled in the current documentation commit. |
-| 2 | Full browser action-denial testing for every role and site boundary | **Partial** | Focused API/integration permission selectors pass, including role/site boundaries; permitted route smoke passes on desktop, tablet, and phone. | No fresh browser session has exercised every denied mutation/read action across every role, organization, clinic, and location boundary. |
-| 3 | Populated browser workflows for registration, clinical records, billing/refunds, inventory, workforce, telehealth, reminders, and scribe | **Partial** | Source-owned selectors and the bounded membership → payment → Patient Flow → Schedule → check-in journey pass; seven core routes load. | Populated browser mutation walkthroughs for the listed domains, provider delivery, refunds, clinical records, inventory custody, workforce approvals, reminders, and scribe output were not completed. |
-| 4 | Screen-reader, contrast, zoom, modal, loading, stale, and error-state acceptance | **Partial** | Shared resource-state semantics and a phone overflow/focus spot check are source/local evidence. | No screen-reader, contrast measurement, zoom matrix, or systematic modal/loading/stale/error acceptance record exists. |
-| 5 | Actual elapsed two-hour session test | **Not completed** | Source policy is a two-hour idle timeout with a 12-hour absolute ceiling. | No elapsed wall-clock or controlled time-advance session test was run; constants are not behavioral proof. |
+| 2 | Full browser action-denial testing for every role and site boundary | **Browser-verified for seeded local matrix** | 12 employee profiles, 48 protected mutation checks, and 129 cross-practice/site attempts passed with 0 failures in the real browser session. | A future clinic-specific matrix still needs any newly provisioned roles/sites; this closes the current seeded sandbox boundary. |
+| 3 | Populated browser workflows for registration, clinical records, billing/refunds, inventory, workforce, telehealth, reminders, and scribe | **Partial** | The administrator browser walkthrough rendered all seven core clinic routes; the bounded membership → payment → Patient Flow → Schedule → check-in journey and source-owned selectors pass. | Full populated mutation walkthroughs for registration/clinical records/refunds, inventory custody, workforce approvals, reminders, scribe output, and provider delivery were not completed. |
+| 4 | Screen-reader, contrast, zoom, modal, loading, stale, and error-state acceptance | **Partial** | Seven narrow-layout routes passed overflow and visible-control-name checks; explicit reconnect/error states were observed and recoverable. | No screen-reader output, measured color contrast, true zoom matrix, or human modal review exists. |
+| 5 | Actual elapsed two-hour session test | **Controlled elapsed test passed; wall-clock not completed** | `session_duration_test.rb` passed 6 runs / 24 assertions for the two-hour idle timeout and twelve-hour absolute ceiling using controlled time advancement. | No two-hour wall-clock observation was run. |
 | 6 | Scheduling policy decisions | **Deferred** | Timezone/DST, capacity, closure, conflict, cancellation, and site-assignment guards are implemented; recurrence and overbook remain explicitly `not_configured`. | No approved decisions or owners exist for recurrence, overbooking, buffers, provider absence, or closure exceptions. |
 | 7 | Reporting catalog, retention, export permissions, PHI handling, and reconciliation ownership | **Deferred** | Read-only server calendar export has provenance; owner views remain aggregate-only; domain-specific lineage is permission-aware. | A consolidated catalog, retention/PHI contract, export-permission policy, and named reconciliation owner are not approved. |
 | 8 | Clinical governance, Stripe/MOTO, messaging, telehealth providers, privacy, tax, support, pilot, and release approvals | **Deferred** | Local source states and integration boundaries are labeled; no external transaction or provider connection was performed. | These require named human/professional/provider/operational decisions and evidence; none may be inferred from local code or synthetic tests. |
 
-Accordingly, only item 1 is complete. Items 2–4 are partially evidenced, and
-items 5–8 remain open or human-owned. No real patient data, payment, provider
+The follow-up execution below upgrades item 2 to a complete seeded-local
+browser matrix and adds bounded evidence for items 3–5. Items 3–4 still lack
+human/device acceptance breadth, and item 5 is not a wall-clock two-hour run.
+Items 6–8 remain open or human-owned. No real patient data, payment, provider
 credential, external message, or production action was used.
+
+## Browser acceptance follow-up — 2026-09-18
+
+The new `apps/web/scripts/browser-acceptance.mjs` runner uses the real browser
+session and same-origin API transport. It does not create records: mutation
+requests deliberately use incomplete payloads and assert the server's
+authorization boundary before validation. The runner also checks the seeded
+cross-practice and cross-site boundaries, populated route content, explicit
+loading/error recovery text, narrow-layout overflow, and accessible names.
+
+- **Action denial and boundary matrix — complete for seeded local accounts:**
+  12 employee roles, 48 protected mutation checks, and 129 cross-practice/site
+  attempts completed with **0 failures**. Evidence: `outputs/browser-acceptance/role-denials.json`.
+- **Populated browser route walkthrough — bounded:** the clinic administrator
+  session rendered the seven clinic routes, including Tracking Board, Schedule,
+  Patient Flow, Billing, Inventory, Workforce, and Virtual waiting room. The
+  run completed with **0 route/accessibility failures**; two routes may expose
+  an explicit reconnect state while their data request is pending. Evidence:
+  `outputs/browser-acceptance/populated-admin.json` plus the existing desktop,
+  tablet, and phone route smoke matrix.
+- **Accessibility/failure-state automation — partial:** the runner checked
+  7 narrow-layout routes with no horizontal overflow or unnamed visible
+  controls and accepted explicit retry/reconnect states. Screen-reader output,
+  measured color contrast, true zoom behavior, and human modal review still
+  require a device/assistive-technology pass.
+- **Session expiry — controlled elapsed proof:**
+  `ruby bin/postgres exec env RAILS_ENV=test bin/rails test
+  test/integration/session_duration_test.rb` passed **6 runs / 24 assertions**
+  covering the two-hour idle timeout and twelve-hour absolute ceiling. This is
+  controlled time advancement, not two hours of wall-clock observation.
 
 ## What is already complete for bounded source slices
 
