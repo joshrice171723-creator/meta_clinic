@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `ea9d720` (final closeout handoff; source baseline `33f74f2`).
+**Checkout:** `main` at `5948db7` (Part 1 audit reconciliation; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -11,7 +11,7 @@ The closeout runbook was added at
 [`meta-clinic-session-closeout-runbook.md`](./meta-clinic-session-closeout-runbook.md).
 The application source baseline remains `33f74f2`; `e05ae15` contains the
 runbook documentation only. The recorded current evidence is unchanged:
-the bounded Rails selector is green at 162 runs / 1,955 assertions, the
+the source-owned selector is green at 162 runs / 1,955 assertions, the
 frontend suite is recorded at 51 files / 383 tests, and desktop/tablet/phone
 route smoke passed. The fresh mutation walkthrough is now recorded in the
 step-3 reconciliation below; the broader role, device, negative/recovery, and
@@ -211,10 +211,10 @@ ownership boundary, not a claim that the conditional features are complete.
   failures / 0 errors / 0 skips**. Permission/scope checks: **4 runs / 38
   assertions** plus the clinic scope-switching selector (**4 runs / 30
   assertions**) with no failures.
-- Broader continuity/checkout/workspace selector: **47 runs / 474 assertions /
-  1 failure / 3 errors**. The remaining failures are outside the repaired
-  Tracking Board scope (a workspace fixture assertion and stale scheduling
-  fixture inputs), so the repository-wide suite is not called green.
+- Historical broader continuity/checkout/workspace selector: **47 runs / 474
+  assertions / 1 failure / 3 errors**. This pre-repair result is superseded by
+  the closeout selector's **50 runs / 525 assertions / 0 failures / 0 errors /
+  0 skips**; it remains only as dated historical evidence.
 
 ### Browser and runtime evidence
 
