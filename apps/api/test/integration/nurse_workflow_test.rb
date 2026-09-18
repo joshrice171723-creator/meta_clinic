@@ -39,6 +39,8 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_nil response.parsed_body.fetch("intake")
     assert_equal "nurse-workspace-v1", response.parsed_body.fetch("schema_version")
     assert_equal 1, response.parsed_body.dig("questionnaire_form", "version")
+    assert_equal [ 0, 1, 2, 3, 4 ], response.parsed_body.dig("questionnaire_form", "chunks").map { |chunk| chunk.fetch("index") }
+    assert_includes response.parsed_body.dig("questionnaire_form", "answer_states"), "not_asked"
     assert_includes response.parsed_body.dig("questionnaire_form", "fields").map { |field| field.fetch("id") },
       "telehealth_location"
     assert_includes response.parsed_body.dig("questionnaire_form", "provenance"), "staff_recorded"
@@ -169,8 +171,9 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
 
   test "walk in intake preserves encrypted staff drafts without impersonating patient confirmation" do
     assert_nil @encounter.appointment_id
-    questionnaire = { text: "Synthetic staff-assisted goals", status: "draft", confirmed: false, confirmed_chunks: [ 0, 2 ],
-      answers: { goals: { state: "answered", value: "Discuss prior approaches" }, allergies: { state: "unknown", value: "" } } }
+    questionnaire = { text: "Synthetic staff-assisted goals", status: "draft", confirmed: false, confirmed_chunks: [],
+      answers: { goals: { state: "answered", value: "Discuss prior approaches" },
+        allergies: { state: "unknown", value: "" }, symptoms: { state: "not_asked", value: "" } } }
     request = { intake: { request_key: "journey-staff-draft", expected_version: 0, status: "incomplete",
       identity_state: "not_confirmed", visit_reason_state: "not_recorded", history_state: "not_recorded",
       vitals_state: "not_recorded", observation_ids: [], history_review_ids: [], questionnaire: questionnaire } }
@@ -181,7 +184,8 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "staff", first.dig("questionnaire", "recorder")
     assert_nil first.dig("questionnaire", "attestation")
     assert_equal false, first.dig("questionnaire", "staff_confirmation")
-    assert_equal [ 0, 2 ], first.dig("questionnaire", "confirmed_chunks")
+    assert_equal [], first.dig("questionnaire", "confirmed_chunks")
+    assert_equal "not_asked", first.dig("questionnaire", "answers", "symptoms", "state")
     assert_equal @membership.id, first.fetch("recorded_by_membership_id")
     raw = ApplicationRecord.connection.select_value(
       "SELECT encrypted_questionnaire FROM clinic_encounter_intake_revisions WHERE id = #{Integer(first.fetch('id'))}"
@@ -218,6 +222,41 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :created
     assert_equal confirmed.fetch("questionnaire"), response.parsed_body.dig("intake", "questionnaire")
     assert_nil @encounter.reload.appointment_id
+  end
+
+  test "staff intake rejects skipped out of range and unconfirmed groups" do
+    base = {
+      status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+      history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: []
+    }
+    [
+      [ "journey-staff-skipped", [ 0, 2 ], "Confirm intake groups in order" ],
+      [ "journey-staff-out-of-range", [ 5 ], "outside the supported workflow" ],
+      [ "journey-staff-unconfirmed", [ 0 ], "Confirm the current question group" ]
+    ].each do |request_key, confirmed_chunks, error_text|
+      questionnaire = { text: "", answers: {}, status: "draft", confirmed: false, confirmed_chunks: }
+      post intake_path, params: { intake: base.merge(request_key:, expected_version: 0, questionnaire:) },
+        headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_includes response.parsed_body.fetch("error"), error_text
+    end
+    assert_equal 0, Clinic::EncounterIntakeRevision.where(encounter: @encounter).count
+  end
+
+  test "non-video handoff requires a recorded room" do
+    @encounter.update!(room: nil)
+    post intake_path, params: ready_intake(request_key: "nurse-roomless-intake", history_review_ids: @reviews.map(&:id)),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    intake = response.parsed_body.fetch("intake")
+
+    assert_no_difference "Clinic::EncounterHandoff.count" do
+      post handoffs_path, params: { handoff: {
+        intake_revision_id: intake.fetch("id"), request_key: "nurse-roomless-handoff"
+      } }, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_includes response.parsed_body.fetch("error"), "Record the room"
+    end
   end
 
   test "room assignment route records and replays the encounter room" do

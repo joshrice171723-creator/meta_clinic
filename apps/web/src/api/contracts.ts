@@ -517,6 +517,13 @@ export type NurseWorkspace = {
     answer_states: string[];
     provenance: string[];
     medication_options: string[];
+    chunks: Array<{
+      index: number;
+      id: string;
+      label: string;
+      description: string;
+      fields: string[];
+    }>;
   };
   schema_version: "nurse-workspace-v1";
   patient_id: number;

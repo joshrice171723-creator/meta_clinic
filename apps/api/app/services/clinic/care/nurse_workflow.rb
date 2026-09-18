@@ -5,6 +5,23 @@ module Clinic
 
       INTAKE_FIELDS = %i[status identity_state visit_reason_state history_state vitals_state].freeze
       REQUIRED_HISTORY_TOPICS = %w[allergies medications care_needs].freeze
+      INTAKE_CHUNKS = [
+        { index: 0, id: "today_visit", label: "Today’s visit",
+          description: "Why the patient is here and what they want help with.",
+          fields: %w[visit_reason symptoms goals].freeze },
+        { index: 1, id: "patient_coordination", label: "Patient and coordination",
+          description: "Confirm chart context and capture encounter-specific needs.",
+          fields: %w[care_needs telehealth_location].freeze },
+        { index: 2, id: "safety_history", label: "Safety and history",
+          description: "Medicines, allergies, and relevant health history.",
+          fields: %w[medications allergies history].freeze },
+        { index: 3, id: "prior_approaches", label: "What has been tried",
+          description: "Previous approaches, procedures, and barriers to the plan.",
+          fields: %w[prior_approaches procedures barriers].freeze },
+        { index: 4, id: "measurements", label: "Measurements and weight",
+          description: "Record dated measurements and review calculated BMI.",
+          fields: %w[height weight].freeze }
+      ].map(&:freeze).freeze
       HANDOFF_ACTIONS = {
         "accept" => "accepted", "reject" => "rejected", "request_correction" => "correction_requested",
         "complete" => "completed", "cancel" => "cancelled"
@@ -60,6 +77,7 @@ module Clinic
           intake: intake && serialize_intake(intake),
           questionnaire_form: { **PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment,
             payload: intake && PrevisitIntake.decode(intake.encrypted_questionnaire)),
+            chunks: INTAKE_CHUNKS,
             medication_options: PrevisitIntake.medication_options(practice) },
           handoff: handoff && serialize_handoff(handoff),
           tasks: tasks.map { |task| serialize_task(task) },
@@ -80,7 +98,7 @@ module Clinic
         previous_intake = latest_intake(practice, encounter)
         form = PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment,
           payload: previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire))
-        input = normalize_intake(attributes, form_id: form[:id])
+        input = normalize_intake(attributes, form_id: form[:id], previous_intake: previous_intake, encounter: encounter)
         observations = observations_for(practice, patient, encounter, observation_ids)
         history_reviews = history_reviews_for(practice, patient, encounter, history_review_ids)
         validate_intake_evidence!(input, observations, history_reviews)
@@ -273,7 +291,7 @@ module Clinic
         scope.first
       end
 
-      def normalize_intake(attributes, form_id: PrevisitIntake::FORM_ID)
+      def normalize_intake(attributes, form_id: PrevisitIntake::FORM_ID, previous_intake: nil, encounter: nil)
         input = attributes.to_h.symbolize_keys.slice(*INTAKE_FIELDS)
         missing = INTAKE_FIELDS - input.keys
         raise ArgumentError, "Missing intake field: #{missing.first}." if missing.any?
@@ -281,12 +299,61 @@ module Clinic
         questionnaire = attributes[:questionnaire] || attributes["questionnaire"]
         if questionnaire
           questionnaire = questionnaire.to_h.stringify_keys
+          validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:)
           input[:encrypted_questionnaire] = PrevisitIntake.encode(text: questionnaire.fetch("text", ""),
             answers: questionnaire.fetch("answers", {}), status: questionnaire.fetch("status", "draft"),
             attested: questionnaire["confirmed"] == true, recorder: "staff", form_id: form_id,
             confirmed_chunks: questionnaire.fetch("confirmed_chunks", []))
         end
         input
+      end
+
+      def validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:)
+        chunks = normalize_chunk_indexes(questionnaire.fetch("confirmed_chunks", []))
+        if chunks.any? { |index| index >= INTAKE_CHUNKS.length }
+          raise ArgumentError, "The intake group is outside the supported workflow."
+        end
+        unless chunks == (0...chunks.length).to_a
+          raise ArgumentError, "Confirm intake groups in order without skipping a group."
+        end
+
+        previous_questionnaire = previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire)
+        previous_chunks = normalize_chunk_indexes(previous_questionnaire&.fetch("confirmed_chunks", []) || [])
+        unless previous_chunks == (0...previous_chunks.length).to_a
+          raise ArgumentError, "The saved intake groups are not in a valid order."
+        end
+        return if chunks == previous_chunks
+
+        unless chunks.first(previous_chunks.length) == previous_chunks && chunks.length == previous_chunks.length + 1
+          raise ArgumentError, "Confirm the current question group before opening the next."
+        end
+        unless questionnaire.fetch("status", "draft") == "submitted" && questionnaire["confirmed"] == true
+          raise ArgumentError, "Confirm the current question group before opening the next."
+        end
+
+        fields = INTAKE_CHUNKS.fetch(chunks.last).fetch(:fields) & PrevisitIntake.fields(form_id).map { |field| field[:id] }
+        fields -= [ "telehealth_location" ] unless encounter&.appointment&.visit_modality == "video"
+        answers = questionnaire.fetch("answers", {}).to_h
+        unanswered = fields.select { |field_id| answer_state(answers[field_id] || answers[field_id.to_sym]) == "unanswered" }
+        if unanswered.any?
+          raise ArgumentError, "Answer or explicitly resolve each question in the group before confirming."
+        end
+      end
+
+      def normalize_chunk_indexes(value)
+        Array(value).map { |item| Integer(item.to_s, 10) }.tap do |indexes|
+          raise ArgumentError, "Confirmed intake groups must be non-negative integers." if indexes.any?(&:negative?)
+          raise ArgumentError, "Confirmed intake groups must not repeat." unless indexes.uniq.length == indexes.length
+        end.sort
+      rescue ArgumentError, TypeError
+        raise ArgumentError, "Confirmed intake groups must be non-negative integers."
+      end
+
+      def answer_state(answer)
+        return "unanswered" if answer.blank?
+        return answer.to_s.strip.present? ? "answered" : "unanswered" unless answer.is_a?(Hash)
+
+        answer.stringify_keys.fetch("state", "unanswered").to_s
       end
 
       def validate_intake_evidence!(input, observations, history_reviews)

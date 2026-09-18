@@ -83,34 +83,6 @@ function requestKey() {
   return crypto.randomUUID();
 }
 
-const INTAKE_CHUNKS = [
-  {
-    label: "Today’s visit",
-    description: "Why the patient is here and what they want help with.",
-    fields: ["visit_reason", "symptoms", "goals"],
-  },
-  {
-    label: "Patient and coordination",
-    description: "Confirm chart context and capture encounter-specific needs.",
-    fields: ["care_needs", "telehealth_location"],
-  },
-  {
-    label: "Safety and history",
-    description: "Medicines, allergies, and relevant health history.",
-    fields: ["medications", "allergies", "history"],
-  },
-  {
-    label: "What has been tried",
-    description: "Previous approaches, procedures, and barriers to the plan.",
-    fields: ["prior_approaches", "procedures", "barriers"],
-  },
-  {
-    label: "Measurements and weight",
-    description: "Record dated measurements and review calculated BMI.",
-    fields: ["height", "weight"],
-  },
-] as const;
-
 const MEASUREMENT_CODES = new Set([
   "vital-height",
   "vital-weight",
@@ -140,6 +112,7 @@ export function NurseEncounterWorkspace({
     "/api/clinic/facilities?type=rooms&per_page=100",
     { retainDataOnRefresh: true },
   );
+  const chunkDefinitions = resource.data?.questionnaire_form?.chunks ?? [];
   const [form, setForm] = useState<IntakeForm>(emptyIntake);
   const [baseline, setBaseline] = useState<IntakeForm>(emptyIntake);
   const [busy, setBusy] = useState(false);
@@ -225,11 +198,13 @@ export function NurseEncounterWorkspace({
     setBaseline(next);
     const savedChunks = next.questionnaire?.confirmed_chunks ?? [];
     setConfirmedChunks(savedChunks);
-    const nextChunk = INTAKE_CHUNKS.findIndex(
+    const nextChunk = chunkDefinitions.findIndex(
       (_chunk, index) => !savedChunks.includes(index),
     );
-    setActiveChunk(nextChunk === -1 ? INTAKE_CHUNKS.length - 1 : nextChunk);
-  }, [dirty, resource.data?.intake]);
+    setActiveChunk(
+      nextChunk === -1 ? Math.max(chunkDefinitions.length - 1, 0) : nextChunk,
+    );
+  }, [chunkDefinitions, dirty, resource.data?.intake]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -301,6 +276,7 @@ export function NurseEncounterWorkspace({
   }
 
   const workspace = resource.data;
+  const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
   const intakeVersion = workspace.intake?.version ?? 0;
   const canRespondToHandoff =
     workspace.capabilities.handoff_respond &&
@@ -414,10 +390,10 @@ export function NurseEncounterWorkspace({
       setConfirmedChunks(savedChunks);
       if (advanceChunk) {
         setActiveChunk((current) =>
-          Math.min(current + 1, INTAKE_CHUNKS.length - 1),
+          Math.min(current + 1, intakeChunks.length - 1),
         );
         setNotice(
-          activeChunk < INTAKE_CHUNKS.length - 1
+          activeChunk < intakeChunks.length - 1
             ? "Saved and confirmed. The next question group is ready."
             : "Saved and confirmed. All question groups are available for review.",
         );
@@ -763,7 +739,7 @@ export function NurseEncounterWorkspace({
                   sx={{ flexWrap: "wrap" }}
                   aria-label="Intake question groups"
                 >
-                  {INTAKE_CHUNKS.map((chunk, index) => (
+                  {intakeChunks.map((chunk, index) => (
                     <Chip
                       key={chunk.label}
                       label={`${index + 1}. ${chunk.label}`}
@@ -785,14 +761,14 @@ export function NurseEncounterWorkspace({
                 </Stack>
                 <Alert severity={roomId ? "info" : "warning"}>
                   {roomId
-                    ? `Group ${activeChunk + 1} of ${INTAKE_CHUNKS.length}: ${INTAKE_CHUNKS[activeChunk].description}`
+                    ? `Group ${activeChunk + 1} of ${intakeChunks.length}: ${intakeChunks[activeChunk].description}`
                     : "Record the room first. You can still save intake drafts, but clinician handoff stays blocked until a room is recorded."}
                 </Alert>
                 <Typography color="text.secondary">
                   Recording answers does not reconcile medicines or allergies,
                   confirm patient consent, or complete clinical review.
                 </Typography>
-                {activeChunk === INTAKE_CHUNKS.length - 1 && (
+                {activeChunk === intakeChunks.length - 1 && (
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     <Stack spacing={1.25}>
                       <Box>
@@ -862,7 +838,7 @@ export function NurseEncounterWorkspace({
                 <IntakeQuestions
                   fields={workspace.questionnaire_form.fields.filter(
                     (field) =>
-                      INTAKE_CHUNKS[activeChunk].fields.some(
+                      intakeChunks[activeChunk].fields.some(
                         (id) => id === field.id,
                       ) &&
                       (field.id !== "telehealth_location" ||
@@ -889,7 +865,7 @@ export function NurseEncounterWorkspace({
                     }))
                   }
                 />
-                {activeChunk === INTAKE_CHUNKS.length - 1 && (
+                {activeChunk === intakeChunks.length - 1 && (
                   <TextField
                     label="Additional patient-reported context"
                     multiline

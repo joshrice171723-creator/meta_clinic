@@ -25,7 +25,7 @@ module Clinic
       ].map(&:freeze).freeze
       PREFIX = "MC_INTAKE_V1\n".freeze
       MAX_ANSWER_LENGTH = 600
-      ANSWER_STATES = %w[answered unanswered unknown declined not_applicable negative].freeze
+      ANSWER_STATES = %w[answered unanswered not_asked unknown declined not_applicable negative].freeze
       SPECIALTY_FORMS = {
         "weight-management-initial-v1" => FIELDS.reject { |field| field[:id] == "symptoms" } + [
           { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }

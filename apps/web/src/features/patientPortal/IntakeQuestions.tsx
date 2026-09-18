@@ -28,6 +28,7 @@ export type IntakeField = {
 const DEFAULT_ANSWER_STATES = [
   "unanswered",
   "answered",
+  "not_asked",
   "unknown",
   "declined",
   "not_applicable",
