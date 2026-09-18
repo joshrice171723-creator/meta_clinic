@@ -11,8 +11,8 @@ module Clinic
       FIELDS = [
         { id: "visit_reason", label: "What brings you in?", reusable: false },
         { id: "symptoms", label: "Current symptoms and when they started", reusable: false, history_kind: "symptom" },
-        { id: "medications", label: "Current medicines and supplements", reusable: true },
-        { id: "allergies", label: "Allergies and reactions", reusable: true },
+        { id: "medications", label: "Current medicines and supplements", reusable: true, history_kind: "medication" },
+        { id: "allergies", label: "Allergies and reactions", reusable: true, history_kind: "allergy" },
         { id: "history", label: "Health conditions and recent changes", reusable: true, history_kind: "condition" },
         { id: "family_history", label: "Family history and uncertainty", reusable: true, history_kind: "family" },
         { id: "care_needs", label: "Communication, accessibility or other care needs", reusable: true },
@@ -43,6 +43,13 @@ module Clinic
       REVIEW_ROUTES = %w[routine_review clinical_review urgent_review unknown].freeze
       FAMILY_RELATIVES = %w[parent sibling child grandparent other unknown].freeze
       FAMILY_CERTAINTIES = %w[reported uncertain unknown].freeze
+      MEDICATION_SOURCES = %w[prescribed over_the_counter supplement other].freeze
+      ACTUAL_USE_STATES = %w[taking not_taking as_needed unknown].freeze
+      DOSE_CERTAINTIES = %w[known unknown].freeze
+      DOSE_UNITS = %w[mg mcg g mL tablet capsule patch other unknown].freeze
+      MEDICATION_FREQUENCIES = %w[once_daily twice_daily three_times_daily weekly monthly as_needed other unknown].freeze
+      ALLERGY_TYPES = %w[allergy intolerance adverse_effect other].freeze
+      REACTION_SEVERITIES = %w[mild moderate severe unknown].freeze
       SPECIALTY_FORMS = {
         "weight-management-initial-v1" => FIELDS + [
           { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
@@ -198,7 +205,7 @@ module Clinic
         raise ArgumentError, "History entries must be objects." unless entry.is_a?(Hash)
 
         entry = entry.stringify_keys
-        allowed = %w[kind name date_precision date_value duration outcome maintenance stop_reason adverse_effects adverse_effect_details complication_state complication_details current_status review_route managing_clinician details certainty]
+        allowed = %w[kind name date_precision date_value duration outcome maintenance stop_reason adverse_effects adverse_effect_details complication_state complication_details current_status review_route managing_clinician details certainty actual_use dose_value dose_unit dose_certainty frequency source severity]
         raise ArgumentError, "Choose supported history entry details." if (entry.keys - allowed).any?
         name = entry.fetch("name", "").to_s.strip
         raise ArgumentError, "Name each previous treatment or procedure." if name.blank?
@@ -240,10 +247,32 @@ module Clinic
           normalized["kind"] = enum_history_value(normalized["kind"], SYMPTOM_KINDS, "symptom type")
           normalized["review_route"] = enum_history_value(entry.fetch("review_route", "unknown"), REVIEW_ROUTES, "review route")
           normalized["details"] = bounded_history_text(entry["details"])
-        else
+        elsif kind == "family"
           normalized["kind"] = enum_history_value(normalized["kind"], FAMILY_RELATIVES, "affected relative")
           normalized["certainty"] = enum_history_value(entry.fetch("certainty", "unknown"), FAMILY_CERTAINTIES, "family-history certainty")
           normalized["details"] = bounded_history_text(entry["details"])
+        elsif kind == "medication"
+          normalized["kind"] = enum_history_value(normalized["kind"], MEDICATION_SOURCES, "medication source")
+          normalized["actual_use"] = enum_history_value(entry.fetch("actual_use", "unknown"), ACTUAL_USE_STATES, "actual-use state")
+          normalized["dose_certainty"] = enum_history_value(entry.fetch("dose_certainty", "unknown"), DOSE_CERTAINTIES, "dose certainty")
+          dose_value = entry.fetch("dose_value", "").to_s.strip
+          if normalized["dose_certainty"] == "known"
+            raise ArgumentError, "Enter a numeric dose when dose certainty is known." unless dose_value.match?(/\A\d+(?:\.\d+)?\z/)
+          else
+            dose_value = ""
+          end
+          normalized["dose_value"] = dose_value
+          normalized["dose_unit"] = enum_history_value(entry.fetch("dose_unit", "unknown"), DOSE_UNITS, "dose unit")
+          normalized["frequency"] = enum_history_value(entry.fetch("frequency", "unknown"), MEDICATION_FREQUENCIES, "medication frequency")
+          normalized["source"] = enum_history_value(entry.fetch("source", "unknown"), %w[patient_reported medication_list prescription_record supplement_label unknown], "medication record source")
+          normalized["details"] = bounded_history_text(entry["details"])
+        elsif kind == "allergy"
+          normalized["kind"] = enum_history_value(normalized["kind"], ALLERGY_TYPES, "reaction type")
+          normalized["certainty"] = enum_history_value(entry.fetch("certainty", "unknown"), FAMILY_CERTAINTIES, "reaction certainty")
+          normalized["severity"] = enum_history_value(entry.fetch("severity", "unknown"), REACTION_SEVERITIES, "reaction severity")
+          normalized["details"] = bounded_history_text(entry["details"])
+        else
+          raise ArgumentError, "Choose a supported history type."
         end
         normalized
       rescue ArgumentError
@@ -321,7 +350,8 @@ module Clinic
             next unless entry.is_a?(Hash)
 
             details = [ entry["kind"], entry["current_status"], entry["review_route"], entry["certainty"],
-              entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
+              entry["actual_use"], entry["dose_value"].presence, entry["dose_unit"], entry["frequency"], entry["source"],
+              entry["severity"], entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
             [ entry["name"], details.compact.join(" · ") ].compact.join(" — ")
           end.join("\n")
         end

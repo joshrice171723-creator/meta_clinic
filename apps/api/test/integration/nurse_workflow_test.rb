@@ -327,6 +327,47 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes last.fetch("questionnaire_text"), "parent · uncertain · unknown"
   end
 
+  test "medication actual use and allergy intolerance remain distinct" do
+    answers = Clinic::Care::PrevisitIntake.fields.to_h do |field|
+      [ field.fetch(:id), { state: "not_asked", value: "" } ]
+    end
+    answers["medications"] = {
+      state: "answered", value: "", entries: [
+        { kind: "prescribed", name: "Synthetic current medicine", date_precision: "unknown",
+          actual_use: "taking", dose_value: "5", dose_unit: "mg", dose_certainty: "known",
+          frequency: "once_daily", source: "prescription_record", details: "Synthetic dose detail" },
+        { kind: "supplement", name: "Synthetic current supplement", date_precision: "unknown",
+          actual_use: "unknown", dose_value: "", dose_unit: "unknown", dose_certainty: "unknown",
+          frequency: "unknown", source: "supplement_label", details: "" }
+      ]
+    }
+    answers["allergies"] = {
+      state: "answered", value: "", entries: [
+        { kind: "intolerance", name: "Synthetic allergy substance", date_precision: "unknown",
+          certainty: "uncertain", severity: "unknown", details: "Synthetic reaction detail" }
+      ]
+    }
+
+    last = nil
+    (0..2).each do |chunk|
+      post intake_path, params: { intake: {
+        request_key: "nurse-m6-chunk-#{chunk}", expected_version: chunk,
+        status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+        history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [],
+        questionnaire: { text: "", answers:, status: "submitted", confirmed: true, confirmed_chunks: (0..chunk).to_a }
+      } }, headers: csrf_headers, as: :json
+      assert_response :created
+      last = response.parsed_body.fetch("intake")
+    end
+
+    assert_equal "taking", last.dig("questionnaire", "answers", "medications", "entries", 0, "actual_use")
+    assert_equal "prescription_record", last.dig("questionnaire", "answers", "medications", "entries", 0, "source")
+    assert_equal "intolerance", last.dig("questionnaire", "answers", "allergies", "entries", 0, "kind")
+    assert_equal "uncertain", last.dig("questionnaire", "answers", "allergies", "entries", 0, "certainty")
+    assert_includes last.fetch("questionnaire_text"), "prescribed · taking · 5 · mg · once_daily · prescription_record · unknown"
+    assert_includes last.fetch("questionnaire_text"), "intolerance · uncertain · unknown"
+  end
+
   test "non-video handoff requires a recorded room" do
     @encounter.update!(room: nil)
     post intake_path, params: ready_intake(request_key: "nurse-roomless-intake", history_review_ids: @reviews.map(&:id)),

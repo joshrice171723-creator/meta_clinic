@@ -249,6 +249,88 @@ describe("typed patient journey intake", () => {
     expect(html).toContain("Synthetic cardiovascular history");
   });
 
+  it("renders actual-use medication and allergy-versus-intolerance controls", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          {
+            id: "medications",
+            label: "Current medicines and supplements",
+            reusable: true,
+            history_kind: "medication",
+          },
+          {
+            id: "allergies",
+            label: "Allergies and reactions",
+            reusable: true,
+            history_kind: "allergy",
+          },
+        ]}
+        answers={{
+          medications: {
+            state: "answered",
+            value: "",
+            entries: [
+              {
+                kind: "prescribed",
+                name: "Synthetic current medicine",
+                date_precision: "unknown",
+                date_value: "",
+                duration: "unknown",
+                outcome: "unknown",
+                maintenance: "unknown",
+                stop_reason: "unknown",
+                adverse_effects: "unknown",
+                adverse_effect_details: "",
+                complication_state: "unknown",
+                complication_details: "",
+                actual_use: "taking",
+                dose_value: "5",
+                dose_unit: "mg",
+                dose_certainty: "known",
+                frequency: "once_daily",
+                source: "prescription_record",
+                details: "Synthetic dose detail",
+              },
+            ],
+          },
+          allergies: {
+            state: "answered",
+            value: "",
+            entries: [
+              {
+                kind: "intolerance",
+                name: "Synthetic allergy substance",
+                date_precision: "unknown",
+                date_value: "",
+                duration: "unknown",
+                outcome: "unknown",
+                maintenance: "unknown",
+                stop_reason: "unknown",
+                adverse_effects: "unknown",
+                adverse_effect_details: "",
+                complication_state: "unknown",
+                complication_details: "",
+                certainty: "uncertain",
+                severity: "unknown",
+                details: "Synthetic reaction detail",
+              },
+            ],
+          },
+        }}
+        medicationOptions={["Synthetic current medicine"]}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("Actual use");
+    expect(html).toContain("Dose certainty");
+    expect(html).toContain("Record source");
+    expect(html).toContain("Reaction type");
+    expect(html).toContain("Reaction severity");
+    expect(html).toContain("Synthetic allergy substance");
+  });
+
   it("staff chart imports preserve an unconfirmed draft label and do not duplicate the same version", () => {
     const draft = {
       id: 17,

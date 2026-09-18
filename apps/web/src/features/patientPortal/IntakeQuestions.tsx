@@ -36,6 +36,13 @@ export type IntakeHistoryEntry = {
   managing_clinician?: string;
   details?: string;
   certainty?: string;
+  actual_use?: string;
+  dose_value?: string;
+  dose_unit?: string;
+  dose_certainty?: string;
+  frequency?: string;
+  source?: string;
+  severity?: string;
 };
 export type IntakeField = {
   id: string;
@@ -43,7 +50,14 @@ export type IntakeField = {
   reusable: boolean;
   units?: string[];
   choices?: string[];
-  history_kind?: "treatment" | "procedure" | "condition" | "symptom" | "family";
+  history_kind?:
+    | "treatment"
+    | "procedure"
+    | "condition"
+    | "symptom"
+    | "family"
+    | "medication"
+    | "allergy";
 };
 
 const DEFAULT_ANSWER_STATES = [
@@ -68,7 +82,20 @@ function emptyHistoryEntry(
   kind: IntakeField["history_kind"],
 ): IntakeHistoryEntry {
   return {
-    kind: kind === "procedure" ? "procedure" : "diet_program",
+    kind:
+      kind === "procedure"
+        ? "procedure"
+        : kind === "condition"
+          ? "metabolic"
+          : kind === "symptom"
+            ? "abdominal_pain"
+            : kind === "family"
+              ? "parent"
+              : kind === "medication"
+                ? "prescribed"
+                : kind === "allergy"
+                  ? "allergy"
+                  : "diet_program",
     name: "",
     date_precision: "unknown",
     date_value: "",
@@ -85,6 +112,13 @@ function emptyHistoryEntry(
     managing_clinician: "",
     details: "",
     certainty: "unknown",
+    actual_use: "unknown",
+    dose_value: "",
+    dose_unit: "unknown",
+    dose_certainty: "unknown",
+    frequency: "unknown",
+    source: "unknown",
+    severity: "unknown",
   };
 }
 
@@ -409,7 +443,14 @@ function HistoryEntryEditor({
   disabled,
   onChange,
 }: {
-  kind: "treatment" | "procedure" | "condition" | "symptom" | "family";
+  kind:
+    | "treatment"
+    | "procedure"
+    | "condition"
+    | "symptom"
+    | "family"
+    | "medication"
+    | "allergy";
   entries: IntakeHistoryEntry[];
   medicationOptions: string[];
   disabled: boolean;
@@ -449,7 +490,18 @@ function HistoryEntryEditor({
                 "vision_changes",
                 "other",
               ]
-            : ["parent", "sibling", "child", "grandparent", "other", "unknown"];
+            : kind === "family"
+              ? [
+                  "parent",
+                  "sibling",
+                  "child",
+                  "grandparent",
+                  "other",
+                  "unknown",
+                ]
+              : kind === "medication"
+                ? ["prescribed", "over_the_counter", "supplement", "other"]
+                : ["allergy", "intolerance", "adverse_effect", "other"];
   const typeLabel =
     kind === "condition"
       ? "Condition domain"
@@ -457,7 +509,11 @@ function HistoryEntryEditor({
         ? "Symptom type"
         : kind === "family"
           ? "Affected relative"
-          : "Record type";
+          : kind === "medication"
+            ? "Medication source"
+            : kind === "allergy"
+              ? "Reaction type"
+              : "Record type";
   const historyLabel =
     kind === "condition"
       ? "condition"
@@ -465,9 +521,13 @@ function HistoryEntryEditor({
         ? "current symptom"
         : kind === "family"
           ? "family-history item"
-          : kind === "procedure"
-            ? "procedure"
-            : "treatment";
+          : kind === "medication"
+            ? "current medicine or supplement"
+            : kind === "allergy"
+              ? "allergy or intolerance"
+              : kind === "procedure"
+                ? "procedure"
+                : "treatment";
 
   return (
     <Stack spacing={2}>
@@ -498,7 +558,8 @@ function HistoryEntryEditor({
               </MenuItem>
             ))}
           </TextField>
-          {kind === "treatment" && entry.kind === "medication" ? (
+          {(kind === "treatment" && entry.kind === "medication") ||
+          kind === "medication" ? (
             <>
               <Autocomplete
                 options={[...medicationOptions, "Other — enter manually"]}
@@ -517,12 +578,23 @@ function HistoryEntryEditor({
                   })
                 }
                 renderInput={(params) => (
-                  <TextField {...params} label="Previous medicine" />
+                  <TextField
+                    {...params}
+                    label={
+                      kind === "medication"
+                        ? "Medicine or supplement"
+                        : "Previous medicine"
+                    }
+                  />
                 )}
               />
               {!medicationOptions.includes(entry.name) && (
                 <TextField
-                  label="Other medicine name"
+                  label={
+                    kind === "medication"
+                      ? "Other medicine or supplement"
+                      : "Other medicine name"
+                  }
                   value={entry.name}
                   disabled={disabled}
                   onChange={(event) =>
@@ -542,7 +614,9 @@ function HistoryEntryEditor({
                       ? "Symptom detail"
                       : kind === "family"
                         ? "Family condition"
-                        : "Procedure or hospitalization name"
+                        : kind === "allergy"
+                          ? "Substance or product"
+                          : "Procedure or hospitalization name"
               }
               value={entry.name}
               disabled={disabled}
@@ -552,7 +626,15 @@ function HistoryEntryEditor({
           {kind !== "family" && (
             <TextField
               select
-              label={kind === "symptom" ? "Onset certainty" : "Date certainty"}
+              label={
+                kind === "symptom"
+                  ? "Onset certainty"
+                  : kind === "medication"
+                    ? "Last-use certainty"
+                    : kind === "allergy"
+                      ? "Reaction date certainty"
+                      : "Date certainty"
+              }
               value={entry.date_precision}
               disabled={disabled}
               onChange={(event) =>
@@ -716,6 +798,139 @@ function HistoryEntryEditor({
                   }
                 />
               )}
+            </>
+          ) : kind === "medication" ? (
+            <>
+              <HistoryChoice
+                label="Actual use"
+                value={entry.actual_use ?? "unknown"}
+                options={[
+                  ["taking", "Taking"],
+                  ["not_taking", "Not taking"],
+                  ["as_needed", "As needed"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { actual_use: value })}
+              />
+              <HistoryChoice
+                label="Dose certainty"
+                value={entry.dose_certainty ?? "unknown"}
+                options={[
+                  ["known", "Known"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) =>
+                  update(index, {
+                    dose_certainty: value,
+                    dose_value: value === "known" ? entry.dose_value : "",
+                  })
+                }
+              />
+              {entry.dose_certainty === "known" && (
+                <>
+                  <TextField
+                    label="Dose amount"
+                    value={entry.dose_value ?? ""}
+                    disabled={disabled}
+                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                    onChange={(event) =>
+                      update(index, { dose_value: event.target.value })
+                    }
+                  />
+                  <HistoryChoice
+                    label="Dose unit"
+                    value={entry.dose_unit ?? "unknown"}
+                    options={[
+                      ["mg", "mg"],
+                      ["mcg", "mcg"],
+                      ["g", "g"],
+                      ["mL", "mL"],
+                      ["tablet", "Tablet"],
+                      ["capsule", "Capsule"],
+                      ["patch", "Patch"],
+                      ["other", "Other"],
+                      ["unknown", "Unknown"],
+                    ]}
+                    disabled={disabled}
+                    onChange={(value) => update(index, { dose_unit: value })}
+                  />
+                </>
+              )}
+              <HistoryChoice
+                label="Frequency"
+                value={entry.frequency ?? "unknown"}
+                options={[
+                  ["once_daily", "Once daily"],
+                  ["twice_daily", "Twice daily"],
+                  ["three_times_daily", "Three times daily"],
+                  ["weekly", "Weekly"],
+                  ["monthly", "Monthly"],
+                  ["as_needed", "As needed"],
+                  ["other", "Other"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { frequency: value })}
+              />
+              <HistoryChoice
+                label="Record source"
+                value={entry.source ?? "unknown"}
+                options={[
+                  ["patient_reported", "Patient reported"],
+                  ["medication_list", "Medication list"],
+                  ["prescription_record", "Prescription record"],
+                  ["supplement_label", "Supplement label"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { source: value })}
+              />
+              <TextField
+                label="Medication details (optional)"
+                value={entry.details ?? ""}
+                disabled={disabled}
+                multiline
+                onChange={(event) =>
+                  update(index, { details: event.target.value })
+                }
+              />
+            </>
+          ) : kind === "allergy" ? (
+            <>
+              <HistoryChoice
+                label="Certainty"
+                value={entry.certainty ?? "unknown"}
+                options={[
+                  ["reported", "Reported"],
+                  ["uncertain", "Uncertain"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { certainty: value })}
+              />
+              <HistoryChoice
+                label="Reaction severity"
+                value={entry.severity ?? "unknown"}
+                options={[
+                  ["mild", "Mild"],
+                  ["moderate", "Moderate"],
+                  ["severe", "Severe"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { severity: value })}
+              />
+              <TextField
+                label="Reaction details (optional)"
+                value={entry.details ?? ""}
+                disabled={disabled}
+                multiline
+                onChange={(event) =>
+                  update(index, { details: event.target.value })
+                }
+              />
             </>
           ) : kind === "condition" ? (
             <>
