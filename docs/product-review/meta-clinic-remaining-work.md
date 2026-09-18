@@ -1,9 +1,27 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `fc6a18a` (P2 boundary and correctness audit).
+**Checkout:** `main` at `e05ae15` (closeout runbook; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
+
+## Closeout reconciliation — steps 0–1 — 2026-09-17
+
+The closeout runbook was added at
+[`meta-clinic-session-closeout-runbook.md`](./meta-clinic-session-closeout-runbook.md).
+The application source baseline remains `33f74f2`; `e05ae15` contains the
+runbook documentation only. The recorded current evidence is unchanged:
+the bounded Rails selector is green at 162 runs / 1,955 assertions, the
+frontend suite is recorded at 51 files / 383 tests, and desktop/tablet/phone
+route smoke passed. A fresh browser mutation walkthrough after the stale
+Patient Flow projection repair remains open.
+
+Older counts (including 45/392, 105/1,354, 47/474, and 51/382) are retained as
+historical, selector-scoped evidence. The weight-loss brief's statement that
+no additional J0–J7 browser action remains is superseded for this closeout
+because the latest repair still needs a fresh mutation re-walk. The 56/100
+weighted score is retained as historical and is not recalculated in this
+closeout step.
 
 ## Executive assessment
 
