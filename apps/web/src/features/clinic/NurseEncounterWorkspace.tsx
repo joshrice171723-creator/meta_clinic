@@ -432,7 +432,7 @@ export function NurseEncounterWorkspace({
         `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/room`,
         {
           method: "PATCH",
-          body: { room_id: room.id, request_key: requestKey() },
+          body: { room: { room_id: room.id, request_key: requestKey() } },
         },
       );
       if (response.encounter.id !== encounter.id) {

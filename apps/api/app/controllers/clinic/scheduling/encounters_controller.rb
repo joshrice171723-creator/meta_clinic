@@ -94,6 +94,15 @@ module Clinic
         value.present? ? scope.find(requested_id!(value, field)) : nil
       end
 
+      def request_key!(value)
+        key = required_string!(value, field: :request_key, maximum: 160)
+        return key if key.match?(Clinic::Idempotency::KEY_PATTERN)
+
+        raise Clinic::Api::RequestParameters::Invalid.new(
+          "request_key must match the clinic idempotency key format.", field: :request_key
+        )
+      end
+
       def serialize_detail(encounter)
         EncounterSerializer.call(
           encounter,

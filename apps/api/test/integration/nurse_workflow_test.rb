@@ -19,6 +19,11 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     @other_patient = @practice.patients.create!(display_name: "Synthetic Other Patient", reference: "NURSE-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
       started_at: Time.utc(2026, 9, 10, 14), status: "open")
+    @room = @practice.rooms.create!(site: @site, code: "NURSE-ROOM")
+    Clinic::Scheduling::AssignEncounterRoom.call(
+      practice: @practice, actor: @user, encounter: @encounter, room_id: @room.id,
+      request_key: "nurse-room-assignment"
+    )
     @reviews = %w[allergies medications care_needs].map.with_index do |topic, index|
       @patient.history_reviews.create!(practice: @practice, encounter: @encounter, topic:,
         outcome: "current_list_confirmed", information_source: "patient", reviewer_membership: @membership,
@@ -215,6 +220,23 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_nil @encounter.reload.appointment_id
   end
 
+  test "room assignment route records and replays the encounter room" do
+    @encounter.update!(room: nil)
+    request = { room: { room_id: @room.id, request_key: "nurse-room-route" } }
+
+    assert_difference "Clinic::OperationReceipt.count", 1 do
+      patch room_path, params: request, headers: csrf_headers, as: :json
+      assert_response :success
+    end
+    assert_equal @room.id, response.parsed_body.dig("encounter", "room_id")
+
+    assert_no_difference "Clinic::OperationReceipt.count" do
+      patch room_path, params: request, headers: csrf_headers, as: :json
+      assert_response :success
+    end
+    assert_equal @room.id, @encounter.reload.room_id
+  end
+
   test "staff questionnaire write requires intake permission and the exact encounter patient" do
     request = { intake: { request_key: "journey-staff-denied", expected_version: 0, status: "incomplete",
       identity_state: "not_confirmed", visit_reason_state: "not_recorded", history_state: "not_recorded",
@@ -245,6 +267,10 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
 
   def handoffs_path
     "/api/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}/handoffs"
+  end
+
+  def room_path
+    "/api/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}/room"
   end
 
   def tasks_path

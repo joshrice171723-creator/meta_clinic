@@ -1,6 +1,6 @@
 # Medical Weight-Management Intake Tracking
 
-Status: proposed implementation plan; planning document only
+Status: M1–M3 implemented and verified; remaining milestones are planning work
 
 Revision: 2 · 2026-09-18
 
@@ -55,9 +55,9 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 
 | ID | Milestone | Primary outcome | Depends on | Status | Acceptance evidence |
 | --- | --- | --- | --- | --- | --- |
-| M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | In verification | Synthetic draft survives reload; answer states and provenance remain distinct |
-| M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | In verification | Existing chart values are inherited read-only where appropriate; telehealth location is encounter-scoped |
-| M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | In verification | Units/date/source are required for recorded measurements; BMI is calculated and never typed |
+| M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | Complete | Five guided chunks save progressively; explicit answer states, staff confirmation, provenance, and Version 5 survive reload |
+| M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | Complete | Existing profile values are reused read-only; synthetic room 19 is recorded and remains present after reload |
+| M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | Complete | Synthetic 200 lb / 70 in measurement records with date and units; server-calculated BMI displays as 28.7 kg/m² and is not editable |
 | M4 | Previous treatment and procedure history | Treatment attempts, medication history, procedures, outcomes, and reasons for stopping are repeatable records | M1, M3 | Not started | Multiple records persist independently; approximate/unknown dates are supported |
 | M5 | Medical, family, and current-symptom history | Structured conditions and symptoms open relevant follow-ups without collapsing history into one text box | M1, M2 | Not started | Selected condition details, family-history uncertainty, and current symptom routing are visible |
 | M6 | Medication, supplement, allergy, and actual-use reconciliation | Medication records distinguish prescribed from actually taken products and distinguish allergy from intolerance | M1, M4, M5 | Not started | Search/catalog selection, “Other,” dose/unit uncertainty, reactions, and source/date are preserved |
@@ -71,10 +71,11 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 ## M1–M3 implementation checkpoint
 
 - **Implemented:** persisted confirmed chunk progress and questionnaire version/provenance metadata; explicit answer-state controls; patient-profile reuse; encounter-scoped video-location question; existing observation-based vital-sign entry with server-calculated BMI.
-- **Changed paths:** `apps/api/app/services/clinic/care/previsit_intake.rb`, `apps/api/app/services/clinic/care/nurse_workflow.rb`, `apps/api/test/integration/nurse_workflow_test.rb`, `apps/web/src/api/contracts.ts`, `apps/web/src/features/patientPortal/IntakeQuestions.tsx`, and `apps/web/src/features/clinic/NurseEncounterWorkspace.tsx`.
-- **Verified:** Ruby syntax; frontend TypeScript; 51 web test files / 384 tests; production frontend build; targeted Prettier checks after formatting the changed UI files.
-- **Blocked verification:** API integration tests still require the local PostgreSQL test connection at `127.0.0.1:54329`, which currently rejects the connection because no password is supplied.
-- **Next action:** restore the repository’s test-database credentials, run the focused API integration tests, then complete a browser walkthrough of the encounter page for chunk resume, profile reuse, video location, and BMI measurement recording.
+- **Changed paths:** `apps/api/app/controllers/clinic/scheduling/encounters_controller.rb`, `apps/api/app/services/clinic/care/previsit_intake.rb`, `apps/api/app/services/clinic/care/nurse_workflow.rb`, `apps/api/test/integration/nurse_workflow_test.rb`, `apps/web/src/api/contracts.ts`, `apps/web/src/features/patientPortal/IntakeQuestions.tsx`, and `apps/web/src/features/clinic/NurseEncounterWorkspace.tsx`.
+- **Verified:** Ruby syntax; focused API integration suite (11 runs / 218 assertions / 0 failures); frontend TypeScript; 51 web test files / 384 tests; production frontend build; and targeted Prettier checks for changed UI files.
+- **Browser proof:** On the synthetic encounter page, room assignment records room 19 (`M1-M3-EXAM-1`), all five guided groups can be answered and confirmed in sequence, explicit `Unknown` states remain visible, the intake reloads at Version 5, and recorded 200 lb / 70 in measurements display server-calculated BMI 28.7 kg/m². The room and confirmations persist after reload.
+- **Fixes verified:** The room assignment request now uses the API’s nested room payload; the controller validates the required idempotency request key; and the nurse integration fixture assigns a synthetic room through the real scheduling service before exercising the workflow.
+- **Remaining gates:** Clinical approval, jurisdictional review, production/live-integration checks, tablet-width proof, and the later M4–M12 milestones remain separate from this implementation completion.
 
 ## Milestone parts at a glance
 
