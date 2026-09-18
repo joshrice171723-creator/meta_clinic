@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `77cf951` (closeout steps 4–7 evidence; source baseline `33f74f2`).
+**Checkout:** `main` at `ea9d720` (final closeout handoff; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -107,6 +107,25 @@ privacy, retention, support, deployment, pilot and release gates remain
 explicitly deferred/open under the existing decisions and risk register, with
 owners unassigned. No external transaction, provider connection or professional
 approval was performed or inferred.
+
+## Final handoff and closure record — 2026-09-17
+
+The authorized closeout changes are committed on `main` and the final handoff
+has verified that the local and remote SHA match. The working
+tree's unrelated `.codex` configuration and attachment files remain preserved
+outside the change set. No secrets, real patient data, real payment data,
+provider credentials, external messages, or production records were included.
+
+Highest truthful status: **source-complete for the bounded local clinic journey;
+locally verified and browser-verified for the recorded synthetic paths**. This
+does not mean human-approved, provider-accepted, pilot-ready, or release-ready.
+The remaining gates are the documented assistive-technology/contrast/zoom and
+two-hour session acceptance, complete role-level permitted/denied-action review,
+and the unassigned clinical, provider, privacy, tax, retention, support,
+deployment, pilot, and release decisions. Those require a named decision owner
+or external evidence and are not silently converted into source work. The next
+action is to assign those owners and run the separate prelaunch acceptance pass;
+no additional source change is required to close this sandbox session.
 
 ## What is already complete for bounded source slices
 
