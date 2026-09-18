@@ -1,7 +1,7 @@
 # Meta Clinic Remaining Work
 
 **Assessment date:** 2026-09-17
-**Checkout:** `main` at `e05ae15` (closeout runbook; source baseline `33f74f2`).
+**Checkout:** `main` at `e3b5c56` (fresh browser closeout evidence; source baseline `33f74f2`).
 **Source review:** [Meta Clinic Full Application Product Review](./meta-clinic-full-application-review.md)
 **Data boundary:** Synthetic/local data only. No real-patient or production records were used.
 
@@ -41,6 +41,43 @@ The score is intentionally conservative: a passing build or a source-level
 implementation does not prove a working browser journey, a real provider
 connection, clinical safety, or release readiness.
 
+## Closeout reconciliation — step 3 — 2026-09-17
+
+The fresh synthetic browser journey was completed through the clinic front end
+in Chrome after selecting **Weight Management Organization → Weight Loss
+Clinic → Main location → team account**. No patient, appointment, encounter, or
+payment record was created through a backend shortcut.
+
+- Front desk enrollment selected **GLP-1 weight management** with recurring
+  monthly terms and synthetic contact details.
+- The explicitly labeled local payment simulation verified payment and created
+  **Closeout Patient 917** (clinic reference `MEM-Q-822A928B`) plus the initial-
+  contact work item.
+- Patient Flow showed the full patient name and a selected-patient
+  **Schedule first appointment** link. After booking, the Ready to schedule
+  count dropped from 8 to 7 and the Scheduled column showed one scheduled
+  visit for this patient; the underlying work item remained available as the
+  scheduled follow-up.
+- Schedule opened with the selected patient context intact, showed the month
+  calendar and day capacity, and created one **Weight-loss initial visit** on
+  September 28, 2026 at 09:00–09:30 UTC with Avery Example. The day count
+  changed to one appointment and the booked slot disappeared from availability.
+- Front desk day queue showed the appointment as **Scheduled**. The front-end
+  check-in confirmation then reported that Closeout Patient 917 was checked in
+  and the visit was in progress.
+- Tracking Board was switched to September 28 through the app-date control and
+  then visibly contained the patient only after check-in, in **Waiting room**,
+  with a linked encounter. Before check-in, the scheduled patient was absent
+  from the board for that date.
+
+The final Tracking Board screenshot was captured in the browser session. One
+presentation follow-up remains for the device/accessibility pass: the compact
+visual row renders the synthetic patient as `917, C.` while the accessible row
+label exposes the full patient name. This is not a workflow or identity
+failure, but the visual patient-identity treatment should be reviewed before
+human acceptance. The browser trace also confirmed the selected-patient
+schedule context and no duplicate initial-contact card after booking.
+
 ## What is already complete for bounded source slices
 
 - Development clinic context selection now follows organization → clinic →
@@ -65,7 +102,7 @@ unless a browser result is called out below.
 
 | Priority | Work item | Current status | Exact remaining work | Acceptance evidence |
 | --- | --- | --- | --- | --- |
-| P0 | Fresh local entry and core paid-member journey | Partially implemented; fresh route entry verified, end-to-end mutation still open | Fresh organization → clinic → location → account login now passes in desktop and phone smoke sessions. The local API continuity journey and the schedule/check-in contracts are green, but a new browser-created paid membership, patient record, initial contact, appointment, and check-in still need one captured UI re-walk. | Browser screenshots/trace showing patient identity, payment state, Patient Flow removal, Schedule booking, and Tracking Board arrival; no backend-created patient substitute. |
+| P0 | Fresh local entry and core paid-member journey | Browser-verified for one fresh synthetic journey; broader acceptance remains open | The front-end walkthrough created a paid GLP-1 membership, patient, initial-contact work item, first appointment, and checked-in encounter. Patient Flow, Schedule, Front desk, and Tracking Board transitions were observed with no backend-created patient substitute. Device/accessibility coverage and negative/recovery paths remain separate closeout steps. | Browser trace and final Tracking Board screenshot show payment verification, patient identity, Patient Flow projection, Schedule booking, and post-check-in arrival. |
 | P0 | Regression baseline | Source-owned selector green; repository-wide baseline still separate | The consolidated clinic selector now passes at **162 runs / 1,955 assertions / 0 failures / 0 errors / 0 skips**, including Tracking Board, continuity, scheduling, registration, billing, communications, inventory, workforce, patient-portal booking, and owner aggregate boundaries. A repository-wide baseline is still not established. | Keep the named selector green and run any broader baseline as a separate, explicitly scoped effort. |
 | P0 | Role and permission acceptance | Fresh role-specific route loads verified; action matrix still open | Fresh browser sessions now load permitted landing routes for billing, inventory, records, workforce, and setup, in addition to the clinic administrator/front-desk/clinician matrix. Existing API authorization tests cover independent permissions and tenant/site boundaries; a complete fresh-session denied-action walkthrough remains. | Role matrix with fresh-login screenshots/API traces and cross-tenant/site denial results. |
 | P0 | Accessibility and device acceptance | Partial browser evidence; full WCAG-oriented acceptance still open | Desktop, tablet (1024×768), and phone route smoke pass. A phone Schedule spot check found no horizontal overflow and 38 focus moves; the visible controls use the correct hierarchy and current pages expose retry/status semantics. Screen-reader announcements, contrast/zoom review, and modal/error-state walkthroughs still require a dedicated acceptance pass. | WCAG 2.2-oriented test record covering loading, empty, stale, error, success, blocked, modal, calendar, and login states. |
@@ -136,10 +173,12 @@ A current synthetic browser matrix reached the clinic through the organization �
 clinic → location → team-account selector on desktop, tablet, and phone, then
 loaded the core clinic routes. Role-specific fresh sessions loaded billing,
 inventory, records, workforce, and setup. The Schedule phone spot check had no
-horizontal overflow and accepted keyboard focus traversal. This pass did not create a new
-membership or appointment in the browser, and it did not check in a patient;
-the latest stale-projection repair therefore still needs a mutation-based UI
-re-walk.
+horizontal overflow and accepted keyboard focus traversal. The fresh mutation
+walkthrough above then created a membership through the front desk, verified
+payment in the local simulator, scheduled the first appointment, checked the
+patient in, and confirmed the post-arrival Tracking Board row. This is one
+desktop browser journey; it is not evidence for the complete role/device,
+accessibility, provider, or negative/recovery gates.
 
 ### External and approval evidence
 
@@ -153,14 +192,11 @@ for those gates.
 
 1. Repair or classify the known impacted-test failures and establish a bounded
    green regression command.
-2. Execute the fresh synthetic paid-member browser journey, including a new
-   appointment and check-in, and capture evidence for the latest Patient Flow
-   repair.
-3. Run the role/device/accessibility matrix against that journey and the major
-   domain routes.
-4. Resolve the schedule, clinical, financial, messaging, reporting, retention,
+2. Run the role/device/accessibility matrix against the completed journey and
+   the major domain routes.
+3. Resolve the schedule, clinical, financial, messaging, reporting, retention,
    and provider decisions with their responsible human owners.
-5. Only then decide whether a pilot or release-readiness review is warranted.
+4. Only then decide whether a pilot or release-readiness review is warranted.
 
 The implementation tracker remains the work inventory; this file is the
 current evidence-based gap report and should not be treated as a second mutable
