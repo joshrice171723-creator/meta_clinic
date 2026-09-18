@@ -31,6 +31,11 @@ export type IntakeHistoryEntry = {
   adverse_effect_details: string;
   complication_state: string;
   complication_details: string;
+  current_status?: string;
+  review_route?: string;
+  managing_clinician?: string;
+  details?: string;
+  certainty?: string;
 };
 export type IntakeField = {
   id: string;
@@ -38,7 +43,7 @@ export type IntakeField = {
   reusable: boolean;
   units?: string[];
   choices?: string[];
-  history_kind?: "treatment" | "procedure";
+  history_kind?: "treatment" | "procedure" | "condition" | "symptom" | "family";
 };
 
 const DEFAULT_ANSWER_STATES = [
@@ -75,6 +80,11 @@ function emptyHistoryEntry(
     adverse_effect_details: "",
     complication_state: "unknown",
     complication_details: "",
+    current_status: "unknown",
+    review_route: "unknown",
+    managing_clinician: "",
+    details: "",
+    certainty: "unknown",
   };
 }
 
@@ -399,7 +409,7 @@ function HistoryEntryEditor({
   disabled,
   onChange,
 }: {
-  kind: "treatment" | "procedure";
+  kind: "treatment" | "procedure" | "condition" | "symptom" | "family";
   entries: IntakeHistoryEntry[];
   medicationOptions: string[];
   disabled: boolean;
@@ -411,13 +421,60 @@ function HistoryEntryEditor({
         entryIndex === index ? { ...entry, ...change } : entry,
       ),
     );
+  const typeOptions =
+    kind === "treatment"
+      ? ["diet_program", "medication", "other"]
+      : kind === "procedure"
+        ? ["procedure", "surgery", "hospitalization", "other"]
+        : kind === "condition"
+          ? [
+              "metabolic",
+              "cardiovascular",
+              "endocrine",
+              "gastrointestinal",
+              "kidney",
+              "respiratory",
+              "neurological",
+              "pain",
+              "other",
+            ]
+          : kind === "symptom"
+            ? [
+                "abdominal_pain",
+                "vomiting",
+                "bowel_changes",
+                "dizziness_fainting",
+                "palpitations",
+                "breathing_difficulty",
+                "vision_changes",
+                "other",
+              ]
+            : ["parent", "sibling", "child", "grandparent", "other", "unknown"];
+  const typeLabel =
+    kind === "condition"
+      ? "Condition domain"
+      : kind === "symptom"
+        ? "Symptom type"
+        : kind === "family"
+          ? "Affected relative"
+          : "Record type";
+  const historyLabel =
+    kind === "condition"
+      ? "condition"
+      : kind === "symptom"
+        ? "current symptom"
+        : kind === "family"
+          ? "family-history item"
+          : kind === "procedure"
+            ? "procedure"
+            : "treatment";
 
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Add one record for each previous treatment or procedure. Choose Unknown
-        when the detail is not available; this is history, not a prescribing or
-        clinical approval decision.
+        Add one record for each previous {historyLabel}. Choose Unknown when the
+        detail is not available; this is history, not a prescribing or clinical
+        approval decision.
       </Typography>
       {entries.map((entry, index) => (
         <Stack
@@ -430,15 +487,12 @@ function HistoryEntryEditor({
           </Typography>
           <TextField
             select
-            label={kind === "treatment" ? "Record type" : "Record type"}
+            label={typeLabel}
             value={entry.kind}
             disabled={disabled}
             onChange={(event) => update(index, { kind: event.target.value })}
           >
-            {(kind === "treatment"
-              ? ["diet_program", "medication", "other"]
-              : ["procedure", "surgery", "hospitalization", "other"]
-            ).map((option) => (
+            {typeOptions.map((option) => (
               <MenuItem key={option} value={option}>
                 {stateLabel(option)}
               </MenuItem>
@@ -482,36 +536,44 @@ function HistoryEntryEditor({
               label={
                 kind === "treatment"
                   ? "Program or treatment name"
-                  : "Procedure or hospitalization name"
+                  : kind === "condition"
+                    ? "Condition name"
+                    : kind === "symptom"
+                      ? "Symptom detail"
+                      : kind === "family"
+                        ? "Family condition"
+                        : "Procedure or hospitalization name"
               }
               value={entry.name}
               disabled={disabled}
               onChange={(event) => update(index, { name: event.target.value })}
             />
           )}
-          <TextField
-            select
-            label="Date certainty"
-            value={entry.date_precision}
-            disabled={disabled}
-            onChange={(event) =>
-              update(index, {
-                date_precision: event.target.value,
-                date_value: "",
-              })
-            }
-          >
-            {[
-              ["exact", "Exact date"],
-              ["approximate", "Approximate year"],
-              ["unknown", "Unknown date"],
-            ].map(([value, label]) => (
-              <MenuItem key={value} value={value}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
-          {entry.date_precision !== "unknown" && (
+          {kind !== "family" && (
+            <TextField
+              select
+              label={kind === "symptom" ? "Onset certainty" : "Date certainty"}
+              value={entry.date_precision}
+              disabled={disabled}
+              onChange={(event) =>
+                update(index, {
+                  date_precision: event.target.value,
+                  date_value: "",
+                })
+              }
+            >
+              {[
+                ["exact", "Exact date"],
+                ["approximate", "Approximate year"],
+                ["unknown", "Unknown date"],
+              ].map(([value, label]) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+          {kind !== "family" && entry.date_precision !== "unknown" && (
             <TextField
               label={
                 entry.date_precision === "exact" ? "Date" : "Approximate year"
@@ -615,7 +677,7 @@ function HistoryEntryEditor({
                 />
               )}
             </>
-          ) : (
+          ) : kind === "procedure" ? (
             <>
               <HistoryChoice
                 label="Outcome"
@@ -654,6 +716,96 @@ function HistoryEntryEditor({
                   }
                 />
               )}
+            </>
+          ) : kind === "condition" ? (
+            <>
+              <HistoryChoice
+                label="Current status"
+                value={entry.current_status ?? "unknown"}
+                options={[
+                  ["current", "Current"],
+                  ["past", "Past"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { current_status: value })}
+              />
+              <HistoryChoice
+                label="Review route"
+                value={entry.review_route ?? "unknown"}
+                options={[
+                  ["routine_review", "Routine review"],
+                  ["clinical_review", "Clinical review"],
+                  ["urgent_review", "Urgent review"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { review_route: value })}
+              />
+              <TextField
+                label="Managing clinician (optional)"
+                value={entry.managing_clinician ?? ""}
+                disabled={disabled}
+                onChange={(event) =>
+                  update(index, { managing_clinician: event.target.value })
+                }
+              />
+              <TextField
+                label="Condition details (optional)"
+                value={entry.details ?? ""}
+                disabled={disabled}
+                multiline
+                onChange={(event) =>
+                  update(index, { details: event.target.value })
+                }
+              />
+            </>
+          ) : kind === "symptom" ? (
+            <>
+              <HistoryChoice
+                label="Review route"
+                value={entry.review_route ?? "unknown"}
+                options={[
+                  ["routine_review", "Routine review"],
+                  ["clinical_review", "Clinical review"],
+                  ["urgent_review", "Urgent review"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { review_route: value })}
+              />
+              <TextField
+                label="Symptom details (optional)"
+                value={entry.details ?? ""}
+                disabled={disabled}
+                multiline
+                onChange={(event) =>
+                  update(index, { details: event.target.value })
+                }
+              />
+            </>
+          ) : (
+            <>
+              <HistoryChoice
+                label="Family-history certainty"
+                value={entry.certainty ?? "unknown"}
+                options={[
+                  ["reported", "Reported"],
+                  ["uncertain", "Uncertain"],
+                  ["unknown", "Unknown"],
+                ]}
+                disabled={disabled}
+                onChange={(value) => update(index, { certainty: value })}
+              />
+              <TextField
+                label="Family-history details (optional)"
+                value={entry.details ?? ""}
+                disabled={disabled}
+                multiline
+                onChange={(event) =>
+                  update(index, { details: event.target.value })
+                }
+              />
             </>
           )}
           {entries.length > 1 && (

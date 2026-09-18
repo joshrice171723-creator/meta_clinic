@@ -14,7 +14,7 @@ module Clinic
           fields: %w[care_needs telehealth_location].freeze },
         { index: 2, id: "safety_history", label: "Safety and history",
           description: "Medicines, allergies, and relevant health history.",
-          fields: %w[medications allergies history].freeze },
+          fields: %w[medications allergies history family_history].freeze },
         { index: 3, id: "prior_approaches", label: "What has been tried",
           description: "Previous approaches, procedures, and barriers to the plan.",
           fields: %w[prior_approaches procedures barriers].freeze },

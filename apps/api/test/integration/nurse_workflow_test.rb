@@ -283,6 +283,50 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes last.fetch("questionnaire_text"), "Synthetic prior procedure"
   end
 
+  test "structured conditions family history and symptom routing preserve uncertainty" do
+    answers = Clinic::Care::PrevisitIntake.fields.to_h do |field|
+      [ field.fetch(:id), { state: "not_asked", value: "" } ]
+    end
+    answers["symptoms"] = {
+      state: "answered", value: "", entries: [
+        { kind: "dizziness_fainting", name: "Synthetic dizziness episode", date_precision: "unknown",
+          review_route: "clinical_review", details: "Synthetic symptom detail" }
+      ]
+    }
+    answers["history"] = {
+      state: "answered", value: "", entries: [
+        { kind: "metabolic", name: "Synthetic metabolic condition", date_precision: "approximate", date_value: "2022",
+          current_status: "current", review_route: "routine_review", managing_clinician: "", details: "Synthetic condition detail" }
+      ]
+    }
+    answers["family_history"] = {
+      state: "answered", value: "", entries: [
+        { kind: "parent", name: "Synthetic cardiovascular history", date_precision: "unknown",
+          certainty: "uncertain", details: "Synthetic family-history detail" }
+      ]
+    }
+
+    last = nil
+    (0..2).each do |chunk|
+      post intake_path, params: { intake: {
+        request_key: "nurse-m5-chunk-#{chunk}", expected_version: chunk,
+        status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+        history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [],
+        questionnaire: { text: "", answers:, status: "submitted", confirmed: true, confirmed_chunks: (0..chunk).to_a }
+      } }, headers: csrf_headers, as: :json
+      assert_response :created
+      last = response.parsed_body.fetch("intake")
+    end
+
+    assert_equal "clinical_review", last.dig("questionnaire", "answers", "symptoms", "entries", 0, "review_route")
+    assert_equal "current", last.dig("questionnaire", "answers", "history", "entries", 0, "current_status")
+    assert_equal "uncertain", last.dig("questionnaire", "answers", "family_history", "entries", 0, "certainty")
+    assert_includes last.fetch("questionnaire_text"), "Synthetic dizziness episode"
+    assert_includes last.fetch("questionnaire_text"), "dizziness_fainting · clinical_review · unknown"
+    assert_includes last.fetch("questionnaire_text"), "metabolic · current · routine_review · 2022"
+    assert_includes last.fetch("questionnaire_text"), "parent · uncertain · unknown"
+  end
+
   test "non-video handoff requires a recorded room" do
     @encounter.update!(room: nil)
     post intake_path, params: ready_intake(request_key: "nurse-roomless-intake", history_review_ids: @reviews.map(&:id)),

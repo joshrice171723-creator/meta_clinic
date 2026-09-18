@@ -10,10 +10,11 @@ module Clinic
       QUESTIONNAIRE_VERSION = 1
       FIELDS = [
         { id: "visit_reason", label: "What brings you in?", reusable: false },
-        { id: "symptoms", label: "Symptoms and when they started", reusable: false },
+        { id: "symptoms", label: "Current symptoms and when they started", reusable: false, history_kind: "symptom" },
         { id: "medications", label: "Current medicines and supplements", reusable: true },
         { id: "allergies", label: "Allergies and reactions", reusable: true },
-        { id: "history", label: "Health history and recent changes", reusable: true },
+        { id: "history", label: "Health conditions and recent changes", reusable: true, history_kind: "condition" },
+        { id: "family_history", label: "Family history and uncertainty", reusable: true, history_kind: "family" },
         { id: "care_needs", label: "Communication, accessibility or other care needs", reusable: true },
         { id: "goals", label: "What would you like help with?", reusable: false },
         { id: "telehealth_location", label: "Where are you physically located for this video visit? (City and state)", reusable: false },
@@ -36,8 +37,14 @@ module Clinic
       PROCEDURE_KINDS = %w[procedure surgery hospitalization other].freeze
       PROCEDURE_OUTCOMES = %w[helpful not_helpful mixed unknown].freeze
       PROCEDURE_COMPLICATIONS = %w[none_reported known unknown not_applicable].freeze
+      CONDITION_KINDS = %w[metabolic cardiovascular endocrine gastrointestinal kidney respiratory neurological pain other].freeze
+      CONDITION_STATUSES = %w[current past unknown].freeze
+      SYMPTOM_KINDS = %w[abdominal_pain vomiting bowel_changes dizziness_fainting palpitations breathing_difficulty vision_changes other].freeze
+      REVIEW_ROUTES = %w[routine_review clinical_review urgent_review unknown].freeze
+      FAMILY_RELATIVES = %w[parent sibling child grandparent other unknown].freeze
+      FAMILY_CERTAINTIES = %w[reported uncertain unknown].freeze
       SPECIALTY_FORMS = {
-        "weight-management-initial-v1" => FIELDS.reject { |field| field[:id] == "symptoms" } + [
+        "weight-management-initial-v1" => FIELDS + [
           { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
         ],
         "weight-management-follow-up-v1" => FIELDS.select { |field| %w[goals barriers weight care_needs].include?(field[:id]) } + [
@@ -191,7 +198,7 @@ module Clinic
         raise ArgumentError, "History entries must be objects." unless entry.is_a?(Hash)
 
         entry = entry.stringify_keys
-        allowed = %w[kind name date_precision date_value duration outcome maintenance stop_reason adverse_effects adverse_effect_details complication_state complication_details]
+        allowed = %w[kind name date_precision date_value duration outcome maintenance stop_reason adverse_effects adverse_effect_details complication_state complication_details current_status review_route managing_clinician details certainty]
         raise ArgumentError, "Choose supported history entry details." if (entry.keys - allowed).any?
         name = entry.fetch("name", "").to_s.strip
         raise ArgumentError, "Name each previous treatment or procedure." if name.blank?
@@ -218,11 +225,25 @@ module Clinic
           normalized["stop_reason"] = enum_history_value(entry.fetch("stop_reason", "unknown"), TREATMENT_STOP_REASONS, "reason ended")
           normalized["adverse_effects"] = enum_history_value(entry.fetch("adverse_effects", "unknown"), %w[none_reported reported unknown], "adverse-effect status")
           normalized["adverse_effect_details"] = bounded_history_text(entry["adverse_effect_details"])
-        else
+        elsif kind == "procedure"
           normalized["kind"] = enum_history_value(normalized["kind"], PROCEDURE_KINDS, "procedure type")
           normalized["outcome"] = enum_history_value(entry.fetch("outcome", "unknown"), PROCEDURE_OUTCOMES, "procedure outcome")
           normalized["complication_state"] = enum_history_value(entry.fetch("complication_state", "unknown"), PROCEDURE_COMPLICATIONS, "complication status")
           normalized["complication_details"] = bounded_history_text(entry["complication_details"])
+        elsif kind == "condition"
+          normalized["kind"] = enum_history_value(normalized["kind"], CONDITION_KINDS, "condition domain")
+          normalized["current_status"] = enum_history_value(entry.fetch("current_status", "unknown"), CONDITION_STATUSES, "condition status")
+          normalized["review_route"] = enum_history_value(entry.fetch("review_route", "unknown"), REVIEW_ROUTES, "review route")
+          normalized["managing_clinician"] = bounded_history_text(entry["managing_clinician"])
+          normalized["details"] = bounded_history_text(entry["details"])
+        elsif kind == "symptom"
+          normalized["kind"] = enum_history_value(normalized["kind"], SYMPTOM_KINDS, "symptom type")
+          normalized["review_route"] = enum_history_value(entry.fetch("review_route", "unknown"), REVIEW_ROUTES, "review route")
+          normalized["details"] = bounded_history_text(entry["details"])
+        else
+          normalized["kind"] = enum_history_value(normalized["kind"], FAMILY_RELATIVES, "affected relative")
+          normalized["certainty"] = enum_history_value(entry.fetch("certainty", "unknown"), FAMILY_CERTAINTIES, "family-history certainty")
+          normalized["details"] = bounded_history_text(entry["details"])
         end
         normalized
       rescue ArgumentError
@@ -299,7 +320,8 @@ module Clinic
           return answer["entries"].filter_map do |entry|
             next unless entry.is_a?(Hash)
 
-            details = [ entry["kind"], entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
+            details = [ entry["kind"], entry["current_status"], entry["review_route"], entry["certainty"],
+              entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
             [ entry["name"], details.compact.join(" · ") ].compact.join(" — ")
           end.join("\n")
         end

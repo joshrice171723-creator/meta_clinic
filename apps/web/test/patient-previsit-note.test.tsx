@@ -172,6 +172,83 @@ describe("typed patient journey intake", () => {
     );
   });
 
+  it("renders condition and family-history routing controls with uncertainty", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          {
+            id: "history",
+            label: "Health conditions and recent changes",
+            reusable: true,
+            history_kind: "condition",
+          },
+          {
+            id: "family_history",
+            label: "Family history and uncertainty",
+            reusable: true,
+            history_kind: "family",
+          },
+        ]}
+        answers={{
+          history: {
+            state: "answered",
+            value: "",
+            entries: [
+              {
+                kind: "metabolic",
+                name: "Synthetic metabolic condition",
+                date_precision: "approximate",
+                date_value: "2022",
+                duration: "unknown",
+                outcome: "unknown",
+                maintenance: "unknown",
+                stop_reason: "unknown",
+                adverse_effects: "unknown",
+                adverse_effect_details: "",
+                complication_state: "unknown",
+                complication_details: "",
+                current_status: "current",
+                review_route: "clinical_review",
+                details: "Synthetic condition detail",
+              },
+            ],
+          },
+          family_history: {
+            state: "answered",
+            value: "",
+            entries: [
+              {
+                kind: "parent",
+                name: "Synthetic cardiovascular history",
+                date_precision: "unknown",
+                date_value: "",
+                duration: "unknown",
+                outcome: "unknown",
+                maintenance: "unknown",
+                stop_reason: "unknown",
+                adverse_effects: "unknown",
+                adverse_effect_details: "",
+                complication_state: "unknown",
+                complication_details: "",
+                certainty: "uncertain",
+                details: "Synthetic family-history detail",
+              },
+            ],
+          },
+        }}
+        medicationOptions={[]}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("previous condition");
+    expect(html).toContain("Current status");
+    expect(html).toContain("Review route");
+    expect(html).toContain("previous family-history item");
+    expect(html).toContain("Family-history certainty");
+    expect(html).toContain("Synthetic cardiovascular history");
+  });
+
   it("staff chart imports preserve an unconfirmed draft label and do not duplicate the same version", () => {
     const draft = {
       id: 17,
