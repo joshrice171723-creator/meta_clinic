@@ -105,6 +105,26 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "omni clinic login can create a membership in the selected practice" do
+    with_environment do
+      Development::TestAccounts.prepare!
+      practice = Clinic::Practice.create!(name: "Scoped Omni Clinic")
+      site = practice.sites.create!(code: "OMNI", name: "Omni clinic location")
+
+      post "/api/development_session",
+        params: { profile: "omni", portal: "clinic", practice_id: practice.id, site_id: site.id },
+        headers: csrf, as: :json
+
+      assert_response :created
+      assert_equal "/clinic", response.parsed_body.fetch("destination")
+      membership = Clinic::Membership.find_by!(user_id: response.parsed_body.dig("user", "id"), practice: practice)
+      assert membership.active?
+      get "/api/clinic/context", headers: headers
+      assert_response :success
+      assert_equal site.id, response.parsed_body.dig("current_site", "id")
+    end
+  end
+
   test "existing demo sessions stop working after flag removal or outside development" do
     with_environment { enter_demo }
     [ [ "development", nil ], [ "production", "1" ] ].each do |name, flag|

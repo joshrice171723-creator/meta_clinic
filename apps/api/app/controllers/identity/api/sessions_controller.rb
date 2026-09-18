@@ -185,7 +185,7 @@ module Identity
           raise ActiveRecord::RecordNotFound unless source
 
           membership.assign_attributes(active: true, patients_access: source.patients_access,
-            billing_access: source.billing_access, operations_access: source.operations_access)
+            inventory_access: source.inventory_access, staff_access: source.staff_access)
           membership.save!
           source.role_grants.active.find_each do |grant|
             membership.role_grants.create!(practice:, role_version: grant.role_version,
