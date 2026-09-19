@@ -51,6 +51,29 @@ module Clinic
             assessment: "",
             plan: ""
           }.freeze
+        }.freeze,
+        {
+          id: "primary-care-follow-up", version: 1, label: "Primary care follow-up", note_kind: "soap",
+          source_label: "Meta Clinic documentation prompts", source_url: "",
+          caution: "Prompts only. Replace with the visit's documented findings and clinician decisions.",
+          sections: {
+            subjective: "Current concern and interval history:\nMedication and allergy changes:\nPatient priorities:",
+            objective: "Available measurements and examination findings:\nRelevant results:",
+            assessment: "Problems addressed and clinical assessment:",
+            plan: "Agreed next steps:\nPatient instructions:\nFollow-up:"
+          }.freeze
+        }.freeze,
+        {
+          id: "weight-management-follow-up", version: 1, label: "Weight management follow-up", note_kind: "soap",
+          source_label: "Meta Clinic prompts informed by NIDDK weight-management guidance",
+          source_url: "https://www.niddk.nih.gov/health-information/professionals/clinical-tools-patient-management/weight-management/talking-with-your-patients-about-weight",
+          caution: "Prompts only. Document available evidence and clinician decisions; no treatment or dose is implied.",
+          sections: {
+            subjective: "Patient goals and preferences:\nWeight history and interval progress:\nEating, activity, sleep and barriers:\nCurrent treatment experience, if applicable:",
+            objective: "Available weight and other measurements, with dates and units:\nRelevant findings and results:",
+            assessment: "Progress toward goals and individualized assessment:",
+            plan: "Shared next steps:\nSupport and monitoring:\nFollow-up:"
+          }.freeze
         }.freeze
       ].freeze
 

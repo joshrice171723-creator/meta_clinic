@@ -32,6 +32,7 @@ CREATE FUNCTION public.clinic_clinical_linkage_protect() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Clinical linkage evidence is immutable';
 END;
 $$;
@@ -45,6 +46,7 @@ CREATE FUNCTION public.clinic_clinical_revision_protect() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Clinical plan revision history is immutable';
 END;
 $$;
@@ -58,6 +60,7 @@ CREATE FUNCTION public.clinic_encounter_completion_reviews_immutable() RETURNS t
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Encounter completion reviews are append-only';
 END;
 $$;
@@ -90,26 +93,21 @@ $$;
 CREATE FUNCTION public.clinic_invoice_line_editable_draft() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-  DECLARE
-    old_status text;
-    new_status text;
-  BEGIN
-    SELECT status INTO old_status FROM clinic_invoices WHERE id = OLD.invoice_id;
-    IF old_status IS DISTINCT FROM 'draft' THEN
+DECLARE old_status text; new_status text;
+BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
+  SELECT status INTO old_status FROM clinic_invoices WHERE id = OLD.invoice_id;
+  IF old_status IS DISTINCT FROM 'draft' THEN RAISE EXCEPTION 'This record is append-only'; END IF;
+  IF TG_OP = 'UPDATE' THEN
+    SELECT status INTO new_status FROM clinic_invoices WHERE id = NEW.invoice_id;
+    IF OLD.invoice_id IS DISTINCT FROM NEW.invoice_id OR new_status IS DISTINCT FROM 'draft' THEN
       RAISE EXCEPTION 'This record is append-only';
     END IF;
-
-    IF TG_OP = 'UPDATE' THEN
-      SELECT status INTO new_status FROM clinic_invoices WHERE id = NEW.invoice_id;
-      IF OLD.invoice_id IS DISTINCT FROM NEW.invoice_id OR new_status IS DISTINCT FROM 'draft' THEN
-        RAISE EXCEPTION 'This record is append-only';
-      END IF;
-      RETURN NEW;
-    END IF;
-
-    RETURN OLD;
-  END;
-  $$;
+    RETURN NEW;
+  END IF;
+  RETURN OLD;
+END;
+$$;
 
 
 --
@@ -120,6 +118,7 @@ CREATE FUNCTION public.clinic_lab_report_versions_protect() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Lab report versions are append-only';
   END IF;
@@ -158,6 +157,7 @@ CREATE FUNCTION public.clinic_lab_result_follow_ups_protect() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Lab result follow-ups cannot be deleted';
   END IF;
@@ -191,6 +191,7 @@ CREATE FUNCTION public.clinic_model_versions_immutable() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Model-change versions are append-only';
 END;
 $$;
@@ -204,6 +205,7 @@ CREATE FUNCTION public.clinic_operation_receipts_immutable() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'clinic operation receipts are append-only';
 END;
 $$;
@@ -217,6 +219,7 @@ CREATE FUNCTION public.clinic_previsit_notes_protect() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Pre-visit note history is immutable';
 END;
 $$;
@@ -256,7 +259,8 @@ END; $$;
 CREATE FUNCTION public.clinic_task_events_immutable() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-BEGIN RAISE EXCEPTION 'Task events are append-only'; END; $$;
+BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF; RAISE EXCEPTION 'Task events are append-only'; END; $$;
 
 
 --
@@ -267,12 +271,153 @@ CREATE FUNCTION public.clinic_telehealth_wrap_ups_protect_finalized() RETURNS tr
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF OLD.status = 'finalized' THEN
     RAISE EXCEPTION 'Finalized telehealth wrap-ups are immutable';
   END IF;
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: development_demo_reset_allowed(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.development_demo_reset_allowed(row_data jsonb) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $_$
+  SELECT current_setting('apply.development_demo_reset_practice_id', true) ~ '^[1-9][0-9]*$'
+    AND row_data ? 'practice_id'
+    AND row_data->>'practice_id' = current_setting('apply.development_demo_reset_practice_id', true)
+    AND EXISTS (
+      SELECT 1 FROM development_demo_lessons lesson
+      WHERE lesson.practice_id = (row_data->>'practice_id')::bigint
+        AND lesson.lesson_key = current_setting('apply.development_demo_reset_lesson_key', true)
+    )
+$_$;
+
+
+--
+-- Name: development_demo_reset_legacy_stock_allowed(bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.development_demo_reset_legacy_stock_allowed(requested_item_id bigint) RETURNS boolean
+    LANGUAGE sql STABLE
+    AS $_$
+  SELECT current_setting('apply.development_demo_reset_practice_id', true) ~ '^[1-9][0-9]*$'
+    AND EXISTS (
+      SELECT 1
+      FROM clinic_items item
+      JOIN development_demo_lessons lesson ON lesson.practice_id = item.practice_id
+      WHERE item.id = requested_item_id
+        AND item.practice_id::text = current_setting('apply.development_demo_reset_practice_id', true)
+        AND lesson.lesson_key = current_setting('apply.development_demo_reset_lesson_key', true)
+    )
+$_$;
+
+
+--
+-- Name: development_reset_demo_practice(text, bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.development_reset_demo_practice(requested_lesson_key text, requested_practice_id bigint) RETURNS void
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE
+  target record;
+  affected bigint;
+  pass_affected bigint;
+  remaining text;
+  has_rows boolean;
+  pass integer := 0;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM development_demo_lessons lesson
+    WHERE lesson.lesson_key = requested_lesson_key AND lesson.practice_id = requested_practice_id
+    FOR UPDATE
+  ) THEN
+    RAISE EXCEPTION 'Demo reset target is not a registered lesson clinic';
+  END IF;
+
+  PERFORM set_config('apply.development_demo_reset_practice_id', requested_practice_id::text, true);
+  PERFORM set_config('apply.development_demo_reset_lesson_key', requested_lesson_key, true);
+
+  UPDATE clinic_patients SET primary_address_version_id = NULL
+    WHERE practice_id = requested_practice_id AND primary_address_version_id IS NOT NULL;
+  UPDATE clinic_inventory_suppliers SET primary_address_version_id = NULL
+    WHERE practice_id = requested_practice_id AND primary_address_version_id IS NOT NULL;
+  UPDATE clinic_staff_members SET primary_address_version_id = NULL
+    WHERE practice_id = requested_practice_id AND primary_address_version_id IS NOT NULL;
+  UPDATE clinic_telehealth_settings SET active_policy_version_id = NULL
+    WHERE practice_id = requested_practice_id AND active_policy_version_id IS NOT NULL;
+  UPDATE clinic_telehealth_visits
+    SET current_room_attempt_id = NULL, scribe_capture_owner_participant_id = NULL
+    WHERE practice_id = requested_practice_id
+      AND (current_room_attempt_id IS NOT NULL OR scribe_capture_owner_participant_id IS NOT NULL);
+  UPDATE clinic_telehealth_participants SET admitted_checkin_id = NULL
+    WHERE practice_id = requested_practice_id AND admitted_checkin_id IS NOT NULL;
+  UPDATE clinic_scribe_documents SET current_draft_id = NULL
+    WHERE practice_id = requested_practice_id AND current_draft_id IS NOT NULL;
+  UPDATE clinic_inventory_purchase_cart_items SET purchase_order_line_id = NULL
+    WHERE practice_id = requested_practice_id AND purchase_order_line_id IS NOT NULL;
+  UPDATE clinic_inventory_purchase_order_lines SET cart_item_id = NULL
+    WHERE practice_id = requested_practice_id AND cart_item_id IS NOT NULL;
+  UPDATE clinic_lab_reports SET current_version_id = NULL
+    WHERE practice_id = requested_practice_id AND current_version_id IS NOT NULL;
+  UPDATE clinic_subscription_packages SET published_version_id = NULL
+    WHERE practice_id = requested_practice_id AND published_version_id IS NOT NULL;
+
+  DELETE FROM clinic_stock_movements movement
+  USING clinic_items item
+  WHERE movement.item_id = item.id AND item.practice_id = requested_practice_id;
+
+  LOOP
+    pass := pass + 1;
+    pass_affected := 0;
+    FOR target IN
+      SELECT quote_ident(table_name) AS table_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND column_name = 'practice_id'
+        AND left(table_name, 7) = 'clinic_'
+        AND table_name NOT IN ('clinic_memberships', 'clinic_role_grants', 'clinic_role_grant_events')
+      ORDER BY table_name
+    LOOP
+      BEGIN
+        EXECUTE format('DELETE FROM public.%s WHERE practice_id = $1', target.table_name)
+          USING requested_practice_id;
+        GET DIAGNOSTICS affected = ROW_COUNT;
+        pass_affected := pass_affected + affected;
+      EXCEPTION WHEN foreign_key_violation THEN
+        NULL;
+      END;
+    END LOOP;
+
+    remaining := NULL;
+    FOR target IN
+      SELECT quote_ident(table_name) AS table_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND column_name = 'practice_id'
+        AND left(table_name, 7) = 'clinic_'
+        AND table_name NOT IN ('clinic_memberships', 'clinic_role_grants', 'clinic_role_grant_events')
+      ORDER BY table_name
+    LOOP
+      EXECUTE format('SELECT EXISTS (SELECT 1 FROM public.%s WHERE practice_id = $1)', target.table_name)
+        INTO has_rows USING requested_practice_id;
+      IF has_rows THEN
+        remaining := concat_ws(', ', remaining, target.table_name);
+      END IF;
+    END LOOP;
+    EXIT WHEN remaining IS NULL;
+    IF pass_affected = 0 OR pass >= 300 THEN
+      RAISE EXCEPTION 'Demo reset could not clear registered lesson clinic tables: %', remaining;
+    END IF;
+  END LOOP;
+
+  PERFORM set_config('apply.development_demo_reset_practice_id', '', true);
+  PERFORM set_config('apply.development_demo_reset_lesson_key', '', true);
+END;
+$_$;
 
 
 --
@@ -303,6 +448,7 @@ CREATE FUNCTION public.erd_immutable_record() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'This record is append-only';
 END;
 $$;
@@ -335,6 +481,7 @@ CREATE FUNCTION public.guard_invoice_stripe_checkout_routing() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Invoice Stripe checkout history cannot be deleted'; END IF;
   IF (to_jsonb(OLD) - ARRAY['updated_at','session_id','session_status']) <>
      (to_jsonb(NEW) - ARRAY['updated_at','session_id','session_status']) OR
@@ -353,6 +500,7 @@ CREATE FUNCTION public.guard_stripe_routing() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'Stripe routing history cannot be deleted'; END IF;
   IF TG_TABLE_NAME = 'clinic_stripe_connections' THEN
     IF OLD.practice_id <> NEW.practice_id OR OLD.reference <> NEW.reference OR
@@ -616,6 +764,7 @@ CREATE FUNCTION public.inventory_count_session_delete_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Count sessions are retained as inventory evidence';
 END $$;
 
@@ -1104,7 +1253,17 @@ END $$;
 CREATE FUNCTION public.inventory_immutable() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-BEGIN RAISE EXCEPTION 'Inventory history is append-only'; END $$;
+BEGIN
+  IF TG_OP = 'DELETE' AND (
+    development_demo_reset_allowed(to_jsonb(OLD)) OR
+    (TG_TABLE_NAME = 'clinic_stock_movements' AND
+      development_demo_reset_legacy_stock_allowed((to_jsonb(OLD)->>'item_id')::bigint))
+  ) THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION 'Inventory history is append-only';
+END;
+$$;
 
 
 --
@@ -1115,8 +1274,10 @@ CREATE FUNCTION public.inventory_location_delete_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   RAISE EXCEPTION 'Inventory locations must be retired, not deleted';
-END; $$;
+END;
+$$;
 
 
 --
@@ -1683,6 +1844,7 @@ CREATE FUNCTION public.legacy_pharmacy_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP <> 'INSERT' THEN
     RAISE EXCEPTION 'Pharmacy history is append-only';
   END IF;
@@ -1702,6 +1864,7 @@ CREATE FUNCTION public.telehealth_join_grant_freeze() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP = 'DELETE' OR
      (to_jsonb(OLD) - 'revoked_at' - 'revocation_reason') <> (to_jsonb(NEW) - 'revoked_at' - 'revocation_reason') OR
      (OLD.revoked_at IS NOT NULL AND OLD.revoked_at IS DISTINCT FROM NEW.revoked_at) THEN
@@ -1719,6 +1882,7 @@ CREATE FUNCTION public.telehealth_policy_freeze() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF TG_OP = 'DELETE' OR OLD.status = 'retired' OR
      (OLD.status = 'published' AND NOT (
        NEW.status = 'retired' AND NEW.retired_at IS NOT NULL AND
@@ -1739,6 +1903,7 @@ CREATE FUNCTION public.workforce_adjustment_freeze() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF OLD.status IN ('approved','denied') THEN
     RAISE EXCEPTION 'decided workforce adjustments are immutable';
   END IF;
@@ -1754,7 +1919,8 @@ $$;
 CREATE FUNCTION public.workforce_payroll_immutable() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-BEGIN RAISE EXCEPTION 'Workforce payroll history is immutable'; END; $$;
+BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF; RAISE EXCEPTION 'Workforce payroll history is immutable'; END; $$;
 
 
 --
@@ -1765,6 +1931,7 @@ CREATE FUNCTION public.workforce_timecard_freeze() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND development_demo_reset_allowed(to_jsonb(OLD)) THEN RETURN OLD; END IF;
   IF OLD.status IN ('approved','superseded') THEN
     RAISE EXCEPTION 'approved workforce timecards are immutable';
   END IF;
@@ -3643,7 +3810,7 @@ CREATE TABLE public.clinic_intake_consent_revisions (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT intake_consent_values CHECK ((((purpose)::text = ANY ((ARRAY['treatment'::character varying, 'privacy_notice'::character varying, 'product_counseling'::character varying, 'ai_recording'::character varying, 'marketing'::character varying])::text[])) AND (revision > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(content) > 0)))
+    CONSTRAINT intake_consent_values CHECK ((((purpose)::text = ANY (ARRAY[('treatment'::character varying)::text, ('privacy_notice'::character varying)::text, ('product_counseling'::character varying)::text, ('ai_recording'::character varying)::text, ('marketing'::character varying)::text])) AND (revision > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(content) > 0)))
 );
 
 
@@ -11488,6 +11655,41 @@ ALTER SEQUENCE public.contact_messages_id_seq OWNED BY public.contact_messages.i
 
 
 --
+-- Name: development_demo_lessons; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.development_demo_lessons (
+    id bigint NOT NULL,
+    lesson_key character varying NOT NULL,
+    practice_id bigint NOT NULL,
+    operator_user_id bigint NOT NULL,
+    generation integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT development_demo_lessons_values CHECK ((((lesson_key)::text <> ''::text) AND (generation >= 0)))
+);
+
+
+--
+-- Name: development_demo_lessons_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.development_demo_lessons_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: development_demo_lessons_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.development_demo_lessons_id_seq OWNED BY public.development_demo_lessons.id;
+
+
+--
 -- Name: development_demo_runs; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -11502,6 +11704,9 @@ CREATE TABLE public.development_demo_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     visitor_id bigint,
+    lesson_key character varying,
+    baseline jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT development_demo_runs_lesson_key_present CHECK (((lesson_key IS NULL) OR ((lesson_key)::text <> ''::text))),
     CONSTRAINT development_demo_runs_template_key_present CHECK (((template_key)::text <> ''::text))
 );
 
@@ -11535,7 +11740,9 @@ CREATE TABLE public.development_demo_visitors (
     email character varying(254) NOT NULL,
     company character varying(200) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    clinic_name character varying,
+    lesson_progress jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 
 
@@ -13597,6 +13804,13 @@ ALTER TABLE ONLY public.contact_messages ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: development_demo_lessons id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_lessons ALTER COLUMN id SET DEFAULT nextval('public.development_demo_lessons_id_seq'::regclass);
+
+
+--
 -- Name: development_demo_runs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15572,6 +15786,14 @@ ALTER TABLE ONLY public.clinic_working_drafts
 
 ALTER TABLE ONLY public.contact_messages
     ADD CONSTRAINT contact_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: development_demo_lessons development_demo_lessons_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_lessons
+    ADD CONSTRAINT development_demo_lessons_pkey PRIMARY KEY (id);
 
 
 --
@@ -17741,6 +17963,27 @@ CREATE INDEX development_demo_runs_active_practice ON public.development_demo_ru
 
 
 --
+-- Name: development_demo_runs_active_visitor_lesson; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX development_demo_runs_active_visitor_lesson ON public.development_demo_runs USING btree (visitor_id, lesson_key) WHERE (active AND (visitor_id IS NOT NULL) AND (lesson_key IS NOT NULL));
+
+
+--
+-- Name: development_demo_runs_one_active_lesson; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX development_demo_runs_one_active_lesson ON public.development_demo_runs USING btree (lesson_key) WHERE (active AND (lesson_key IS NOT NULL));
+
+
+--
+-- Name: development_demo_runs_one_active_operator; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX development_demo_runs_one_active_operator ON public.development_demo_runs USING btree (operator_user_id) WHERE active;
+
+
+--
 -- Name: diagnosis_context_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -19687,6 +19930,27 @@ CREATE INDEX index_credit_notes_on_practice_and_issuer ON public.clinic_credit_n
 
 
 --
+-- Name: index_development_demo_lessons_on_lesson_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_development_demo_lessons_on_lesson_key ON public.development_demo_lessons USING btree (lesson_key);
+
+
+--
+-- Name: index_development_demo_lessons_on_operator_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_development_demo_lessons_on_operator_user_id ON public.development_demo_lessons USING btree (operator_user_id);
+
+
+--
+-- Name: index_development_demo_lessons_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_development_demo_lessons_on_practice_id ON public.development_demo_lessons USING btree (practice_id);
+
+
+--
 -- Name: index_development_demo_runs_on_membership_prospect_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -19697,7 +19961,7 @@ CREATE INDEX index_development_demo_runs_on_membership_prospect_id ON public.dev
 -- Name: index_development_demo_runs_on_operator_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_development_demo_runs_on_operator_user_id ON public.development_demo_runs USING btree (operator_user_id);
+CREATE INDEX index_development_demo_runs_on_operator_user_id ON public.development_demo_runs USING btree (operator_user_id);
 
 
 --
@@ -26652,6 +26916,14 @@ ALTER TABLE ONLY public.clinic_inventory_catalog_events
 
 
 --
+-- Name: development_demo_lessons fk_rails_5d14bb6966; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_lessons
+    ADD CONSTRAINT fk_rails_5d14bb6966 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_workforce_kiosk_sessions fk_rails_5d1fc20fb8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28081,6 +28353,14 @@ ALTER TABLE ONLY public.clinic_telehealth_checkins
 
 ALTER TABLE ONLY public.clinic_workforce_payroll_configuration_versions
     ADD CONSTRAINT fk_rails_d19cb84774 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: development_demo_lessons fk_rails_d1deb0635b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_lessons
+    ADD CONSTRAINT fk_rails_d1deb0635b FOREIGN KEY (operator_user_id) REFERENCES public.users(id);
 
 
 --
@@ -29578,6 +29858,10 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919080000'),
+('20260919070000'),
+('20260919060000'),
+('20260919050000'),
 ('20260919040000'),
 ('20260919030000'),
 ('20260919020000'),

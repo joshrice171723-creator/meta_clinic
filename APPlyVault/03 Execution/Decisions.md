@@ -1,9 +1,19 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-15
+updated: 2026-09-19
 ---
 # Decisions
+
+## Independent demo lessons — 2026-09-19
+
+**Coverage clarification, same date:** Each left-navigation destination must have at least one lesson, with additional useful workflows preferred. Catalog coverage must follow the actual navigation; hiding destinations or adding empty placeholder lessons does not satisfy this direction.
+
+**Later clarification, same date:** Contact details are usage tracking only. Use one shared clinic per lesson globally, automatically reset upon every entry; do not create personal lesson clinics, retain unfinished work or track completed lessons per person. Show a clear completion message for the current lesson session. This supersedes the per-visitor persistence and resume direction below. Other lesson clinics remain unchanged by a reset.
+
+Founder direction: replace the sequential demo prerequisites with approximately twenty independent lessons. Each visitor's lesson owns its own persistent clinic and all unrelated prerequisites are prepared in advance. Switching lessons preserves their clinics; restarting a lesson replaces only its clinic. A separate full reset clears the visitor's entire demo. Keep the clinic sidebar and guide the target operation with a spotlight. This supersedes sequential demo gating only, not actual clinic authorization or domain prerequisites. Implementation and evidence are tracked in the [guided demo brief](../../docs/development/guided-demo.md); this decision does not claim verification or deployment.
+
+The founder selected primary care and weight management as the initial specialty lesson variants. Scheduling, note documentation, visit completion and memberships each have a separate resettable lesson clinic for both types. Contact details are for usage tracking only. See [guided demo implementation brief](../../docs/development/guided-demo.md).
 
 ## Schedule and patient identity clarification — 2026-09-15
 

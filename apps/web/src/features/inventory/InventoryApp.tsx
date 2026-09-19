@@ -9,7 +9,15 @@ import {
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
-import { Alert, Button, Chip, MenuItem, TextField } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Chip,
+  MenuItem,
+  Tab,
+  Tabs,
+  TextField,
+} from "@mui/material";
 import { api, ApiError } from "../../api/client";
 import { Form as InventoryForm, LoadState } from "../../shared/ui";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
@@ -6695,11 +6703,11 @@ function LotsScreen({
         </nav>
       )}
       {selected && selectedLot && selectedProduct && selectedLocation && (
-        <div className="inventory-two-col wide-left">
+        <div>
           <Card
             title={`${selectedProduct.name} · Lot ${selectedLot.lot_number}`}
           >
-            <div className="inventory-data-grid four">
+            <div className="inventory-data-grid four inventory-stock-summary">
               <DataPoint label="Location" value={selectedLocation.name} />
               <DataPoint
                 label="On hand"
@@ -6708,7 +6716,11 @@ function LotsScreen({
               <DataPoint
                 label="Held"
                 value={`${number(selected.held_units)} ${selectedProduct.base_unit}`}
-                tone="warning"
+                tone={
+                  decimalCompare(selected.held_units, "0") > 0
+                    ? "warning"
+                    : undefined
+                }
               />
               <DataPoint
                 label="Expires"
@@ -6718,30 +6730,41 @@ function LotsScreen({
                 )}
               />
             </div>
-            <div className="inventory-form-actions">
-              <button
-                className={`inventory-button ${action === "transfer" ? "primary" : "outline"}`}
-                type="button"
-                onClick={() => chooseAction("transfer")}
-              >
-                Transfer
-              </button>
-              <button
-                className={`inventory-button ${action === "adjust" ? "primary" : "outline"}`}
-                type="button"
-                onClick={() => chooseAction("adjust")}
-              >
-                Adjust
-              </button>
-              <button
-                className={`inventory-button ${action === "count" ? "primary" : "outline"}`}
-                type="button"
-                onClick={() => chooseAction("count")}
-              >
-                Cycle count
-              </button>
-            </div>
-            <form className="inventory-form-grid" onSubmit={submit}>
+            <Tabs
+              value={action}
+              onChange={(_, value: "transfer" | "adjust" | "count") =>
+                chooseAction(value)
+              }
+              aria-label="Stock action"
+              variant="fullWidth"
+              sx={{ mt: 2, mb: 3, borderBottom: 1, borderColor: "divider" }}
+            >
+              <Tab
+                id="stock-tab-transfer"
+                aria-controls="stock-action-panel"
+                value="transfer"
+                label="Transfer"
+              />
+              <Tab
+                id="stock-tab-adjust"
+                aria-controls="stock-action-panel"
+                value="adjust"
+                label="Adjust"
+              />
+              <Tab
+                id="stock-tab-count"
+                aria-controls="stock-action-panel"
+                value="count"
+                label="Cycle count"
+              />
+            </Tabs>
+            <form
+              className="inventory-form-grid inventory-stock-action"
+              id="stock-action-panel"
+              role="tabpanel"
+              aria-labelledby={`stock-tab-${action}`}
+              onSubmit={submit}
+            >
               <TextField
                 size="small"
                 type="number"
@@ -6773,18 +6796,25 @@ function LotsScreen({
                 onChange={(event) => setQuantity(event.target.value)}
               />
               {action === "transfer" && (
-                <Field label="Destination">
-                  <select
-                    value={effectiveDestination}
-                    onChange={(event) => setDestination(event.target.value)}
-                  >
-                    {transferDestinations.map((item) => (
-                      <option value={item.id} key={item.id}>
-                        {item.path}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                <TextField
+                  select
+                  size="small"
+                  label="Destination"
+                  required
+                  value={effectiveDestination}
+                  onChange={(event) => setDestination(event.target.value)}
+                >
+                  {transferDestinations.map((item) => (
+                    <MenuItem value={item.id} key={item.id}>
+                      {item.path}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {action === "transfer" && blocked && (
+                <Alert severity="warning" sx={{ gridColumn: "1 / -1" }}>
+                  This balance is not eligible for transfer.
+                </Alert>
               )}
               {action === "transfer" && transferDestinations.length === 0 && (
                 <Alert severity="warning">
@@ -6797,6 +6827,9 @@ function LotsScreen({
                 multiline
                 minRows={2}
                 label={action === "adjust" ? "Adjustment reason" : "Reason"}
+                sx={
+                  action === "transfer" ? { gridColumn: "1 / -1" } : undefined
+                }
                 slotProps={{ htmlInput: { maxLength: 200 } }}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
@@ -6865,27 +6898,14 @@ function LotsScreen({
                     action === "adjust" ? "Post adjustment" : undefined
                   }
                 >
-                  Post {action}
+                  {action === "adjust"
+                    ? "Post adjustment"
+                    : action === "count"
+                      ? "Record count"
+                      : "Post transfer"}
                 </ConfirmButton>
               </div>
             </form>
-          </Card>
-          <Card title="Selected balance">
-            <div className="inventory-stack compact">
-              <DataPoint
-                label="On hand"
-                value={`${number(selected.on_hand_units)} ${selectedProduct.base_unit}`}
-              />
-              <p
-                className={
-                  blocked ? "inventory-danger-text" : "inventory-success-line"
-                }
-              >
-                {blocked
-                  ? "Action blocked: this balance is not eligible for transfer."
-                  : "Eligible for transfer."}
-              </p>
-            </div>
           </Card>
         </div>
       )}

@@ -7,5 +7,8 @@ module Development
     validates :name, presence: true, length: { maximum: 160 }
     validates :company, presence: true, length: { maximum: 200 }
     validates :email, presence: true, length: { maximum: 254 }, format: { with: URI::MailTo::EMAIL_REGEXP }
+    validates :clinic_name, length: { maximum: 160 }, allow_blank: true
+    has_many :demo_runs, class_name: "Development::DemoRun", foreign_key: :visitor_id,
+      inverse_of: :visitor, dependent: :restrict_with_error
   end
 end

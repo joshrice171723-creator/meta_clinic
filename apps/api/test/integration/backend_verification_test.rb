@@ -149,7 +149,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     own = @tenants.first
     get "/api/clinic/note_templates", headers: @headers
     assert_response :success
-    assert_equal [ "scribe-reviewed-soap", "adult-physical-exam-detailed" ],
+    assert_equal [ "scribe-reviewed-soap", "adult-physical-exam-detailed", "primary-care-follow-up", "weight-management-follow-up" ],
       response.parsed_body.fetch("templates").pluck("id")
 
     soap_body = Clinic::Care::SoapNotePayload.dump(

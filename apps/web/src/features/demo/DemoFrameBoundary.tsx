@@ -1,13 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, Box, Button, GlobalStyles, Stack } from "@mui/material";
+import { Alert, Box, Button, Stack } from "@mui/material";
 import { api } from "../../api/client";
 import { isDemoFrame, notifyDemo } from "./frame";
+import { DemoSpotlight } from "./DemoSpotlight";
 
 type FrameRun = {
   active: boolean;
   run?: {
     mode: "clinic" | "patient";
-    steps: { id: string; href: string; status: string }[];
+    lesson_key?: string | null;
+    steps: {
+      id: string;
+      href: string;
+      status: string;
+      description?: string;
+      review?: boolean;
+    }[];
   };
 };
 
@@ -100,7 +108,7 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
             {error ||
               (!run
                 ? "Loading your lesson…"
-                : "Choose an unlocked lesson in the walkthrough to continue.")}
+                : "Choose a lesson from the catalog to continue.")}
           </Alert>
           {error && (
             <Button onClick={() => setRevision((value) => value + 1)}>
@@ -113,21 +121,31 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
   }
   return (
     <>
-      <GlobalStyles
-        styles={(theme) => ({
-          '[data-demo-active="true"] [data-demo-next]:not(:disabled)': {
-            outline: `3px solid ${theme.palette.primary.main}`,
-            outlineOffset: 4,
-          },
-        })}
-      />
       {blockedLink && (
         <Alert severity="info" onClose={() => setBlockedLink(false)}>
-          Use the walkthrough to switch lessons. Other areas unlock as you
-          finish their prerequisites.
+          This area is outside the current lesson. Choose another lesson from
+          the catalog to explore it in its own clinic.
         </Alert>
       )}
       {children}
+      {run.run?.steps
+        .filter(
+          (step) =>
+            step.status === "available" &&
+            (!run.run?.lesson_key || step.id === run.run.lesson_key),
+        )
+        .slice(0, 1)
+        .map((step) => (
+          <DemoSpotlight
+            key={step.id}
+            step={step.id}
+            review={step.review === true}
+            description={
+              step.description ||
+              "Follow the highlighted action to complete this lesson."
+            }
+          />
+        ))}
     </>
   );
 }

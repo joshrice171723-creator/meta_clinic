@@ -108,7 +108,6 @@ export function ClinicFrame({
     return () =>
       document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [locationMenuOpen]);
-  if (isDemoFrame()) return <div className="clinic-main">{children}</div>;
   return (
     <div className="clinic-shell" data-collapsed={collapsed}>
       {drawer && (
@@ -306,7 +305,7 @@ export function ClinicFrame({
               <LaunchIcon aria-hidden="true" fontSize="small" />
               <span>Launch &amp; onboarding</span>
             </a>
-            {!developmentPreview && (
+            {!developmentPreview && !isDemoFrame() && (
               <Form
                 className="clinic-sign-out"
                 endpoint="/api/session"

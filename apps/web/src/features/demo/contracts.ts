@@ -7,6 +7,7 @@ export type DemoRunStep = {
   status: DemoRunStepStatus;
   href: string;
   requires: string[];
+  review?: boolean;
 };
 
 export type DemoTemplateOption = {
@@ -22,13 +23,27 @@ export type DemoRun = {
   view: "clinic" | "patient";
   clinic: { id: number | string; name: string; slug: string };
   patient: { id?: number | string; name?: string } | null;
+  lesson_key: string | null;
+  lessons: DemoLesson[];
   steps: DemoRunStep[];
+};
+
+export type DemoLesson = {
+  id: string;
+  title: string;
+  description: string;
+  role: string;
+  section?: string;
+  clinic_type?: string;
+  prepared: string[];
+  status: "available" | "complete";
 };
 
 export type DemoRunInactiveResponse = {
   active: false;
   visitor_registered: boolean;
-  options: DemoTemplateOption[];
+  lessons: DemoLesson[];
+  notice?: string;
 };
 
 export type DemoRunActiveResponse = {

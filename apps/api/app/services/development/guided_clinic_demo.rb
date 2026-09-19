@@ -3,35 +3,59 @@ require "securerandom"
 module Development
   class GuidedClinicDemo
     TEMPLATE_KEYS = %w[primary_care weight_management].freeze
-    OPERATOR_PERMISSIONS = (TestClinic::DEFAULT_PERMISSIONS + TestClinic::SUBSCRIPTION_PERMISSIONS +
-      Clinic::Authorization::PilotRoleCatalog::DEFINITIONS.fetch("clinician").fetch(:permissions)).uniq.freeze
+    OPERATOR_PERMISSIONS = (%w[scribe.read scribe.write] + TestClinic::DEFAULT_PERMISSIONS + TestClinic::SUBSCRIPTION_PERMISSIONS +
+      Clinic::Authorization::PilotRoleCatalog::DEFINITIONS.fetch("clinician").fetch(:permissions) +
+      Clinic::Authorization::PilotRoleCatalog::DEFINITIONS.fetch("clinic-administrator").fetch(:permissions)).uniq.freeze
     OPTIONS = [
       { key: "primary_care", title: "Cash-based primary care", description: "Create memberships and guide a patient through their first visit." },
       { key: "weight_management", title: "Cash-based weight management", description: "Create a weight-management membership and follow the patient journey." }
     ].freeze
+    ClinicResult = Struct.new(:practice, :operator, keyword_init: true)
 
-    def self.start!(template_key:, clinic_name:, visitor: nil)
+    def self.create_clinic!(clinic_name:, operator_email: nil)
+      raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+      clinic_name = clinic_name.to_s.strip
+      raise ArgumentError, "Enter a clinic name." if clinic_name.blank?
+      raise ArgumentError, "Clinic name must be 160 characters or fewer." if clinic_name.length > 160
+
+      suffix = SecureRandom.hex(8)
+      operator = User.create!(email_address: operator_email || "guided-clinic-operator-#{suffix}@example.test",
+        password: SecureRandom.urlsafe_base64(32), active: true)
+      membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
+      practice = membership.practice
+      practice.update!(name: clinic_name, public_membership_slug: "guided-clinic-#{suffix}",
+        membership_storefront_enabled: true)
+      ClinicResult.new(practice:, operator:)
+    end
+
+    def self.prepare_clinic!(practice:, operator:, template_key:, suffix:)
+      membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
+      provision_schedule_baseline!(practice:, membership:, suffix:)
+      configure_template_profile!(practice:, membership:, template_key:, suffix:)
+      if practice.visit_types.empty?
+        practice.visit_types.create!(code: "Initial visit")
+        practice.visit_types.create!(code: "Follow-up visit")
+      end
+      DemoInventory.prepare!(practice:, actor: operator)
+      practice
+    end
+
+    def self.start!(template_key:, clinic_name:, lesson_key:, visitor: nil)
       raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
       raise ArgumentError, "Choose an available guided clinic template." unless TEMPLATE_KEYS.include?(template_key)
+      DemoLessonCatalog.definition!(lesson_key) if lesson_key
       clinic_name = clinic_name.to_s.strip
       raise ArgumentError, "Enter a clinic name." if clinic_name.blank?
       raise ArgumentError, "Clinic name must be 160 characters or fewer." if clinic_name.length > 160
 
       User.transaction do
         suffix = SecureRandom.hex(8)
-        operator = User.create!(email_address: "guided-clinic-operator-#{suffix}@example.test",
-          password: SecureRandom.urlsafe_base64(32), active: true)
-        membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
-        practice = membership.practice
-        practice.update!(name: clinic_name, public_membership_slug: "guided-clinic-#{suffix}", membership_storefront_enabled: true)
-        provision_schedule_baseline!(practice:, membership:, suffix:)
-        configure_template_profile!(practice:, membership:, template_key:, suffix:)
-        if practice.visit_types.empty?
-          practice.visit_types.create!(code: "Initial visit")
-          practice.visit_types.create!(code: "Follow-up visit")
-        end
-        DemoInventory.prepare!(practice:, actor: operator)
-        DemoRun.create!(template_key:, practice:, operator_user: operator, visitor:)
+        clinic = create_clinic!(clinic_name:)
+        operator = clinic.operator
+        practice = clinic.practice
+        prepare_clinic!(practice:, operator:, template_key:, suffix:)
+        run = DemoRun.create!(template_key:, lesson_key:, practice:, operator_user: operator, visitor:)
+        lesson_key ? DemoLessonCatalog.prepare!(run) : run
       end
     end
 
@@ -83,7 +107,8 @@ module Development
     EnrollmentResult = Struct.new(:user, keyword_init: true)
 
     def self.provision_schedule_baseline!(practice:, membership:, suffix:)
-      site = practice.sites.create!(code: "DEMO-#{suffix.first(6).upcase}", name: "Guided Clinic", status: "active")
+      site = practice.sites.create!(code: "DEMO-#{suffix.first(6).upcase}", name: "Guided Clinic", status: "active",
+        address_line1: "100 Example Way", city: "Austin", state: "TX", postal_code: "78701", country: "US")
       practice.rooms.create!(site:, code: "EXAM-1")
       department = practice.departments.create!(code: "PRIMARY-CARE")
       clinician = practice.clinician_profiles.create!(membership:, display_name: "Jordan Example", reference: "DEMO-#{suffix.first(12).upcase}")

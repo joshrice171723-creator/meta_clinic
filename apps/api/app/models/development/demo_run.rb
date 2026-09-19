@@ -9,6 +9,7 @@ module Development
     belongs_to :membership_prospect, class_name: "Clinic::MembershipProspect", optional: true
 
     validates :template_key, presence: true, inclusion: { in: %w[primary_care weight_management] }
+    validates :lesson_key, inclusion: { in: ->(_) { DemoLessonCatalog.lesson_keys } }, allow_nil: true
 
     scope :active, -> { where(active: true) }
 

@@ -14,124 +14,117 @@ module Development
     end
 
     def show
-      run = current_run
+      run = bound_run
       return render json: inactive_payload unless run
+      if run.lesson_key.blank?
+        SharedDemoLesson.leave!(run) if run.active? && valid_run_user?(run)
+        clear_demo_session!
+        return render json: inactive_payload(notice: "The demo now has independent lessons. Choose a lesson to start fresh.")
+      end
+      unless run.active? && valid_run_user?(run)
+        clear_demo_session!
+        return render json: inactive_payload(notice: "This lesson restarted in another demo session. Choose it again to start fresh.")
+      end
 
-      require_run_user!(run)
       render json: active_payload(run)
     end
 
-    def create
-      visitor = current_visitor
-      raise ArgumentError, "Enter your name, email and company before choosing a clinic." unless visitor
-      input = demo_input!(%i[template_key clinic_name])
-      key = required_string!(input[:template_key], field: :template_key, maximum: 80)
-      clinic_name = required_string!(input[:clinic_name], field: :clinic_name, maximum: 160).strip
-      run, created = visitor.with_lock do
-        existing = active_run_for(visitor)
-        if existing
-          unless existing.template_key == key && existing.practice.name == clinic_name
-            raise ArgumentError, "Continue the clinic journey already in progress."
-          end
-          [ existing, false ]
-        else
-          [ GuidedClinicDemo.start!(template_key: key, clinic_name:, visitor:), true ]
-        end
+    def lesson
+      visitor = current_visitor || raise(ActiveRecord::RecordNotFound)
+      input = demo_input!(%i[lesson_key restart])
+      boolean_input!(input, :restart, default: false)
+      lesson_key = input[:lesson_key].presence
+      return leave_lesson(visitor) unless lesson_key
+
+      DemoLessonCatalog.definition!(lesson_key)
+      previous_run = current_run
+      require_run_user!(previous_run) if previous_run
+      run = ApplicationRecord.transaction do
+        selected = SharedDemoLesson.enter!(lesson_key, visitor:, previous_run:)
+        establish_demo_session(session_user_for(selected), selected, view: DemoLessonCatalog.view_for(lesson_key))
+        selected
       end
-      establish_demo_session(run.operator_user, run)
-      render json: active_payload(run), status: created ? :created : :ok
+      render json: active_payload(run), status: :created
     end
 
     def register_visitor
       input = demo_input!(%i[name email company])
-      attributes = {
+      visitor = DemoVisitor.new(
         name: required_string!(input[:name], field: :name, maximum: 160),
         email: required_string!(input[:email], field: :email, maximum: 254),
         company: required_string!(input[:company], field: :company, maximum: 200)
-      }
-      candidate = DemoVisitor.new(attributes)
-      unless candidate.valid?
-        return render json: { error: candidate.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      )
+      unless visitor.save
+        return render json: { error: visitor.errors.full_messages.to_sentence }, status: :unprocessable_entity
       end
-      previous_visitor = current_visitor
-      email_changed = previous_visitor && previous_visitor.email != candidate.email
-      visitor = DemoVisitor.transaction do
-        previous_visitor.with_lock { retire_active_runs_for!(previous_visitor) } if email_changed
-        visitor = if email_changed
-          candidate
-        else
-          previous_visitor || candidate
-        end
-        visitor.assign_attributes(attributes) if previous_visitor && !email_changed
-        visitor.save!
-        visitor
-      end
-      if email_changed
-        reset_session
-        @current_member_session = nil
-        cookies.delete(:guided_clinic_demo_run)
-      end
-      cookies.encrypted[:guided_clinic_demo_visitor] = {
-        value: visitor.id.to_s, httponly: true, same_site: :lax, secure: Rails.env.production?
-      }
-      if !email_changed && (run = current_run) && current_user&.id.in?([ run.operator_user_id, run.patient_user_id ].compact)
-        return render json: active_payload(run)
-      end
-      render json: { active: false, visitor_registered: true, options: GuidedClinicDemo::OPTIONS }
+      run = current_run
+      SharedDemoLesson.leave!(run) if run && valid_run_user?(run)
+      clear_demo_session!
+      cookies.encrypted[:guided_clinic_demo_visitor] = cookie_value(visitor.id)
+      render json: inactive_payload(visitor:)
     end
 
     def view
       run = current_run!
       require_run_user!(run)
-      input = demo_input!(%i[view])
-      requested_view = required_string!(input[:view], field: :view, maximum: 20)
+      requested_view = required_string!(demo_input!(%i[view])[:view], field: :view, maximum: 20)
       case requested_view
       when "patient"
-        raise ArgumentError, "Finalize clinic setup and publish a membership before opening the patient storefront." unless practice_finalized?(run.practice) && published?(run)
-        establish_demo_session(run.patient_user || run.operator_user, run)
+        raise ArgumentError, "This lesson does not have a patient view yet." unless run.patient_user
+        establish_demo_session(run.patient_user, run, view: requested_view)
       when "clinic"
-        raise ArgumentError, "Complete the local payment before returning to the clinic." unless run.paid_patient?
-        establish_demo_session(run.operator_user, run)
+        establish_demo_session(run.operator_user, run, view: requested_view)
       else
         raise ArgumentError, "Choose the clinic or patient view."
       end
-      session[:guided_clinic_demo_view] = requested_view
       render json: active_payload(run)
     end
 
     def reset
-      if (run = current_run)
-        require_run_user!(run)
-        run.with_lock do
-          [run.operator_user, run.patient_user].compact.each do |user|
-            user.member_sessions.destroy_all
-            user.update!(active: false)
-          end
-          run.update!(active: false)
-        end
-        reset_session
-        @current_member_session = nil
+      input = demo_input!(%i[all])
+      clear_visitor = boolean_input!(input, :all, default: false)
+      visitor = current_visitor
+      run = current_run
+      SharedDemoLesson.leave!(run) if run && valid_run_user?(run)
+      clear_demo_session!
+      cookies.delete(:guided_clinic_demo_visitor) if clear_visitor
+      render json: inactive_payload(visitor: clear_visitor ? nil : visitor)
+    end
+
+    def complete
+      run = current_run!
+      require_run_user!(run)
+      review_lesson = DemoNavigationLessons::DEFINITIONS.any? { |definition| definition.fetch(:id) == run.lesson_key } &&
+        DemoNavigationLessons.review?(run.lesson_key)
+      raise ArgumentError, "This lesson is completed by its guided action." unless review_lesson
+      run.with_lock do
+        raise ActiveRecord::RecordNotFound unless run.reload.active?
+        run.update!(baseline: run.baseline.to_h.merge("review_acknowledged" => true))
       end
-      cookies.delete(:guided_clinic_demo_run)
-      render json: inactive_payload
+      render json: active_payload(run)
     end
 
     def enrollment
       run = current_run!
       require_run_user!(run)
-      raise ArgumentError, "Finish clinic setup and publish a membership first." unless practice_finalized?(run.practice) && published?(run)
+      raise ArgumentError, "Open the patient enrollment lesson first." unless run.lesson_key == "patient_enroll"
       input = demo_input!(%i[version_id], arrays: %i[selections])
       version_id = integer_id!(input[:version_id], field: :version_id)
       selections = Array(input[:selections]).map { |value| integer_id!(value, field: :selections) }
       result = GuidedClinicDemo.enroll!(run:, version_id:, selections:)
-      establish_demo_session(result.user, run)
-      session[:guided_clinic_demo_view] = "patient"
+      establish_demo_session(result.user, run, view: "patient")
       render json: { destination: "/memberships/account?payment=local" }, status: :created
-    rescue ArgumentError => error
-      render json: { error: error.message, code: "invalid_request" }, status: :unprocessable_entity
     end
 
     private
+
+    def leave_lesson(visitor)
+      run = current_run
+      require_run_user!(run) if run
+      SharedDemoLesson.leave!(run) if run
+      clear_demo_session!
+      render json: inactive_payload(visitor:)
+    end
 
     def current_visitor
       binding = cookies.encrypted[:guided_clinic_demo_visitor]
@@ -140,72 +133,73 @@ module Development
       nil
     end
 
-    def inactive_payload
-      registered = current_visitor.present?
-      { active: false, visitor_registered: registered, options: registered ? GuidedClinicDemo::OPTIONS : [] }
+    def inactive_payload(visitor: current_visitor, notice: nil)
+      registered = visitor.present?
+      { active: false, visitor_registered: registered,
+        lessons: registered ? DemoLessonCatalog.catalog : [] }.tap do |payload|
+        payload[:notice] = notice if notice
+      end
     end
 
     def require_development_access
       raise ActiveRecord::RecordNotFound unless DevelopmentAccess.allowed?(request)
     end
 
-    def current_run
+    def bound_run
       binding = cookies.encrypted[:guided_clinic_demo_run]
-      visitor = current_visitor
-      return if binding.blank? || visitor.blank?
-
-      DemoRun.active.find_by(id: Integer(binding, 10), visitor_id: visitor.id)
+      DemoRun.find_by(id: Integer(binding, 10)) if binding.present?
     rescue ActiveSupport::MessageEncryptor::InvalidMessage, ArgumentError
       cookies.delete(:guided_clinic_demo_run)
       nil
+    end
+
+    def current_run
+      run = bound_run
+      run if run&.active?
     end
 
     def current_run!
       current_run || raise(ActiveRecord::RecordNotFound)
     end
 
-    def active_run_for(visitor)
-      DemoRun.active.find_by(visitor_id: visitor.id)
-    end
-
-    def retire_active_runs_for!(visitor)
-      DemoRun.active.where(visitor_id: visitor.id).find_each do |run|
-        run.with_lock do
-          next unless run.active?
-
-          [ run.operator_user, run.patient_user ].compact.each do |user|
-            user.member_sessions.destroy_all
-            user.update!(active: false)
-          end
-          run.update!(active: false)
-        end
-      end
+    def valid_run_user?(run)
+      current_user&.id.in?([ run.operator_user_id, run.patient_user_id ].compact)
     end
 
     def require_run_user!(run)
-      return if current_user&.id.in?([ run.operator_user_id, run.patient_user_id ].compact)
-
-      raise ActiveRecord::RecordNotFound
+      raise ActiveRecord::RecordNotFound unless run && valid_run_user?(run)
     end
 
-    def require_operator!(run)
-      raise ActiveRecord::RecordNotFound unless current_user&.id == run.operator_user_id
+    def clear_demo_session!
+      reset_session
+      @current_member_session = nil
+      cookies.delete(:guided_clinic_demo_run)
     end
 
-    def establish_demo_session(user, run)
+    def establish_demo_session(user, run, view:)
       establish_session(user)
       session[:development_demo_user_id] = user.id
       if user.id == run.operator_user_id
         session[:clinic_membership_id] = user.clinic_memberships.find_by!(practice_id: run.practice_id).id
         session[:clinic_site_id] = run.practice.sites.first!.id
       end
-      cookies.encrypted[:guided_clinic_demo_run] = {
-        value: run.id.to_s, httponly: true, same_site: :lax, secure: Rails.env.production?
-      }
+      session[:guided_clinic_demo_view] = view
+      cookies.encrypted[:guided_clinic_demo_run] = cookie_value(run.id)
     end
 
-    def published?(run)
-      Clinic::Care::SubscriptionProjection.catalog(practice: run.practice).any?
+    def session_user_for(run)
+      DemoLessonCatalog.view_for(run.lesson_key) == "patient" && run.patient_user ? run.patient_user : run.operator_user
+    end
+
+    def cookie_value(id)
+      { value: id.to_s, httponly: true, same_site: :lax, secure: Rails.env.production? }
+    end
+
+    def boolean_input!(input, field, default:)
+      return default unless input.key?(field)
+      value = input[field]
+      return value if value == true || value == false
+      raise Clinic::Api::RequestParameters::Invalid.new("#{field} must be true or false.", field:)
     end
 
     def demo_input!(permitted, arrays: [])
@@ -221,58 +215,19 @@ module Development
         next unless input.key?(field) || input.key?(field.to_s)
         raise Clinic::Api::RequestParameters::Invalid.new("#{field} must be an array.", field:) unless input[field].is_a?(Array)
       end
-      input.permit(*permitted, arrays.to_h { |field| [field, []] })
+      input.permit(*permitted, arrays.to_h { |field| [ field, [] ] })
     end
 
     def active_payload(run)
-      prospect = run.membership_prospect
       patient = run.patient
-      appointment = patient && Clinic::Appointment.where(practice_id: run.practice_id, patient_id: patient.id).order(id: :desc).first
-      encounter = patient && Clinic::Encounter.where(practice_id: run.practice_id, patient_id: patient.id).order(id: :desc).first
-      setup_complete = practice_finalized?(run.practice)
-      capacity_ready = Clinic::Scheduling::CapacityRule.where(practice_id: run.practice_id, kind: "weekly").exists?
-      published = published?(run)
-      paid = run.paid_patient?
-      booked = appointment.present? && !%w[cancelled no_show].include?(appointment.status)
-      checked_in = encounter.present?
-      completed = encounter&.ended_at.present?
-      inventory_received = Clinic::Inventory::Receipt.where(practice_id: run.practice_id).exists?
-      inventory_counted = Clinic::Inventory::CountSession.where(practice_id: run.practice_id, status: "completed").exists?
-      inventory_used = Clinic::Inventory::PharmacyMovement.where(practice_id: run.practice_id, kind: "adjustment_out")
-        .where("created_at >= ?", run.created_at).exists?
-      schedule_href = patient ? "/clinic/schedule?patient_id=#{patient.id}" : "/clinic/schedule"
-      check_in_href = appointment ? "/clinic/front-desk?date=#{appointment.starts_at.in_time_zone(run.practice.timezone).to_date.iso8601}" : "/clinic/front-desk"
-      visit_href = encounter ? "/clinic/patients/#{patient.id}/encounters/#{encounter.id}" : "/clinic/patients"
-
-      view = session[:guided_clinic_demo_view] || "clinic"
+      view = session[:guided_clinic_demo_view] || DemoLessonCatalog.view_for(run.lesson_key)
       { active: true, run: {
-        id: run.id, template_key: run.template_key, mode: view, view:,
+        id: run.id, template_key: run.template_key, lesson_key: run.lesson_key,
+        mode: view, view:,
         clinic: { id: run.practice_id, name: run.practice.name, slug: run.practice.public_membership_slug },
         patient: patient && { id: patient.id, name: patient.display_name },
-        steps: [
-          step("setup", "Configure the clinic", "Review the clinic type and services, save any changes, then choose Finalize clinic setup.", setup_complete, "/clinic/setup", []),
-          step("publish", "Create memberships", "Create a membership, set its price and terms, add its included services, then publish it. You can create multiple options before switching to the patient storefront.", published, "/clinic/subscriptions", [ "setup" ]),
-          step("enroll", "Open the patient storefront", "Choose the published offer as the fictional patient.", prospect.present?, "/memberships/#{run.practice.public_membership_slug}", [ "publish" ]),
-          step("payment", "Accept simulated payment", "Select Accept simulated payment. Once the payment is verified, the walkthrough returns you to the clinic with this patient.", paid, "/memberships/account?payment=local", [ "enroll" ]),
-          step("schedule", "Book the first appointment", "Schedule the paid patient.", booked, schedule_href, capacity_ready ? [ "payment" ] : [ "payment", "capacity" ]),
-          step("check_in", "Check in the patient", "Find the scheduled patient, choose Check in, then confirm to open the visit.", checked_in, check_in_href, [ "schedule" ]),
-          step("visit", "Save and complete the visit", "Save the encounter and complete it.", completed, visit_href, [ "check_in" ]),
-          step("inventory_receive", "Receive inventory", "Open the prepared glove shipment. Record two packages, a lot number and future expiry, select Supply cabinet, and save the receipt. The shipment is fictional; nothing is ordered externally.", inventory_received, "/clinic/inventory/receiving", [ "setup" ]),
-          step("inventory_count", "Count inventory", "Create a count for Supply cabinet, assign it to your account, record the observed quantity, reconcile its lines, then complete the count.", inventory_counted, "/clinic/inventory/counts", [ "inventory_receive" ]),
-          step("inventory_use", "Record stock usage", "Open the received glove lot and record a negative stock adjustment with a reason. Check the resulting balance and movement history.", inventory_used, "/clinic/inventory/lots", [ "inventory_count" ])
-        ]
+        lessons: DemoLessonCatalog.catalog, steps: [ DemoLessonCatalog.step_for(run) ]
       } }
-    end
-
-    def practice_finalized?(practice)
-      Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:finalized)
-    end
-
-    def step(id, title, description, complete, href, requires)
-      available = requires.all? { |dependency| @completed_steps&.include?(dependency) }
-      @completed_steps ||= []
-      @completed_steps << id if complete && available
-      { id:, title:, description:, status: available ? (complete ? "complete" : "available") : "locked", href:, requires: }
     end
   end
 end

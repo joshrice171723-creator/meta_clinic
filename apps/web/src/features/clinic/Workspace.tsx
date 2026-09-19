@@ -676,13 +676,11 @@ export function Workspace({
                     selectedLocationId={data.current_site?.id}
                     onLocationChange={(siteId) => void selectSite(siteId)}
                     navigation={
-                      !isDemoFrame() && (
-                        <ClinicNavigation
-                          capabilities={data.capabilities}
-                          path={path}
-                          homeView={homeView}
-                        />
-                      )
+                      <ClinicNavigation
+                        capabilities={data.capabilities}
+                        path={path}
+                        homeView={homeView}
+                      />
                     }
                     developmentPreview={!!user.development_demo}
                   >

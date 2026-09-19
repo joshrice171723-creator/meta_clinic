@@ -1640,3 +1640,23 @@ code {
     grid-row: 1;
   }
 }
+
+.inventory-stock-action {
+  align-items: start;
+  row-gap: 24px;
+}
+.inventory-stock-action > .inventory-form-actions {
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .inventory-data-grid.inventory-stock-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .inventory-data-grid.inventory-stock-summary {
+    grid-template-columns: 1fr;
+  }
+}
