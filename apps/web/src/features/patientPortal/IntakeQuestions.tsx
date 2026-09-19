@@ -93,19 +93,37 @@ export type IntakeField = {
     | "family"
     | "medication"
     | "allergy";
+  reference_kind?: "clinic_medication_catalog";
 };
 
-export function intakeFieldVisible(field: IntakeField, answers: IntakeAnswers) {
+export function intakeFieldVisible(
+  field: IntakeField,
+  answers: IntakeAnswers,
+  definitions: IntakeField[] = [],
+  visited: string[] = [],
+) {
   if (!field.depends_on) return true;
+  if (visited.includes(field.id)) return false;
+  const parent = definitions.find(
+    (candidate) => candidate.id === field.depends_on,
+  );
+  if (
+    parent &&
+    !intakeFieldVisible(parent, answers, definitions, [...visited, field.id])
+  )
+    return false;
   const dependency = answers[field.depends_on];
-  return (
-    answerState(dependency) === "answered" &&
-    dependencyMatches(
-      field,
-      typeof dependency === "object" && dependency.values
-        ? dependency.values
-        : answerValue(dependency),
-    )
+  const state = answerState(dependency);
+  if (state !== "answered") {
+    return (field.depends_values ?? []).some(
+      (value) => value === state || (state === "negative" && value === "no"),
+    );
+  }
+  return dependencyMatches(
+    field,
+    typeof dependency === "object" && dependency.values
+      ? dependency.values
+      : answerValue(dependency),
   );
 }
 
@@ -212,6 +230,7 @@ export function IntakeQuestions({
   disabled,
   onChange,
   medicationOptions = [],
+  medicationReferences = [],
   answerStates = [...DEFAULT_ANSWER_STATES],
 }: {
   fields: IntakeField[];
@@ -219,6 +238,7 @@ export function IntakeQuestions({
   disabled: boolean;
   onChange: (answers: IntakeAnswers) => void;
   medicationOptions?: string[];
+  medicationReferences?: Array<{ id: string; name: string }>;
   answerStates?: string[];
 }) {
   const set = (id: string, change: Exclude<IntakeAnswer, string>) =>
@@ -226,7 +246,7 @@ export function IntakeQuestions({
   return (
     <Stack spacing={2}>
       {fields
-        .filter((field) => intakeFieldVisible(field, answers))
+        .filter((field) => intakeFieldVisible(field, answers, fields))
         .map((field) => {
           const answer = answers[field.id];
           const detail: Exclude<IntakeAnswer, string> =
@@ -278,6 +298,7 @@ export function IntakeQuestions({
                   answers={answers}
                   entries={historyEntries(answer, field.history_kind)}
                   medicationOptions={medicationOptions}
+                  medicationReferences={medicationReferences}
                   disabled={disabled}
                   onChange={(entries) =>
                     set(field.id, {
@@ -292,6 +313,7 @@ export function IntakeQuestions({
                   field={field}
                   answers={answers}
                   entries={detail.entries ?? []}
+                  medicationReferences={medicationReferences}
                   disabled={disabled}
                   onChange={(entries) =>
                     set(field.id, {
@@ -560,6 +582,7 @@ function HistoryEntryEditor({
   answers,
   entries,
   medicationOptions,
+  medicationReferences,
   disabled,
   onChange,
 }: {
@@ -575,6 +598,7 @@ function HistoryEntryEditor({
   recordFields: IntakeField[];
   answers: IntakeAnswers;
   medicationOptions: string[];
+  medicationReferences: Array<{ id: string; name: string }>;
   disabled: boolean;
   onChange: (entries: IntakeHistoryEntry[]) => void;
 }) {
@@ -690,7 +714,7 @@ function HistoryEntryEditor({
                 : ["certainty", "details"]),
   ]);
   const extraFields = recordFields.filter(
-    (field) => !existingFields.has(field.id),
+    (field) => !existingFields.has(field.id) && field.id !== "product_id",
   );
 
   return (
@@ -726,19 +750,48 @@ function HistoryEntryEditor({
           kind === "medication" ? (
             <>
               <Autocomplete
-                options={[...medicationOptions, "Other — enter manually"]}
+                options={[
+                  ...medicationReferences.map((product) => ({
+                    ...product,
+                    label: product.name,
+                  })),
+                  ...(!medicationReferences.length
+                    ? medicationOptions.map((name) => ({
+                        id: "",
+                        name,
+                        label: name,
+                      }))
+                    : []),
+                  { id: "other", name: "", label: "Other — enter manually" },
+                ]}
+                getOptionLabel={(option) => option.label}
+                getOptionKey={(option) => option.id || option.name}
+                isOptionEqualToValue={(option, value) =>
+                  option.id === value.id && option.name === value.name
+                }
                 value={
-                  medicationOptions.includes(entry.name)
-                    ? entry.name
+                  medicationReferences.find(
+                    (product) => product.id === entry.product_id,
+                  )
+                    ? {
+                        ...medicationReferences.find(
+                          (product) => product.id === entry.product_id,
+                        )!,
+                        label: entry.name,
+                      }
                     : entry.name
-                      ? "Other — enter manually"
+                      ? {
+                          id: "other",
+                          name: "",
+                          label: "Other — enter manually",
+                        }
                       : null
                 }
                 disabled={disabled}
                 onChange={(_event, value) =>
                   update(index, {
-                    name:
-                      value === "Other — enter manually" ? "" : (value ?? ""),
+                    name: value?.name ?? "",
+                    product_id: value?.id === "other" ? "" : (value?.id ?? ""),
                   })
                 }
                 renderInput={(params) => (
@@ -752,7 +805,9 @@ function HistoryEntryEditor({
                   />
                 )}
               />
-              {!medicationOptions.includes(entry.name) && (
+              {!medicationReferences.some(
+                (product) => product.id === entry.product_id,
+              ) && (
                 <TextField
                   label={
                     kind === "medication"
@@ -1014,6 +1069,7 @@ function HistoryEntryEditor({
                       ["mcg", "mcg"],
                       ["g", "g"],
                       ["mL", "mL"],
+                      ["syringe_units", "Syringe units"],
                       ["tablet", "Tablet"],
                       ["capsule", "Capsule"],
                       ["patch", "Patch"],

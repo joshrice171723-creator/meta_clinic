@@ -3,6 +3,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Autocomplete,
   Button,
   MenuItem,
   Stack,
@@ -229,12 +230,14 @@ export function RecordFields({
   answers,
   disabled,
   onChange,
+  medicationReferences = [],
 }: {
   fields: IntakeField[];
   entry: IntakeRecordEntry;
   answers: IntakeAnswers;
   disabled: boolean;
   onChange: (change: IntakeRecordEntry) => void;
+  medicationReferences?: Array<{ id: string; name: string }>;
 }) {
   const ids = new Set(fields.map((field) => field.id));
   return (
@@ -258,32 +261,56 @@ export function RecordFields({
         .map((field) => {
           const otherKey = `${field.id}_other_detail`;
           const unitKey = `${field.id}_unit`;
+          const isMedicationReference = field.reference_kind === "clinic_medication_catalog";
+          const selectedMedication = medicationReferences.find(
+            (product) => product.id === entry[field.id],
+          );
           return (
             <IntakeFieldFrame key={field.id} field={field}>
-              <IntakeValueControl
-                field={field}
-                value={
-                  entry[field.id] ??
-                  (field.input_type === "multiselect" ? [] : "")
-                }
-                disabled={disabled}
-                onChange={(value) =>
-                  onChange({
+              {isMedicationReference ? (
+                <>
+                  <Autocomplete
+                    options={[
+                      ...medicationReferences,
+                      { id: "other", name: "Other — enter manually" },
+                    ]}
+                    getOptionLabel={(option) => option.name}
+                    getOptionKey={(option) => option.id}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    value={selectedMedication ?? (entry.name ? { id: "other", name: "Other — enter manually" } : null)}
+                    disabled={disabled}
+                    onChange={(_event, value) =>
+                      onChange({
+                        [field.id]: value?.id === "other" ? "" : (value?.id ?? ""),
+                        name: value && value.id !== "other" ? value.name : "",
+                      })
+                    }
+                    renderInput={(params) => (
+                      <TextField {...params} label={field.label} helperText="Choose a clinic catalog medicine or enter Other manually." />
+                    )}
+                  />
+                  {!selectedMedication && (
+                    <TextField
+                      label="Other medicine name"
+                      value={entry.name ?? ""}
+                      disabled={disabled}
+                      onChange={(event) => onChange({ [field.id]: "", name: event.target.value })}
+                    />
+                  )}
+                </>
+              ) : (
+                <IntakeValueControl
+                  field={field}
+                  value={entry[field.id] ?? (field.input_type === "multiselect" ? [] : "")}
+                  disabled={disabled}
+                  onChange={(value) => onChange({
                     [field.id]: value,
-                    ...(!hasOtherChoice(value) && entry[otherKey] !== undefined
-                      ? { [otherKey]: "" }
-                      : {}),
-                  })
-                }
-                otherDetail={
-                  typeof entry[otherKey] === "string" ? entry[otherKey] : ""
-                }
-                onOtherDetailChange={
-                  ids.has(otherKey)
-                    ? undefined
-                    : (value) => onChange({ [otherKey]: value })
-                }
-              />
+                    ...(!hasOtherChoice(value) && entry[otherKey] !== undefined ? { [otherKey]: "" } : {}),
+                  })}
+                  otherDetail={typeof entry[otherKey] === "string" ? entry[otherKey] : ""}
+                  onOtherDetailChange={ids.has(otherKey) ? undefined : (value) => onChange({ [otherKey]: value })}
+                />
+              )}
               {!!field.units?.length && !ids.has(unitKey) && (
                 <IntakeValueControl
                   field={{
@@ -324,12 +351,14 @@ export function RecordEntryEditor({
   answers,
   disabled,
   onChange,
+  medicationReferences,
 }: {
   field: IntakeField;
   entries: IntakeRecordEntry[];
   answers: IntakeAnswers;
   disabled: boolean;
   onChange: (entries: IntakeRecordEntry[]) => void;
+  medicationReferences?: Array<{ id: string; name: string }>;
 }) {
   const entryKeys = useIntakeEntryKeys(entries.length);
   return (
@@ -353,6 +382,7 @@ export function RecordEntryEditor({
             fields={field.record_fields ?? []}
             entry={entry}
             answers={answers}
+            medicationReferences={medicationReferences}
             disabled={disabled}
             onChange={(change) =>
               onChange(

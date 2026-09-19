@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   IntakeQuestions,
   answerState,
+  intakeFieldVisible,
 } from "../src/features/patientPortal/IntakeQuestions";
 import {
   appendPrevisitNote,
@@ -25,6 +26,43 @@ describe("PatientPrevisitNote load scope", () => {
 });
 
 describe("typed patient journey intake", () => {
+  it("hides nested answers when an upstream multiselect branch closes", () => {
+    const fields = [
+      { id: "domains", label: "Domains" },
+      {
+        id: "use",
+        label: "Use",
+        depends_on: "domains",
+        depends_values: ["medication"],
+      },
+      {
+        id: "details",
+        label: "Details",
+        depends_on: "use",
+        depends_values: ["unknown"],
+      },
+    ];
+    expect(
+      intakeFieldVisible(
+        fields[2],
+        {
+          domains: { state: "answered", value: "", values: ["medication"] },
+          use: { state: "unknown", value: "" },
+        },
+        fields,
+      ),
+    ).toBe(true);
+    expect(
+      intakeFieldVisible(
+        fields[2],
+        {
+          domains: { state: "answered", value: "", values: ["sleep"] },
+          use: { state: "unknown", value: "" },
+        },
+        fields,
+      ),
+    ).toBe(false);
+  });
   it("avoids duplicated status labels and explains the not-asked state", () => {
     const html = renderToStaticMarkup(
       <IntakeQuestions
@@ -188,6 +226,30 @@ describe("typed patient journey intake", () => {
     expect(html).not.toContain(
       "Describe every prior treatment in one text box",
     );
+  });
+
+  it("renders a catalog medicine picker for generic medication-reference records", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          {
+            id: "current_treatment_use",
+            label: "Actual weight-management treatment use",
+            reusable: true,
+            record_fields: [
+              { id: "product_id", label: "Exact product", reference_kind: "clinic_medication_catalog" },
+              { id: "name", label: "Exact product" },
+            ],
+          },
+        ]}
+        answers={{ current_treatment_use: { state: "answered", value: "", entries: [{ product_id: "42", name: "Synthetic catalog medicine" }] } }}
+        medicationReferences={[{ id: "42", name: "Synthetic catalog medicine" }]}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("Synthetic catalog medicine");
+    expect(html).toContain("Choose a clinic catalog medicine or enter Other manually.");
   });
 
   it("renders condition and family-history routing controls with uncertainty", () => {

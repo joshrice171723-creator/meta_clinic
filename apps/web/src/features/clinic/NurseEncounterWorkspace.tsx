@@ -42,6 +42,9 @@ import {
   type IntakeAnswers,
 } from "../patientPortal/IntakeQuestions";
 import { VitalSignsEntry } from "./VitalSignsEntry";
+import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
+import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
+import { PatientCareCoordination } from "./PatientCareCoordination";
 
 type IntakeForm = Pick<
   EncounterIntakeRevision,
@@ -57,6 +60,7 @@ type IntakeForm = Pick<
     status: "draft" | "submitted";
     confirmed: boolean;
     confirmed_chunks: number[];
+    evidence_keys?: string[];
   };
 };
 
@@ -125,6 +129,8 @@ export function NurseEncounterWorkspace({
   const [error, setError] = useState("");
   const [activeChunk, setActiveChunk] = useState(0);
   const hydratedVersion = useRef<number | null>(null);
+  const saveAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const groupHeading = useRef<HTMLHeadingElement | null>(null);
   const [roomId, setRoomId] = useState<number | null>(encounter.room_id);
   const [encounterObservations, setEncounterObservations] =
     useState<Observation[]>(observations);
@@ -137,6 +143,7 @@ export function NurseEncounterWorkspace({
     setNotice("");
     setActiveChunk(0);
     hydratedVersion.current = null;
+    saveAttempt.current = null;
     setRoomId(encounter.room_id);
     setEncounterObservations(observations);
   }, [patient.id, encounter.id]);
@@ -186,7 +193,8 @@ export function NurseEncounterWorkspace({
     const intake = resource.data?.intake;
     if (
       !intake ||
-      hydratedVersion.current === intake.version ||
+      (hydratedVersion.current !== null &&
+        hydratedVersion.current >= intake.version) ||
       (dirty && form.questionnaire)
     )
       return;
@@ -202,7 +210,14 @@ export function NurseEncounterWorkspace({
         text: intake.questionnaire?.text ?? "",
         status: intake.questionnaire?.status ?? "draft",
         confirmed: false,
-        confirmed_chunks: intake.questionnaire?.confirmed_chunks ?? [],
+        confirmed_chunks:
+          intake.questionnaire?.questionnaire_version ===
+          resource.data?.questionnaire_form?.version
+            ? (intake.questionnaire?.confirmed_chunks ?? [])
+            : [],
+        evidence_keys:
+          intake.questionnaire?.evidence_references?.map((item) => item.key) ??
+          [],
       },
     };
     setForm(next);
@@ -222,6 +237,10 @@ export function NurseEncounterWorkspace({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+
+  useEffect(() => {
+    groupHeading.current?.focus();
+  }, [activeChunk]);
 
   useEffect(() => {
     if (
@@ -293,7 +312,10 @@ export function NurseEncounterWorkspace({
     Math.max(intakeChunks.length - 1, 0),
   );
   const roomRequired = encounter.visit_modality !== "video";
-  const intakeVersion = workspace.intake?.version ?? 0;
+  const intakeVersion = Math.max(
+    workspace.intake?.version ?? 0,
+    hydratedVersion.current ?? 0,
+  );
   const staleHandoff = Boolean(
     workspace.handoff &&
     workspace.intake &&
@@ -360,24 +382,31 @@ export function NurseEncounterWorkspace({
             confirmed_chunks: confirmedChunksToSave,
           }
         : undefined;
+      const intakeRequest = {
+        ...formToSave,
+        questionnaire:
+          JSON.stringify(questionnaire) ===
+          JSON.stringify(baseline.questionnaire)
+            ? undefined
+            : questionnaire,
+        expected_version: intakeVersion,
+        observation_ids:
+          formToSave.vitals_state === "recorded" ? observationIds : [],
+        history_review_ids:
+          formToSave.history_state === "reviewed" ? reviewIds : [],
+      };
+      const signature = JSON.stringify(intakeRequest);
+      if (saveAttempt.current?.signature !== signature) {
+        saveAttempt.current = { signature, key: requestKey() };
+      }
       const response = await api<{ intake: EncounterIntakeRevision }>(
         `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/intake_revisions`,
         {
           method: "POST",
           body: {
             intake: {
-              ...formToSave,
-              questionnaire:
-                JSON.stringify(questionnaire) ===
-                JSON.stringify(baseline.questionnaire)
-                  ? undefined
-                  : questionnaire,
-              expected_version: intakeVersion,
-              observation_ids:
-                formToSave.vitals_state === "recorded" ? observationIds : [],
-              history_review_ids:
-                formToSave.history_state === "reviewed" ? reviewIds : [],
-              request_key: requestKey(),
+              ...intakeRequest,
+              request_key: saveAttempt.current.key,
             },
           },
         },
@@ -403,10 +432,15 @@ export function NurseEncounterWorkspace({
           confirmed: false,
           confirmed_chunks:
             response.intake.questionnaire?.confirmed_chunks ?? [],
+          evidence_keys:
+            response.intake.questionnaire?.evidence_references?.map(
+              (item) => item.key,
+            ) ?? [],
         },
       };
       setForm(saved);
       setBaseline(saved);
+      saveAttempt.current = null;
       hydratedVersion.current = response.intake.version;
       if (advanceChunk) {
         setActiveChunk((current) =>
@@ -593,15 +627,113 @@ export function NurseEncounterWorkspace({
           <Alert
             severity="error"
             action={
-              <Button color="inherit" onClick={resource.refresh}>
-                Refresh
-              </Button>
+              <Stack direction="row">
+                <Button color="inherit" onClick={resource.refresh}>
+                  Refresh
+                </Button>
+                {dirty && (
+                  <Button
+                    color="inherit"
+                    onClick={() => {
+                      hydratedVersion.current = null;
+                      saveAttempt.current = null;
+                      setForm(emptyIntake);
+                      setBaseline(emptyIntake);
+                      setError("");
+                      resource.refresh();
+                    }}
+                  >
+                    Discard local edits and load saved intake
+                  </Button>
+                )}
+              </Stack>
             }
           >
             {error}
           </Alert>
         )}
         {notice && <Alert severity="success">{notice}</Alert>}
+        {(workspace.review_items?.length ?? 0) > 0 && (
+          <Accordion variant="outlined">
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography component="h3" variant="h6">
+                Intake review and support ·{" "}
+                {
+                  workspace.review_items?.filter(
+                    (item) => !["completed", "cancelled"].includes(item.state),
+                  ).length
+                }{" "}
+                unresolved
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={1.5}>
+                <Typography variant="body2" color="text.secondary">
+                  Review safety information, current symptoms, medication use
+                  and missing evidence before the general narrative. These are
+                  review categories, not an urgency score or treatment decision.
+                </Typography>
+                {workspace.review_items?.map((item) => {
+                  const task = workspace.tasks.find(
+                    (entry) => entry.id === item.task_id,
+                  );
+                  return (
+                    <Box
+                      key={item.task_id}
+                      sx={{ borderTop: 1, borderColor: "divider", pt: 1 }}
+                    >
+                      <Typography variant="subtitle2">
+                        {item.label} · {stateLabel(item.state)}
+                      </Typography>
+                      <Typography variant="body2">{item.reason}</Typography>
+                      <Typography variant="body2">
+                        Owner:{" "}
+                        {item.assigned_to_membership_id
+                          ? "Staff " + item.assigned_to_membership_id
+                          : (item.pool_code ?? "Unavailable") + " team"}
+                        {" · "}Intake version {item.source_revision_version}
+                      </Typography>
+                      <Typography variant="body2">
+                        {item.next_action}
+                      </Typography>
+                      {task?.assignment_exception && (
+                        <Alert severity="warning">
+                          {task.assignment_exception}
+                        </Alert>
+                      )}
+                      {task &&
+                        workspace.capabilities.tasks_write &&
+                        task.state === "open" && (
+                          <Button
+                            disabled={busy}
+                            onClick={() => void transitionTask(task, "claim")}
+                          >
+                            Claim review
+                          </Button>
+                        )}
+                      {task &&
+                        workspace.capabilities.tasks_write &&
+                        task.assigned_to_membership_id ===
+                          clinic.membership_id &&
+                        (item.pool_code !== "clinical" ||
+                          workspace.capabilities.handoff_respond) &&
+                        ["claimed", "in_progress"].includes(task.state) && (
+                          <Button
+                            disabled={busy || dirty}
+                            onClick={() =>
+                              void transitionTask(task, "complete")
+                            }
+                          >
+                            Record review completed
+                          </Button>
+                        )}
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        )}
         <Box
           sx={{
             display: "grid",
@@ -678,6 +810,14 @@ export function NurseEncounterWorkspace({
                     {patient.emergency_contacts?.find(
                       (contact) => !contact.effective_until,
                     )?.name || "Not recorded"}
+                    {" · "}
+                    {patient.emergency_contacts?.find(
+                      (contact) => !contact.effective_until,
+                    )?.relationship || "Relationship not recorded"}
+                    {" · "}
+                    {patient.emergency_contacts?.find(
+                      (contact) => !contact.effective_until,
+                    )?.phone || "Phone not recorded"}
                   </Typography>
                   <Typography variant="body2">
                     <strong>Preferred contact:</strong>{" "}
@@ -685,6 +825,12 @@ export function NurseEncounterWorkspace({
                       ?.preferred_contact_method || "Not recorded"}
                   </Typography>
                 </Box>
+                <Button
+                  href={`/clinic/patients/${patient.id}`}
+                  sx={{ alignSelf: "start" }}
+                >
+                  Open patient profile
+                </Button>
               </Stack>
             </Paper>
             {encounter.visit_modality !== "video" && (
@@ -743,7 +889,12 @@ export function NurseEncounterWorkspace({
             {workspace.questionnaire_form && (
               <Stack spacing={2}>
                 <Box>
-                  <Typography component="h3" variant="h6">
+                  <Typography
+                    component="h3"
+                    variant="h6"
+                    ref={groupHeading}
+                    tabIndex={-1}
+                  >
                     Guided intake · staff assisted
                   </Typography>
                   <Typography color="text.secondary">
@@ -850,22 +1001,67 @@ export function NurseEncounterWorkspace({
                     </Stack>
                   </Paper>
                 )}
-                {workspace.intake?.questionnaire_text && (
+                {workspace.intake && (
                   <Accordion disableGutters>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                      <Typography>Review previously saved answers</Typography>
+                      <Typography>Compare saved intake answers</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                      <Typography
-                        sx={{
-                          whiteSpace: "pre-wrap",
-                          overflowWrap: "anywhere",
-                        }}
-                      >
-                        {workspace.intake.questionnaire_text}
-                      </Typography>
+                      <Stack spacing={1}>
+                        <Typography variant="body2" color="text.secondary">
+                          {workspace.intake_comparison?.source
+                            ? workspace.intake_comparison.source.kind === "previous_encounter"
+                              ? `Compared with the latest readable intake from encounter ${workspace.intake_comparison.source.encounter_id}, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
+                              : `Compared with an earlier revision in this encounter, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
+                            : "No readable earlier intake is available for comparison."}
+                        </Typography>
+                        {(workspace.intake_comparison?.items ?? []).map((item) => (
+                          <Box key={item.id} sx={{ borderTop: 1, borderColor: "divider", pt: 1 }}>
+                            <Typography variant="subtitle2">
+                              {item.label}{item.changed ? " · Changed" : " · Unchanged"}
+                            </Typography>
+                            <Typography variant="body2">Previous: {item.previous || "Not recorded"}</Typography>
+                            <Typography variant="body2">Current: {item.current || "Not recorded"}</Typography>
+                          </Box>
+                        ))}
+                        {workspace.intake_comparison?.source && !workspace.intake_comparison.items.length && (
+                          <Typography variant="body2">No comparable saved answers are available.</Typography>
+                        )}
+                      </Stack>
                     </AccordionDetails>
                   </Accordion>
+                )}
+                {intakeChunks[activeChunkIndex].id ===
+                  "patient_coordination" && (
+                  <PatientCareCoordination patientId={patient.id} />
+                )}
+                {intakeChunks[activeChunkIndex].id ===
+                  "records_consent_admin" && (
+                  <IntakeConsentEvidence patientId={patient.id} />
+                )}
+                {intakeChunks[activeChunkIndex].id ===
+                  "records_consent_admin" && (
+                  <IntakeEvidencePicker
+                    options={workspace.evidence_options ?? []}
+                    selected={form.questionnaire?.evidence_keys ?? []}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    onChange={(evidence_keys) =>
+                      setForm((current) => ({
+                        ...current,
+                        questionnaire: {
+                          ...current.questionnaire,
+                          answers: current.questionnaire?.answers ?? {},
+                          text: current.questionnaire?.text ?? "",
+                          evidence_keys,
+                          status: "draft",
+                          confirmed: false,
+                          confirmed_chunks: (
+                            current.questionnaire?.confirmed_chunks ?? []
+                          ).filter((index) => index < activeChunkIndex),
+                        },
+                      }))
+                    }
+                  />
                 )}
                 <IntakeQuestions
                   fields={workspace.questionnaire_form.fields.filter(
@@ -876,13 +1072,20 @@ export function NurseEncounterWorkspace({
                       intakeFieldVisible(
                         field,
                         form.questionnaire?.answers ?? {},
+                        workspace.questionnaire_form?.fields ?? [],
                       ) &&
-                      (field.id !== "telehealth_location" ||
+                      (![
+                        "telehealth_location",
+                        "telehealth_physical_location",
+                      ].includes(field.id) ||
                         encounter.visit_modality === "video"),
                   )}
                   answerStates={workspace.questionnaire_form.answer_states}
                   medicationOptions={
                     workspace.questionnaire_form.medication_options
+                  }
+                  medicationReferences={
+                    workspace.questionnaire_form.medication_references
                   }
                   answers={form.questionnaire?.answers ?? {}}
                   disabled={busy || !workspace.capabilities.intake_write}
@@ -913,6 +1116,7 @@ export function NurseEncounterWorkspace({
                       setForm((current) => ({
                         ...current,
                         questionnaire: {
+                          ...current.questionnaire,
                           answers: current.questionnaire?.answers ?? {},
                           text: event.target.value,
                           status: "draft",
@@ -934,6 +1138,7 @@ export function NurseEncounterWorkspace({
                         setForm((current) => ({
                           ...current,
                           questionnaire: {
+                            ...current.questionnaire,
                             answers: current.questionnaire?.answers ?? {},
                             text: current.questionnaire?.text ?? "",
                             status: event.target.checked

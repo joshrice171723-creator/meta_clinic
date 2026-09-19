@@ -426,6 +426,23 @@ export type EncounterIntakeRevision = {
     confirmed_chunks?: number[];
     recorder?: "patient" | "staff";
     staff_confirmation?: boolean;
+    evidence_references?: Array<{
+      key: string;
+      kind: string;
+      id: number;
+      version: string | number | null;
+    }>;
+    items?: Record<
+      string,
+      {
+        source: string;
+        recorded_at: string;
+        recorded_by_membership_id: number;
+        confirmation: string;
+        confirmed_at: string | null;
+        supersedes_revision_id: number | null;
+      }
+    >;
   } | null;
   questionnaire_text?: string | null;
   id: number;
@@ -510,6 +527,8 @@ export type ClinicalTask = {
   updated_at: string;
 };
 export type NurseWorkspace = {
+  evidence_options?: IntakeEvidenceOption[];
+  review_items?: IntakeReviewItem[];
   questionnaire_form?: {
     id: string;
     version: number;
@@ -517,6 +536,7 @@ export type NurseWorkspace = {
     answer_states: string[];
     provenance: string[];
     medication_options: string[];
+    medication_references?: Array<{ id: string; name: string }>;
     chunks: Array<{
       index: number;
       id: string;
@@ -529,6 +549,21 @@ export type NurseWorkspace = {
   patient_id: number;
   encounter_id: number;
   intake: EncounterIntakeRevision | null;
+  intake_comparison?: {
+    source: {
+      kind: "previous_encounter" | "earlier_revision";
+      encounter_id: number;
+      version: number;
+      recorded_at: string;
+    } | null;
+    items: Array<{
+      id: string;
+      label: string;
+      previous: string | null;
+      current: string | null;
+      changed: boolean;
+    }>;
+  };
   handoff: EncounterHandoff | null;
   tasks: ClinicalTask[];
   capabilities: {
@@ -538,6 +573,38 @@ export type NurseWorkspace = {
     tasks_write: boolean;
     observations_write: boolean;
   };
+};
+export type IntakeEvidenceOption = {
+  key: string;
+  kind: string;
+  id: number;
+  version: string | number | null;
+  label: string;
+  source: string;
+  recorded_at: string;
+  collected_at?: string | null;
+  status: string;
+  href?: string;
+  results?: Array<{
+    name: string;
+    value: string;
+    unit?: string;
+    reference_range?: string;
+  }>;
+};
+export type IntakeReviewItem = {
+  question_id: string;
+  label: string;
+  category: string;
+  task_id: number;
+  state: string;
+  pool_code: string | null;
+  assigned_to_membership_id: number | null;
+  reason: string;
+  next_action: string;
+  source_revision_version: number;
+  recorded_at: string;
+  resolution_code: string | null;
 };
 export type ClinicalRevisionBase = {
   completion_reconciliation_required?: boolean;

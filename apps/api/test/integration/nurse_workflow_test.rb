@@ -38,7 +38,7 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_nil response.parsed_body.fetch("intake")
     assert_equal "nurse-workspace-v1", response.parsed_body.fetch("schema_version")
-    assert_equal 2, response.parsed_body.dig("questionnaire_form", "version")
+    assert_equal Clinic::Care::PrevisitIntake::QUESTIONNAIRE_VERSION, response.parsed_body.dig("questionnaire_form", "version")
     assert_equal (0..10).to_a, response.parsed_body.dig("questionnaire_form", "chunks").map { |chunk| chunk.fetch("index") }
     assert_includes response.parsed_body.dig("questionnaire_form", "answer_states"), "not_asked"
     assert_includes response.parsed_body.dig("questionnaire_form", "fields").map { |field| field.fetch("id") },
@@ -224,6 +224,28 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_nil @encounter.reload.appointment_id
   end
 
+  test "workspace compares the latest readable prior encounter without crossing patients" do
+    previous_encounter = @practice.encounters.create!(patient: @patient, site: @site,
+      started_at: Time.utc(2026, 9, 9, 14), status: "completed")
+    previous = intake_revision_for(previous_encounter, "prior-comparison", "Earlier synthetic reason",
+      Time.utc(2026, 9, 9, 15))
+    current = intake_revision_for(@encounter, "current-comparison", "Current synthetic reason",
+      Time.utc(2026, 9, 10, 15))
+    intake_revision_for(@practice.encounters.create!(patient: @other_patient, site: @site,
+      started_at: Time.utc(2026, 9, 11, 14), status: "completed"), "other-patient-comparison",
+      "Other patient reason", Time.utc(2026, 9, 11, 15))
+
+    get workspace_path(@patient, @encounter), headers: @headers
+    assert_response :success
+    comparison = response.parsed_body.fetch("intake_comparison")
+    assert_equal "previous_encounter", comparison.dig("source", "kind")
+    assert_equal previous_encounter.id, comparison.dig("source", "encounter_id")
+    assert_equal current.id, response.parsed_body.dig("intake", "id")
+    item = comparison.fetch("items").find { |entry| entry.fetch("id") == "visit_reason" }
+    assert_equal [ "Earlier synthetic reason", "Current synthetic reason", true ],
+      item.values_at("previous", "current", "changed")
+  end
+
   test "staff intake rejects skipped out of range and unconfirmed groups" do
     base = {
       status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
@@ -384,9 +406,9 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "current", last.dig("questionnaire", "answers", "history", "entries", 0, "current_status")
     assert_equal "uncertain", last.dig("questionnaire", "answers", "family_history", "entries", 0, "certainty")
     assert_includes last.fetch("questionnaire_text"), "Synthetic dizziness episode"
-    assert_includes last.fetch("questionnaire_text"), "dizziness_fainting · clinical_review · unknown"
-    assert_includes last.fetch("questionnaire_text"), "metabolic · current · routine_review · 2022"
-    assert_includes last.fetch("questionnaire_text"), "parent · uncertain · unknown"
+    %w[dizziness_fainting clinical_review metabolic current routine_review 2022 parent uncertain unknown].each do |value|
+      assert_includes last.fetch("questionnaire_text"), value
+    end
   end
 
   test "medication actual use and allergy intolerance remain distinct" do
@@ -426,8 +448,10 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "prescription_record", last.dig("questionnaire", "answers", "medications", "entries", 0, "source")
     assert_equal "intolerance", last.dig("questionnaire", "answers", "allergies", "entries", 0, "kind")
     assert_equal "uncertain", last.dig("questionnaire", "answers", "allergies", "entries", 0, "certainty")
-    assert_includes last.fetch("questionnaire_text"), "prescribed · taking · 5 · mg · once_daily · prescription_record · unknown"
-    assert_includes last.fetch("questionnaire_text"), "intolerance · uncertain · unknown"
+    ["kind: prescribed", "actual use: taking", "dose value: 5", "dose unit: mg", "frequency: once_daily",
+      "source: prescription_record", "kind: intolerance", "certainty: uncertain", "severity: unknown"].each do |value|
+      assert_includes last.fetch("questionnaire_text"), value
+    end
   end
 
   test "extended weight management chunks preserve bounded branches and follow-up context" do
@@ -550,6 +574,85 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :created
   end
 
+  test "intake correction invalidates an older review task and evidence stays scoped" do
+    intake = Clinic::Care::PrevisitIntake
+    review = Clinic::Care::IntakeReview
+    encode = ->(state) { intake.encode(text: "", answers: { pregnancy_status: { state: } },
+      attested: false, status: "draft", recorder: "staff") }
+    args = { practice: @practice, patient: @patient, encounter: @encounter,
+      member: @membership, chunks: Clinic::Care::NurseWorkflow.chunks_for(form_id: intake::FORM_ID) }
+    first = review.attach!(**args, encoded: encode.call("unknown"), previous: nil)
+    payload = intake.decode(first)
+    task = Clinic::ClinicalTask.find(payload.fetch("review_items").first.fetch("task_id"))
+    version = task.lock_version
+    prior = Struct.new(:encrypted_questionnaire, :version_number, :id).new(first, 1, 123)
+    corrected = review.attach!(**args, encoded: encode.call("declined"), previous: prior)
+    assert_equal task.id, intake.decode(corrected).fetch("review_items").first.fetch("task_id")
+    assert_operator task.reload.lock_version, :>, version
+    assert task.events.exists?(action: "intake_response_changed")
+    assert_raises(ArgumentError) do
+      Clinic::Care::IntakeEvidence.normalize(["document:999999999"],
+        practice: @practice, actor: @user, patient: @patient, encounter: @encounter)
+    end
+  end
+
+  test "specialty mental health and procedure review routing preserves existing task ownership" do
+    intake = Clinic::Care::PrevisitIntake
+    review = Clinic::Care::IntakeReview
+    form_id = "weight-management-initial-v1"
+    encoded = intake.encode(text: "", attested: false, status: "draft", recorder: "staff", form_id:, answers: {
+      mental_health_support: { state: "unknown" },
+      procedures: { state: "answered", entries: [{ name: "Synthetic procedure" }] },
+      nutrition_support: { state: "unknown" }
+    })
+    args = { practice: @practice, patient: @patient, encounter: @encounter,
+      member: @membership, chunks: Clinic::Care::NurseWorkflow.chunks_for(form_id:) }
+    attached = review.attach!(**args, encoded:, previous: nil)
+    items = intake.decode(attached).fetch("review_items").index_by { |item| item.fetch("question_id") }
+
+    %w[mental_health_support procedures].each do |question_id|
+      assert_equal "support", intake.fields(form_id).find { |field| field[:id] == question_id }.fetch(:review_category)
+      item = items.fetch(question_id)
+      assert_equal "clinical", item.fetch("category")
+      assert_equal "clinical", Clinic::ClinicalTask.find(item.fetch("task_id")).pool_code
+    end
+    support = items.fetch("nutrition_support")
+    assert_equal "support", support.fetch("category")
+    assert_equal "front_desk", Clinic::ClinicalTask.find(support.fetch("task_id")).pool_code
+
+    existing = Clinic::ClinicalTask.find(items.fetch("mental_health_support").fetch("task_id"))
+    existing.update!(pool_code: "front_desk", state: "claimed", assigned_to_membership: @membership)
+    prior = Struct.new(:encrypted_questionnaire, :version_number, :id).new(attached, 1, 123)
+    replay = nil
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      replay = review.attach!(**args, encoded:, previous: prior)
+    end
+    replay_item = intake.decode(replay).fetch("review_items").find { |item| item["question_id"] == "mental_health_support" }
+    assert_equal existing.id, replay_item.fetch("task_id")
+    assert_equal "front_desk", existing.reload.pool_code
+    assert_equal "claimed", existing.state
+    assert_equal @membership.id, existing.assigned_to_membership_id
+  end
+
+  test "patient coordination is durable replay safe and rejects stale updates" do
+    grant_permissions!(@membership, "patients.write")
+    service = Clinic::Care::PatientCareCoordination
+    payload = Clinic::Care::PatientCareCoordinationRevision.empty_payload
+    payload["primary_care"] = { "state" => "known", "entries" => [
+      { "name" => "Synthetic provider", "source" => "patient", "address_confirmed" => false }
+    ] }
+    args = { practice: @practice, actor: @user, patient: @patient, payload:,
+      expected_revision: 0, request_key: "coordination-create" }
+    first = service.save!(**args)
+    assert_equal first.id, service.save!(**args).id
+    assert_equal "Synthetic provider", first.reload.payload.dig("primary_care", "entries", 0, "name")
+    assert_raises(ActiveRecord::StaleObjectError) do
+      service.save!(**args.merge(request_key: "coordination-stale"))
+    end
+    assert_empty service.references(practice: @practice, actor: @user, patient: @other_patient,
+      kind: "provider", query: "")[:references]
+  end
+
   private
 
   def workspace_path(patient, encounter)
@@ -576,6 +679,17 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     { intake: { request_key:, expected_version:, status: "ready_for_handoff", identity_state: "confirmed",
       visit_reason_state: "confirmed", history_state: "reviewed", vitals_state: "not_applicable",
       observation_ids: [], history_review_ids: } }
+  end
+
+  def intake_revision_for(encounter, request_key, reason, recorded_at)
+    payload = Clinic::Care::PrevisitIntake.encode(text: "", answers: {
+      "visit_reason" => { "state" => "answered", "value" => reason }
+    }, attested: false, status: "draft", recorder: "staff")
+    Clinic::EncounterIntakeRevision.create!(practice: @practice, patient: encounter.patient, encounter:,
+      version_number: 1, status: "incomplete", identity_state: "not_confirmed",
+      visit_reason_state: "not_recorded", history_state: "not_recorded", vitals_state: "not_recorded",
+      encrypted_questionnaire: payload, recorded_by_membership: @membership, recorded_at:, request_key:,
+      content_digest: Digest::SHA256.hexdigest(request_key))
   end
 
   def patch_task(task, action, resolution_code: nil)

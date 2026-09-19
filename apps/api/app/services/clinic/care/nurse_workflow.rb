@@ -93,12 +93,17 @@ module Clinic
           patient_id: patient.id,
           encounter_id: encounter.id,
           intake: intake && serialize_intake(intake),
-          questionnaire_form: { **PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment,
+          intake_comparison: intake_comparison(practice:, actor:, patient:, encounter:, intake:),
+          questionnaire_form: { **PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment, recorder: "staff",
             payload: intake && PrevisitIntake.decode(intake.encrypted_questionnaire)),
-            chunks: INTAKE_CHUNKS,
-            medication_options: PrevisitIntake.medication_options(practice) },
+            chunks: chunks_for(form_id: PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment, recorder: "staff",
+              payload: intake && PrevisitIntake.decode(intake.encrypted_questionnaire))[:id]),
+            medication_options: PrevisitIntake.medication_options(practice),
+            medication_references: PrevisitIntake.medication_reference_options(practice) },
           handoff: handoff && serialize_handoff(handoff),
           tasks: tasks.map { |task| serialize_task(task) },
+          review_items: IntakeReview.projection(intake, tasks),
+          evidence_options: IntakeEvidence.options(practice:, actor:, patient:, encounter:),
           capabilities: {
             intake_write: allowed?(practice, actor, "intake.write", encounter),
             handoff_request: allowed?(practice, actor, "intake.write", encounter),
@@ -114,14 +119,17 @@ module Clinic
         authorize!(practice, actor, "intake.write", encounter)
         member = membership!(practice, actor)
         previous_intake = latest_intake(practice, encounter)
-        form = PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment,
+        form = PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment, recorder: "staff",
           payload: previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire))
         input = normalize_intake(attributes, form_id: form[:id], previous_intake: previous_intake, encounter: encounter)
+        PrevisitIntake.validate_medication_references!(input[:encrypted_questionnaire], practice:)
+        raw = (attributes[:questionnaire] || attributes["questionnaire"]).to_h.stringify_keys
         observations = observations_for(practice, patient, encounter, observation_ids)
         history_reviews = history_reviews_for(practice, patient, encounter, history_review_ids)
         validate_intake_evidence!(input, observations, history_reviews)
         evidence = { observation_ids: observations.map(&:id).sort, history_review_ids: history_reviews.map(&:id).sort }
-        payload = { patient_id: patient.id, encounter_id: encounter.id, expected_version:, intake: input, evidence: }
+        payload = { patient_id: patient.id, encounter_id: encounter.id, expected_version:, intake: input, evidence:,
+          evidence_keys: raw["evidence_keys"] }
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "care.encounter_intake.revise", request_key:, resource: encounter,
           authorization_action: "intake.write", authorization: -> { authorize!(practice, actor, "intake.write", encounter) },
@@ -132,6 +140,22 @@ module Clinic
             current = latest_intake(practice, encounter, lock: true)
             stale!(current&.version_number || 0, expected_version, current || encounter)
             saved_input = input.key?(:encrypted_questionnaire) ? input : input.merge(encrypted_questionnaire: current&.encrypted_questionnaire)
+            if input.key?(:encrypted_questionnaire)
+              questionnaire = PrevisitIntake.decode(input[:encrypted_questionnaire])
+              if questionnaire
+                prior_payload = current && PrevisitIntake.decode(current.encrypted_questionnaire)
+                questionnaire["evidence_references"] = if raw.key?("evidence_keys")
+                  IntakeEvidence.normalize(raw["evidence_keys"], practice:, actor:, patient:, encounter:)
+                else
+                  prior_payload&.fetch("evidence_references", []) || []
+                end
+              end
+              encoded = questionnaire ? PrevisitIntake::PREFIX + JSON.generate(questionnaire) : input[:encrypted_questionnaire]
+              saved_input = saved_input.merge(encrypted_questionnaire: IntakeReview.attach!(
+                encoded:, previous: current, practice:, patient:, encounter:, member:,
+                chunks: chunks_for(form_id: form[:id]),
+                original_answers: raw.fetch("answers", {})))
+            end
             revision = Clinic::EncounterIntakeRevision.create!(saved_input.merge(
               practice:, patient:, encounter:, version_number: (current&.version_number || 0) + 1,
               recorded_by_membership: member, recorded_at: Current.business_time, request_key:,
@@ -248,6 +272,9 @@ module Clinic
       def transition_task(practice:, actor:, task:, action:, expected_version:, request_key:, resolution_code: nil,
         assignee_membership_id: nil, dependency_ids: nil)
         authorize!(practice, actor, "encounters.write", task)
+        if action.to_s == "complete" && task.source_type == "encounter" && task.task_kind == "intake" && task.pool_code == "clinical"
+          authorize!(practice, actor, "notes.write", task)
+        end
         member = membership!(practice, actor)
         action = action.to_s
         raise ArgumentError, "The task action is unsupported." unless TASK_ACTIONS.include?(action)
@@ -286,7 +313,7 @@ module Clinic
           recorded_by_membership_id: intake.recorded_by_membership_id,
           questionnaire: PrevisitIntake.decode(intake.encrypted_questionnaire),
           questionnaire_text: intake.encrypted_questionnaire.present? ? PrevisitIntake.render(intake.encrypted_questionnaire) : nil,
-          questionnaire_form: PrevisitIntake.form_for(practice: intake.practice,
+          questionnaire_form: PrevisitIntake.form_for(practice: intake.practice, recorder: "staff",
             payload: PrevisitIntake.decode(intake.encrypted_questionnaire))
         }
       end
@@ -320,6 +347,18 @@ module Clinic
         scope.first
       end
 
+      def prior_readable_intake(practice:, actor:, patient:, encounter:, intake:)
+        prior_encounter = Clinic::EncounterIntakeRevision.where(practice:, patient:).where.not(encounter:)
+          .includes(:encounter).order(recorded_at: :desc, id: :desc).detect do |candidate|
+            allowed?(practice, actor, "patients.read", candidate.encounter)
+          end
+        return [ prior_encounter, "previous_encounter" ] if prior_encounter
+
+        prior_revision = intake && Clinic::EncounterIntakeRevision.where(practice:, patient:, encounter:)
+          .where.not(id: intake.id).order(version_number: :desc, id: :desc).first
+        [ prior_revision, prior_revision && "earlier_revision" ]
+      end
+
       def normalize_intake(attributes, form_id: PrevisitIntake::FORM_ID, previous_intake: nil, encounter: nil)
         input = attributes.to_h.symbolize_keys.slice(*INTAKE_FIELDS)
         missing = INTAKE_FIELDS - input.keys
@@ -339,9 +378,33 @@ module Clinic
         input
       end
 
+      def intake_comparison(practice:, actor:, patient:, encounter:, intake:)
+        prior, source_kind = prior_readable_intake(practice:, actor:, patient:, encounter:, intake:)
+        return { source: nil, items: [] } unless intake || prior
+
+        current_payload = intake && PrevisitIntake.decode(intake.encrypted_questionnaire) || {}
+        prior_payload = prior && PrevisitIntake.decode(prior.encrypted_questionnaire) || {}
+        current_form = current_payload["form_id"] || PrevisitIntake::FORM_ID
+        prior_form = prior_payload["form_id"] || current_form
+        definitions = (PrevisitIntake.fields(current_form) + PrevisitIntake.fields(prior_form)).index_by { |field| field[:id] }
+        ids = (current_payload.fetch("answers", {}).keys + prior_payload.fetch("answers", {}).keys).uniq
+        items = ids.filter_map do |id|
+          field = definitions[id]
+          next unless field
+          current = current_payload.dig("answers", id)
+          previous = prior_payload.dig("answers", id)
+          next if current.blank? && previous.blank?
+          { id:, label: field[:label], previous: PrevisitIntake.answer_text(previous, field:),
+            current: PrevisitIntake.answer_text(current, field:), changed: current != previous }
+        end
+        { source: prior && { kind: source_kind, encounter_id: prior.encounter_id, version: prior.version_number,
+          recorded_at: prior.recorded_at.iso8601(6) }, items: }
+      end
+
       def validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:, answers:)
+        definitions = chunks_for(form_id:)
         chunks = normalize_chunk_indexes(questionnaire.fetch("confirmed_chunks", []))
-        if chunks.any? { |index| index >= INTAKE_CHUNKS.length }
+        if chunks.any? { |index| index >= definitions.length }
           raise ArgumentError, "The intake group is outside the supported workflow."
         end
         unless chunks == (0...chunks.length).to_a
@@ -350,6 +413,7 @@ module Clinic
 
         previous_questionnaire = previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire)
         previous_chunks = normalize_chunk_indexes(previous_questionnaire&.fetch("confirmed_chunks", []) || [])
+        previous_chunks = [] if previous_questionnaire && previous_questionnaire["questionnaire_version"] != PrevisitIntake::QUESTIONNAIRE_VERSION
         unless previous_chunks == (0...previous_chunks.length).to_a
           raise ArgumentError, "The saved intake groups are not in a valid order."
         end
@@ -363,7 +427,7 @@ module Clinic
 
         previous_answers = previous_questionnaire&.fetch("answers", {}) || {}
         changed_chunk = previous_chunks.find do |index|
-          INTAKE_CHUNKS.fetch(index).fetch(:fields).any? do |id|
+          definitions.fetch(index).fetch(:fields).any? do |id|
             next false unless answers.key?(id)
             field = PrevisitIntake.fields(form_id).find { |item| item[:id] == id }
             old = PrevisitIntake.normalize_answer(previous_answers[id] || "", field, status: "draft")
@@ -372,6 +436,13 @@ module Clinic
         end
         if changed_chunk && chunks.length > changed_chunk + (confirmed ? 1 : 0)
           raise ArgumentError, "Changed answers require reconfirming this group and the following groups. Save a draft to reopen them."
+        end
+        evidence_index = definitions.index { |entry| entry[:id] == "records_consent_admin" }
+        previous_evidence = Array(previous_questionnaire&.fetch("evidence_references", [])).map { |item| item["key"] }.sort
+        if evidence_index && questionnaire.key?("evidence_keys") &&
+            Array(questionnaire["evidence_keys"]).sort != previous_evidence &&
+            chunks.length > evidence_index + (confirmed ? 1 : 0)
+          raise ArgumentError, "Changed evidence requires reconfirming the records group and following groups."
         end
 
         fields = chunks.flat_map { |index| visible_fields(form_id:, chunk_index: index, answers:, encounter:) }
@@ -399,21 +470,28 @@ module Clinic
       end
 
       def visible_fields(form_id:, chunk_index:, answers:, encounter:)
-        supported = PrevisitIntake.fields(form_id).select do |field|
-          INTAKE_CHUNKS.fetch(chunk_index).fetch(:fields).include?(field[:id])
+        supported = PrevisitIntake.fields_for_recorder(form_id, recorder: "staff").select do |field|
+          chunks_for(form_id:).fetch(chunk_index).fetch(:fields).include?(field[:id]) &&
+            !%w[extended clinician].include?(field[:requiredness])
         end
-        supported.select { |field| field_visible?(field, answers) }.map { |field| field[:id] }
+        supported.select do |field|
+          field_visible?(field, answers, form_id:) &&
+            (!%w[telehealth_location telehealth_physical_location].include?(field[:id]) || encounter&.appointment&.visit_modality == "video")
+        end.map { |field| field[:id] }
       end
 
-      def field_visible?(field, answers)
-        dependency = field[:depends_on]
-        return true unless dependency
+      def chunks_for(form_id:)
+        fields = PrevisitIntake.fields(form_id)
+        definitions = INTAKE_CHUNKS.map do |chunk|
+          ids = fields.select { |field| field[:chunk_id] == chunk[:id] || chunk[:fields].include?(field[:id]) }.map { |field| field[:id] }
+          chunk.merge(fields: ids)
+        end
+        definitions = definitions.reject { |chunk| chunk[:fields].empty? } if form_id.include?("follow-up")
+        definitions.map.with_index { |chunk, index| chunk.merge(index:) }
+      end
 
-        answer = answers[dependency] || answers[dependency.to_sym]
-        return false unless answer_state(answer) == "answered"
-
-        value = answer.is_a?(Hash) ? answer.stringify_keys.fetch("value", "").to_s : answer.to_s
-        Array(field[:depends_values]).include?(value)
+      def field_visible?(field, answers, form_id: PrevisitIntake::FORM_ID)
+        PrevisitIntake.visible?(field, answers, form_id:)
       end
 
       def validate_intake_evidence!(input, observations, history_reviews)
