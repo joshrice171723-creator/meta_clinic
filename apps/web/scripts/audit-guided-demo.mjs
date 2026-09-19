@@ -20,6 +20,8 @@ if (
 
 const expectedSignals = {
   "Review telehealth": /Virtual waiting room[\s\S]*Alex Morgan/i,
+  "Review workforce": /Current employees[\s\S]*Jordan Example/i,
+  "Review growth": /Membership pipeline/i,
 };
 
 const browser = await chromium.launch({
