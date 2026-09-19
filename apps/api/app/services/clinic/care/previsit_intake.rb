@@ -7,7 +7,7 @@ module Clinic
       LEGACY_FORM_IDS = %w[meta-clinic-previsit-v1 meta-clinic-previsit-v2].freeze
       ATTESTATION_ID = "patient-confirmed-current-and-care-team-sharing".freeze
       ATTESTATION_VERSION = "2026-09-11".freeze
-      QUESTIONNAIRE_VERSION = 2
+      QUESTIONNAIRE_VERSION = 3
       FIELDS = [
         { id: "visit_reason", label: "What brings you in?", reusable: false },
         { id: "symptoms", label: "Current symptoms and when they started", reusable: false, history_kind: "symptom" },
@@ -108,6 +108,8 @@ module Clinic
       ].map(&:freeze).freeze
       PREFIX = "MC_INTAKE_V1\n".freeze
       MAX_ANSWER_LENGTH = 600
+      MAX_NARRATIVE_LENGTH = 5_000
+      MAX_ENCODED_LENGTH = 512_000
       MAX_HISTORY_ENTRIES = 20
       ANSWER_STATES = %w[answered unanswered not_asked unknown declined not_applicable negative].freeze
       HISTORY_DATE_PRECISIONS = %w[exact approximate unknown].freeze
@@ -133,28 +135,8 @@ module Clinic
       ALLERGY_TYPES = %w[allergy intolerance adverse_effect other].freeze
       REACTION_SEVERITIES = %w[mild moderate severe unknown].freeze
       SPECIALTY_FORMS = {
-        "weight-management-initial-v1" => FIELDS + [
-          { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
-        ],
-        "weight-management-follow-up-v1" => FIELDS.select do |field|
-          %w[
-            goals barriers weight care_needs treatment_product_class pregnancy_status pregnancy_plans
-            breastfeeding_status contraception_context product_safety_review nutrition_pattern beverage_pattern
-            eating_concern nutrition_support mental_health_support substance_use_context instrument_status
-            activity_capacity activity_pattern sleep_quality transportation_access food_access caregiving_support
-            social_support barrier_support_route outside_records_state lab_context_state treatment_consent_state
-            telehealth_consent_state privacy_location_state coverage_context prior_authorization_state disclosure_state
-            patient_confirmation_state unresolved_item_state review_owner follow_up_context change_since_last_visit
-            treatment_response treatment_tolerability access_status support_status follow_up_plan_state
-            next_contact_window follow_up_questions
-          ].include?(field[:id])
-        end + [
-          { id: "changes", label: "What has changed since your last visit?", reusable: false },
-          { id: "history_changes", label: "Have your medicines, supplements, allergies or health history changed?", reusable: false,
-            choices: %w[yes no unknown declined] },
-          { id: "change_details", label: "Describe the change, or save it for discussion at your visit.", reusable: false },
-          { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
-        ]
+        "weight-management-initial-v1" => WeightManagementQuestionnaire.fields(FIELDS),
+        "weight-management-follow-up-v1" => WeightManagementQuestionnaire.fields(FIELDS, follow_up: true)
       }.freeze
 
       module_function
@@ -163,10 +145,68 @@ module Clinic
         SPECIALTY_FORMS.fetch(form_id, FIELDS)
       end
 
-      def form_for(practice:, appointment: nil, payload: nil)
+      def form_for(practice:, appointment: nil, payload: nil, recorder: "patient")
         id = payload&.fetch("form_id", nil) || Configuration::StarterProfile.form_id(practice:, appointment:)
-        { id: id, version: QUESTIONNAIRE_VERSION, fields: fields(id), answer_states: ANSWER_STATES,
+        { id: id, version: QUESTIONNAIRE_VERSION, fields: fields_for_recorder(id, recorder:), answer_states: ANSWER_STATES,
           provenance: %w[patient_reported staff_recorded inherited imported calculated] }
+      end
+
+      def fields_for_recorder(form_id = FORM_ID, recorder: "patient")
+        raise ArgumentError, "Choose a supported intake recorder." unless %w[patient staff].include?(recorder)
+        return fields(form_id) if recorder == "staff"
+        fields(form_id).map do |field|
+          copy = field.deep_dup
+          if copy[:units]
+            copy[:source_choices] = (copy[:source_choices] || %w[patient_reported clinic_measured]) - %w[clinic_measured imported]
+            copy[:verification_choices] = copy[:verification_choices] - %w[staff_verified] if copy[:verification_choices]
+          end
+          copy[:record_fields]&.each do |child|
+            child[:choices] = child[:choices] - %w[clinic_measured imported] if child[:id] == "source" && child[:choices]
+            child[:choices] = child[:choices] - %w[staff_verified] if child[:id] == "verification" && child[:choices]
+          end
+          copy
+        end
+      end
+
+      # Public canonical visibility for group confirmation and UI consumers.
+      # Unknown is an explicit branch only when depends_values includes it;
+      # negative maps to no, never to unknown. Hidden ancestors stay hidden.
+      def visible?(field, answers, form_id: FORM_ID, definitions: nil, visited: [])
+        dependency_id = field[:depends_on] || field["depends_on"]
+        return true unless dependency_id
+        return false if visited.include?(dependency_id)
+        definitions ||= fields(form_id)
+        dependency = definitions.find { |item| (item[:id] || item["id"]) == dependency_id }
+        return false unless dependency && visible?(dependency, answers, form_id:, definitions:, visited: visited + [dependency_id])
+        answer = answers[dependency_id] || answers[dependency_id.to_sym]
+        values = if answer.is_a?(Hash)
+          answer = answer.stringify_keys
+          case answer["state"]
+          when "answered" then answer["values"].is_a?(Array) ? answer["values"] : [answer["value"]]
+          when "negative" then ["no", "negative"]
+          when "unknown", "declined", "not_applicable", "not_asked" then [answer["state"]]
+          else []
+          end
+        elsif answer.is_a?(String)
+          [answer]
+        elsif answer.is_a?(Array)
+          answer # One-level record dependencies use direct string/string[] values.
+        else
+          []
+        end
+        ((field[:depends_values] || field["depends_values"] || []) & values).any?
+      end
+
+      def question_metadata_snapshot(form_id = FORM_ID, question_ids: nil)
+        definitions = fields(form_id)
+        if question_ids
+          unless question_ids.is_a?(Array) && (question_ids - definitions.map { |field| field[:id] }).empty?
+            raise ArgumentError, "Choose supported questions for the metadata snapshot."
+          end
+          definitions = definitions.select { |field| question_ids.include?(field[:id]) }
+        end
+        { form_id: form_id, questionnaire_version: QUESTIONNAIRE_VERSION,
+          fields: definitions.map(&:deep_dup) }
       end
 
       def medication_options(practice)
@@ -174,20 +214,49 @@ module Clinic
           .order(:name, :id).limit(500).pluck(:name)
       end
 
+      # Separate from the existing string list. Identifiers are catalog references,
+      # not evidence that a patient takes the product or that treatment is approved.
+      def medication_reference_options(practice)
+        Clinic::Inventory::PharmacyProduct.where(practice: practice, category: "medication", active: true)
+          .order(:name, :id).limit(500).map do |product|
+            { id: product.id.to_s, name: product.name,
+              metadata: product.attributes.slice("generic_name", "ingredients", "dosage_form", "route", "ndc", "product_ndc", "labeler", "source") }
+          end
+      end
+
       def encode(text:, answers:, attested:, status: "submitted", inherited_from: nil, recorder: "patient", form_id: FORM_ID,
         confirmed_chunks: [])
         raise ArgumentError, "Choose a supported form revision." unless ([FORM_ID] + SPECIALTY_FORMS.keys).include?(form_id)
         raise ArgumentError, "Choose draft or submitted intake." unless %w[draft submitted].include?(status)
         raise ArgumentError, "Intake answers must be an object." unless answers.is_a?(Hash)
+        raise ArgumentError, "Intake note must be text." unless text.is_a?(String)
+        raise ArgumentError, "Intake note must be #{MAX_NARRATIVE_LENGTH} characters or fewer." if text.length > MAX_NARRATIVE_LENGTH
+        raise ArgumentError, "Choose a supported intake recorder." unless %w[patient staff].include?(recorder)
+        if answers.keys.map(&:to_s).uniq.size != answers.keys.size
+          raise ArgumentError, "Do not repeat intake question keys."
+        end
         confirmed_chunks = normalize_confirmed_chunks(confirmed_chunks)
         unknown = answers.keys.map(&:to_s) - fields(form_id).map { |field| field[:id] }
         raise ArgumentError, "Choose supported intake questions." if unknown.any?
         normalized = fields(form_id).to_h do |field|
-          value = answers[field[:id]] || answers[field[:id].to_sym] || ""
+          value = if answers.key?(field[:id])
+            answers[field[:id]]
+          elsif answers.key?(field[:id].to_sym)
+            answers[field[:id].to_sym]
+          else
+            ""
+          end
           [field[:id], normalize_answer(value, field, status: status)]
         end
+        staff_verification = normalized.values.any? do |answer|
+          ([answer] + Array(answer["entries"])).any? do |item|
+            item["verification"] == "staff_verified" || %w[clinic_measured imported].include?(item["source"])
+          end
+        end
+        if recorder != "staff" && staff_verification
+          raise ArgumentError, "Staff verification, clinic measurements and imported sources must be recorded through the staff evidence workflow."
+        end
         additional_text = text.to_s.strip
-        raise ArgumentError, "Intake note must be text." unless text.is_a?(String)
         return additional_text if normalized.values.all? { |answer| answer["state"] == "unanswered" } && additional_text.blank? && status == "submitted"
         if status == "submitted" && attested != true
           raise ArgumentError, recorder == "staff" ? "Confirm that you recorded these answers from the patient." : "Confirm the intake is current and may be shared with your care team."
@@ -209,7 +278,7 @@ module Clinic
             accepted: true
           } : nil
         )
-        raise ArgumentError, "Shorten your intake answers and visit note before saving." if encoded.length > PrevisitNote::MAX_TEXT_LENGTH
+        raise ArgumentError, "Shorten your intake answers and visit note before saving." if encoded.length > MAX_ENCODED_LENGTH
         encoded
       end
 
@@ -225,10 +294,13 @@ module Clinic
 
       def normalize_answer(value, field, status: "submitted")
         return normalize_history_answer(value, field, status:) if field[:history_kind]
+        if field[:question_version]
+          return WeightManagementQuestionnaireAnswers.normalize(value, field, status:)
+        end
 
         value = { "state" => value.blank? ? "unanswered" : "answered", "value" => value } if value.is_a?(String)
         raise ArgumentError, "Intake answers must be text or structured answers." unless value.is_a?(Hash)
-        value = value.stringify_keys
+        value = WeightManagementQuestionnaireAnswers.object(value, "Intake answer")
         raise ArgumentError, "Choose supported answer details." if (value.keys - %w[state value unit measured_at source]).any?
         state = value.fetch("state", "unanswered")
         raise ArgumentError, "Choose a supported answer state." unless ANSWER_STATES.include?(state)
@@ -270,7 +342,7 @@ module Clinic
         value = { "state" => value.blank? ? "unanswered" : "answered", "value" => value } if value.is_a?(String)
         raise ArgumentError, "Intake answers must be text or structured answers." unless value.is_a?(Hash)
 
-        value = value.stringify_keys
+        value = WeightManagementQuestionnaireAnswers.object(value, "History answer")
         raise ArgumentError, "Choose supported history answer details." if (value.keys - %w[state value entries]).any?
         state = value.fetch("state", "unanswered")
         raise ArgumentError, "Choose a supported answer state." unless ANSWER_STATES.include?(state)
@@ -278,6 +350,7 @@ module Clinic
         raise ArgumentError, "Intake answer values must be text." unless text.is_a?(String)
         text = text.strip
         entries = value.fetch("entries", nil)
+        raise ArgumentError, "Each intake answer must be #{MAX_ANSWER_LENGTH} characters or fewer." if text.length > MAX_ANSWER_LENGTH
         if entries.nil?
           raise ArgumentError, "Each intake answer must be #{MAX_ANSWER_LENGTH} characters or fewer." if text.length > MAX_ANSWER_LENGTH
           state = "unanswered" if state == "answered" && text.blank?
@@ -287,20 +360,31 @@ module Clinic
 
         raise ArgumentError, "History entries must be an array." unless entries.is_a?(Array)
         raise ArgumentError, "Add fewer history entries." if entries.length > MAX_HISTORY_ENTRIES
+        raise ArgumentError, "Keep narrative and typed history answers separate." if text.present?
+        if entries.empty? && (state != "answered" || status == "draft")
+          return { "state" => state == "answered" ? "unanswered" : state, "value" => "", "entries" => [] }
+        end
         raise ArgumentError, "Only an answered question can contain history entries." unless state == "answered"
         raise ArgumentError, "Answer at least one history entry." if entries.empty?
 
-        normalized_entries = entries.map { |entry| normalize_history_entry(entry, field[:history_kind]) }
-        raise ArgumentError, "Shorten the history details before saving." if JSON.generate(normalized_entries).length > 5_000
+        normalized_entries = entries.map { |entry| normalize_history_entry(entry, field[:history_kind], record_fields: field[:record_fields] || [], status:) }
+        maximum = field[:record_fields] ? WeightManagementQuestionnaireAnswers::MAX_RECORD_ANSWER_LENGTH : 5_000
+        raise ArgumentError, "Shorten the history details before saving." if JSON.generate(normalized_entries).length > maximum
         { "state" => state, "value" => "", "entries" => normalized_entries }
       end
 
-      def normalize_history_entry(entry, kind)
+      def normalize_history_entry(entry, kind, record_fields: [], status: "submitted")
         raise ArgumentError, "History entries must be objects." unless entry.is_a?(Hash)
 
-        entry = entry.stringify_keys
+        entry = WeightManagementQuestionnaireAnswers.object(entry, "History entry")
+        extra_ids = record_fields.map { |definition| definition[:id] }
+        extra_values = WeightManagementQuestionnaireAnswers.normalize_entry(entry.slice(*extra_ids), record_fields, status:, allow_empty: true)
+        entry = entry.except(*extra_ids)
         allowed = %w[kind name date_precision date_value duration outcome maintenance stop_reason adverse_effects adverse_effect_details complication_state complication_details current_status review_route managing_clinician details certainty actual_use dose_value dose_unit dose_certainty frequency source severity]
         raise ArgumentError, "Choose supported history entry details." if (entry.keys - allowed).any?
+        entry.each do |key, value|
+          WeightManagementQuestionnaireAnswers.text_value(value, { label: key.tr("_", " ") })
+        end
         name = entry.fetch("name", "").to_s.strip
         raise ArgumentError, "Name each previous treatment or procedure." if name.blank?
         raise ArgumentError, "History names must be 240 characters or fewer." if name.length > 240
@@ -308,13 +392,13 @@ module Clinic
         raise ArgumentError, "Choose a supported date certainty." unless HISTORY_DATE_PRECISIONS.include?(date_precision)
         date_value = entry.fetch("date_value", "").to_s.strip
         if date_precision == "exact"
-          raise ArgumentError, "Enter a complete historical date." unless date_value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+          raise ArgumentError, "Enter a complete historical date." unless date_value.match?(/\A\d{4}-\d{2}-\d{2}\z/) && date_value[0, 4].to_i.positive?
           raise ArgumentError, "Historical dates cannot be in the future." if Date.iso8601(date_value) > Current.business_time.to_date
         elsif date_precision == "approximate"
-          raise ArgumentError, "Enter an approximate year." unless date_value.match?(/\A\d{4}\z/)
-          raise ArgumentError, "Historical dates cannot be in the future." if date_value.to_i > Current.business_time.year
+          raise ArgumentError, "Enter an approximate year or month (YYYY or YYYY-MM)." unless date_value.match?(/\A\d{4}(?:-(?:0[1-9]|1[0-2]))?\z/) && date_value[0, 4].to_i.positive?
+          raise ArgumentError, "Historical dates cannot be in the future." if date_value > Current.business_time.strftime(date_value.length == 4 ? "%Y" : "%Y-%m")
         else
-          date_value = ""
+          raise ArgumentError, "An unknown historical date cannot contain a date value." if date_value.present?
         end
         normalized = { "kind" => entry.fetch("kind", "other").to_s, "name" => name,
           "date_precision" => date_precision, "date_value" => date_value }
@@ -351,12 +435,13 @@ module Clinic
           normalized["dose_certainty"] = enum_history_value(entry.fetch("dose_certainty", "unknown"), DOSE_CERTAINTIES, "dose certainty")
           dose_value = entry.fetch("dose_value", "").to_s.strip
           if normalized["dose_certainty"] == "known"
-            raise ArgumentError, "Enter a numeric dose when dose certainty is known." unless dose_value.match?(/\A\d+(?:\.\d+)?\z/)
+            raise ArgumentError, "Enter a numeric dose when dose certainty is known." unless dose_value.match?(/\A\d{1,9}(?:\.\d{1,6})?\z/) && BigDecimal(dose_value).positive?
           else
-            dose_value = ""
+            raise ArgumentError, "An unknown dose cannot contain a numeric dose." if dose_value.present?
           end
           normalized["dose_value"] = dose_value
-          normalized["dose_unit"] = enum_history_value(entry.fetch("dose_unit", "unknown"), DOSE_UNITS, "dose unit")
+          units = record_fields.any? ? WeightManagementQuestionnaire::DOSE_UNITS : DOSE_UNITS
+          normalized["dose_unit"] = enum_history_value(entry.fetch("dose_unit", "unknown"), units, "dose unit")
           normalized["frequency"] = enum_history_value(entry.fetch("frequency", "unknown"), MEDICATION_FREQUENCIES, "medication frequency")
           normalized["source"] = enum_history_value(entry.fetch("source", "unknown"), %w[patient_reported medication_list prescription_record supplement_label unknown], "medication record source")
           normalized["details"] = bounded_history_text(entry["details"])
@@ -368,6 +453,8 @@ module Clinic
         else
           raise ArgumentError, "Choose a supported history type."
         end
+        normalized.merge!(extra_values)
+        WeightManagementQuestionnaireAnswers.validate_record_relationships!(normalized, status:)
         normalized
       rescue ArgumentError
         raise
@@ -391,6 +478,7 @@ module Clinic
 
       def decode(value)
         return unless value.to_s.start_with?(PREFIX)
+        return if value.length > MAX_ENCODED_LENGTH
         payload = JSON.parse(value.delete_prefix(PREFIX))
         modern = payload.is_a?(Hash) && ([FORM_ID] + SPECIALTY_FORMS.keys).include?(payload["form_id"])
         return unless payload.is_a?(Hash) && ([ FORM_ID ] + LEGACY_FORM_IDS + SPECIALTY_FORMS.keys).include?(payload["form_id"]) &&
@@ -423,8 +511,11 @@ module Clinic
         payload = decode(value)
         return value unless payload
         sections = fields(payload["form_id"]).filter_map do |field|
-          answer = answer_text(payload["answers"][field[:id]])
-          "#{field[:label]}\n#{answer}" if answer.present?
+          answer = answer_text(payload["answers"][field[:id]], field:)
+          if answer.present?
+            context = visible?(field, payload["answers"], form_id: payload["form_id"]) ? "" : " (retained answer; outside the current branch)"
+            "#{field[:label]}#{context}\n#{answer}"
+          end
         end
         sections << "Additional note\n#{payload['text']}" if payload["text"].present?
         if payload["attestation"]
@@ -439,7 +530,7 @@ module Clinic
         "#{heading}\n\n#{sections.join("\n\n") }"
       end
 
-      def answer_text(answer)
+      def answer_text(answer, field: nil)
         return answer unless answer.is_a?(Hash)
         return nil if answer["state"] == "unanswered"
         return nil unless ANSWER_STATES.include?(answer["state"])
@@ -448,17 +539,20 @@ module Clinic
           return answer["entries"].filter_map do |entry|
             next unless entry.is_a?(Hash)
 
-            details = [ entry["kind"], entry["current_status"], entry["review_route"], entry["certainty"],
-              entry["actual_use"], entry["dose_value"].presence, entry["dose_unit"], entry["frequency"], entry["source"],
-              entry["severity"], entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
-            %w[duration maintenance stop_reason adverse_effects adverse_effect_details complication_state
-              complication_details managing_clinician details dose_certainty].each do |key|
-              details << "#{key.tr('_', ' ')}: #{entry[key]}" if entry[key].present?
-            end
-            [ entry["name"], details.compact.join(" · ") ].compact.join(" — ")
+            entry.filter_map do |key, value|
+              next if value.blank?
+              definition = field&.fetch(:record_fields, nil)&.find { |item| item[:id] == key }
+              label = definition ? definition[:label] : key.tr("_", " ")
+              rendered = value.is_a?(Array) ? value.join(", ") : value
+              "#{label}: #{rendered}"
+            end.join(" · ")
           end.join("\n")
         end
-        [ answer["value"], answer["unit"], answer["measured_at"], answer["source"]&.tr("_", " ") ].compact.join(" ")
+        if answer["values"].is_a?(Array)
+          return [answer["values"].join(", "), answer["other_detail"].presence].compact.join(" — ")
+        end
+        [ answer["value"], answer["unit"], answer["measured_at"], answer["source"]&.tr("_", " "),
+          answer["verification"]&.tr("_", " "), answer["source_details"], answer["other_detail"] ].compact.join(" ")
       end
     end
   end
