@@ -1,12 +1,18 @@
 # Medical Weight-Management Intake Tracking
 
-Status: M1–M12 implemented and browser-verified; clinical approval remains a separate gate
+Status: Audit reopened M1–M12: partial implementation; full supplied-brief acceptance is not complete
 
-Revision: 6 · 2026-09-18
+Revision: 7 · 2026-09-19
 
 Milestone count: 12 implementation milestones
 
 Approval gate: one separate clinical approval gate, not counted as a milestone
+
+## Audit correction — 2026-09-19
+
+The full attachment is the acceptance scope, including all A–L domains, records/consents, input-state/provenance rules, and shorter follow-up. **None of the twelve complete milestone definitions is yet fully accepted.** The earlier limited persistence/browser checks remain historical evidence, not proof that every specified field and workflow exists.
+
+The [field-by-field audit and hardening evidence](../../records/implementation/2026-09-19-weight-management-intake-audit.md) identifies gaps for every milestone, fixed defects, exact reviewed HL7 versions, and verification limits. In particular, product-safety, instrument, consent, review-owner and support-route dropdowns do not substitute for individual safety questions, instrument items/scoring, signed records or owned tasks. Original milestone requirements below remain unchanged; do not reduce acceptance to the current dropdowns.
 
 ## Purpose and scope
 
@@ -55,20 +61,22 @@ Until this gate is recorded, implementation can build neutral form infrastructur
 
 | ID | Milestone | Primary outcome | Depends on | Status | Acceptance evidence |
 | --- | --- | --- | --- | --- | --- |
-| M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | Complete | Five guided chunks save progressively; explicit answer states, staff confirmation, provenance, and Version 5 survive reload |
-| M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | Complete | Existing profile values are reused read-only; synthetic room 19 is recorded and remains present after reload |
-| M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | Complete | Synthetic 200 lb / 70 in measurement records with date and units; server-calculated BMI displays as 28.7 kg/m² and is not editable |
-| M4 | Previous treatment and procedure history | Treatment attempts, medication history, procedures, outcomes, and reasons for stopping are repeatable records | M1, M3 | Complete | Structured treatment/procedure entries persist independently; approximate and unknown dates survive reload; API and browser evidence pass |
-| M5 | Medical, family, and current-symptom history | Structured conditions and symptoms open relevant follow-ups without collapsing history into one text box | M1, M2 | Complete | Condition status/date/review route, family-history uncertainty, and current-symptom review route persist and remain visible |
-| M6 | Medication, supplement, allergy, and actual-use reconciliation | Medication records distinguish prescribed from actually taken products and distinguish allergy from intolerance | M1, M4, M5 | Complete | Search/“Other,” actual-use state, dose uncertainty, reaction type, certainty, and record source persist visibly |
-| M7 | Reproductive and medication-specific safety branches | Treatment selection opens the product-specific questions and clarification paths | M5, M6; clinical approval gate | Complete | Canonical product/reproductive branch fields, conditional visibility, explicit unknown/declined states, and clarification routing are persisted |
-| M8 | Nutrition, eating behavior, and mental-health support | Structured food patterns and sensitive behavioral questions can be completed privately and conditionally | M1, M5; approved instruments if selected | Complete | Bounded nutrition, eating, mental-health, substance-use, and instrument-status fields persist without an inferred score |
-| M9 | Activity, function, sleep, and social barriers | The assessment captures function and support needs without a punitive readiness score | M1, M5, M8 | Complete | Bounded activity, sleep, access, caregiving, social-support, and support-route fields persist independently |
-| M10 | Records, labs, consent, and administrative context | Imported evidence and consent records are linked without demanding universal testing | M2, M3, M5, M7 | Complete | Evidence, consent, privacy, coverage, authorization, and disclosure states remain separate and source-aware |
-| M11 | Patient confirmation and clinician review | The patient/staff can confirm what was recorded while the clinician sees unresolved risks first | M1–M10 | Complete | Confirmation, unresolved-item state, and review ownership are distinct from clinical approval |
-| M12 | Follow-up and longitudinal change | A shorter follow-up updates treatment response and access without repeating the full initial intake | M3, M6, M7, M9, M11 | Complete | Follow-up context, change, response, tolerability, access, support, plan state, and patient questions persist; refill/dose actions remain separate |
+| M1 | Shared intake shell and source-aware answer model | A resumable intake can render versioned sections and preserve source/state metadata | Approval gate; existing patient/encounter records | Partial — reopened | Prior limited evidence (not full acceptance): Five guided chunks save progressively; explicit answer states, staff confirmation, provenance, and Version 5 survive reload |
+| M2 | Patient profile and care coordination | The intake reuses identity/contact data and captures encounter-specific coordination facts | M1 | Partial — reopened | Prior limited evidence (not full acceptance): Existing profile values are reused read-only; synthetic room 19 is recorded and remains present after reload |
+| M3 | Goals, measurements, and weight history | Staff and patient can record goals, dated measurements, BMI, and longitudinal weight context | M1, M2 | Partial — reopened | Prior limited evidence (not full acceptance): Synthetic 200 lb / 70 in measurement records with date and units; server-calculated BMI displays as 28.7 kg/m² and is not editable |
+| M4 | Previous treatment and procedure history | Treatment attempts, medication history, procedures, outcomes, and reasons for stopping are repeatable records | M1, M3 | Partial — reopened | Prior limited evidence (not full acceptance): Structured treatment/procedure entries persist independently; approximate and unknown dates survive reload; API and browser evidence pass |
+| M5 | Medical, family, and current-symptom history | Structured conditions and symptoms open relevant follow-ups without collapsing history into one text box | M1, M2 | Partial — reopened | Prior limited evidence (not full acceptance): Condition status/date/review route, family-history uncertainty, and current-symptom review route persist and remain visible |
+| M6 | Medication, supplement, allergy, and actual-use reconciliation | Medication records distinguish prescribed from actually taken products and distinguish allergy from intolerance | M1, M4, M5 | Partial — reopened | Prior limited evidence (not full acceptance): Search/“Other,” actual-use state, dose uncertainty, reaction type, certainty, and record source persist visibly |
+| M7 | Reproductive and medication-specific safety branches | Treatment selection opens the product-specific questions and clarification paths | M5, M6; clinical approval gate | Partial — reopened | Prior limited evidence (not full acceptance): Canonical product/reproductive branch fields, conditional visibility, explicit unknown/declined states, and clarification routing are persisted |
+| M8 | Nutrition, eating behavior, and mental-health support | Structured food patterns and sensitive behavioral questions can be completed privately and conditionally | M1, M5; approved instruments if selected | Partial — reopened | Prior limited evidence (not full acceptance): Bounded nutrition, eating, mental-health, substance-use, and instrument-status fields persist without an inferred score |
+| M9 | Activity, function, sleep, and social barriers | The assessment captures function and support needs without a punitive readiness score | M1, M5, M8 | Partial — reopened | Prior limited evidence (not full acceptance): Bounded activity, sleep, access, caregiving, social-support, and support-route fields persist independently |
+| M10 | Records, labs, consent, and administrative context | Imported evidence and consent records are linked without demanding universal testing | M2, M3, M5, M7 | Partial — reopened | Prior limited evidence (not full acceptance): Evidence, consent, privacy, coverage, authorization, and disclosure states remain separate and source-aware |
+| M11 | Patient confirmation and clinician review | The patient/staff can confirm what was recorded while the clinician sees unresolved risks first | M1–M10 | Partial — reopened | Prior limited evidence (not full acceptance): Confirmation, unresolved-item state, and review ownership are distinct from clinical approval |
+| M12 | Follow-up and longitudinal change | A shorter follow-up updates treatment response and access without repeating the full initial intake | M3, M6, M7, M9, M11 | Partial — reopened | Prior limited evidence (not full acceptance): Follow-up context, change, response, tolerability, access, support, plan state, and patient questions persist; refill/dose actions remain separate |
 
-## M1–M6 implementation checkpoint
+## Historical implementation checkpoint — superseded acceptance claims
+
+The checks below proved selected persistence paths, not the full milestone definitions. The 2026-09-19 audit supersedes the earlier blanket completion claims. Completing groups using `Not asked` does not prove full data capture, owned clarification work, valid consent, or clinician acceptance.
 
 - **Implemented:** persisted confirmed chunk progress and questionnaire version/provenance metadata; explicit answer-state controls; patient-profile reuse; encounter-scoped video-location question; existing observation-based vital-sign entry with server-calculated BMI; structured condition, family-history, and current-symptom records with bounded review routing; and structured medication, supplement, allergy, intolerance, actual-use, dose-certainty, and source records.
 - **Changed paths:** `apps/api/app/controllers/clinic/scheduling/encounters_controller.rb`, `apps/api/app/services/clinic/care/previsit_intake.rb`, `apps/api/app/services/clinic/care/nurse_workflow.rb`, `apps/api/test/integration/nurse_workflow_test.rb`, `apps/web/src/api/contracts.ts`, `apps/web/src/features/patientPortal/IntakeQuestions.tsx`, `apps/web/src/features/clinic/NurseEncounterWorkspace.tsx`, and `apps/web/test/patient-previsit-note.test.tsx`.

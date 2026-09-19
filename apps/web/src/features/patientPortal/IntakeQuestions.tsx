@@ -201,7 +201,7 @@ export function IntakeQuestions({
               )}
               <TextField
                 select
-                label={`${field.label} status`}
+                label={`${field.label.replace(/ status$/i, "")} status`}
                 value={state}
                 disabled={disabled}
                 onChange={(event) => {
@@ -217,7 +217,7 @@ export function IntakeQuestions({
                       : { state: nextState, value: "" },
                   );
                 }}
-                helperText="Choose Unknown, Declined, or Not applicable when an answer is not available."
+                helperText="Use Not asked when the question was not discussed. Unknown, Declined, and Not applicable have different meanings."
               >
                 {answerStates.map((option) => (
                   <MenuItem key={option} value={option}>
@@ -552,8 +552,8 @@ function HistoryEntryEditor({
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Add one record for each previous {historyLabel}. Choose Unknown when the
-        detail is not available; this is history, not a prescribing or clinical
+        Add one record for each {historyLabel}. Choose Unknown when the detail
+        is not available; this is history, not a prescribing or clinical
         approval decision.
       </Typography>
       {entries.map((entry, index) => (

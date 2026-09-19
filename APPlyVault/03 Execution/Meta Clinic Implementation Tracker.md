@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-17
+updated: 2026-09-19
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -10,6 +10,8 @@ canonical_for: meta-clinic-implementation-tracking
 Home: [[00 Home]] · Direction: [[Meta Clinic Product Strategy and Scope]] · Acceptance: [Engineering guide](../../docs/development/meta-clinic-build-and-acceptance.md) · Decisions: [[Decisions]] · Outcomes: [[Progress Log]] · [Remaining-work gap report](../../docs/product-review/meta-clinic-remaining-work.md)
 
 ## Authority and status
+
+**2026-09-19 — Weight-management intake audit correction:** M1–M12 remain partial against the founder's complete field-by-field brief. Earlier blanket completion claims in the [assignment tracker](../../docs/development/weight-management-intake-tracking.md) are superseded. The [dated audit](../../records/implementation/2026-09-19-weight-management-intake-audit.md) separates implemented primitives and hardened confirmation/handoff defects from missing detailed data capture, linked evidence/consent, owned clarification/support work and shorter follow-up. This is engineering work remaining, not merely a clinical sign-off gate. Original acceptance scope is preserved.
 
 This is the single current Meta Clinic implementation tracker. Individual tasks execute bounded work and report outcomes here; do not maintain a competing mutable checklist. D-071 supersedes the former Shortcut-only tracking direction. Historical plans remain detailed inputs, not current completion authority.
 

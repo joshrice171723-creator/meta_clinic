@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Autocomplete,
   Box,
   Button,
@@ -18,6 +21,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, ApiError } from "../../api/client";
 import type {
   ClinicalTask,
@@ -120,7 +124,7 @@ export function NurseEncounterWorkspace({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [activeChunk, setActiveChunk] = useState(0);
-  const [confirmedChunks, setConfirmedChunks] = useState<number[]>([]);
+  const hydratedVersion = useRef<number | null>(null);
   const [roomId, setRoomId] = useState<number | null>(encounter.room_id);
   const [encounterObservations, setEncounterObservations] =
     useState<Observation[]>(observations);
@@ -132,7 +136,7 @@ export function NurseEncounterWorkspace({
     setError("");
     setNotice("");
     setActiveChunk(0);
-    setConfirmedChunks([]);
+    hydratedVersion.current = null;
     setRoomId(encounter.room_id);
     setEncounterObservations(observations);
   }, [patient.id, encounter.id]);
@@ -180,7 +184,13 @@ export function NurseEncounterWorkspace({
 
   useEffect(() => {
     const intake = resource.data?.intake;
-    if (!intake || (dirty && form.questionnaire)) return;
+    if (
+      !intake ||
+      hydratedVersion.current === intake.version ||
+      (dirty && form.questionnaire)
+    )
+      return;
+    hydratedVersion.current = intake.version;
     const next: IntakeForm = {
       status: intake.status,
       identity_state: intake.identity_state,
@@ -198,7 +208,6 @@ export function NurseEncounterWorkspace({
     setForm(next);
     setBaseline(next);
     const savedChunks = next.questionnaire?.confirmed_chunks ?? [];
-    setConfirmedChunks(savedChunks);
     const nextChunk = chunkDefinitions.findIndex(
       (_chunk, index) => !savedChunks.includes(index),
     );
@@ -278,19 +287,18 @@ export function NurseEncounterWorkspace({
 
   const workspace = resource.data;
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
-  const persistedConfirmedChunks = form.questionnaire?.confirmed_chunks ?? [];
-  const confirmedChunkIndexes =
-    confirmedChunks.length > 0 ? confirmedChunks : persistedConfirmedChunks;
-  const nextPersistedChunk = intakeChunks.findIndex(
-    (_chunk, index) => !confirmedChunkIndexes.includes(index),
+  const confirmedChunkIndexes = form.questionnaire?.confirmed_chunks ?? [];
+  const activeChunkIndex = Math.min(
+    activeChunk,
+    Math.max(intakeChunks.length - 1, 0),
   );
-  const activeChunkIndex =
-    activeChunk === 0 && confirmedChunkIndexes.length > 0
-      ? nextPersistedChunk === -1
-        ? Math.max(intakeChunks.length - 1, 0)
-        : nextPersistedChunk
-      : activeChunk;
+  const roomRequired = encounter.visit_modality !== "video";
   const intakeVersion = workspace.intake?.version ?? 0;
+  const staleHandoff = Boolean(
+    workspace.handoff &&
+    workspace.intake &&
+    workspace.handoff.intake_revision_id !== workspace.intake.id,
+  );
   const canRespondToHandoff =
     workspace.capabilities.handoff_respond &&
     workspace.handoff?.requested_by_membership_id !== clinic.membership_id;
@@ -303,7 +311,7 @@ export function NurseEncounterWorkspace({
       ),
     );
   const readyEvidence =
-    Boolean(roomId) &&
+    (!roomRequired || Boolean(roomId)) &&
     form.identity_state === "confirmed" &&
     form.visit_reason_state === "confirmed" &&
     form.history_state === "reviewed" &&
@@ -399,8 +407,7 @@ export function NurseEncounterWorkspace({
       };
       setForm(saved);
       setBaseline(saved);
-      const savedChunks = saved.questionnaire?.confirmed_chunks ?? [];
-      setConfirmedChunks(savedChunks);
+      hydratedVersion.current = response.intake.version;
       if (advanceChunk) {
         setActiveChunk((current) =>
           Math.min(activeChunkIndex + 1, intakeChunks.length - 1),
@@ -755,7 +762,7 @@ export function NurseEncounterWorkspace({
                   {intakeChunks.map((chunk, index) => (
                     <Chip
                       key={chunk.label}
-                      label={`${index + 1}. ${chunk.label}`}
+                      label={`${index + 1}. ${chunk.label}${confirmedChunkIndexes.includes(index) ? " · Confirmed" : ""}`}
                       color={
                         confirmedChunkIndexes.includes(index)
                           ? "success"
@@ -766,19 +773,14 @@ export function NurseEncounterWorkspace({
                       variant={
                         index === activeChunkIndex ? "filled" : "outlined"
                       }
-                      onClick={() =>
-                        index <=
-                          Math.max(
-                            activeChunkIndex,
-                            ...confirmedChunkIndexes,
-                          ) && setActiveChunk(index)
-                      }
+                      disabled={busy || index > confirmedChunkIndexes.length}
+                      onClick={() => setActiveChunk(index)}
                       aria-label={`${chunk.label}${confirmedChunkIndexes.includes(index) ? ", confirmed" : ""}`}
                     />
                   ))}
                 </Stack>
-                <Alert severity={roomId ? "info" : "warning"}>
-                  {roomId
+                <Alert severity={!roomRequired || roomId ? "info" : "warning"}>
+                  {!roomRequired || roomId
                     ? `Group ${activeChunkIndex + 1} of ${intakeChunks.length}: ${intakeChunks[activeChunkIndex].description}`
                     : "Record the room first. You can still save intake drafts, but clinician handoff stays blocked until a room is recorded."}
                 </Alert>
@@ -786,7 +788,7 @@ export function NurseEncounterWorkspace({
                   Recording answers does not reconcile medicines or allergies,
                   confirm patient consent, or complete clinical review.
                 </Typography>
-                {activeChunkIndex === intakeChunks.length - 1 && (
+                {intakeChunks[activeChunkIndex].id === "measurements" && (
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     <Stack spacing={1.25}>
                       <Box>
@@ -849,9 +851,21 @@ export function NurseEncounterWorkspace({
                   </Paper>
                 )}
                 {workspace.intake?.questionnaire_text && (
-                  <Typography sx={{ whiteSpace: "pre-wrap" }}>
-                    {workspace.intake.questionnaire_text}
-                  </Typography>
+                  <Accordion disableGutters>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography>Review previously saved answers</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Typography
+                        sx={{
+                          whiteSpace: "pre-wrap",
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {workspace.intake.questionnaire_text}
+                      </Typography>
+                    </AccordionDetails>
+                  </Accordion>
                 )}
                 <IntakeQuestions
                   fields={workspace.questionnaire_form.fields.filter(
@@ -881,8 +895,9 @@ export function NurseEncounterWorkspace({
                         answers,
                         status: "draft",
                         confirmed: false,
-                        confirmed_chunks:
-                          current.questionnaire?.confirmed_chunks ?? [],
+                        confirmed_chunks: (
+                          current.questionnaire?.confirmed_chunks ?? []
+                        ).filter((index) => index < activeChunkIndex),
                       },
                     }))
                   }
@@ -1130,6 +1145,16 @@ export function NurseEncounterWorkspace({
                   Bound to intake revision{" "}
                   {workspace.handoff.intake_revision_id}
                 </Typography>
+                {staleHandoff &&
+                  ["pending", "accepted", "correction_requested"].includes(
+                    workspace.handoff.state,
+                  ) && (
+                    <Alert severity="warning">
+                      Intake changed after this handoff was requested. Cancel
+                      this handoff, review the latest answers, and request a new
+                      handoff.
+                    </Alert>
+                  )}
                 {workspace.handoff.requested_by_membership_id ===
                   clinic.membership_id &&
                   ["pending", "accepted"].includes(workspace.handoff.state) && (
@@ -1147,7 +1172,7 @@ export function NurseEncounterWorkspace({
                       useFlexGap
                     >
                       <Button
-                        disabled={busy}
+                        disabled={busy || staleHandoff || dirty}
                         variant="contained"
                         onClick={() => void transitionHandoff("accept")}
                       >
@@ -1173,7 +1198,7 @@ export function NurseEncounterWorkspace({
                 {workspace.handoff.state === "accepted" &&
                   canRespondToHandoff && (
                     <Button
-                      disabled={busy}
+                      disabled={busy || staleHandoff || dirty}
                       variant="outlined"
                       onClick={() => void transitionHandoff("complete")}
                     >

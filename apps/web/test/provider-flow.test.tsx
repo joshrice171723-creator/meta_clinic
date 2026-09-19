@@ -584,6 +584,50 @@ describe("provider encounter workflow", () => {
     expect(html).not.toContain("Open Scribe");
   });
 
+  it("shows an active phone rather than a preferred email or retired phone in demographics", () => {
+    const contacts = [
+      {
+        id: 1,
+        contact_type: "email",
+        contact_value: "synthetic@example.invalid",
+        preferred: true,
+        effective_from: "2026-01-01",
+        effective_until: null,
+      },
+      {
+        id: 2,
+        contact_type: "phone",
+        contact_value: "5550101111",
+        preferred: true,
+        effective_from: "2026-01-01",
+        effective_until: "2026-02-01",
+      },
+      {
+        id: 3,
+        contact_type: "phone",
+        contact_value: "5550102222",
+        preferred: false,
+        effective_from: "2026-02-01",
+        effective_until: null,
+      },
+    ];
+    const render = (selectedContacts: typeof contacts) =>
+      renderToStaticMarkup(
+        <ProviderEncounterWorkflow
+          patient={{ ...patient, contacts: selectedContacts }}
+          encounter={encounter}
+          observations={[]}
+          timezone="America/Chicago"
+          noteWorkspace={<div>SOAP editor</div>}
+        />,
+      );
+    const html = render(contacts);
+    expect(html).toContain("5550102222");
+    expect(html).not.toContain("5550101111");
+    expect(html).not.toContain("synthetic@example.invalid");
+    expect(render(contacts.slice(0, 2))).not.toContain("5550101111");
+  });
+
   it("offers chart quick links to patient, HPI, and ROS anchors", () => {
     const html = renderToStaticMarkup(<ChartQuickJump />);
 

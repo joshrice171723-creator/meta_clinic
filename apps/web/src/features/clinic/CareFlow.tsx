@@ -3235,6 +3235,9 @@ export function ProviderEncounterWorkflow({
   );
   const [chartConfirmed, setChartConfirmed] = useState(false);
   const signedChart = encounterHasSignedSoapNote(encounter);
+  const currentPhones = (patient.contacts ?? []).filter(
+    (contact) => contact.contact_type === "phone" && !contact.effective_until,
+  );
   const existingChart = encounter.notes.some(
     (note) => note.note_kind === "soap",
   );
@@ -3365,9 +3368,9 @@ export function ProviderEncounterWorkflow({
                   </TableCell>
                   <TableCell component="th">Phone</TableCell>
                   <TableCell>
-                    {patient.contacts?.find((contact) => contact.preferred)
+                    {currentPhones.find((contact) => contact.preferred)
                       ?.contact_value ||
-                      patient.contacts?.[0]?.contact_value ||
+                      currentPhones[0]?.contact_value ||
                       "Not recorded"}
                   </TableCell>
                   <TableCell component="th">Birthdate</TableCell>

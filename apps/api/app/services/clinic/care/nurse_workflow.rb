@@ -8,13 +8,13 @@ module Clinic
       INTAKE_CHUNKS = [
         { index: 0, id: "today_visit", label: "Today’s visit",
           description: "Why the patient is here and what they want help with.",
-          fields: %w[visit_reason symptoms goals].freeze },
+          fields: %w[visit_reason symptoms goals changes].freeze },
         { index: 1, id: "patient_coordination", label: "Patient and coordination",
           description: "Confirm chart context and capture encounter-specific needs.",
           fields: %w[care_needs telehealth_location].freeze },
         { index: 2, id: "safety_history", label: "Safety and history",
           description: "Medicines, allergies, and relevant health history.",
-          fields: %w[medications allergies history family_history].freeze },
+          fields: %w[medications allergies history family_history history_changes change_details].freeze },
         { index: 3, id: "prior_approaches", label: "What has been tried",
           description: "Previous approaches, procedures, and barriers to the plan.",
           fields: %w[prior_approaches procedures barriers].freeze },
@@ -26,7 +26,7 @@ module Clinic
           fields: %w[treatment_product_class pregnancy_status pregnancy_plans breastfeeding_status contraception_context product_safety_review].freeze },
         { index: 6, id: "nutrition_support", label: "Nutrition and sensitive support",
           description: "Capture food patterns and support context with explicit privacy and decline states.",
-          fields: %w[nutrition_pattern beverage_pattern eating_concern nutrition_support mental_health_support substance_use_context instrument_status].freeze },
+          fields: %w[nutrition_pattern beverage_pattern eating_concern nutrition_support mental_health_support substance_use_context instrument_status habits].freeze },
         { index: 7, id: "activity_sleep_barriers", label: "Activity, sleep, and barriers",
           description: "Record function, sleep, access, and support needs without a readiness score.",
           fields: %w[activity_capacity activity_pattern sleep_quality transportation_access food_access caregiving_support social_support barrier_support_route].freeze },
@@ -68,7 +68,7 @@ module Clinic
           handoff = handoffs[encounter.id]
           stage = if handoff&.state == "accepted"
             "clinician"
-          elsif handoff&.state == "pending"
+          elsif handoff&.state == "pending" && handoff.intake_revision_id == intake&.id
             "ready"
           elsif intake
             "intake"
@@ -165,6 +165,12 @@ module Clinic
           resource_resolver: ->(practice:, receipt:) { Clinic::EncounterHandoff.find_by(practice:, id: receipt.resource_id) }
         ) do
           encounter.with_lock do
+            if encounter.appointment&.visit_modality != "video" && encounter.room_id.blank?
+              raise ArgumentError, "Record the room before requesting clinician handoff."
+            end
+            if latest_intake(practice, encounter)&.id != intake.id
+              raise ArgumentError, "Intake has changed. Request handoff using the latest saved revision."
+            end
             if Clinic::EncounterHandoff.where(practice:, encounter:, state: %w[pending accepted correction_requested]).exists?
               raise ArgumentError, "This encounter already has an active handoff."
             end
@@ -197,20 +203,25 @@ module Clinic
           payload:, result_resource: ->(value) { value },
           resource_resolver: ->(practice:, receipt:) { Clinic::EncounterHandoff.find_by(practice:, id: receipt.resource_id) }
         ) do
-          handoff = Clinic::EncounterHandoff.lock.find(handoff.id)
-          stale!(handoff.lock_version, expected_version, handoff)
-          valid_handoff_transition!(handoff.state, next_state)
-          now = Current.business_time
-          attributes = { state: next_state, responded_at: now }
-          attributes[:accepted_by_membership] = member if next_state.in?(%w[accepted completed])
-          attributes[:accepted_by_membership] = handoff.accepted_by_membership if next_state == "completed"
-          handoff.update!(attributes)
-          append_handoff_event!(handoff:, member:, event_code: next_state, request_key:,
-            version_number: handoff.events.maximum(:version_number).to_i + 1)
-          if next_state == "accepted"
-            complete_source_tasks!(handoff, member, "completed")
-          elsif next_state.in?(%w[rejected correction_requested cancelled])
-            complete_source_tasks!(handoff, member, "superseded")
+          handoff.encounter.with_lock do
+            handoff = Clinic::EncounterHandoff.lock.find(handoff.id)
+            stale!(handoff.lock_version, expected_version, handoff)
+            valid_handoff_transition!(handoff.state, next_state)
+            if next_state.in?(%w[accepted completed]) && latest_intake(practice, handoff.encounter)&.id != handoff.intake_revision_id
+              raise ArgumentError, "Intake has changed. Cancel this handoff and request one for the latest saved revision."
+            end
+            now = Current.business_time
+            attributes = { state: next_state, responded_at: now }
+            attributes[:accepted_by_membership] = member if next_state.in?(%w[accepted completed])
+            attributes[:accepted_by_membership] = handoff.accepted_by_membership if next_state == "completed"
+            handoff.update!(attributes)
+            append_handoff_event!(handoff:, member:, event_code: next_state, request_key:,
+              version_number: handoff.events.maximum(:version_number).to_i + 1)
+            if next_state == "accepted"
+              complete_source_tasks!(handoff, member, "completed")
+            elsif next_state.in?(%w[rejected correction_requested cancelled])
+              complete_source_tasks!(handoff, member, "superseded")
+            end
           end
           handoff
         end
@@ -317,16 +328,18 @@ module Clinic
         questionnaire = attributes[:questionnaire] || attributes["questionnaire"]
         if questionnaire
           questionnaire = questionnaire.to_h.stringify_keys
-          validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:)
           input[:encrypted_questionnaire] = PrevisitIntake.encode(text: questionnaire.fetch("text", ""),
             answers: questionnaire.fetch("answers", {}), status: questionnaire.fetch("status", "draft"),
             attested: questionnaire["confirmed"] == true, recorder: "staff", form_id: form_id,
             confirmed_chunks: questionnaire.fetch("confirmed_chunks", []))
+          normalized = PrevisitIntake.decode(input[:encrypted_questionnaire])
+          validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:,
+            answers: normalized&.fetch("answers", {}) || {})
         end
         input
       end
 
-      def validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:)
+      def validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:, answers:)
         chunks = normalize_chunk_indexes(questionnaire.fetch("confirmed_chunks", []))
         if chunks.any? { |index| index >= INTAKE_CHUNKS.length }
           raise ArgumentError, "The intake group is outside the supported workflow."
@@ -340,17 +353,28 @@ module Clinic
         unless previous_chunks == (0...previous_chunks.length).to_a
           raise ArgumentError, "The saved intake groups are not in a valid order."
         end
-        return if chunks == previous_chunks
-
-        unless chunks.first(previous_chunks.length) == previous_chunks && chunks.length == previous_chunks.length + 1
+        if chunks.length > previous_chunks.length + 1
           raise ArgumentError, "Confirm the current question group before opening the next."
         end
-        unless questionnaire.fetch("status", "draft") == "submitted" && questionnaire["confirmed"] == true
+        confirmed = questionnaire.fetch("status", "draft") == "submitted" && questionnaire["confirmed"] == true
+        if chunks.length > previous_chunks.length && !confirmed
           raise ArgumentError, "Confirm the current question group before opening the next."
         end
 
-        answers = questionnaire.fetch("answers", {}).to_h
-        fields = visible_fields(form_id:, chunk_index: chunks.last, answers:, encounter:)
+        previous_answers = previous_questionnaire&.fetch("answers", {}) || {}
+        changed_chunk = previous_chunks.find do |index|
+          INTAKE_CHUNKS.fetch(index).fetch(:fields).any? do |id|
+            next false unless answers.key?(id)
+            field = PrevisitIntake.fields(form_id).find { |item| item[:id] == id }
+            old = PrevisitIntake.normalize_answer(previous_answers[id] || "", field, status: "draft")
+            old != answers[id]
+          end
+        end
+        if changed_chunk && chunks.length > changed_chunk + (confirmed ? 1 : 0)
+          raise ArgumentError, "Changed answers require reconfirming this group and the following groups. Save a draft to reopen them."
+        end
+
+        fields = chunks.flat_map { |index| visible_fields(form_id:, chunk_index: index, answers:, encounter:) }
         fields -= [ "telehealth_location" ] unless encounter&.appointment&.visit_modality == "video"
         unanswered = fields.select { |field_id| answer_state(answers[field_id] || answers[field_id.to_sym]) == "unanswered" }
         if unanswered.any?

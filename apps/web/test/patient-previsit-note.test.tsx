@@ -25,6 +25,24 @@ describe("PatientPrevisitNote load scope", () => {
 });
 
 describe("typed patient journey intake", () => {
+  it("avoids duplicated status labels and explains the not-asked state", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          { id: "support_status", label: "Support status", reusable: false },
+        ]}
+        answers={{}}
+        disabled={false}
+        answerStates={["unanswered", "not_asked", "unknown"]}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).not.toContain("Support status status");
+    expect(html).toContain(
+      "Use Not asked when the question was not discussed.",
+    );
+  });
+
   it("never collapses explicit missing and negative answers into an empty legacy answer", () => {
     expect(answerState("")).toBe("unanswered");
     expect(answerState("No reported changes")).toBe("answered");
@@ -241,10 +259,10 @@ describe("typed patient journey intake", () => {
         onChange={() => {}}
       />,
     );
-    expect(html).toContain("previous condition");
+    expect(html).toContain("each condition");
     expect(html).toContain("Current status");
     expect(html).toContain("Review route");
-    expect(html).toContain("previous family-history item");
+    expect(html).toContain("each family-history item");
     expect(html).toContain("Family-history certainty");
     expect(html).toContain("Synthetic cardiovascular history");
   });

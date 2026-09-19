@@ -230,7 +230,7 @@ vi.mock("../src/features/clinic/Workspace", () => ({
   useClinic: () => ({ membership_id: 7 }),
 }));
 
-function renderWorkspace(roomId: number | null) {
+function renderWorkspace(roomId: number | null, visitModality = "in_person") {
   return renderToStaticMarkup(
     <NurseEncounterWorkspace
       patient={{ id: 121, display_name: "Synthetic Patient" } as Patient}
@@ -241,7 +241,7 @@ function renderWorkspace(roomId: number | null) {
           site_id: 15,
           room_id: roomId,
           status: "open",
-          visit_modality: "in_person",
+          visit_modality: visitModality,
         } as unknown as EncounterDetail
       }
       observations={[]}
@@ -274,5 +274,39 @@ describe("NurseEncounterWorkspace", () => {
 
   it("shows a recorded room when the encounter already has one", () => {
     expect(renderWorkspace(19)).toContain("Room recorded for this encounter.");
+  });
+
+  it("does not require a physical room for a video encounter", () => {
+    const html = renderWorkspace(null, "video");
+    expect(html).not.toContain("Room is still required.");
+    expect(html).not.toContain("Record the room first.");
+    expect(html).toContain("Group 1 of 11");
+  });
+
+  it("makes a superseded handoff visible without discarding its ownership", () => {
+    const originalIntake = fixtures.workspace.intake;
+    const originalHandoff = fixtures.workspace.handoff;
+    fixtures.workspace.intake = {
+      id: 22,
+      version: 2,
+      status: "incomplete",
+    } as NurseWorkspace["intake"];
+    fixtures.workspace.handoff = {
+      id: 7,
+      intake_revision_id: 21,
+      state: "pending",
+      requested_by_membership_id: 7,
+    } as NurseWorkspace["handoff"];
+    try {
+      const html = renderWorkspace(19);
+      expect(html).toContain(
+        "Intake changed after this handoff was requested.",
+      );
+      expect(html).toContain("Cancel handoff");
+      expect(html).toContain("Bound to intake revision");
+    } finally {
+      fixtures.workspace.intake = originalIntake;
+      fixtures.workspace.handoff = originalHandoff;
+    }
   });
 });

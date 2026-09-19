@@ -243,6 +243,68 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal 0, Clinic::EncounterIntakeRevision.where(encounter: @encounter).count
   end
 
+  test "blank confirmed answers and changed previously confirmed groups are rejected without losing draft recovery" do
+    base = { status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+      history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [] }
+    answers = Clinic::Care::PrevisitIntake.fields.to_h { |field| [ field[:id], { state: "not_asked", value: "" } ] }
+    questionnaire = { text: "", status: "submitted", confirmed: true, confirmed_chunks: [ 0 ], answers: }
+    questionnaire[:answers]["goals"] = { state: "answered", value: "  " }
+    post intake_path, params: { intake: base.merge(expected_version: 0, request_key: "blank-confirmed", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 0, Clinic::EncounterIntakeRevision.where(encounter: @encounter).count
+    questionnaire[:answers]["goals"] = { state: "unknown", value: "" }
+    post intake_path, params: { intake: base.merge(expected_version: 0, request_key: "valid-confirmed", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    questionnaire[:answers]["goals"] = { state: "unanswered", value: "" }
+    post intake_path, params: { intake: base.merge(expected_version: 1, request_key: "cleared-confirmed", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    questionnaire.merge!(status: "draft", confirmed: false, confirmed_chunks: [])
+    post intake_path, params: { intake: base.merge(expected_version: 1, request_key: "reopened-draft", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal [], response.parsed_body.dig("intake", "questionnaire", "confirmed_chunks")
+    assert_equal 2, Clinic::EncounterIntakeRevision.where(encounter: @encounter).count
+  end
+
+  test "superseded intake cannot be handed off or accepted and cancellation permits current revision recovery" do
+    post intake_path, params: ready_intake(request_key: "stale-handoff-first", history_review_ids: @reviews.map(&:id)),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    first = response.parsed_body.fetch("intake")
+    post handoffs_path, params: { handoff: { intake_revision_id: first.fetch("id"), request_key: "stale-handoff-request" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    handoff = response.parsed_body.fetch("handoff")
+    post intake_path, params: ready_intake(request_key: "stale-handoff-second", expected_version: 1, history_review_ids: @reviews.map(&:id)),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    current = response.parsed_body.fetch("intake")
+    assert_equal "intake", Clinic::Care::NurseWorkflow.board_snapshot([ @encounter ]).dig(@encounter.id, :stage)
+    login(@clinician)
+    patch "/api/clinic/handoffs/#{handoff.fetch('id')}", params: { handoff: {
+      action: "accept", expected_version: handoff.fetch("version"), request_key: "stale-handoff-accept"
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Intake has changed"
+    assert_equal "pending", Clinic::EncounterHandoff.find(handoff.fetch("id")).state
+    assert_equal "open", Clinic::ClinicalTask.find_by!(source_type: "handoff", source_id: handoff.fetch("id")).state
+    login
+    patch "/api/clinic/handoffs/#{handoff.fetch('id')}", params: { handoff: {
+      action: "cancel", expected_version: handoff.fetch("version"), request_key: "stale-handoff-cancel"
+    } }, headers: csrf_headers, as: :json
+    assert_response :success
+    post handoffs_path, params: { handoff: { intake_revision_id: first.fetch("id"), request_key: "stale-handoff-old" } },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    post handoffs_path, params: { handoff: { intake_revision_id: current.fetch("id"), request_key: "stale-handoff-current" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal current.fetch("id"), response.parsed_body.dig("handoff", "intake_revision_id")
+  end
+
   test "repeatable treatment and procedure history preserves structured records" do
     answers = Clinic::Care::PrevisitIntake.fields.to_h do |field|
       [ field.fetch(:id), { state: "not_asked", value: "" } ]

@@ -28,13 +28,10 @@ module Clinic
         { id: "pregnancy_status", label: "Current pregnancy status", reusable: false,
           choices: %w[pregnant not_pregnant unsure declined not_applicable unknown] },
         { id: "pregnancy_plans", label: "Pregnancy plans or possibility", reusable: false,
-          depends_on: "pregnancy_status", depends_values: %w[pregnant not_pregnant unsure unknown],
           choices: %w[yes no unsure declined not_applicable unknown] },
         { id: "breastfeeding_status", label: "Breastfeeding or chestfeeding status", reusable: false,
-          depends_on: "pregnancy_status", depends_values: %w[pregnant not_pregnant unsure unknown],
           choices: %w[yes no unsure declined not_applicable unknown] },
         { id: "contraception_context", label: "Contraception context", reusable: false,
-          depends_on: "pregnancy_status", depends_values: %w[pregnant not_pregnant unsure unknown],
           choices: %w[using not_using not_applicable declined unknown] },
         { id: "product_safety_review", label: "Product-specific safety questions", reusable: false,
           depends_on: "treatment_product_class", depends_values: %w[glp1 other_prescription unknown],
@@ -401,11 +398,11 @@ module Clinic
           (payload["answers"].keys - fields(payload["form_id"]).map { |field| field[:id] }).empty? &&
           payload["answers"].values.all? { |answer| answer.is_a?(String) || (modern && answer.is_a?(Hash)) }
         # Additive questionnaire releases must continue to render and hydrate
-        # previously recorded answers. Reject only payloads from a newer schema
-        # that this server cannot safely interpret.
-        return if modern && payload["questionnaire_version"].present? &&
+        # previously recorded answers. Missing version is supported for legacy
+        # records; explicit versions must identify a supported schema.
+        return if modern && payload.key?("questionnaire_version") &&
           (!payload["questionnaire_version"].is_a?(Integer) ||
-            payload["questionnaire_version"] > QUESTIONNAIRE_VERSION)
+            !(1..QUESTIONNAIRE_VERSION).cover?(payload["questionnaire_version"]))
         return if modern && payload["confirmed_chunks"].present? &&
           (!payload["confirmed_chunks"].is_a?(Array) || payload["confirmed_chunks"].any? { |item| !item.is_a?(Integer) || item.negative? })
         return unless !modern || %w[draft submitted].include?(payload["status"])
@@ -454,6 +451,10 @@ module Clinic
             details = [ entry["kind"], entry["current_status"], entry["review_route"], entry["certainty"],
               entry["actual_use"], entry["dose_value"].presence, entry["dose_unit"], entry["frequency"], entry["source"],
               entry["severity"], entry["outcome"], entry["date_value"].presence || entry["date_precision"] ]
+            %w[duration maintenance stop_reason adverse_effects adverse_effect_details complication_state
+              complication_details managing_clinician details dose_certainty].each do |key|
+              details << "#{key.tr('_', ' ')}: #{entry[key]}" if entry[key].present?
+            end
             [ entry["name"], details.compact.join(" · ") ].compact.join(" — ")
           end.join("\n")
         end

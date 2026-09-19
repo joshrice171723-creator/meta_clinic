@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-18
+updated: 2026-09-19
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-19 — Weight-management intake audit reopened incomplete milestones
+
+Compared M1–M12 with the full supplied brief and published HL7 R4/SDC/US Core references. Corrected the prior blanket completion claim: detailed capture, linked evidence/consents, owned review/support work and shorter follow-up remain incomplete. Hardened normalized chunk confirmation, correction/reconfirmation, stale handoff handling, history-summary detail, independent reproductive responses and group navigation/measurement placement. The [dated audit and verification record](../../records/implementation/2026-09-19-weight-management-intake-audit.md) preserves findings and exact evidence limits. No clinical, live-integration or release acceptance is implied.
 
 ## 2026-09-17 — Part 2 acceptance breadth and capacity-fixture repair
 
