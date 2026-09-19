@@ -26,6 +26,7 @@ import { VisitTypeSettings } from "./VisitTypeSettings";
 import { useClinic } from "./Workspace";
 import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
 import { ClinicianSetup } from "./ClinicianSetup";
+import { isDemoFrame } from "../demo/frame";
 
 const days = [
   [0, "Sunday"],
@@ -182,6 +183,12 @@ export function Facilities() {
     }
   };
 
+  if (isDemoFrame())
+    return (
+      <PracticeFeatureSettings
+        canWrite={capabilities.clinic_setup_write === true}
+      />
+    );
   return (
     <div className="facilities-page">
       <Stack spacing={1} sx={{ mb: 3 }}>

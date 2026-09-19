@@ -3,6 +3,7 @@ import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
+import { isDemoFrame } from "../demo/frame";
 
 type Enrollment = {
   clinic_name: string;
@@ -29,6 +30,7 @@ type Enrollment = {
 };
 
 export function MembershipAccount() {
+  const guidedDemo = isDemoFrame();
   const resource = useResource<{ enrollment: Enrollment }>(
     "/api/public/membership_accounts/current",
   );
@@ -128,7 +130,7 @@ export function MembershipAccount() {
         <Stack spacing={2.5}>
           <Typography variant="overline">Membership account</Typography>
           <Typography component="h1" variant="h4">
-            {localMode ? "Local payment simulator" : "Finish your membership"}
+            {localMode ? "Simulated payment" : "Finish your membership"}
           </Typography>
           {resource.error && <Alert severity="error">{resource.error}</Alert>}
           {error && <Alert severity="error">{error}</Alert>}
@@ -203,12 +205,17 @@ export function MembershipAccount() {
                 enrollment.local_simulator.checkout_started &&
                 !enrollment.local_simulator.payment_verified && (
                   <Button
+                    data-demo-next
                     variant="contained"
                     size="large"
                     disabled={busy}
                     onClick={() => void simulate("paid")}
                   >
-                    {busy ? "Verifying local event…" : "Complete local payment"}
+                    {busy
+                      ? "Verifying payment…"
+                      : guidedDemo
+                        ? "Accept simulated payment"
+                        : "Complete local payment"}
                   </Button>
                 )}
               {localMode && enrollment.local_simulator.payment_verified && (
@@ -239,7 +246,8 @@ export function MembershipAccount() {
                         paid period.
                       </Alert>
                     )}
-                  {enrollment.local_simulator.recurring &&
+                  {!guidedDemo &&
+                    enrollment.local_simulator.recurring &&
                     !enrollment.local_simulator.cancel_at_period_end && (
                       <Stack
                         direction={{ xs: "column", sm: "row" }}
@@ -262,7 +270,7 @@ export function MembershipAccount() {
                         </Button>
                       </Stack>
                     )}
-                  {enrollment.redirect_to && (
+                  {!guidedDemo && enrollment.redirect_to && (
                     <Button variant="contained" href={enrollment.redirect_to}>
                       Continue to patient portal
                     </Button>
@@ -275,9 +283,11 @@ export function MembershipAccount() {
             <Button disabled={busy} onClick={() => resource.refresh()}>
               Check payment status
             </Button>
-            <Button disabled={busy} onClick={() => void signOut()}>
-              Sign out
-            </Button>
+            {!guidedDemo && (
+              <Button disabled={busy} onClick={() => void signOut()}>
+                Sign out
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>

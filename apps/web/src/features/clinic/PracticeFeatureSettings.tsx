@@ -18,6 +18,7 @@ import {
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { api } from "../../api/client";
+import { isDemoFrame } from "../demo/frame";
 import type {
   ClinicAssessmentCode,
   ClinicServiceCode,
@@ -567,25 +568,34 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
 
         <Stack spacing={1}>
           <Typography variant="h3">4. Payment model</Typography>
-          <FormControlLabel
-            disabled={!canWrite || saving || features.finalized}
-            control={
-              <Switch
-                checked={insuranceEnabled}
-                onChange={(_, checked) => {
-                  setInsuranceEnabled(checked);
-                  setFeedback(null);
-                }}
+          {isDemoFrame() ? (
+            <Typography variant="body2" color="text.secondary">
+              Cash-based care with memberships and direct patient payments.
+            </Typography>
+          ) : (
+            <>
+              <FormControlLabel
+                disabled={!canWrite || saving || features.finalized}
+                control={
+                  <Switch
+                    checked={insuranceEnabled}
+                    onChange={(_, checked) => {
+                      setInsuranceEnabled(checked);
+                      setFeedback(null);
+                    }}
+                  />
+                }
+                label="This clinic uses insurance workflows"
               />
-            }
-            label="This clinic uses insurance workflows"
-          />
-          <Typography variant="body2" color="text.secondary">
-            Cash prices, estimates, invoices, receipts, card payments, refunds,
-            credits, packages, and memberships remain part of the base. Turn
-            insurance on only when the clinic needs coverage, eligibility, prior
-            authorization, claims, remittance, denials, and payer balances.
-          </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Cash prices, estimates, invoices, receipts, card payments,
+                refunds, credits, packages, and memberships remain part of the
+                base. Turn insurance on only when the clinic needs coverage,
+                eligibility, prior authorization, claims, remittance, denials,
+                and payer balances.
+              </Typography>
+            </>
+          )}
         </Stack>
 
         <Stack
@@ -604,6 +614,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
           </Button>
           {!features.finalized && features.configured && (
             <Button
+              data-demo-next
               disabled={!canWrite || saving || changed}
               onClick={() => void save(true)}
             >
@@ -613,6 +624,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
           <Button
             type="button"
             variant="contained"
+            data-demo-next
             startIcon={<SaveOutlinedIcon />}
             disabled={!canWrite || saving || (!changed && features.configured)}
             onClick={() => void save()}

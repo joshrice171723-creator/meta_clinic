@@ -7,17 +7,18 @@ module Clinic
       Result = Struct.new(:prospect, :token, :delivered, :replayed, keyword_init: true)
 
       def self.call(practice:, version_id:, selections:, display_name:, email_address:, phone_number:, source:,
-        outreach_consent:, request_key:, date_of_birth: nil, now: Current.business_time)
+        outreach_consent:, request_key:, date_of_birth: nil, now: Current.business_time, deliver: true)
         new(practice:, version_id:, selections:, display_name:, email_address:, phone_number:, source:,
-          outreach_consent:, request_key:, date_of_birth:, now:).call
+          outreach_consent:, request_key:, date_of_birth:, now:, deliver:).call
       end
 
       def initialize(practice:, version_id:, selections:, display_name:, email_address:, phone_number:, source:,
-        outreach_consent:, request_key:, date_of_birth:, now:)
+        outreach_consent:, request_key:, date_of_birth:, now:, deliver:)
         @practice = practice
         @input = { version_id:, selections:, display_name:, email_address:, phone_number:, source:,
           outreach_consent:, request_key: }
         @now = now
+        @deliver = deliver
         @date_of_birth = Clinic::Care::BirthDate.parse!(date_of_birth, on: now.to_date, minimum_age: 18)
       end
 
@@ -59,20 +60,20 @@ module Clinic
               account_setup_sent_at: nil)
           end
           token ||= ""
-          delivered = prospect.account_setup_sent_at.nil?
+          delivered = deliver && prospect.account_setup_sent_at.nil?
         end
         if delivered
           MembershipAccountMailer.setup(prospect.id, token).deliver_now
           prospect.update!(account_setup_sent_at: now)
         end
-        Result.new(prospect: prospect.reload, token: nil, delivered:, replayed: captured.replayed)
+        Result.new(prospect: prospect.reload, token: deliver ? nil : token, delivered:, replayed: captured.replayed)
       rescue ActiveRecord::RecordNotUnique
         raise ArgumentError, "An account already uses this email address. Sign in to continue."
       end
 
       private
 
-      attr_reader :practice, :input, :now
+      attr_reader :practice, :input, :now, :deliver
 
       def create_account_user!(prospect)
         existing = User.lock.find_by(email_address: prospect.email_address)

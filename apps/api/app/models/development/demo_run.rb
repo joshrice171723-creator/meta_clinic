@@ -1,0 +1,27 @@
+module Development
+  class DemoRun < ApplicationRecord
+    self.table_name = "development_demo_runs"
+
+    belongs_to :practice, class_name: "Clinic::Practice"
+    belongs_to :visitor, class_name: "Development::DemoVisitor", optional: true
+    belongs_to :operator_user, class_name: "User"
+    belongs_to :patient_user, class_name: "User", optional: true
+    belongs_to :membership_prospect, class_name: "Clinic::MembershipProspect", optional: true
+
+    validates :template_key, presence: true, inclusion: { in: %w[primary_care weight_management] }
+
+    scope :active, -> { where(active: true) }
+
+    def patient
+      membership_prospect&.patient
+    end
+
+    def paid_patient?
+      membership_prospect&.paid_at.present? && patient.present?
+    end
+
+    def self.local_practice?(practice)
+      active.exists?(practice_id: practice.respond_to?(:id) ? practice.id : practice)
+    end
+  end
+end

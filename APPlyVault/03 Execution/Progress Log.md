@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-19 — Guided cash-based clinic demo on an isolated branch
+
+Implemented a local `/demo` walkthrough on `codex/guided-clinic-demo`, based on main after the M1–M12 intake updates. The visitor supplies name, email and company before choosing cash-based primary care or weight management; these are saved as a separate inquiry without a login account. Each journey provisions its own practice. Clinic setup unlocks membership creation and an independent inventory receiving/count/usage path. Publishing unlocks the patient storefront; the existing simulated payment creates the patient before returning to the clinic for scheduling, check-in and the visit. Progress comes from persisted workflow records. Reset retires the old journey and generated accounts, revokes their sessions, and retains the visitor inquiry for a fresh start.
+
+Focused API coverage passed 5 tests / 62 assertions for registration, isolation, prerequisites, payment, view switching and reset. Focused frontend coverage passed 23 tests; TypeScript, bundle, formatting, Rails eager loading and changed Ruby checks passed. The broad frontend related-test discovery stalled and was stopped in favor of the explicit client, membership and demo tests. Browser checks confirmed visitor entry, cash-based choices, clinic setup, membership draft creation and reset. Full visit/inventory browser completion and hosted acceptance remain separate; no deployment, real payment, external email or public visitor collection was performed. Existing development access restrictions remain in force.
+
 ## 2026-09-19 — Weight-management intake audit reopened incomplete milestones
 
 Compared M1–M12 with the full supplied brief and published HL7 R4/SDC/US Core references. Corrected the prior blanket completion claim: detailed capture, linked evidence/consents, owned review/support work and shorter follow-up remain incomplete. Hardened normalized chunk confirmation, correction/reconfirmation, stale handoff handling, history-summary detail, independent reproductive responses and group navigation/measurement placement. The [dated audit and verification record](../../records/implementation/2026-09-19-weight-management-intake-audit.md) preserves findings and exact evidence limits. No clinical, live-integration or release acceptance is implied.

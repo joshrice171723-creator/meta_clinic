@@ -1,4 +1,5 @@
 import type { DevelopmentAccount, RuntimeEnvironment } from "./contracts";
+import { isDemoFrame, notifyDemo } from "../features/demo/frame";
 
 export class ApiError extends Error {
   constructor(
@@ -217,8 +218,16 @@ export async function api<T>(
           "outcome_unconfirmed",
         );
       // Session rotation invalidates the old CSRF token. Never replay mutations.
-      if (path === "/api/session" || path === "/api/development_session") {
+      if (
+        path === "/api/session" ||
+        path === "/api/development_session" ||
+        path.startsWith("/api/demo/run")
+      ) {
         if (method !== "GET") clearCsrf();
+      }
+      if (method !== "GET" && method !== "HEAD" && isDemoFrame()) {
+        window.dispatchEvent(new Event("demo:changed"));
+        notifyDemo("demo:changed");
       }
       return data as T;
     },

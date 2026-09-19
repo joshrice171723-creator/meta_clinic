@@ -20,6 +20,8 @@ import { api, ApiError, csrf, currentLoginDestination } from "./api/client";
 import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
+import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
+import { isDemoFrame } from "./features/demo/frame";
 import {
   SessionGuard,
   type SessionBootstrap,
@@ -50,6 +52,10 @@ function lazyNamed<Module, Props>(
 const WorkInbox = lazyNamed(
   () => import("./features/clinic/WorkInbox"),
   (m) => m.WorkInbox,
+);
+const DemoJourney = lazyNamed(
+  () => import("./features/demo/DemoJourney"),
+  (m) => m.DemoJourney,
 );
 const WaitlistWorkspace = lazyNamed(
   () => import("./features/clinic/WaitlistWorkspace"),
@@ -764,6 +770,21 @@ function ClinicApplication({
 }
 
 export function App() {
+  if (window.location.pathname.replace(/\/$/, "") === "/demo") {
+    return (
+      <RouteBoundary root>
+        <DemoJourney />
+      </RouteBoundary>
+    );
+  }
+  return (
+    <DemoFrameBoundary>
+      <Application />
+    </DemoFrameBoundary>
+  );
+}
+
+function Application() {
   const [configurationError, setConfigurationError] = useState(false);
   const [configuration, setConfiguration] = useState<{
     development_login: boolean;
@@ -935,7 +956,10 @@ export function App() {
     return (
       <RouteBoundary root>
         <PublicMembershipEntry>
-          <PublicMembershipStorefront slug={publicMembership[1]} />
+          <PublicMembershipStorefront
+            slug={publicMembership[1]}
+            guidedDemo={isDemoFrame()}
+          />
         </PublicMembershipEntry>
       </RouteBoundary>
     );

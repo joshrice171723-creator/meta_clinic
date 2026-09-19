@@ -6,6 +6,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import IconButton from "@mui/material/IconButton";
 import type { ClinicSite } from "../../api/contracts";
 import { Form } from "../../shared/ui";
+import { isDemoFrame } from "../demo/frame";
 
 export const COMPACT_NAV_QUERY = "(max-width: 900px)";
 export function compactNavigation() {
@@ -107,6 +108,7 @@ export function ClinicFrame({
     return () =>
       document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [locationMenuOpen]);
+  if (isDemoFrame()) return <div className="clinic-main">{children}</div>;
   return (
     <div className="clinic-shell" data-collapsed={collapsed}>
       {drawer && (

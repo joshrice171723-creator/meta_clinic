@@ -11488,6 +11488,77 @@ ALTER SEQUENCE public.contact_messages_id_seq OWNED BY public.contact_messages.i
 
 
 --
+-- Name: development_demo_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.development_demo_runs (
+    id bigint NOT NULL,
+    template_key character varying NOT NULL,
+    practice_id bigint NOT NULL,
+    operator_user_id bigint NOT NULL,
+    patient_user_id bigint,
+    membership_prospect_id bigint,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    visitor_id bigint,
+    CONSTRAINT development_demo_runs_template_key_present CHECK (((template_key)::text <> ''::text))
+);
+
+
+--
+-- Name: development_demo_runs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.development_demo_runs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: development_demo_runs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.development_demo_runs_id_seq OWNED BY public.development_demo_runs.id;
+
+
+--
+-- Name: development_demo_visitors; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.development_demo_visitors (
+    id bigint NOT NULL,
+    name character varying(160) NOT NULL,
+    email character varying(254) NOT NULL,
+    company character varying(200) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: development_demo_visitors_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.development_demo_visitors_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: development_demo_visitors_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.development_demo_visitors_id_seq OWNED BY public.development_demo_visitors.id;
+
+
+--
 -- Name: identity_login_throttles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13526,6 +13597,20 @@ ALTER TABLE ONLY public.contact_messages ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: development_demo_runs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs ALTER COLUMN id SET DEFAULT nextval('public.development_demo_runs_id_seq'::regclass);
+
+
+--
+-- Name: development_demo_visitors id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_visitors ALTER COLUMN id SET DEFAULT nextval('public.development_demo_visitors_id_seq'::regclass);
+
+
+--
 -- Name: identity_preferences id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15487,6 +15572,22 @@ ALTER TABLE ONLY public.clinic_working_drafts
 
 ALTER TABLE ONLY public.contact_messages
     ADD CONSTRAINT contact_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: development_demo_runs development_demo_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs
+    ADD CONSTRAINT development_demo_runs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: development_demo_visitors development_demo_visitors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_visitors
+    ADD CONSTRAINT development_demo_visitors_pkey PRIMARY KEY (id);
 
 
 --
@@ -17633,6 +17734,13 @@ CREATE UNIQUE INDEX clinical_plan_links_request_key ON public.clinic_clinical_pl
 
 
 --
+-- Name: development_demo_runs_active_practice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX development_demo_runs_active_practice ON public.development_demo_runs USING btree (practice_id) WHERE active;
+
+
+--
 -- Name: diagnosis_context_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -19576,6 +19684,41 @@ CREATE UNIQUE INDEX index_clinic_workforce_timecard_versions_on_practice_id_and_
 --
 
 CREATE INDEX index_credit_notes_on_practice_and_issuer ON public.clinic_credit_notes USING btree (practice_id, issued_by_membership_id);
+
+
+--
+-- Name: index_development_demo_runs_on_membership_prospect_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_runs_on_membership_prospect_id ON public.development_demo_runs USING btree (membership_prospect_id);
+
+
+--
+-- Name: index_development_demo_runs_on_operator_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_development_demo_runs_on_operator_user_id ON public.development_demo_runs USING btree (operator_user_id);
+
+
+--
+-- Name: index_development_demo_runs_on_patient_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_runs_on_patient_user_id ON public.development_demo_runs USING btree (patient_user_id);
+
+
+--
+-- Name: index_development_demo_runs_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_runs_on_practice_id ON public.development_demo_runs USING btree (practice_id);
+
+
+--
+-- Name: index_development_demo_runs_on_visitor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_runs_on_visitor_id ON public.development_demo_runs USING btree (visitor_id);
 
 
 --
@@ -25613,6 +25756,14 @@ ALTER TABLE ONLY public.clinic_patient_reminder_outbox
 
 
 --
+-- Name: development_demo_runs fk_rails_1b100ce052; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs
+    ADD CONSTRAINT fk_rails_1b100ce052 FOREIGN KEY (visitor_id) REFERENCES public.development_demo_visitors(id);
+
+
+--
 -- Name: clinic_workforce_kiosk_enrollments fk_rails_1bf29cc8cc; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -26154,6 +26305,14 @@ ALTER TABLE ONLY public.clinic_medication_dispenses
 
 ALTER TABLE ONLY public.clinic_inventory_receiving_sessions
     ADD CONSTRAINT fk_rails_3f09c6a418 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: development_demo_runs fk_rails_3f46458c1e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs
+    ADD CONSTRAINT fk_rails_3f46458c1e FOREIGN KEY (patient_user_id) REFERENCES public.users(id);
 
 
 --
@@ -27165,6 +27324,14 @@ ALTER TABLE ONLY public.clinic_patient_reminder_delivery_attempts
 
 
 --
+-- Name: development_demo_runs fk_rails_94a10b3d3a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs
+    ADD CONSTRAINT fk_rails_94a10b3d3a FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_workforce_kiosk_enrollments fk_rails_9501614832; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -27613,6 +27780,14 @@ ALTER TABLE ONLY public.clinic_inventory_vendor_returns
 
 
 --
+-- Name: development_demo_runs fk_rails_b7e34324ff; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs
+    ADD CONSTRAINT fk_rails_b7e34324ff FOREIGN KEY (operator_user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_workforce_schedule_templates fk_rails_b7fa0c013b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28050,6 +28225,14 @@ ALTER TABLE ONLY public.clinic_workforce_shifts
 
 ALTER TABLE ONLY public.clinic_inventory_recalls
     ADD CONSTRAINT fk_rails_dccd1e6686 FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: development_demo_runs fk_rails_dcff165385; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_runs
+    ADD CONSTRAINT fk_rails_dcff165385 FOREIGN KEY (membership_prospect_id) REFERENCES public.clinic_membership_prospects(id);
 
 
 --
@@ -29395,6 +29578,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919040000'),
+('20260919030000'),
 ('20260919020000'),
 ('20260919010000'),
 ('20260916110000'),

@@ -1,3 +1,4 @@
+import { isDemoFrame } from "../demo/frame";
 import {
   createContext,
   useContext,
@@ -657,12 +658,16 @@ export function Workspace({
                 >
                   <ClinicFrame
                     scopeSelector={
-                      <ClinicScopeSelector
-                        context={data}
-                        disabled={switchingPractice || selectingSiteId !== null}
-                        onPracticeChange={(id) => void selectPractice(id)}
-                        onLocationChange={(id) => void selectSite(id)}
-                      />
+                      !isDemoFrame() && (
+                        <ClinicScopeSelector
+                          context={data}
+                          disabled={
+                            switchingPractice || selectingSiteId !== null
+                          }
+                          onPracticeChange={(id) => void selectPractice(id)}
+                          onLocationChange={(id) => void selectSite(id)}
+                        />
+                      )
                     }
                     practiceName={data.practice.name}
                     timezone={data.practice.timezone}
@@ -671,15 +676,17 @@ export function Workspace({
                     selectedLocationId={data.current_site?.id}
                     onLocationChange={(siteId) => void selectSite(siteId)}
                     navigation={
-                      <ClinicNavigation
-                        capabilities={data.capabilities}
-                        path={path}
-                        homeView={homeView}
-                      />
+                      !isDemoFrame() && (
+                        <ClinicNavigation
+                          capabilities={data.capabilities}
+                          path={path}
+                          homeView={homeView}
+                        />
+                      )
                     }
                     developmentPreview={!!user.development_demo}
                   >
-                    {!scribePage && user.development_demo && (
+                    {!scribePage && user.development_demo && !isDemoFrame() && (
                       <DevelopmentToolbar
                         className="clinic-development-toolbar"
                         accounts={developmentAccounts}
@@ -688,7 +695,7 @@ export function Workspace({
                         environment={environment}
                       />
                     )}
-                    {!scribePage && (
+                    {!scribePage && !isDemoFrame() && (
                       <header
                         className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}
                         aria-label="Clinic context"

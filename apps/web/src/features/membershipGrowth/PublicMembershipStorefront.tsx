@@ -74,7 +74,13 @@ function selectionError(plan: PublishedPackage, selections: number[]) {
   return "";
 }
 
-export function PublicMembershipStorefront({ slug }: { slug: string }) {
+export function PublicMembershipStorefront({
+  slug,
+  guidedDemo = false,
+}: {
+  slug: string;
+  guidedDemo?: boolean;
+}) {
   const endpoint = `/api/public/membership_storefronts/${encodeURIComponent(slug)}`;
   const resource = useResource<PublicMembershipStorefrontResponse>(endpoint);
   const phone = useMediaQuery(membershipTheme.breakpoints.down("sm"));
@@ -206,6 +212,33 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
     const optionsMessage = selectionError(selected, selections);
     if (optionsMessage) {
       setError(optionsMessage);
+      return;
+    }
+    if (guidedDemo) {
+      setBusy(true);
+      setError("");
+      try {
+        const result = await api<{ destination: string }>(
+          "/api/demo/run/enrollment",
+          {
+            method: "POST",
+            body: { version_id: selected.id, selections },
+          },
+        );
+        if (result.destination !== "/memberships/account?payment=local") {
+          throw new Error(
+            "The payment handoff could not be confirmed. Please reload the walkthrough.",
+          );
+        }
+        window.location.assign(result.destination);
+      } catch (reason) {
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Your membership selection could not be saved.",
+        );
+        setBusy(false);
+      }
       return;
     }
     if (!outreachConsent) {
@@ -487,114 +520,128 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
                   {optionError && (
                     <Alert severity="warning">{optionError}</Alert>
                   )}
-                  <Typography component="h2" variant="h6">
-                    Your contact details
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Your name and email create a membership account before
-                    payment and place the enrollment in the clinic Growth
-                    pipeline. Use the emailed link to set a password, then
-                    secure checkout opens.
-                  </Typography>
-                  <TextField
-                    required
-                    fullWidth
-                    label="Full name"
-                    value={displayName}
-                    autoComplete="name"
-                    slotProps={{ htmlInput: { maxLength: 120 } }}
-                    onChange={(event) =>
-                      changeIntent(() => setDisplayName(event.target.value))
-                    }
-                  />
-                  <TextField
-                    fullWidth
-                    type="email"
-                    label="Email address (required to create account)"
-                    value={emailAddress}
-                    autoComplete="email"
-                    helperText="We send a one-time password setup link before payment."
-                    slotProps={{ htmlInput: { maxLength: 320 } }}
-                    onChange={(event) =>
-                      changeIntent(() => setEmailAddress(event.target.value))
-                    }
-                  />
-                  <TextField
-                    fullWidth
-                    type="tel"
-                    label="Phone number (optional)"
-                    value={phoneNumber}
-                    autoComplete="tel"
-                    slotProps={{ htmlInput: { maxLength: 40 } }}
-                    onChange={(event) =>
-                      changeIntent(() => setPhoneNumber(event.target.value))
-                    }
-                  />
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="Birth date (required to create account)"
-                    value={dateOfBirth}
-                    autoComplete="bday"
-                    helperText="Membership accounts are available from age 18. You can request clinic contact without creating an account."
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: { max: resource.data?.business_date },
-                    }}
-                    onChange={(event) =>
-                      changeIntent(() => setDateOfBirth(event.target.value))
-                    }
-                  />
-                  <TextField
-                    fullWidth
-                    select
-                    label="Preferred contact method (optional)"
-                    value={contactMethod}
-                    onChange={(event) =>
-                      changeIntent(() => setContactMethod(event.target.value))
-                    }
-                    slotProps={{
-                      select: { native: true },
-                      inputLabel: { shrink: true },
-                    }}
-                  >
-                    <option value="">No preference</option>
-                    <option value="email">Email</option>
-                    <option value="phone">Phone</option>
-                  </TextField>
-                  <TextField
-                    fullWidth
-                    label="Preferred contact time (optional)"
-                    value={contactTime}
-                    helperText="Used when you ask the clinic to contact you. Include your time zone."
-                    slotProps={{ htmlInput: { maxLength: 160 } }}
-                    onChange={(event) =>
-                      changeIntent(() => setContactTime(event.target.value))
-                    }
-                  />
-                  <FormControl
-                    required
-                    error={Boolean(error && !outreachConsent)}
-                  >
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          required
-                          checked={outreachConsent}
-                          onChange={(_, checked) =>
-                            changeIntent(() => setOutreachConsent(checked))
+                  {guidedDemo ? (
+                    <Alert severity="info">
+                      Continue with a fictional patient account. Your selected
+                      membership will use the payment simulator; no email or
+                      real payment is sent.
+                    </Alert>
+                  ) : (
+                    <>
+                      <Typography component="h2" variant="h6">
+                        Your contact details
+                      </Typography>
+                      <Typography color="text.secondary">
+                        Your name and email create a membership account before
+                        payment and place the enrollment in the clinic Growth
+                        pipeline. Use the emailed link to set a password, then
+                        secure checkout opens.
+                      </Typography>
+                      <TextField
+                        required
+                        fullWidth
+                        label="Full name"
+                        value={displayName}
+                        autoComplete="name"
+                        slotProps={{ htmlInput: { maxLength: 120 } }}
+                        onChange={(event) =>
+                          changeIntent(() => setDisplayName(event.target.value))
+                        }
+                      />
+                      <TextField
+                        fullWidth
+                        type="email"
+                        label="Email address (required to create account)"
+                        value={emailAddress}
+                        autoComplete="email"
+                        helperText="We send a one-time password setup link before payment."
+                        slotProps={{ htmlInput: { maxLength: 320 } }}
+                        onChange={(event) =>
+                          changeIntent(() =>
+                            setEmailAddress(event.target.value),
+                          )
+                        }
+                      />
+                      <TextField
+                        fullWidth
+                        type="tel"
+                        label="Phone number (optional)"
+                        value={phoneNumber}
+                        autoComplete="tel"
+                        slotProps={{ htmlInput: { maxLength: 40 } }}
+                        onChange={(event) =>
+                          changeIntent(() => setPhoneNumber(event.target.value))
+                        }
+                      />
+                      <TextField
+                        fullWidth
+                        type="date"
+                        label="Birth date (required to create account)"
+                        value={dateOfBirth}
+                        autoComplete="bday"
+                        helperText="Membership accounts are available from age 18. You can request clinic contact without creating an account."
+                        slotProps={{
+                          inputLabel: { shrink: true },
+                          htmlInput: { max: resource.data?.business_date },
+                        }}
+                        onChange={(event) =>
+                          changeIntent(() => setDateOfBirth(event.target.value))
+                        }
+                      />
+                      <TextField
+                        fullWidth
+                        select
+                        label="Preferred contact method (optional)"
+                        value={contactMethod}
+                        onChange={(event) =>
+                          changeIntent(() =>
+                            setContactMethod(event.target.value),
+                          )
+                        }
+                        slotProps={{
+                          select: { native: true },
+                          inputLabel: { shrink: true },
+                        }}
+                      >
+                        <option value="">No preference</option>
+                        <option value="email">Email</option>
+                        <option value="phone">Phone</option>
+                      </TextField>
+                      <TextField
+                        fullWidth
+                        label="Preferred contact time (optional)"
+                        value={contactTime}
+                        helperText="Used when you ask the clinic to contact you. Include your time zone."
+                        slotProps={{ htmlInput: { maxLength: 160 } }}
+                        onChange={(event) =>
+                          changeIntent(() => setContactTime(event.target.value))
+                        }
+                      />
+                      <FormControl
+                        required
+                        error={Boolean(error && !outreachConsent)}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              required
+                              checked={outreachConsent}
+                              onChange={(_, checked) =>
+                                changeIntent(() => setOutreachConsent(checked))
+                              }
+                            />
                           }
+                          label={`I agree that ${resource.data?.practice.name || "the clinic"} may contact me about this membership request.`}
                         />
-                      }
-                      label={`I agree that ${resource.data?.practice.name || "the clinic"} may contact me about this membership request.`}
-                    />
-                    <FormHelperText>
-                      This lets the clinic contact you about this request and
-                      post-payment onboarding. Payment authorization happens
-                      only after you create your password and open the secure
-                      checkout page.
-                    </FormHelperText>
-                  </FormControl>
+                        <FormHelperText>
+                          This lets the clinic contact you about this request
+                          and post-payment onboarding. Payment authorization
+                          happens only after you create your password and open
+                          the secure checkout page.
+                        </FormHelperText>
+                      </FormControl>
+                    </>
+                  )}
                 </Stack>
               </Box>
             )}
@@ -605,34 +652,42 @@ export function PublicMembershipStorefront({ slug }: { slug: string }) {
             </Button>
             {!outreachAcknowledged && !accountAcknowledged && (
               <>
-                <Button
-                  form="membership-interest-form"
-                  disabled={
-                    busy ||
-                    !displayName.trim() ||
-                    (!emailAddress.trim() && !phoneNumber.trim()) ||
-                    !outreachConsent ||
-                    Boolean(optionError)
-                  }
-                  onClick={() => void submit("outreach")}
-                >
-                  {busy ? "Working…" : "Have the clinic contact me"}
-                </Button>
+                {!guidedDemo && (
+                  <Button
+                    form="membership-interest-form"
+                    disabled={
+                      busy ||
+                      !displayName.trim() ||
+                      (!emailAddress.trim() && !phoneNumber.trim()) ||
+                      !outreachConsent ||
+                      Boolean(optionError)
+                    }
+                    onClick={() => void submit("outreach")}
+                  >
+                    {busy ? "Working…" : "Have the clinic contact me"}
+                  </Button>
+                )}
                 <Button
                   type="submit"
+                  data-demo-next
                   form="membership-interest-form"
                   variant="contained"
                   disabled={
                     busy ||
-                    !displayName.trim() ||
-                    !emailAddress.trim() ||
-                    !outreachConsent ||
+                    (!guidedDemo &&
+                      (!displayName.trim() ||
+                        !emailAddress.trim() ||
+                        !outreachConsent)) ||
                     Boolean(optionError) ||
                     selected?.terms.eligibility_review ||
                     resource.data?.payment.checkout_available !== true
                   }
                 >
-                  {busy ? "Creating account…" : "Create account"}
+                  {busy
+                    ? "Creating account…"
+                    : guidedDemo
+                      ? "Continue as patient"
+                      : "Create account"}
                 </Button>
               </>
             )}

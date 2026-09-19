@@ -301,6 +301,7 @@ module Development
     class << self
       def enabled_for?(practice)
         return false unless Rails.env.development? || Rails.env.test?
+        return true if DemoRun.local_practice?(practice)
 
         configured = ENV.fetch(ENVIRONMENT_KEY, "")
         if configured.blank? && Rails.env.development?
