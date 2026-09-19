@@ -78,3 +78,35 @@ The supplied clinical examples and medication claims were not treated as current
 - Vault links and agent-harness validation passed; vault hygiene reported pre-existing size/lifecycle advisories, with no cleanup or evidence deletion performed. API automatic component selection also includes unrelated lab/order/history suites; the named changed-workflow tests above were used instead of rerunning those broad suites.
 
 Resume from the remaining row-level gaps, not from the superseded blanket completion claim. The [existing assignment tracker](../../docs/development/weight-management-intake-tracking.md) retains the twelve original milestone definitions.
+
+## Append-only implementation and verification closeout — 2026-09-19
+
+The bounded implementation slice now includes the integrated work in commits `427b841` (typed schema-driven controls), `a6e15f2` (typed questionnaire contract), and `92adf97` (provider/pharmacy references and care-coordination revisions), together with the coordinator's uncommitted additions for source/version snapshots, owned review tasks, correction invalidation, evidence selection, stable medication references, recursive branches and schema reopen behavior. This records implementation evidence only; it does not revise the milestone acceptance criteria or tracker status.
+
+Current bounded verification: migration applied in development and test; 18 frontend tests passed; TypeScript and the Vite bundle passed; 14 changed Ruby files passed RuboCop; all 21 unique selected API cases passed across bounded runs (the 20 original cases plus the optional-screening case), including the successful structured-conditions retry. The prior regular-expression timeout was transient and required no guard change. Backend routing repair is active and remains **pending**, not a passed check.
+
+New browser evidence using synthetic data: reload completed and the provider acceptance state persisted; Today’s visit showed its Confirm button enabled and Group 2 visible; the collapsible review summary retained 38 unresolved tasks; at the existing approximately 880px viewport, controls remained contained and focus was visible at Guided intake; coordination revision 1 saved. This is workflow evidence, not full row-level end-to-end acceptance.
+
+Clinical boundary: scored screening remains optional and off because no approved instrument is configured. Legacy `instrument_status` remains readable but is hidden from the new-form projection. No universal state-consent checkbox was added, and no legal or clinical approval is claimed.
+
+M1–M12 remain partial. Do not claim all twelve complete, full brief conformance, generic M10 consent infrastructure complete, full browser acceptance, production readiness, or clinical/legal approval. Remaining engineering work includes the pending routing fix and complete row-level acceptance; remaining professional gates include approved instrument/protocol and jurisdiction-specific consent/content review.
+
+### Subsequent verification update
+
+The routing repair is now verified for generic and specialty forms: mental-health and procedure review is clinical; ordinary support remains front-desk. The focused regression passed 1 test / 16 assertions and explicitly preserved existing claimed task identity, pool and owner. Changed-file RuboCop passed. This brings the selected API evidence to 22 unique passing cases across bounded runs, not a full regression suite.
+
+Browser clarification: the first group's **confirmed navigation button** remained enabled after reload, with Group 2 selected; this was not a claim that a new confirmation checkbox was already checked. The provider name persisted after reload.
+
+M10 neutral consent evidence is now implemented and connected to the patient profile and intake records group. Separate append-only encrypted versions cover treatment, privacy notice, product counseling, recording and marketing; telehealth stays in its existing owner. Recorded acceptance requires a linked patient document or an external evidence reference. Staff recording never becomes an inferred patient signature or legal approval. The initial decision is blank, purposes expand separately, and error recovery preserves edits with stable retry identity.
+
+Development and test migrations succeeded. Consent API tests passed **2 runs / 30 assertions**, covering independent purposes, replay, stale updates, absent evidence, cross-patient documents and unauthorized writers. The initial test run exposed a real authorization mismatch: the intake permission is site-scoped, not a patient action. The repaired endpoint requires intake permission at an authorized site plus access to the patient and linked document. Frontend type checking passed; the final bundle passed after this integration; six consent/evidence Ruby files passed lint before the final permission correction.
+
+Consent browser acceptance recorded a synthetic **declined** treatment decision, version 1, and verified it after reload while marketing remained unrecorded. An empty-date attempt was rejected without losing other fields; entering a native date allowed the save. This checks recording external evidence, not signing a real agreement. The selected API evidence now comprises **24 unique passing cases across bounded runs**. No complete regression, clinical approval, legal acceptance or deployment is claimed.
+
+### Final integrated engineering handoff
+
+Commit `11b550a` adds stable catalog references and an explicit Other path for generic medication records, plus permission-filtered prior-intake comparison. Comparison prefers a readable previous encounter and otherwise uses an earlier revision in the current encounter. The delegated worker reported the complete nurse workflow file passing **17 tests / 366 assertions**, the affected form file **14 tests**, type checking and changed Ruby lint. Together with the independently recorded contract **6 / 47** and consent **2 / 30**, this is **25 selected API cases** across bounded runs. Five existing nurse rendering cases are distinct from the 14 form cases; they remain static rendering tests, not browser or interactive save/recovery proof.
+
+The coordinator rebuilt the final web bundle successfully after this last patch (1,405 modules), inspected the comparison implementation and refreshed against remote main. Supporting consent/evidence source, migrations, UI wiring and this evidence record are included in the subsequent integration commit. The worker pushed its narrow slice before the agreed integration checkpoint; no unrelated configuration or attachment changes were incorporated. No history rewrite was performed.
+
+This supersedes earlier pending routing and missing neutral-consent implementation notes, but does not erase acceptance gaps: the final comparison/picker path has not received a new browser walkthrough, complete row-level acceptance remains open, and a direct interactive nurse workspace save/recovery test is still absent. Optional scored instruments remain off. No clinical/legal approval, real signature, live integration, deployment or production readiness is claimed.

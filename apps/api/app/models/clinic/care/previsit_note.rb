@@ -19,7 +19,9 @@ module Clinic
       validates :request_key, presence: true,
         format: { with: Clinic::Idempotency::KEY_PATTERN }
       validates :submitted_at, presence: true
-      validates :encrypted_text, length: { maximum: MAX_TEXT_LENGTH }, allow_blank: true
+      validates :encrypted_text, length: { maximum: ->(record) {
+        record.encrypted_text.to_s.start_with?(PrevisitIntake::PREFIX) ? 512_000 : MAX_TEXT_LENGTH
+      } }, allow_blank: true
       validate :text_is_present
       validate :records_belong_to_context
 

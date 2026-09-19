@@ -4,7 +4,7 @@ module Clinic
     include TenantScoped
     include AppendOnly
     encrypts :encrypted_questionnaire
-    validates :encrypted_questionnaire, length: { maximum: Clinic::Care::PrevisitNote::MAX_TEXT_LENGTH }, allow_nil: true
+    validates :encrypted_questionnaire, length: { maximum: 512_000 }, allow_nil: true
 
     STATES = %w[incomplete ready_for_handoff unable_to_complete].freeze
     IDENTITY_STATES = %w[confirmed not_confirmed unable_to_confirm].freeze

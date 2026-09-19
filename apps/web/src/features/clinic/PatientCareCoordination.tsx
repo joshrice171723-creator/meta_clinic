@@ -472,7 +472,7 @@ function CoordinationPanel({ patientId }: { patientId: number }) {
 function EntrySummary({ entry }: { entry: CoordinationEntry }) {
   return (
     <Box sx={{ mt: 1, overflowWrap: "anywhere" }}>
-      <Typography variant="body2" fontWeight={600}>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {entry.name}
         {entry.practice ? ` · ${entry.practice}` : ""}
       </Typography>

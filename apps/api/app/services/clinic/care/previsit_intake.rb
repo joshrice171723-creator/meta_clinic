@@ -148,13 +148,17 @@ module Clinic
       def form_for(practice:, appointment: nil, payload: nil, recorder: "patient")
         id = payload&.fetch("form_id", nil) || Configuration::StarterProfile.form_id(practice:, appointment:)
         { id: id, version: QUESTIONNAIRE_VERSION, fields: fields_for_recorder(id, recorder:), answer_states: ANSWER_STATES,
+          screening: { enabled: false, reason: "No clinic-approved scored instrument is configured." },
           provenance: %w[patient_reported staff_recorded inherited imported calculated] }
       end
 
       def fields_for_recorder(form_id = FORM_ID, recorder: "patient")
         raise ArgumentError, "Choose a supported intake recorder." unless %w[patient staff].include?(recorder)
-        return fields(form_id) if recorder == "staff"
-        fields(form_id).map do |field|
+        # Keep legacy answers readable, but do not offer a completion checkbox
+        # for an instrument whose items, scorer and review pathway do not exist.
+        available = fields(form_id).reject { |field| field[:id] == "instrument_status" }
+        return available if recorder == "staff"
+        available.map do |field|
           copy = field.deep_dup
           if copy[:units]
             copy[:source_choices] = (copy[:source_choices] || %w[patient_reported clinic_measured]) - %w[clinic_measured imported]
@@ -222,6 +226,23 @@ module Clinic
             { id: product.id.to_s, name: product.name,
               metadata: product.attributes.slice("generic_name", "ingredients", "dosage_form", "route", "ndc", "product_ndc", "labeler", "source") }
           end
+      end
+
+      def validate_medication_references!(encoded, practice:)
+        payload = decode(encoded)
+        return unless payload
+
+        entries = payload.fetch("answers", {}).values.flat_map { |answer| Array(answer["entries"]) }
+        referenced = entries.select { |entry| entry["product_id"].present? }
+        ids = referenced.map { |entry| entry["product_id"].to_s }.uniq
+        products = Clinic::Inventory::PharmacyProduct.where(practice:, category: "medication", active: true, id: ids)
+          .index_by { |product| product.id.to_s }
+        referenced.each do |entry|
+          product = products[entry["product_id"].to_s]
+          unless product && (entry["name"].blank? || entry["name"] == product.name)
+            raise ArgumentError, "Choose a current medicine from this clinic's catalog, or use Other."
+          end
+        end
       end
 
       def encode(text:, answers:, attested:, status: "submitted", inherited_from: nil, recorder: "patient", form_id: FORM_ID,

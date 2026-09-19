@@ -49,6 +49,7 @@ module Clinic
             inherited_from: inherited_source(input[:reused_note_id], answers)
           )
         end
+        Clinic::Care::PrevisitIntake.validate_medication_references!(text, practice: portal_practice)
         result = PrevisitNotes.submit(
           practice: portal_practice,
           patient: portal_patient,
@@ -104,6 +105,7 @@ module Clinic
             max_answer_length: Clinic::Care::PrevisitIntake::MAX_ANSWER_LENGTH,
             answer_states: Clinic::Care::PrevisitIntake::ANSWER_STATES,
             medication_options: Clinic::Care::PrevisitIntake.medication_options(portal_practice),
+            medication_references: Clinic::Care::PrevisitIntake.medication_reference_options(portal_practice),
             attestation: {
               id: Clinic::Care::PrevisitIntake::ATTESTATION_ID,
               version: Clinic::Care::PrevisitIntake::ATTESTATION_VERSION,

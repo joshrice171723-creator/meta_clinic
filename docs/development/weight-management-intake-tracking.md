@@ -1,8 +1,33 @@
 # Medical Weight-Management Intake Tracking
 
-Status: Audit reopened M1–M12: partial implementation; full supplied-brief acceptance is not complete
+Status: M1–M12 engineering changes integrated and focused checks passed. Full supplied-brief acceptance and clinical release are not yet complete; the milestone acceptance rows below remain open, not silently promoted to complete.
 
-Revision: 7 · 2026-09-19
+Revision: 9 · 2026-09-19
+
+## Latest engineering handoff — 2026-09-19
+
+The final implementation includes generic medication catalog references with an explicit Other path, permission-filtered comparison with previous intake answers, neutral versioned consent evidence, and clinical routing for mental-health/procedure review. Formal scored screening remains optional and disabled under the accepted configuration decision below.
+
+Focused final evidence: nurse workflow 17 tests / 366 assertions; questionnaire contract 6 tests / 47 assertions; consent 2 tests / 30 assertions. The medication/form test file passed 14 tests; five existing nurse workspace rendering tests remain rendering-only evidence, not interactive integration acceptance. Type checking, changed Ruby lint and the final web bundle passed. Browser checks established guided confirmation/unlock, coordination persistence and separate consent-decision persistence; they do not establish every milestone's end-to-end acceptance. See the dated audit for limitations and historical results.
+
+Remaining acceptance work is a repeatable interactive nurse workspace save/recovery test and complete row-by-row workflow acceptance, including the final comparison/picker browser path. Clinical content, applicable consent policy and release approval remain separate human gates. These are not replaced by passing builds or field presence.
+
+## Completion implementation checkpoint
+
+The user authorized completion of every remaining engineering milestone on 2026-09-19. Baseline: `8968d0b`. Current phase: **focused verification and repair**. Questionnaire, shared controls, patient coordination, answer provenance, owned review tasks and evidence selection are integrated. The original acceptance scope and separate professional approval gate remain unchanged except for the explicit optional-screening decision below.
+
+- Questionnaire: integrated from `codex/intake-completion-fields`; canonical field definitions, typed validation, histories, product questions and shorter follow-up.
+- Shared form: integrated from `codex/intake-completion-ui`; schema-driven typed/repeating controls and sensitive presentation.
+- Coordinator: main checkout; server-derived answer provenance, existing task ownership, evidence/profile connections, nurse workspace and integration. Unrelated `.codex/config.toml` and `.codex-remote-attachments/` remain untouched.
+- Shared contract: additive field metadata (`input_type`, `record_fields`, `requiredness`, `purpose`, `sensitive`, `chunk_id`); explicit answer states; bounded repeating entries and multi-select values. Existing domain records remain authoritative.
+- Verification after implementation freeze: typed field/negative API tests, room and stale handoff regressions, owned review/correction/replay tests, direct interactive workspace save/recovery coverage, source/type/build checks and a desktop/tablet walkthrough. Do not change milestone statuses from source presence alone.
+- Resume instruction: reconcile this checkpoint, the existing audit and current Git state before continuing. Do not repeat completed implementation or silently reduce the full brief. Clinical content approval, instrument selection/scoring, jurisdiction-specific consent and live integrations cannot be fabricated.
+
+### Accepted configuration boundary
+
+The user approved the recommendation to keep formal scored screening **optional and off until a clinic selects an approved instrument and review protocol**. Core intake does not wait for that selection. No instrument score or completion is inferred from the legacy status field; historical answers remain readable, but new forms do not offer that unsupported completion control.
+
+Consent evidence is recorded separately by purpose and version. There is no universal state-consent checkbox, bundled marketing permission, automatic acceptance or claim that a staff-recorded reference is a patient signature. Existing telehealth consent remains in its owning workflow. Applicable content and jurisdiction review remains required before clinical use; configuring a jurisdiction-specific policy is not required to exercise the local evidence-recording infrastructure.
 
 Milestone count: 12 implementation milestones
 

@@ -2496,7 +2496,7 @@ CREATE TABLE public.clinic_clinical_tasks (
     source_kind character varying(40),
     pending_assignee_membership_id bigint,
     CONSTRAINT clinic_tasks_source_kind CHECK (((source_kind IS NULL) OR ((source_kind)::text = ANY (ARRAY[('medication_request'::character varying)::text, ('service_request'::character varying)::text])))),
-    CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY ((ARRAY['intake'::character varying, 'handoff'::character varying, 'result_follow_up'::character varying, 'patient_call'::character varying, 'order_execution'::character varying, 'record_request'::character varying, 'staff_request'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((pool_code)::text = ANY ((ARRAY['clinical'::character varying, 'front_desk'::character varying, 'records'::character varying])::text[])) AND ((source_type)::text = ANY ((ARRAY['manual'::character varying, 'encounter'::character varying, 'handoff'::character varying, 'lab_follow_up'::character varying, 'message'::character varying, 'reminder'::character varying, 'order'::character varying])::text[])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
+    CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY (ARRAY[('intake'::character varying)::text, ('handoff'::character varying)::text, ('result_follow_up'::character varying)::text, ('patient_call'::character varying)::text, ('order_execution'::character varying)::text, ('record_request'::character varying)::text, ('staff_request'::character varying)::text])) AND ((state)::text = ANY (ARRAY[('open'::character varying)::text, ('claimed'::character varying)::text, ('in_progress'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((pool_code)::text = ANY (ARRAY[('clinical'::character varying)::text, ('front_desk'::character varying)::text, ('records'::character varying)::text])) AND ((source_type)::text = ANY (ARRAY[('manual'::character varying)::text, ('encounter'::character varying)::text, ('handoff'::character varying)::text, ('lab_follow_up'::character varying)::text, ('message'::character varying)::text, ('reminder'::character varying)::text, ('order'::character varying)::text])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
 );
 
 
@@ -3625,6 +3625,45 @@ CREATE SEQUENCE public.clinic_insurance_claims_id_seq
 --
 
 ALTER SEQUENCE public.clinic_insurance_claims_id_seq OWNED BY public.clinic_insurance_claims.id;
+
+
+--
+-- Name: clinic_intake_consent_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_intake_consent_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_intake_consent_revisi_recorded_by_membership_id_not_null NOT NULL,
+    purpose character varying(64) NOT NULL,
+    revision integer NOT NULL,
+    content text NOT NULL,
+    request_key character varying(160) NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT intake_consent_values CHECK ((((purpose)::text = ANY ((ARRAY['treatment'::character varying, 'privacy_notice'::character varying, 'product_counseling'::character varying, 'ai_recording'::character varying, 'marketing'::character varying])::text[])) AND (revision > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(content) > 0)))
+);
+
+
+--
+-- Name: clinic_intake_consent_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_intake_consent_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_intake_consent_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_intake_consent_revisions_id_seq OWNED BY public.clinic_intake_consent_revisions.id;
 
 
 --
@@ -5244,7 +5283,7 @@ CREATE TABLE public.clinic_lab_report_actions (
     request_key character varying NOT NULL,
     note text,
     recorded_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT lab_action_kind CHECK (((kind)::text = ANY ((ARRAY['acknowledged'::character varying, 'recollection_requested'::character varying, 'recollection_completed'::character varying])::text[])))
+    CONSTRAINT lab_action_kind CHECK (((kind)::text = ANY (ARRAY[('acknowledged'::character varying)::text, ('recollection_requested'::character varying)::text, ('recollection_completed'::character varying)::text])))
 );
 
 
@@ -5430,7 +5469,7 @@ CREATE TABLE public.clinic_lab_specimens (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT lab_specimens_values CHECK ((((condition_code)::text = ANY ((ARRAY['satisfactory'::character varying, 'compromised'::character varying, 'unknown'::character varying, 'rejected'::character varying])::text[])) AND ((char_length(TRIM(BOTH FROM specimen_type_code)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_code)) <= 80)) AND ((char_length(TRIM(BOTH FROM specimen_type_display)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_display)) <= 160))))
+    CONSTRAINT lab_specimens_values CHECK ((((condition_code)::text = ANY (ARRAY[('satisfactory'::character varying)::text, ('compromised'::character varying)::text, ('unknown'::character varying)::text, ('rejected'::character varying)::text])) AND ((char_length(TRIM(BOTH FROM specimen_type_code)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_code)) <= 80)) AND ((char_length(TRIM(BOTH FROM specimen_type_display)) >= 1) AND (char_length(TRIM(BOTH FROM specimen_type_display)) <= 160))))
 );
 
 
@@ -6011,7 +6050,7 @@ CREATE TABLE public.clinic_membership_prospects (
     CONSTRAINT clinic_membership_prospects_intent_type CHECK (((intent_type)::text = ANY (ARRAY[('outreach'::character varying)::text, ('purchase'::character varying)::text]))),
     CONSTRAINT clinic_membership_prospects_onboarding_state CHECK ((((status)::text <> ALL (ARRAY[('paid_onboarding'::character varying)::text, ('converted'::character varying)::text])) OR ((patient_id IS NOT NULL) AND (portal_identity_id IS NOT NULL) AND (agreement_id IS NOT NULL) AND (receipt_id IS NOT NULL) AND (onboarding_task_id IS NOT NULL) AND (invited_at IS NOT NULL) AND (paid_at IS NOT NULL)))),
     CONSTRAINT clinic_membership_prospects_status CHECK (((status)::text = ANY (ARRAY[('new'::character varying)::text, ('contacted'::character varying)::text, ('qualified'::character varying)::text, ('invited'::character varying)::text, ('converted'::character varying)::text, ('declined'::character varying)::text, ('checkout_pending'::character varying)::text, ('payment_processing'::character varying)::text, ('paid_onboarding'::character varying)::text, ('checkout_expired'::character varying)::text, ('payment_failed'::character varying)::text]))),
-    CONSTRAINT membership_prospect_contact_method CHECK (((preferred_contact_method IS NULL) OR ((preferred_contact_method)::text = ANY ((ARRAY['email'::character varying, 'phone'::character varying])::text[])))),
+    CONSTRAINT membership_prospect_contact_method CHECK (((preferred_contact_method IS NULL) OR ((preferred_contact_method)::text = ANY (ARRAY[('email'::character varying)::text, ('phone'::character varying)::text])))),
     CONSTRAINT membership_prospects_recurring_authorization CHECK (((recurring_authorized_at IS NULL) OR ((recurring_authorized_by_membership_id IS NOT NULL) AND (recurring_authorization_version IS NOT NULL)))),
     CONSTRAINT membership_prospects_staff_payment_status CHECK (((staff_payment_status IS NULL) OR ((staff_payment_status)::text = ANY (ARRAY[('awaiting_card'::character varying)::text, ('payment_processing'::character varying)::text, ('paid'::character varying)::text, ('failed'::character varying)::text]))))
 );
@@ -6465,6 +6504,44 @@ CREATE SEQUENCE public.clinic_patient_address_versions_id_seq
 --
 
 ALTER SEQUENCE public.clinic_patient_address_versions_id_seq OWNED BY public.clinic_patient_address_versions.id;
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_patient_care_coordination_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_patient_care_coordina_recorded_by_membership_id_not_null NOT NULL,
+    revision integer NOT NULL,
+    content text NOT NULL,
+    request_key character varying(160) NOT NULL,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT patient_coordination_values CHECK (((revision > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(content) > 0)))
+);
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_patient_care_coordination_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_patient_care_coordination_revisions_id_seq OWNED BY public.clinic_patient_care_coordination_revisions.id;
 
 
 --
@@ -7013,7 +7090,7 @@ CREATE TABLE public.clinic_patient_portal_requests (
     origin character varying NOT NULL,
     source_encounter_id bigint,
     medication_request_revision_id bigint,
-    CONSTRAINT clinic_patient_portal_requests_values CHECK ((((request_type)::text = ANY ((ARRAY['message'::character varying, 'refill'::character varying, 'callback'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'in_review'::character varying, 'resolved'::character varying, 'declined'::character varying])::text[])) AND (length(TRIM(BOTH FROM content_digest)) > 0)))
+    CONSTRAINT clinic_patient_portal_requests_values CHECK ((((request_type)::text = ANY (ARRAY[('message'::character varying)::text, ('refill'::character varying)::text, ('callback'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('in_review'::character varying)::text, ('resolved'::character varying)::text, ('declined'::character varying)::text])) AND (length(TRIM(BOTH FROM content_digest)) > 0)))
 );
 
 
@@ -7758,8 +7835,8 @@ CREATE TABLE public.clinic_prescription_events (
     request_key character varying NOT NULL,
     note text,
     recorded_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT prescription_event_kind CHECK (((kind)::text = ANY ((ARRAY['review'::character varying, 'failure_before_send'::character varying, 'rejected'::character varying, 'acknowledged'::character varying, 'unknown'::character varying, 'cancelled'::character varying, 'confirmed_not_sent'::character varying])::text[]))),
-    CONSTRAINT prescription_event_source CHECK (((source)::text = ANY ((ARRAY['manual'::character varying, 'simulation'::character varying])::text[])))
+    CONSTRAINT prescription_event_kind CHECK (((kind)::text = ANY (ARRAY[('review'::character varying)::text, ('failure_before_send'::character varying)::text, ('rejected'::character varying)::text, ('acknowledged'::character varying)::text, ('unknown'::character varying)::text, ('cancelled'::character varying)::text, ('confirmed_not_sent'::character varying)::text]))),
+    CONSTRAINT prescription_event_source CHECK (((source)::text = ANY (ARRAY[('manual'::character varying)::text, ('simulation'::character varying)::text])))
 );
 
 
@@ -12161,6 +12238,13 @@ ALTER TABLE ONLY public.clinic_insurance_claims ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: clinic_intake_consent_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_intake_consent_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_intake_consent_revisions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_catalog_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -12613,6 +12697,13 @@ ALTER TABLE ONLY public.clinic_operation_receipts ALTER COLUMN id SET DEFAULT ne
 --
 
 ALTER TABLE ONLY public.clinic_patient_address_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_address_versions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_coordination_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_patient_care_coordination_revisions_id_seq'::regclass);
 
 
 --
@@ -13911,6 +14002,14 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 
 --
+-- Name: clinic_intake_consent_revisions clinic_intake_consent_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_intake_consent_revisions
+    ADD CONSTRAINT clinic_intake_consent_revisions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_inventory_catalog_events clinic_inventory_catalog_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -14428,6 +14527,14 @@ ALTER TABLE ONLY public.clinic_operation_receipts
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT clinic_patient_address_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions clinic_patient_care_coordination_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_coordination_revisions
+    ADD CONSTRAINT clinic_patient_care_coordination_revisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -17431,7 +17538,7 @@ CREATE INDEX clinic_task_events_history ON public.clinic_clinical_task_events US
 -- Name: clinic_tasks_active_order_source; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_tasks_active_order_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_kind, source_id) WHERE (((source_type)::text = 'order'::text) AND (source_kind IS NOT NULL) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying, 'on_hold'::character varying])::text[])));
+CREATE UNIQUE INDEX clinic_tasks_active_order_source ON public.clinic_clinical_tasks USING btree (practice_id, source_type, source_kind, source_id) WHERE (((source_type)::text = 'order'::text) AND (source_kind IS NOT NULL) AND ((state)::text = ANY (ARRAY[('open'::character varying)::text, ('claimed'::character varying)::text, ('in_progress'::character varying)::text, ('on_hold'::character varying)::text])));
 
 
 --
@@ -19570,6 +19677,27 @@ CREATE UNIQUE INDEX index_users_on_single_platform_owner ON public.users USING b
 
 
 --
+-- Name: intake_consent_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX intake_consent_practice_id ON public.clinic_intake_consent_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: intake_consent_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX intake_consent_request ON public.clinic_intake_consent_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: intake_consent_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX intake_consent_revision ON public.clinic_intake_consent_revisions USING btree (practice_id, patient_id, purpose, revision);
+
+
+--
 -- Name: inventory_control_review_kind; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -20113,6 +20241,27 @@ CREATE UNIQUE INDEX membership_prospects_staff_setup_intent ON public.clinic_mem
 --
 
 CREATE UNIQUE INDEX membership_prospects_staff_subscription ON public.clinic_membership_prospects USING btree (checkout_account_id, staff_payment_subscription_id) WHERE (staff_payment_subscription_id IS NOT NULL);
+
+
+--
+-- Name: patient_coordination_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_coordination_practice_id ON public.clinic_patient_care_coordination_revisions USING btree (practice_id, id);
+
+
+--
+-- Name: patient_coordination_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_coordination_request ON public.clinic_patient_care_coordination_revisions USING btree (practice_id, recorded_by_membership_id, request_key);
+
+
+--
+-- Name: patient_coordination_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_coordination_revision ON public.clinic_patient_care_coordination_revisions USING btree (practice_id, patient_id, revision);
 
 
 --
@@ -21040,6 +21189,13 @@ CREATE TRIGGER clinic_insurance_claims_immutable BEFORE DELETE OR UPDATE ON publ
 
 
 --
+-- Name: clinic_intake_consent_revisions clinic_intake_consent_revisions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_intake_consent_revisions_immutable BEFORE DELETE OR UPDATE ON public.clinic_intake_consent_revisions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_encounter_intake_history_refs clinic_intake_history_refs_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -21240,6 +21396,13 @@ CREATE TRIGGER clinic_operation_receipts_immutable BEFORE DELETE OR UPDATE ON pu
 --
 
 CREATE TRIGGER clinic_patient_address_versions_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_address_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions clinic_patient_care_coordination_revisions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_patient_care_coordination_revisions_immutable BEFORE DELETE OR UPDATE ON public.clinic_patient_care_coordination_revisions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -23506,6 +23669,30 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 
 --
+-- Name: clinic_intake_consent_revisions fk_intake_consent_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_intake_consent_revisions
+    ADD CONSTRAINT fk_intake_consent_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_intake_consent_revisions fk_intake_consent_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_intake_consent_revisions
+    ADD CONSTRAINT fk_intake_consent_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_intake_consent_revisions fk_intake_consent_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_intake_consent_revisions
+    ADD CONSTRAINT fk_intake_consent_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_encounter_intake_history_refs fk_intake_history_refs_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -24519,6 +24706,30 @@ ALTER TABLE ONLY public.clinic_encounter_participants
 
 ALTER TABLE ONLY public.clinic_patient_address_versions
     ADD CONSTRAINT fk_patient_addresses_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions fk_patient_coordination_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_coordination_revisions
+    ADD CONSTRAINT fk_patient_coordination_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions fk_patient_coordination_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_coordination_revisions
+    ADD CONSTRAINT fk_patient_coordination_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_patient_care_coordination_revisions fk_patient_coordination_recorder; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patient_care_coordination_revisions
+    ADD CONSTRAINT fk_patient_coordination_recorder FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -29184,6 +29395,11 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260919020000'),
+('20260919010000'),
+('20260916110000'),
+('20260916100000'),
+('20260916090000'),
 ('20260914102000'),
 ('20260914101200'),
 ('20260914101100'),

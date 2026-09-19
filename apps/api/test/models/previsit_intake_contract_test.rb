@@ -4,6 +4,13 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
   Intake = Clinic::Care::PrevisitIntake
   Workflow = Clinic::Care::NurseWorkflow
 
+  test "unconfigured scored instruments are not offered as completed screens" do
+    %w[patient staff].each do |recorder|
+      assert_not_includes Intake.fields_for_recorder(recorder:).map { |field| field[:id] }, "instrument_status"
+    end
+    assert Intake.fields.any? { |field| field[:id] == "instrument_status" }, "Legacy answers remain readable"
+  end
+
   test "confirmed chunks validate normalized answers and cannot keep changed downstream confirmations" do
     answers = Intake.fields.to_h { |field| [ field[:id], { "state" => "not_asked", "value" => "" } ] }
     questionnaire = { "text" => "", "status" => "submitted", "confirmed" => true,
@@ -42,10 +49,10 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
   test "schema versions reject invalid explicit values while preserving older records" do
     encoded = Intake.encode(text: "", answers: { goals: "Synthetic priority" }, attested: true, recorder: "staff")
     payload = Intake.decode(encoded)
-    [ 0, -1, false, nil, "2", 3 ].each do |version|
+    [ 0, -1, false, nil, "2", Intake::QUESTIONNAIRE_VERSION + 1 ].each do |version|
       assert_nil Intake.decode(Intake::PREFIX + payload.merge("questionnaire_version" => version).to_json)
     end
-    [ 1, 2 ].each do |version|
+    [ 1, 2, Intake::QUESTIONNAIRE_VERSION ].each do |version|
       assert Intake.decode(Intake::PREFIX + payload.merge("questionnaire_version" => version).to_json)
     end
     assert Intake.decode(Intake::PREFIX + payload.except("questionnaire_version").to_json)
@@ -56,10 +63,23 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
       field = Intake.fields.find { |item| item[:id] == id }
       assert_nil field[:depends_on]
     end
-    grouped = Workflow::INTAKE_CHUNKS.flat_map { |chunk| chunk[:fields] }
     Intake::SPECIALTY_FORMS.each do |form_id, fields|
+      grouped = Workflow.chunks_for(form_id:).flat_map { |chunk| chunk[:fields] }
       assert_empty fields.map { |field| field[:id] } - grouped, form_id
     end
+  end
+
+  test "nested visibility respects multiselect and hidden ancestors" do
+    fields = [
+      { id: "domains" },
+      { id: "use", depends_on: "domains", depends_values: ["medication"] },
+      { id: "details", depends_on: "use", depends_values: ["yes", "unknown"] }
+    ]
+    answers = { "domains" => { "state" => "answered", "values" => ["medication"] },
+      "use" => { "state" => "unknown" } }
+    assert Intake.visible?(fields.last, answers, definitions: fields)
+    answers["domains"]["values"] = ["sleep"]
+    assert_not Intake.visible?(fields.last, answers, definitions: fields)
   end
 
   test "review summary retains all captured history detail without inferring a clinical decision" do

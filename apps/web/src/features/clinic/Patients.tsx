@@ -44,6 +44,7 @@ import {
 import { PatientSupport } from "./CareFlow";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { PatientCareCoordination } from "./PatientCareCoordination";
+import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
@@ -1742,6 +1743,7 @@ function PatientDetails({ patient }: { patient: Patient }) {
         </p>
       </Card>
       <PatientCareCoordination patientId={patient.id} />
+      <IntakeConsentEvidence patientId={patient.id} />
       <PatientClinicalHistory patientId={patient.id} />
       <PatientLabReports
         patientId={patient.id}

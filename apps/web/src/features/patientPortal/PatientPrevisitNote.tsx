@@ -64,6 +64,7 @@ type Response = {
     }[];
     answer_states?: string[];
     medication_options?: string[];
+    medication_references?: Array<{ id: string; name: string }>;
     max_answer_length: number;
     attestation: { id: string; version: string; label: string };
   };
@@ -490,6 +491,9 @@ export function PatientPrevisitNote({
                     fields={data.intake_form.fields}
                     answers={answers}
                     medicationOptions={data.intake_form.medication_options}
+                    medicationReferences={
+                      data.intake_form.medication_references
+                    }
                     disabled={loading || busy || outcomeUnknown || conflict}
                     onChange={(next) => {
                       setAnswers(next);
