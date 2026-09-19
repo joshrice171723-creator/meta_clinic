@@ -20,7 +20,25 @@ module Clinic
           fields: %w[prior_approaches procedures barriers].freeze },
         { index: 4, id: "measurements", label: "Measurements and weight",
           description: "Record dated measurements and review calculated BMI.",
-          fields: %w[height weight].freeze }
+          fields: %w[height weight].freeze },
+        { index: 5, id: "reproductive_product_safety", label: "Reproductive and product safety",
+          description: "Record applicable reproductive context and route product-specific questions for review.",
+          fields: %w[treatment_product_class pregnancy_status pregnancy_plans breastfeeding_status contraception_context product_safety_review].freeze },
+        { index: 6, id: "nutrition_support", label: "Nutrition and sensitive support",
+          description: "Capture food patterns and support context with explicit privacy and decline states.",
+          fields: %w[nutrition_pattern beverage_pattern eating_concern nutrition_support mental_health_support substance_use_context instrument_status].freeze },
+        { index: 7, id: "activity_sleep_barriers", label: "Activity, sleep, and barriers",
+          description: "Record function, sleep, access, and support needs without a readiness score.",
+          fields: %w[activity_capacity activity_pattern sleep_quality transportation_access food_access caregiving_support social_support barrier_support_route].freeze },
+        { index: 8, id: "records_consent_admin", label: "Records, consent, and admin",
+          description: "Track evidence sources, consent context, privacy, coverage, and disclosures separately.",
+          fields: %w[outside_records_state lab_context_state treatment_consent_state telehealth_consent_state privacy_location_state coverage_context prior_authorization_state disclosure_state].freeze },
+        { index: 9, id: "confirmation_clinician_review", label: "Confirmation and clinician review",
+          description: "Confirm what was recorded and make unresolved ownership visible without implying clinical approval.",
+          fields: %w[patient_confirmation_state unresolved_item_state review_owner].freeze },
+        { index: 10, id: "follow_up_change", label: "Follow-up and change",
+          description: "Capture longitudinal change, response, access, support, and patient questions.",
+          fields: %w[follow_up_context change_since_last_visit treatment_response treatment_tolerability access_status support_status follow_up_plan_state next_contact_window follow_up_questions].freeze }
       ].map(&:freeze).freeze
       HANDOFF_ACTIONS = {
         "accept" => "accepted", "reject" => "rejected", "request_correction" => "correction_requested",
@@ -331,9 +349,9 @@ module Clinic
           raise ArgumentError, "Confirm the current question group before opening the next."
         end
 
-        fields = INTAKE_CHUNKS.fetch(chunks.last).fetch(:fields) & PrevisitIntake.fields(form_id).map { |field| field[:id] }
-        fields -= [ "telehealth_location" ] unless encounter&.appointment&.visit_modality == "video"
         answers = questionnaire.fetch("answers", {}).to_h
+        fields = visible_fields(form_id:, chunk_index: chunks.last, answers:, encounter:)
+        fields -= [ "telehealth_location" ] unless encounter&.appointment&.visit_modality == "video"
         unanswered = fields.select { |field_id| answer_state(answers[field_id] || answers[field_id.to_sym]) == "unanswered" }
         if unanswered.any?
           raise ArgumentError, "Answer or explicitly resolve each question in the group before confirming."
@@ -354,6 +372,24 @@ module Clinic
         return answer.to_s.strip.present? ? "answered" : "unanswered" unless answer.is_a?(Hash)
 
         answer.stringify_keys.fetch("state", "unanswered").to_s
+      end
+
+      def visible_fields(form_id:, chunk_index:, answers:, encounter:)
+        supported = PrevisitIntake.fields(form_id).select do |field|
+          INTAKE_CHUNKS.fetch(chunk_index).fetch(:fields).include?(field[:id])
+        end
+        supported.select { |field| field_visible?(field, answers) }.map { |field| field[:id] }
+      end
+
+      def field_visible?(field, answers)
+        dependency = field[:depends_on]
+        return true unless dependency
+
+        answer = answers[dependency] || answers[dependency.to_sym]
+        return false unless answer_state(answer) == "answered"
+
+        value = answer.is_a?(Hash) ? answer.stringify_keys.fetch("value", "").to_s : answer.to_s
+        Array(field[:depends_values]).include?(value)
       end
 
       def validate_intake_evidence!(input, observations, history_reviews)

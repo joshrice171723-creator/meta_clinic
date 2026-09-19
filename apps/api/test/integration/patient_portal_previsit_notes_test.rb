@@ -345,6 +345,20 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     assert_empty appointment.previsit_notes
   end
 
+  test "additive questionnaire versions keep prior answers readable without accepting future schemas" do
+    prior = Clinic::Care::PrevisitIntake::PREFIX + JSON.generate(
+      form_id: "weight-management-initial-v1", questionnaire_version: 1, status: "submitted", text: "",
+      answers: { visit_reason: { state: "not_asked", value: "" } }, confirmed_chunks: [ 0 ],
+      recorder: "staff", staff_confirmation: true
+    )
+    assert_equal 1, Clinic::Care::PrevisitIntake.decode(prior).fetch("questionnaire_version")
+
+    future = prior.sub('"questionnaire_version":1', '"questionnaire_version":3')
+    malformed = prior.sub('"questionnaire_version":1', '"questionnaire_version":"future"')
+    assert_nil Clinic::Care::PrevisitIntake.decode(future)
+    assert_nil Clinic::Care::PrevisitIntake.decode(malformed)
+  end
+
   private
 
   def csrf_headers

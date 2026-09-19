@@ -7,7 +7,7 @@ module Clinic
       LEGACY_FORM_IDS = %w[meta-clinic-previsit-v1 meta-clinic-previsit-v2].freeze
       ATTESTATION_ID = "patient-confirmed-current-and-care-team-sharing".freeze
       ATTESTATION_VERSION = "2026-09-11".freeze
-      QUESTIONNAIRE_VERSION = 1
+      QUESTIONNAIRE_VERSION = 2
       FIELDS = [
         { id: "visit_reason", label: "What brings you in?", reusable: false },
         { id: "symptoms", label: "Current symptoms and when they started", reusable: false, history_kind: "symptom" },
@@ -22,7 +22,92 @@ module Clinic
         { id: "procedures", label: "Previous procedures, surgeries, or hospitalizations", reusable: true, history_kind: "procedure" },
         { id: "barriers", label: "Anything making your plan difficult to follow?", reusable: false },
         { id: "height", label: "Current height", reusable: false, units: %w[cm [in_i]] },
-        { id: "weight", label: "Current weight", reusable: false, units: %w[kg [lb_av]] }
+        { id: "weight", label: "Current weight", reusable: false, units: %w[kg [lb_av]] },
+        { id: "treatment_product_class", label: "Treatment product or class being discussed", reusable: false,
+          choices: %w[glp1 other_prescription non_prescription none_selected unknown not_discussed] },
+        { id: "pregnancy_status", label: "Current pregnancy status", reusable: false,
+          choices: %w[pregnant not_pregnant unsure declined not_applicable unknown] },
+        { id: "pregnancy_plans", label: "Pregnancy plans or possibility", reusable: false,
+          depends_on: "pregnancy_status", depends_values: %w[pregnant not_pregnant unsure unknown],
+          choices: %w[yes no unsure declined not_applicable unknown] },
+        { id: "breastfeeding_status", label: "Breastfeeding or chestfeeding status", reusable: false,
+          depends_on: "pregnancy_status", depends_values: %w[pregnant not_pregnant unsure unknown],
+          choices: %w[yes no unsure declined not_applicable unknown] },
+        { id: "contraception_context", label: "Contraception context", reusable: false,
+          depends_on: "pregnancy_status", depends_values: %w[pregnant not_pregnant unsure unknown],
+          choices: %w[using not_using not_applicable declined unknown] },
+        { id: "product_safety_review", label: "Product-specific safety questions", reusable: false,
+          depends_on: "treatment_product_class", depends_values: %w[glp1 other_prescription unknown],
+          choices: %w[reviewed needs_clarification not_applicable declined unknown] },
+        { id: "nutrition_pattern", label: "Meal pattern", reusable: false,
+          choices: %w[regular_meals variable_meals grazing skipped_meals unknown not_discussed] },
+        { id: "beverage_pattern", label: "Beverage pattern", reusable: false,
+          choices: %w[water_mostly sugar_sweetened alcohol_present mixed unknown not_discussed] },
+        { id: "eating_concern", label: "Eating concern to discuss", reusable: false,
+          choices: %w[none_reported loss_of_control binge_concern restrictive_pattern emotional_eating unknown declined] },
+        { id: "nutrition_support", label: "Nutrition support preference", reusable: false,
+          choices: %w[none_requested interested active_support clinician_review unknown declined] },
+        { id: "mental_health_support", label: "Mental-health support context", reusable: false,
+          choices: %w[none_reported current_support wants_support clinician_review unknown declined] },
+        { id: "substance_use_context", label: "Substance-use context", reusable: false,
+          choices: %w[none_reported alcohol tobacco other_substance multiple unknown declined] },
+        { id: "instrument_status", label: "Structured instrument status", reusable: false,
+          choices: %w[not_selected offered completed declined unable_to_complete unknown] },
+        { id: "activity_capacity", label: "Activity and movement capacity", reusable: false,
+          choices: %w[independent limited needs_assistance unable_to_assess unknown] },
+        { id: "activity_pattern", label: "Usual activity pattern", reusable: false,
+          choices: %w[none_reported occasional regular variable unknown not_discussed] },
+        { id: "sleep_quality", label: "Sleep quality or concern", reusable: false,
+          choices: %w[restful variable poor concern_for_review unknown not_discussed] },
+        { id: "transportation_access", label: "Transportation access", reusable: false,
+          choices: %w[reliable sometimes_limited unavailable unknown not_discussed] },
+        { id: "food_access", label: "Food access", reusable: false,
+          choices: %w[adequate sometimes_limited unavailable unknown not_discussed] },
+        { id: "caregiving_support", label: "Caregiving support", reusable: false,
+          choices: %w[adequate limited none unknown not_discussed] },
+        { id: "social_support", label: "Social support", reusable: false,
+          choices: %w[available limited none unknown not_discussed] },
+        { id: "barrier_support_route", label: "Support route for barriers", reusable: false,
+          choices: %w[none_reported care_coordination nutrition activity sleep financial other unknown] },
+        { id: "outside_records_state", label: "Outside records", reusable: false,
+          choices: %w[not_requested requested received unavailable not_applicable unknown] },
+        { id: "lab_context_state", label: "Laboratory evidence context", reusable: false,
+          choices: %w[not_reviewed reviewed pending unavailable not_applicable unknown] },
+        { id: "treatment_consent_state", label: "Treatment consent context", reusable: false,
+          choices: %w[confirmed declined not_asked not_applicable unknown] },
+        { id: "telehealth_consent_state", label: "Telehealth consent context", reusable: false,
+          choices: %w[confirmed declined not_asked not_applicable unknown] },
+        { id: "privacy_location_state", label: "Privacy of visit location", reusable: false,
+          choices: %w[private shared_space uncertain not_applicable unknown] },
+        { id: "coverage_context", label: "Coverage context", reusable: false,
+          choices: %w[insurance self_pay not_discussed not_applicable unknown] },
+        { id: "prior_authorization_state", label: "Prior-authorization context", reusable: false,
+          choices: %w[not_started not_needed pending approved denied not_applicable unknown] },
+        { id: "disclosure_state", label: "Required disclosures", reusable: false,
+          choices: %w[reviewed not_reviewed declined not_applicable unknown] },
+        { id: "patient_confirmation_state", label: "Patient confirmation of recorded answers", reusable: false,
+          choices: %w[confirmed needs_correction unable_to_confirm declined not_asked unknown] },
+        { id: "unresolved_item_state", label: "Unresolved intake items", reusable: false,
+          choices: %w[none_present present unknown not_applicable] },
+        { id: "review_owner", label: "Review owner or team", reusable: false,
+          choices: %w[nurse clinician pharmacist care_coordinator patient unknown not_assigned] },
+        { id: "follow_up_context", label: "Follow-up context", reusable: false,
+          choices: %w[initial_visit follow_up maintenance transition unknown] },
+        { id: "change_since_last_visit", label: "Change since the last visit", reusable: false,
+          choices: %w[none_reported weight_change medication_change tolerance_change access_change support_change other unknown] },
+        { id: "treatment_response", label: "Treatment response", reusable: false,
+          choices: %w[improved unchanged worse mixed not_applicable unknown] },
+        { id: "treatment_tolerability", label: "Treatment tolerability", reusable: false,
+          choices: %w[tolerated side_effects_reported stopped_due_to_effects not_applicable unknown] },
+        { id: "access_status", label: "Treatment access status", reusable: false,
+          choices: %w[available delayed unavailable cost_concern not_applicable unknown] },
+        { id: "support_status", label: "Support status", reusable: false,
+          choices: %w[adequate needs_support changed not_applicable unknown] },
+        { id: "follow_up_plan_state", label: "Follow-up review state", reusable: false,
+          choices: %w[no_change clinician_review_needed patient_contact_needed unknown] },
+        { id: "next_contact_window", label: "Next contact window", reusable: false,
+          choices: %w[no_plan_recorded within_1_week within_1_month later unknown] },
+        { id: "follow_up_questions", label: "Patient questions for follow-up", reusable: false }
       ].map(&:freeze).freeze
       PREFIX = "MC_INTAKE_V1\n".freeze
       MAX_ANSWER_LENGTH = 600
@@ -54,7 +139,19 @@ module Clinic
         "weight-management-initial-v1" => FIELDS + [
           { id: "habits", label: "Is there anything about eating, activity or sleep you want to discuss?", reusable: false }
         ],
-        "weight-management-follow-up-v1" => FIELDS.select { |field| %w[goals barriers weight care_needs].include?(field[:id]) } + [
+        "weight-management-follow-up-v1" => FIELDS.select do |field|
+          %w[
+            goals barriers weight care_needs treatment_product_class pregnancy_status pregnancy_plans
+            breastfeeding_status contraception_context product_safety_review nutrition_pattern beverage_pattern
+            eating_concern nutrition_support mental_health_support substance_use_context instrument_status
+            activity_capacity activity_pattern sleep_quality transportation_access food_access caregiving_support
+            social_support barrier_support_route outside_records_state lab_context_state treatment_consent_state
+            telehealth_consent_state privacy_location_state coverage_context prior_authorization_state disclosure_state
+            patient_confirmation_state unresolved_item_state review_owner follow_up_context change_since_last_visit
+            treatment_response treatment_tolerability access_status support_status follow_up_plan_state
+            next_contact_window follow_up_questions
+          ].include?(field[:id])
+        end + [
           { id: "changes", label: "What has changed since your last visit?", reusable: false },
           { id: "history_changes", label: "Have your medicines, supplements, allergies or health history changed?", reusable: false,
             choices: %w[yes no unknown declined] },
@@ -303,7 +400,12 @@ module Clinic
           payload["text"].is_a?(String) && payload["answers"].is_a?(Hash) &&
           (payload["answers"].keys - fields(payload["form_id"]).map { |field| field[:id] }).empty? &&
           payload["answers"].values.all? { |answer| answer.is_a?(String) || (modern && answer.is_a?(Hash)) }
-        return if modern && payload["questionnaire_version"].present? && payload["questionnaire_version"] != QUESTIONNAIRE_VERSION
+        # Additive questionnaire releases must continue to render and hydrate
+        # previously recorded answers. Reject only payloads from a newer schema
+        # that this server cannot safely interpret.
+        return if modern && payload["questionnaire_version"].present? &&
+          (!payload["questionnaire_version"].is_a?(Integer) ||
+            payload["questionnaire_version"] > QUESTIONNAIRE_VERSION)
         return if modern && payload["confirmed_chunks"].present? &&
           (!payload["confirmed_chunks"].is_a?(Array) || payload["confirmed_chunks"].any? { |item| !item.is_a?(Integer) || item.negative? })
         return unless !modern || %w[draft submitted].include?(payload["status"])

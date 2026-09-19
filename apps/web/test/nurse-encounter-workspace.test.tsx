@@ -56,6 +56,48 @@ const fixtures = vi.hoisted(() => ({
         { id: "barriers", label: "Plan barriers", reusable: false },
         { id: "height", label: "Current height", reusable: false },
         { id: "weight", label: "Current weight", reusable: false },
+        {
+          id: "treatment_product_class",
+          label: "Treatment product or class being discussed",
+          reusable: false,
+          choices: ["glp1", "other_prescription", "unknown"],
+        },
+        {
+          id: "pregnancy_status",
+          label: "Current pregnancy status",
+          reusable: false,
+          choices: ["pregnant", "not_pregnant", "unsure", "declined"],
+        },
+        {
+          id: "nutrition_pattern",
+          label: "Meal pattern",
+          reusable: false,
+          choices: ["regular_meals", "variable_meals", "unknown"],
+        },
+        {
+          id: "activity_capacity",
+          label: "Activity and movement capacity",
+          reusable: false,
+          choices: ["independent", "limited", "unknown"],
+        },
+        {
+          id: "outside_records_state",
+          label: "Outside records",
+          reusable: false,
+          choices: ["not_requested", "received", "unknown"],
+        },
+        {
+          id: "patient_confirmation_state",
+          label: "Patient confirmation of recorded answers",
+          reusable: false,
+          choices: ["confirmed", "needs_correction", "unknown"],
+        },
+        {
+          id: "follow_up_context",
+          label: "Follow-up context",
+          reusable: false,
+          choices: ["initial_visit", "follow_up", "unknown"],
+        },
       ],
       answer_states: [
         "unanswered",
@@ -105,6 +147,61 @@ const fixtures = vi.hoisted(() => ({
           label: "Measurements and weight",
           description: "Record dated measurements and review calculated BMI.",
           fields: ["height", "weight"],
+        },
+        {
+          index: 5,
+          id: "reproductive_product_safety",
+          label: "Reproductive and product safety",
+          description:
+            "Record applicable reproductive context and route product-specific questions for review.",
+          fields: [
+            "treatment_product_class",
+            "pregnancy_status",
+            "pregnancy_plans",
+            "breastfeeding_status",
+            "contraception_context",
+            "product_safety_review",
+          ],
+        },
+        {
+          index: 6,
+          id: "nutrition_support",
+          label: "Nutrition and sensitive support",
+          description:
+            "Capture food patterns and support context with explicit privacy and decline states.",
+          fields: ["nutrition_pattern"],
+        },
+        {
+          index: 7,
+          id: "activity_sleep_barriers",
+          label: "Activity, sleep, and barriers",
+          description:
+            "Record function, sleep, access, and support needs without a readiness score.",
+          fields: ["activity_capacity"],
+        },
+        {
+          index: 8,
+          id: "records_consent_admin",
+          label: "Records, consent, and admin",
+          description:
+            "Track evidence sources, consent context, privacy, coverage, and disclosures separately.",
+          fields: ["outside_records_state"],
+        },
+        {
+          index: 9,
+          id: "confirmation_clinician_review",
+          label: "Confirmation and clinician review",
+          description:
+            "Confirm what was recorded and make unresolved ownership visible without implying clinical approval.",
+          fields: ["patient_confirmation_state"],
+        },
+        {
+          index: 10,
+          id: "follow_up_change",
+          label: "Follow-up and change",
+          description:
+            "Capture longitudinal change, response, access, support, and patient questions.",
+          fields: ["follow_up_context"],
         },
       ],
     },
@@ -164,6 +261,15 @@ describe("NurseEncounterWorkspace", () => {
     expect(html).toContain("What would you like help with? status");
     expect(html).not.toContain("Current medicines and supplements status");
     expect(html).toContain("Room is still required.");
+  });
+
+  it("renders the server-provided M7-M12 group definitions", () => {
+    const html = renderWorkspace(19);
+
+    expect(html).toContain("Reproductive and product safety");
+    expect(html).toContain("Nutrition and sensitive support");
+    expect(html).toContain("Confirmation and clinician review");
+    expect(html).toContain("Follow-up and change");
   });
 
   it("shows a recorded room when the encounter already has one", () => {

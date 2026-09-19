@@ -34,6 +34,7 @@ import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import {
   IntakeQuestions,
+  intakeFieldVisible,
   type IntakeAnswers,
 } from "../patientPortal/IntakeQuestions";
 import { VitalSignsEntry } from "./VitalSignsEntry";
@@ -179,7 +180,7 @@ export function NurseEncounterWorkspace({
 
   useEffect(() => {
     const intake = resource.data?.intake;
-    if (!intake || dirty) return;
+    if (!intake || (dirty && form.questionnaire)) return;
     const next: IntakeForm = {
       status: intake.status,
       identity_state: intake.identity_state,
@@ -277,6 +278,18 @@ export function NurseEncounterWorkspace({
 
   const workspace = resource.data;
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
+  const persistedConfirmedChunks = form.questionnaire?.confirmed_chunks ?? [];
+  const confirmedChunkIndexes =
+    confirmedChunks.length > 0 ? confirmedChunks : persistedConfirmedChunks;
+  const nextPersistedChunk = intakeChunks.findIndex(
+    (_chunk, index) => !confirmedChunkIndexes.includes(index),
+  );
+  const activeChunkIndex =
+    activeChunk === 0 && confirmedChunkIndexes.length > 0
+      ? nextPersistedChunk === -1
+        ? Math.max(intakeChunks.length - 1, 0)
+        : nextPersistedChunk
+      : activeChunk;
   const intakeVersion = workspace.intake?.version ?? 0;
   const canRespondToHandoff =
     workspace.capabilities.handoff_respond &&
@@ -329,7 +342,7 @@ export function NurseEncounterWorkspace({
         ? Array.from(
             new Set([
               ...(formToSave.questionnaire.confirmed_chunks ?? []),
-              ...(advanceChunk ? [activeChunk] : []),
+              ...(advanceChunk ? [activeChunkIndex] : []),
             ]),
           ).sort((left, right) => left - right)
         : [];
@@ -390,10 +403,10 @@ export function NurseEncounterWorkspace({
       setConfirmedChunks(savedChunks);
       if (advanceChunk) {
         setActiveChunk((current) =>
-          Math.min(current + 1, intakeChunks.length - 1),
+          Math.min(activeChunkIndex + 1, intakeChunks.length - 1),
         );
         setNotice(
-          activeChunk < intakeChunks.length - 1
+          activeChunkIndex < intakeChunks.length - 1
             ? "Saved and confirmed. The next question group is ready."
             : "Saved and confirmed. All question groups are available for review.",
         );
@@ -744,31 +757,36 @@ export function NurseEncounterWorkspace({
                       key={chunk.label}
                       label={`${index + 1}. ${chunk.label}`}
                       color={
-                        confirmedChunks.includes(index)
+                        confirmedChunkIndexes.includes(index)
                           ? "success"
-                          : index === activeChunk
+                          : index === activeChunkIndex
                             ? "primary"
                             : "default"
                       }
-                      variant={index === activeChunk ? "filled" : "outlined"}
-                      onClick={() =>
-                        index <= Math.max(activeChunk, ...confirmedChunks) &&
-                        setActiveChunk(index)
+                      variant={
+                        index === activeChunkIndex ? "filled" : "outlined"
                       }
-                      aria-label={`${chunk.label}${confirmedChunks.includes(index) ? ", confirmed" : ""}`}
+                      onClick={() =>
+                        index <=
+                          Math.max(
+                            activeChunkIndex,
+                            ...confirmedChunkIndexes,
+                          ) && setActiveChunk(index)
+                      }
+                      aria-label={`${chunk.label}${confirmedChunkIndexes.includes(index) ? ", confirmed" : ""}`}
                     />
                   ))}
                 </Stack>
                 <Alert severity={roomId ? "info" : "warning"}>
                   {roomId
-                    ? `Group ${activeChunk + 1} of ${intakeChunks.length}: ${intakeChunks[activeChunk].description}`
+                    ? `Group ${activeChunkIndex + 1} of ${intakeChunks.length}: ${intakeChunks[activeChunkIndex].description}`
                     : "Record the room first. You can still save intake drafts, but clinician handoff stays blocked until a room is recorded."}
                 </Alert>
                 <Typography color="text.secondary">
                   Recording answers does not reconcile medicines or allergies,
                   confirm patient consent, or complete clinical review.
                 </Typography>
-                {activeChunk === intakeChunks.length - 1 && (
+                {activeChunkIndex === intakeChunks.length - 1 && (
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     <Stack spacing={1.25}>
                       <Box>
@@ -838,8 +856,12 @@ export function NurseEncounterWorkspace({
                 <IntakeQuestions
                   fields={workspace.questionnaire_form.fields.filter(
                     (field) =>
-                      intakeChunks[activeChunk].fields.some(
+                      intakeChunks[activeChunkIndex].fields.some(
                         (id) => id === field.id,
+                      ) &&
+                      intakeFieldVisible(
+                        field,
+                        form.questionnaire?.answers ?? {},
                       ) &&
                       (field.id !== "telehealth_location" ||
                         encounter.visit_modality === "video"),
@@ -865,7 +887,7 @@ export function NurseEncounterWorkspace({
                     }))
                   }
                 />
-                {activeChunk === intakeChunks.length - 1 && (
+                {activeChunkIndex === intakeChunks.length - 1 && (
                   <TextField
                     label="Additional patient-reported context"
                     multiline

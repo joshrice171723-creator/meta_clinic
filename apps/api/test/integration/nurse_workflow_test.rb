@@ -38,8 +38,8 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_nil response.parsed_body.fetch("intake")
     assert_equal "nurse-workspace-v1", response.parsed_body.fetch("schema_version")
-    assert_equal 1, response.parsed_body.dig("questionnaire_form", "version")
-    assert_equal [ 0, 1, 2, 3, 4 ], response.parsed_body.dig("questionnaire_form", "chunks").map { |chunk| chunk.fetch("index") }
+    assert_equal 2, response.parsed_body.dig("questionnaire_form", "version")
+    assert_equal (0..10).to_a, response.parsed_body.dig("questionnaire_form", "chunks").map { |chunk| chunk.fetch("index") }
     assert_includes response.parsed_body.dig("questionnaire_form", "answer_states"), "not_asked"
     assert_includes response.parsed_body.dig("questionnaire_form", "fields").map { |field| field.fetch("id") },
       "telehealth_location"
@@ -231,7 +231,7 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     }
     [
       [ "journey-staff-skipped", [ 0, 2 ], "Confirm intake groups in order" ],
-      [ "journey-staff-out-of-range", [ 5 ], "outside the supported workflow" ],
+      [ "journey-staff-out-of-range", [ 11 ], "outside the supported workflow" ],
       [ "journey-staff-unconfirmed", [ 0 ], "Confirm the current question group" ]
     ].each do |request_key, confirmed_chunks, error_text|
       questionnaire = { text: "", answers: {}, status: "draft", confirmed: false, confirmed_chunks: }
@@ -366,6 +366,75 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "uncertain", last.dig("questionnaire", "answers", "allergies", "entries", 0, "certainty")
     assert_includes last.fetch("questionnaire_text"), "prescribed · taking · 5 · mg · once_daily · prescription_record · unknown"
     assert_includes last.fetch("questionnaire_text"), "intolerance · uncertain · unknown"
+  end
+
+  test "extended weight management chunks preserve bounded branches and follow-up context" do
+    answers = Clinic::Care::PrevisitIntake.fields.to_h do |field|
+      [ field.fetch(:id), { state: "not_asked", value: "" } ]
+    end
+    answers.merge!(
+      "treatment_product_class" => { state: "answered", value: "glp1" },
+      "pregnancy_status" => { state: "answered", value: "unsure" },
+      "pregnancy_plans" => { state: "answered", value: "unknown" },
+      "breastfeeding_status" => { state: "declined", value: "" },
+      "contraception_context" => { state: "answered", value: "not_applicable" },
+      "product_safety_review" => { state: "answered", value: "needs_clarification" },
+      "nutrition_pattern" => { state: "answered", value: "variable_meals" },
+      "beverage_pattern" => { state: "answered", value: "mixed" },
+      "eating_concern" => { state: "answered", value: "unknown" },
+      "nutrition_support" => { state: "answered", value: "interested" },
+      "mental_health_support" => { state: "declined", value: "" },
+      "substance_use_context" => { state: "answered", value: "none_reported" },
+      "instrument_status" => { state: "answered", value: "not_selected" },
+      "activity_capacity" => { state: "answered", value: "independent" },
+      "activity_pattern" => { state: "answered", value: "occasional" },
+      "sleep_quality" => { state: "answered", value: "unknown" },
+      "transportation_access" => { state: "answered", value: "reliable" },
+      "food_access" => { state: "answered", value: "adequate" },
+      "caregiving_support" => { state: "answered", value: "unknown" },
+      "social_support" => { state: "answered", value: "available" },
+      "barrier_support_route" => { state: "answered", value: "none_reported" },
+      "outside_records_state" => { state: "answered", value: "not_requested" },
+      "lab_context_state" => { state: "answered", value: "not_reviewed" },
+      "treatment_consent_state" => { state: "answered", value: "not_asked" },
+      "telehealth_consent_state" => { state: "answered", value: "not_applicable" },
+      "privacy_location_state" => { state: "answered", value: "private" },
+      "coverage_context" => { state: "answered", value: "unknown" },
+      "prior_authorization_state" => { state: "answered", value: "not_started" },
+      "disclosure_state" => { state: "answered", value: "not_reviewed" },
+      "patient_confirmation_state" => { state: "answered", value: "needs_correction" },
+      "unresolved_item_state" => { state: "answered", value: "present" },
+      "review_owner" => { state: "answered", value: "clinician" },
+      "follow_up_context" => { state: "answered", value: "follow_up" },
+      "change_since_last_visit" => { state: "answered", value: "medication_change" },
+      "treatment_response" => { state: "answered", value: "mixed" },
+      "treatment_tolerability" => { state: "answered", value: "side_effects_reported" },
+      "access_status" => { state: "answered", value: "delayed" },
+      "support_status" => { state: "answered", value: "needs_support" },
+      "follow_up_plan_state" => { state: "answered", value: "clinician_review_needed" },
+      "next_contact_window" => { state: "answered", value: "within_1_month" }
+    )
+
+    last = nil
+    (0..10).each do |chunk|
+      post intake_path, params: { intake: {
+        request_key: "nurse-m7-m12-chunk-#{chunk}", expected_version: chunk,
+        status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+        history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [],
+        questionnaire: { text: "", answers:, status: "submitted", confirmed: true, confirmed_chunks: (0..chunk).to_a }
+      } }, headers: csrf_headers, as: :json
+      assert_response :created
+      last = response.parsed_body.fetch("intake")
+    end
+
+    assert_equal 11, last.fetch("version")
+    assert_equal (0..10).to_a, last.dig("questionnaire", "confirmed_chunks")
+    assert_equal "needs_clarification", last.dig("questionnaire", "answers", "product_safety_review", "value")
+    assert_equal "mixed", last.dig("questionnaire", "answers", "treatment_response", "value")
+    assert_equal "clinician_review_needed", last.dig("questionnaire", "answers", "follow_up_plan_state", "value")
+    assert_includes last.fetch("questionnaire_text"), "glp1"
+    assert_includes last.fetch("questionnaire_text"), "needs_clarification"
+    assert_includes last.fetch("questionnaire_text"), "medication_change"
   end
 
   test "non-video handoff requires a recorded room" do
