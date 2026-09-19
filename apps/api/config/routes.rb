@@ -315,6 +315,9 @@ Rails.application.routes.draw do
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"
       resource :care_summary, controller: "care/patient_care_summaries", only: :show
+      resource :care_coordination, controller: "care/patient_care_coordinations", only: %i[show create] do
+        get :references
+      end
       get "clinical_history", to: "care/clinical_history#index", as: :clinical_history
       post "clinical_history/reviews", to: "care/clinical_history#review", as: :clinical_history_reviews
       post "clinical_history/:kind", to: "care/clinical_history#create", as: nil

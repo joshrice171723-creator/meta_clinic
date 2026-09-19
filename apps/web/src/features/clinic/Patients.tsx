@@ -43,6 +43,7 @@ import {
 } from "../../shared/ui";
 import { PatientSupport } from "./CareFlow";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
+import { PatientCareCoordination } from "./PatientCareCoordination";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
@@ -1740,6 +1741,7 @@ function PatientDetails({ patient }: { patient: Patient }) {
             : "No vital-sign observations recorded."}
         </p>
       </Card>
+      <PatientCareCoordination patientId={patient.id} />
       <PatientClinicalHistory patientId={patient.id} />
       <PatientLabReports
         patientId={patient.id}
