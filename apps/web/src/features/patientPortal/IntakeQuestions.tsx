@@ -6,6 +6,19 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import {
+  IntakeFieldFrame,
+  IntakeValueControl,
+  RecordEntryEditor,
+  RecordFields,
+  dependencyMatches,
+  hasOtherChoice,
+  useIntakeEntryKeys,
+} from "./StructuredIntakeFields";
+
+// Optional properties support the existing history records; new record values
+// are strings or string arrays and are sent without numeric coercion.
+export type IntakeRecordEntry = Record<string, string | string[] | undefined>;
 
 export type IntakeAnswer =
   | string
@@ -15,10 +28,13 @@ export type IntakeAnswer =
       unit?: string;
       measured_at?: string;
       source?: string;
-      entries?: IntakeHistoryEntry[];
+      verification?: string;
+      other_detail?: string;
+      values?: string[];
+      entries?: IntakeRecordEntry[];
     };
 export type IntakeAnswers = Record<string, IntakeAnswer>;
-export type IntakeHistoryEntry = {
+export type IntakeHistoryEntry = IntakeRecordEntry & {
   kind: string;
   name: string;
   date_precision: string;
@@ -47,8 +63,25 @@ export type IntakeHistoryEntry = {
 export type IntakeField = {
   id: string;
   label: string;
-  reusable: boolean;
+  reusable?: boolean;
+  input_type?:
+    | "text"
+    | "number"
+    | "date"
+    | "datetime-local"
+    | "time"
+    | "month"
+    | "multiselect";
+  min?: number | string;
+  max?: number | string;
+  requiredness?: "core" | "conditional" | "extended" | "clinician";
+  purpose?: string;
+  sensitive?: boolean;
+  chunk_id?: string;
+  record_fields?: IntakeField[];
   units?: string[];
+  source_choices?: string[];
+  verification_choices?: string[];
   choices?: string[];
   depends_on?: string;
   depends_values?: string[];
@@ -67,7 +100,12 @@ export function intakeFieldVisible(field: IntakeField, answers: IntakeAnswers) {
   const dependency = answers[field.depends_on];
   return (
     answerState(dependency) === "answered" &&
-    field.depends_values?.includes(answerValue(dependency)) === true
+    dependencyMatches(
+      field,
+      typeof dependency === "object" && dependency.values
+        ? dependency.values
+        : answerValue(dependency),
+    )
   );
 }
 
@@ -138,7 +176,15 @@ function historyEntries(
   kind: IntakeField["history_kind"],
 ) {
   if (typeof answer === "object" && answer.entries?.length) {
-    return answer.entries;
+    return answer.entries.map((entry) => {
+      const result = emptyHistoryEntry(kind);
+      // Preserve typed extras while keeping legacy string controls compatible.
+      Object.assign(result, entry);
+      for (const [key, fallback] of Object.entries(emptyHistoryEntry(kind))) {
+        if (typeof entry[key] !== "string") result[key] = fallback;
+      }
+      return result;
+    });
   }
   const legacyEntries = answerValue(answer)
     .split("\n")
@@ -183,7 +229,7 @@ export function IntakeQuestions({
         .filter((field) => intakeFieldVisible(field, answers))
         .map((field) => {
           const answer = answers[field.id];
-          const detail =
+          const detail: Exclude<IntakeAnswer, string> =
             typeof answer === "object"
               ? answer
               : { state: answerState(answer), value: answerValue(answer) };
@@ -195,7 +241,7 @@ export function IntakeQuestions({
             "procedures",
           ].includes(field.id);
           return (
-            <Stack key={field.id} spacing={1}>
+            <IntakeFieldFrame key={field.id} field={field}>
               {repeatable && (
                 <Typography variant="subtitle2">{field.label}</Typography>
               )}
@@ -225,34 +271,66 @@ export function IntakeQuestions({
                   </MenuItem>
                 ))}
               </TextField>
-              {state === "answered" && field.choices ? (
-                <TextField
-                  select
-                  label={field.label}
-                  value={answerValue(answer)}
-                  disabled={disabled}
-                  onChange={(event) =>
-                    set(field.id, {
-                      state: event.target.value ? "answered" : "unanswered",
-                      value: event.target.value,
-                    })
-                  }
-                >
-                  <MenuItem value="">Choose an answer</MenuItem>
-                  {field.choices.map((choice) => (
-                    <MenuItem key={choice} value={choice}>
-                      {stateLabel(choice)}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              ) : state === "answered" && field.history_kind ? (
+              {state === "answered" && field.history_kind ? (
                 <HistoryEntryEditor
                   kind={field.history_kind}
+                  recordFields={field.record_fields ?? []}
+                  answers={answers}
                   entries={historyEntries(answer, field.history_kind)}
                   medicationOptions={medicationOptions}
                   disabled={disabled}
                   onChange={(entries) =>
-                    set(field.id, { state: "answered", value: "", entries })
+                    set(field.id, {
+                      state: entries.length ? "answered" : "unanswered",
+                      value: "",
+                      ...(entries.length ? { entries } : {}),
+                    })
+                  }
+                />
+              ) : state === "answered" && field.record_fields ? (
+                <RecordEntryEditor
+                  field={field}
+                  answers={answers}
+                  entries={detail.entries ?? []}
+                  disabled={disabled}
+                  onChange={(entries) =>
+                    set(field.id, {
+                      state: entries.length ? "answered" : "unanswered",
+                      value: "",
+                      ...(entries.length ? { entries } : {}),
+                    })
+                  }
+                />
+              ) : state === "answered" &&
+                (field.choices || field.input_type) ? (
+                <IntakeValueControl
+                  field={field}
+                  value={
+                    field.input_type === "multiselect"
+                      ? (detail.values ?? [])
+                      : detail.value
+                  }
+                  otherDetail={detail.other_detail ?? ""}
+                  disabled={disabled}
+                  onChange={(value) =>
+                    set(field.id, {
+                      ...detail,
+                      state: "answered",
+                      value: Array.isArray(value) ? "" : value,
+                      ...(Array.isArray(value) ? { values: value } : {}),
+                      ...(detail.other_detail !== undefined &&
+                      !hasOtherChoice(value)
+                        ? { other_detail: "" }
+                        : {}),
+                    })
+                  }
+                  onOtherDetailChange={
+                    fields.some(
+                      (item) => item.id === `${field.id}_other_detail`,
+                    )
+                      ? undefined
+                      : (other_detail) =>
+                          set(field.id, { ...detail, other_detail })
                   }
                 />
               ) : state === "answered" && repeatable ? (
@@ -392,6 +470,7 @@ export function IntakeQuestions({
               ) : state === "answered" ? (
                 <TextField
                   label={field.label}
+                  type={field.units ? "number" : "text"}
                   value={answerValue(answer)}
                   disabled={disabled}
                   multiline={!field.units}
@@ -402,12 +481,15 @@ export function IntakeQuestions({
                     htmlInput: {
                       maxLength: 600,
                       inputMode: field.units ? "decimal" : "text",
+                      step: field.units ? "any" : undefined,
+                      min: field.min,
+                      max: field.max,
                     },
                   }}
                   onChange={(event) =>
                     set(field.id, {
                       ...detail,
-                      state: event.target.value ? "answered" : "unanswered",
+                      state: "answered",
                       value: event.target.value,
                     })
                   }
@@ -415,19 +497,34 @@ export function IntakeQuestions({
               ) : null}
               {field.units &&
                 state === "answered" &&
-                ["unit", "measured_at", "source"].map((key) => {
+                !field.record_fields &&
+                !field.history_kind &&
+                [
+                  "unit",
+                  "measured_at",
+                  "source",
+                  ...(field.verification_choices ? ["verification"] : []),
+                ].map((key) => {
                   const options =
                     key === "unit"
                       ? field.units
                       : key === "source"
-                        ? ["patient_reported", "clinic_measured"]
-                        : undefined;
+                        ? (field.source_choices ?? [
+                            "patient_reported",
+                            "clinic_measured",
+                          ])
+                        : key === "verification"
+                          ? field.verification_choices
+                          : undefined;
                   return (
                     <TextField
                       key={key}
                       label={`${field.label} ${key.replaceAll("_", " ")}`}
                       value={
-                        detail[key as "unit" | "measured_at" | "source"] ?? ""
+                        detail[
+                          key as
+                            "unit" | "measured_at" | "source" | "verification"
+                        ] ?? ""
                       }
                       select={Boolean(options)}
                       type={key === "measured_at" ? "date" : "text"}
@@ -437,6 +534,7 @@ export function IntakeQuestions({
                         set(field.id, { ...detail, [key]: event.target.value })
                       }
                     >
+                      {options && <MenuItem value="">Not recorded</MenuItem>}
                       {options?.map((option) => (
                         <MenuItem key={option} value={option}>
                           {option === "[in_i]"
@@ -449,7 +547,7 @@ export function IntakeQuestions({
                     </TextField>
                   );
                 })}
-            </Stack>
+            </IntakeFieldFrame>
           );
         })}
     </Stack>
@@ -458,6 +556,8 @@ export function IntakeQuestions({
 
 function HistoryEntryEditor({
   kind,
+  recordFields,
+  answers,
   entries,
   medicationOptions,
   disabled,
@@ -472,10 +572,13 @@ function HistoryEntryEditor({
     | "medication"
     | "allergy";
   entries: IntakeHistoryEntry[];
+  recordFields: IntakeField[];
+  answers: IntakeAnswers;
   medicationOptions: string[];
   disabled: boolean;
   onChange: (entries: IntakeHistoryEntry[]) => void;
 }) {
+  const entryKeys = useIntakeEntryKeys(entries.length);
   const update = (index: number, change: Partial<IntakeHistoryEntry>) =>
     onChange(
       entries.map((entry, entryIndex) =>
@@ -548,6 +651,47 @@ function HistoryEntryEditor({
               : kind === "procedure"
                 ? "procedure"
                 : "treatment";
+  const existingFields = new Set([
+    "kind",
+    "name",
+    ...(kind === "family" ? [] : ["date_precision", "date_value"]),
+    ...(kind === "treatment"
+      ? [
+          "duration",
+          "outcome",
+          "maintenance",
+          "stop_reason",
+          "adverse_effects",
+          "adverse_effect_details",
+        ]
+      : kind === "procedure"
+        ? ["outcome", "complication_state", "complication_details"]
+        : kind === "medication"
+          ? [
+              "actual_use",
+              "dose_certainty",
+              "dose_value",
+              "dose_unit",
+              "frequency",
+              "source",
+              "details",
+            ]
+          : kind === "allergy"
+            ? ["certainty", "severity", "details"]
+            : kind === "condition"
+              ? [
+                  "current_status",
+                  "review_route",
+                  "managing_clinician",
+                  "details",
+                ]
+              : kind === "symptom"
+                ? ["review_route", "details"]
+                : ["certainty", "details"]),
+  ]);
+  const extraFields = recordFields.filter(
+    (field) => !existingFields.has(field.id),
+  );
 
   return (
     <Stack spacing={2}>
@@ -558,7 +702,7 @@ function HistoryEntryEditor({
       </Typography>
       {entries.map((entry, index) => (
         <Stack
-          key={index}
+          key={entryKeys.keys[index]}
           spacing={1.25}
           sx={{ pl: 1.5, borderLeft: 2, borderColor: "divider" }}
         >
@@ -851,16 +995,19 @@ function HistoryEntryEditor({
               {entry.dose_certainty === "known" && (
                 <>
                   <TextField
-                    label="Dose amount"
+                    label="Actual dose amount"
+                    type="number"
                     value={entry.dose_value ?? ""}
                     disabled={disabled}
-                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                    slotProps={{
+                      htmlInput: { inputMode: "decimal", step: "any" },
+                    }}
                     onChange={(event) =>
                       update(index, { dose_value: event.target.value })
                     }
                   />
                   <HistoryChoice
-                    label="Dose unit"
+                    label="Actual dose unit"
                     value={entry.dose_unit ?? "unknown"}
                     options={[
                       ["mg", "mg"],
@@ -1043,12 +1190,24 @@ function HistoryEntryEditor({
               />
             </>
           )}
-          {entries.length > 1 && (
-            <Button
+          {!!extraFields.length && (
+            <RecordFields
+              fields={extraFields}
+              entry={entry}
+              answers={answers}
               disabled={disabled}
-              onClick={() =>
-                onChange(entries.filter((_entry, row) => row !== index))
-              }
+              onChange={(change) => update(index, change)}
+            />
+          )}
+          {entries.length > 0 && (
+            <Button
+              type="button"
+              disabled={disabled}
+              aria-label={`Remove ${historyLabel} record ${index + 1}`}
+              onClick={() => {
+                entryKeys.remove(index);
+                onChange(entries.filter((_entry, row) => row !== index));
+              }}
             >
               Remove record
             </Button>
