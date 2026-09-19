@@ -1,3 +1,13 @@
+# Usage-conscious project defaults; explicit task selections can override these.
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+model_reasoning_summary = "auto"
+
+[agents]
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "medium"
+max_concurrent_threads_per_session = 2
+
 # Official Material UI documentation and published component examples.
 [mcp_servers.mui-mcp]
 command = "npx"

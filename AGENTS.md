@@ -37,6 +37,8 @@ If potentially sensitive information or a suspected incident appears, stop the a
 
 When a missing choice would materially change the result or expand authority, stop and ask. Otherwise make bounded, reversible assumptions and state them.
 
+Follow [economical execution](agent-harness/workflows/code-change.md#economical-execution-and-handoffs); it overrides older skill model defaults.
+
 ## Start read-only
 
 Before the first write:

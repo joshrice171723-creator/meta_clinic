@@ -25,6 +25,19 @@ Count browser, reviewer and repair time toward the same checkpoint. Extend only 
 
 For a local runtime check, use the managed lifecycle documented in `APPlyVault/03 Execution/CICD.md`. Keep servers detached when the repository provides a managed background path, wait for the relevant readiness endpoint and preserve consequential startup failures instead of reporting an unverified workaround as success.
 
-## Stop conditions
+## Economical execution and handoffs
+
+- Define one bounded acceptance checklist before dispatch. Finish that checklist rather than repeatedly reopening an entire milestone program. Added scope gets an explicit checklist delta, not another full audit.
+- Default coordinator and ordinary implementation to Terra medium (`tm`); default small mechanical, documentation and check-running slices to Luna medium (`lm`). Use higher effort or Sol only for a named unresolved difficulty; Astra requires an explicit user request. These local rules override older skill model defaults. Aliases combine model (`l`, `t`, `s`, `a`) and effort (`l`, `m`, `h`), for example `th` means Terra high. Name unavailable/inherited settings honestly.
+- Keep zero workers for tiny edits and usually one or two for useful independent work. Assign one owner per file/slice, including shared contracts and browser state. Do not create a reviewer after every handoff.
+- Dispatch only the objective, exact allowed paths, integration base, known findings, exclusions and acceptance/check owner. Prefer a fresh bounded worker context instead of copying the conversation when supported. Handoffs normally fit within 250 words: changed files, result, concrete gaps, checks and relevant revision/environment.
+- The coordinator is the sole Git writer by default. Workers return changes and evidence without staging, committing, merging or pushing. Explicitly delegated Git operations must name the owner and exact action; stop other writers before integration.
+- Integrate once, then run one proportionate verification pass. Reuse passing worker evidence only when source, dependencies, configuration and environment still match; inspect its result and scope rather than rerunning by habit. Repair concrete failures and rerun failed or invalidated checks only. Keep required permission, persistence and recovery checks.
+- Maintain one compact checkpoint with commits, ownership, passed checks and remaining acceptance. At a major completed boundary, offer a fresh task with that handoff if context has become unwieldy; do not create tasks automatically or restart coherent work just to switch models.
+- Keep tool output and progress reports short; retrieve additional detail only to resolve a specific question. Do not trim required instruction files or failure evidence. Account usage changes are not reliable per-agent attribution and no fixed percentage saving is promised.
+
+Project defaults live in `.codex/config.toml`. They configure future/default selection, not a guaranteed model switch in an existing task; explicit host/task overrides take precedence. Agent concurrency settings are runtime limits, while file ownership, Git ownership and escalation rules are instructions, not technical access controls. Configuration keys were checked against the [official Codex configuration reference](https://developers.openai.com/codex/config-reference) on 2026-09-19. User-level settings for other projects are unchanged.
+
+## Safety stop conditions
 
 Stop the affected path for suspected sensitive data, unclear destructive scope, missing authority, incompatible concurrent edits, unexplained data loss, a bypassed permission boundary or falsely reported success. Continue independent safe work.
