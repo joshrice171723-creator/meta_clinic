@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
+import { isDemoFrame } from "../demo/frame";
 import type {
   ClinicSite,
   Clinician,
@@ -204,7 +205,17 @@ function AppointmentDayQueue({
     () => clinicDateValue(businessNow(), timezone),
     [timezone],
   );
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(() => {
+    const requested = isDemoFrame()
+      ? new URLSearchParams(window.location.search).get("date")
+      : null;
+    if (!requested || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return today;
+    const parsed = new Date(`${requested}T00:00:00Z`);
+    return Number.isFinite(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === requested
+      ? requested
+      : today;
+  });
   const [siteId, setSiteId] = useState(
     currentSiteId === null ? "" : String(currentSiteId),
   );

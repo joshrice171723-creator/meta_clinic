@@ -22,6 +22,13 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, clearCsrf } from "../../api/client";
+import { nextDemoStep } from "./progression";
+import {
+  DEMO_ROLES,
+  roleLesson,
+  rolePrerequisite,
+  type DemoRole,
+} from "./roles";
 import type {
   DemoRun,
   DemoRunResponse,
@@ -99,7 +106,10 @@ export function DemoJourney() {
   const [visitor, setVisitor] = useState({ name: "", email: "", company: "" });
   const [registeringVisitor, setRegisteringVisitor] = useState(false);
   const [visitorError, setVisitorError] = useState<string | null>(null);
+  const [visitorFormOpen, setVisitorFormOpen] = useState(false);
+  const [clinicName, setClinicName] = useState("");
   const returningToClinic = useRef(false);
+  const progressGeneration = useRef(0);
 
   const load = useCallback(async () => {
     setState((current) =>
@@ -149,12 +159,26 @@ export function DemoJourney() {
   }, [run?.view, selectedStep?.id]);
 
   const refreshAfterFrameChange = useCallback(async () => {
+    const generation = progressGeneration.current;
     try {
       const response = await api<DemoRunResponse>("/api/demo/run");
+      if (generation !== progressGeneration.current) return null;
       setState({ status: "ready", value: response });
       setProgressError(null);
+      if (
+        response.active &&
+        response.run.view === "patient" &&
+        response.run.steps.some(
+          (step) => step.id === "payment" && step.status === "available",
+        )
+      ) {
+        setSelectedStepId((current) =>
+          current === "enroll" ? "payment" : current,
+        );
+      }
       return response;
     } catch {
+      if (generation !== progressGeneration.current) return null;
       setProgressError(
         "Progress could not be refreshed. Retry before continuing.",
       );
@@ -172,6 +196,7 @@ export function DemoJourney() {
       if (patientId == null || !paymentComplete) return;
       if (returningToClinic.current) return;
       returningToClinic.current = true;
+      progressGeneration.current += 1;
       setSwitchingView(true);
       setClinicReturnError(null);
       try {
@@ -223,12 +248,18 @@ export function DemoJourney() {
   }, [refreshAfterFrameChange, returnToClinicIfVerified]);
 
   const start = async (option: DemoTemplateOption) => {
+    const normalizedClinicName = clinicName.trim();
+    if (!normalizedClinicName) {
+      setNotice("Enter a clinic name before starting this journey.");
+      return;
+    }
     setStartingKey(option.key);
     setNotice(null);
+    progressGeneration.current += 1;
     try {
       const response = await api<DemoRunResponse>("/api/demo/run", {
         method: "POST",
-        body: { template_key: option.key },
+        body: { template_key: option.key, clinic_name: normalizedClinicName },
       });
       setState({ status: "ready", value: response });
       if (response.active) setSelectedStepId(nextStepId(response.run));
@@ -242,23 +273,39 @@ export function DemoJourney() {
   const registerVisitor = async () => {
     setRegisteringVisitor(true);
     setVisitorError(null);
+    setSwitchingView(true);
+    progressGeneration.current += 1;
     try {
       const response = await api<DemoRunResponse>("/api/demo/visitor", {
         method: "POST",
         body: visitor,
       });
       setState({ status: "ready", value: response });
+      clearCsrf();
+      if (!response.active) {
+        setSelectedStepId(null);
+        setNotice(null);
+        setProgressError(null);
+        setClinicReturnError(null);
+        setClinicName("");
+      }
+      setVisitorFormOpen(false);
     } catch (error) {
       setVisitorError(errorMessage(error, "Your details could not be saved."));
     } finally {
       setRegisteringVisitor(false);
+      setSwitchingView(false);
     }
   };
 
-  const switchView = async (view: DemoRun["view"]) => {
+  const switchView = async (
+    view: DemoRun["view"],
+    targetStepId: string | null = null,
+  ) => {
     if (!run || run.view === view) return;
     setSwitchingView(true);
     setNotice(null);
+    progressGeneration.current += 1;
     try {
       clearCsrf();
       const response = await api<DemoRunResponse>("/api/demo/run/view", {
@@ -266,7 +313,16 @@ export function DemoJourney() {
         body: { view },
       });
       setState({ status: "ready", value: response });
-      if (response.active) setSelectedStepId(nextStepId(response.run));
+      if (response.active)
+        setSelectedStepId(
+          response.run.steps.some(
+            (step) =>
+              step.id === targetStepId &&
+              stepMatchesView(step, response.run.view),
+          )
+            ? targetStepId
+            : nextStepId(response.run),
+        );
     } catch (error) {
       setNotice(errorMessage(error, "That view is not available yet."));
     } finally {
@@ -274,10 +330,21 @@ export function DemoJourney() {
     }
   };
 
+  const selectRole = async (role: DemoRole, lesson: DemoRunStep) => {
+    if (!run) return;
+    if (run.view === role.view) {
+      setNotice(null);
+      setSelectedStepId(lesson.id);
+      return;
+    }
+    await switchView(role.view, lesson.id);
+  };
+
   const resetDemo = async () => {
     setResetting(true);
     setResetError(null);
     setSwitchingView(true);
+    progressGeneration.current += 1;
     try {
       clearCsrf();
       const response = await api<DemoRunResponse>("/api/demo/run/reset", {
@@ -332,12 +399,12 @@ export function DemoJourney() {
             Choose a clinic journey
           </Typography>
           <Typography color="text.secondary">
-            Start with one clinic configuration, then follow its membership and
-            patient workflow using the existing application.
+            Explore one guided clinic journey through simulated administrator,
+            patient, staff, and inventory workspaces.
           </Typography>
         </Stack>
         {notice && <Alert severity="error">{notice}</Alert>}
-        {!state.value.visitor_registered ? (
+        {!state.value.visitor_registered || visitorFormOpen ? (
           <Paper
             component="form"
             variant="outlined"
@@ -349,12 +416,17 @@ export function DemoJourney() {
           >
             <Stack spacing={2}>
               <Typography component="h2" variant="h6">
-                Your details
+                {visitorFormOpen ? "Use a different email" : "Your details"}
               </Typography>
               <Typography color="text.secondary">
                 We’ll save these details so we can follow up about Meta Clinic.
                 No account or password is needed.
               </Typography>
+              {visitorFormOpen && (
+                <Typography color="text.secondary" variant="body2">
+                  This starts a separate simulated environment for this browser.
+                </Typography>
+              )}
               {visitorError && <Alert severity="error">{visitorError}</Alert>}
               <TextField
                 label="Name"
@@ -402,27 +474,61 @@ export function DemoJourney() {
             </Stack>
           </Paper>
         ) : (
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            {state.value.options.map((option) => (
-              <Paper key={option.key} variant="outlined" sx={{ p: 3, flex: 1 }}>
-                <Stack spacing={2} sx={{ height: "100%" }}>
-                  <Typography component="h2" variant="h6">
-                    {option.title}
-                  </Typography>
-                  <Typography color="text.secondary" sx={{ flexGrow: 1 }}>
-                    {option.description}
-                  </Typography>
+          <Stack spacing={2}>
+            <Paper variant="outlined" sx={{ p: 3, maxWidth: 640 }}>
+              <Stack spacing={2}>
+                <TextField
+                  label="Clinic name"
+                  required
+                  slotProps={{ htmlInput: { maxLength: 160 } }}
+                  value={clinicName}
+                  onChange={(event) => setClinicName(event.target.value)}
+                />
+                <Typography color="text.secondary" variant="body2">
+                  Access stays in this browser. Your email is not a verified
+                  sign-in and cannot reopen this environment in another browser.
+                </Typography>
+                <Box>
                   <Button
-                    data-demo={`template-${option.key}`}
-                    variant="contained"
-                    disabled={startingKey !== null}
-                    onClick={() => void start(option)}
+                    variant="text"
+                    onClick={() => {
+                      setVisitorError(null);
+                      setVisitorFormOpen(true);
+                    }}
                   >
-                    {startingKey === option.key ? "Starting…" : "Start journey"}
+                    Use a different email
                   </Button>
-                </Stack>
-              </Paper>
-            ))}
+                </Box>
+              </Stack>
+            </Paper>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              {state.value.options.map((option) => (
+                <Paper
+                  key={option.key}
+                  variant="outlined"
+                  sx={{ p: 3, flex: 1 }}
+                >
+                  <Stack spacing={2} sx={{ height: "100%" }}>
+                    <Typography component="h2" variant="h6">
+                      {option.title}
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ flexGrow: 1 }}>
+                      {option.description}
+                    </Typography>
+                    <Button
+                      data-demo={`template-${option.key}`}
+                      variant="contained"
+                      disabled={startingKey !== null || !clinicName.trim()}
+                      onClick={() => void start(option)}
+                    >
+                      {startingKey === option.key
+                        ? "Starting…"
+                        : "Start journey"}
+                    </Button>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
           </Stack>
         )}
       </Stack>
@@ -434,17 +540,29 @@ export function DemoJourney() {
     ? frameUrl(selectedStep.href, selectedStep.id)
     : null;
   const frameKey = `${run.id}:${run.view}:${selectedStep?.id ?? "none"}:${frameRevision}`;
-  const nextAvailableStep = run.steps.find(
-    (step) =>
-      step.id !== selectedStep?.id &&
-      step.status === "available" &&
-      stepMatchesView(step, run.view),
-  );
+  const nextAvailableStep = nextDemoStep(run.steps, selectedStep?.id);
   const published = completedStep(run, "publish");
   const paid = run.patient?.id != null && completedStep(run, "payment");
   const completeCount = run.steps.filter(
     (step) => step.status === "complete",
   ).length;
+  const roleOptions = DEMO_ROLES.map((role) => {
+    const lesson = roleLesson(run, role);
+    const transitionBlocked =
+      lesson && role.view !== run.view
+        ? role.view === "patient" && !published
+          ? "Publish the clinic offering before opening the patient workspace."
+          : role.view === "clinic" && !paid
+            ? "Complete the simulated payment before returning to a clinic workspace."
+            : null
+        : null;
+    return {
+      role,
+      lesson,
+      explanation:
+        transitionBlocked ?? (lesson ? null : rolePrerequisite(run, role)),
+    };
+  });
 
   return (
     <Stack
@@ -469,20 +587,14 @@ export function DemoJourney() {
             </Box>
             <Stack direction="row" spacing={1} sx={{ alignSelf: "flex-start" }}>
               <Button
-                data-demo="view-clinic"
-                variant={run.view === "clinic" ? "contained" : "outlined"}
-                disabled={switchingView || run.view === "clinic" || !paid}
-                onClick={() => void switchView("clinic")}
+                variant="text"
+                disabled={switchingView || resetting}
+                onClick={() => {
+                  setVisitorError(null);
+                  setVisitorFormOpen(true);
+                }}
               >
-                Clinic
-              </Button>
-              <Button
-                data-demo="view-patient"
-                variant={run.view === "patient" ? "contained" : "outlined"}
-                disabled={switchingView || run.view === "patient" || !published}
-                onClick={() => void switchView("patient")}
-              >
-                Patient storefront
+                Use a different email
               </Button>
               <Button
                 color="inherit"
@@ -498,13 +610,13 @@ export function DemoJourney() {
           </Stack>
           {!published && (
             <Typography color="text.secondary" variant="body2">
-              Publish the clinic offering to unlock the patient storefront.
+              Publish the clinic offering to unlock the patient workspace.
             </Typography>
           )}
           {run.view === "patient" && !paid && (
             <Typography color="text.secondary" variant="body2">
-              The clinic workspace becomes available after the local payment is
-              recorded.
+              The clinic workspace becomes available after the simulated payment
+              is recorded.
             </Typography>
           )}
           {notice && (
@@ -532,6 +644,62 @@ export function DemoJourney() {
               {progressError}
             </Alert>
           )}
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={2}>
+              <Box>
+                <Typography component="h2" variant="h6">
+                  Explore a workspace
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  Switch roles to explore how a clinic team works together. Each
+                  workspace unlocks as you complete its prerequisites.
+                </Typography>
+              </Box>
+              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+                {roleOptions.map(({ role, lesson, explanation }) => (
+                  <Stack
+                    key={role.id}
+                    spacing={0.5}
+                    sx={{ minWidth: 190, flex: 1 }}
+                  >
+                    <Button
+                      data-demo={`role-${role.id}`}
+                      variant={
+                        selectedStep && role.matches(selectedStep)
+                          ? "contained"
+                          : "outlined"
+                      }
+                      disabled={
+                        !lesson || Boolean(explanation) || switchingView
+                      }
+                      onClick={() => lesson && void selectRole(role, lesson)}
+                    >
+                      {role.title}
+                    </Button>
+                    <Typography color="text.secondary" variant="caption">
+                      {explanation ?? role.description}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Stack>
+          </Paper>
+          <Accordion disableGutters variant="outlined">
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography component="h2" variant="subtitle1">
+                How this demo works
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography color="text.secondary">
+                No account, password, or email verification is created here. The
+                demo generates sample staff and a sample patient, simulates
+                payments, and uses local workflow data. The demo lets you move
+                between roles. In a real clinic, each person signs in with their
+                assigned permissions. No real financial transactions occur here.
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
           {clinicReturnError && (
             <Alert
               severity="warning"
@@ -587,7 +755,7 @@ export function DemoJourney() {
                           setNotice(
                             run.view === "clinic"
                               ? "Open the patient storefront after publishing the clinic offering."
-                              : "Return to the clinic workspace after the local payment is recorded.",
+                              : "Return to the clinic workspace after the simulated payment is recorded.",
                           );
                           return;
                         }
@@ -619,7 +787,16 @@ export function DemoJourney() {
               <Box>
                 <Button
                   variant="outlined"
-                  onClick={() => setSelectedStepId(nextAvailableStep.id)}
+                  disabled={switchingView}
+                  onClick={() => {
+                    if (stepMatchesView(nextAvailableStep, run.view))
+                      setSelectedStepId(nextAvailableStep.id);
+                    else
+                      void switchView(
+                        run.view === "clinic" ? "patient" : "clinic",
+                        nextAvailableStep.id,
+                      );
+                  }}
                 >
                   Next: {nextAvailableStep.title}
                 </Button>
@@ -734,6 +911,81 @@ export function DemoJourney() {
             {resetting ? "Resetting…" : "Reset demo"}
           </Button>
         </DialogActions>
+      </Dialog>
+      <Dialog
+        open={visitorFormOpen}
+        onClose={() => !registeringVisitor && setVisitorFormOpen(false)}
+        aria-labelledby="different-email-title"
+      >
+        <Box
+          component="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void registerVisitor();
+          }}
+        >
+          <DialogTitle id="different-email-title">
+            Use a different email
+          </DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography color="text.secondary">
+                This starts a separate simulated environment in this browser.
+                Your email is not a verified sign-in.
+              </Typography>
+              {visitorError && <Alert severity="error">{visitorError}</Alert>}
+              <TextField
+                label="Name"
+                required
+                value={visitor.name}
+                onChange={(event) =>
+                  setVisitor((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Email"
+                type="email"
+                required
+                value={visitor.email}
+                onChange={(event) =>
+                  setVisitor((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Company"
+                required
+                value={visitor.company}
+                onChange={(event) =>
+                  setVisitor((current) => ({
+                    ...current,
+                    company: event.target.value,
+                  }))
+                }
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              disabled={registeringVisitor}
+              onClick={() => setVisitorFormOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={registeringVisitor}
+            >
+              {registeringVisitor ? "Saving…" : "Continue"}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </Stack>
   );

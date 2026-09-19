@@ -24,16 +24,22 @@ module Development
     def create
       visitor = current_visitor
       raise ArgumentError, "Enter your name, email and company before choosing a clinic." unless visitor
-      input = demo_input!(%i[template_key])
+      input = demo_input!(%i[template_key clinic_name])
       key = required_string!(input[:template_key], field: :template_key, maximum: 80)
-      if (existing = current_run)
-        require_run_user!(existing)
-        raise ArgumentError, "Continue the clinic journey already in progress." unless existing.template_key == key
-        return render json: active_payload(existing)
+      clinic_name = required_string!(input[:clinic_name], field: :clinic_name, maximum: 160).strip
+      run, created = visitor.with_lock do
+        existing = active_run_for(visitor)
+        if existing
+          unless existing.template_key == key && existing.practice.name == clinic_name
+            raise ArgumentError, "Continue the clinic journey already in progress."
+          end
+          [ existing, false ]
+        else
+          [ GuidedClinicDemo.start!(template_key: key, clinic_name:, visitor:), true ]
+        end
       end
-      run = GuidedClinicDemo.start!(template_key: key, visitor:)
       establish_demo_session(run.operator_user, run)
-      render json: active_payload(run), status: :created
+      render json: active_payload(run), status: created ? :created : :ok
     end
 
     def register_visitor
@@ -43,14 +49,34 @@ module Development
         email: required_string!(input[:email], field: :email, maximum: 254),
         company: required_string!(input[:company], field: :company, maximum: 200)
       }
-      visitor = current_visitor || DemoVisitor.new
-      visitor.assign_attributes(attributes)
-      unless visitor.save
-        return render json: { error: visitor.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      candidate = DemoVisitor.new(attributes)
+      unless candidate.valid?
+        return render json: { error: candidate.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      end
+      previous_visitor = current_visitor
+      email_changed = previous_visitor && previous_visitor.email != candidate.email
+      visitor = DemoVisitor.transaction do
+        previous_visitor.with_lock { retire_active_runs_for!(previous_visitor) } if email_changed
+        visitor = if email_changed
+          candidate
+        else
+          previous_visitor || candidate
+        end
+        visitor.assign_attributes(attributes) if previous_visitor && !email_changed
+        visitor.save!
+        visitor
+      end
+      if email_changed
+        reset_session
+        @current_member_session = nil
+        cookies.delete(:guided_clinic_demo_run)
       end
       cookies.encrypted[:guided_clinic_demo_visitor] = {
         value: visitor.id.to_s, httponly: true, same_site: :lax, secure: Rails.env.production?
       }
+      if !email_changed && (run = current_run) && current_user&.id.in?([ run.operator_user_id, run.patient_user_id ].compact)
+        return render json: active_payload(run)
+      end
       render json: { active: false, visitor_registered: true, options: GuidedClinicDemo::OPTIONS }
     end
 
@@ -125,9 +151,10 @@ module Development
 
     def current_run
       binding = cookies.encrypted[:guided_clinic_demo_run]
-      return if binding.blank?
+      visitor = current_visitor
+      return if binding.blank? || visitor.blank?
 
-      DemoRun.active.find_by(id: Integer(binding, 10))
+      DemoRun.active.find_by(id: Integer(binding, 10), visitor_id: visitor.id)
     rescue ActiveSupport::MessageEncryptor::InvalidMessage, ArgumentError
       cookies.delete(:guided_clinic_demo_run)
       nil
@@ -135,6 +162,24 @@ module Development
 
     def current_run!
       current_run || raise(ActiveRecord::RecordNotFound)
+    end
+
+    def active_run_for(visitor)
+      DemoRun.active.find_by(visitor_id: visitor.id)
+    end
+
+    def retire_active_runs_for!(visitor)
+      DemoRun.active.where(visitor_id: visitor.id).find_each do |run|
+        run.with_lock do
+          next unless run.active?
+
+          [ run.operator_user, run.patient_user ].compact.each do |user|
+            user.member_sessions.destroy_all
+            user.update!(active: false)
+          end
+          run.update!(active: false)
+        end
+      end
     end
 
     def require_run_user!(run)
@@ -196,6 +241,7 @@ module Development
       inventory_used = Clinic::Inventory::PharmacyMovement.where(practice_id: run.practice_id, kind: "adjustment_out")
         .where("created_at >= ?", run.created_at).exists?
       schedule_href = patient ? "/clinic/schedule?patient_id=#{patient.id}" : "/clinic/schedule"
+      check_in_href = appointment ? "/clinic/front-desk?date=#{appointment.starts_at.in_time_zone(run.practice.timezone).to_date.iso8601}" : "/clinic/front-desk"
       visit_href = encounter ? "/clinic/patients/#{patient.id}/encounters/#{encounter.id}" : "/clinic/patients"
 
       view = session[:guided_clinic_demo_view] || "clinic"
@@ -209,7 +255,7 @@ module Development
           step("enroll", "Open the patient storefront", "Choose the published offer as the fictional patient.", prospect.present?, "/memberships/#{run.practice.public_membership_slug}", [ "publish" ]),
           step("payment", "Accept simulated payment", "Select Accept simulated payment. Once the payment is verified, the walkthrough returns you to the clinic with this patient.", paid, "/memberships/account?payment=local", [ "enroll" ]),
           step("schedule", "Book the first appointment", "Schedule the paid patient.", booked, schedule_href, capacity_ready ? [ "payment" ] : [ "payment", "capacity" ]),
-          step("check_in", "Check in the patient", "Start the encounter from the scheduled appointment.", checked_in, "/clinic/front-desk", [ "schedule" ]),
+          step("check_in", "Check in the patient", "Find the scheduled patient, choose Check in, then confirm to open the visit.", checked_in, check_in_href, [ "schedule" ]),
           step("visit", "Save and complete the visit", "Save the encounter and complete it.", completed, visit_href, [ "check_in" ]),
           step("inventory_receive", "Receive inventory", "Open the prepared glove shipment. Record two packages, a lot number and future expiry, select Supply cabinet, and save the receipt. The shipment is fictional; nothing is ordered externally.", inventory_received, "/clinic/inventory/receiving", [ "setup" ]),
           step("inventory_count", "Count inventory", "Create a count for Supply cabinet, assign it to your account, record the observed quantity, reconcile its lines, then complete the count.", inventory_counted, "/clinic/inventory/counts", [ "inventory_receive" ]),

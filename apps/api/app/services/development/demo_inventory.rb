@@ -5,7 +5,7 @@ module Development
     def self.prepare!(practice:, actor:)
       raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
 
-      Clinic::Inventory::Profile.revise!(practice:, actor:, status: "synthetic",
+      Clinic::Inventory::Profile.revise!(practice:, actor:, status: "configured",
         reason: "Guided clinic inventory preparation")
       site = practice.sites.first!
       location = practice.inventory_locations.create!(site:, name: "Supply cabinet", kind: "storage", status: "active")

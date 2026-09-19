@@ -3,23 +3,27 @@ require "securerandom"
 module Development
   class GuidedClinicDemo
     TEMPLATE_KEYS = %w[primary_care weight_management].freeze
+    OPERATOR_PERMISSIONS = (TestClinic::DEFAULT_PERMISSIONS + TestClinic::SUBSCRIPTION_PERMISSIONS +
+      Clinic::Authorization::PilotRoleCatalog::DEFINITIONS.fetch("clinician").fetch(:permissions)).uniq.freeze
     OPTIONS = [
       { key: "primary_care", title: "Cash-based primary care", description: "Create memberships and guide a patient through their first visit." },
       { key: "weight_management", title: "Cash-based weight management", description: "Create a weight-management membership and follow the patient journey." }
     ].freeze
 
-    def self.start!(template_key:, visitor: nil)
+    def self.start!(template_key:, clinic_name:, visitor: nil)
       raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
       raise ArgumentError, "Choose an available guided clinic template." unless TEMPLATE_KEYS.include?(template_key)
+      clinic_name = clinic_name.to_s.strip
+      raise ArgumentError, "Enter a clinic name." if clinic_name.blank?
+      raise ArgumentError, "Clinic name must be 160 characters or fewer." if clinic_name.length > 160
 
       User.transaction do
         suffix = SecureRandom.hex(8)
         operator = User.create!(email_address: "guided-clinic-operator-#{suffix}@example.test",
           password: SecureRandom.urlsafe_base64(32), active: true)
-        membership = TestClinic.create!(operator)
+        membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
         practice = membership.practice
-        label = template_key == "primary_care" ? "Primary Care" : "Weight Management"
-        practice.update!(name: "#{label} Clinic", public_membership_slug: "guided-clinic-#{suffix}", membership_storefront_enabled: true)
+        practice.update!(name: clinic_name, public_membership_slug: "guided-clinic-#{suffix}", membership_storefront_enabled: true)
         provision_schedule_baseline!(practice:, membership:, suffix:)
         configure_template_profile!(practice:, membership:, template_key:, suffix:)
         if practice.visit_types.empty?
