@@ -8,6 +8,7 @@ import {
   spotlightDirection,
   tutorialActionMatches,
 } from "../src/features/demo/DemoSpotlight";
+import { telehealthDate } from "../src/features/telehealth/TelehealthQueue";
 import type { DemoRun, DemoRunStep } from "../src/features/demo/contracts";
 import {
   DEMO_ROLES,
@@ -16,6 +17,14 @@ import {
 } from "../src/features/demo/roles";
 
 const origin = "http://localhost:3230";
+describe("telehealth lesson queue", () => {
+  it("formats the appointment date used by the prepared queue", () => {
+    expect(telehealthDate("UTC", new Date("2026-09-20T00:30:00Z"))).toBe(
+      "2026-09-20",
+    );
+  });
+});
+
 describe("tutorial target visibility", () => {
   it("guides both specialty note lessons through opening the chart", () => {
     expect(

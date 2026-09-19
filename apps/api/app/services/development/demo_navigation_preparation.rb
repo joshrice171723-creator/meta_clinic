@@ -52,6 +52,7 @@ module Development
       def scribe!(run)
         return if run.practice.scribe_encounters.where(patient: run.patient).exists?
 
+        ensure_scribe_template!
         clinical_encounter = encounter_for(run)
         Clinic::Scribe::Workflow.create_encounter(
           practice: run.practice, actor: run.operator_user, patient: run.patient,
@@ -68,6 +69,15 @@ module Development
             appointment: run.practice.appointments.where(patient: run.patient).order(:id).last,
             started_at: Current.business_time
           )
+      end
+
+      def ensure_scribe_template!
+        Clinic::Scribe::NoteTemplate.find_or_create_by!(template_id: "soap", version: 1) do |template|
+          template.label = "SOAP note"
+          template.note_kind = "soap"
+          template.status = "active"
+          template.sections = { subjective: "", objective: "", assessment: "", plan: "" }
+        end
       end
     end
   end

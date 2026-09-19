@@ -35,6 +35,7 @@ import type {
   TelehealthQueueRow,
 } from "./types";
 import { VisitPreparationDrawer } from "./VisitPreparationDrawer";
+import { isDemoFrame } from "../demo/frame";
 
 const readinessLabels: Record<TelehealthQueueRow["readiness"], string> = {
   preparation_needed: "Preparation needed",
@@ -128,9 +129,14 @@ export function TelehealthQueue() {
   const clinicians = useResource<{ clinicians: Clinician[] }>(
     "/api/clinic/clinicians?per_page=100",
   );
-  const [date, setDate] = useState(() =>
-    telehealthDate(clinic.practice.timezone),
-  );
+  const [date, setDate] = useState(() => {
+    const requested = isDemoFrame()
+      ? new URLSearchParams(window.location.search).get("date")
+      : null;
+    return requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)
+      ? requested
+      : telehealthDate(clinic.practice.timezone);
+  });
   const [siteId, setSiteId] = useState(
     clinic.current_site?.id?.toString() || "",
   );

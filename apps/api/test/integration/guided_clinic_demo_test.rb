@@ -1,11 +1,7 @@
 require "test_helper"
-require_relative "../support/scribe_template_helpers"
 
 class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
-  include ScribeTemplateHelpers
-
   setup do
-    create_scribe_template_catalog!
     @previous_environment = Rails.env
     @previous_flag = ENV["APP_DEVELOPMENT_LOGIN"]
     Rails.env = "development"
@@ -178,7 +174,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
   test "rich review and action clinics reset their cyclic fixtures in place" do
     visitor = demo_visitor
     keys = %w[
-      patient_enroll telehealth_review reminders_review messages_review workforce_review inventory_count
+      patient_enroll telehealth_review scribe_review reminders_review messages_review workforce_review inventory_count
     ]
 
     keys.each do |lesson_key|
@@ -197,6 +193,17 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
       assert_equal membership_count, second.practice.memberships.count if lesson_key == "messages_review"
       if lesson_key == "workforce_review"
         assert_equal 1, Clinic::Workforce::Employment.where(practice_id: second.practice_id).count
+      end
+      if lesson_key == "telehealth_review"
+        appointment = second.practice.appointments.order(:id).last!
+        date = appointment.starts_at.in_time_zone(second.practice.timezone).to_date.iso8601
+        assert_equal "/clinic/telehealth?date=#{date}",
+          Development::DemoLessonCatalog.step_for(second).fetch(:href)
+        assert Clinic::Telehealth::Visit.where(practice_id: second.practice_id, appointment:).exists?
+      end
+      if lesson_key == "scribe_review"
+        assert Clinic::Scribe::NoteTemplate.where(template_id: "soap", version: 1, status: "active").exists?
+        assert second.practice.scribe_encounters.where(patient: second.patient).exists?
       end
     end
   end
