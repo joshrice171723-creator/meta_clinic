@@ -12,6 +12,10 @@
   gap: 20px;
 }
 
+.front-desk-quick-actions {
+  justify-content: flex-end;
+}
+
 .front-desk-ledger {
   overflow: hidden;
 }
@@ -146,7 +150,7 @@
   justify-content: flex-start;
   flex-flow: row wrap !important;
   align-items: center !important;
-  gap: 6px 8px !important;
+  gap: 10px 12px !important;
 }
 
 .front-desk-inline-link {
@@ -239,6 +243,10 @@
   .front-desk-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .front-desk-quick-actions {
+    justify-content: flex-start;
   }
 
   .front-desk-filters {

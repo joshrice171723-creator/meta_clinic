@@ -106,7 +106,15 @@ export function FrontDesk() {
             check patients in when they arrive.
           </Typography>
         </div>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+        <Stack
+          component="nav"
+          aria-label="Front desk actions"
+          className="front-desk-quick-actions"
+          direction="row"
+          spacing={1.5}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+        >
           {canMembershipEnrollment && <FrontDeskMembershipEnrollment />}
           {capabilities.telehealth_read && (
             <Button href="/clinic/telehealth" variant="outlined">

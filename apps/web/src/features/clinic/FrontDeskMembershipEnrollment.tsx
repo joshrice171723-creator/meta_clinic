@@ -252,7 +252,7 @@ export function FrontDeskMembershipEnrollment() {
   return (
     <>
       <Button
-        variant="contained"
+        variant="outlined"
         startIcon={<CardMembershipOutlinedIcon />}
         onClick={openDialog}
       >
