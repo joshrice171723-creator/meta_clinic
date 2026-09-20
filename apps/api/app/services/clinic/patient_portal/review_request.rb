@@ -81,6 +81,7 @@ module Clinic
             RefillMedicationRequest.call(
               practice:, actor:, request: current, encounter:,
               attributes: { medication_name: details["medication_name"], instructions: patient_message },
+              prior_series_id: details["medication_request_series_id"],
               request_key:
             )
           end

@@ -7,11 +7,12 @@ module Clinic
       OUTCOME_SCHEMA_VERSION = 1
       DECISIONS = %w[approved changed declined].freeze
 
-      def self.content(medication_name:, pharmacy_destination:, request_note:, source:)
+      def self.content(medication_name:, pharmacy_destination:, request_note:, source:, medication_request_series_id: nil)
         JSON.generate(
           schema_version: CONTENT_SCHEMA_VERSION,
           medication_name: medication_name,
           pharmacy_destination: pharmacy_destination,
+          medication_request_series_id: medication_request_series_id,
           request_note: request_note,
           source: source
         )
@@ -31,7 +32,7 @@ module Clinic
         parsed = JSON.parse(value.to_s)
         return {} unless parsed.is_a?(Hash) && parsed["schema_version"] == CONTENT_SCHEMA_VERSION
 
-        parsed.slice("medication_name", "pharmacy_destination", "request_note", "source")
+        parsed.slice("medication_name", "pharmacy_destination", "medication_request_series_id", "request_note", "source")
       rescue JSON::ParserError
         {}
       end

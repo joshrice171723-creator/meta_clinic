@@ -48,6 +48,7 @@ module Clinic
       validates :medication_strength, :medication_form, :medication_code_system, :medication_code,
         :medication_code_version, :catalog_source, :pharmacy_name, :pharmacy_location, :pharmacy_identifier,
         :duration_text, :quantity_unit, length: { maximum: 500 }, allow_nil: true
+      validates :refill_of_series_id, format: { with: /\A[0-9a-f-]{36}\z/i }, allow_nil: true
 
       private
 

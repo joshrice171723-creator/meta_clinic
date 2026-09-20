@@ -637,6 +637,7 @@ export type MedicationRequestRevision = ClinicalRevisionBase & {
   refills?: number | null;
   starts_on?: string | null;
   duration_text?: string | null;
+  refill_of_series_id?: string | null;
   intent: "proposal" | "plan" | "order";
   transmission_state:
     | "not_requested"

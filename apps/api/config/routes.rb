@@ -121,8 +121,11 @@ Rails.application.routes.draw do
     post "patients/:patient_id/encounters/:encounter_id/clinical_tasks", to: "care/nurse_workflow#create_task"
     patch "handoffs/:id", to: "care/nurse_workflow#transition_handoff"
     patch "clinical_tasks/:id", to: "care/nurse_workflow#transition_task"
+    resources :pharmacy_destinations, controller: "care/pharmacy_destinations", only: %i[index create]
+    get "patients/:patient_id/medication_request_series", to: "care/prescription_order_series#index"
     get "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#index"
     post "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#create"
+    post "patients/:patient_id/medication_requests/:medication_request_id/submit", to: "care/prescription_events#submit"
     post "patients/:patient_id/medication_requests/:medication_request_id/dispenses", to: "care/prescription_events#dispense"
     get "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace",
       to: "care/clinical_plan_workspace#show"

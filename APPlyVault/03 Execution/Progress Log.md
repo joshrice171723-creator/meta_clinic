@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-20 — Local synthetic prescription transmission implemented
+
+Implemented the bounded [prescription transmission brief](../../docs/development/prescription-transmission-plan.md): practice-scoped pharmacy destination entry, immutable destination snapshots and transmission attempts, a backend-owned simulated pharmacy network, and the explicitly labeled **Submit to pharmacy (simulated)** action. The server accepts only bounded simulated outcomes, preserves idempotent replay, and retains the existing unknown/acknowledged reconciliation block; it has no vendor credential, network call, or automatic replay. Staff refill intake can now select a patient’s prior prescription series, and approval creates a linked replacement order that must still pass the existing version-bound review before simulated submission. Focused Rails tests (3 runs / 39 assertions), frontend TypeScript, scoped Prettier, and route-boundary tests passed. This is local synthetic workflow evidence only—not a transmitted prescription, pharmacy response, dispense/fill, clinical/professional review, security assessment, or release acceptance.
+
 ## 2026-09-20 — Prescription transmission implementation brief saved
 
 At the founder's request, saved the [prescription transmission implementation brief](../../docs/development/prescription-transmission-plan.md) and linked it from MC-10. The brief documents the inspected medication-request, immutable-event and refill baseline; a vendor-independent pharmacy destination, attempt-history and backend simulation plan; standards references; recovery/refill boundaries; and future vendor gates. It maps to RX-01–03 and OP-06–08/10/12 without adding a competing dependency matrix. This is planning evidence only: no source workflow changed, no provider was contacted, and no pharmacy transmission, clinical/professional review, real-data use, or release acceptance occurred. Next action is a separately authorized bounded implementation slice starting with pharmacy destination and preparation validation.

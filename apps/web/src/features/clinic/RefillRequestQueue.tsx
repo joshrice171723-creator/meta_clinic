@@ -26,6 +26,16 @@ import { useClinic } from "./Workspace";
 import { patientReferenceLabel } from "./patientReference";
 
 type Decision = "approved" | "changed" | "declined";
+type PriorPrescription = {
+  id: number;
+  series_id: string;
+  version_number: number;
+  status: string;
+  medication_name: string;
+  pharmacy_name: string | null;
+  pharmacy_location: string | null;
+  recorded_at: string;
+};
 
 const statusLabels: Record<ClinicRefillRequest["status"], string> = {
   pending: "Pending",
@@ -51,6 +61,11 @@ export function RefillRequestQueue() {
   const [medicationName, setMedicationName] = useState("");
   const [pharmacyDestination, setPharmacyDestination] = useState("");
   const [requestNote, setRequestNote] = useState("");
+  const [priorPrescriptions, setPriorPrescriptions] = useState<
+    PriorPrescription[]
+  >([]);
+  const [priorPrescription, setPriorPrescription] =
+    useState<PriorPrescription | null>(null);
   const [outcomes, setOutcomes] = useState<
     Record<
       number,
@@ -108,6 +123,26 @@ export function RefillRequestQueue() {
       window.clearTimeout(timeout);
     };
   }, [canManage, patientQuery]);
+  useEffect(() => {
+    if (!selectedPatient || !canManage) {
+      setPriorPrescriptions([]);
+      setPriorPrescription(null);
+      return;
+    }
+    const controller = new AbortController();
+    void api<{ prescription_orders: PriorPrescription[] }>(
+      `/api/clinic/patients/${selectedPatient.id}/medication_request_series`,
+      { signal: controller.signal },
+    )
+      .then((result) => {
+        if (!controller.signal.aborted)
+          setPriorPrescriptions(result.prescription_orders);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPriorPrescriptions([]);
+      });
+    return () => controller.abort();
+  }, [canManage, selectedPatient]);
 
   const sortedRequests = useMemo(
     () => requests.data?.refill_requests ?? [],
@@ -139,6 +174,7 @@ export function RefillRequestQueue() {
       patientId: selectedPatient.id,
       medicationName: medicationName.trim(),
       pharmacyDestination: pharmacyDestination.trim(),
+      medicationRequestSeriesId: priorPrescription?.series_id,
       requestNote: requestNote.trim(),
     };
     if (!values.medicationName || !values.pharmacyDestination) return;
@@ -157,6 +193,7 @@ export function RefillRequestQueue() {
             patient_id: values.patientId,
             medication_name: values.medicationName,
             pharmacy_destination: values.pharmacyDestination,
+            medication_request_series_id: values.medicationRequestSeriesId,
             request_note: values.requestNote || undefined,
           },
         },
@@ -166,6 +203,7 @@ export function RefillRequestQueue() {
       setPatientQuery("");
       setMedicationName("");
       setPharmacyDestination("");
+      setPriorPrescription(null);
       setRequestNote("");
       setNotice("The refill request was opened for clinical review.");
       requests.refresh();
@@ -453,6 +491,31 @@ export function RefillRequestQueue() {
               value={medicationName}
               onChange={(event) => setMedicationName(event.target.value)}
               slotProps={{ htmlInput: { maxLength: 240 } }}
+            />
+            <Autocomplete
+              options={priorPrescriptions}
+              value={priorPrescription}
+              onChange={(_event, value) => {
+                setPriorPrescription(value);
+                if (value) {
+                  setMedicationName(value.medication_name);
+                  setPharmacyDestination(
+                    [value.pharmacy_name, value.pharmacy_location]
+                      .filter(Boolean)
+                      .join(" · "),
+                  );
+                }
+              }}
+              getOptionLabel={(order) =>
+                `${order.medication_name} · version ${order.version_number} · ${order.status}`
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Prior prescription (optional)"
+                  helperText="Selecting one links this refill to the prior prescription series and copies its destination for review."
+                />
+              )}
             />
             <TextField
               required

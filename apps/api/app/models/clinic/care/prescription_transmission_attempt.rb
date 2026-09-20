@@ -1,0 +1,40 @@
+module Clinic
+  module Care
+    class PrescriptionTransmissionAttempt < ApplicationRecord
+      self.table_name = "clinic_prescription_transmission_attempts"
+      include Clinic::TenantScoped
+      include Clinic::Auditable
+
+      ADAPTER = "simulated_pharmacy_network".freeze
+      OUTCOMES = %w[failure_before_send rejected acknowledged unknown].freeze
+
+      belongs_to :patient, class_name: "Clinic::Care::Patient"
+      belongs_to :medication_request_revision, class_name: "Clinic::Care::MedicationRequestRevision"
+      belongs_to :pharmacy_destination, class_name: "Clinic::Care::PharmacyDestination"
+      belongs_to :prescription_event, class_name: "Clinic::Care::PrescriptionEvent"
+      belongs_to :initiated_by_membership, class_name: "Clinic::Membership"
+
+      validates :adapter, inclusion: { in: [ ADAPTER ] }
+      validates :outcome, inclusion: { in: OUTCOMES }
+      validates :request_key, :submitted_at, presence: true
+      validates :request_key, uniqueness: { scope: :practice_id }
+      validate :context_matches
+
+      before_update { throw :abort }
+      before_destroy { throw :abort }
+
+      def context_matches
+        order = medication_request_revision
+        destination = pharmacy_destination
+        event = prescription_event
+        actor = initiated_by_membership
+        errors.add(:medication_request_revision, "must match this patient and clinic") unless order &&
+          order.practice_id == practice_id && order.patient_id == patient_id
+        errors.add(:pharmacy_destination, "must belong to this clinic") unless destination&.practice_id == practice_id
+        errors.add(:prescription_event, "must match this prescription") unless event &&
+          event.practice_id == practice_id && event.patient_id == patient_id && event.medication_request_revision_id == order&.id
+        errors.add(:initiated_by_membership, "must belong to this clinic") unless actor&.practice_id == practice_id
+      end
+    end
+  end
+end

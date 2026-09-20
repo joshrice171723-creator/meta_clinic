@@ -3,7 +3,8 @@ module Clinic
     class PrescriptionEventsController < Clinic::ApiController
       def index
         order = readable_order
-        render json: { transmission_available: false, events: PrescriptionWorkflow.events(order).map { |event| PrescriptionWorkflow.serialize(event) },
+        render json: { transmission_available: true, events: PrescriptionWorkflow.events(order).map { |event| PrescriptionWorkflow.serialize(event) },
+          attempts: PrescriptionTransmissionWorkflow.attempts(order).map { |attempt| PrescriptionTransmissionWorkflow.serialize(attempt) },
           dispenses: MedicationDispensing.records(order).map { |event| MedicationDispensing.serialize(event) },
           remaining_quantity: order.prescribed_quantity && order.quantity_unit.present? ? MedicationDispensing.remaining(order).to_s("F") : nil }
       end
@@ -18,6 +19,16 @@ module Clinic
           prior_event_id: optional_id(input[:prior_event_id], :prior_event_id),
           note: optional_string(input[:note], field: :note, maximum: 2000))
         render json: { event: PrescriptionWorkflow.serialize(event) }, status: :created
+      end
+
+      def submit
+        order = readable_order
+        input = parameter_hash!(:prescription_submission, %i[pharmacy_destination_id scenario request_key])
+        attempt = PrescriptionTransmissionWorkflow.submit(practice: current_practice, actor: current_user, order:,
+          pharmacy_destination_id: requested_id!(input[:pharmacy_destination_id], :pharmacy_destination_id),
+          scenario: required_string!(input[:scenario], field: :scenario, maximum: 32),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100))
+        render json: { attempt: PrescriptionTransmissionWorkflow.serialize(attempt) }, status: :created
       end
 
       def dispense

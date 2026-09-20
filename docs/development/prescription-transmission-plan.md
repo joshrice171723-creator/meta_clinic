@@ -1,6 +1,6 @@
 # Prescription transmission implementation brief
 
-**Status:** approved planning brief; implementation and any live connection require separate authorization.
+**Status:** local synthetic implementation delivered on 2026-09-20; live connection still requires separate authorization.
 
 **Tracker:** [MC-10](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
 
@@ -94,6 +94,15 @@ Retain current order and event models. Add only the narrow records needed to mak
 4. **Lifecycle recovery:** implement reconciliation, cancellation/replacement chain, response worklist, and patient timeline.
 5. **Refill completion:** link refill review to the prior prescription series and force replacement versions through review and the same lifecycle.
 6. **Vendor readiness:** after a named partner is authorized, map exact fields/transactions/version, complete security and onboarding work, add the adapter, and explicitly enable a clinic. Prepared records must not replay automatically.
+
+## Implemented local slice — 2026-09-20
+
+- Practice-scoped pharmacy destinations can be entered and selected in the clinical workspace. A submission records an immutable destination snapshot rather than trusting a later directory edit.
+- `POST .../submit` is backend-owned and idempotent. It accepts only the bounded simulated outcomes (`failure_before_send`, `rejected`, `acknowledged`, and `unknown`), adds an immutable attempt and source-labeled prescription event, and never has a vendor credential or network side effect.
+- The final UI action is **Submit to pharmacy (simulated)** and displays **Simulated pharmacy network — no pharmacy connection. No prescription was transmitted externally.** Unknown and acknowledged outcomes retain the existing reconciliation block; there is no automatic replay.
+- Staff refill intake can select the patient’s prior prescription series. Approval creates a new linked replacement order that still needs the existing exact-version review before any simulated submission.
+
+Focused Rails evidence covers idempotent attempt replay, destination snapshots, unknown-outcome retry blocking, prior-series lookup, and linked replacement orders. Frontend TypeScript and scoped formatting passed. This is local synthetic evidence only; it is not pharmacy connectivity, dispense/fill, clinical, legal, security, or release acceptance.
 
 ## Acceptance checklist
 

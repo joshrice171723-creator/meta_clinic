@@ -340,6 +340,11 @@
     "/api/clinic/patients/:patient_id/address_versions(.:format)"
   ],
   [
+    "api_clinic_patient_care_coordination",
+    "GET",
+    "/api/clinic/patients/:patient_id/care_coordination(.:format)"
+  ],
+  [
     "api_clinic_patient_care_summary",
     "GET",
     "/api/clinic/patients/:patient_id/care_summary(.:format)"
@@ -383,6 +388,11 @@
     "api_clinic_patient_encounters",
     "GET",
     "/api/clinic/patients/:patient_id/encounters(.:format)"
+  ],
+  [
+    "api_clinic_patient_intake_consents",
+    "GET",
+    "/api/clinic/patients/:patient_id/intake_consents(.:format)"
   ],
   [
     "api_clinic_patient_invoices",
@@ -438,6 +448,11 @@
     "api_clinic_pharmacy_count",
     "POST",
     "/api/clinic/pharmacy_batches/:id/count(.:format)"
+  ],
+  [
+    "api_clinic_pharmacy_destinations",
+    "GET",
+    "/api/clinic/pharmacy_destinations(.:format)"
   ],
   [
     "api_clinic_pharmacy_index",
@@ -770,6 +785,46 @@
     "/api/csrf(.:format)"
   ],
   [
+    "api_demo_lesson",
+    "POST",
+    "/api/demo/lesson(.:format)"
+  ],
+  [
+    "api_demo_lesson_complete",
+    "POST",
+    "/api/demo/lesson/complete(.:format)"
+  ],
+  [
+    "api_demo_run",
+    "GET",
+    "/api/demo/run(.:format)"
+  ],
+  [
+    "api_demo_run_enrollment",
+    "POST",
+    "/api/demo/run/enrollment(.:format)"
+  ],
+  [
+    "api_demo_run_reset",
+    "POST",
+    "/api/demo/run/reset(.:format)"
+  ],
+  [
+    "api_demo_run_resume",
+    "POST",
+    "/api/demo/run/resume(.:format)"
+  ],
+  [
+    "api_demo_run_view",
+    "POST",
+    "/api/demo/run/view(.:format)"
+  ],
+  [
+    "api_demo_visitor",
+    "POST",
+    "/api/demo/visitor(.:format)"
+  ],
+  [
     "api_development_access",
     "PATCH",
     "/api/development_access(.:format)"
@@ -955,6 +1010,11 @@
     "/api/public/membership_accounts/current(.:format)"
   ],
   [
+    "api_public_membership_accounts_local_payment",
+    "POST",
+    "/api/public/membership_accounts/local_payment(.:format)"
+  ],
+  [
     "api_public_membership_storefronts",
     "GET",
     "/api/public/membership_storefronts(.:format)"
@@ -1093,6 +1153,11 @@
     "corrections_api_clinic_note",
     "POST",
     "/api/clinic/notes/:id/corrections(.:format)"
+  ],
+  [
+    "create_synthetic_api_clinic_scribe_encounters",
+    "POST",
+    "/api/clinic/scribe/encounters/create_synthetic(.:format)"
   ],
   [
     "credits_api_clinic_invoice",
@@ -1350,6 +1415,11 @@
     "/api/clinic/reminders/recover(.:format)"
   ],
   [
+    "references_api_clinic_patient_care_coordination",
+    "GET",
+    "/api/clinic/patients/:patient_id/care_coordination/references(.:format)"
+  ],
+  [
     "refresh_phone_payment_api_clinic_membership_prospect",
     "POST",
     "/api/clinic/membership_prospects/:id/refresh_phone_payment(.:format)"
@@ -1533,6 +1603,11 @@
     null,
     "GET",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/nurse_workspace(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/patients/:patient_id/medication_request_series(.:format)"
   ],
   [
     null,
@@ -1762,6 +1837,11 @@
   [
     null,
     "POST",
+    "/api/clinic/clinicians(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/encounters/:encounter_id/medication_administrations(.:format)"
   ],
   [
@@ -1912,6 +1992,11 @@
   [
     null,
     "POST",
+    "/api/clinic/membership_enrollment/:id/one_time_payment(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/membership_enrollment/:id/payment(.:format)"
   ],
   [
@@ -1923,6 +2008,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/address_versions(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/care_coordination(.:format)"
   ],
   [
     null,
@@ -2012,6 +2102,11 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/intake_consents(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/invoices(.:format)"
   ],
   [
@@ -2032,6 +2127,11 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/submit(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/message_intents(.:format)"
   ],
   [
@@ -2043,6 +2143,11 @@
     null,
     "POST",
     "/api/clinic/pharmacy(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/pharmacy_destinations(.:format)"
   ],
   [
     null,

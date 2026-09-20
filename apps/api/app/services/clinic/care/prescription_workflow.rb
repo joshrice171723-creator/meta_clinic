@@ -53,12 +53,15 @@ module Clinic
         result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
-      def validate_release!(order)
+      def validate_release!(order, destination: nil)
         raise ArgumentError, "Authorize the current prescription first." unless order.status == "authorized"
         required = %i[medication_name medication_strength medication_form dose_text route_text frequency_text instructions prescribed_quantity quantity_unit fulfillment_route]
-        required += %i[pharmacy_name pharmacy_location] if order.fulfillment_route == "outside_pharmacy"
+        required += %i[pharmacy_name pharmacy_location] if order.fulfillment_route == "outside_pharmacy" && destination.nil?
         missing = required.select { |field| order.public_send(field).blank? }
         raise ArgumentError, "Complete prescription instructions: #{missing.join(', ')}." if missing.any? || order.refills.nil?
+        if destination && (destination.practice_id != order.practice_id || !destination.active?)
+          raise ArgumentError, "Choose an active pharmacy destination for this clinic."
+        end
         unless order.inventory_product_id || (order.medication_code.present? && order.medication_code_system.present? && order.catalog_source.present?)
           raise ArgumentError, "Resolve the medication identity before release; the unmapped draft remains saved."
         end

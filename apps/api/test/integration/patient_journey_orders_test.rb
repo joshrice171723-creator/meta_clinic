@@ -109,9 +109,40 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     end
     get events_path(order), headers: @headers
     assert_response :success
-    assert_equal false, response.parsed_body.fetch("transmission_available")
+    assert_equal true, response.parsed_body.fetch("transmission_available")
     assert_equal %w[review failure_before_send rejected], response.parsed_body.fetch("events").pluck("kind")
     assert_empty response.parsed_body.fetch("dispenses")
+  end
+
+  test "T09 simulated pharmacy submission snapshots the destination and blocks a second unknown outcome" do
+    order = prescription(route: "outside_pharmacy")
+    post_event(order, "review")
+    assert_response :created
+    post "/api/clinic/pharmacy_destinations", params: { pharmacy_destination: {
+      request_key: "journey-pharmacy-destination", name: "Synthetic destination pharmacy",
+      address_line1: "100 Synthetic Way", city: "Austin", state_code: "TX", postal_code: "78701"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    destination = response.parsed_body.fetch("pharmacy_destination")
+    key = SecureRandom.uuid
+    assert_difference [ "Clinic::Care::PrescriptionTransmissionAttempt.count", "Clinic::Care::PrescriptionEvent.count" ], 1 do
+      submit_prescription(order, destination.fetch("id"), scenario: "unknown", key:)
+      assert_response :created
+    end
+    attempt = response.parsed_body.fetch("attempt")
+    assert_equal [ "simulated_pharmacy_network", "unknown", "Synthetic destination pharmacy" ],
+      [ attempt.fetch("adapter"), attempt.fetch("outcome"), attempt.dig("destination_snapshot", "name") ]
+    assert_no_difference [ "Clinic::Care::PrescriptionTransmissionAttempt.count", "Clinic::Care::PrescriptionEvent.count" ] do
+      submit_prescription(order, destination.fetch("id"), scenario: "unknown", key:)
+      assert_response :created
+      assert_equal attempt.fetch("id"), response.parsed_body.dig("attempt", "id")
+    end
+    submit_prescription(order, destination.fetch("id"), scenario: "rejected")
+    assert_response :unprocessable_entity
+    get events_path(order), headers: @headers
+    assert_response :success
+    assert_equal 1, response.parsed_body.fetch("attempts").length
+    assert_equal "Synthetic destination pharmacy", response.parsed_body.dig("attempts", 0, "destination_snapshot", "name")
   end
 
   test "T06 partial handover retries and reversal post exact stock once without creating administration" do
@@ -364,6 +395,12 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     post "/api/clinic/patients/#{@patient.id}/medication_requests/#{order.id}/dispenses", params: { dispense: {
       status:, batch_id: batch.id, quantity:, request_key: key, original_dispense_id: original, reason:,
       handed_over_at: (@encounter.started_at + 30.minutes).iso8601(6)
+    } }, headers: csrf_headers, as: :json
+  end
+
+  def submit_prescription(order, destination_id, scenario: "acknowledged", key: SecureRandom.uuid)
+    post "#{events_path(order).delete_suffix('/events')}/submit", params: { prescription_submission: {
+      pharmacy_destination_id: destination_id, scenario:, request_key: key
     } }, headers: csrf_headers, as: :json
   end
 

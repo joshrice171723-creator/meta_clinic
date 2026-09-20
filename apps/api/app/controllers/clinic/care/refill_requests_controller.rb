@@ -16,11 +16,17 @@ module Clinic
 
       def create
         input = parameter_hash!(:refill_request,
-          %i[request_key patient_id medication_name pharmacy_destination request_note])
+          %i[request_key patient_id medication_name pharmacy_destination medication_request_series_id request_note])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
+        prior_series_id = optional_string(input[:medication_request_series_id], field: :medication_request_series_id, maximum: 36)
+        if prior_series_id.present?
+          Clinic::Care::MedicationRequestRevision.where(practice: current_practice, patient:, series_id: prior_series_id).first ||
+            raise(ActiveRecord::RecordNotFound)
+        end
         content = Clinic::PatientPortal::RefillRequestData.content(
           medication_name: required_string!(input[:medication_name], field: :medication_name, maximum: 240),
           pharmacy_destination: required_string!(input[:pharmacy_destination], field: :pharmacy_destination, maximum: 500),
+          medication_request_series_id: prior_series_id,
           request_note: optional_string(input[:request_note], field: :request_note, maximum: 2_000),
           source: "staff"
         )

@@ -21,6 +21,31 @@ type Event = {
   note: string | null;
   recorded_at: string;
 };
+type PharmacyDestination = {
+  id: number;
+  name: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state_code: string;
+  postal_code: string;
+  phone_number: string | null;
+  pharmacy_identifier: string | null;
+  active: boolean;
+};
+type TransmissionAttempt = {
+  id: number;
+  medication_request_revision_id: number;
+  pharmacy_destination_id: number;
+  prescription_event_id: number;
+  adapter: "simulated_pharmacy_network";
+  outcome: string;
+  destination_snapshot: Pick<
+    PharmacyDestination,
+    "id" | "name" | "city" | "state_code" | "postal_code"
+  >;
+  submitted_at: string;
+};
 type Dispense = {
   id: number;
   original_dispense_id: number | null;
@@ -34,7 +59,8 @@ type Evidence = {
   events: Event[];
   dispenses: Dispense[];
   remaining_quantity: string | null;
-  transmission_available: false;
+  transmission_available: true;
+  attempts: TransmissionAttempt[];
 };
 type Batch = {
   batch_id: number;
@@ -65,6 +91,17 @@ export function PrescriptionFulfillmentPanel({
   const [when, setWhen] = useState("");
   const [note, setNote] = useState("");
   const [scenario, setScenario] = useState("failure_before_send");
+  const [destinations, setDestinations] = useState<PharmacyDestination[]>([]);
+  const [destination, setDestination] = useState<PharmacyDestination | null>(
+    null,
+  );
+  const [destinationForm, setDestinationForm] = useState({
+    name: "",
+    address_line1: "",
+    city: "",
+    state_code: "",
+    postal_code: "",
+  });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -124,6 +161,21 @@ export function PrescriptionFulfillmentPanel({
       });
     return () => controller.abort();
   }, [encounterId, reload]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void api<{ pharmacy_destinations: PharmacyDestination[] }>(
+      "/api/clinic/pharmacy_destinations",
+      { signal: controller.signal },
+    )
+      .then((result) => {
+        if (!controller.signal.aborted)
+          setDestinations(result.pharmacy_destinations);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setDestinations([]);
+      });
+    return () => controller.abort();
+  }, [reload]);
   async function execute(attempt: { path: string; body: unknown }) {
     const started = generation.current;
     setBusy(true);
@@ -159,6 +211,63 @@ export function PrescriptionFulfillmentPanel({
         },
       },
     });
+  }
+  function submit() {
+    if (!destination) {
+      setError(
+        "Choose the pharmacy that should receive this simulated submission.",
+      );
+      return;
+    }
+    void execute({
+      path: `${path}/submit`,
+      body: {
+        prescription_submission: {
+          pharmacy_destination_id: destination.id,
+          scenario,
+          request_key: crypto.randomUUID(),
+        },
+      },
+    });
+  }
+  async function createDestination() {
+    const started = generation.current;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ pharmacy_destination: PharmacyDestination }>(
+        "/api/clinic/pharmacy_destinations",
+        {
+          method: "POST",
+          body: {
+            pharmacy_destination: {
+              ...destinationForm,
+              request_key: crypto.randomUUID(),
+            },
+          },
+        },
+      );
+      if (started === generation.current) {
+        setDestinations((current) => [...current, result.pharmacy_destination]);
+        setDestination(result.pharmacy_destination);
+        setDestinationForm({
+          name: "",
+          address_line1: "",
+          city: "",
+          state_code: "",
+          postal_code: "",
+        });
+      }
+    } catch (reason) {
+      if (started === generation.current)
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "The pharmacy destination could not be saved.",
+        );
+    } finally {
+      if (started === generation.current) setBusy(false);
+    }
   }
   function dispense(status: string, originalId?: number) {
     const timestamp = new Date(when);
@@ -209,9 +318,8 @@ export function PrescriptionFulfillmentPanel({
           ))}
         </TextField>
         <Alert severity="info">
-          Prescription preparation is local. Transmission is unavailable.
-          Simulator outcomes remain labeled and never confirm a pharmacy
-          dispense.
+          Simulated pharmacy network — no pharmacy connection. No prescription
+          was transmitted externally.
         </Alert>
         {error && <Alert severity="warning">{error}</Alert>}
         {pending && (
@@ -274,33 +382,120 @@ export function PrescriptionFulfillmentPanel({
               Record confirmed cancellation
             </Button>
           </Box>
-        ) : (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField
-              select
-              label="Simulator outcome"
-              value={scenario}
-              onChange={(event) => setScenario(event.target.value)}
-            >
-              {[
-                "failure_before_send",
-                "rejected",
-                "acknowledged",
-                "unknown",
-              ].map((value) => (
-                <MenuItem key={value} value={value}>
-                  {value.replaceAll("_", " ")}
-                </MenuItem>
-              ))}
-            </TextField>
+        ) : order?.fulfillment_route === "outside_pharmacy" ? (
+          <Stack spacing={1}>
+            <Autocomplete
+              options={destinations}
+              value={destination}
+              onChange={(_event, value) => setDestination(value)}
+              getOptionLabel={(item) =>
+                `${item.name} · ${item.city}, ${item.state_code} ${item.postal_code}`
+              }
+              renderInput={(params) => (
+                <TextField {...params} label="Pharmacy destination" />
+              )}
+            />
+            <Typography variant="body2" color="text.secondary">
+              Add a pharmacy destination when it is not already listed.
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <TextField
+                label="Pharmacy name"
+                value={destinationForm.name}
+                onChange={(event) =>
+                  setDestinationForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="Address"
+                value={destinationForm.address_line1}
+                onChange={(event) =>
+                  setDestinationForm((current) => ({
+                    ...current,
+                    address_line1: event.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="City"
+                value={destinationForm.city}
+                onChange={(event) =>
+                  setDestinationForm((current) => ({
+                    ...current,
+                    city: event.target.value,
+                  }))
+                }
+              />
+              <TextField
+                label="State"
+                value={destinationForm.state_code}
+                onChange={(event) =>
+                  setDestinationForm((current) => ({
+                    ...current,
+                    state_code: event.target.value.toUpperCase(),
+                  }))
+                }
+              />
+              <TextField
+                label="Postal code"
+                value={destinationForm.postal_code}
+                onChange={(event) =>
+                  setDestinationForm((current) => ({
+                    ...current,
+                    postal_code: event.target.value,
+                  }))
+                }
+              />
+            </Stack>
             <Button
-              disabled={disabled}
-              onClick={() => event(scenario, "simulation")}
+              disabled={
+                busy ||
+                !canWrite ||
+                Object.values(destinationForm).some((value) => !value.trim())
+              }
+              onClick={() => void createDestination()}
             >
-              Record simulated attempt
+              Save pharmacy destination
             </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <TextField
+                select
+                label="Simulator outcome"
+                value={scenario}
+                onChange={(event) => setScenario(event.target.value)}
+              >
+                {[
+                  "failure_before_send",
+                  "rejected",
+                  "acknowledged",
+                  "unknown",
+                ].map((value) => (
+                  <MenuItem key={value} value={value}>
+                    {value.replaceAll("_", " ")}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Button disabled={disabled || !destination} onClick={submit}>
+                Submit to pharmacy (simulated)
+              </Button>
+            </Stack>
           </Stack>
+        ) : (
+          <Alert severity="info">
+            Outside-pharmacy fulfillment is required before a pharmacy
+            submission can be simulated.
+          </Alert>
         )}
+        {evidence?.attempts.map((attempt) => (
+          <Typography key={attempt.id} variant="body2">
+            Simulated pharmacy network · {attempt.outcome.replaceAll("_", " ")}{" "}
+            · {attempt.destination_snapshot.name} ·{" "}
+            {new Date(attempt.submitted_at).toLocaleString()}
+          </Typography>
+        ))}
         {evidence?.events.map((item) => (
           <Typography key={item.id} variant="body2">
             {item.source === "simulation" ? "Simulation" : "Manual evidence"} ·{" "}
