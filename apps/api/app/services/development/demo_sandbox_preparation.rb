@@ -95,8 +95,10 @@ module Development
 
       def appointment_start(practice:, clinician:, site:, offset:, index:)
         zone = ActiveSupport::TimeZone[site.timezone_override.presence || site.practice.timezone] || Time.zone
-        date = Current.business_time.in_time_zone(zone).to_date + offset
+        now = Current.business_time.in_time_zone(zone)
+        date = now.to_date + offset
         starts_at = zone.local(date.year, date.month, date.day, 13 + (index % 3), 0, 0)
+        starts_at += 1.day if starts_at < now
         conflicts = practice.appointments.where(booked_clinician: clinician)
           .where("starts_at < ? AND ends_at > ?", starts_at + 30.minutes, starts_at)
         while conflicts.exists?

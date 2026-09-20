@@ -143,6 +143,15 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_equal false, response.parsed_body.dig("user", "platform_owner")
   end
 
+  test "sandbox appointments remain in the future after clinic hours" do
+    run = nil
+
+    travel_to(Time.zone.parse("2026-09-20 23:30:00")) do
+      run = Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
+      assert run.practice.appointments.all? { |appointment| appointment.starts_at >= Current.business_time }
+    end
+  end
+
   test "sandbox reset replaces every expanded fixture" do
     visitor = demo_visitor
     first = Development::SharedDemoLesson.enter!("sandbox", visitor:)

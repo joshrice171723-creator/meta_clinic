@@ -222,6 +222,23 @@ describe("same-origin API boundary", () => {
       3,
     );
   });
+  it("uses a new CSRF token after a demo lesson rotates its session", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ csrf_token: "before" }))
+      .mockResolvedValueOnce(json({ run: { id: 1 } }, 201))
+      .mockResolvedValueOnce(json({ csrf_token: "after" }))
+      .mockResolvedValueOnce(json({ run: { id: 1 } }));
+    vi.stubGlobal("fetch", fetch);
+
+    await api("/api/demo/lesson", {
+      method: "POST",
+      body: { lesson_key: "navigation_tour" },
+    });
+    await api("/api/demo/lesson/complete", { method: "POST", body: {} });
+
+    expect(fetch.mock.calls[3][1].headers["X-CSRF-Token"]).toBe("after");
+  });
   it("returns safe API failures and rejects off-origin targets", async () => {
     const fetch = vi
       .fn()

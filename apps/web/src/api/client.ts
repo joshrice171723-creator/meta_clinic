@@ -236,7 +236,7 @@ export async function api<T>(
       if (
         path === "/api/session" ||
         path === "/api/development_session" ||
-        path.startsWith("/api/demo/run")
+        path.startsWith("/api/demo/")
       ) {
         if (method !== "GET") clearCsrf();
       }
