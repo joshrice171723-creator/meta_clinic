@@ -11,12 +11,6 @@ import {
 } from "../src/features/demo/DemoJourney";
 import { nextDemoStep } from "../src/features/demo/progression";
 import {
-  spotlightDirection,
-  showsDemoCoach,
-  tutorialActionMatches,
-  visitSaveLessonSteps,
-} from "../src/features/demo/DemoSpotlight";
-import {
   lessonGuide,
   supportedLessonGuideIds,
 } from "../src/features/demo/lessonGuidance";
@@ -45,30 +39,16 @@ describe("SOAP note lesson guidance", () => {
       "Add the supplied follow-up update to Additional subjective history.",
       "Save the unsigned draft.",
     ]);
-    expect(visitSaveLessonSteps).toHaveLength(4);
-    expect(
-      tutorialActionMatches("visit_save", "Confirm and begin charting"),
-    ).toBe(true);
-    expect(tutorialActionMatches("visit_save", "Save draft")).toBe(false);
   });
 });
 
 describe("guided lesson schema", () => {
-  it("keeps the floating coach out of ordinary action lessons", () => {
-    expect(showsDemoCoach("clinic_setup", false)).toBe(false);
-    expect(showsDemoCoach("visit_save", false)).toBe(true);
-    expect(showsDemoCoach("messages_review", true)).toBe(true);
-  });
-
   it("guides clinic setup through a saved scope choice before finalization", () => {
     expect(lessonInstructions("clinic_setup")).toEqual([
       "Under Services this clinic intends to provide, select Telehealth visits and read its Base workflow readiness label.",
       "Select Save clinic profile and wait for the confirmation that the selected scope was saved.",
       "Review the saved clinic type and service scope, then select Finalize clinic setup.",
     ]);
-    expect(tutorialActionMatches("clinic_setup", "Telehealth visits")).toBe(
-      true,
-    );
   });
 
   it("gives every supported workflow a complete learner brief", () => {
@@ -91,40 +71,6 @@ describe("guided lesson schema", () => {
     expect(
       lessonGuide("weight_management__appointment_schedule").goal,
     ).toContain("weight-management scenario");
-  });
-});
-
-describe("tutorial target visibility", () => {
-  it("guides both specialty note lessons through opening the chart", () => {
-    expect(
-      tutorialActionMatches(
-        "primary_care__visit_save",
-        "Confirm and open chart",
-      ),
-    ).toBe(true);
-    expect(
-      tutorialActionMatches(
-        "weight_management__visit_complete",
-        "Confirm and open chart",
-      ),
-    ).toBe(true);
-  });
-  it.each([
-    [-100, 100, "above"],
-    [800, 100, "below"],
-    [100, -100, "to the left"],
-    [100, 1200, "to the right"],
-    [100, 100, null],
-    [-25, 100, null],
-    [775, 100, null],
-  ])("locates a target at top %s, left %s", (top, left, direction) => {
-    expect(
-      spotlightDirection(
-        { top: Number(top), left: Number(left), width: 50, height: 50 },
-        1200,
-        800,
-      ),
-    ).toBe(direction);
   });
 });
 const clinic = {

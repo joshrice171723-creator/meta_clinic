@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Box, Button, Stack } from "@mui/material";
 import { api } from "../../api/client";
 import { isDemoFrame, notifyDemo } from "./frame";
-import { DemoSpotlight } from "./DemoSpotlight";
 
 type FrameRun = {
   active: boolean;
@@ -207,26 +206,6 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         </Alert>
       )}
       {children}
-      {run.run?.steps
-        .filter(
-          (step) =>
-            step.status === "available" &&
-            (!run.run?.lesson_key || step.id === run.run.lesson_key) &&
-            !navigationTour(run) &&
-            !sandboxRun(run),
-        )
-        .slice(0, 1)
-        .map((step) => (
-          <DemoSpotlight
-            key={step.id}
-            step={step.id}
-            review={step.review === true}
-            description={
-              step.description ||
-              "Follow the highlighted action to complete this lesson."
-            }
-          />
-        ))}
     </>
   );
 }

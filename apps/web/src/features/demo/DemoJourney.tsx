@@ -92,6 +92,10 @@ export function DemoJourney() {
     () => run?.lessons.find((lesson) => lesson.id === run.lesson_key) ?? null,
     [run],
   );
+  const activeStep = useMemo(
+    () => run?.steps.find((step) => step.id === run.lesson_key) ?? null,
+    [run],
+  );
   const sandbox = isSandbox(run?.lesson_key);
   const activeGuide =
     activeLesson && !sandbox ? lessonGuide(activeLesson.id) : null;
@@ -177,7 +181,7 @@ export function DemoJourney() {
       setSwitching(false);
     }
   };
-  const finishNavigationTour = async () => {
+  const completeLesson = async (fallback: string) => {
     setBusy(true);
     setError(null);
     generation.current += 1;
@@ -188,7 +192,7 @@ export function DemoJourney() {
       });
       setState({ status: "ready", value: response });
     } catch (reason) {
-      setError(message(reason, "The navigation tour could not be completed."));
+      setError(message(reason, fallback));
     } finally {
       setBusy(false);
     }
@@ -421,9 +425,27 @@ export function DemoJourney() {
                     variant="contained"
                     size="small"
                     disabled={busy}
-                    onClick={() => void finishNavigationTour()}
+                    onClick={() =>
+                      void completeLesson(
+                        "The navigation tour could not be completed.",
+                      )
+                    }
                   >
                     Finish tour
+                  </Button>
+                )}
+                {activeStep?.review && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={busy}
+                    onClick={() =>
+                      void completeLesson(
+                        "This review lesson could not be completed.",
+                      )
+                    }
+                  >
+                    Finish lesson
                   </Button>
                 )}
               </Stack>
