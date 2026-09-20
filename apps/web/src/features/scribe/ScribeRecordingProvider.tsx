@@ -573,7 +573,7 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
               <Tooltip title="Close completed recording panel">
                 <IconButton
                   aria-label="Close completed recording panel"
-                  disabled={dirty || saving || finishing}
+                  disabled={dirty || saving}
                   onClick={() => setSession(null)}
                 >
                   <CloseOutlinedIcon />
@@ -582,24 +582,36 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
             )}
           </Stack>
           <Box sx={{ p: 1.5 }}>
-            <ScribeRecordingControls
-              encounterId={session.encounterId}
-              encounterVersion={encounterVersion}
-              processingAllowed={session.processingAllowed}
-              scopeKey={session.scopeKey}
-              startRequestToken={startToken}
-              finishRequestToken={finishToken}
-              discardRequestToken={discardToken}
-              onRecordingStateChange={setState}
-              onFinishRequest={() => void requestFinish()}
-              onDiscardRequest={() => setConfirmDiscard(true)}
-              onCompleted={(recordingId) =>
-                void recordingCompleted(recordingId)
-              }
-              onCancelled={() => setSession(null)}
-              embedded
-              compact={!expanded}
-            />
+            <Stack spacing={1}>
+              <ScribeRecordingControls
+                encounterId={session.encounterId}
+                encounterVersion={encounterVersion}
+                processingAllowed={session.processingAllowed}
+                scopeKey={session.scopeKey}
+                startRequestToken={startToken}
+                finishRequestToken={finishToken}
+                discardRequestToken={discardToken}
+                onRecordingStateChange={setState}
+                onFinishRequest={() => void requestFinish()}
+                onDiscardRequest={() => setConfirmDiscard(true)}
+                onCompleted={(recordingId) =>
+                  void recordingCompleted(recordingId)
+                }
+                onCancelled={() => setSession(null)}
+                embedded
+                compact={!expanded}
+              />
+              {state.phase === "completed" && (
+                <Button
+                  variant="outlined"
+                  startIcon={<CloseOutlinedIcon />}
+                  disabled={dirty || saving}
+                  onClick={() => setSession(null)}
+                >
+                  Close recording panel
+                </Button>
+              )}
+            </Stack>
           </Box>
           <Collapse in={expanded} unmountOnExit>
             <Stack spacing={1.25} sx={{ px: 1.5, pb: 1.5 }}>

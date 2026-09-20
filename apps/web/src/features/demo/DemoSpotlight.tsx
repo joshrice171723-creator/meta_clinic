@@ -413,7 +413,7 @@ export function DemoSpotlight({
           position: "fixed",
           inset: 0,
           pointerEvents: "none",
-          zIndex: 1200,
+          zIndex: (theme) => theme.zIndex.drawer + 3,
         }}
       >
         {enabled && highlight && !onScreen && (

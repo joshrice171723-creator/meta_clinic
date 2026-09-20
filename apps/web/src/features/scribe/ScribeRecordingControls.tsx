@@ -10,6 +10,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { isDemoFrame } from "../demo/frame";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import FiberManualRecordOutlinedIcon from "@mui/icons-material/FiberManualRecordOutlined";
 import PauseOutlinedIcon from "@mui/icons-material/PauseOutlined";
@@ -1216,7 +1217,7 @@ export function ScribeRecordingControls({
             )}
             {phase === "completed" && (
               <>
-                {transcription?.status !== "ready" && (
+                {!isDemoFrame() && transcription?.status !== "ready" && (
                   <Button
                     variant="contained"
                     startIcon={<ReplayOutlinedIcon />}
