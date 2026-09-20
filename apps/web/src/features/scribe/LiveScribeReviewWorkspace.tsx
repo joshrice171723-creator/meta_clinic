@@ -1586,7 +1586,11 @@ export function LiveScribeReviewWorkspace() {
                     "&:hover": { bgcolor: "#0b9148" },
                   }}
                 >
-                  {sameEncounterRecordingActive ? "Recording" : "Transcribe"}
+                  {sameEncounterRecordingActive
+                    ? "Recording"
+                    : isDemoFrame()
+                      ? "Start recording"
+                      : "Transcribe"}
                 </Button>
               </Stack>
               <Stack

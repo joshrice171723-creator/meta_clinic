@@ -78,9 +78,9 @@ const reviewPrompts: Record<string, string[]> = {
     "Locate the access and preparation controls. This walkthrough does not start a live call.",
   ],
   scribe_review: [
-    "Find the scribe workspace and its setup requirements.",
-    "Open the sample encounter and use the recording dock to see how the session stays available across clinic pages.",
-    "Open the treatment workspace from the dock, then return to review the visit context. Voice-to-text and AI drafting are unavailable in this demo environment.",
+    "Review the prepared Scribe encounter and its recording consent status.",
+    "Select Start recording to open the persistent recording dock.",
+    "Select Open treatment workspace in the dock. The recording remains available while you move between clinic pages.",
   ],
   waitlist_review: [
     "Find capacity and waitlist controls.",
@@ -145,6 +145,30 @@ function visible(element: HTMLElement) {
   );
 }
 
+function buttonWithLabel(root: Document, expression: RegExp) {
+  return Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find(
+    (element) => visible(element) && expression.test(element.textContent ?? ""),
+  );
+}
+
+function scribeReviewTarget(
+  root: Document,
+  content: Element,
+  reviewStage: number,
+) {
+  if (reviewStage === 0)
+    return Array.from(content.querySelectorAll<HTMLElement>("h1, h2")).find(
+      (element) => visible(element) && !element.closest("nav"),
+    );
+
+  const recordingControl = buttonWithLabel(root, /^(start recording|recording)$/i);
+  if (reviewStage === 1) return recordingControl;
+
+  return (
+    buttonWithLabel(root, /^open treatment workspace$/i) ?? recordingControl
+  );
+}
+
 export function findTutorialTarget(
   root: Document,
   step: string,
@@ -157,8 +181,12 @@ export function findTutorialTarget(
     ).some(visible)
   )
     return null;
-  const content = root.querySelector(".clinic-main, main, #main") ?? root.body;
+  const content =
+    root.querySelector<HTMLElement>(".clinic-main, main, #main") ?? root.body;
   if (reviewStage !== undefined) {
+    if (step.split("__").at(-1) === "scribe_review")
+      return scribeReviewTarget(root, content, reviewStage) ?? content;
+
     const selector =
       reviewStage === 0
         ? "h1, h2"
