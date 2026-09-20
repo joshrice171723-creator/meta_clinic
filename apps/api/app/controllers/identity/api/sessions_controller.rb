@@ -138,7 +138,7 @@ module Identity
       def session_user(user)
         demo = development_demo?
         preview = Development::TestAccounts.preview_account_for(user,
-          profile: session[:development_test_profile]) if demo
+          profile: session[:development_test_profile]) if demo && DevelopmentAccess.allowed?(request)
         user.as_json(only: %i[id email_address admin platform_owner]).merge(
           development_demo: !!demo,
           development_account_id: preview&.fetch(:id, nil)

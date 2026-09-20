@@ -310,6 +310,21 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     %w[APP_GUIDED_DEMO APP_DEPLOYMENT_ENV PGDATABASE].each { |key| ENV[key] = previous[key] }
   end
 
+  test "hosted lesson sessions do not load local named account previews" do
+    register_visitor
+    enter_lesson("scribe_review")
+    previous = ENV.to_h.slice("APP_GUIDED_DEMO", "APP_DEPLOYMENT_ENV", "PGDATABASE")
+    Rails.env = "production"
+    ENV["APP_GUIDED_DEMO"] = "1"
+    ENV["APP_DEPLOYMENT_ENV"] = "staging"
+    ENV["PGDATABASE"] = "apply_guided_demo"
+    get "/api/session", headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("user").fetch("development_demo")
+    assert_nil response.parsed_body.fetch("user").fetch("development_account_id")
+  ensure
+    %w[APP_GUIDED_DEMO APP_DEPLOYMENT_ENV PGDATABASE].each { |key| ENV[key] = previous[key] } if previous
+  end
   private
 
 
