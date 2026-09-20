@@ -161,6 +161,7 @@ export function ClinicFrame({
           aria-controls="clinic-sidebar"
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Open clinic menu" : "Collapse clinic menu"}
+          data-demo-tour-control="true"
           onClick={() => setCollapsed(!collapsed)}
           size="small"
         >

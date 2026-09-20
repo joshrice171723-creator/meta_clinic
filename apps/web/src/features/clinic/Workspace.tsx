@@ -358,6 +358,7 @@ export function ClinicNavigation({
                     href={href}
                     selected={current}
                     aria-current={current ? "page" : undefined}
+                    data-demo-tour-navigation="true"
                   >
                     <ListItemIcon>
                       <Icon aria-hidden="true" fontSize="small" />

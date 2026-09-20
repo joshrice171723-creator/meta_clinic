@@ -1,6 +1,7 @@
 module Development
   class DemoNavigationLessons
     DEFINITIONS = [
+      ["navigation_tour", "Tour the clinic workspace", "Use the navigation to preview each clinic workspace. Page controls are disabled during this read-only tour.", "administrator", "Clinic navigation", ["Full clinic navigation", "Prepared clinic workspace"], :clinic, "/clinic"],
       ["patient_flow_review", "Review patient flow", "Review the prepared sample patient flow.", "front_desk", "Patient Flow", ["Sample patient and pending work"], :patient, "/clinic/work"],
       ["tracking_board_review", "Review tracking board", "Review recorded operational state for the sample visit.", "front_desk", "Tracking Board", ["Sample patient and open visit"], :encounter, "/clinic"],
       ["patient_register", "Register a patient", "Create a new sample patient record.", "front_desk", "Patients", ["Prepared clinic"], :clinic, "/clinic/patients"],

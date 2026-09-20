@@ -147,10 +147,11 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "all forty five lessons provision independently with unfinished authoritative targets" do
+  test "all forty six lessons provision independently with unfinished authoritative targets" do
     definitions = Development::DemoLessonCatalog.definitions
-    assert_equal 45, definitions.size
+    assert_equal 46, definitions.size
     assert_equal definitions.size, definitions.pluck(:id).uniq.size
+    assert_equal "navigation_tour", definitions.first.fetch(:id)
     visitor = demo_visitor
     previous = nil
     practice_ids = []

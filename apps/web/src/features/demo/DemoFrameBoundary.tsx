@@ -19,6 +19,32 @@ type FrameRun = {
   };
 };
 
+const navigationTourPaths = new Set([
+  "/clinic",
+  "/clinic/work",
+  "/clinic/schedule",
+  "/clinic/patients",
+  "/clinic/refills",
+  "/clinic/recalls",
+  "/clinic/telehealth",
+  "/clinic/scribe",
+  "/clinic/front-desk",
+  "/clinic/waitlist",
+  "/clinic/operations",
+  "/clinic/reminders",
+  "/clinic/messages",
+  "/clinic/inventory",
+  "/clinic/workforce",
+  "/clinic/billing",
+  "/clinic/subscriptions",
+  "/clinic/growth",
+  "/clinic/setup",
+  "/clinic/settings",
+]);
+
+const navigationTour = (run: FrameRun) =>
+  run.run?.lesson_key === "navigation_tour";
+
 export function demoRouteAllowed(
   href: string,
   run: FrameRun,
@@ -27,6 +53,10 @@ export function demoRouteAllowed(
   if (!run.active || !run.run) return false;
   const target = new URL(href, origin);
   if (target.origin !== origin) return false;
+  if (navigationTour(run))
+    return (
+      run.run.mode === "clinic" && navigationTourPaths.has(target.pathname)
+    );
   return run.run.steps.some((step) => {
     if (step.status === "locked" || !step.href) return false;
     const allowed = new URL(step.href, origin);
@@ -72,11 +102,29 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
   useEffect(() => {
     const changed = () => setRevision((value) => value + 1);
     const navigate = (event: MouseEvent) => {
-      const anchor =
-        event.target instanceof Element
-          ? event.target.closest<HTMLAnchorElement>("a[href]")
-          : null;
-      if (!anchor || !run) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const anchor = target?.closest<HTMLAnchorElement>("a[href]") ?? null;
+      const isTourControl = Boolean(
+        target?.closest("[data-demo-tour-control]"),
+      );
+      if (!run) return;
+      if (navigationTour(run) && !anchor && !isTourControl) {
+        event.preventDefault();
+        event.stopPropagation();
+        setBlockedLink(true);
+        return;
+      }
+      if (!anchor) return;
+      const isTourNavigation =
+        navigationTour(run) &&
+        anchor.dataset.demoTourNavigation === "true" &&
+        demoRouteAllowed(anchor.href, run, window.location.origin);
+      if (navigationTour(run) && !isTourNavigation) {
+        event.preventDefault();
+        event.stopPropagation();
+        setBlockedLink(true);
+        return;
+      }
       if (
         !demoRouteAllowed(anchor.href, run, window.location.origin) ||
         anchor.target ||
@@ -87,13 +135,27 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         setBlockedLink(true);
       }
     };
+    const lockInteraction = (event: Event) => {
+      if (!run || !navigationTour(run)) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        target?.closest("[data-demo-tour-navigation], [data-demo-tour-control]")
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
     window.addEventListener("demo:changed", changed);
     window.addEventListener("popstate", changed);
     document.addEventListener("click", navigate, true);
+    document.addEventListener("submit", lockInteraction, true);
+    document.addEventListener("beforeinput", lockInteraction, true);
     return () => {
       window.removeEventListener("demo:changed", changed);
       window.removeEventListener("popstate", changed);
       document.removeEventListener("click", navigate, true);
+      document.removeEventListener("submit", lockInteraction, true);
+      document.removeEventListener("beforeinput", lockInteraction, true);
     };
   }, [run]);
   if (
@@ -122,9 +184,21 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
   return (
     <>
       {blockedLink && (
-        <Alert severity="info" onClose={() => setBlockedLink(false)}>
-          This area is outside the current lesson. Choose another lesson from
-          the catalog to explore it in its own clinic.
+        <Alert
+          severity="info"
+          onClose={
+            navigationTour(run) ? undefined : () => setBlockedLink(false)
+          }
+        >
+          {navigationTour(run)
+            ? "This is a read-only navigation tour. Use the clinic navigation to preview another workspace."
+            : "This area is outside the current lesson. Choose another lesson from the catalog to explore it in its own clinic."}
+        </Alert>
+      )}
+      {navigationTour(run) && (
+        <Alert severity="info">
+          Navigation tour: use the clinic menu to preview each workspace. Page
+          controls are disabled in this read-only tour.
         </Alert>
       )}
       {children}
@@ -132,7 +206,8 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         .filter(
           (step) =>
             step.status === "available" &&
-            (!run.run?.lesson_key || step.id === run.run.lesson_key),
+            (!run.run?.lesson_key || step.id === run.run.lesson_key) &&
+            !navigationTour(run),
         )
         .slice(0, 1)
         .map((step) => (

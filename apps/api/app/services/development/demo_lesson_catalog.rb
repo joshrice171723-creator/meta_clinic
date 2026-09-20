@@ -65,7 +65,13 @@ module Development
 
     class << self
       def definitions
-        (CORE_DEFINITIONS + DemoNavigationLessons::DEFINITIONS + DemoSpecialtyLessons.definitions).freeze
+        navigation_lessons = DemoNavigationLessons::DEFINITIONS
+        (
+          navigation_lessons.first(1) +
+          CORE_DEFINITIONS +
+          navigation_lessons.drop(1) +
+          DemoSpecialtyLessons.definitions
+        ).freeze
       end
 
       def lesson_keys = definitions.pluck(:id)
