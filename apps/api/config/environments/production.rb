@@ -60,6 +60,11 @@ Rails.application.configure do
   # config.active_job.queue_adapter = :resque
 
   config.action_mailer.raise_delivery_errors = true
+  # Public lessons simulate receipt and invitation delivery in their own database.
+  if ENV["APP_DEPLOYMENT_ENV"] == "staging" && ENV["APP_GUIDED_DEMO"] == "1" &&
+      ENV["PGDATABASE"] == "apply_guided_demo"
+    config.action_mailer.perform_deliveries = false
+  end
   config.action_mailer.default_url_options = {
     host: origin.host, protocol: origin.scheme, port: origin.port == 443 ? nil : origin.port
   }.compact
