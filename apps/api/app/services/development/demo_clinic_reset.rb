@@ -1,7 +1,7 @@
 module Development
   class DemoClinicReset
     def self.call!(lesson)
-      raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       raise ArgumentError, "Choose a registered lesson clinic." unless
         DemoLesson.where(id: lesson.id, lesson_key: lesson.lesson_key, practice_id: lesson.practice_id).exists?
 

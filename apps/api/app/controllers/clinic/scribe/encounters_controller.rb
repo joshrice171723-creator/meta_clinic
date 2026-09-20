@@ -51,7 +51,11 @@ module Clinic
       end
 
       def create_synthetic
-        raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+        raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
+        raise ActiveRecord::RecordNotFound unless Development::DemoRun.active.exists?(
+          id: session[:guided_clinic_demo_run_id], practice_id: current_practice.id,
+          operator_user_id: current_user.id, lesson_key: "scribe_review"
+        )
 
         input = parameter_hash!(:encounter, %i[patient_id site_id])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))

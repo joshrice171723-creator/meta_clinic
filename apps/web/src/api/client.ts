@@ -1,6 +1,19 @@
 import type { DevelopmentAccount, RuntimeEnvironment } from "./contracts";
 import { isDemoFrame, notifyDemo } from "../features/demo/frame";
 
+function demoSessionHeaders(): Record<string, string> {
+  return typeof window !== "undefined" &&
+    (isDemoFrame() || window.location.pathname.replace(/\/$/, "") === "/demo")
+    ? { "X-Clinic-Demo": "1" }
+    : {};
+}
+
+function requestPath(path: string): string {
+  return demoSessionHeaders()["X-Clinic-Demo"]
+    ? path.replace(/^\/api\//, "/api/demo-workspace/")
+    : path;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -87,7 +100,8 @@ export function clearCsrf() {
 
 async function loadCsrf(generation: number): Promise<Configuration> {
   return withDeadline(undefined, async (signal) => {
-    const response = await fetch("/api/csrf", {
+    const response = await fetch(requestPath("/api/csrf"), {
+      headers: demoSessionHeaders(),
       credentials: "same-origin",
       cache: "no-store",
       redirect: "error",
@@ -147,13 +161,14 @@ export async function api<T>(
   return withDeadline(
     options.signal,
     async (signal) => {
-      const response = await fetch(path, {
+      const response = await fetch(requestPath(path), {
         method,
         credentials: "same-origin",
         cache: "no-store",
         redirect: "error",
         signal,
         headers: {
+          ...demoSessionHeaders(),
           Accept: "application/json",
           ...(path.startsWith("/api/clinic") && requestActor !== undefined
             ? {

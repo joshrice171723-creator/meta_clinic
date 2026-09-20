@@ -9,7 +9,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     Rails.cache.clear
     ActionMailer::Base.deliveries.clear
     host! "localhost:3000"
-    @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
+    @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1", "X-Clinic-Demo" => "1" }
   end
 
   teardown do
@@ -253,7 +253,65 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "demo entry and reset preserve the regular browser session" do
+    password = SecureRandom.urlsafe_base64(24)
+    user = User.create!(email_address: "regular-isolation@example.test", password:, active: true)
+    regular_headers = @headers.except("X-Clinic-Demo")
+    get "/api/csrf", headers: regular_headers
+    post "/api/session", params: { email_address: user.email_address, password: },
+      headers: regular_headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token")), as: :json
+    assert_response :success
+    regular_session = user.member_sessions.sole.id
+
+    register_visitor
+    enter_lesson("clinic_setup")
+    get "/api/session", headers: regular_headers
+    assert_response :success
+    assert_equal user.id, response.parsed_body.dig("user", "id")
+    assert MemberSession.exists?(regular_session)
+
+    post "/api/demo/run/reset", headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/session", headers: regular_headers
+    assert_response :success
+    assert_equal user.id, response.parsed_body.dig("user", "id")
+  end
+
+  test "sample scribe creation requires the active scribe lesson" do
+    register_visitor
+    run = Development::DemoRun.find(enter_lesson("scribe_review").fetch("id"))
+    post "/api/clinic/scribe/encounters/create_synthetic",
+      params: { encounter: { patient_id: run.patient.id, site_id: run.practice.sites.first!.id } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal run.patient.id, response.parsed_body.dig("encounter", "patient_id")
+  end
+
+  test "demo workspace prefix keeps CSRF and identity separate" do
+    get "/api/demo-workspace/csrf", headers: @headers.except("X-Clinic-Demo")
+    assert_response :success
+    assert response.parsed_body.fetch("csrf_token").present?
+    assert response.headers["Set-Cookie"].to_s.include?("_apply_demo_session")
+    refute response.headers["Set-Cookie"].to_s.include?("_apply_session=")
+  end
+
+  test "hosted lessons require the dedicated database and staging opt in" do
+    previous = ENV.to_h.slice("APP_GUIDED_DEMO", "APP_DEPLOYMENT_ENV", "PGDATABASE")
+    Rails.env = "production"
+    ENV["APP_GUIDED_DEMO"] = "1"
+    ENV["APP_DEPLOYMENT_ENV"] = "staging"
+    ENV["PGDATABASE"] = "apply"
+    refute GuidedDemoAccess.hosted?
+    ENV["PGDATABASE"] = "apply_guided_demo"
+    assert GuidedDemoAccess.hosted?
+    ENV["APP_DEPLOYMENT_ENV"] = "production"
+    refute GuidedDemoAccess.hosted?
+  ensure
+    %w[APP_GUIDED_DEMO APP_DEPLOYMENT_ENV PGDATABASE].each { |key| ENV[key] = previous[key] }
+  end
+
   private
+
 
   def register_visitor
     post "/api/demo/visitor",

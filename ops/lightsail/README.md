@@ -100,3 +100,9 @@ The requested `meta-clinic.184.194.129.57.sslip.io` name resolved, but Let's Enc
 secondary DNS validation failed; the alternate nip.io name failed the same check.
 The live fallback is `https://184.194.129.57` with a valid short-lived IP certificate.
 Do not advertise either friendly hostname as working or bypass TLS warnings.
+
+## Guided lessons at /demo
+
+Use `guided-demo.compose.yml` with `compose.yml` and the same immutable release image. Run `prepare-guided-demo.py` once as root on the existing host; it creates a dedicated database/login and independent credentials, refuses an orphaned role, and verifies the demo role cannot connect to the normal database. Preserve this file and database on subsequent updates. Migrate the demo with its own service credentials before starting it. Do not apply the ordinary database runtime role to this disposable lesson database: lesson preparation/reset requires ownership inside this isolated database only.
+
+Route `/api/demo-workspace/` to loopback port 3002, retaining the prefix for the session middleware. Existing `/api/` traffic stays on 3001. `/demo` and the iframe shells are served by the matched web image. No development-login flag or provider credentials are enabled for the public lesson process. Back up and restore-test the ordinary database before its migrations and retain prior release images/nginx configuration for rollback.

@@ -47,7 +47,7 @@ module Public
     end
 
     def require_local_simulator
-      raise ActiveRecord::RecordNotFound unless (Rails.env.test? || DevelopmentAccess.allowed?(request)) &&
+      raise ActiveRecord::RecordNotFound unless (Rails.env.test? || GuidedDemoAccess.allowed?(request)) &&
         Clinic::DeploymentAccess.practice_enabled?(prospect.practice_id) &&
         Development::MembershipPaymentSimulator.enabled_for?(prospect.practice)
     end

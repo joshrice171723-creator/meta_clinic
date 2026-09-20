@@ -142,7 +142,7 @@ module Development
     end
 
     def require_development_access
-      raise ActiveRecord::RecordNotFound unless DevelopmentAccess.allowed?(request)
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.allowed?(request)
     end
 
     def bound_run
@@ -178,6 +178,7 @@ module Development
 
     def establish_demo_session(user, run, view:)
       establish_session(user)
+      session[:guided_clinic_demo_run_id] = run.id
       session[:development_demo_user_id] = user.id
       if user.id == run.operator_user_id
         session[:clinic_membership_id] = user.clinic_memberships.find_by!(practice_id: run.practice_id).id

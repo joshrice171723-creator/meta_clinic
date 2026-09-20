@@ -13,7 +13,7 @@ module Development
     ClinicResult = Struct.new(:practice, :operator, keyword_init: true)
 
     def self.create_clinic!(clinic_name:, operator_email: nil)
-      raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       clinic_name = clinic_name.to_s.strip
       raise ArgumentError, "Enter a clinic name." if clinic_name.blank?
       raise ArgumentError, "Clinic name must be 160 characters or fewer." if clinic_name.length > 160
@@ -41,7 +41,7 @@ module Development
     end
 
     def self.start!(template_key:, clinic_name:, lesson_key:, visitor: nil)
-      raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       raise ArgumentError, "Choose an available guided clinic template." unless TEMPLATE_KEYS.include?(template_key)
       DemoLessonCatalog.definition!(lesson_key) if lesson_key
       clinic_name = clinic_name.to_s.strip

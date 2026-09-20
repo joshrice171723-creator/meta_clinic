@@ -3,7 +3,7 @@ module Development
     TEMPLATE_KEY = "primary_care".freeze
 
     def self.enter!(lesson_key, visitor:, previous_run: nil)
-      raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       definition = DemoLessonCatalog.definition!(lesson_key)
       template_key = definition.fetch(:template_key, TEMPLATE_KEY)
       ApplicationRecord.transaction do

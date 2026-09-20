@@ -300,8 +300,9 @@ module Development
 
     class << self
       def enabled_for?(practice)
-        return false unless Rails.env.development? || Rails.env.test?
+        return false unless GuidedDemoAccess.enabled?
         return true if DemoRun.local_practice?(practice)
+        return false if GuidedDemoAccess.hosted?
 
         configured = ENV.fetch(ENVIRONMENT_KEY, "")
         if configured.blank? && Rails.env.development?

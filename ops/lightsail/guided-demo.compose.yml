@@ -1,0 +1,22 @@
+services:
+  guided-demo:
+    image: ${API_IMAGE:?Set the reviewed API image}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /rails/tmp:uid=1000,gid=1000,mode=0700
+      - /rails/log:uid=1000,gid=1000,mode=0700
+      - /tmp:mode=1777,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    env_file: /opt/meta-clinic/secrets/guided-demo.env
+    ports: ["127.0.0.1:3002:3000"]
+    command: ["./bin/rails", "server"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

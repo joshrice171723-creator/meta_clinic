@@ -3,7 +3,7 @@ module Development
   # count and adjustment; setup must never satisfy those lesson predicates.
   class DemoInventory
     def self.prepare!(practice:, actor:)
-      raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
 
       Clinic::Inventory::Profile.revise!(practice:, actor:, status: "configured",
         reason: "Guided clinic inventory preparation")

@@ -64,7 +64,9 @@ class ApplicationController < ActionController::Base
         session[:development_demo_user_id] == record.user_id &&
         Development::TestAccounts.matches?(record.user, session[:development_test_profile])
     else
-      DevelopmentAccess.allowed?(request) && record && !record.user.admin? &&
+      (DevelopmentAccess.allowed?(request) ||
+        (GuidedDemoAccess.hosted? && Development::DemoRun.active.where(id: session[:guided_clinic_demo_run_id])
+          .where("operator_user_id = :id OR patient_user_id = :id", id: record&.user_id).exists?)) && record && !record.user.admin? &&
         session[:development_demo_user_id] == record.user_id
     end
   end

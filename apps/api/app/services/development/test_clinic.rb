@@ -31,7 +31,7 @@ module Development
     SUBSCRIPTION_PERMISSIONS = %w[subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review].freeze
 
     def self.create!(user, permissions: DEFAULT_PERMISSIONS + SUBSCRIPTION_PERMISSIONS)
-      raise "Test clinics are only available in development and test." unless Rails.env.development? || Rails.env.test?
+      raise "Test clinics are only available in development and test." unless GuidedDemoAccess.enabled?
 
       User.transaction do
         user.lock!

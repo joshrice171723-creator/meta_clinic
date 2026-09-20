@@ -43,3 +43,11 @@ Primary care documentation prompts cover the current concern, interval history, 
 Source review (2026-09-19): [NIDDK, Talking with Your Patients about Weight](https://www.niddk.nih.gov/health-information/professionals/clinical-tools-patient-management/weight-management/talking-with-your-patients-about-weight), sections on permission, history, goals and follow-up, informs respectful sample context. [ONC progress-note definition](https://healthit.gov/faq/period-time-when-information-blocking-limited-united-states-core-data-interoperability-what/) (USCDI v1 July 2020 errata cited by the page) establishes general note scope, not a specialty form mandate. This change adds no exchange or FHIR mapping; the existing SOAP payload owns note data. Verify distinct note template IDs, specialty clinic profile, a saved revision completing its lesson, and fixed clinic identity on reentry.
 
 Specialty notes use distinct templates and starting context. Backend verification exercises note completion and reset separately from browser evidence.
+
+## Hosted isolation — September 19
+
+The authorized AWS release keeps shared inventory/Scribe layout improvements. Tutorial requests use `/api/demo-workspace/` and a separate encrypted `_apply_demo_session` cookie; ordinary app sessions retain `_apply_session`. The prefix is handled locally and routed to a separate API process on AWS. Sample Scribe creation requires the current active Scribe lesson and its operator/clinic binding.
+
+Hosted lessons require staging, `APP_GUIDED_DEMO=1`, and the dedicated `apply_guided_demo` database. The regular API keeps that flag off. The demo database login has no CONNECT privilege to the ordinary `apply` database. Demo secrets are generated on the server independently; no payment, AI, SMTP, or telehealth provider credentials are copied. The existing same-origin UI renders lessons; same-origin framing is permitted for clinic/demo/membership shells.
+
+Focused regression checks cover preservation of an ordinary signed-in session across demo entry/reset, prefix cookie isolation, rejection of sample creation in ordinary clinics, acceptance in the Scribe lesson, and refusal of hosted activation against the normal database. Deployment verification is recorded separately after the release.

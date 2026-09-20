@@ -203,7 +203,7 @@ module Public
     end
 
     def local_simulator_request?
-      Rails.env.test? || DevelopmentAccess.allowed?(request)
+      Rails.env.test? || GuidedDemoAccess.allowed?(request)
     end
 
     def patient_portal_redirect(prospect)

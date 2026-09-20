@@ -9,6 +9,7 @@ module Clinic
 
     def self.practice_enabled?(practice_id)
       return true unless Rails.env.production?
+      return true if GuidedDemoAccess.hosted? && Development::DemoLesson.exists?(practice_id:)
       return true if enabled_practice_ids.include?(practice_id.to_i)
 
       DemoContent.enabled? && Clinic::Practice.where(id: practice_id, platform_managed: true).exists?
