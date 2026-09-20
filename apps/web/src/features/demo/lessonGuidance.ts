@@ -22,17 +22,18 @@ const guides: Record<string, LessonGuide> = {
       "You have a map of the clinic workspace and its operational boundaries.",
   },
   clinic_setup: {
-    goal: "Confirm the prepared clinic profile before making it available for day-to-day work.",
+    goal: "Choose and save a clinic service scope before making the prepared profile available for day-to-day work.",
     constraints:
-      "The clinic profile, active facility, and visit types are already prepared. Keep the prepared scope intact.",
+      "The clinic profile, active facility, and visit types are prepared. This demo adds a local telehealth service selection; it does not start a video call or configure an external connection.",
     steps: [
-      "Review the clinic type and service scope shown in the profile.",
-      "Confirm the prepared facility is active and the available visit types match the clinic's scope.",
-      "Select Finalize clinic setup after reviewing the configuration summary.",
+      "Under Services this clinic intends to provide, select Telehealth visits and read its Base workflow readiness label.",
+      "Select Save clinic profile and wait for the confirmation that the selected scope was saved.",
+      "Review the saved clinic type and service scope, then select Finalize clinic setup.",
     ],
-    doneWhen: "The setup page shows the clinic as finalized.",
+    doneWhen:
+      "The setup page shows the clinic as finalized with Telehealth visits in the saved service scope.",
     recap:
-      "The prepared clinic configuration is now ready for the next workflow.",
+      "The clinic’s selected service scope was saved and finalized, ready for the next workflow.",
   },
   membership_publish: {
     goal: "Publish one membership offer that a prospective patient can select.",

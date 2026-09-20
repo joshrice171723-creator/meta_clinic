@@ -24,7 +24,7 @@ export function spotlightDirection(
 }
 
 const actions: Record<string, RegExp> = {
-  clinic_setup: /save clinic profile|finalize clinic setup/i,
+  clinic_setup: /telehealth visits|save clinic profile|finalize clinic setup/i,
   membership_publish:
     /publish|create.*(membership|offering)|new.*(membership|offering)/i,
   patient_register: /register|add patient|new patient/i,

@@ -51,6 +51,17 @@ describe("SOAP note lesson guidance", () => {
 });
 
 describe("guided lesson schema", () => {
+  it("guides clinic setup through a saved scope choice before finalization", () => {
+    expect(lessonInstructions("clinic_setup")).toEqual([
+      "Under Services this clinic intends to provide, select Telehealth visits and read its Base workflow readiness label.",
+      "Select Save clinic profile and wait for the confirmation that the selected scope was saved.",
+      "Review the saved clinic type and service scope, then select Finalize clinic setup.",
+    ]);
+    expect(tutorialActionMatches("clinic_setup", "Telehealth visits")).toBe(
+      true,
+    );
+  });
+
   it("gives every supported workflow a complete learner brief", () => {
     expect(supportedLessonGuideIds).toHaveLength(38);
     for (const lessonId of supportedLessonGuideIds) {

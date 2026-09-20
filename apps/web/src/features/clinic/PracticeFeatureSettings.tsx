@@ -461,6 +461,14 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
                   sx={{ px: 1.5, py: 0.75 }}
                 >
                   <FormControlLabel
+                    data-demo-next={
+                      isDemoFrame() &&
+                      !features.finalized &&
+                      service.code === "telehealth" &&
+                      !serviceScope.includes(service.code)
+                        ? "true"
+                        : undefined
+                    }
                     control={
                       <Checkbox
                         disabled={
