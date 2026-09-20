@@ -647,7 +647,7 @@ export function LiveScribeReviewWorkspace() {
     }
     setNewSession(true);
     newSessionRef.current = true;
-    setSelectedPatient(null);
+    setSelectedPatient(patient ?? null);
     setContextualClinicalEncounterId(null);
     setFollowCurrentDraftId(null);
     selectedEncounterRef.current = null;
