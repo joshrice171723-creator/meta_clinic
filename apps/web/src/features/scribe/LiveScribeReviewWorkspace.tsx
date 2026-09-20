@@ -30,6 +30,7 @@ import { api } from "../../api/client";
 import type { EncounterNoteSummary } from "../../api/contracts";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { isDemoFrame } from "../demo/frame";
 import { ScribePatientPicker, type PatientOption } from "./ScribePatientPicker";
 import { ScribeAudioMeter } from "./ScribeAudioMeter";
 import { ScribeChartAndLabs } from "./ScribeChartAndLabs";
@@ -737,6 +738,36 @@ export function LiveScribeReviewWorkspace() {
       "Session creation is not confirmed. Reload the session list before trying again.",
     );
 
+  const createSyntheticEncounter = () =>
+    runMutation(
+      "create-synthetic",
+      async () => {
+        if (!selectedPatient)
+          throw new Error("Choose a patient before creating a sample encounter.");
+        const result = await api<{ encounter: ScribeEncounter }>(
+          "/api/clinic/scribe/encounters/create_synthetic",
+          {
+            method: "POST",
+            body: {
+              encounter: {
+                patient_id: selectedPatient.id,
+                site_id: current_site?.id,
+              },
+            },
+          },
+        );
+        if (!isCurrent(scopeKey)) return;
+        setNewSession(false);
+        newSessionRef.current = false;
+        setSelectedPatient(null);
+        selectedEncounterRef.current = result.encounter.id;
+        setSelectedEncounterId(result.encounter.id);
+        adoptEncounter(result.encounter);
+        await loadIndex(result.encounter.id);
+      },
+      "The sample encounter may have been created. Reload the session list before trying again.",
+    );
+
   const saveContext = () => {
     if (!encounter || !hasUnsavedContext) return Promise.resolve();
     const encounterId = encounter.id;
@@ -1414,16 +1445,35 @@ export function LiveScribeReviewWorkspace() {
             </Box>
           </Stack>
           {newSession ? (
-            <Button
-              variant="contained"
-              disabled={!canWrite || !selectedPatient || pendingAction !== null}
-              onClick={() => void createEncounter().catch(() => undefined)}
-              sx={{ height: 36 }}
-            >
-              {contextualClinicalEncounterId
-                ? "Start linked session"
-                : "Start session"}
-            </Button>
+            <Stack spacing={0.75} sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <Button
+                  variant="contained"
+                  disabled={!canWrite || !selectedPatient || pendingAction !== null}
+                  onClick={() => void createEncounter().catch(() => undefined)}
+                  sx={{ height: 36 }}
+                >
+                  {contextualClinicalEncounterId
+                    ? "Start linked session"
+                    : "Start session"}
+                </Button>
+                {isDemoFrame() && !contextualClinicalEncounterId && (
+                  <Button
+                    variant="outlined"
+                    disabled={!canWrite || !selectedPatient || pendingAction !== null}
+                    onClick={() => void createSyntheticEncounter().catch(() => undefined)}
+                    sx={{ height: 36 }}
+                  >
+                    Create sample encounter
+                  </Button>
+                )}
+              </Stack>
+              {isDemoFrame() && !contextualClinicalEncounterId && (
+                <Typography variant="caption" color="text.secondary">
+                  Creates local sample facts and an open visit for the Scribe SOAP workflow.
+                </Typography>
+              )}
+            </Stack>
           ) : (
             <Stack
               spacing={0.65}

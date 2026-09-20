@@ -3,7 +3,7 @@ module Clinic
     class EncountersController < Clinic::ApiController
       before_action -> { require_capability("scribe.read") }, only: %i[index show]
       before_action -> { require_capability("scribe.write") },
-        only: %i[create context consent sources generate bind_clinical_encounter lab_selections]
+        only: %i[create create_synthetic context consent sources generate bind_clinical_encounter lab_selections]
       before_action -> { require_capability("scribe.delete") }, only: :destroy
 
       def index
@@ -47,6 +47,25 @@ module Clinic
         encounter = Workflow.create_encounter(practice: current_practice, actor: current_user, patient: patient, site: site,
           clinical_encounter: clinical_encounter,
           context: context && { content: context[:content].to_s, source_type: context[:source_type].to_s })
+        render json: { encounter: Serializer.encounter(encounter) }, status: :created
+      end
+
+      def create_synthetic
+        raise ActiveRecord::RecordNotFound unless Rails.env.development? || Rails.env.test?
+
+        input = parameter_hash!(:encounter, %i[patient_id site_id])
+        patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
+        site = input[:site_id].present? ? current_practice.sites.find(requested_id!(input[:site_id], :site_id)) : current_practice.sites.first!
+        clinical_encounter = current_practice.encounters.create!(patient:, site:, started_at: Current.business_time, status: "open")
+        encounter = Workflow.create_encounter(
+          practice: current_practice, actor: current_user, patient:, site:, clinical_encounter:,
+          context: {
+            source_type: "reviewer_authored",
+            content: "Sample follow-up encounter. The patient reports steady progress since the last visit and no new urgent concerns. Review only these supplied facts, note questions that remain, and document a follow-up plan for clinician review."
+          }
+        )
+        encounter = Workflow.decide_consent(encounter: encounter, actor: current_user,
+          decision: "accepted", method: "sample_local_encounter")
         render json: { encounter: Serializer.encounter(encounter) }, status: :created
       end
 

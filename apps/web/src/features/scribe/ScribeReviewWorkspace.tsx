@@ -1222,7 +1222,11 @@ export function ScribeReviewWorkspace({
                 </Typography>
               )}
             </Box>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={1}
+              sx={{ width: { xs: "100%", md: "auto" }, minWidth: 0 }}
+            >
               {hasUnsavedEdits && (
                 <Button
                   color="warning"
@@ -1241,6 +1245,7 @@ export function ScribeReviewWorkspace({
                 disabled={approvalBlocked || approved || pendingAction !== null}
                 onClick={() => onApprove?.(draft.id)}
                 aria-describedby="scribe-approval-help"
+                sx={{ whiteSpace: "nowrap" }}
               >
                 {approved ? "Draft approved" : "Approve current draft"}
               </Button>
@@ -1250,6 +1255,7 @@ export function ScribeReviewWorkspace({
                 disabled={exportBlocked || pendingAction !== null}
                 onClick={() => onExport?.(draft.id)}
                 aria-describedby="scribe-export-help"
+                sx={{ whiteSpace: "nowrap" }}
               >
                 {reviewSummary.chartWritten
                   ? "Saved to chart"

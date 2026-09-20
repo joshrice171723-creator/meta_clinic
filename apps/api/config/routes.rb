@@ -423,6 +423,9 @@ Rails.application.routes.draw do
     namespace :scribe do
       resources :templates, only: :index
       resources :encounters, controller: "encounters", only: %i[index create show destroy] do
+        collection do
+          post :create_synthetic
+        end
         resources :recordings, only: %i[index create]
         patch :context, on: :member
         post :bind_clinical_encounter, on: :member

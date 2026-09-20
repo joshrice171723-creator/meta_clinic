@@ -42,6 +42,27 @@ class ScribeWorkspaceTest < ActionDispatch::IntegrationTest
     assert_empty response.parsed_body.fetch("encounters")
   end
 
+  test "local sample encounter creates a bound visit with authored facts for a SOAP draft" do
+    post "/api/clinic/scribe/encounters/create_synthetic",
+      params: { encounter: { patient_id: @patient.id, site_id: @site.id } }, headers: csrf_headers, as: :json
+
+    assert_response :created
+    snapshot = response.parsed_body.fetch("encounter")
+    assert_equal @patient.id, snapshot.fetch("patient_id")
+    assert snapshot.fetch("clinical_encounter_id").present?
+    assert_includes snapshot.fetch("context_content"), "Sample follow-up encounter"
+    assert_equal "accepted", snapshot.fetch("consent_status")
+    clinical_encounter = @practice.encounters.find(snapshot.fetch("clinical_encounter_id"))
+    assert_equal "open", clinical_encounter.status
+    assert_equal @site.id, clinical_encounter.site_id
+
+    post "/api/clinic/scribe/encounters/#{snapshot.fetch('id')}/generate",
+      params: { generation: { expected_version: snapshot.fetch("version") } }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal snapshot.fetch("clinical_encounter_id"), response.parsed_body.fetch("encounter").fetch("clinical_encounter_id")
+    assert_equal "soap", response.parsed_body.fetch("draft").fetch("template_id")
+  end
+
   test "visit launch lookup resumes only the requested patient and clinical encounter" do
     visits = [create_clinical_encounter, create_clinical_encounter]
     sessions = visits.map do |visit|
