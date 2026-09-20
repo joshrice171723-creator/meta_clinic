@@ -70,7 +70,6 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
 import { appendPrevisitNote, PrevisitNoteImport } from "./PrevisitNoteImport";
-import { VitalSignsEntry } from "./VitalSignsEntry";
 import { VisitInstructionHandout } from "../../shared/VisitInstructionHandout";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { patientReferenceLabel } from "./patientReference";
@@ -1885,6 +1884,18 @@ export function templateWouldOverwrite(
   );
 }
 
+export function applySoapTemplate(
+  sections: SoapNoteSections,
+  template: NoteTemplate,
+): SoapNoteSections {
+  return Object.fromEntries(
+    SOAP_SECTION_LABELS.map(([key]) => [
+      key,
+      template.sections[key].trim() ? template.sections[key] : sections[key],
+    ]),
+  ) as SoapNoteSections;
+}
+
 export function SoapNoteForm({
   encounterId,
   patientId,
@@ -1922,9 +1933,7 @@ export function SoapNoteForm({
     patientInstructions: savedBody?.patient_instructions ?? "",
     template: savedBody
       ? { id: savedBody.template_id, version: savedBody.template_version }
-      : templates[0]
-        ? { id: templates[0].id, version: templates[0].version }
-        : null,
+      : null,
   });
   const [baseline, setBaseline] = useState<SoapEditorBaseline>(initialBaseline);
   const [sections, setSections] = useState<SoapNoteSections>(baseline.sections);
@@ -1935,6 +1944,11 @@ export function SoapNoteForm({
     id: string;
     version: number;
   } | null>(baseline.template);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    templates[0]?.id ?? "",
+  );
+  const [templateConfirmation, setTemplateConfirmation] =
+    useState<NoteTemplate | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -1953,10 +1967,15 @@ export function SoapNoteForm({
   const restoredDraft = useRef(false);
   const skipNextDraftSave = useRef(false);
   const draftSaveTimer = useRef<number | null>(null);
+  const templateChanged =
+    appliedTemplate?.id !== baseline.template?.id ||
+    appliedTemplate?.version !== baseline.template?.version;
   const dirty =
     SOAP_SECTION_LABELS.some(
       ([key]) => sections[key] !== baseline.sections[key],
-    ) || patientInstructions !== baseline.patientInstructions;
+    ) ||
+    patientInstructions !== baseline.patientInstructions ||
+    templateChanged;
   const signed = note?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
@@ -1965,6 +1984,25 @@ export function SoapNoteForm({
     Boolean(incomingNote) ||
     (signed && !correctionTarget) ||
     !canWrite;
+  const selectedTemplate =
+    templates.find((template) => template.id === selectedTemplateId) ?? null;
+
+  const applyTemplate = (template: NoteTemplate) => {
+    setSections((current) => applySoapTemplate(current, template));
+    setAppliedTemplate({ id: template.id, version: template.version });
+    setNotice(
+      `${template.label} prompts were added. Review and replace every prompt with this encounter's recorded facts.`,
+    );
+  };
+
+  const requestTemplateApplication = () => {
+    if (!selectedTemplate || editorDisabled) return;
+    if (templateWouldOverwrite(sections, selectedTemplate)) {
+      setTemplateConfirmation(selectedTemplate);
+      return;
+    }
+    applyTemplate(selectedTemplate);
+  };
   const workingSnapshot = (
     pendingAttempt = saveAttemptRef.current,
   ): SoapWorkingDraft | null =>
@@ -2633,6 +2671,56 @@ export function SoapNoteForm({
         </Box>
       ) : null}
       <Stack spacing={1} className="soap-sections">
+        {!note && !signed && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.25}>
+              <Box>
+                <Typography component="h3" variant="subtitle1">
+                  Start with a SOAP template
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Choose prompts that fit this visit, then apply them before
+                  saving a draft. Template prompts are editable and do not
+                  document findings on their own.
+                </Typography>
+              </Box>
+              <FormControl fullWidth size="small">
+                <InputLabel id="soap-template-label">SOAP template</InputLabel>
+                <Select
+                  labelId="soap-template-label"
+                  label="SOAP template"
+                  value={selectedTemplateId}
+                  disabled={editorDisabled || templates.length === 0}
+                  onChange={(event) =>
+                    setSelectedTemplateId(event.target.value)
+                  }
+                >
+                  {templates.map((template) => (
+                    <MenuItem key={template.id} value={template.id}>
+                      {template.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {selectedTemplate && (
+                <Alert severity="info">
+                  <strong>{selectedTemplate.source_label}</strong>
+                  {selectedTemplate.caution
+                    ? ` ${selectedTemplate.caution}`
+                    : null}
+                </Alert>
+              )}
+              <Button
+                variant="outlined"
+                sx={{ alignSelf: "flex-start" }}
+                disabled={!selectedTemplate || editorDisabled}
+                onClick={requestTemplateApplication}
+              >
+                Apply template prompts
+              </Button>
+            </Stack>
+          </Paper>
+        )}
         {patientId != null && (
           <PrevisitNoteImport
             key={`${patientId}:${encounterId}`}
@@ -2841,6 +2929,31 @@ export function SoapNoteForm({
           />
         )}
       </Stack>
+      <Dialog
+        open={Boolean(templateConfirmation)}
+        onClose={() => setTemplateConfirmation(null)}
+      >
+        <DialogTitle>Replace note prompts?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Applying {templateConfirmation?.label} will replace the sections
+            where it supplies prompt text. Review the replacement before you
+            save the unsigned draft.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTemplateConfirmation(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (templateConfirmation) applyTemplate(templateConfirmation);
+              setTemplateConfirmation(null);
+            }}
+          >
+            Apply template
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={resetConfirmation}
         onClose={() => !busy && setResetConfirmation(false)}
@@ -3424,62 +3537,61 @@ export function ProviderEncounterWorkflow({
               onClose={() => setHandoutOpen(false)}
             />
           )}
-          {capabilities.observations_write === true && (
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <VitalSignsEntry
-                key={`${patient.id}:${encounter.id}`}
-                patientId={patient.id}
-                patientName={patient.display_name}
-                encounterId={encounter.id}
-                onRecorded={(saved) =>
-                  setRecordedObservations((current) => [
-                    ...current,
-                    ...saved.filter(
-                      (observation) =>
-                        observation.patient_id === patient.id &&
-                        observation.encounter_id === encounter.id,
-                    ),
-                  ])
-                }
-              />
-            </Box>
-          )}
-          {!chartConfirmed && (
-            <Box className="chart-type-picker">
-              <Typography variant="subtitle2">SOAP chart</Typography>
-              <Typography variant="body2" color="text.secondary">
-                This encounter uses the available SOAP chart.
-              </Typography>
-            </Box>
-          )}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: "center", justifyContent: "flex-end" }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <Chip
-                label={chartStateLabel(
-                  signedChart,
-                  chartConfirmed,
-                  existingChart,
-                )}
-                variant="outlined"
-              />
-              {chartConfirmed && (
-                <Button href="/clinic" variant="text" size="small">
-                  Close chart
-                </Button>
+        </Stack>
+      </Paper>
+
+      <NurseEncounterWorkspace
+        patient={patient}
+        encounter={encounter}
+        observations={observations}
+        onObservationsRecorded={(saved) =>
+          setRecordedObservations((current) => [
+            ...current,
+            ...saved.filter(
+              (observation) =>
+                observation.patient_id === patient.id &&
+                observation.encounter_id === encounter.id,
+            ),
+          ])
+        }
+        careSummary={
+          careSummaryState.status === "ready" ? careSummaryState.summary : null
+        }
+      />
+
+      <Paper id="chart-access" variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1.25}>
+          <Box>
+            <Typography component="h2" variant="subtitle1">
+              Clinician chart
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Confirm the patient and encounter before opening the chart. This
+              confirmation does not accept a handoff or assign a provider.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Chip
+              label={chartStateLabel(
+                signedChart,
+                chartConfirmed,
+                existingChart,
               )}
-            </Stack>
+              variant="outlined"
+            />
+            {chartConfirmed && (
+              <Button href="/clinic" variant="text" size="small">
+                Close chart
+              </Button>
+            )}
           </Stack>
           {!chartConfirmed && (
-            <Alert severity="warning">
+            <Alert severity="info">
               {signedChart
-                ? "Confirm this patient reference and encounter before viewing the signed chart. Viewing the chart does not accept a handoff or assign a provider."
+                ? "Confirm this patient reference and encounter before viewing the signed chart."
                 : existingChart
                   ? "This encounter has an in-progress chart. Confirm the patient reference and encounter before opening it."
-                  : "Confirm this patient reference and encounter before opening the chart. Opening the chart does not accept a handoff or assign a provider."}
+                  : "Complete the available nurse preparation, then confirm this patient reference and encounter before opening the chart."}
             </Alert>
           )}
           {!chartConfirmed && (
@@ -3497,15 +3609,6 @@ export function ProviderEncounterWorkflow({
           )}
         </Stack>
       </Paper>
-
-      <NurseEncounterWorkspace
-        patient={patient}
-        encounter={encounter}
-        observations={observations}
-        careSummary={
-          careSummaryState.status === "ready" ? careSummaryState.summary : null
-        }
-      />
 
       {chartConfirmed && (
         <Stack spacing={2}>

@@ -22,6 +22,7 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api, ApiError } from "../../api/client";
 import type {
   ClinicalTask,
@@ -99,6 +100,10 @@ const MEASUREMENT_CODES = new Set([
   "vital-systolic-bp",
   "vital-diastolic-bp",
   "vital-heart-rate",
+  "vital-respiratory-rate",
+  "vital-oxygen-saturation",
+  "vital-temperature",
+  "vital-pain-score",
 ]);
 
 export function NurseEncounterWorkspace({
@@ -106,11 +111,13 @@ export function NurseEncounterWorkspace({
   encounter,
   observations,
   careSummary,
+  onObservationsRecorded,
 }: {
   patient: Patient;
   encounter: EncounterDetail;
   observations: Observation[];
   careSummary: PatientCareSummary | null;
+  onObservationsRecorded?: (observations: Observation[]) => void;
 }) {
   const clinic = useClinic();
   const path = `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/nurse_workspace`;
@@ -332,14 +339,25 @@ export function NurseEncounterWorkspace({
         workspace.handoff.state,
       ),
     );
+  const vitalSignsReady =
+    (form.vitals_state === "recorded" && observationIds.length > 0) ||
+    form.vitals_state === "not_applicable";
   const readyEvidence =
     (!roomRequired || Boolean(roomId)) &&
     form.identity_state === "confirmed" &&
     form.visit_reason_state === "confirmed" &&
     form.history_state === "reviewed" &&
     reviewIds.length > 0 &&
-    ((form.vitals_state === "recorded" && observationIds.length > 0) ||
-      form.vitals_state === "not_applicable");
+    vitalSignsReady;
+  const handoffAttention = [
+    roomRequired && !roomId ? "Record the room" : null,
+    form.identity_state !== "confirmed" ? "Confirm patient identity" : null,
+    form.visit_reason_state !== "confirmed" ? "Confirm the visit reason" : null,
+    form.history_state !== "reviewed" || reviewIds.length === 0
+      ? "Review history evidence"
+      : null,
+    !vitalSignsReady ? "Record vital signs or mark them not applicable" : null,
+  ].filter((item): item is string => Boolean(item));
 
   async function perform(operation: () => Promise<void>) {
     setBusy(true);
@@ -604,11 +622,21 @@ export function NurseEncounterWorkspace({
             <Chip
               label={`Intake: ${stateLabel(form.status)}`}
               size="small"
+              icon={
+                form.status === "ready_for_handoff" ? undefined : (
+                  <WarningAmberOutlinedIcon />
+                )
+              }
+              color={
+                form.status === "ready_for_handoff" ? "default" : "warning"
+              }
               variant="outlined"
             />
             <Chip
               label={`Vitals: ${stateLabel(form.vitals_state)}`}
               size="small"
+              icon={vitalSignsReady ? undefined : <WarningAmberOutlinedIcon />}
+              color={vitalSignsReady ? "default" : "warning"}
               variant="outlined"
             />
             <Chip
@@ -623,6 +651,17 @@ export function NurseEncounterWorkspace({
             />
           </Stack>
         </Box>
+        {!readyEvidence && (
+          <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
+            <Typography variant="subtitle2" component="div">
+              Needs attention before clinician handoff
+            </Typography>
+            <Typography variant="body2">
+              {handoffAttention.join(" · ")}. These are operational intake
+              requirements, not a clinical priority or treatment decision.
+            </Typography>
+          </Alert>
+        )}
         {error && (
           <Alert
             severity="error"
@@ -653,6 +692,70 @@ export function NurseEncounterWorkspace({
           </Alert>
         )}
         {notice && <Alert severity="success">{notice}</Alert>}
+        <Paper
+          id="nurse-vitals"
+          variant="outlined"
+          sx={{
+            p: 2,
+            bgcolor: vitalSignsReady ? "background.paper" : "warning.50",
+          }}
+        >
+          <Stack spacing={1.25}>
+            <Box>
+              <Typography component="h3" variant="h6">
+                Record vital signs
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Record measurements before clinician handoff when they apply to
+                this visit. The intake revision keeps the recorded value,
+                unavailable state, and not-applicable state distinct.
+              </Typography>
+            </Box>
+            {workspace.capabilities.observations_write ? (
+              <VitalSignsEntry
+                patientId={patient.id}
+                patientName={patient.display_name}
+                encounterId={encounter.id}
+                onRecorded={(newObservations) => {
+                  setEncounterObservations((current) => {
+                    const byId = new Map(
+                      current.map((item) => [item.id, item]),
+                    );
+                    newObservations.forEach((item) => byId.set(item.id, item));
+                    return Array.from(byId.values());
+                  });
+                  onObservationsRecorded?.(newObservations);
+                  setForm((current) => ({
+                    ...current,
+                    vitals_state: "recorded",
+                  }));
+                  setNotice(
+                    "Vital signs recorded. Save the intake revision to link them to this handoff.",
+                  );
+                }}
+              />
+            ) : (
+              <Alert severity="info">
+                You can review vital signs here, but your role cannot record new
+                clinical observations.
+              </Alert>
+            )}
+            {recordedMeasurements.length > 0 && (
+              <Stack spacing={0.5}>
+                <Typography variant="subtitle2">
+                  Recorded for this encounter
+                </Typography>
+                {recordedMeasurements.map((measurement) => (
+                  <Typography key={measurement.id} variant="body2">
+                    {measurement.display_label || measurement.code}:{" "}
+                    {measurement.numeric_value}{" "}
+                    {measurement.unit_label || measurement.unit_code || ""}
+                  </Typography>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
         {(workspace.review_items?.length ?? 0) > 0 && (
           <Accordion variant="outlined">
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -939,68 +1042,6 @@ export function NurseEncounterWorkspace({
                   Recording answers does not reconcile medicines or allergies,
                   confirm patient consent, or complete clinical review.
                 </Typography>
-                {intakeChunks[activeChunkIndex].id === "measurements" && (
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Stack spacing={1.25}>
-                      <Box>
-                        <Typography component="h4" variant="subtitle1">
-                          Clinical measurements
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Record measurements taken during this encounter. The
-                          server calculates BMI from height and weight; it is
-                          never typed into the chart.
-                        </Typography>
-                      </Box>
-                      {workspace.capabilities.observations_write ? (
-                        <VitalSignsEntry
-                          patientId={patient.id}
-                          patientName={patient.display_name}
-                          encounterId={encounter.id}
-                          onRecorded={(newObservations) => {
-                            setEncounterObservations((current) => {
-                              const byId = new Map(
-                                current.map((item) => [item.id, item]),
-                              );
-                              newObservations.forEach((item) =>
-                                byId.set(item.id, item),
-                              );
-                              return Array.from(byId.values());
-                            });
-                            setForm((current) => ({
-                              ...current,
-                              vitals_state: "recorded",
-                            }));
-                            setNotice(
-                              "Measurements recorded. Confirm and save this group to link them to the intake revision.",
-                            );
-                          }}
-                        />
-                      ) : (
-                        <Alert severity="info">
-                          You can review measurements here, but your role cannot
-                          record new clinical observations.
-                        </Alert>
-                      )}
-                      {recordedMeasurements.length > 0 && (
-                        <Stack spacing={0.5}>
-                          <Typography variant="subtitle2">
-                            Recorded for this encounter
-                          </Typography>
-                          {recordedMeasurements.map((measurement) => (
-                            <Typography key={measurement.id} variant="body2">
-                              {measurement.display_label || measurement.code}:{" "}
-                              {measurement.numeric_value}{" "}
-                              {measurement.unit_label ||
-                                measurement.unit_code ||
-                                ""}
-                            </Typography>
-                          ))}
-                        </Stack>
-                      )}
-                    </Stack>
-                  </Paper>
-                )}
                 {workspace.intake && (
                   <Accordion disableGutters>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -1010,23 +1051,41 @@ export function NurseEncounterWorkspace({
                       <Stack spacing={1}>
                         <Typography variant="body2" color="text.secondary">
                           {workspace.intake_comparison?.source
-                            ? workspace.intake_comparison.source.kind === "previous_encounter"
+                            ? workspace.intake_comparison.source.kind ===
+                              "previous_encounter"
                               ? `Compared with the latest readable intake from encounter ${workspace.intake_comparison.source.encounter_id}, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
                               : `Compared with an earlier revision in this encounter, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
                             : "No readable earlier intake is available for comparison."}
                         </Typography>
-                        {(workspace.intake_comparison?.items ?? []).map((item) => (
-                          <Box key={item.id} sx={{ borderTop: 1, borderColor: "divider", pt: 1 }}>
-                            <Typography variant="subtitle2">
-                              {item.label}{item.changed ? " · Changed" : " · Unchanged"}
-                            </Typography>
-                            <Typography variant="body2">Previous: {item.previous || "Not recorded"}</Typography>
-                            <Typography variant="body2">Current: {item.current || "Not recorded"}</Typography>
-                          </Box>
-                        ))}
-                        {workspace.intake_comparison?.source && !workspace.intake_comparison.items.length && (
-                          <Typography variant="body2">No comparable saved answers are available.</Typography>
+                        {(workspace.intake_comparison?.items ?? []).map(
+                          (item) => (
+                            <Box
+                              key={item.id}
+                              sx={{
+                                borderTop: 1,
+                                borderColor: "divider",
+                                pt: 1,
+                              }}
+                            >
+                              <Typography variant="subtitle2">
+                                {item.label}
+                                {item.changed ? " · Changed" : " · Unchanged"}
+                              </Typography>
+                              <Typography variant="body2">
+                                Previous: {item.previous || "Not recorded"}
+                              </Typography>
+                              <Typography variant="body2">
+                                Current: {item.current || "Not recorded"}
+                              </Typography>
+                            </Box>
+                          ),
                         )}
+                        {workspace.intake_comparison?.source &&
+                          !workspace.intake_comparison.items.length && (
+                            <Typography variant="body2">
+                              No comparable saved answers are available.
+                            </Typography>
+                          )}
                       </Stack>
                     </AccordionDetails>
                   </Accordion>

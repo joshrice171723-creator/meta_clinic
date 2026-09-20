@@ -582,6 +582,9 @@ describe("provider encounter workflow", () => {
     expect(html).toContain("Confirm and begin charting");
     expect(html).not.toContain("SOAP editor");
     expect(html).not.toContain("Open Scribe");
+    expect(html.indexOf('id="nurse-workspace"')).toBeLessThan(
+      html.indexOf("Clinician chart"),
+    );
   });
 
   it("shows an active phone rather than a preferred email or retired phone in demographics", () => {

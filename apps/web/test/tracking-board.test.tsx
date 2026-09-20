@@ -19,6 +19,7 @@ import { OperationsView } from "../src/features/clinic/Operations";
 import {
   appointmentDefaults,
   appointmentIntervalError,
+  applySoapTemplate,
   EncounterView,
   hasSoapContent,
   ScheduleView,
@@ -832,6 +833,17 @@ describe("mapped read-only care flow", () => {
       ),
     ).toBe(true);
     expect(templateWouldOverwrite(template.sections, template)).toBe(false);
+    expect(
+      applySoapTemplate(
+        { ...template.sections, subjective: "Recorded patient history" },
+        template,
+      ),
+    ).toEqual({
+      subjective: "Recorded patient history",
+      objective: "Starter objective",
+      assessment: "",
+      plan: "",
+    });
   });
   it("renders a draft-only SOAP editor without auto-applying normal findings", () => {
     const template: NoteTemplate = {
@@ -855,6 +867,8 @@ describe("mapped read-only care flow", () => {
     for (const name of ["subjective", "objective", "assessment", "plan"])
       expect(html).toContain(`name="${name}"`);
     expect(html).not.toContain("Apply starter text");
+    expect(html).toContain("Start with a SOAP template");
+    expect(html).toContain("Apply template prompts");
     expect(html).toContain("Save draft");
     expect(html).toContain("Review of Systems");
     expect(html).toContain("0/13 systems with selections");
