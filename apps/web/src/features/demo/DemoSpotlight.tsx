@@ -9,7 +9,6 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
 export function spotlightDirection(
   rect: { top: number; left: number; width: number; height: number },
@@ -417,21 +416,6 @@ export function DemoSpotlight({
     ? spotlightDirection(highlight, window.innerWidth, window.innerHeight)
     : null;
   const onScreen = highlight && direction === null;
-  const arrowX = highlight
-    ? Math.max(
-        12,
-        Math.min(window.innerWidth - 12, highlight.left + highlight.width / 2),
-      )
-    : 12;
-  const arrowY = highlight
-    ? Math.max(
-        12,
-        Math.min(
-          window.innerHeight - 12,
-          coachAtTop ? highlight.top - 8 : highlight.top + highlight.height + 8,
-        ),
-      )
-    : 12;
   if (dialogOpen) return null;
   return (
     <Portal>
@@ -470,41 +454,6 @@ export function DemoSpotlight({
               boxShadow: "0 0 0 9999px rgba(9, 18, 35, 0.60)",
             }}
           />
-        )}
-        {enabled && highlight && (
-          <Box
-            component="svg"
-            aria-hidden
-            sx={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              color: "primary.main",
-              overflow: "visible",
-            }}
-          >
-            <defs>
-              <marker
-                id="demo-arrow"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="7"
-                markerHeight="7"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
-              </marker>
-            </defs>
-            <path
-              d={`M ${Math.max(24, window.innerWidth - 190)} ${coachAtTop ? 180 : window.innerHeight - 180} L ${arrowX} ${arrowY}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              markerEnd="url(#demo-arrow)"
-            />
-          </Box>
         )}
         <Paper
           elevation={6}
@@ -577,7 +526,6 @@ export function DemoSpotlight({
               {enabled && highlight && (
                 <Button
                   size="small"
-                  startIcon={<ArrowDownwardIcon />}
                   onClick={() => {
                     highlight.target.scrollIntoView({
                       block: "center",
