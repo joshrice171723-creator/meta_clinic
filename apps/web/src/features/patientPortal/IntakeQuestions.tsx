@@ -139,6 +139,12 @@ const DEFAULT_ANSWER_STATES = [
   "negative",
 ] as const;
 
+const EXCEPTION_ANSWER_STATES = new Set(["not_asked", "unknown", "declined"]);
+
+export function exceptionAnswerStates(answerStates: string[]) {
+  return answerStates.filter((state) => EXCEPTION_ANSWER_STATES.has(state));
+}
+
 function stateLabel(value: string) {
   return value === "negative"
     ? "No / negative"
@@ -626,9 +632,7 @@ function AnswerStateMenu({
   onChange: (state: string) => void;
 }) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const alternativeStates = answerStates.filter(
-    (option) => !["answered", "unanswered"].includes(option),
-  );
+  const alternativeStates = exceptionAnswerStates(answerStates);
   const hasAlternativeAnswer = !["answered", "unanswered"].includes(state);
   if (alternativeStates.length === 0) return null;
 
@@ -655,7 +659,7 @@ function AnswerStateMenu({
           aria-expanded={Boolean(anchorEl)}
           onClick={(event) => setAnchorEl(event.currentTarget)}
         >
-          Record a different response
+          Record an exception
         </Button>
       )}
       <Menu

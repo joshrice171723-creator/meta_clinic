@@ -259,7 +259,7 @@ describe("NurseEncounterWorkspace", () => {
     expect(html).toContain("Measurements and weight");
     expect(html).toContain("What brings you in?");
     expect(html).toContain("What would you like help with?");
-    expect(html).toContain("Record a different response");
+    expect(html).toContain("Record an exception");
     expect(html).not.toContain("What brings you in? status");
     expect(html).toContain("Room is still required.");
   });

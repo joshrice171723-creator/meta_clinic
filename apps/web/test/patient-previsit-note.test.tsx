@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   IntakeQuestions,
   answerState,
+  exceptionAnswerStates,
   intakeFieldVisible,
 } from "../src/features/patientPortal/IntakeQuestions";
 import {
@@ -77,7 +78,34 @@ describe("typed patient journey intake", () => {
     );
     expect(html).toContain("Support status");
     expect(html).not.toContain("Support status status");
-    expect(html).toContain("Record a different response");
+    expect(html).toContain("Record an exception");
+  });
+
+  it("offers only missing-answer exceptions in the secondary menu", () => {
+    expect(
+      exceptionAnswerStates([
+        "unanswered",
+        "answered",
+        "not_asked",
+        "unknown",
+        "declined",
+        "not_applicable",
+        "negative",
+      ]),
+    ).toEqual(["not_asked", "unknown", "declined"]);
+  });
+
+  it("keeps legacy response states readable without offering them as exceptions", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[{ id: "visit_reason", label: "What brings you in?" }]}
+        answers={{ visit_reason: { state: "negative", value: "" } }}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("Recorded as No / negative");
+    expect(html).toContain("Enter an answer");
   });
 
   it("keeps structured history closed until staff add a record", () => {
