@@ -1075,9 +1075,9 @@ export function ScribeRecordingControls({
     >
       <Stack spacing={1.25}>
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction={embedded ? "column" : { xs: "column", sm: "row" }}
           spacing={1}
-          sx={{ alignItems: { sm: "center" } }}
+          sx={{ alignItems: embedded ? "stretch" : { sm: "center" } }}
         >
           {!embedded && (
             <Box sx={{ minWidth: 112 }}>
@@ -1123,7 +1123,20 @@ export function ScribeRecordingControls({
             direction="row"
             spacing={0.75}
             useFlexGap
-            sx={{ flexWrap: "wrap" }}
+            sx={{
+              width: embedded ? "100%" : "auto",
+              flexWrap: "wrap",
+              ...(embedded
+                ? {
+                    "& > .MuiButton-root": {
+                      flex: "1 1 0",
+                      minWidth: 0,
+                      minHeight: 44,
+                      whiteSpace: "nowrap",
+                    },
+                  }
+                : {}),
+            }}
           >
             {!active && phase !== "completed" && (
               <Button
@@ -1190,6 +1203,7 @@ export function ScribeRecordingControls({
             {active && (
               <Button
                 color="inherit"
+                variant={embedded ? "outlined" : "text"}
                 startIcon={<DeleteOutlineOutlinedIcon />}
                 onClick={() =>
                   onDiscardRequest

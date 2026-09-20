@@ -30,6 +30,7 @@ import {
 } from "react";
 import { api } from "../../api/client";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { isDemoFrame } from "../demo/frame";
 import {
   ScribeRecordingControls,
   type ScribeRecordingAudioSource,
@@ -46,6 +47,7 @@ export type ScribeRecordingSessionInput = {
   patientLabel: string;
   contextContent: string;
   returnPath?: string;
+  treatmentPath?: string;
   presentation?: "floating" | "in_call";
   telehealthVisitPublicId?: string;
   audioSource?: ScribeRecordingAudioSource;
@@ -519,7 +521,7 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
             right: { xs: 1, sm: 2 },
             bottom: { xs: 1, sm: 2 },
             zIndex: (theme) => theme.zIndex.drawer + 2,
-            width: { xs: "calc(100vw - 16px)", sm: 380 },
+            width: { xs: "calc(100vw - 16px)", sm: 420 },
             maxHeight: "calc(100vh - 32px)",
             overflow: "auto",
             border: 1,
@@ -601,6 +603,23 @@ export function ScribeRecordingProvider({ children }: { children: ReactNode }) {
           </Box>
           <Collapse in={expanded} unmountOnExit>
             <Stack spacing={1.25} sx={{ px: 1.5, pb: 1.5 }}>
+              {isDemoFrame() && (
+                <Alert severity="info">
+                  Voice-to-text and AI note drafting are unavailable in this
+                  demo environment. Your recording stays active while you
+                  move between clinic pages. In a configured Meta Clinic
+                  environment, recorded audio is transcribed and used to
+                  prepare a SOAP draft for clinical review.
+                </Alert>
+              )}
+              {isDemoFrame() && session.treatmentPath && (
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate(session.treatmentPath!)}
+                >
+                  Open treatment workspace
+                </Button>
+              )}
               <TextField
                 label="Visit context"
                 multiline

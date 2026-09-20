@@ -226,7 +226,7 @@ module Development
         mode: view, view:,
         clinic: { id: run.practice_id, name: run.practice.name, slug: run.practice.public_membership_slug },
         patient: patient && { id: patient.id, name: patient.display_name },
-        lessons: DemoLessonCatalog.catalog, steps: [ DemoLessonCatalog.step_for(run) ]
+        lessons: DemoLessonCatalog.catalog, steps: DemoLessonCatalog.steps_for(run)
       } }
     end
   end

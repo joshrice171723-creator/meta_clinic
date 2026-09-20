@@ -1225,6 +1225,10 @@ export function LiveScribeReviewWorkspace() {
           `Session ${encounter.id}`,
         contextContent: encounter.context_content ?? "",
         returnPath: `/clinic/scribe?encounter_id=${encounter.id}&review=1`,
+        treatmentPath:
+          patient && encounter.clinical_encounter_id
+            ? `/clinic/patients/${patient.id}/encounters/${encounter.clinical_encounter_id}`
+            : undefined,
       },
       { startRecording },
     );

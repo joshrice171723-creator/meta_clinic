@@ -204,6 +204,9 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
       if lesson_key == "scribe_review"
         assert Clinic::Scribe::NoteTemplate.where(template_id: "soap", version: 1, status: "active").exists?
         assert second.practice.scribe_encounters.where(patient: second.patient).exists?
+        treatment_step = Development::DemoLessonCatalog.steps_for(second).find { |step| step.fetch(:id) == "scribe_review_treatment" }
+        assert_equal "/clinic/patients/#{second.patient.id}/encounters/#{second.practice.encounters.where(patient: second.patient).order(:id).last!.id}",
+          treatment_step.fetch(:href)
       end
     end
   end

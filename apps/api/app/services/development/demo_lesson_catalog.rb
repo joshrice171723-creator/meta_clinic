@@ -208,6 +208,25 @@ module Development
         )
       end
 
+      def steps_for(run)
+        steps = [ step_for(run) ]
+        return steps unless run.lesson_key == "scribe_review"
+
+        patient = run.patient
+        encounter = patient && run.practice.encounters.where(patient:).order(:id).last
+        return steps unless encounter
+
+        steps << {
+          id: "scribe_review_treatment",
+          title: "Open treatment workspace",
+          description: "Keep the recording dock open while you review the prepared treatment workspace.",
+          status: "available",
+          href: "/clinic/patients/#{patient.id}/encounters/#{encounter.id}",
+          requires: [],
+          review: false
+        }
+      end
+
       private
 
       def core_lesson?(lesson_key)

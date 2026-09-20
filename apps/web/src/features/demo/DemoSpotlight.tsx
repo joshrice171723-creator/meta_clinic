@@ -79,8 +79,8 @@ const reviewPrompts: Record<string, string[]> = {
   ],
   scribe_review: [
     "Find the scribe workspace and its setup requirements.",
-    "Review the sample visit context and available documentation controls.",
-    "Review the human-review boundary. This walkthrough does not record audio or call an AI service.",
+    "Open the sample encounter and use the recording dock to see how the session stays available across clinic pages.",
+    "Open the treatment workspace from the dock, then return to review the visit context. Voice-to-text and AI drafting are unavailable in this demo environment.",
   ],
   waitlist_review: [
     "Find capacity and waitlist controls.",
