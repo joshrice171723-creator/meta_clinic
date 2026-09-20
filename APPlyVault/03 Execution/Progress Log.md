@@ -1,11 +1,19 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-19
+updated: 2026-09-20
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-20 — Recent agent work and populated Sandbox deployed
+
+At the founder's request, inspected all available worktrees and recent branch commits. Recent completed work was already included in main at `f31a1784f3b4bb13531ac3fce7ef328b096f9501`; no additional recent commits required merging. Preserved the local schema-formatting change and attachment directory. Recovered the prior Lightsail connection from the earlier deployment record and verified the public domain resolves to `174.129.142.201`; the initial runbook address was stale.
+
+Built API and web images from a Git archive of that exact revision on the existing host. Backed up both ordinary and guided-demo databases and restored each into a temporary database successfully before migration. Applied the lesson-outcome migration to both databases, reapplied the ordinary runtime privileges, and restarted API, worker, guided-demo and web with matched `f31a1784` images. All four container revision labels matched the full commit and restart counts were zero. Prior image references and backups remain at `/opt/meta-clinic/backups/release-f31a1784-20260920T081956Z` on the host; rollback was not required.
+
+Public HTTPS verification passed for `/demo` and `/up`. A synthetic visitor verified 46 lessons, Sandbox creation, location switching, a non-owner session, and reset rebuilding new location records within the same Sandbox clinic. After reset, backend counts were 8 patients, 2 sites, 6 appointment dates, 5 products, 4 suppliers, 4 inventory locations, 5 purchase orders and 5 shipments. The ordinary demo API and anonymous clinic-context requests remained denied. Existing focused source evidence included 21 guided-demo integration tests / 587 assertions and 24 frontend tests; the host web build also passed TypeScript and bundling. This release check does not claim a fresh browser walkthrough of every lesson or live provider acceptance.
+
 ## 2026-09-19 — Isolated guided lessons published on Lightsail
 
 Published application commit `21018717` from main to https://aimetaclinic.com/demo at the founder's explicit request. The current catalog contains 45 independent lessons, including primary-care and weight-management variants; this supersedes the earlier sequential journey description below. Each lesson reuses its dedicated sample clinic and resets on entry. Visitor details record usage rather than creating personal clinics. Shared Scribe/layout fixes remain in ordinary application code.

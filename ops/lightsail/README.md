@@ -1,5 +1,25 @@
 # Meta Clinic Lightsail synthetic demo
 
+## Current connection (verified 2026-09-20)
+
+The public site is `https://aimetaclinic.com`, with guided lessons at `/demo`.
+Its DNS currently resolves to `174.129.142.201`; verify DNS before connecting.
+Use the `ubuntu` SSH account and the owner's existing Lightsail key from the
+local Secure Files folder. Repository deploy keys under `.ssh` are Git keys,
+not server login keys. Do not print, copy into source, or rotate private keys
+during a routine release. The `184.194.129.57` address below records the initial
+deployment and is no longer the site's current destination.
+
+Deployment is manual: pushing `main` does not change the running website.
+Build both images from an archive of the same committed revision, preserve the
+host's existing secrets and Compose configuration, back up and restore-check
+both databases, migrate each with its own deployment credentials, then update
+the matched image references and restart API, worker, guided-demo and web.
+Verify image revisions and the public Sandbox creation, location switch and
+reset flows before reporting that a release is live.
+
+## Initial host record
+
 Selected host: `meta-clinic-demo`, account ending `9164`, `us-east-1a`, Ubuntu 24.04,
 2 GB RAM / 2 vCPU / 60 GB disk, $12/month base price. Static IP:
 `184.194.129.57` (`meta-clinic-demo-ip`). An attached static IP adds no fee;
