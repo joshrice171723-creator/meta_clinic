@@ -401,7 +401,7 @@ export function DemoJourney() {
                   {(sandbox
                     ? [
                         "All workspaces populated",
-                        "Unrestricted clinic navigation",
+                        "Two locations, patients & inventory",
                       ]
                     : activeLesson!.prepared
                   ).map((item) => (

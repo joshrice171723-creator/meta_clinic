@@ -1281,6 +1281,7 @@ export type SiteHourException = {
 export type ClinicWorkspaceContext = {
   schema_version: "clinic-context-v1";
   user_id: number;
+  demo_sandbox?: boolean;
   practice: { id: number; name: string; timezone: string };
   practices?: {
     id: number;

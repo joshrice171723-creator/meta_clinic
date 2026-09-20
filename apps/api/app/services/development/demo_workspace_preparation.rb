@@ -61,7 +61,7 @@ module Development
           value: "portal:demo:#{run.patient.id}", value_digest: Digest::SHA256.hexdigest("demo:#{run.id}"),
           label: "Sample patient portal", verified_at: Time.current)
         reminder = Clinic::Reminders::Create.call(practice: run.practice, actor: run.operator_user,
-          patient: run.patient, appointment: run.practice.appointments.order(:id).last!,
+          patient: run.patient, appointment: run.practice.appointments.where(patient: run.patient).order(:id).last!,
           request_key: "demo-reminder-#{run.id}", category: "appointment", channel: "portal",
           endpoint_id: endpoint.id, scheduled_at: 1.hour.from_now)
         # Review fixtures must never become a dispatchable backlog.
@@ -81,7 +81,7 @@ module Development
           grant_ttl_seconds: 120, checkin_max_age_minutes: 240, scribe_enabled: false,
           created_by_membership: member, published_by_membership: member, published_at: Time.current)
         setting.update!(active_policy_version: policy)
-        appointment = run.practice.appointments.order(:id).last!
+        appointment = run.practice.appointments.where(patient: run.patient).order(:id).last!
         appointment.update!(visit_modality: "video", room_id: nil)
         Clinic::Telehealth::Visit.create!(practice: run.practice, patient: run.patient, appointment:,
           policy_version: policy, created_by_membership: member, status: "scheduled")

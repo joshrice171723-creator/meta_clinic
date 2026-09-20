@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { demoRouteAllowed } from "../src/features/demo/DemoFrameBoundary";
+import { showsClinicScopeSelector } from "../src/features/clinic/Workspace";
 import {
   isSandbox,
   isNavigationTour,
@@ -251,6 +252,12 @@ describe("guided demo navigation", () => {
     expect(demoRouteAllowed("/memberships/example", sandbox, origin)).toBe(
       false,
     );
+  });
+
+  it("keeps the clinic context switcher available in Sandbox only", () => {
+    expect(showsClinicScopeSelector(false, false)).toBe(true);
+    expect(showsClinicScopeSelector(true, false)).toBe(false);
+    expect(showsClinicScopeSelector(true, true)).toBe(true);
   });
 
   it("blocks locked lessons, unrelated pages and external destinations", () => {

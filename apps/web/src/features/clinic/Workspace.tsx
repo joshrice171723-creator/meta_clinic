@@ -400,6 +400,13 @@ export function clinicLandingDestination(
   return "/clinic/operations";
 }
 
+export function showsClinicScopeSelector(
+  demoFrame: boolean,
+  sandboxDemo: boolean,
+) {
+  return !demoFrame || sandboxDemo;
+}
+
 export function Workspace({
   children,
   user,
@@ -659,7 +666,10 @@ export function Workspace({
                 >
                   <ClinicFrame
                     scopeSelector={
-                      !isDemoFrame() && (
+                      showsClinicScopeSelector(
+                        isDemoFrame(),
+                        data.demo_sandbox === true,
+                      ) && (
                         <ClinicScopeSelector
                           context={data}
                           disabled={

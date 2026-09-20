@@ -263,6 +263,7 @@ module Development
         %i[patient appointment encounter stock].each do |kind|
           prepare_context!(run, kind:)
         end
+        DemoSandboxPreparation.prepare!(run)
         DemoNavigationPreparation.prepare!(run)
         DemoWorkspacePreparation.prepare!(run)
       end

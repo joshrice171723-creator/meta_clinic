@@ -122,6 +122,43 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert Clinic::Workforce::Employment.where(practice: run.practice).exists?
     assert Clinic::Telehealth::Visit.where(practice: run.practice).exists?
     assert Clinic::PatientReminder.where(practice: run.practice).exists?
+    assert_equal 2, run.practice.sites.count
+    assert_operator run.practice.patients.count, :>=, 8
+    assert_operator run.practice.appointments.distinct.pluck(:starts_at).map(&:to_date).uniq.count, :>=, 6
+    assert_operator run.practice.pharmacy_products.count, :>=, 5
+    assert_operator run.practice.inventory_suppliers.count, :>=, 4
+    assert_operator run.practice.inventory_locations.count, :>=, 4
+    assert_operator run.practice.inventory_purchase_orders.count, :>=, 5
+    assert_operator run.practice.inventory_shipments.count, :>=, 5
+
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("demo_sandbox")
+    northside = run.practice.sites.find_by!(code: "SANDBOX-NORTH")
+    patch "/api/clinic/context", params: { site_id: northside.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/context", headers: @headers
+    assert_equal northside.id, response.parsed_body.dig("current_site", "id")
+    get "/api/session", headers: @headers
+    assert_equal false, response.parsed_body.dig("user", "platform_owner")
+  end
+
+  test "sandbox reset replaces every expanded fixture" do
+    visitor = demo_visitor
+    first = Development::SharedDemoLesson.enter!("sandbox", visitor:)
+    first_site_id = first.practice.sites.find_by!(code: "SANDBOX-NORTH").id
+    first_patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
+    first_product_id = first.practice.pharmacy_products.find_by!(sku: "SANDBOX-PREP-PADS").id
+
+    second = Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first)
+
+    assert_equal first.practice_id, second.practice_id
+    refute second.practice.sites.exists?(first_site_id)
+    refute second.practice.patients.exists?(first_patient_id)
+    refute second.practice.pharmacy_products.exists?(first_product_id)
+    assert_equal 2, second.practice.sites.count
+    assert_operator second.practice.patients.count, :>=, 8
+    assert_operator second.practice.pharmacy_products.count, :>=, 5
   end
 
   test "an expired guided demo session can resume its bound lesson" do

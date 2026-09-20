@@ -12,6 +12,7 @@ module Clinic
       render json: {
         schema_version: "clinic-context-v1",
         user_id: current_user.id,
+        demo_sandbox: sandbox_demo?,
         practice: { id: current_practice.id, name: current_practice.name, timezone: current_practice.timezone },
         practices: available_practices.includes(:organization).order(:name, :id).map do |practice|
           { id: practice.id, name: practice.name,
@@ -170,6 +171,11 @@ module Clinic
 
     def current_clinician_profile
       @current_clinician_profile ||= current_practice.clinician_profiles.find_by(membership: clinic_membership)
+    end
+
+    def sandbox_demo?
+      run = Development::DemoRun.find_by(id: session[:guided_clinic_demo_run_id])
+      Development::DemoLessonCatalog.sandbox?(run&.lesson_key)
     end
   end
 end
