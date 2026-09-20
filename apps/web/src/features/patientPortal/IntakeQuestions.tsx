@@ -191,6 +191,22 @@ function emptyHistoryEntry(
   };
 }
 
+function historyEntryAction(kind: IntakeField["history_kind"]) {
+  return kind === "symptom"
+    ? "Add symptom"
+    : kind === "medication"
+      ? "Add medicine or supplement"
+      : kind === "allergy"
+        ? "Add allergy or reaction"
+        : kind === "condition"
+          ? "Add health condition"
+          : kind === "family"
+            ? "Add family history"
+            : kind === "procedure"
+              ? "Add procedure or hospitalization"
+              : "Add treatment history";
+}
+
 function historyEntries(
   answer: IntakeAnswer | undefined,
   kind: IntakeField["history_kind"],
@@ -283,37 +299,69 @@ export function IntakeQuestions({
                 <Typography variant="subtitle2">{field.label}</Typography>
               )}
               {canEnterAnswer && field.history_kind ? (
-                <HistoryEntryEditor
-                  kind={field.history_kind}
-                  recordFields={field.record_fields ?? []}
-                  answers={answers}
-                  entries={historyEntries(answer, field.history_kind)}
-                  medicationOptions={medicationOptions}
-                  medicationReferences={medicationReferences}
-                  disabled={disabled}
-                  onChange={(entries) =>
-                    set(field.id, {
-                      state: entries.length ? "answered" : "unanswered",
-                      value: "",
-                      ...(entries.length ? { entries } : {}),
-                    })
-                  }
-                />
+                state === "answered" ? (
+                  <HistoryEntryEditor
+                    kind={field.history_kind}
+                    recordFields={field.record_fields ?? []}
+                    answers={answers}
+                    entries={historyEntries(answer, field.history_kind)}
+                    medicationOptions={medicationOptions}
+                    medicationReferences={medicationReferences}
+                    disabled={disabled}
+                    onChange={(entries) =>
+                      set(field.id, {
+                        state: entries.length ? "answered" : "unanswered",
+                        value: "",
+                        ...(entries.length ? { entries } : {}),
+                      })
+                    }
+                  />
+                ) : (
+                  <Button
+                    variant="outlined"
+                    disabled={disabled}
+                    onClick={() =>
+                      set(field.id, {
+                        state: "answered",
+                        value: "",
+                        entries: [emptyHistoryEntry(field.history_kind)],
+                      })
+                    }
+                  >
+                    {historyEntryAction(field.history_kind)}
+                  </Button>
+                )
               ) : canEnterAnswer && field.record_fields ? (
-                <RecordEntryEditor
-                  field={field}
-                  answers={answers}
-                  entries={detail.entries ?? []}
-                  medicationReferences={medicationReferences}
-                  disabled={disabled}
-                  onChange={(entries) =>
-                    set(field.id, {
-                      state: entries.length ? "answered" : "unanswered",
-                      value: "",
-                      ...(entries.length ? { entries } : {}),
-                    })
-                  }
-                />
+                state === "answered" ? (
+                  <RecordEntryEditor
+                    field={field}
+                    answers={answers}
+                    entries={detail.entries ?? []}
+                    medicationReferences={medicationReferences}
+                    disabled={disabled}
+                    onChange={(entries) =>
+                      set(field.id, {
+                        state: entries.length ? "answered" : "unanswered",
+                        value: "",
+                        ...(entries.length ? { entries } : {}),
+                      })
+                    }
+                  />
+                ) : (
+                  <Button
+                    variant="outlined"
+                    disabled={disabled}
+                    onClick={() =>
+                      set(field.id, {
+                        state: "answered",
+                        value: "",
+                        entries: [{}],
+                      })
+                    }
+                  >
+                    Add details
+                  </Button>
+                )
               ) : canEnterAnswer && (field.choices || field.input_type) ? (
                 <IntakeValueControl
                   field={field}

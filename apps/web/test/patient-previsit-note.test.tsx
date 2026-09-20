@@ -80,6 +80,26 @@ describe("typed patient journey intake", () => {
     expect(html).toContain("Record a different response");
   });
 
+  it("keeps structured history closed until staff add a record", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          {
+            id: "symptoms",
+            label: "Current symptoms and when they started",
+            reusable: false,
+            history_kind: "symptom",
+          },
+        ]}
+        answers={{}}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("Add symptom");
+    expect(html).not.toContain("History record 1");
+  });
+
   it("never collapses explicit missing and negative answers into an empty legacy answer", () => {
     expect(answerState("")).toBe("unanswered");
     expect(answerState("No reported changes")).toBe("answered");
