@@ -68,6 +68,23 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_equal 2, Development::DemoLesson.where(lesson_key: %w[clinic_setup inventory_product_create]).count
   end
 
+  test "leaving a completed lesson records its outcome and elapsed time" do
+    visitor = demo_visitor
+    started_at = Time.zone.parse("2026-09-20 09:00:00")
+    completed_at = started_at + 4.minutes
+
+    run = travel_to(started_at) { Development::SharedDemoLesson.enter!("navigation_tour", visitor:) }
+    run.update!(baseline: run.baseline.to_h.merge("review_acknowledged" => true))
+
+    travel_to(completed_at) { Development::SharedDemoLesson.leave!(run) }
+
+    run.reload
+    assert_equal 240, run.elapsed_seconds
+    assert_equal completed_at, run.completed_at
+    refute run.active?
+    assert_empty run.baseline
+  end
+
   test "a new entrant invalidates the previous lease with a restart notice" do
     register_visitor
     original = enter_lesson("clinic_setup")

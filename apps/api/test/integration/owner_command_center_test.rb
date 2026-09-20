@@ -110,7 +110,8 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     now = Time.zone.parse("2026-09-20 10:00:00")
     Development::DemoRun.create!(
       practice:, operator_user: operator, visitor:, template_key: "primary_care",
-      lesson_key: "clinic_setup", active: false, created_at: now - 8.minutes, updated_at: now - 5.minutes
+      lesson_key: "clinic_setup", active: false, completed_at: now - 5.minutes, elapsed_seconds: 180,
+      created_at: now - 8.minutes, updated_at: now - 5.minutes
     )
     Development::DemoRun.create!(
       practice:, operator_user: operator, visitor:, template_key: "primary_care",
@@ -129,6 +130,10 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_equal "Northstar Wellness", usage.fetch("company")
     assert_equal 2, usage.fetch("lessons_started")
     assert_equal 300, usage.fetch("elapsed_seconds")
+    assert_equal [
+      { "lesson_key" => "clinic_setup", "title" => "Finish clinic setup", "elapsed_seconds" => 180, "completed" => true },
+      { "lesson_key" => "membership_publish", "title" => "Publish a membership", "elapsed_seconds" => 120, "completed" => false }
+    ], usage.fetch("lesson_usage")
   end
 
   test "platform owner can add a clinic to an existing organization" do

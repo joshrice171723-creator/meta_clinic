@@ -11706,6 +11706,9 @@ CREATE TABLE public.development_demo_runs (
     visitor_id bigint,
     lesson_key character varying,
     baseline jsonb DEFAULT '{}'::jsonb NOT NULL,
+    elapsed_seconds integer DEFAULT 0 NOT NULL,
+    completed_at timestamp(6) without time zone,
+    CONSTRAINT development_demo_runs_elapsed_seconds_nonnegative CHECK ((elapsed_seconds >= 0)),
     CONSTRAINT development_demo_runs_lesson_key_present CHECK (((lesson_key IS NULL) OR ((lesson_key)::text <> ''::text))),
     CONSTRAINT development_demo_runs_template_key_present CHECK (((template_key)::text <> ''::text))
 );
@@ -29858,6 +29861,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260920010000'),
 ('20260919080000'),
 ('20260919070000'),
 ('20260919060000'),

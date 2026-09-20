@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { Fragment, useMemo, useState, type FormEvent } from "react";
 import {
   Alert,
   Box,
@@ -63,6 +63,14 @@ type DemoUsage = {
   company: string;
   lessons_started: number;
   elapsed_seconds: number;
+  lesson_usage: DemoLessonUsage[];
+};
+
+type DemoLessonUsage = {
+  lesson_key: string;
+  title: string;
+  elapsed_seconds: number;
+  completed: boolean;
 };
 
 type CreatedInvitation = {
@@ -115,6 +123,7 @@ export function OwnerCommandCenter() {
   const [invitePhone, setInvitePhone] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [expandedVisitorId, setExpandedVisitorId] = useState<number | null>(null);
 
   const clinicCount = useMemo(
     () =>
@@ -342,8 +351,8 @@ export function OwnerCommandCenter() {
             Demo usage
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Registered visitor details and elapsed time across their demo
-            lessons.
+            Registered visitor details, with each opened lesson's elapsed time
+            and completion result.
           </Typography>
         </Box>
         <Divider />
@@ -361,22 +370,76 @@ export function OwnerCommandCenter() {
                   <TableCell>Company</TableCell>
                   <TableCell align="right">Lessons started</TableCell>
                   <TableCell align="right">Elapsed demo time</TableCell>
+                  <TableCell align="right">Lesson activity</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.demo_usage.map((visitor) => (
-                  <TableRow key={visitor.id}>
-                    <TableCell>{visitor.name}</TableCell>
-                    <TableCell>{visitor.email}</TableCell>
-                    <TableCell>{visitor.company}</TableCell>
-                    <TableCell align="right">
-                      {visitor.lessons_started}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatDemoDuration(visitor.elapsed_seconds)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {data.demo_usage.map((visitor) => {
+                  const expanded = expandedVisitorId === visitor.id;
+                  const detailsId = `demo-lesson-usage-${visitor.id}`;
+                  return (
+                    <Fragment key={visitor.id}>
+                      <TableRow>
+                        <TableCell>{visitor.name}</TableCell>
+                        <TableCell>{visitor.email}</TableCell>
+                        <TableCell>{visitor.company}</TableCell>
+                        <TableCell align="right">
+                          {visitor.lessons_started}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatDemoDuration(visitor.elapsed_seconds)}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="small"
+                            onClick={() => setExpandedVisitorId(expanded ? null : visitor.id)}
+                            aria-expanded={expanded}
+                            aria-controls={detailsId}
+                          >
+                            {expanded ? "Hide lessons" : "View lessons"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {expanded && (
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ bgcolor: "action.hover", p: 2 }}>
+                            <Box id={detailsId}>
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                Lessons opened
+                              </Typography>
+                              <Table size="small" aria-label={`Lessons opened by ${visitor.name}`}>
+                                <TableHead>
+                                  <TableRow>
+                                    <TableCell>Lesson</TableCell>
+                                    <TableCell align="right">Elapsed time</TableCell>
+                                    <TableCell>Completion</TableCell>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {visitor.lesson_usage.map((lesson, index) => (
+                                    <TableRow key={`${lesson.lesson_key}-${index}`}>
+                                      <TableCell>{lesson.title}</TableCell>
+                                      <TableCell align="right">
+                                        {formatDemoDuration(lesson.elapsed_seconds)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Chip
+                                          size="small"
+                                          color={lesson.completed ? "success" : "default"}
+                                          label={lesson.completed ? "Completed" : "Not completed"}
+                                        />
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

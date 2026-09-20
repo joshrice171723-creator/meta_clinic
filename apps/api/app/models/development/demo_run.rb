@@ -10,6 +10,7 @@ module Development
 
     validates :template_key, presence: true, inclusion: { in: %w[primary_care weight_management] }
     validates :lesson_key, inclusion: { in: ->(_) { DemoLessonCatalog.lesson_keys } }, allow_nil: true
+    validates :elapsed_seconds, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
     scope :active, -> { where(active: true) }
 
@@ -19,6 +20,12 @@ module Development
 
     def paid_patient?
       membership_prospect&.paid_at.present? && patient.present?
+    end
+
+    def elapsed_seconds_at(time)
+      return elapsed_seconds unless active?
+
+      elapsed_seconds + [ (time - created_at).to_i, 0 ].max
     end
 
     def self.local_practice?(practice)

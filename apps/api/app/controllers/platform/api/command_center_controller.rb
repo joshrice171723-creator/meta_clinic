@@ -122,11 +122,28 @@ module Platform
             email: visitor.email,
             company: visitor.company,
             lessons_started: runs.filter_map(&:lesson_key).uniq.length,
-            elapsed_seconds: runs.sum do |run|
-              [ (run.active? ? now : run.updated_at) - run.created_at, 0 ].max.to_i
-            end
+            elapsed_seconds: runs.sum { |run| demo_run_elapsed_seconds(run, now) },
+            lesson_usage: runs.filter_map { |run| demo_lesson_usage(run, now) }
           }
         end
+      end
+
+      def demo_lesson_usage(run, now)
+        return if run.lesson_key.blank?
+
+        {
+          lesson_key: run.lesson_key,
+          title: Development::DemoLessonCatalog.definition!(run.lesson_key).fetch(:title),
+          elapsed_seconds: demo_run_elapsed_seconds(run, now),
+          completed: run.completed_at.present?
+        }
+      end
+
+      def demo_run_elapsed_seconds(run, now)
+        return run.elapsed_seconds_at(now) if run.active?
+        return run.elapsed_seconds if run.elapsed_seconds.positive?
+
+        [ run.updated_at - run.created_at, 0 ].max.to_i
       end
 
       def organization_payload(organization)

@@ -18,13 +18,14 @@ module Development
           [ previous_run.operator_user, previous_run.patient_user ].compact.each do |user|
             user.member_sessions.destroy_all
           end
-          previous_run.update!(active: false, baseline: {})
+          finish!(previous_run)
         end
         old_runs = DemoRun.where(lesson_key:).lock.to_a
         patient_users = old_runs.filter_map(&:patient_user).uniq(&:id)
         old_runs.each do |run|
           [ run.operator_user, run.patient_user ].compact.each { |user| user.member_sessions.destroy_all }
-          run.update!(active: false, baseline: {}, patient_user: nil, membership_prospect: nil)
+          finish!(run) if run.active?
+          run.update!(patient_user: nil, membership_prospect: nil)
         end
         lesson.operator_user.member_sessions.destroy_all
 
@@ -47,7 +48,15 @@ module Development
         return run unless run.active?
         run.operator_user.member_sessions.destroy_all
         run.patient_user&.member_sessions&.destroy_all
-        run.update!(active: false, baseline: {})
+        finish!(run)
+      end
+      run
+    end
+
+    def self.record_completion!(run, at: Time.current)
+      run.with_lock do
+        return run unless run.active? && run.completed_at.nil?
+        run.update!(completed_at: at) if DemoLessonCatalog.complete?(run)
       end
       run
     end
@@ -60,6 +69,15 @@ module Development
       )
       DemoLesson.create!(lesson_key:, practice: clinic.practice, operator_user: clinic.operator)
     end
-    private_class_method :create_lesson!
+
+    def self.finish!(run, at: Time.current)
+      run.update!(
+        active: false,
+        baseline: {},
+        completed_at: run.completed_at || (at if DemoLessonCatalog.complete?(run)),
+        elapsed_seconds: run.elapsed_seconds_at(at)
+      )
+    end
+    private_class_method :create_lesson!, :finish!
   end
 end

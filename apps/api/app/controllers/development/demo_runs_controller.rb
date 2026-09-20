@@ -220,6 +220,8 @@ module Development
     end
 
     def active_payload(run)
+      SharedDemoLesson.record_completion!(run)
+      run.reload
       patient = run.patient
       view = session[:guided_clinic_demo_view] || DemoLessonCatalog.view_for(run.lesson_key)
       { active: true, run: {
