@@ -6,6 +6,13 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-19 — Isolated guided lessons published on Lightsail
+
+Published application commit `21018717` from main to https://aimetaclinic.com/demo at the founder's explicit request. The current catalog contains 45 independent lessons, including primary-care and weight-management variants; this supersedes the earlier sequential journey description below. Each lesson reuses its dedicated sample clinic and resets on entry. Visitor details record usage rather than creating personal clinics. Shared Scribe/layout fixes remain in ordinary application code.
+
+Hosted lessons use a separate database, database login, encryption keys and browser-session cookie. A direct PostgreSQL privilege check confirmed the demo login cannot connect to the ordinary application database. Ordinary API demo entry remains unavailable. Sample Scribe encounter creation requires a matching active lesson. Demo receipt delivery is disabled in the dedicated demo process; ordinary mail settings are unchanged. Fixed a hosted session bootstrap that incorrectly called the local-only named-account helper.
+
+Focused verification passed: 30 frontend tests, TypeScript and production build; 5 Rails isolation tests with 25 assertions, plus the hosted-session regression with 5 assertions; changed Ruby lint. Earlier bounded audit evidence remains separate. The host backup was parsed and restored successfully, and candidate migrations were applied to a restored scratch database before regular migration. HTTPS health and dedicated demo routing passed. Public-browser checks verified the catalog, Scribe consent acceptance, and lesson restart returning consent to not recorded with a fresh encounter. Telehealth displayed its prepared patient appointment and the walkthrough completion notice. Simulated checkout reconciled its payment and displayed lesson completion without contacting a payment provider. Live checks do not establish every lesson's end-to-end acceptance or external AI, telehealth, payment or email-provider readiness.
 
 ## 2026-09-19 — Guided cash-based clinic demo on an isolated branch
 
