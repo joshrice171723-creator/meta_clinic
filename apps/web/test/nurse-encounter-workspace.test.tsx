@@ -251,15 +251,16 @@ function renderWorkspace(roomId: number | null, visitModality = "in_person") {
 }
 
 describe("NurseEncounterWorkspace", () => {
-  it("uses server chunks, filters the active group, and surfaces room state", () => {
+  it("uses server chunks, exposes normal answers directly, and surfaces room state", () => {
     const html = renderWorkspace(null);
 
     expect(html).toContain("Guided intake · staff assisted");
     expect(html).toContain("Today’s visit");
     expect(html).toContain("Measurements and weight");
-    expect(html).toContain("What brings you in? status");
-    expect(html).toContain("What would you like help with? status");
-    expect(html).not.toContain("Current medicines and supplements status");
+    expect(html).toContain("What brings you in?");
+    expect(html).toContain("What would you like help with?");
+    expect(html).toContain("Record a different response");
+    expect(html).not.toContain("What brings you in? status");
     expect(html).toContain("Room is still required.");
   });
 

@@ -63,7 +63,7 @@ describe("typed patient journey intake", () => {
       ),
     ).toBe(false);
   });
-  it("avoids duplicated status labels and explains the not-asked state", () => {
+  it("renders an answer field immediately and keeps alternate response states secondary", () => {
     const html = renderToStaticMarkup(
       <IntakeQuestions
         fields={[
@@ -75,10 +75,9 @@ describe("typed patient journey intake", () => {
         onChange={() => {}}
       />,
     );
+    expect(html).toContain("Support status");
     expect(html).not.toContain("Support status status");
-    expect(html).toContain(
-      "Use Not asked when the question was not discussed.",
-    );
+    expect(html).toContain("Record a different response");
   });
 
   it("never collapses explicit missing and negative answers into an empty legacy answer", () => {
@@ -237,19 +236,33 @@ describe("typed patient journey intake", () => {
             label: "Actual weight-management treatment use",
             reusable: true,
             record_fields: [
-              { id: "product_id", label: "Exact product", reference_kind: "clinic_medication_catalog" },
+              {
+                id: "product_id",
+                label: "Exact product",
+                reference_kind: "clinic_medication_catalog",
+              },
               { id: "name", label: "Exact product" },
             ],
           },
         ]}
-        answers={{ current_treatment_use: { state: "answered", value: "", entries: [{ product_id: "42", name: "Synthetic catalog medicine" }] } }}
-        medicationReferences={[{ id: "42", name: "Synthetic catalog medicine" }]}
+        answers={{
+          current_treatment_use: {
+            state: "answered",
+            value: "",
+            entries: [{ product_id: "42", name: "Synthetic catalog medicine" }],
+          },
+        }}
+        medicationReferences={[
+          { id: "42", name: "Synthetic catalog medicine" },
+        ]}
         disabled={false}
         onChange={() => {}}
       />,
     );
     expect(html).toContain("Synthetic catalog medicine");
-    expect(html).toContain("Choose a clinic catalog medicine or enter Other manually.");
+    expect(html).toContain(
+      "Choose a clinic catalog medicine or enter Other manually.",
+    );
   });
 
   it("renders condition and family-history routing controls with uncertainty", () => {

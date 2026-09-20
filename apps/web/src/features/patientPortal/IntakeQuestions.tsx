@@ -1,11 +1,13 @@
 import {
   Autocomplete,
   Button,
+  Menu,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 import {
   IntakeFieldFrame,
   IntakeValueControl,
@@ -260,38 +262,27 @@ export function IntakeQuestions({
             "prior_approaches",
             "procedures",
           ].includes(field.id);
+          const canEnterAnswer = ["answered", "unanswered"].includes(state);
+          const saveAnswer = (value: string | string[]) =>
+            set(field.id, {
+              ...detail,
+              state: (
+                Array.isArray(value) ? value.length > 0 : value.trim() !== ""
+              )
+                ? "answered"
+                : "unanswered",
+              value: Array.isArray(value) ? "" : value,
+              ...(Array.isArray(value) ? { values: value } : {}),
+              ...(detail.other_detail !== undefined && !hasOtherChoice(value)
+                ? { other_detail: "" }
+                : {}),
+            });
           return (
             <IntakeFieldFrame key={field.id} field={field}>
               {repeatable && (
                 <Typography variant="subtitle2">{field.label}</Typography>
               )}
-              <TextField
-                select
-                label={`${field.label.replace(/ status$/i, "")} status`}
-                value={state}
-                disabled={disabled}
-                onChange={(event) => {
-                  const nextState = event.target.value;
-                  set(
-                    field.id,
-                    nextState === "answered"
-                      ? {
-                          ...detail,
-                          state: nextState,
-                          value: detail.value ?? "",
-                        }
-                      : { state: nextState, value: "" },
-                  );
-                }}
-                helperText="Use Not asked when the question was not discussed. Unknown, Declined, and Not applicable have different meanings."
-              >
-                {answerStates.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {stateLabel(option)}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {state === "answered" && field.history_kind ? (
+              {canEnterAnswer && field.history_kind ? (
                 <HistoryEntryEditor
                   kind={field.history_kind}
                   recordFields={field.record_fields ?? []}
@@ -308,7 +299,7 @@ export function IntakeQuestions({
                     })
                   }
                 />
-              ) : state === "answered" && field.record_fields ? (
+              ) : canEnterAnswer && field.record_fields ? (
                 <RecordEntryEditor
                   field={field}
                   answers={answers}
@@ -323,8 +314,7 @@ export function IntakeQuestions({
                     })
                   }
                 />
-              ) : state === "answered" &&
-                (field.choices || field.input_type) ? (
+              ) : canEnterAnswer && (field.choices || field.input_type) ? (
                 <IntakeValueControl
                   field={field}
                   value={
@@ -334,28 +324,21 @@ export function IntakeQuestions({
                   }
                   otherDetail={detail.other_detail ?? ""}
                   disabled={disabled}
-                  onChange={(value) =>
-                    set(field.id, {
-                      ...detail,
-                      state: "answered",
-                      value: Array.isArray(value) ? "" : value,
-                      ...(Array.isArray(value) ? { values: value } : {}),
-                      ...(detail.other_detail !== undefined &&
-                      !hasOtherChoice(value)
-                        ? { other_detail: "" }
-                        : {}),
-                    })
-                  }
+                  onChange={saveAnswer}
                   onOtherDetailChange={
                     fields.some(
                       (item) => item.id === `${field.id}_other_detail`,
                     )
                       ? undefined
                       : (other_detail) =>
-                          set(field.id, { ...detail, other_detail })
+                          set(field.id, {
+                            ...detail,
+                            state: "answered",
+                            other_detail,
+                          })
                   }
                 />
-              ) : state === "answered" && repeatable ? (
+              ) : canEnterAnswer && repeatable ? (
                 <>
                   {answerValue(answer)
                     .split("\n")
@@ -489,7 +472,7 @@ export function IntakeQuestions({
                     Add another
                   </Button>
                 </>
-              ) : state === "answered" ? (
+              ) : canEnterAnswer ? (
                 <TextField
                   label={field.label}
                   type={field.units ? "number" : "text"}
@@ -508,15 +491,22 @@ export function IntakeQuestions({
                       max: field.max,
                     },
                   }}
-                  onChange={(event) =>
-                    set(field.id, {
-                      ...detail,
-                      state: "answered",
-                      value: event.target.value,
-                    })
-                  }
+                  onChange={(event) => saveAnswer(event.target.value)}
                 />
               ) : null}
+              <AnswerStateMenu
+                state={state}
+                answerStates={answerStates}
+                disabled={disabled}
+                onChange={(nextState) =>
+                  set(
+                    field.id,
+                    nextState === "unanswered"
+                      ? { ...detail, state: nextState, value: "" }
+                      : { state: nextState, value: "" },
+                  )
+                }
+              />
               {field.units &&
                 state === "answered" &&
                 !field.record_fields &&
@@ -572,6 +562,71 @@ export function IntakeQuestions({
             </IntakeFieldFrame>
           );
         })}
+    </Stack>
+  );
+}
+
+function AnswerStateMenu({
+  state,
+  answerStates,
+  disabled,
+  onChange,
+}: {
+  state: string;
+  answerStates: string[];
+  disabled: boolean;
+  onChange: (state: string) => void;
+}) {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const alternativeStates = answerStates.filter(
+    (option) => !["answered", "unanswered"].includes(option),
+  );
+  const hasAlternativeAnswer = !["answered", "unanswered"].includes(state);
+  if (alternativeStates.length === 0) return null;
+
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      {hasAlternativeAnswer ? (
+        <>
+          <Typography variant="body2" color="text.secondary">
+            Recorded as {stateLabel(state)}
+          </Typography>
+          <Button
+            size="small"
+            disabled={disabled}
+            onClick={() => onChange("unanswered")}
+          >
+            Enter an answer
+          </Button>
+        </>
+      ) : (
+        <Button
+          size="small"
+          disabled={disabled}
+          aria-haspopup="menu"
+          aria-expanded={Boolean(anchorEl)}
+          onClick={(event) => setAnchorEl(event.currentTarget)}
+        >
+          Record a different response
+        </Button>
+      )}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+      >
+        {alternativeStates.map((option) => (
+          <MenuItem
+            key={option}
+            onClick={() => {
+              onChange(option);
+              setAnchorEl(null);
+            }}
+          >
+            {stateLabel(option)}
+          </MenuItem>
+        ))}
+      </Menu>
     </Stack>
   );
 }
