@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-20 — Prescription transmission implementation brief saved
+
+At the founder's request, saved the [prescription transmission implementation brief](../../docs/development/prescription-transmission-plan.md) and linked it from MC-10. The brief documents the inspected medication-request, immutable-event and refill baseline; a vendor-independent pharmacy destination, attempt-history and backend simulation plan; standards references; recovery/refill boundaries; and future vendor gates. It maps to RX-01–03 and OP-06–08/10/12 without adding a competing dependency matrix. This is planning evidence only: no source workflow changed, no provider was contacted, and no pharmacy transmission, clinical/professional review, real-data use, or release acceptance occurred. Next action is a separately authorized bounded implementation slice starting with pharmacy destination and preparation validation.
+
 ## 2026-09-20 — Recent agent work and populated Sandbox deployed
 
 At the founder's request, inspected all available worktrees and recent branch commits. Recent completed work was already included in main at `f31a1784f3b4bb13531ac3fce7ef328b096f9501`; no additional recent commits required merging. Preserved the local schema-formatting change and attachment directory. Recovered the prior Lightsail connection from the earlier deployment record and verified the public domain resolves to `174.129.142.201`; the initial runbook address was stale.

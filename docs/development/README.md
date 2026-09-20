@@ -12,6 +12,7 @@ These documents explain how to work on APPly. They describe current source mecha
 - [Architecture](../architecture/README.md): repository ownership, domain boundaries and implementation contracts.
 - [Stripe monthly memberships](stripe-memberships.md): sandbox Connect credentials, local webhook delivery, membership lifecycle and manual acceptance gate.
 - [Clinic background work](clinic-background-work.md): bounded PostgreSQL outbox recovery process, safety gates and deployment requirements.
+- [Prescription transmission plan](prescription-transmission-plan.md): vendor-independent pharmacy-prescription preparation, simulation, recovery and future-adapter boundary for MC-10.
 - [Twilio setup](twilio.md): separate telehealth-video and patient-recovery SMS credentials, required gates and sandbox behavior.
 
 Application-specific commands remain authoritative in [the API README](../../apps/api/README.md) and [the web README](../../apps/web/README.md). Provider-neutral packaging and future owner-controlled hosting preparation live in [portable deployment](../../ops/portable/README.md).
