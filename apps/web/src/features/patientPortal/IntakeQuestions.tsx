@@ -314,7 +314,11 @@ export function IntakeQuestions({
                   set(
                     field.id,
                     nextState === "answered"
-                      ? { ...detail, state: nextState, value: detail.value ?? "" }
+                      ? {
+                          ...detail,
+                          state: nextState,
+                          value: detail.value ?? "",
+                        }
                       : { state: nextState, value: "" },
                   );
                 }}

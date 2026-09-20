@@ -261,7 +261,8 @@ export function RecordFields({
         .map((field) => {
           const otherKey = `${field.id}_other_detail`;
           const unitKey = `${field.id}_unit`;
-          const isMedicationReference = field.reference_kind === "clinic_medication_catalog";
+          const isMedicationReference =
+            field.reference_kind === "clinic_medication_catalog";
           const selectedMedication = medicationReferences.find(
             (product) => product.id === entry[field.id],
           );
@@ -276,17 +277,29 @@ export function RecordFields({
                     ]}
                     getOptionLabel={(option) => option.name}
                     getOptionKey={(option) => option.id}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    value={selectedMedication ?? (entry.name ? { id: "other", name: "Other — enter manually" } : null)}
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    value={
+                      selectedMedication ??
+                      (entry.name
+                        ? { id: "other", name: "Other — enter manually" }
+                        : null)
+                    }
                     disabled={disabled}
                     onChange={(_event, value) =>
                       onChange({
-                        [field.id]: value?.id === "other" ? "" : (value?.id ?? ""),
+                        [field.id]:
+                          value?.id === "other" ? "" : (value?.id ?? ""),
                         name: value && value.id !== "other" ? value.name : "",
                       })
                     }
                     renderInput={(params) => (
-                      <TextField {...params} label={field.label} helperText="Choose a clinic catalog medicine or enter Other manually." />
+                      <TextField
+                        {...params}
+                        label={field.label}
+                        helperText="Choose a clinic catalog medicine or enter Other manually."
+                      />
                     )}
                   />
                   {!selectedMedication && (
@@ -294,21 +307,37 @@ export function RecordFields({
                       label="Other medicine name"
                       value={entry.name ?? ""}
                       disabled={disabled}
-                      onChange={(event) => onChange({ [field.id]: "", name: event.target.value })}
+                      onChange={(event) =>
+                        onChange({ [field.id]: "", name: event.target.value })
+                      }
                     />
                   )}
                 </>
               ) : (
                 <IntakeValueControl
                   field={field}
-                  value={entry[field.id] ?? (field.input_type === "multiselect" ? [] : "")}
+                  value={
+                    entry[field.id] ??
+                    (field.input_type === "multiselect" ? [] : "")
+                  }
                   disabled={disabled}
-                  onChange={(value) => onChange({
-                    [field.id]: value,
-                    ...(!hasOtherChoice(value) && entry[otherKey] !== undefined ? { [otherKey]: "" } : {}),
-                  })}
-                  otherDetail={typeof entry[otherKey] === "string" ? entry[otherKey] : ""}
-                  onOtherDetailChange={ids.has(otherKey) ? undefined : (value) => onChange({ [otherKey]: value })}
+                  onChange={(value) =>
+                    onChange({
+                      [field.id]: value,
+                      ...(!hasOtherChoice(value) &&
+                      entry[otherKey] !== undefined
+                        ? { [otherKey]: "" }
+                        : {}),
+                    })
+                  }
+                  otherDetail={
+                    typeof entry[otherKey] === "string" ? entry[otherKey] : ""
+                  }
+                  onOtherDetailChange={
+                    ids.has(otherKey)
+                      ? undefined
+                      : (value) => onChange({ [otherKey]: value })
+                  }
                 />
               )}
               {!!field.units?.length && !ids.has(unitKey) && (

@@ -3810,7 +3810,7 @@ CREATE TABLE public.clinic_intake_consent_revisions (
     recorded_at timestamp(6) with time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT intake_consent_values CHECK ((((purpose)::text = ANY (ARRAY[('treatment'::character varying)::text, ('privacy_notice'::character varying)::text, ('product_counseling'::character varying)::text, ('ai_recording'::character varying)::text, ('marketing'::character varying)::text])) AND (revision > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(content) > 0)))
+    CONSTRAINT intake_consent_values CHECK ((((purpose)::text = ANY ((ARRAY['treatment'::character varying, 'privacy_notice'::character varying, 'product_counseling'::character varying, 'ai_recording'::character varying, 'marketing'::character varying])::text[])) AND (revision > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(content) > 0)))
 );
 
 
@@ -30146,3 +30146,4 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260830000200'),
 ('20260830000100'),
 ('20260920010100');
+

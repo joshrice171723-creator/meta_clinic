@@ -704,7 +704,7 @@ export function LessonCatalog({
                     aria-label={`Open ${lesson.title}`}
                     onClick={() => onSelect(lesson.id)}
                   >
-                    Start lesson
+                    Start demo
                   </Button>
                 </Stack>
               </Stack>
