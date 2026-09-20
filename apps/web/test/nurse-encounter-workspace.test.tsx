@@ -5,7 +5,10 @@ import type {
   NurseWorkspace,
   Patient,
 } from "../src/api/contracts";
-import { NurseEncounterWorkspace } from "../src/features/clinic/NurseEncounterWorkspace";
+import {
+  allIntakeChunksConfirmed,
+  NurseEncounterWorkspace,
+} from "../src/features/clinic/NurseEncounterWorkspace";
 
 const fixtures = vi.hoisted(() => ({
   workspace: {
@@ -262,6 +265,29 @@ describe("NurseEncounterWorkspace", () => {
     expect(html).toContain("Record an exception");
     expect(html).not.toContain("What brings you in? status");
     expect(html).toContain("Room is still required.");
+  });
+
+  it("keeps later save stages hidden until their prerequisite is recorded", () => {
+    const html = renderWorkspace(19);
+
+    expect(
+      allIntakeChunksConfirmed(
+        fixtures.workspace.questionnaire_form!.chunks,
+        [],
+      ),
+    ).toBe(false);
+    expect(
+      allIntakeChunksConfirmed(
+        fixtures.workspace.questionnaire_form!.chunks,
+        fixtures.workspace.questionnaire_form!.chunks.map(
+          (chunk) => chunk.index,
+        ),
+      ),
+    ).toBe(true);
+    expect(html).toContain("Confirm and save group");
+    expect(html).not.toContain("Intake revision");
+    expect(html).not.toContain("Request clinician handoff");
+    expect(html).not.toContain("No handoff has been requested.");
   });
 
   it("renders the server-provided M7-M12 group definitions", () => {

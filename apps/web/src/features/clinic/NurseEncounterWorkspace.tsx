@@ -106,6 +106,16 @@ const MEASUREMENT_CODES = new Set([
   "vital-pain-score",
 ]);
 
+export function allIntakeChunksConfirmed(
+  chunks: Array<{ index: number }>,
+  confirmedChunkIndexes: number[],
+) {
+  return (
+    chunks.length === 0 ||
+    chunks.every((chunk) => confirmedChunkIndexes.includes(chunk.index))
+  );
+}
+
 export function NurseEncounterWorkspace({
   patient,
   encounter,
@@ -329,6 +339,14 @@ export function NurseEncounterWorkspace({
     workspace.intake?.version ?? 0,
     hydratedVersion.current ?? 0,
   );
+  const intakeQuestionGroupsSaved = allIntakeChunksConfirmed(
+    intakeChunks,
+    confirmedChunkIndexes,
+  );
+  const intakeRevisionSaved =
+    workspace.intake?.status === "ready_for_handoff" && !dirty;
+  const handoffStageAvailable =
+    intakeRevisionSaved || Boolean(workspace.handoff);
   const staleHandoff = Boolean(
     workspace.handoff &&
     workspace.intake &&
@@ -1243,262 +1261,267 @@ export function NurseEncounterWorkspace({
                 </Stack>
               </Stack>
             )}
-            <Box>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{ justifyContent: "space-between" }}
-              >
-                <Typography component="h3" variant="h6">
-                  Intake revision
-                </Typography>
-                <Chip
-                  variant="outlined"
-                  label={`Version ${intakeVersion} · ${stateLabel(workspace.intake?.status || "not recorded")}`}
-                />
-              </Stack>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5 }}
-              >
-                Clinical values stay in observations and history records; this
-                revision records which evidence was used and whether each step
-                is complete.
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                gap: 1.5,
-              }}
-            >
-              <StateSelect
-                label="Patient identity"
-                value={form.identity_state}
-                disabled={busy || !workspace.capabilities.intake_write}
-                options={["confirmed", "not_confirmed", "unable_to_confirm"]}
-                onChange={(value) =>
-                  setForm({
-                    ...form,
-                    identity_state: value as IntakeForm["identity_state"],
-                  })
-                }
-              />
-              <StateSelect
-                label="Visit reason"
-                value={form.visit_reason_state}
-                disabled={busy || !workspace.capabilities.intake_write}
-                options={[
-                  "confirmed",
-                  "needs_correction",
-                  "not_recorded",
-                  "unable_to_obtain",
-                ]}
-                onChange={(value) =>
-                  setForm({
-                    ...form,
-                    visit_reason_state:
-                      value as IntakeForm["visit_reason_state"],
-                  })
-                }
-              />
-              <StateSelect
-                label="History review"
-                value={form.history_state}
-                disabled={busy || !workspace.capabilities.intake_write}
-                options={[
-                  "reviewed",
-                  "incomplete",
-                  "not_recorded",
-                  "unable_to_obtain",
-                ]}
-                onChange={(value) =>
-                  setForm({
-                    ...form,
-                    history_state: value as IntakeForm["history_state"],
-                  })
-                }
-              />
-              <StateSelect
-                label="Vitals"
-                value={form.vitals_state}
-                disabled={busy || !workspace.capabilities.intake_write}
-                options={[
-                  "recorded",
-                  "incomplete",
-                  "not_recorded",
-                  "declined",
-                  "unable_to_obtain",
-                  "not_applicable",
-                ]}
-                onChange={(value) =>
-                  setForm({
-                    ...form,
-                    vitals_state: value as IntakeForm["vitals_state"],
-                  })
-                }
-              />
-            </Box>
-            <Alert severity={readyEvidence ? "info" : "warning"}>
-              {readyEvidence
-                ? "Recorded evidence supports requesting handoff. A clinician must still accept responsibility."
-                : `Handoff is not ready. ${observationIds.length} encounter observation(s) and ${reviewIds.length} history review(s) are currently linked.`}
-            </Alert>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button
-                variant="contained"
-                disabled={
-                  busy || !dirty || !workspace.capabilities.intake_write
-                }
-                onClick={() => void saveIntake()}
-              >
-                Save intake revision
-              </Button>
-              <Button
-                variant="outlined"
-                disabled={
-                  busy ||
-                  dirty ||
-                  !readyEvidence ||
-                  workspace.intake?.status !== "ready_for_handoff" ||
-                  !workspace.capabilities.handoff_request ||
-                  Boolean(
-                    workspace.handoff &&
-                    ["pending", "accepted", "correction_requested"].includes(
-                      workspace.handoff.state,
-                    ),
-                  )
-                }
-                onClick={() => void requestHandoff()}
-              >
-                Request clinician handoff
-              </Button>
-              <Button
-                variant="text"
-                disabled={busy || !dirty}
-                onClick={() => setForm(baseline)}
-              >
-                Discard unsaved changes
-              </Button>
-            </Stack>
-            {readyEvidence && form.status !== "ready_for_handoff" && (
-              <Button
-                sx={{ alignSelf: "flex-start" }}
-                disabled={busy || !workspace.capabilities.intake_write}
-                onClick={() =>
-                  setForm({ ...form, status: "ready_for_handoff" })
-                }
-              >
-                Mark intake ready for handoff
-              </Button>
-            )}
-          </Stack>
-          <Stack spacing={2}>
-            <Box>
-              <Typography component="h3" variant="h6">
-                Handoff
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Opening the chart does not accept a handoff.
-              </Typography>
-            </Box>
-            {workspace.handoff ? (
-              <Stack spacing={1.25}>
-                <Chip
-                  sx={{ alignSelf: "flex-start" }}
-                  label={stateLabel(workspace.handoff.state)}
-                  variant="outlined"
-                />
-                <Typography variant="body2">
-                  Bound to intake revision{" "}
-                  {workspace.handoff.intake_revision_id}
-                </Typography>
-                {staleHandoff &&
-                  ["pending", "accepted", "correction_requested"].includes(
-                    workspace.handoff.state,
-                  ) && (
-                    <Alert severity="warning">
-                      Intake changed after this handoff was requested. Cancel
-                      this handoff, review the latest answers, and request a new
-                      handoff.
-                    </Alert>
-                  )}
-                {workspace.handoff.requested_by_membership_id ===
-                  clinic.membership_id &&
-                  ["pending", "accepted"].includes(workspace.handoff.state) && (
-                    <Alert severity="info">
-                      A different authorized clinician must respond to this
-                      handoff.
-                    </Alert>
-                  )}
-                {workspace.handoff.state === "pending" &&
-                  canRespondToHandoff && (
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ flexWrap: "wrap" }}
-                      useFlexGap
-                    >
-                      <Button
-                        disabled={busy || staleHandoff || dirty}
-                        variant="contained"
-                        onClick={() => void transitionHandoff("accept")}
-                      >
-                        Accept
-                      </Button>
-                      <Button
-                        disabled={busy}
-                        onClick={() =>
-                          void transitionHandoff("request_correction")
-                        }
-                      >
-                        Request correction
-                      </Button>
-                      <Button
-                        disabled={busy}
-                        color="error"
-                        onClick={() => void transitionHandoff("reject")}
-                      >
-                        Reject
-                      </Button>
-                    </Stack>
-                  )}
-                {workspace.handoff.state === "accepted" &&
-                  canRespondToHandoff && (
-                    <Button
-                      disabled={busy || staleHandoff || dirty}
-                      variant="outlined"
-                      onClick={() => void transitionHandoff("complete")}
-                    >
-                      Complete handoff
-                    </Button>
-                  )}
-                {workspace.handoff.state === "correction_requested" && (
-                  <Alert severity="warning">
-                    Revise and save the intake, then cancel this handoff before
-                    requesting a new clinician review.
-                  </Alert>
-                )}
-                {canCancelHandoff && (
-                  <Button
-                    disabled={busy}
-                    color="error"
-                    variant="text"
-                    sx={{ alignSelf: "flex-start" }}
-                    onClick={() => void transitionHandoff("cancel")}
+            {intakeQuestionGroupsSaved && (
+              <>
+                <Box>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    sx={{ justifyContent: "space-between" }}
                   >
-                    Cancel handoff
+                    <Typography component="h3" variant="h6">
+                      Intake revision
+                    </Typography>
+                    <Chip
+                      variant="outlined"
+                      label={`Version ${intakeVersion} · ${stateLabel(workspace.intake?.status || "not recorded")}`}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Clinical values stay in observations and history records;
+                    this revision records which evidence was used and whether
+                    each step is complete.
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                    gap: 1.5,
+                  }}
+                >
+                  <StateSelect
+                    label="Patient identity"
+                    value={form.identity_state}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    options={[
+                      "confirmed",
+                      "not_confirmed",
+                      "unable_to_confirm",
+                    ]}
+                    onChange={(value) =>
+                      setForm({
+                        ...form,
+                        identity_state: value as IntakeForm["identity_state"],
+                      })
+                    }
+                  />
+                  <StateSelect
+                    label="Visit reason"
+                    value={form.visit_reason_state}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    options={[
+                      "confirmed",
+                      "needs_correction",
+                      "not_recorded",
+                      "unable_to_obtain",
+                    ]}
+                    onChange={(value) =>
+                      setForm({
+                        ...form,
+                        visit_reason_state:
+                          value as IntakeForm["visit_reason_state"],
+                      })
+                    }
+                  />
+                  <StateSelect
+                    label="History review"
+                    value={form.history_state}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    options={[
+                      "reviewed",
+                      "incomplete",
+                      "not_recorded",
+                      "unable_to_obtain",
+                    ]}
+                    onChange={(value) =>
+                      setForm({
+                        ...form,
+                        history_state: value as IntakeForm["history_state"],
+                      })
+                    }
+                  />
+                  <StateSelect
+                    label="Vitals"
+                    value={form.vitals_state}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    options={[
+                      "recorded",
+                      "incomplete",
+                      "not_recorded",
+                      "declined",
+                      "unable_to_obtain",
+                      "not_applicable",
+                    ]}
+                    onChange={(value) =>
+                      setForm({
+                        ...form,
+                        vitals_state: value as IntakeForm["vitals_state"],
+                      })
+                    }
+                  />
+                </Box>
+                <Alert severity={readyEvidence ? "info" : "warning"}>
+                  {readyEvidence
+                    ? "Recorded evidence supports requesting handoff. A clinician must still accept responsibility."
+                    : `Handoff is not ready. ${observationIds.length} encounter observation(s) and ${reviewIds.length} history review(s) are currently linked.`}
+                </Alert>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button
+                    variant="contained"
+                    disabled={
+                      busy || !dirty || !workspace.capabilities.intake_write
+                    }
+                    onClick={() => void saveIntake()}
+                  >
+                    Save intake revision
+                  </Button>
+                  <Button
+                    variant="text"
+                    disabled={busy || !dirty}
+                    onClick={() => setForm(baseline)}
+                  >
+                    Discard unsaved changes
+                  </Button>
+                </Stack>
+                {readyEvidence && form.status !== "ready_for_handoff" && (
+                  <Button
+                    sx={{ alignSelf: "flex-start" }}
+                    disabled={busy || !workspace.capabilities.intake_write}
+                    onClick={() =>
+                      setForm({ ...form, status: "ready_for_handoff" })
+                    }
+                  >
+                    Set ready, then save intake revision
                   </Button>
                 )}
-              </Stack>
-            ) : (
-              <Typography color="text.secondary">
-                No handoff has been requested.
-              </Typography>
+              </>
             )}
           </Stack>
+          {handoffStageAvailable && (
+            <Stack spacing={2}>
+              <Box>
+                <Typography component="h3" variant="h6">
+                  Handoff
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Opening the chart does not accept a handoff.
+                </Typography>
+              </Box>
+              {workspace.handoff ? (
+                <Stack spacing={1.25}>
+                  <Chip
+                    sx={{ alignSelf: "flex-start" }}
+                    label={stateLabel(workspace.handoff.state)}
+                    variant="outlined"
+                  />
+                  <Typography variant="body2">
+                    Bound to intake revision{" "}
+                    {workspace.handoff.intake_revision_id}
+                  </Typography>
+                  {staleHandoff &&
+                    ["pending", "accepted", "correction_requested"].includes(
+                      workspace.handoff.state,
+                    ) && (
+                      <Alert severity="warning">
+                        Intake changed after this handoff was requested. Cancel
+                        this handoff, review the latest answers, and request a
+                        new handoff.
+                      </Alert>
+                    )}
+                  {workspace.handoff.requested_by_membership_id ===
+                    clinic.membership_id &&
+                    ["pending", "accepted"].includes(
+                      workspace.handoff.state,
+                    ) && (
+                      <Alert severity="info">
+                        A different authorized clinician must respond to this
+                        handoff.
+                      </Alert>
+                    )}
+                  {workspace.handoff.state === "pending" &&
+                    canRespondToHandoff && (
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ flexWrap: "wrap" }}
+                        useFlexGap
+                      >
+                        <Button
+                          disabled={busy || staleHandoff || dirty}
+                          variant="contained"
+                          onClick={() => void transitionHandoff("accept")}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          disabled={busy}
+                          onClick={() =>
+                            void transitionHandoff("request_correction")
+                          }
+                        >
+                          Request correction
+                        </Button>
+                        <Button
+                          disabled={busy}
+                          color="error"
+                          onClick={() => void transitionHandoff("reject")}
+                        >
+                          Reject
+                        </Button>
+                      </Stack>
+                    )}
+                  {workspace.handoff.state === "accepted" &&
+                    canRespondToHandoff && (
+                      <Button
+                        disabled={busy || staleHandoff || dirty}
+                        variant="outlined"
+                        onClick={() => void transitionHandoff("complete")}
+                      >
+                        Complete handoff
+                      </Button>
+                    )}
+                  {workspace.handoff.state === "correction_requested" && (
+                    <Alert severity="warning">
+                      Revise and save the intake, then cancel this handoff
+                      before requesting a new clinician review.
+                    </Alert>
+                  )}
+                  {canCancelHandoff && (
+                    <Button
+                      disabled={busy}
+                      color="error"
+                      variant="text"
+                      sx={{ alignSelf: "flex-start" }}
+                      onClick={() => void transitionHandoff("cancel")}
+                    >
+                      Cancel handoff
+                    </Button>
+                  )}
+                </Stack>
+              ) : (
+                <Stack spacing={1}>
+                  <Typography color="text.secondary">
+                    No handoff has been requested.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    disabled={
+                      busy || dirty || !workspace.capabilities.handoff_request
+                    }
+                    onClick={() => void requestHandoff()}
+                    sx={{ alignSelf: "flex-start" }}
+                  >
+                    Request clinician handoff
+                  </Button>
+                </Stack>
+              )}
+            </Stack>
+          )}
         </Box>
         <Divider />
         <Box>
