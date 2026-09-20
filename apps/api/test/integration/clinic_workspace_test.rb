@@ -728,6 +728,22 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_operator hold_queries.length, :<=, 2, hold_queries.join("\n")
   end
 
+  test "patient directory includes bounded identity details for patient readers" do
+    patient = @practice.patients.create!(display_name: "Synthetic directory patient", reference: "DIR-001")
+    patient.create_demographics!(practice: @practice, date_of_birth: Date.new(1988, 4, 12),
+      sex: "unknown", primary_language: "English", interpreter_required: false)
+    patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+1 (555) 867-5309",
+      preferred: true, effective_from: Time.current)
+
+    get "/api/clinic/patients", headers: @headers
+
+    assert_response :success
+    row = response.parsed_body.fetch("patients").find { |item| item.fetch("id") == patient.id }
+    assert_equal "1988-04-12", row.fetch("date_of_birth")
+    assert_equal "ending 5309", row.fetch("phone_hint")
+    assert_equal %w[date_of_birth display_name id phone_hint reference], row.keys.sort
+  end
+
   test "inventory location paths preserve the tenant site and nested storage hierarchy" do
     site = @practice.sites.create!(code: "PATH", name: "Path clinic", status: "active")
     parent = @practice.inventory_locations.create!(site: site, name: "Medication room", kind: "storage")

@@ -141,6 +141,10 @@ const Patients = lazyNamed(
   () => import("./features/clinic/Patients"),
   (m) => m.Patients,
 );
+const PatientRegistrationPage = lazyNamed(
+  () => import("./features/clinic/Patients"),
+  (m) => m.PatientRegistrationPage,
+);
 const WorkforceApp = lazyNamed(
   () => import("./features/workforce/WorkforceApp"),
   (m) => m.WorkforceApp,
@@ -560,6 +564,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         <Facilities />
       ) : path === "/clinic/chart-selection" ? (
         <ChartSelectionPage search={search} />
+      ) : path === "/clinic/patients/new" ? (
+        <PatientRegistrationPage />
       ) : path === "/clinic/patients" ? (
         <Patients />
       ) : encounter ? (

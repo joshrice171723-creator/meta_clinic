@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Chip,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,7 +25,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { api, ApiError, formBody } from "../../api/client";
 import type {
@@ -97,7 +98,7 @@ export function Patients({ id }: { id?: string }) {
       >
         <h1>Patient directory</h1>
         {clinic.capabilities.patients_write && (
-          <Button component="a" href="#register-patient" variant="contained">
+          <Button component="a" href="/clinic/patients/new" variant="contained">
             Register patient
           </Button>
         )}
@@ -105,8 +106,19 @@ export function Patients({ id }: { id?: string }) {
       <a className="text-link" href="/clinic">
         Return to tracking board →
       </a>
-      {clinic.capabilities.patient_identity_read === true && <PatientLookup />}
       <Card title="Patient directory">
+        {clinic.capabilities.patient_identity_read === true && (
+          <>
+            <PatientLookup />
+            <Divider sx={{ my: 3 }} />
+            <Typography component="h2" variant="h6" sx={{ mb: 0.5 }}>
+              All patients
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>
+              Browse the patients registered at this location.
+            </Typography>
+          </>
+        )}
         {data.patients?.length === 0 ? (
           <p>No patients are registered at this location yet.</p>
         ) : (
@@ -119,6 +131,8 @@ export function Patients({ id }: { id?: string }) {
                 <tr>
                   <th scope="col">Patient</th>
                   <th scope="col">Clinic reference</th>
+                  <th scope="col">Date of birth</th>
+                  <th scope="col">Phone</th>
                   <th scope="col">Record</th>
                 </tr>
               </thead>
@@ -131,6 +145,8 @@ export function Patients({ id }: { id?: string }) {
                     <td>
                       {patientReferenceLabel(p.reference) ?? "Not recorded"}
                     </td>
+                    <td>{p.date_of_birth ?? "Not recorded"}</td>
+                    <td>{p.phone_hint ?? "Not recorded"}</td>
                     <td>
                       <a href={`/clinic/patients/${p.id}`}>Open patient</a>
                     </td>
@@ -149,14 +165,49 @@ export function Patients({ id }: { id?: string }) {
           />
         )}
       </Card>
-      {clinic.capabilities.patients_write && (
-        <Box id="register-patient" sx={{ scrollMarginTop: 16 }}>
-          <Card title="Register a patient">
+    </>
+  );
+}
+
+export function PatientRegistrationPage() {
+  const clinic = useClinic();
+
+  return (
+    <>
+      <p className="eyebrow">PATIENTS</p>
+      <Stack spacing={1} sx={{ mb: 3 }}>
+        <h1>Register a patient</h1>
+        <Box
+          sx={{
+            backgroundColor: "primary.main",
+            borderRadius: 2,
+            color: "primary.contrastText",
+            maxWidth: 760,
+            p: { sm: 2.5, xs: 2 },
+          }}
+        >
+          <Typography sx={{ fontWeight: 700 }}>Guided registration</Typography>
+          <Typography variant="body2">
+            Complete and save each section before continuing. The patient record
+            is created only when you finish registration.
+          </Typography>
+        </Box>
+        <a className="text-link" href="/clinic/patients">
+          Return to patient directory
+        </a>
+      </Stack>
+      {clinic.capabilities.patients_write ? (
+        <Box sx={{ maxWidth: 960, minWidth: 0 }}>
+          <Card title="Patient registration">
             <PatientRegistrationForm
               onSuccess={createdPath("/clinic/patients")}
             />
           </Card>
         </Box>
+      ) : (
+        <Alert severity="error">
+          You do not have permission to register a patient.
+        </Alert>
       )}
     </>
   );
@@ -187,60 +238,73 @@ function PatientLookup() {
   }, [signature]);
 
   return (
-    <Card title="Find an existing patient">
-      <Stack spacing={1.5}>
-        <Typography color="text.secondary">
-          Match more than one identity fact before registering a new patient.
+    <Stack spacing={1.5}>
+      <Box>
+        <Typography component="h2" variant="h6" sx={{ mb: 0.5 }}>
+          Find an existing patient
         </Typography>
-        <Box className="pharmacy-form-grid">
-          <TextField
-            fullWidth
-            label="Patient name or clinic reference"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            slotProps={{
-              htmlInput: { maxLength: 100 },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon aria-hidden="true" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            helperText="At least 2 characters"
-          />
-          <TextField
-            fullWidth
-            label="Date of birth"
-            type="date"
-            value={dateOfBirth}
-            onChange={(event) => setDateOfBirth(event.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            fullWidth
-            label="Phone number"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            slotProps={{ htmlInput: { inputMode: "tel", maxLength: 24 } }}
-            helperText="Use the complete number on the patient record"
-          />
-        </Box>
-        {!canSearch && (normalizedQuery.length > 0 || dateOfBirth || phone) && (
-          <Typography color="text.secondary" role="status">
-            Enter at least 2 name/reference characters, a complete birth date,
-            or a complete phone number.
-          </Typography>
-        )}
-        {canSearch && !lookupQuery && (
-          <Typography color="text.secondary" role="status">
-            Updating search…
-          </Typography>
-        )}
-        {lookupQuery && <PatientLookupResults search={lookupQuery} />}
-      </Stack>
-    </Card>
+        <Typography color="text.secondary">
+          Search by name or clinic reference, birth date, or phone number.
+        </Typography>
+      </Box>
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: {
+            lg: "minmax(0, 1.7fr) minmax(11rem, 0.8fr) minmax(13rem, 1fr)",
+            md: "repeat(2, minmax(0, 1fr))",
+            xs: "1fr",
+          },
+        }}
+      >
+        <TextField
+          fullWidth
+          label="Patient name or clinic reference"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          slotProps={{
+            htmlInput: { maxLength: 100 },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon aria-hidden="true" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          helperText="At least 2 characters"
+        />
+        <TextField
+          fullWidth
+          label="Date of birth"
+          type="date"
+          value={dateOfBirth}
+          onChange={(event) => setDateOfBirth(event.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+        <TextField
+          fullWidth
+          label="Phone number"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          slotProps={{ htmlInput: { inputMode: "tel", maxLength: 24 } }}
+          helperText="Use the complete number on the patient record"
+        />
+      </Box>
+      {!canSearch && (normalizedQuery.length > 0 || dateOfBirth || phone) && (
+        <Typography color="text.secondary" role="status">
+          Enter at least 2 name/reference characters, a complete birth date, or
+          a complete phone number.
+        </Typography>
+      )}
+      {canSearch && !lookupQuery && (
+        <Typography color="text.secondary" role="status">
+          Updating search…
+        </Typography>
+      )}
+      {lookupQuery && <PatientLookupResults search={lookupQuery} />}
+    </Stack>
   );
 }
 
@@ -949,11 +1013,59 @@ function RegistrationConflictReview({
   );
 }
 
-function PatientFields({ values }: { values: RegistrationValues }) {
+function PatientFields({
+  values,
+  onSaveSection,
+  onCompletionChange,
+}: {
+  values: RegistrationValues;
+  onSaveSection: (form: HTMLFormElement) => Promise<boolean>;
+  onCompletionChange: (complete: boolean) => void;
+}) {
+  const [expanded, setExpanded] = useState("demographics");
+  const [unlocked, setUnlocked] = useState(0);
+  const accordionSx = {
+    "&.Mui-disabled": { backgroundColor: "action.disabledBackground" },
+    "&.Mui-expanded": { borderColor: "primary.main" },
+    "&:before": { display: "none" },
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: "8px !important",
+    overflow: "hidden",
+  };
+  const summarySx = {
+    "& .MuiAccordionSummary-content": { my: 1.5 },
+    backgroundColor: "action.hover",
+    minHeight: 72,
+    px: { sm: 2.5, xs: 2 },
+  };
+  const detailsSx = {
+    backgroundColor: "background.default",
+    px: { sm: 2.5, xs: 2 },
+    py: 2.5,
+  };
+  const continueSection = async (
+    event: MouseEvent<HTMLButtonElement>,
+    step: number,
+    next: string | null,
+  ) => {
+    const form = event.currentTarget.form;
+    if (!form || !form.reportValidity()) return;
+    if (!(await onSaveSection(form))) return;
+    setUnlocked(step + 1);
+    if (next) setExpanded(next);
+    else onCompletionChange(true);
+  };
+
   return (
     <Stack spacing={1}>
-      <Accordion defaultExpanded disableGutters>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <Accordion
+        expanded={expanded === "demographics"}
+        disableGutters
+        onChange={(_event, open) => setExpanded(open ? "demographics" : "")}
+        sx={accordionSx}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={summarySx}>
           <Box>
             <Typography sx={{ fontWeight: 700 }}>Demographics</Typography>
             <Typography variant="body2" color="text.secondary">
@@ -961,7 +1073,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             </Typography>
           </Box>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={detailsSx}>
           <Box className="pharmacy-form-grid">
             <Field
               name="clinic_patient[date_of_birth]"
@@ -1011,10 +1123,24 @@ function PatientFields({ values }: { values: RegistrationValues }) {
               ]}
             />
           </Box>
+          <Button
+            onClick={(event) => void continueSection(event, 0, "contact")}
+            sx={{ mt: 2 }}
+            type="button"
+            variant="outlined"
+          >
+            Save and continue
+          </Button>
         </AccordionDetails>
       </Accordion>
-      <Accordion disableGutters>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <Accordion
+        disabled={unlocked < 1}
+        expanded={expanded === "contact"}
+        disableGutters
+        onChange={(_event, open) => setExpanded(open ? "contact" : "")}
+        sx={accordionSx}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={summarySx}>
           <Box>
             <Typography sx={{ fontWeight: 700 }}>
               Contact details and communication preferences
@@ -1024,7 +1150,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             </Typography>
           </Box>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={detailsSx}>
           <Box className="pharmacy-form-grid">
             <Field
               name="clinic_patient[contact_type]"
@@ -1078,10 +1204,24 @@ function PatientFields({ values }: { values: RegistrationValues }) {
               ]}
             />
           </Box>
+          <Button
+            onClick={(event) => void continueSection(event, 1, "emergency")}
+            sx={{ mt: 2 }}
+            type="button"
+            variant="outlined"
+          >
+            Save and continue
+          </Button>
         </AccordionDetails>
       </Accordion>
-      <Accordion disableGutters>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <Accordion
+        disabled={unlocked < 2}
+        expanded={expanded === "emergency"}
+        disableGutters
+        onChange={(_event, open) => setExpanded(open ? "emergency" : "")}
+        sx={accordionSx}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={summarySx}>
           <Box>
             <Typography sx={{ fontWeight: 700 }}>Emergency contact</Typography>
             <Typography variant="body2" color="text.secondary">
@@ -1089,7 +1229,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             </Typography>
           </Box>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={detailsSx}>
           <Box className="pharmacy-form-grid">
             <Field
               name="clinic_patient[emergency_name]"
@@ -1123,10 +1263,24 @@ function PatientFields({ values }: { values: RegistrationValues }) {
               ]}
             />
           </Box>
+          <Button
+            onClick={(event) => void continueSection(event, 2, "clinical")}
+            sx={{ mt: 2 }}
+            type="button"
+            variant="outlined"
+          >
+            Save and continue
+          </Button>
         </AccordionDetails>
       </Accordion>
-      <Accordion disableGutters>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <Accordion
+        disabled={unlocked < 3}
+        expanded={expanded === "clinical"}
+        disableGutters
+        onChange={(_event, open) => setExpanded(open ? "clinical" : "")}
+        sx={accordionSx}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={summarySx}>
           <Box>
             <Typography sx={{ fontWeight: 700 }}>
               Optional clinical context
@@ -1137,7 +1291,7 @@ function PatientFields({ values }: { values: RegistrationValues }) {
             </Typography>
           </Box>
         </AccordionSummary>
-        <AccordionDetails>
+        <AccordionDetails sx={detailsSx}>
           <Box className="pharmacy-form-grid">
             {(
               [
@@ -1161,6 +1315,14 @@ function PatientFields({ values }: { values: RegistrationValues }) {
               />
             ))}
           </Box>
+          <Button
+            onClick={(event) => void continueSection(event, 3, null)}
+            sx={{ mt: 2 }}
+            type="button"
+            variant="outlined"
+          >
+            Save section
+          </Button>
         </AccordionDetails>
       </Accordion>
     </Stack>
@@ -1248,6 +1410,7 @@ function PatientRegistrationEditor({
     latest: RegistrationPatient;
     local: RegistrationValues;
   } | null>(null);
+  const [sectionsComplete, setSectionsComplete] = useState(false);
 
   useEffect(() => {
     if (!dirty && !attempt.current) return;
@@ -1301,11 +1464,33 @@ function PatientRegistrationEditor({
       void workingDraft.save(snapshot);
     }, 500);
   };
+  const saveSection = async (form: HTMLFormElement) => {
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    const snapshot = snapshotFrom(form);
+    lastSnapshot.current = snapshot;
+    setDirty(true);
+    setBusy(true);
+    setError("");
+    const saved = await workingDraft.save(snapshot);
+    setBusy(false);
+    if (!saved) {
+      setError(
+        "This section could not be saved. Keep this page open and retry before continuing.",
+      );
+    }
+    return saved;
+  };
 
   return (
     <Box
       component="form"
-      onInput={(event) => queueAutosave(event.currentTarget)}
+      onInput={(event) => {
+        setSectionsComplete(false);
+        queueAutosave(event.currentTarget);
+      }}
       onSubmit={async (event) => {
         event.preventDefault();
         if (inFlight.current) return;
@@ -1516,17 +1701,17 @@ function PatientRegistrationEditor({
                   />
                 )}
             </Box>
-            <Field
-              name="clinic_patient[address_line1]"
-              label="Street address"
-              required={false}
-              value={initialValues.address_line1}
-              autoComplete="address-line1"
-              maxLength={200}
-              description="Used for correspondence and patient identity checks."
-              owner="registration staff"
-            />
             <Box className="pharmacy-form-grid">
+              <Field
+                name="clinic_patient[address_line1]"
+                label="Street address"
+                required={false}
+                value={initialValues.address_line1}
+                autoComplete="address-line1"
+                maxLength={200}
+                description="Used for correspondence and patient identity checks."
+                owner="registration staff"
+              />
               <Field
                 name="clinic_patient[address_line2]"
                 label="Apartment, suite, or unit"
@@ -1570,7 +1755,11 @@ function PatientRegistrationEditor({
               communication needs. Record symptoms and other clinical history in
               the visit intake.
             </Typography>
-            <PatientFields values={initialValues} />
+            <PatientFields
+              values={initialValues}
+              onCompletionChange={setSectionsComplete}
+              onSaveSection={saveSection}
+            />
           </Stack>
         </Box>
         {registrationConflict && (
@@ -1609,7 +1798,11 @@ function PatientRegistrationEditor({
           </Alert>
         )}
         {error && <Alert severity="error">{error}</Alert>}
-        <Button type="submit" variant="contained" disabled={busy}>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={busy || (!patient && !sectionsComplete)}
+        >
           {busy
             ? "Saving…"
             : outcomeUnconfirmed

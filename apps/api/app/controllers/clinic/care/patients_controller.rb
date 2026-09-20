@@ -14,12 +14,13 @@ module Clinic
 
       def index
         patients = current_practice.patients.accessible_by(current_ability, :read)
+          .includes(:demographics, :contacts)
         query = query_param
         if query.present?
           escaped = Clinic::Care::Patient.sanitize_sql_like(query)
           patients = patients.where("reference ILIKE :query", query: "%#{escaped}%")
         end
-        paginate(patients, key: :patients, serializer: ->(patient) { PatientSerializer.call(patient) }, order: { reference: :asc, id: :asc })
+        paginate(patients, key: :patients, serializer: ->(patient) { PatientSerializer.identity_lookup(patient) }, order: { reference: :asc, id: :asc })
       end
 
       # Scheduler/front desk projection: identity and reference only. The
