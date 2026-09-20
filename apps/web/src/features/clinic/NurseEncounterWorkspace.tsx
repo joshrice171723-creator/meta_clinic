@@ -195,6 +195,12 @@ export function NurseEncounterWorkspace({
       ),
     [encounter.site_id, roomsResource.data?.rooms],
   );
+  const currentRoom = selectedRooms.find((room) => room.id === roomId);
+  const roomStatusLabel =
+    roomId == null
+      ? "Not recorded"
+      : (currentRoom?.code ??
+        (roomsResource.data ? "Unavailable" : "Loading room…"));
 
   useEffect(() => {
     const intake = resource.data?.intake;
@@ -645,7 +651,7 @@ export function NurseEncounterWorkspace({
               variant="outlined"
             />
             <Chip
-              label={`Room: ${roomId ?? "Not recorded"}`}
+              label={`Room: ${roomStatusLabel}`}
               size="small"
               variant="outlined"
             />
