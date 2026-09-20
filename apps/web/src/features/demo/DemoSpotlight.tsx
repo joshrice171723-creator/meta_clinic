@@ -77,7 +77,7 @@ const reviewPrompts: Record<string, string[]> = {
     "Locate the access and preparation controls. This walkthrough does not start a live call.",
   ],
   scribe_review: [
-    "Review the prepared Scribe encounter and its recording consent status.",
+    "Select Accept consent and confirm the recording permission for this Scribe session.",
     "Select Start recording to open the persistent recording dock.",
     "Select Open treatment workspace in the dock. The recording remains available while you move between clinic pages.",
   ],
@@ -155,11 +155,8 @@ function scribeReviewTarget(
   content: Element,
   reviewStage: number,
 ) {
-  if (reviewStage === 0)
-    return Array.from(content.querySelectorAll<HTMLElement>("h1, h2")).find(
-      (element) => visible(element) && !element.closest("nav"),
-    );
-
+  const consentControl = buttonWithLabel(root, /^accept consent$/i);
+  if (reviewStage === 0) return consentControl;
   const recordingControl = buttonWithLabel(root, /^(start recording|recording)$/i);
   if (reviewStage === 1) return recordingControl;
 
