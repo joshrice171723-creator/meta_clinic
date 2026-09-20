@@ -51,8 +51,18 @@ type OrganizationSummary = {
 type CommandCenterData = {
   schema_version: "owner-command-center-v1";
   delivery_methods: { email: boolean; sms: boolean };
+  demo_usage: DemoUsage[];
   organizations: OrganizationSummary[];
   unassigned_clinics: ClinicSummary[];
+};
+
+type DemoUsage = {
+  id: number;
+  name: string;
+  email: string;
+  company: string;
+  lessons_started: number;
+  elapsed_seconds: number;
 };
 
 type CreatedInvitation = {
@@ -69,6 +79,16 @@ const TIMEZONES = [
   ["America/Los_Angeles", "Pacific Time"],
   ["America/Phoenix", "Arizona Time"],
 ] as const;
+
+export function formatDemoDuration(seconds: number) {
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainder = totalSeconds % 60;
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m`;
+  return `${remainder}s`;
+}
 
 export function OwnerCommandCenter() {
   const { data, error, refresh } = useResource<CommandCenterData>(
@@ -279,6 +299,12 @@ export function OwnerCommandCenter() {
         </Button>
       </Box>
 
+      <Box component="nav" aria-label="Owner navigation">
+        <Button component="a" href="#demo-usage" variant="text">
+          Demo usage
+        </Button>
+      </Box>
+
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <Paper variant="outlined" sx={{ px: 2.5, py: 2, minWidth: 180 }}>
           <Typography variant="body2" color="text.secondary">
@@ -304,6 +330,58 @@ export function OwnerCommandCenter() {
         memberships. Patient identifiers, clinical records, and clinic-level
         financial details stay inside each clinic workspace.
       </Alert>
+
+      <Paper
+        component="section"
+        id="demo-usage"
+        variant="outlined"
+        sx={{ overflow: "hidden" }}
+      >
+        <Box sx={{ px: 2.5, py: 2 }}>
+          <Typography component="h2" variant="h5">
+            Demo usage
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Registered visitor details and elapsed time across their demo
+            lessons.
+          </Typography>
+        </Box>
+        <Divider />
+        {data.demo_usage.length === 0 ? (
+          <Typography sx={{ p: 2.5 }} color="text.secondary">
+            No demo visitors have registered yet.
+          </Typography>
+        ) : (
+          <TableContainer>
+            <Table aria-label="Demo visitor usage">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Company</TableCell>
+                  <TableCell align="right">Lessons started</TableCell>
+                  <TableCell align="right">Elapsed demo time</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.demo_usage.map((visitor) => (
+                  <TableRow key={visitor.id}>
+                    <TableCell>{visitor.name}</TableCell>
+                    <TableCell>{visitor.email}</TableCell>
+                    <TableCell>{visitor.company}</TableCell>
+                    <TableCell align="right">
+                      {visitor.lessons_started}
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatDemoDuration(visitor.elapsed_seconds)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
 
       {invitation && (
         <Alert

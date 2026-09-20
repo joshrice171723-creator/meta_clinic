@@ -106,9 +106,27 @@ module Platform
         {
           schema_version: "owner-command-center-v1",
           delivery_methods: { email: true, sms: Platform::ClinicOwnerInvitationSms.configured? },
+          demo_usage: demo_usage_payload,
           organizations: organizations.map { |organization| organization_payload(organization) },
           unassigned_clinics: unassigned.reject { |practice| assigned_ids.include?(practice.id) }.map { |practice| clinic_payload(practice) }
         }
+      end
+
+      def demo_usage_payload
+        now = Time.current
+        Development::DemoVisitor.includes(:demo_runs).order(created_at: :desc, id: :desc).map do |visitor|
+          runs = visitor.demo_runs
+          {
+            id: visitor.id,
+            name: visitor.name,
+            email: visitor.email,
+            company: visitor.company,
+            lessons_started: runs.filter_map(&:lesson_key).uniq.length,
+            elapsed_seconds: runs.sum do |run|
+              [ (run.active? ? now : run.updated_at) - run.created_at, 0 ].max.to_i
+            end
+          }
+        end
       end
 
       def organization_payload(organization)

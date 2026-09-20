@@ -101,6 +101,36 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_equal 0, aggregate.fetch("clinics").sole.fetch("member_count")
   end
 
+  test "platform owner can review registered demo usage" do
+    practice = Clinic::Practice.create!(name: "Demo usage clinic", timezone: "America/Chicago")
+    operator = User.create!(email_address: "demo.operator@example.invalid", password: PASSWORD)
+    visitor = Development::DemoVisitor.create!(
+      name: "Taylor Morgan", email: "taylor@example.invalid", company: "Northstar Wellness"
+    )
+    now = Time.zone.parse("2026-09-20 10:00:00")
+    Development::DemoRun.create!(
+      practice:, operator_user: operator, visitor:, template_key: "primary_care",
+      lesson_key: "clinic_setup", active: false, created_at: now - 8.minutes, updated_at: now - 5.minutes
+    )
+    Development::DemoRun.create!(
+      practice:, operator_user: operator, visitor:, template_key: "primary_care",
+      lesson_key: "membership_publish", active: true, created_at: now - 2.minutes, updated_at: now - 2.minutes
+    )
+
+    travel_to now do
+      sign_in(@admin)
+      get "/api/owner/command_center"
+    end
+
+    assert_response :success
+    usage = response.parsed_body.fetch("demo_usage").find { |entry| entry.fetch("id") == visitor.id }
+    assert_equal "Taylor Morgan", usage.fetch("name")
+    assert_equal "taylor@example.invalid", usage.fetch("email")
+    assert_equal "Northstar Wellness", usage.fetch("company")
+    assert_equal 2, usage.fetch("lessons_started")
+    assert_equal 300, usage.fetch("elapsed_seconds")
+  end
+
   test "platform owner can add a clinic to an existing organization" do
     organization = Organization.create!(name: "North Shore Medical Group")
     sign_in(@admin)
