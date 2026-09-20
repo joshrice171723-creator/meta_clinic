@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   post "demo/lesson", to: "development/demo_runs#lesson"
   post "demo/lesson/complete", to: "development/demo_runs#complete"
   post "demo/run/view", to: "development/demo_runs#view"
+  post "demo/run/resume", to: "development/demo_runs#resume"
   post "demo/run/enrollment", to: "development/demo_runs#enrollment"
   post "demo/run/reset", to: "development/demo_runs#reset"
   post "demo/visitor", to: "development/demo_runs#register_visitor"

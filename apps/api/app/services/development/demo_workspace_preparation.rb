@@ -5,11 +5,19 @@ module Development
     class << self
       def prepare!(run)
         case run.lesson_key
+        when "navigation_tour" then tour!(run)
         when "messages_review" then messages!(run)
         when "workforce_review" then workforce!(run)
         when "telehealth_review" then telehealth!(run)
         when "reminders_review" then reminders!(run)
         end
+      end
+
+      def tour!(run)
+        messages!(run)
+        workforce!(run)
+        telehealth!(run)
+        reminders!(run)
       end
 
       private

@@ -80,6 +80,12 @@ module Development
       render json: active_payload(run)
     end
 
+    def resume
+      run = current_run!
+      establish_demo_session(session_user_for(run), run, view: DemoLessonCatalog.view_for(run.lesson_key))
+      render json: active_payload(run)
+    end
+
     def reset
       input = demo_input!(%i[all])
       clear_visitor = boolean_input!(input, :all, default: false)

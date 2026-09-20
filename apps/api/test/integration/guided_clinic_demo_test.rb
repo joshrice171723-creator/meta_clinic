@@ -85,6 +85,42 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_empty run.baseline
   end
 
+  test "navigation tour prepares data for every clinic workspace" do
+    run = Development::SharedDemoLesson.enter!("navigation_tour", visitor: demo_visitor)
+
+    assert run.paid_patient?
+    assert run.practice.appointments.where(patient: run.patient).exists?
+    assert run.practice.encounters.where(patient: run.patient).exists?
+    assert Clinic::Inventory::Receipt.where(practice: run.practice).exists?
+    assert run.practice.patient_portal_requests.refill.where(patient: run.patient).exists?
+    assert Clinic::EncounterFollowUp.where(practice: run.practice).exists?
+    assert Clinic::Scheduling::WaitlistEntry.where(practice: run.practice, patient: run.patient).exists?
+    assert run.practice.scribe_encounters.where(patient: run.patient).exists?
+    assert Clinic::StaffConversation.where(practice: run.practice).exists?
+    assert Clinic::Workforce::Employment.where(practice: run.practice).exists?
+    assert Clinic::Telehealth::Visit.where(practice: run.practice).exists?
+    assert Clinic::PatientReminder.where(practice: run.practice).exists?
+  end
+
+  test "an expired guided demo session can resume its bound lesson" do
+    register_visitor
+    run = Development::DemoRun.find(enter_lesson("navigation_tour").fetch("id"))
+    expired_session = MemberSession.find_by!(user: run.operator_user)
+    expired_session.destroy!
+
+    post "/api/demo/run/resume", headers: csrf_headers, as: :json
+
+    assert_response :success
+    assert_equal run.id, response.parsed_body.dig("run", "id")
+    refute MemberSession.exists?(expired_session.id)
+    assert MemberSession.where(user: run.operator_user).exists?
+
+    get "/api/session", headers: @headers
+    assert_response :success
+    assert_equal run.operator_user_id, response.parsed_body.dig("user", "id")
+    assert_equal true, response.parsed_body.dig("clinic_access", "active")
+  end
+
   test "a new entrant invalidates the previous lease with a restart notice" do
     register_visitor
     original = enter_lesson("clinic_setup")

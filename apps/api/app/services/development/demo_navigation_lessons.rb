@@ -29,6 +29,7 @@ module Development
       def prepare!(run)
         definition = definition!(run.lesson_key)
         DemoLessonCatalog.prepare_context!(run, kind: definition.fetch(:context))
+        prepare_tour_context!(run) if run.lesson_key == "navigation_tour"
         DemoNavigationPreparation.prepare!(run)
         DemoWorkspacePreparation.prepare!(run)
         baseline = run.baseline.to_h.merge("review_acknowledged" => false)
@@ -51,6 +52,14 @@ module Development
         "/clinic/telehealth?date=#{date}"
       end
       def review?(key) = definition!(key).fetch(:id) != "patient_register"
+
+      private
+
+      def prepare_tour_context!(run)
+        %i[patient appointment encounter stock].each do |kind|
+          DemoLessonCatalog.prepare_context!(run, kind:)
+        end
+      end
     end
   end
 end

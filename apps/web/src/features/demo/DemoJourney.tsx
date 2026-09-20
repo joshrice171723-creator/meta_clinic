@@ -30,6 +30,10 @@ export function lessonInstructions(lessonId: string) {
   return lessonGuide(lessonId).steps;
 }
 
+export function isNavigationTour(lessonId: string | null | undefined) {
+  return lessonId === "navigation_tour";
+}
+
 const message = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
@@ -164,6 +168,22 @@ export function DemoJourney() {
     } finally {
       setBusy(false);
       setSwitching(false);
+    }
+  };
+  const finishNavigationTour = async () => {
+    setBusy(true);
+    setError(null);
+    generation.current += 1;
+    try {
+      const response = await api<DemoRunResponse>("/api/demo/lesson/complete", {
+        method: "POST",
+        body: {},
+      });
+      setState({ status: "ready", value: response });
+    } catch (reason) {
+      setError(message(reason, "The navigation tour could not be completed."));
+    } finally {
+      setBusy(false);
     }
   };
   const currentLessonComplete = Boolean(
@@ -370,6 +390,16 @@ export function DemoJourney() {
                 >
                   Restart lesson
                 </Button>
+                {isNavigationTour(activeLesson.id) && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={busy}
+                    onClick={() => void finishNavigationTour()}
+                  >
+                    Finish tour
+                  </Button>
+                )}
               </Stack>
             </Stack>
           </Paper>

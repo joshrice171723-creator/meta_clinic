@@ -5,11 +5,19 @@ module Development
     class << self
       def prepare!(run)
         case run.lesson_key
+        when "navigation_tour" then tour!(run)
         when "refill_review" then refill!(run)
         when "recall_review" then recall!(run)
         when "waitlist_review" then waitlist!(run)
         when "scribe_review" then scribe!(run)
         end
+      end
+
+      def tour!(run)
+        refill!(run)
+        recall!(run)
+        waitlist!(run)
+        scribe!(run)
       end
 
       private

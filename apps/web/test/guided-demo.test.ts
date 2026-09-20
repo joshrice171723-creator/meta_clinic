@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { demoRouteAllowed } from "../src/features/demo/DemoFrameBoundary";
 import {
+  isNavigationTour,
   lessonInstructions,
   LessonCatalog,
 } from "../src/features/demo/DemoJourney";
@@ -120,6 +121,11 @@ const clinic = {
 };
 
 describe("guided demo navigation", () => {
+  it("offers an explicit finish action for the read-only navigation tour", () => {
+    expect(isNavigationTour("navigation_tour")).toBe(true);
+    expect(isNavigationTour("patient_flow_review")).toBe(false);
+  });
+
   it("renders grouped lesson roles with unique accessible open actions and prepared state", () => {
     const html = renderToStaticMarkup(
       createElement(LessonCatalog, {

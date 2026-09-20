@@ -23,6 +23,7 @@ import {
   setApiActor,
 } from "../../api/client";
 import type { User } from "../../api/contracts";
+import { isDemoFrame } from "../demo/frame";
 
 type SessionPolicy = {
   idle_expires_at: string;
@@ -54,6 +55,7 @@ export function SessionGuard({
   const [expired, setExpired] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const embeddedDemo = isDemoFrame();
   const deadline = useRef<number | null>(null);
   const lastActivity = useRef(0);
   const acknowledgedActivity = useRef(0);
@@ -180,10 +182,25 @@ export function SessionGuard({
     };
   }, [expectedUserId, initialSession]);
 
-  const signIn = () =>
+  const signIn = async () => {
+    if (embeddedDemo) {
+      setBusy(true);
+      setError("");
+      try {
+        await api("/api/demo/run/resume", { method: "POST", body: {} });
+        window.location.reload();
+      } catch {
+        setError(
+          "The demo workspace could not be resumed. Return to the lesson catalog and try again.",
+        );
+        setBusy(false);
+      }
+      return;
+    }
     window.location.replace(
       `/login?next=${encodeURIComponent(currentLoginDestination())}`,
     );
+  };
   if (expired)
     return (
       <Box component="main" sx={{ maxWidth: 520, mx: "auto", my: 10, p: 3 }}>
@@ -193,8 +210,22 @@ export function SessionGuard({
         <Typography sx={{ mb: 3 }}>
           Sign in again to reopen your workspace.
         </Typography>
-        <Button variant="contained" onClick={signIn}>
-          Sign in again
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <Button
+          variant="contained"
+          onClick={() => void signIn()}
+          disabled={busy}
+          data-demo-tour-control={embeddedDemo ? "true" : undefined}
+        >
+          {busy
+            ? "Resuming…"
+            : embeddedDemo
+              ? "Resume demo workspace"
+              : "Sign in again"}
         </Button>
       </Box>
     );
