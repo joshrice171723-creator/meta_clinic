@@ -1954,14 +1954,14 @@ export function LiveScribeReviewWorkspace() {
                     }}
                   >
                     <Stack
-                      direction={{ xs: "column", sm: "row" }}
+                      direction={{ xs: "column", md: "row" }}
                       spacing={1.5}
                       sx={{
-                        alignItems: { xs: "stretch", sm: "center" },
+                        alignItems: { xs: "stretch", md: "center" },
                         justifyContent: "space-between",
                       }}
                     >
-                      <Box>
+                      <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle2">
                           Record this session
                         </Typography>
@@ -1975,6 +1975,10 @@ export function LiveScribeReviewWorkspace() {
                           variant="outlined"
                           startIcon={<MicNoneOutlinedIcon />}
                           onClick={recording.expand}
+                          sx={{
+                            alignSelf: { xs: "stretch", md: "auto" },
+                            whiteSpace: "nowrap",
+                          }}
                         >
                           Open recording bar
                         </Button>
@@ -1982,6 +1986,7 @@ export function LiveScribeReviewWorkspace() {
                         <Stack
                           direction={{ xs: "column", sm: "row" }}
                           spacing={1}
+                          sx={{ flexShrink: 0 }}
                         >
                           <Button
                             variant="text"
@@ -1991,6 +1996,7 @@ export function LiveScribeReviewWorkspace() {
                               otherEncounterRecording
                             }
                             onClick={() => openRecordingDock(false)}
+                            sx={{ whiteSpace: "nowrap" }}
                           >
                             Open visit notes
                           </Button>
@@ -2004,6 +2010,7 @@ export function LiveScribeReviewWorkspace() {
                               otherEncounterRecording
                             }
                             onClick={() => openRecordingDock(true)}
+                            sx={{ whiteSpace: "nowrap" }}
                           >
                             {otherEncounterRecording
                               ? "Recording another session"
