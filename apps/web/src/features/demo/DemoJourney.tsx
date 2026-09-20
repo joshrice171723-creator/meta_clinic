@@ -24,6 +24,18 @@ type LoadState =
   | { status: "loading" }
   | { status: "ready"; value: DemoRunResponse }
   | { status: "error"; message: string };
+
+export function lessonInstructions(lessonId: string) {
+  if (lessonId.split("__").at(-1) !== "visit_save") return [];
+
+  return [
+    "Open the prepared chart.",
+    "Apply the prepared SOAP template.",
+    "Add the supplied follow-up update to Additional subjective history.",
+    "Save the unsigned draft.",
+  ];
+}
+
 const message = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
@@ -307,6 +319,22 @@ export function DemoJourney() {
               <Typography variant="body2" color="text.secondary">
                 {roleContext(activeLesson.role)}
               </Typography>
+              {lessonInstructions(activeLesson.id).length > 0 ? (
+                <Box>
+                  <Typography variant="subtitle2">Lesson steps</Typography>
+                  <Box component="ol" sx={{ m: 0, pl: 2.5 }}>
+                    {lessonInstructions(activeLesson.id).map((instruction) => (
+                      <Typography
+                        component="li"
+                        key={instruction}
+                        variant="body2"
+                      >
+                        {instruction}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+              ) : null}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1}

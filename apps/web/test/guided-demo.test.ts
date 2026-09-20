@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { demoRouteAllowed } from "../src/features/demo/DemoFrameBoundary";
-import { LessonCatalog } from "../src/features/demo/DemoJourney";
+import {
+  lessonInstructions,
+  LessonCatalog,
+} from "../src/features/demo/DemoJourney";
 import { nextDemoStep } from "../src/features/demo/progression";
 import {
   spotlightDirection,
   tutorialActionMatches,
+  visitSaveLessonSteps,
 } from "../src/features/demo/DemoSpotlight";
 import { telehealthDate } from "../src/features/telehealth/TelehealthQueue";
 import type { DemoRun, DemoRunStep } from "../src/features/demo/contracts";
@@ -22,6 +26,22 @@ describe("telehealth lesson queue", () => {
     expect(telehealthDate("UTC", new Date("2026-09-20T00:30:00Z"))).toBe(
       "2026-09-20",
     );
+  });
+});
+
+describe("SOAP note lesson guidance", () => {
+  it("uses an ordered chart-to-save path", () => {
+    expect(lessonInstructions("visit_save")).toEqual([
+      "Open the prepared chart.",
+      "Apply the prepared SOAP template.",
+      "Add the supplied follow-up update to Additional subjective history.",
+      "Save the unsigned draft.",
+    ]);
+    expect(visitSaveLessonSteps).toHaveLength(4);
+    expect(
+      tutorialActionMatches("visit_save", "Confirm and begin charting"),
+    ).toBe(true);
+    expect(tutorialActionMatches("visit_save", "Save draft")).toBe(false);
   });
 });
 

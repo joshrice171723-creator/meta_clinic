@@ -33,8 +33,7 @@ const actions: Record<string, RegExp> = {
   appointment_reschedule: /reschedule|save appointment/i,
   appointment_cancel: /cancel appointment/i,
   patient_check_in: /check.in|arrived/i,
-  visit_save:
-    /confirm and open chart|open.*visit|save.*(note|draft|encounter)/i,
+  visit_save: /confirm and (begin|open) chart|open.*visit/i,
   visit_complete: /confirm and open chart|complete.*(visit|encounter)|sign/i,
   inventory_product_create: /add product|create product|new product/i,
   inventory_supplier_create: /add supplier|create supplier|new supplier/i,
@@ -49,6 +48,71 @@ const actions: Record<string, RegExp> = {
   inventory_transfer: /transfer|post transfer/i,
   inventory_recall: /recall|create hold|place hold/i,
 };
+
+export const visitSaveLessonSteps = [
+  {
+    title: "Open the prepared chart",
+    description:
+      "Select Confirm and begin charting. This only opens the prepared encounter.",
+  },
+  {
+    title: "Apply the prepared template",
+    description:
+      "Select Apply template prompts to set up the editable SOAP draft.",
+  },
+  {
+    title: "Add the follow-up update",
+    description:
+      "In Additional subjective history, enter: Follow-up visit: steady progress; no new concerns.",
+  },
+  {
+    title: "Save the unsigned draft",
+    description:
+      "Select Save draft. It saves the note but does not sign it or complete the visit.",
+  },
+] as const;
+
+type VisitSaveInstruction = (typeof visitSaveLessonSteps)[number] & {
+  index: number;
+  target: HTMLElement | null;
+};
+
+function lessonBaseKey(step: string) {
+  return step.split("__").at(-1) ?? step;
+}
+
+function visibleButton(content: ParentNode, matcher: RegExp) {
+  return (
+    Array.from(content.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => visible(button) && matcher.test(button.textContent ?? ""),
+    ) ?? null
+  );
+}
+
+export function visitSaveInstruction(
+  content: ParentNode,
+  stage: number,
+): VisitSaveInstruction {
+  const openChart = visibleButton(content, /confirm and (begin|open) chart/i);
+  if (openChart)
+    return { ...visitSaveLessonSteps[0], index: 0, target: openChart };
+
+  const applyTemplate = visibleButton(content, /apply template prompts/i);
+  if (stage <= 1 && applyTemplate)
+    return { ...visitSaveLessonSteps[1], index: 1, target: applyTemplate };
+
+  const subjective = content.querySelector<HTMLElement>(
+    '.soap-workspace textarea[name="subjective"]',
+  );
+  if (stage <= 2 && subjective)
+    return { ...visitSaveLessonSteps[2], index: 2, target: subjective };
+
+  const saveDraft = visibleButton(
+    content.querySelector(".soap-workspace") ?? content,
+    /^save draft$/i,
+  );
+  return { ...visitSaveLessonSteps[3], index: 3, target: saveDraft };
+}
 
 const reviewPrompts: Record<string, string[]> = {
   patient_flow_review: [
@@ -157,7 +221,10 @@ function scribeReviewTarget(
 ) {
   const consentControl = buttonWithLabel(root, /^accept consent$/i);
   if (reviewStage === 0) return consentControl;
-  const recordingControl = buttonWithLabel(root, /^(start recording|recording)$/i);
+  const recordingControl = buttonWithLabel(
+    root,
+    /^(start recording|recording)$/i,
+  );
   if (reviewStage === 1) return recordingControl;
 
   return (
@@ -194,7 +261,7 @@ export function findTutorialTarget(
     ).find((element) => visible(element) && !element.closest("nav"));
     return region ?? (content as HTMLElement);
   }
-  step = step.split("__").at(-1) ?? step;
+  step = lessonBaseKey(step);
   const editorSelector =
     step === "membership_publish"
       ? ".subscription-editor__workspace > fieldset"
@@ -315,6 +382,34 @@ export function DemoSpotlight({
 
   const [highlight, setHighlight] = useState<Highlight | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [visitSaveStage, setVisitSaveStage] = useState(0);
+  const [visitSavePrompt, setVisitSavePrompt] =
+    useState<VisitSaveInstruction | null>(null);
+  const isVisitSave = lessonBaseKey(step) === "visit_save";
+  useEffect(() => {
+    setVisitSaveStage(0);
+    setVisitSavePrompt(null);
+    if (!isVisitSave) return;
+    const onClick = (event: MouseEvent) => {
+      const label = (event.target as HTMLElement | null)?.closest(
+        "button",
+      )?.textContent;
+      if (/confirm and (begin|open) chart/i.test(label ?? ""))
+        setVisitSaveStage(1);
+      if (/apply template prompts/i.test(label ?? "")) setVisitSaveStage(2);
+    };
+    const onInput = (event: Event) => {
+      const target = event.target as HTMLTextAreaElement | null;
+      if (target?.name === "subjective" && target.value.trim())
+        setVisitSaveStage(3);
+    };
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("input", onInput, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("input", onInput, true);
+    };
+  }, [isVisitSave, step]);
   useEffect(() => {
     let scheduled = 0;
     const measure = () => {
@@ -326,18 +421,28 @@ export function DemoSpotlight({
           ),
         ).some(visible),
       );
-      const target = findTutorialTarget(
-        document,
-        step,
-        review ? reviewStage : undefined,
+      const instruction = isVisitSave
+        ? visitSaveInstruction(document, visitSaveStage)
+        : null;
+      setVisitSavePrompt((previous) =>
+        previous &&
+        instruction &&
+        previous.index === instruction.index &&
+        previous.target === instruction.target
+          ? previous
+          : instruction,
       );
+      const target =
+        instruction?.target ??
+        findTutorialTarget(document, step, review ? reviewStage : undefined);
       if (!target) {
         setHighlight(null);
         return;
       }
       const rect = target.getBoundingClientRect();
       const label =
-        target.tagName === "TEXTAREA"
+        instruction?.title ??
+        (target.tagName === "TEXTAREA"
           ? "Edit the visit note, then save your changes"
           : target.tagName === "FORM" ||
               target.classList.contains("inventory-card") ||
@@ -347,7 +452,7 @@ export function DemoSpotlight({
                 target.getAttribute("aria-label") ||
                 target.textContent ||
                 "Continue"
-              ).trim();
+              ).trim());
       const next = {
         target,
         top: rect.top - 6,
@@ -405,7 +510,7 @@ export function DemoSpotlight({
       document.removeEventListener("input", update);
       document.removeEventListener("keydown", escape);
     };
-  }, [step, review, reviewStage]);
+  }, [isVisitSave, review, reviewStage, step, visitSaveStage]);
   const coachAtTop = Boolean(
     highlight && highlight.top > window.innerHeight / 2,
   );
@@ -470,14 +575,18 @@ export function DemoSpotlight({
             <Typography variant="overline">
               {review
                 ? `Walkthrough ${reviewStage + 1} of ${prompts.length}`
-                : "Your next action"}
+                : visitSavePrompt
+                  ? `Step ${visitSavePrompt.index + 1} of ${visitSaveLessonSteps.length}`
+                  : "Your next action"}
             </Typography>
             {enabled && (
               <>
                 <Typography variant="subtitle2" role="status">
                   {review
                     ? prompts[reviewStage]
-                    : highlight?.label || "Follow the lesson instructions"}
+                    : visitSavePrompt?.title ||
+                      highlight?.label ||
+                      "Follow the lesson instructions"}
                 </Typography>
                 {direction && (
                   <Typography variant="body2" role="status">
@@ -488,7 +597,7 @@ export function DemoSpotlight({
                 <Typography variant="body2" color="text.secondary">
                   {review
                     ? "Review the highlighted area, then continue. This does not record a clinical or administrative decision."
-                    : description}
+                    : visitSavePrompt?.description || description}
                 </Typography>
               </>
             )}
