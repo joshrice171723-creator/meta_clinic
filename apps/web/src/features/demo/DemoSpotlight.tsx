@@ -82,6 +82,10 @@ function lessonBaseKey(step: string) {
   return step.split("__").at(-1) ?? step;
 }
 
+export function showsDemoCoach(step: string, review: boolean) {
+  return review || lessonBaseKey(step) === "visit_save";
+}
+
 function visibleButton(content: ParentNode, matcher: RegExp) {
   return (
     Array.from(content.querySelectorAll<HTMLButtonElement>("button")).find(
@@ -305,6 +309,7 @@ export function DemoSpotlight({
   const [visitSavePrompt, setVisitSavePrompt] =
     useState<VisitSaveInstruction | null>(null);
   const isVisitSave = lessonBaseKey(step) === "visit_save";
+  const showCoach = showsDemoCoach(step, review);
   useEffect(() => {
     setVisitSaveStage(0);
     setVisitSavePrompt(null);
@@ -330,6 +335,10 @@ export function DemoSpotlight({
     };
   }, [isVisitSave, step]);
   useEffect(() => {
+    if (!showCoach) {
+      setHighlight(null);
+      return;
+    }
     let scheduled = 0;
     const measure = () => {
       scheduled = 0;
@@ -429,7 +438,7 @@ export function DemoSpotlight({
       document.removeEventListener("input", update);
       document.removeEventListener("keydown", escape);
     };
-  }, [isVisitSave, review, reviewStage, step, visitSaveStage]);
+  }, [isVisitSave, review, reviewStage, showCoach, step, visitSaveStage]);
   const coachAtTop = Boolean(
     highlight && highlight.top > window.innerHeight / 2,
   );
@@ -437,6 +446,7 @@ export function DemoSpotlight({
     ? spotlightDirection(highlight, window.innerWidth, window.innerHeight)
     : null;
   const onScreen = highlight && direction === null;
+  if (!showCoach) return null;
   if (dialogOpen) return null;
   return (
     <Portal>
@@ -496,7 +506,7 @@ export function DemoSpotlight({
                 ? `Walkthrough ${reviewStage + 1} of ${prompts.length}`
                 : visitSavePrompt
                   ? `Step ${visitSavePrompt.index + 1} of ${visitSaveLessonSteps.length}`
-                  : "Your next action"}
+                  : "Lesson step"}
             </Typography>
             {enabled && (
               <>

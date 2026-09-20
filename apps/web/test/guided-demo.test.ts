@@ -10,6 +10,7 @@ import {
 import { nextDemoStep } from "../src/features/demo/progression";
 import {
   spotlightDirection,
+  showsDemoCoach,
   tutorialActionMatches,
   visitSaveLessonSteps,
 } from "../src/features/demo/DemoSpotlight";
@@ -51,6 +52,12 @@ describe("SOAP note lesson guidance", () => {
 });
 
 describe("guided lesson schema", () => {
+  it("keeps the floating coach out of ordinary action lessons", () => {
+    expect(showsDemoCoach("clinic_setup", false)).toBe(false);
+    expect(showsDemoCoach("visit_save", false)).toBe(true);
+    expect(showsDemoCoach("messages_review", true)).toBe(true);
+  });
+
   it("guides clinic setup through a saved scope choice before finalization", () => {
     expect(lessonInstructions("clinic_setup")).toEqual([
       "Under Services this clinic intends to provide, select Telehealth visits and read its Base workflow readiness label.",
