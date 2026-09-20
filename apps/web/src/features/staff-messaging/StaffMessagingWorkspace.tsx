@@ -577,7 +577,7 @@ export function StaffMessagingWorkspace({
 
   return (
     <Box
-      component="main"
+      component="section"
       aria-labelledby="staff-messaging-heading"
       sx={{
         maxWidth: 1440,

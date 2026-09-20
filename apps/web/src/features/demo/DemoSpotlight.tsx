@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
+import { lessonGuide } from "./lessonGuidance";
 
 export function spotlightDirection(
   rect: { top: number; left: number; width: number; height: number },
@@ -113,89 +114,6 @@ export function visitSaveInstruction(
   );
   return { ...visitSaveLessonSteps[3], index: 3, target: saveDraft };
 }
-
-const reviewPrompts: Record<string, string[]> = {
-  patient_flow_review: [
-    "Find the work inbox for tasks before scheduling.",
-    "Review the prepared patient's pending work and responsible team.",
-    "Notice how completing contact work differs from booking an appointment.",
-  ],
-  tracking_board_review: [
-    "Read the board's visit stages and clinic date.",
-    "Locate the prepared visit and review its recorded room and status.",
-    "Review the visit actions without changing the encounter.",
-  ],
-  refill_review: [
-    "Find the refill queue and its status filters.",
-    "Review the sample request's patient and medication context.",
-    "Locate the review actions. This walkthrough does not send a prescription.",
-  ],
-  recall_review: [
-    "Find the recall and care-gap worklist.",
-    "Review the sample patient's follow-up context and due work.",
-    "Locate the next-action controls without sending outreach.",
-  ],
-  telehealth_review: [
-    "Find the telehealth workspace and visit readiness information.",
-    "Review the prepared patient's visit context.",
-    "Locate the access and preparation controls. This walkthrough does not start a live call.",
-  ],
-  scribe_review: [
-    "Select Accept consent and confirm the recording permission for this Scribe session.",
-    "Select Start recording to open the persistent recording dock.",
-    "Select Open treatment workspace in the dock. The recording remains available while you move between clinic pages.",
-  ],
-  waitlist_review: [
-    "Find capacity and waitlist controls.",
-    "Review the prepared clinic's availability and patient context.",
-    "Locate the offer workflow. This walkthrough does not send outreach.",
-  ],
-  operations_review: [
-    "Find the clinic's operations overview.",
-    "Review the recorded workload and readiness information.",
-    "Identify which workspace owns the next action for an item.",
-  ],
-  reminders_review: [
-    "Find the reminders workspace and its filters.",
-    "Review the sample appointment and local reminder information.",
-    "Locate the review controls. No email or text is sent in this walkthrough.",
-  ],
-  messages_review: [
-    "Find the clinic's staff-messaging workspace.",
-    "Review the available conversation and participant context.",
-    "Identify the conversation controls and how staff context stays attached.",
-  ],
-  workforce_review: [
-    "Find the workforce workspace and its sections.",
-    "Review the prepared clinic team's available workforce context.",
-    "Locate the staffing and timekeeping controls available to this role.",
-  ],
-  billing_review: [
-    "Find the cash-based billing workspace.",
-    "Review the prepared patient's recorded payment and balance context.",
-    "Locate the transaction history. No real charge is made in this walkthrough.",
-  ],
-  growth_review: [
-    "Find the membership growth workspace.",
-    "Review the prepared membership and patient entry information.",
-    "Distinguish an inquiry or enrollment from a confirmed simulated payment.",
-  ],
-  settings_review: [
-    "Find the clinic and account settings sections.",
-    "Review the current settings and their scope.",
-    "Identify which settings belong to the clinic versus the signed-in user.",
-  ],
-  inventory_overview_review: [
-    "Find the inventory overview and filters.",
-    "Review the prepared stock quantities and product context.",
-    "Locate the stock, purchasing and receiving workspaces.",
-  ],
-  inventory_ledger_review: [
-    "Find the movement ledger and its filters.",
-    "Review the prepared receipt movement and its resulting stock.",
-    "Inspect the movement's source and reason to trace how stock changed.",
-  ],
-};
 
 export function tutorialActionMatches(step: string, label: string) {
   return actions[step.split("__").at(-1) ?? step]?.test(label) ?? false;
@@ -363,7 +281,8 @@ export function DemoSpotlight({
   const [reviewStage, setReviewStage] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
-  const prompts = reviewPrompts[step] ?? [description];
+  const guide = lessonGuide(step);
+  const prompts = guide.steps;
   const finishReview = async () => {
     setFinishing(true);
     setFinishError(null);
@@ -597,7 +516,8 @@ export function DemoSpotlight({
                 <Typography variant="body2" color="text.secondary">
                   {review
                     ? "Review the highlighted area, then continue. This does not record a clinical or administrative decision."
-                    : visitSavePrompt?.description || description}
+                    : visitSavePrompt?.description ||
+                      `${guide.goal} Use the numbered lesson guide above the workspace for the complete path and completion check.`}
                 </Typography>
               </>
             )}

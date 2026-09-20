@@ -30,6 +30,7 @@ module Development
 
     def self.prepare_clinic!(practice:, operator:, template_key:, suffix:)
       membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
+      grant_supplier_pricing_role!(membership)
       provision_schedule_baseline!(practice:, membership:, suffix:)
       configure_template_profile!(practice:, membership:, template_key:, suffix:)
       if practice.visit_types.empty?
@@ -39,6 +40,20 @@ module Development
       DemoInventory.prepare!(practice:, actor: operator)
       practice
     end
+
+    def self.grant_supplier_pricing_role!(membership)
+      role = RoleVersion.find_or_create_by!(role_code: "dev-seed-inventory", version: 1)
+      %w[inventory.read inventory.catalog].each do |action_code|
+        permission = Permission.find_or_create_by!(action_code:)
+        RoleVersionPermission.find_or_create_by!(role_version: role, permission:)
+      end
+      membership.role_grants.find_or_create_by!(role_version: role, scope_kind: "practice") do |grant|
+        grant.practice = membership.practice
+        grant.effective_from = membership.class.connection.select_value("SELECT CURRENT_TIMESTAMP")
+        grant.revision = 1
+      end
+    end
+    private_class_method :grant_supplier_pricing_role!
 
     def self.start!(template_key:, clinic_name:, lesson_key:, visitor: nil)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?

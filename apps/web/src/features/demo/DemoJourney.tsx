@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { api, clearCsrf } from "../../api/client";
 import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
+import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
 
 type LoadState =
@@ -26,14 +27,7 @@ type LoadState =
   | { status: "error"; message: string };
 
 export function lessonInstructions(lessonId: string) {
-  if (lessonId.split("__").at(-1) !== "visit_save") return [];
-
-  return [
-    "Open the prepared chart.",
-    "Apply the prepared SOAP template.",
-    "Add the supplied follow-up update to Additional subjective history.",
-    "Save the unsigned draft.",
-  ];
+  return lessonGuide(lessonId).steps;
 }
 
 const message = (error: unknown, fallback: string) =>
@@ -89,6 +83,7 @@ export function DemoJourney() {
     () => run?.lessons.find((lesson) => lesson.id === run.lesson_key) ?? null,
     [run],
   );
+  const activeGuide = activeLesson ? lessonGuide(activeLesson.id) : null;
   const refresh = useCallback(async () => {
     const current = generation.current;
     try {
@@ -313,28 +308,47 @@ export function DemoJourney() {
                   Back to lessons
                 </Button>
               </Stack>
-              <Typography color="text.secondary">
-                {activeLesson.description}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {roleContext(activeLesson.role)}
-              </Typography>
-              {lessonInstructions(activeLesson.id).length > 0 ? (
-                <Box>
-                  <Typography variant="subtitle2">Lesson steps</Typography>
+              <Box
+                component="section"
+                aria-labelledby="lesson-guide-title"
+                data-demo-guide
+              >
+                <Stack spacing={1.25}>
+                  <Box>
+                    <Typography id="lesson-guide-title" variant="subtitle2">
+                      Lesson guide
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {lessonGuide(activeLesson.id).goal}
+                    </Typography>
+                  </Box>
+                  <Alert severity="info" icon={false}>
+                    <Typography variant="body2">
+                      <strong>Before you start:</strong>{" "}
+                      {lessonGuide(activeLesson.id).constraints}
+                    </Typography>
+                  </Alert>
                   <Box component="ol" sx={{ m: 0, pl: 2.5 }}>
                     {lessonInstructions(activeLesson.id).map((instruction) => (
                       <Typography
                         component="li"
                         key={instruction}
                         variant="body2"
+                        sx={{ mb: 0.5 }}
                       >
                         {instruction}
                       </Typography>
                     ))}
                   </Box>
-                </Box>
-              ) : null}
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Done when:</strong>{" "}
+                    {lessonGuide(activeLesson.id).doneWhen}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {roleContext(activeLesson.role)}
+                  </Typography>
+                </Stack>
+              </Box>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1}
@@ -441,6 +455,11 @@ export function DemoJourney() {
             You completed this walkthrough. Choose another lesson whenever you
             are ready.
           </Typography>
+          {activeGuide && (
+            <Typography color="text.secondary" sx={{ mt: 2 }}>
+              <strong>What changed:</strong> {activeGuide.recap}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button

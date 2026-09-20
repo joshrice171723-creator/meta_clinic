@@ -307,10 +307,18 @@ export function MembershipGrowth() {
   }
 
   return (
-    <Box component="main" sx={{ minWidth: 0 }}>
+    <Box
+      component="section"
+      aria-labelledby="membership-growth-heading"
+      sx={{ minWidth: 0 }}
+    >
       <Stack spacing={3}>
         <Box>
-          <Typography component="h1" variant="h4">
+          <Typography
+            id="membership-growth-heading"
+            component="h1"
+            variant="h4"
+          >
             Growth
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 820 }}>

@@ -12,6 +12,10 @@ import {
   tutorialActionMatches,
   visitSaveLessonSteps,
 } from "../src/features/demo/DemoSpotlight";
+import {
+  lessonGuide,
+  supportedLessonGuideIds,
+} from "../src/features/demo/lessonGuidance";
 import { telehealthDate } from "../src/features/telehealth/TelehealthQueue";
 import type { DemoRun, DemoRunStep } from "../src/features/demo/contracts";
 import {
@@ -42,6 +46,30 @@ describe("SOAP note lesson guidance", () => {
       tutorialActionMatches("visit_save", "Confirm and begin charting"),
     ).toBe(true);
     expect(tutorialActionMatches("visit_save", "Save draft")).toBe(false);
+  });
+});
+
+describe("guided lesson schema", () => {
+  it("gives every supported workflow a complete learner brief", () => {
+    expect(supportedLessonGuideIds).toHaveLength(38);
+    for (const lessonId of supportedLessonGuideIds) {
+      const guide = lessonGuide(lessonId);
+      expect(guide.goal).not.toHaveLength(0);
+      expect(guide.constraints).not.toHaveLength(0);
+      expect(guide.steps.length).toBeGreaterThanOrEqual(3);
+      expect(guide.steps.length).toBeLessThanOrEqual(5);
+      expect(guide.doneWhen).not.toHaveLength(0);
+      expect(guide.recap).not.toHaveLength(0);
+    }
+  });
+
+  it("reuses the complete workflow guide for specialty variants", () => {
+    expect(lessonGuide("primary_care__visit_save").steps).toEqual(
+      lessonGuide("visit_save").steps,
+    );
+    expect(
+      lessonGuide("weight_management__appointment_schedule").goal,
+    ).toContain("weight-management scenario");
   });
 });
 
