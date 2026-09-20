@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -19,7 +16,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, clearCsrf } from "../../api/client";
 import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
 import { roleContext, roleLabel } from "./roles";
@@ -49,12 +45,12 @@ export function DemoJourney() {
   const generation = useRef(0);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [visitor, setVisitor] = useState({ name: "", email: "", company: "" });
-  const [visitorForm, setVisitorForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progressError, setProgressError] = useState<string | null>(null);
   const [restartOpen, setRestartOpen] = useState(false);
+  const [completionOpen, setCompletionOpen] = useState(false);
   const [frameLoading, setFrameLoading] = useState(false);
   const [frameFailed, setFrameFailed] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
@@ -136,7 +132,6 @@ export function DemoJourney() {
       });
       clearCsrf();
       setState({ status: "ready", value: response });
-      setVisitorForm(false);
     } catch (reason) {
       setError(message(reason, "Your details could not be saved."));
     } finally {
@@ -164,6 +159,15 @@ export function DemoJourney() {
       setSwitching(false);
     }
   };
+  const currentLessonComplete = Boolean(
+    run?.lesson_key &&
+    run.steps.some(
+      (step) => step.id === run.lesson_key && step.status === "complete",
+    ),
+  );
+  useEffect(() => {
+    setCompletionOpen(currentLessonComplete);
+  }, [currentLessonComplete, run?.id, run?.lesson_key]);
   if (state.status === "loading")
     return (
       <Stack spacing={2} sx={{ py: 8, alignItems: "center" }}>
@@ -196,7 +200,7 @@ export function DemoJourney() {
         {state.value.notice && (
           <Alert severity="info">{state.value.notice}</Alert>
         )}
-        {!state.value.visitor_registered || visitorForm ? (
+        {!state.value.visitor_registered ? (
           <Paper
             component="form"
             variant="outlined"
@@ -207,9 +211,7 @@ export function DemoJourney() {
             }}
           >
             <Stack spacing={2}>
-              <Typography variant="h6">
-                {visitorForm ? "Use a different email" : "Your details"}
-              </Typography>
+              <Typography variant="h6">Your details</Typography>
               {(["name", "email", "company"] as const).map((field) => (
                 <TextField
                   key={field}
@@ -240,9 +242,6 @@ export function DemoJourney() {
               Every lesson starts with a fresh shared sample clinic. No personal
               clinic names or unfinished work are stored.
             </Typography>
-            <Button onClick={() => setVisitorForm(true)}>
-              Use a different email
-            </Button>
             <LessonCatalog
               lessons={state.value.lessons}
               busy={busy}
@@ -254,108 +253,82 @@ export function DemoJourney() {
     );
   if (!run) return null;
   const source = frameUrl(run);
-  const currentLessonComplete = run.steps.some(
-    (step) => step.id === run.lesson_key && step.status === "complete",
-  );
   return (
     <Stack
       component="main"
       spacing={2}
       sx={{ maxWidth: 1440, mx: "auto", p: 2 }}
     >
-      <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          <Stack
-            direction="row"
-            sx={{
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography component="h1" variant="h5">
-                Clinic lesson demo
-              </Typography>
-              <Typography color="text.secondary">
-                {run.lessons.length} independent clinic lessons
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-              <Button disabled={busy} onClick={() => setVisitorForm(true)}>
-                Use a different email
-              </Button>
-            </Stack>
-          </Stack>
-          {error && <Alert severity="error">{error}</Alert>}
-          {progressError && (
-            <Alert
-              severity="error"
-              action={
-                <Button color="inherit" onClick={() => void refresh()}>
-                  Retry progress
-                </Button>
-              }
-            >
-              {progressError}
-            </Alert>
-          )}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>How this demo works</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography color="text.secondary">
-                Each lesson uses its own shared sample clinic and starts fresh
-                every time you enter. Unfinished work and completion history are
-                not retained. Payments are simulated and cash-based; no real
-                financial transaction occurs. Real clinic users sign in with
-                assigned permissions.
-              </Typography>
-            </AccordionDetails>
-          </Accordion>
-        </Stack>
-      </Paper>
+      {error && <Alert severity="error">{error}</Alert>}
+      {progressError && (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" onClick={() => void refresh()}>
+              Retry progress
+            </Button>
+          }
+        >
+          {progressError}
+        </Alert>
+      )}
       {run.lesson_key && activeLesson ? (
         <>
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Stack spacing={2}>
-              <Button onClick={() => void selectLesson(null)} disabled={busy}>
-                Back to lessons
-              </Button>
-              {currentLessonComplete && (
-                <Alert severity="success">
-                  Lesson complete for this browser session.
-                </Alert>
-              )}
-              <Typography component="h2" variant="h6">
-                {activeLesson.title}
-              </Typography>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+            <Stack spacing={1.5}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                sx={{
+                  alignItems: { sm: "center" },
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box>
+                  <Typography component="h1" variant="h5">
+                    {activeLesson.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {roleLabel(activeLesson.role)} workspace
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => void selectLesson(null)}
+                  disabled={busy}
+                >
+                  Back to lessons
+                </Button>
+              </Stack>
               <Typography color="text.secondary">
                 {activeLesson.description}
               </Typography>
-              <Typography variant="body2">
-                {roleLabel(activeLesson.role)} ·{" "}
+              <Typography variant="body2" color="text.secondary">
                 {roleContext(activeLesson.role)}
               </Typography>
-              <Typography variant="subtitle2">
-                Prepared for this lesson
-              </Typography>
-              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
-                {activeLesson.prepared.map((item) => (
-                  <Chip key={item} label={item} />
-                ))}
-              </Stack>
-              <Box>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                sx={{
+                  alignItems: { sm: "center" },
+                  justifyContent: "space-between",
+                }}
+              >
+                <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+                  {activeLesson.prepared.map((item) => (
+                    <Chip key={item} label={item} size="small" />
+                  ))}
+                </Stack>
                 <Button
                   color="warning"
+                  size="small"
                   disabled={busy}
                   onClick={() => setRestartOpen(true)}
                 >
                   Restart lesson
                 </Button>
-              </Box>
+              </Stack>
             </Stack>
           </Paper>
           <Paper
@@ -429,48 +402,30 @@ export function DemoJourney() {
           />
         </Paper>
       )}
-      <Dialog open={visitorForm} onClose={() => !busy && setVisitorForm(false)}>
-        <Box
-          component="form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void registerVisitor();
-          }}
-        >
-          <DialogTitle>Use a different email</DialogTitle>
-          <DialogContent>
-            {error && <Alert severity="error">{error}</Alert>}
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              {(["name", "email", "company"] as const).map((field) => (
-                <TextField
-                  key={field}
-                  label={
-                    field === "email"
-                      ? "Email"
-                      : field[0].toUpperCase() + field.slice(1)
-                  }
-                  type={field === "email" ? "email" : "text"}
-                  required
-                  value={visitor[field]}
-                  onChange={(event) =>
-                    setVisitor((current) => ({
-                      ...current,
-                      [field]: event.target.value,
-                    }))
-                  }
-                />
-              ))}
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button disabled={busy} onClick={() => setVisitorForm(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" disabled={busy}>
-              Continue
-            </Button>
-          </DialogActions>
-        </Box>
+      <Dialog
+        open={completionOpen}
+        onClose={() => !busy && setCompletionOpen(false)}
+        aria-labelledby="lesson-complete-title"
+      >
+        <DialogTitle id="lesson-complete-title">Lesson complete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            You completed this walkthrough. Choose another lesson whenever you
+            are ready.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setCompletionOpen(false);
+              void selectLesson(null);
+            }}
+            disabled={busy}
+          >
+            Back to lessons
+          </Button>
+        </DialogActions>
       </Dialog>
       <Dialog open={restartOpen} onClose={() => !busy && setRestartOpen(false)}>
         <DialogTitle>Restart this lesson?</DialogTitle>
