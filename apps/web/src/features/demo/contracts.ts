@@ -24,6 +24,7 @@ export type DemoRun = {
   clinic: { id: number | string; name: string; slug: string };
   patient: { id?: number | string; name?: string } | null;
   lesson_key: string | null;
+  sandbox: boolean;
   lessons: DemoLesson[];
   steps: DemoRunStep[];
 };

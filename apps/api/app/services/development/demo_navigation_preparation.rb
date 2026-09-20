@@ -5,7 +5,7 @@ module Development
     class << self
       def prepare!(run)
         case run.lesson_key
-        when "navigation_tour" then tour!(run)
+        when "navigation_tour", "sandbox" then tour!(run)
         when "refill_review" then refill!(run)
         when "recall_review" then recall!(run)
         when "waitlist_review" then waitlist!(run)

@@ -60,6 +60,14 @@ module Development
     }.freeze
 
     CLINIC_VIEW = "clinic"
+    SANDBOX_KEY = "sandbox"
+    SANDBOX_DEFINITION = {
+      id: SANDBOX_KEY,
+      title: "Sandbox",
+      description: "Work freely in a fully populated synthetic clinic workspace.",
+      role: "administrator",
+      prepared: [ "Full clinic workspace", "Synthetic records", "Editable controls" ]
+    }.freeze
     PATIENT_LESSONS = %w[patient_enroll membership_payment].freeze
     STOCK_LESSONS = %w[inventory_count inventory_adjust inventory_transfer inventory_recall].freeze
 
@@ -74,12 +82,16 @@ module Development
         ).freeze
       end
 
-      def lesson_keys = definitions.pluck(:id)
+      def lesson_keys = definitions.pluck(:id) + [ SANDBOX_KEY ]
 
       def definition!(lesson_key)
+        return SANDBOX_DEFINITION if sandbox?(lesson_key)
+
         definitions.find { |lesson| lesson.fetch(:id) == lesson_key.to_s } ||
           raise(ArgumentError, "Choose an available demo lesson.")
       end
+
+      def sandbox?(lesson_key) = lesson_key.to_s == SANDBOX_KEY
 
       def view_for(lesson_key)
         return "patient" if PATIENT_LESSONS.include?(lesson_key.to_s)
@@ -93,6 +105,12 @@ module Development
       end
 
       def prepare!(run)
+        if sandbox?(run.lesson_key)
+          prepare_sandbox!(run)
+          run.update!(baseline: run.baseline.to_h.merge(baseline_for(run)))
+          return run
+        end
+
         finalize_clinic!(run) unless run.lesson_key == "clinic_setup"
         case DemoSpecialtyLessons.base_key(run.lesson_key)
         when "clinic_setup", "inventory_product_create", "inventory_supplier_create",
@@ -156,6 +174,8 @@ module Development
       end
 
       def complete?(run)
+        return false if sandbox?(run.lesson_key)
+
         baseline = run.baseline.to_h
         case DemoSpecialtyLessons.base_key(run.lesson_key)
         when "clinic_setup"
@@ -210,7 +230,7 @@ module Development
         lesson.slice(:id, :title, :description).merge(
           status: complete?(run) ? "complete" : "available",
           href: href_for(run), requires: [],
-          review: !core_lesson?(run.lesson_key) && DemoNavigationLessons.review?(run.lesson_key)
+          review: !sandbox?(run.lesson_key) && !core_lesson?(run.lesson_key) && DemoNavigationLessons.review?(run.lesson_key)
         )
       end
 
@@ -237,6 +257,14 @@ module Development
 
       def core_lesson?(lesson_key)
         CORE_DEFINITIONS.any? { |lesson| lesson.fetch(:id) == DemoSpecialtyLessons.base_key(lesson_key) }
+      end
+
+      def prepare_sandbox!(run)
+        %i[patient appointment encounter stock].each do |kind|
+          prepare_context!(run, kind:)
+        end
+        DemoNavigationPreparation.prepare!(run)
+        DemoWorkspacePreparation.prepare!(run)
       end
 
       def baseline_for(run)
@@ -402,6 +430,8 @@ module Development
       end
 
       def href_for(run)
+        return "/clinic" if sandbox?(run.lesson_key)
+
         appointment = appointments(run).order(:id).last
         encounter = Clinic::Encounter.where(practice_id: run.practice_id).order(:id).last
         product = run.practice.pharmacy_products.first

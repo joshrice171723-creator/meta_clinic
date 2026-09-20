@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { demoRouteAllowed } from "../src/features/demo/DemoFrameBoundary";
 import {
+  isSandbox,
   isNavigationTour,
   lessonInstructions,
   LessonCatalog,
@@ -142,6 +143,7 @@ describe("guided demo navigation", () => {
   it("offers an explicit finish action for the read-only navigation tour", () => {
     expect(isNavigationTour("navigation_tour")).toBe(true);
     expect(isNavigationTour("patient_flow_review")).toBe(false);
+    expect(isSandbox("sandbox")).toBe(true);
   });
 
   it("renders grouped lesson roles with unique accessible open actions and prepared state", () => {
@@ -149,6 +151,7 @@ describe("guided demo navigation", () => {
       createElement(LessonCatalog, {
         busy: false,
         onSelect: () => undefined,
+        onSandbox: () => undefined,
         lessons: [
           {
             id: "clinic_setup",
@@ -177,6 +180,7 @@ describe("guided demo navigation", () => {
     expect(html).not.toContain(">Complete<");
     expect(html).toContain("Primary care");
     expect(html).toContain("Weight management");
+    expect(html).toContain('aria-label="Open Sandbox"');
   });
 
   it("selects the earliest available role lesson before a completed fallback", () => {
@@ -235,6 +239,17 @@ describe("guided demo navigation", () => {
     );
     expect(demoRouteAllowed("/clinic/subscriptions/12", clinic, origin)).toBe(
       true,
+    );
+  });
+
+  it("allows every clinic workspace in the sandbox", () => {
+    const sandbox = {
+      active: true,
+      run: { mode: "clinic" as const, sandbox: true, steps: [] },
+    };
+    expect(demoRouteAllowed("/clinic/patients/42", sandbox, origin)).toBe(true);
+    expect(demoRouteAllowed("/memberships/example", sandbox, origin)).toBe(
+      false,
     );
   });
 

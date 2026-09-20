@@ -232,6 +232,7 @@ module Development
       view = session[:guided_clinic_demo_view] || DemoLessonCatalog.view_for(run.lesson_key)
       { active: true, run: {
         id: run.id, template_key: run.template_key, lesson_key: run.lesson_key,
+        sandbox: DemoLessonCatalog.sandbox?(run.lesson_key),
         mode: view, view:,
         clinic: { id: run.practice_id, name: run.practice.name, slug: run.practice.public_membership_slug },
         patient: patient && { id: patient.id, name: patient.display_name },

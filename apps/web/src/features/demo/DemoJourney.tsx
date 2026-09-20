@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -32,6 +33,10 @@ export function lessonInstructions(lessonId: string) {
 
 export function isNavigationTour(lessonId: string | null | undefined) {
   return lessonId === "navigation_tour";
+}
+
+export function isSandbox(lessonId: string | null | undefined) {
+  return lessonId === "sandbox";
 }
 
 const message = (error: unknown, fallback: string) =>
@@ -87,7 +92,9 @@ export function DemoJourney() {
     () => run?.lessons.find((lesson) => lesson.id === run.lesson_key) ?? null,
     [run],
   );
-  const activeGuide = activeLesson ? lessonGuide(activeLesson.id) : null;
+  const sandbox = isSandbox(run?.lesson_key);
+  const activeGuide =
+    activeLesson && !sandbox ? lessonGuide(activeLesson.id) : null;
   const refresh = useCallback(async () => {
     const current = generation.current;
     try {
@@ -273,6 +280,7 @@ export function DemoJourney() {
               lessons={state.value.lessons}
               busy={busy}
               onSelect={(id) => void selectLesson(id)}
+              onSandbox={() => void selectLesson("sandbox")}
             />
           </Stack>
         )}
@@ -299,7 +307,7 @@ export function DemoJourney() {
           {progressError}
         </Alert>
       )}
-      {run.lesson_key && activeLesson ? (
+      {run.lesson_key && (activeLesson || sandbox) ? (
         <>
           <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
             <Stack spacing={1.5}>
@@ -313,10 +321,12 @@ export function DemoJourney() {
               >
                 <Box>
                   <Typography component="h1" variant="h5">
-                    {activeLesson.title}
+                    {sandbox ? "Sandbox" : activeLesson?.title}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {roleLabel(activeLesson.role)} workspace
+                    {sandbox
+                      ? "Full synthetic clinic workspace"
+                      : `${roleLabel(activeLesson?.role ?? "administrator")} workspace`}
                   </Typography>
                 </Box>
                 <Button
@@ -328,47 +338,57 @@ export function DemoJourney() {
                   Back to lessons
                 </Button>
               </Stack>
-              <Box
-                component="section"
-                aria-labelledby="lesson-guide-title"
-                data-demo-guide
-              >
-                <Stack spacing={1.25}>
-                  <Box>
-                    <Typography id="lesson-guide-title" variant="subtitle2">
-                      Lesson guide
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {lessonGuide(activeLesson.id).goal}
-                    </Typography>
-                  </Box>
-                  <Alert severity="info" icon={false}>
-                    <Typography variant="body2">
-                      <strong>Before you start:</strong>{" "}
-                      {lessonGuide(activeLesson.id).constraints}
-                    </Typography>
-                  </Alert>
-                  <Box component="ol" sx={{ m: 0, pl: 2.5 }}>
-                    {lessonInstructions(activeLesson.id).map((instruction) => (
-                      <Typography
-                        component="li"
-                        key={instruction}
-                        variant="body2"
-                        sx={{ mb: 0.5 }}
-                      >
-                        {instruction}
+              {sandbox ? (
+                <Alert severity="info" icon={false}>
+                  This is a full, editable clinic workspace with prepared
+                  synthetic patients, appointments, encounters, inventory,
+                  messaging, workforce, telehealth, reminders, and billing data.
+                </Alert>
+              ) : (
+                <Box
+                  component="section"
+                  aria-labelledby="lesson-guide-title"
+                  data-demo-guide
+                >
+                  <Stack spacing={1.25}>
+                    <Box>
+                      <Typography id="lesson-guide-title" variant="subtitle2">
+                        Lesson guide
                       </Typography>
-                    ))}
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Done when:</strong>{" "}
-                    {lessonGuide(activeLesson.id).doneWhen}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {roleContext(activeLesson.role)}
-                  </Typography>
-                </Stack>
-              </Box>
+                      <Typography color="text.secondary">
+                        {lessonGuide(activeLesson!.id).goal}
+                      </Typography>
+                    </Box>
+                    <Alert severity="info" icon={false}>
+                      <Typography variant="body2">
+                        <strong>Before you start:</strong>{" "}
+                        {lessonGuide(activeLesson!.id).constraints}
+                      </Typography>
+                    </Alert>
+                    <Box component="ol" sx={{ m: 0, pl: 2.5 }}>
+                      {lessonInstructions(activeLesson!.id).map(
+                        (instruction) => (
+                          <Typography
+                            component="li"
+                            key={instruction}
+                            variant="body2"
+                            sx={{ mb: 0.5 }}
+                          >
+                            {instruction}
+                          </Typography>
+                        ),
+                      )}
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Done when:</strong>{" "}
+                      {lessonGuide(activeLesson!.id).doneWhen}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {roleContext(activeLesson!.role)}
+                    </Typography>
+                  </Stack>
+                </Box>
+              )}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1}
@@ -378,19 +398,25 @@ export function DemoJourney() {
                 }}
               >
                 <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
-                  {activeLesson.prepared.map((item) => (
+                  {(sandbox
+                    ? [
+                        "All workspaces populated",
+                        "Unrestricted clinic navigation",
+                      ]
+                    : activeLesson!.prepared
+                  ).map((item) => (
                     <Chip key={item} label={item} size="small" />
                   ))}
                 </Stack>
                 <Button
-                  color="warning"
+                  color={sandbox ? "info" : "warning"}
                   size="small"
                   disabled={busy}
                   onClick={() => setRestartOpen(true)}
                 >
-                  Restart lesson
+                  {sandbox ? "Reset sandbox" : "Restart lesson"}
                 </Button>
-                {isNavigationTour(activeLesson.id) && (
+                {activeLesson && isNavigationTour(activeLesson.id) && (
                   <Button
                     variant="contained"
                     size="small"
@@ -438,7 +464,7 @@ export function DemoJourney() {
                 key={`${run.id}:${run.lesson_key}:${frameRevision}`}
                 ref={frameRef}
                 name="clinic-demo-workspace"
-                title={`${activeLesson.title} workspace`}
+                title={`${sandbox ? "Sandbox" : activeLesson?.title} workspace`}
                 src={source}
                 onLoad={() => setFrameLoading(false)}
                 onError={() => {
@@ -471,6 +497,7 @@ export function DemoJourney() {
             lessons={run.lessons}
             busy={busy}
             onSelect={(id) => void selectLesson(id)}
+            onSandbox={() => void selectLesson("sandbox")}
           />
         </Paper>
       )}
@@ -505,11 +532,15 @@ export function DemoJourney() {
         </DialogActions>
       </Dialog>
       <Dialog open={restartOpen} onClose={() => !busy && setRestartOpen(false)}>
-        <DialogTitle>Restart this lesson?</DialogTitle>
+        <DialogTitle>
+          {sandbox ? "Reset Sandbox?" : "Restart this lesson?"}
+        </DialogTitle>
         <DialogContent>
           {error && <Alert severity="error">{error}</Alert>}
           <Typography>
-            This restarts only this lesson’s clinic and progress.
+            {sandbox
+              ? "This restores the full synthetic clinic dataset."
+              : "This restarts only this lesson’s clinic and progress."}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -523,7 +554,7 @@ export function DemoJourney() {
             }
             disabled={busy}
           >
-            Restart lesson
+            {sandbox ? "Reset Sandbox" : "Restart lesson"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -535,10 +566,12 @@ export function LessonCatalog({
   lessons,
   busy,
   onSelect,
+  onSandbox,
 }: {
   lessons: DemoLesson[];
   busy: boolean;
   onSelect: (id: string) => void;
+  onSandbox: () => void;
 }) {
   const [clinicType, setClinicType] = useState("all");
   const [search, setSearch] = useState("");
@@ -559,22 +592,42 @@ export function LessonCatalog({
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Choose your clinic focus
         </Typography>
-        <ToggleButtonGroup
-          exclusive
-          value={clinicType}
-          aria-label="Clinic type"
-          onChange={(_, value: string | null) => value && setClinicType(value)}
-          sx={{ flexWrap: "wrap" }}
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
         >
-          <ToggleButton value="all">All lessons</ToggleButton>
-          <ToggleButton value="primary_care">Primary care</ToggleButton>
-          <ToggleButton value="weight_management">
-            Weight management
-          </ToggleButton>
-        </ToggleButtonGroup>
+          <ToggleButtonGroup
+            exclusive
+            value={clinicType}
+            aria-label="Clinic type"
+            onChange={(_, value: string | null) =>
+              value && setClinicType(value)
+            }
+            sx={{ flexWrap: "wrap" }}
+          >
+            <ToggleButton value="all">All lessons</ToggleButton>
+            <ToggleButton value="primary_care">Primary care</ToggleButton>
+            <ToggleButton value="weight_management">
+              Weight management
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Divider orientation="vertical" flexItem />
+          <Button
+            variant="contained"
+            color="info"
+            disableElevation
+            disabled={busy}
+            aria-label="Open Sandbox"
+            onClick={onSandbox}
+          >
+            Sandbox
+          </Button>
+        </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Specialty scenarios plus shared clinic workflows. Every lesson starts
-          fresh.
+          fresh; Sandbox opens a full clinic with prepared data across the
+          workspace.
         </Typography>
       </Box>
       <TextField

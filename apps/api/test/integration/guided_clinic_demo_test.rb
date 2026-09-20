@@ -102,6 +102,28 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert Clinic::PatientReminder.where(practice: run.practice).exists?
   end
 
+  test "sandbox prepares a full editable clinic without appearing as a lesson" do
+    register_visitor
+    payload = enter_lesson("sandbox")
+    run = Development::DemoRun.find(payload.fetch("id"))
+
+    assert_equal true, payload.fetch("sandbox")
+    refute_includes payload.fetch("lessons").pluck("id"), "sandbox"
+    assert_equal "/clinic", payload.fetch("steps").sole.fetch("href")
+    assert run.paid_patient?
+    assert run.practice.appointments.where(patient: run.patient).exists?
+    assert run.practice.encounters.where(patient: run.patient).exists?
+    assert Clinic::Inventory::Receipt.where(practice: run.practice).exists?
+    assert run.practice.patient_portal_requests.refill.where(patient: run.patient).exists?
+    assert Clinic::EncounterFollowUp.where(practice: run.practice).exists?
+    assert Clinic::Scheduling::WaitlistEntry.where(practice: run.practice, patient: run.patient).exists?
+    assert run.practice.scribe_encounters.where(patient: run.patient).exists?
+    assert Clinic::StaffConversation.where(practice: run.practice).exists?
+    assert Clinic::Workforce::Employment.where(practice: run.practice).exists?
+    assert Clinic::Telehealth::Visit.where(practice: run.practice).exists?
+    assert Clinic::PatientReminder.where(practice: run.practice).exists?
+  end
+
   test "an expired guided demo session can resume its bound lesson" do
     register_visitor
     run = Development::DemoRun.find(enter_lesson("navigation_tour").fetch("id"))

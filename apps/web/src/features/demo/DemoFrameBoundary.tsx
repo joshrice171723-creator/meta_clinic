@@ -9,6 +9,7 @@ type FrameRun = {
   run?: {
     mode: "clinic" | "patient";
     lesson_key?: string | null;
+    sandbox?: boolean;
     steps: {
       id: string;
       href: string;
@@ -45,6 +46,8 @@ const navigationTourPaths = new Set([
 const navigationTour = (run: FrameRun) =>
   run.run?.lesson_key === "navigation_tour";
 
+const sandboxRun = (run: FrameRun) => run.run?.sandbox === true;
+
 export function demoRouteAllowed(
   href: string,
   run: FrameRun,
@@ -53,6 +56,8 @@ export function demoRouteAllowed(
   if (!run.active || !run.run) return false;
   const target = new URL(href, origin);
   if (target.origin !== origin) return false;
+  if (sandboxRun(run))
+    return run.run.mode === "clinic" && target.pathname.startsWith("/clinic");
   if (navigationTour(run))
     return (
       run.run.mode === "clinic" && navigationTourPaths.has(target.pathname)
@@ -207,7 +212,8 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
           (step) =>
             step.status === "available" &&
             (!run.run?.lesson_key || step.id === run.run.lesson_key) &&
-            !navigationTour(run),
+            !navigationTour(run) &&
+            !sandboxRun(run),
         )
         .slice(0, 1)
         .map((step) => (
