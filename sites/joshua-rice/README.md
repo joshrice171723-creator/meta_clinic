@@ -18,4 +18,14 @@ Career details and public contact links were transcribed and lightly edited from
 
 The demo link is https://aimetaclinic.com/demo. Google Fonts supplies Manrope and DM Sans; local sans-serif fallback keeps the site usable when that service is unavailable. All content and navigation work without JavaScript; only the print button uses JavaScript. There are no tracking scripts, contact-form submissions, cookies, embedded demos, or credentials.
 
-Before public launch, confirm the current résumé, contact/profile links, and intended hosting domain with Joshua. Deploy only this directory, never the repository root. Public deployment, domain configuration, and the hosted site's verification remain separate from local creation. Once a domain is chosen, add absolute canonical and social-preview URLs for that domain.
+Joshua authorized public publication on September 20, 2026. The chosen URL is https://aimetaclinic.com/joshua/. Canonical metadata points to that address. The downloadable `Joshua_Rice_resume_2026.docx` preserves the newer Desktop résumé's career details, adds the portfolio and corrected GitHub link, and removes semester counts. Its two-page layout was rendered through Microsoft Word and visually inspected; the packaged LibreOffice renderer was unavailable on Windows.
+
+## Static deployment
+
+The existing Lightsail HTTPS nginx server includes `/etc/nginx/snippets/joshua-portfolio.conf`, sourced from `deploy-nginx.conf`. Only `/joshua` and `/joshua/` are added; application proxies, images, credentials, and databases are outside this deployment.
+
+Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, and `Joshua_Rice_resume_2026.docx`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
+
+Before changing nginx, retain its existing site configuration and the previous static symlink target in a timestamped backup under `/var/backups/joshua-portfolio/`. Run `nginx -t` before reloading. On failure, restore the saved configuration/snippet and previous symlink before testing and reloading again. Keep old releases for recovery. Static-only publication does not run application migrations or restart containers.
+
+Verify HTTPS redirects, both HTML pages, styles/scripts/favicon, the Word download hash, missing-file 404 behavior, and `/demo` and `/up`. Confirm the public layout in a browser. Later app deployments must preserve this nginx include and static directory.
