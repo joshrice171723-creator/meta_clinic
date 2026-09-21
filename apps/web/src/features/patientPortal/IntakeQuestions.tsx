@@ -304,32 +304,6 @@ export function IntakeQuestions({
               {repeatable && (
                 <Typography variant="subtitle2">{field.label}</Typography>
               )}
-              <TextField
-                select
-                label={`${field.label.replace(/ status$/i, "")} status`}
-                value={state}
-                disabled={disabled}
-                onChange={(event) => {
-                  const nextState = event.target.value;
-                  set(
-                    field.id,
-                    nextState === "answered"
-                      ? {
-                          ...detail,
-                          state: nextState,
-                          value: detail.value ?? "",
-                        }
-                      : { state: nextState, value: "" },
-                  );
-                }}
-                helperText="Use Not asked when the question was not discussed. Unknown, Declined, and Not applicable have different meanings."
-              >
-                {answerStates.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {stateLabel(option)}
-                  </MenuItem>
-                ))}
-              </TextField>
               {canEnterAnswer && field.history_kind ? (
                 state === "answered" ? (
                   <HistoryEntryEditor
