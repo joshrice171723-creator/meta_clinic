@@ -24,7 +24,7 @@ Joshua authorized public publication on September 20, 2026. The chosen URL is ht
 
 The existing Lightsail HTTPS nginx server includes `/etc/nginx/snippets/joshua-portfolio.conf`, sourced from `deploy-nginx.conf`. Only `/joshua` and `/joshua/` are added; application proxies, images, credentials, and databases are outside this deployment.
 
-Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, and `Joshua_Rice_resume_2026.docx`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
+Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, `joshua-rice.png`, and `Joshua_Rice_resume_2026.docx`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
 
 Before changing nginx, retain its existing site configuration and the previous static symlink target in a timestamped backup under `/var/backups/joshua-portfolio/`. Run `nginx -t` before reloading. On failure, restore the saved configuration/snippet and previous symlink before testing and reloading again. Keep old releases for recovery. Static-only publication does not run application migrations or restart containers.
 

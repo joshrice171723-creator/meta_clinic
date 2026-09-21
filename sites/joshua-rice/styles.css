@@ -206,6 +206,22 @@ h1 {
 .text-link span {
   margin-left: 10px;
 }
+.hero-portrait {
+  margin: 0;
+  text-align: center;
+}
+.hero-portrait img {
+  display: block;
+  width: min(100%, 347px);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 20px;
+}
+.hero-portrait figcaption {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .system-art {
   height: 330px;
   position: relative;
