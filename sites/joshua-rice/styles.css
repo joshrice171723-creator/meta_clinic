@@ -538,37 +538,98 @@ h2 {
 }
 .weinfuse-highlight {
   display: grid;
-  grid-template-columns: 0.85fr 1fr 1fr;
-  gap: 36px;
-  align-items: start;
+  grid-template-columns: 0.82fr 1.18fr;
   margin-top: 24px;
-  padding: 32px;
   background: #1f403a;
   border-radius: 5px;
   color: #f7faf8;
+  overflow: hidden;
 }
-.weinfuse-context .eyebrow {
+.weinfuse-context,
+.weinfuse-story {
+  padding: 44px;
+}
+.weinfuse-context {
+  background: #18362f;
+}
+.weinfuse-period,
+.weinfuse-impact-label {
+  margin: 0;
+  color: #c5ddd5;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+.weinfuse-context .weinfuse-period {
   color: #c5ddd5;
 }
 .weinfuse-context h3 {
-  margin-top: 14px;
-  font-size: 30px;
-  font-weight: 550;
-  letter-spacing: -1.2px;
+  margin-top: 20px;
+  font-size: clamp(40px, 4vw, 61px);
+  font-weight: 600;
+  letter-spacing: -3px;
+  line-height: 0.98;
+}
+.weinfuse-position {
+  max-width: 250px;
+  margin-top: 25px;
+  color: #d5e2dd;
+  font-size: 14px;
+  line-height: 1.7;
 }
 .weinfuse-role {
   color: #f7faf8;
-  font: 600 16px/1.45 var(--heading);
-  letter-spacing: -0.3px;
+  font: 600 22px/1.35 var(--heading);
+  letter-spacing: -0.8px;
+  max-width: 430px;
 }
-.weinfuse-highlight p:not(.weinfuse-role) {
+.weinfuse-story > p:not(.weinfuse-role) {
   margin-top: 10px;
   color: #d5e2dd;
-  font-size: 12px;
-  line-height: 1.75;
+  font-size: 14px;
+  line-height: 1.8;
+  max-width: 520px;
 }
-.weinfuse-highlight .weinfuse-impact {
-  margin-top: 0;
+.weinfuse-domains {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 31px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #5d7d73;
+}
+.weinfuse-domains li {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid #5d7d73;
+  color: #e5eee9;
+  font-size: 12px;
+}
+.weinfuse-domains li:nth-child(odd) {
+  padding-right: 18px;
+}
+.weinfuse-domains li:nth-child(even) {
+  border-left: 1px solid #5d7d73;
+  padding-left: 18px;
+}
+.weinfuse-impact {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 0.82fr 1.18fr;
+  gap: 44px;
+  padding: 27px 44px;
+  background: #d9e7e1;
+}
+.weinfuse-impact .weinfuse-impact-label {
+  color: #18362f;
+}
+.weinfuse-impact p:last-child {
+  margin: 0;
+  max-width: 580px;
+  color: #18362f;
+  font: 600 20px/1.45 var(--heading);
+  letter-spacing: -0.6px;
 }
 .project-pair {
   display: grid;
@@ -877,7 +938,16 @@ details p {
     padding-left: 20px;
   }
   .weinfuse-highlight {
-    gap: 24px;
+    grid-template-columns: 0.76fr 1.24fr;
+  }
+  .weinfuse-context,
+  .weinfuse-story {
+    padding: 35px;
+  }
+  .weinfuse-impact {
+    grid-template-columns: 0.76fr 1.24fr;
+    gap: 35px;
+    padding: 25px 35px;
   }
   .project-copy h3 {
     font-size: 35px;
@@ -1018,11 +1088,18 @@ details p {
   }
   .weinfuse-highlight {
     grid-template-columns: 1fr;
-    gap: 17px;
-    padding: 27px;
   }
-  .weinfuse-highlight .weinfuse-impact {
-    margin-top: 0;
+  .weinfuse-context,
+  .weinfuse-story {
+    padding: 29px;
+  }
+  .weinfuse-impact {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 24px 29px 28px;
+  }
+  .weinfuse-impact p:last-child {
+    font-size: 18px;
   }
   .secondary-project {
     padding: 25px;
