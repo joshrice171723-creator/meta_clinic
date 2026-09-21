@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Joshua Rice's résumé: full-stack software engineering, healthcare SaaS, and AI systems. Experience at WeInfuse, CollectivePoint, and independent product development."
+    />
+    <meta name="theme-color" content="#f6f3ed" />
+    <title>Résumé — Joshua Rice</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="resume.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#resume">Skip to résumé</a>
+    <main class="resume-shell">
+      <nav class="resume-toolbar" aria-label="Résumé actions">
+        <a class="text-link" href="./">← Back to portfolio</a
+        ><button class="button dark" type="button" id="print-resume">
+          Print / save as PDF <span aria-hidden="true">↗</span>
+        </button>
+      </nav>
+      <article id="resume" class="resume-paper">
+        <header>
+          <h1>Joshua Rice<span class="accent">.</span></h1>
+          <p class="resume-title">
+            AI Systems Engineer · Senior Full-Stack Software Engineer ·
+            Healthcare SaaS
+          </p>
+          <div class="resume-contact">
+            <span>Ardmore, Oklahoma</span
+            ><a href="mailto:joshrice171723@gmail.com"
+              >joshrice171723@gmail.com</a
+            ><a href="https://www.linkedin.com/in/josh-rice-70b7b2215/"
+              >LinkedIn</a
+            ><a href="https://github.com/joshrice1414">GitHub</a
+            ><a href="https://aimetaclinic.com/demo">Meta Clinic demo</a>
+          </div>
+        </header>
+        <section aria-labelledby="summary-title">
+          <h2 id="summary-title">Profile</h2>
+          <p>
+            Full-stack and AI systems engineer with professional experience in
+            healthcare software and independent product development since 2025.
+            Built healthcare SaaS, workflow-heavy business systems, agentic AI
+            pipelines, browser automation, and human-in-the-loop tooling. Strong
+            in Ruby on Rails, React, PostgreSQL, REST APIs, production
+            debugging, multi-tenant architecture, and translating operational
+            requirements into working software.
+          </p>
+        </section>
+        <section aria-labelledby="skills-title">
+          <h2 id="skills-title">Technical skills</h2>
+          <p>
+            <strong>Languages:</strong> Ruby, JavaScript, TypeScript, Python,
+            SQL, C#
+          </p>
+          <p>
+            <strong>Frameworks:</strong> Ruby on Rails, React, AngularJS,
+            Next.js, .NET
+          </p>
+          <p>
+            <strong>Backend & data:</strong> PostgreSQL, REST APIs,
+            Sidekiq/background jobs, relational data modeling, SQLite
+          </p>
+          <p>
+            <strong>AI & automation:</strong> OpenRouter, multi-model large
+            language model (LLM) APIs, agent workflows, tool calling,
+            prompt/version control, deterministic + LLM pipelines,
+            retrieval-augmented generation concepts,
+            speech-to-text/text-to-speech, browser automation, human-in-the-loop
+            controls
+          </p>
+          <p>
+            <strong>Platform & tools:</strong> Git/GitHub, Docker, CircleCI,
+            Electron, Chrome extensions, PaperTrail
+          </p>
+        </section>
+        <section aria-labelledby="experience-title">
+          <h2 id="experience-title">Experience</h2>
+          <div class="resume-role">
+            <h3>Independent Software Engineer / AI Systems Engineer</h3>
+            <span>Jan 2025 — Present</span>
+          </div>
+          <p class="location">Independent · Ardmore, Oklahoma</p>
+          <ul>
+            <li>
+              <strong>Meta Clinic:</strong> Architected and built a multi-tenant
+              clinic operations platform with Ruby on Rails, PostgreSQL, React,
+              REST APIs, background jobs, role-based access control,
+              tenant-scoped data isolation, and PaperTrail audit history.
+              Deployed a protected, synthetic AWS-hosted review environment in
+              preparation for clinic pilot work.
+            </li>
+            <li>
+              Built clinical and operational workflows spanning patient
+              management, scheduling, appointment requests, telehealth,
+              messaging, documentation, medications, labs/procedures,
+              memberships, billing, patient portal, reporting, and
+              specialty-specific workflows.
+            </li>
+            <li>
+              Designed medication inventory with lot-level tracking, receiving,
+              dispensing, reconciliation, expiration/recall handling, inventory
+              ledgers, and automatic stock deduction from clinical workflows;
+              added retry-safe and auditable handling around state-changing
+              operations.
+            </li>
+            <li>
+              Designed bounded AI-assisted clinical workflows with structured
+              state, provider review, warnings/blockers, versioned
+              prompts/protocols, narrowly scoped tool calls, and
+              application-enforced authorization and auditability.
+            </li>
+            <li>
+              Worked on realtime AI architecture patterns using Rails/PostgreSQL
+              as the system of record with LiveKit/WebRTC, streaming speech
+              services, deterministic rule evaluation, and provider-swappable
+              model/voice adapters.
+            </li>
+            <li>
+              Built a repository-level agent harness with scoped agent
+              contracts, reusable skills, deterministic preflight/verification
+              checks, and task tracing.
+            </li>
+            <li>
+              <strong>Astra Company OS:</strong> Built an internal operations
+              workspace for sales, employees, AI agents, projects, tasks,
+              approvals, readiness tracking, and aggregate business metrics,
+              with explicit human approval points and separation from clinical
+              product data.
+            </li>
+            <li>
+              <strong>North Star / Lighthouse / ApplyPilot:</strong> Built
+              career-automation infrastructure for job ingestion, deterministic
+              filtering, LLM evaluation, résumé/document handling, queues,
+              checkpoints, blockers, audit history, partner workflows, and
+              browser-assisted application completion.
+            </li>
+            <li>
+              Integrated OpenRouter for multi-model access and prompt workflows.
+              Implemented deterministic pre-filtering before LLM evaluation
+              while preserving human review for authentication, CAPTCHAs,
+              ambiguous answers, and final submission.
+            </li>
+            <li>
+              Built ApplyPilot as a Chrome extension for form inspection,
+              structured field identification, and autofill assistance with
+              review-before-submit controls.
+            </li>
+          </ul>
+          <div class="resume-role">
+            <h3>Senior Full-Stack Software Engineer · WeInfuse</h3>
+            <span>Jan 2019 — Feb 2022</span>
+          </div>
+          <p class="location">Austin, Texas</p>
+          <ul>
+            <li>
+              Joined as the third software engineer and helped build and scale
+              an infusion-clinic SaaS platform from an early-stage product
+              serving under 100 locations to more than 600 locations during
+              tenure.
+            </li>
+            <li>
+              Worked directly with the founder/CEO and domain experts to
+              translate clinic operations into production software. Owned
+              greenfield and existing workflows across medication/pharmacy
+              inventory, insurance authorization and billing, patient estimates,
+              scheduling, patient tracking, purchasing, financial reporting,
+              profitability/margin, and treatment operations.
+            </li>
+            <li>
+              Delivered full-stack features and production fixes across Ruby on
+              Rails, React, AngularJS, REST APIs, Sidekiq/background jobs,
+              Electron, SQLite, and relational data workflows; contributed to
+              AngularJS-to-React modernization.
+            </li>
+            <li>
+              Debugged complex production issues across frontend, APIs, jobs,
+              and data. Took features from requirements through implementation
+              and release; later participated in interviewing and mentoring as
+              the engineering organization grew.
+            </li>
+          </ul>
+          <div class="resume-role">
+            <h3>Software Developer · CollectivePoint</h3>
+            <span>Jan 2018 — Jan 2019</span>
+          </div>
+          <p class="location">Austin, Texas</p>
+          <ul>
+            <li>
+              Built insurance registration and patient-estimate software for
+              desktop and mobile workflows using C#/.NET, SQL, and REST/API
+              integrations.
+            </li>
+            <li>
+              Performed code review, testing, defect investigation, and
+              cross-stack debugging while delivering fixes and product
+              enhancements into production.
+            </li>
+          </ul>
+        </section>
+        <section aria-labelledby="career-title">
+          <h2 id="career-title">Career context</h2>
+          <div class="resume-role">
+            <h3>Family caregiver</h3>
+            <span>Mar 2022 — Jun 2026</span>
+          </div>
+          <p class="location">Oklahoma</p>
+          <p>
+            Provided full-time family care from 2022 while transitioning back
+            into active software development through independent AI and product
+            engineering beginning in January 2025.
+          </p>
+        </section>
+        <section aria-labelledby="education-title">
+          <h2 id="education-title">Education</h2>
+          <p>
+            <strong>Austin Community College</strong> — Accelerated Programming
+            Program, 2 semesters (2017)
+          </p>
+          <p>
+            <strong>Grayson College</strong> — Coursework, 6 semesters
+            (2009–2012)
+          </p>
+        </section>
+      </article>
+    </main>
+  </body>
+</html>
