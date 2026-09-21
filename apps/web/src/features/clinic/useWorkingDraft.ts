@@ -22,6 +22,18 @@ type DraftResponse<T> = {
   updated_at: string | null;
 };
 
+export function workingDraftRecoveryDecision<T>(
+  recovered: Pick<DraftResponse<T>, "version" | "payload">,
+  previous: { encoded: string; expected: number },
+): "committed" | "retry" | "conflict" {
+  if (
+    recovered.version === previous.expected + 1 &&
+    JSON.stringify(recovered.payload) === previous.encoded
+  )
+    return "committed";
+  return recovered.version === previous.expected ? "retry" : "conflict";
+}
+
 // Working copies are private server records, never browser storage and never
 // official clinical/billing mutations. Consumers choose when to save snapshots.
 export function useWorkingDraft<T>({
@@ -194,15 +206,24 @@ export function useWorkingDraft<T>({
             const recovered = await api<DraftResponse<T>>(endpoint);
             if (!current()) return false;
             validate(recovered);
-            const committed =
-              recovered.version === previous.expected + 1 &&
-              JSON.stringify(recovered.payload) === previous.encoded;
-            if (!committed && recovered.version !== previous.expected)
+            const decision = workingDraftRecoveryDecision(recovered, previous);
+            if (decision === "conflict")
               throw new ApiError(
                 409,
                 "This working draft changed in another window. Review the saved copy before replacing it.",
                 "draft_conflict",
               );
+            if (decision === "committed") {
+              active.current.version = recovered.version;
+              uncertain.current = null;
+              setState((value) => ({
+                ...value,
+                version: recovered.version,
+                status: "saved",
+                error: "",
+              }));
+              return true;
+            }
             // Reconcile only the private working copy. A late original write
             // still meets the same version fence; official actions never replay.
             active.current.version = recovered.version;
