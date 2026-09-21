@@ -1,8 +1,10 @@
 import {
   Autocomplete,
+  Box,
   Button,
   Menu,
   MenuItem,
+  Paper,
   Stack,
   TextField,
   Typography,
@@ -268,7 +270,16 @@ export function IntakeQuestions({
   const set = (id: string, change: Exclude<IntakeAnswer, string>) =>
     onChange({ ...answers, [id]: change });
   return (
-    <Stack spacing={2}>
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+        gridTemplateColumns: {
+          xs: "minmax(0, 1fr)",
+          md: "repeat(2, minmax(0, 1fr))",
+        },
+      }}
+    >
       {fields
         .filter((field) => intakeFieldVisible(field, answers, fields))
         .map((field) => {
@@ -300,192 +311,165 @@ export function IntakeQuestions({
                 : {}),
             });
           return (
-            <IntakeFieldFrame key={field.id} field={field}>
-              {repeatable && (
-                <Typography variant="subtitle2">{field.label}</Typography>
-              )}
-              {canEnterAnswer && field.history_kind ? (
-                state === "answered" ? (
-                  <HistoryEntryEditor
-                    kind={field.history_kind}
-                    recordFields={field.record_fields ?? []}
-                    answers={answers}
-                    entries={historyEntries(answer, field.history_kind)}
-                    medicationOptions={medicationOptions}
-                    medicationReferences={medicationReferences}
-                    disabled={disabled}
-                    onChange={(entries) =>
-                      set(field.id, {
-                        state: entries.length ? "answered" : "unanswered",
-                        value: "",
-                        ...(entries.length ? { entries } : {}),
-                      })
-                    }
-                  />
-                ) : (
-                  <Button
-                    variant="outlined"
-                    disabled={disabled}
-                    onClick={() =>
-                      set(field.id, {
-                        state: "answered",
-                        value: "",
-                        entries: [emptyHistoryEntry(field.history_kind)],
-                      })
-                    }
-                  >
-                    {historyEntryAction(field.history_kind)}
-                  </Button>
-                )
-              ) : canEnterAnswer && field.record_fields ? (
-                state === "answered" ? (
-                  <RecordEntryEditor
-                    field={field}
-                    answers={answers}
-                    entries={detail.entries ?? []}
-                    medicationReferences={medicationReferences}
-                    disabled={disabled}
-                    onChange={(entries) =>
-                      set(field.id, {
-                        state: entries.length ? "answered" : "unanswered",
-                        value: "",
-                        ...(entries.length ? { entries } : {}),
-                      })
-                    }
-                  />
-                ) : (
-                  <Button
-                    variant="outlined"
-                    disabled={disabled}
-                    onClick={() =>
-                      set(field.id, {
-                        state: "answered",
-                        value: "",
-                        entries: [{}],
-                      })
-                    }
-                  >
-                    Add details
-                  </Button>
-                )
-              ) : canEnterAnswer && (field.choices || field.input_type) ? (
-                <IntakeValueControl
-                  field={field}
-                  value={
-                    field.input_type === "multiselect"
-                      ? (detail.values ?? [])
-                      : detail.value
-                  }
-                  otherDetail={detail.other_detail ?? ""}
-                  disabled={disabled}
-                  onChange={saveAnswer}
-                  onOtherDetailChange={
-                    fields.some(
-                      (item) => item.id === `${field.id}_other_detail`,
-                    )
-                      ? undefined
-                      : (other_detail) =>
+            <Paper
+              key={field.id}
+              component="section"
+              variant="outlined"
+              aria-label={`${field.label} question`}
+              sx={{
+                alignSelf: "start",
+                minWidth: 0,
+                p: { xs: 2, sm: 2.5 },
+                gridColumn:
+                  field.history_kind || field.record_fields || repeatable
+                    ? { md: "1 / -1" }
+                    : undefined,
+              }}
+            >
+              <Stack spacing={1.5}>
+                <Typography component="h3" variant="subtitle1">
+                  {field.label}
+                </Typography>
+                <IntakeFieldFrame field={field}>
+                  {canEnterAnswer && field.history_kind ? (
+                    state === "answered" ? (
+                      <HistoryEntryEditor
+                        kind={field.history_kind}
+                        recordFields={field.record_fields ?? []}
+                        answers={answers}
+                        entries={historyEntries(answer, field.history_kind)}
+                        medicationOptions={medicationOptions}
+                        medicationReferences={medicationReferences}
+                        disabled={disabled}
+                        onChange={(entries) =>
                           set(field.id, {
-                            ...detail,
-                            state: "answered",
-                            other_detail,
+                            state: entries.length ? "answered" : "unanswered",
+                            value: "",
+                            ...(entries.length ? { entries } : {}),
                           })
-                  }
-                />
-              ) : canEnterAnswer && repeatable ? (
-                <>
-                  {answerValue(answer)
-                    .split("\n")
-                    .map((entry, index, entries) => (
-                      <Stack
-                        key={index}
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
+                        }
+                      />
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        disabled={disabled}
+                        onClick={() =>
+                          set(field.id, {
+                            state: "answered",
+                            value: "",
+                            entries: [emptyHistoryEntry(field.history_kind)],
+                          })
+                        }
                       >
-                        <Autocomplete
-                          freeSolo={field.id !== "medications"}
-                          options={
-                            field.id === "medications"
-                              ? [...medicationOptions, "Other — enter manually"]
-                              : []
-                          }
-                          value={
-                            field.id === "medications" &&
-                            entry &&
-                            !medicationOptions.includes(entry) &&
-                            !entry.startsWith("Other: ")
-                              ? "Other — enter manually"
-                              : field.id === "medications" &&
-                                  entry.startsWith("Other: ")
-                                ? "Other — enter manually"
-                                : entry
-                          }
-                          inputValue={
-                            field.id === "medications" &&
-                            (entry.startsWith("Other: ") ||
-                              (entry && !medicationOptions.includes(entry)))
-                              ? "Other — enter manually"
-                              : entry
-                          }
-                          disabled={disabled}
-                          fullWidth
-                          onChange={(_event, value) => {
-                            if (
-                              field.id !== "medications" ||
-                              typeof value !== "string"
-                            )
-                              return;
-                            const next = [...entries];
-                            next[index] =
-                              value === "Other — enter manually"
-                                ? "Other: "
-                                : value;
-                            const text = next.join("\n");
-                            if (text.length <= 600)
+                        {historyEntryAction(field.history_kind)}
+                      </Button>
+                    )
+                  ) : canEnterAnswer && field.record_fields ? (
+                    state === "answered" ? (
+                      <RecordEntryEditor
+                        field={field}
+                        answers={answers}
+                        entries={detail.entries ?? []}
+                        medicationReferences={medicationReferences}
+                        disabled={disabled}
+                        onChange={(entries) =>
+                          set(field.id, {
+                            state: entries.length ? "answered" : "unanswered",
+                            value: "",
+                            ...(entries.length ? { entries } : {}),
+                          })
+                        }
+                      />
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        disabled={disabled}
+                        onClick={() =>
+                          set(field.id, {
+                            state: "answered",
+                            value: "",
+                            entries: [{}],
+                          })
+                        }
+                      >
+                        Add details
+                      </Button>
+                    )
+                  ) : canEnterAnswer && (field.choices || field.input_type) ? (
+                    <IntakeValueControl
+                      field={field}
+                      value={
+                        field.input_type === "multiselect"
+                          ? (detail.values ?? [])
+                          : detail.value
+                      }
+                      otherDetail={detail.other_detail ?? ""}
+                      disabled={disabled}
+                      onChange={saveAnswer}
+                      onOtherDetailChange={
+                        fields.some(
+                          (item) => item.id === `${field.id}_other_detail`,
+                        )
+                          ? undefined
+                          : (other_detail) =>
                               set(field.id, {
-                                state: text.trim() ? "answered" : "unanswered",
-                                value: text,
-                              });
-                          }}
-                          onInputChange={(_event, value, reason) => {
-                            if (
-                              reason !== "input" ||
-                              field.id === "medications"
-                            )
-                              return;
-                            const next = [...entries];
-                            next[index] = value.replaceAll("\n", " ");
-                            const text = next.join("\n");
-                            if (text.length <= 600)
-                              set(field.id, {
-                                state: text.trim() ? "answered" : "unanswered",
-                                value: text,
-                              });
-                          }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label={`${field.label} ${index + 1}`}
-                              helperText={
-                                field.id === "allergies"
-                                  ? "Substance and reaction, if known."
-                                  : field.id === "medications"
-                                    ? "Search the clinic list or enter an unmatched medicine, supplement or product."
-                                    : "Enter one approach or procedure."
+                                ...detail,
+                                state: "answered",
+                                other_detail,
+                              })
+                      }
+                    />
+                  ) : canEnterAnswer && repeatable ? (
+                    <>
+                      {answerValue(answer)
+                        .split("\n")
+                        .map((entry, index, entries) => (
+                          <Stack
+                            key={index}
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={1}
+                          >
+                            <Autocomplete
+                              freeSolo={field.id !== "medications"}
+                              options={
+                                field.id === "medications"
+                                  ? [
+                                      ...medicationOptions,
+                                      "Other — enter manually",
+                                    ]
+                                  : []
                               }
-                            />
-                          )}
-                        />
-                        {field.id === "medications" &&
-                          (entry.startsWith("Other: ") ||
-                            (entry && !medicationOptions.includes(entry))) && (
-                            <TextField
-                              label="Other medicine or supplement"
-                              value={entry.replace(/^Other:\s*/, "")}
+                              value={
+                                field.id === "medications" &&
+                                entry &&
+                                !medicationOptions.includes(entry) &&
+                                !entry.startsWith("Other: ")
+                                  ? "Other — enter manually"
+                                  : field.id === "medications" &&
+                                      entry.startsWith("Other: ")
+                                    ? "Other — enter manually"
+                                    : entry
+                              }
+                              inputValue={
+                                field.id === "medications" &&
+                                (entry.startsWith("Other: ") ||
+                                  (entry && !medicationOptions.includes(entry)))
+                                  ? "Other — enter manually"
+                                  : entry
+                              }
                               disabled={disabled}
-                              onChange={(event) => {
+                              fullWidth
+                              onChange={(_event, value) => {
+                                if (
+                                  field.id !== "medications" ||
+                                  typeof value !== "string"
+                                )
+                                  return;
                                 const next = [...entries];
-                                next[index] = `Other: ${event.target.value}`;
+                                next[index] =
+                                  value === "Other — enter manually"
+                                    ? "Other: "
+                                    : value;
                                 const text = next.join("\n");
                                 if (text.length <= 600)
                                   set(field.id, {
@@ -495,128 +479,190 @@ export function IntakeQuestions({
                                     value: text,
                                   });
                               }}
+                              onInputChange={(_event, value, reason) => {
+                                if (
+                                  reason !== "input" ||
+                                  field.id === "medications"
+                                )
+                                  return;
+                                const next = [...entries];
+                                next[index] = value.replaceAll("\n", " ");
+                                const text = next.join("\n");
+                                if (text.length <= 600)
+                                  set(field.id, {
+                                    state: text.trim()
+                                      ? "answered"
+                                      : "unanswered",
+                                    value: text,
+                                  });
+                              }}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label={`${field.label} ${index + 1}`}
+                                  helperText={
+                                    field.id === "allergies"
+                                      ? "Substance and reaction, if known."
+                                      : field.id === "medications"
+                                        ? "Search the clinic list or enter an unmatched medicine, supplement or product."
+                                        : "Enter one approach or procedure."
+                                  }
+                                />
+                              )}
                             />
-                          )}
-                        {entries.length > 1 && (
-                          <Button
-                            disabled={disabled}
-                            onClick={() =>
-                              set(field.id, {
-                                state: "answered",
-                                value: entries
-                                  .filter((_value, row) => row !== index)
-                                  .join("\n"),
-                              })
-                            }
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </Stack>
-                    ))}
-                  <Button
-                    disabled={disabled || answerValue(answer).length >= 599}
-                    onClick={() =>
-                      set(field.id, {
-                        state: "answered",
-                        value: `${answerValue(answer)}\n`,
-                      })
-                    }
-                  >
-                    Add another
-                  </Button>
-                </>
-              ) : canEnterAnswer ? (
-                <TextField
-                  label={field.label}
-                  type={field.units ? "number" : "text"}
-                  value={answerValue(answer)}
-                  disabled={disabled}
-                  multiline={!field.units}
-                  fullWidth
-                  size={field.units ? "small" : "medium"}
-                  sx={field.units ? { maxWidth: { sm: 360 } } : undefined}
-                  slotProps={{
-                    htmlInput: {
-                      maxLength: 600,
-                      inputMode: field.units ? "decimal" : "text",
-                      step: field.units ? "any" : undefined,
-                      min: field.min,
-                      max: field.max,
-                    },
-                  }}
-                  onChange={(event) => saveAnswer(event.target.value)}
-                />
-              ) : null}
-              <AnswerStateMenu
-                state={state}
-                answerStates={answerStates}
-                disabled={disabled}
-                onChange={(nextState) =>
-                  set(
-                    field.id,
-                    nextState === "unanswered"
-                      ? { ...detail, state: nextState, value: "" }
-                      : { state: nextState, value: "" },
-                  )
-                }
-              />
-              {field.units &&
-                state === "answered" &&
-                !field.record_fields &&
-                !field.history_kind &&
-                [
-                  "unit",
-                  "measured_at",
-                  "source",
-                  ...(field.verification_choices ? ["verification"] : []),
-                ].map((key) => {
-                  const options =
-                    key === "unit"
-                      ? field.units
-                      : key === "source"
-                        ? (field.source_choices ?? [
-                            "patient_reported",
-                            "clinic_measured",
-                          ])
-                        : key === "verification"
-                          ? field.verification_choices
-                          : undefined;
-                  return (
+                            {field.id === "medications" &&
+                              (entry.startsWith("Other: ") ||
+                                (entry &&
+                                  !medicationOptions.includes(entry))) && (
+                                <TextField
+                                  label="Other medicine or supplement"
+                                  value={entry.replace(/^Other:\s*/, "")}
+                                  disabled={disabled}
+                                  onChange={(event) => {
+                                    const next = [...entries];
+                                    next[index] =
+                                      `Other: ${event.target.value}`;
+                                    const text = next.join("\n");
+                                    if (text.length <= 600)
+                                      set(field.id, {
+                                        state: text.trim()
+                                          ? "answered"
+                                          : "unanswered",
+                                        value: text,
+                                      });
+                                  }}
+                                />
+                              )}
+                            {entries.length > 1 && (
+                              <Button
+                                disabled={disabled}
+                                onClick={() =>
+                                  set(field.id, {
+                                    state: "answered",
+                                    value: entries
+                                      .filter((_value, row) => row !== index)
+                                      .join("\n"),
+                                  })
+                                }
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </Stack>
+                        ))}
+                      <Button
+                        disabled={disabled || answerValue(answer).length >= 599}
+                        onClick={() =>
+                          set(field.id, {
+                            state: "answered",
+                            value: `${answerValue(answer)}\n`,
+                          })
+                        }
+                      >
+                        Add another
+                      </Button>
+                    </>
+                  ) : canEnterAnswer ? (
                     <TextField
-                      key={key}
-                      label={`${field.label} ${key.replaceAll("_", " ")}`}
-                      value={
-                        detail[
-                          key as
-                            "unit" | "measured_at" | "source" | "verification"
-                        ] ?? ""
-                      }
-                      select={Boolean(options)}
-                      type={key === "measured_at" ? "date" : "text"}
+                      label="Response"
+                      type={field.units ? "number" : "text"}
+                      value={answerValue(answer)}
                       disabled={disabled}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      onChange={(event) =>
-                        set(field.id, { ...detail, [key]: event.target.value })
-                      }
-                    >
-                      {options && <MenuItem value="">Not recorded</MenuItem>}
-                      {options?.map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option === "[in_i]"
-                            ? "inches"
-                            : option === "[lb_av]"
-                              ? "pounds"
-                              : option.replaceAll("_", " ")}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  );
-                })}
-            </IntakeFieldFrame>
+                      multiline={!field.units}
+                      fullWidth
+                      size={field.units ? "small" : "medium"}
+                      sx={field.units ? { maxWidth: { sm: 360 } } : undefined}
+                      slotProps={{
+                        htmlInput: {
+                          maxLength: 600,
+                          inputMode: field.units ? "decimal" : "text",
+                          step: field.units ? "any" : undefined,
+                          min: field.min,
+                          max: field.max,
+                        },
+                      }}
+                      onChange={(event) => saveAnswer(event.target.value)}
+                    />
+                  ) : null}
+                  <AnswerStateMenu
+                    state={state}
+                    answerStates={answerStates}
+                    disabled={disabled}
+                    onChange={(nextState) =>
+                      set(
+                        field.id,
+                        nextState === "unanswered"
+                          ? { ...detail, state: nextState, value: "" }
+                          : { state: nextState, value: "" },
+                      )
+                    }
+                  />
+                  {field.units &&
+                    state === "answered" &&
+                    !field.record_fields &&
+                    !field.history_kind &&
+                    [
+                      "unit",
+                      "measured_at",
+                      "source",
+                      ...(field.verification_choices ? ["verification"] : []),
+                    ].map((key) => {
+                      const options =
+                        key === "unit"
+                          ? field.units
+                          : key === "source"
+                            ? (field.source_choices ?? [
+                                "patient_reported",
+                                "clinic_measured",
+                              ])
+                            : key === "verification"
+                              ? field.verification_choices
+                              : undefined;
+                      return (
+                        <TextField
+                          key={key}
+                          label={`${field.label} ${key.replaceAll("_", " ")}`}
+                          value={
+                            detail[
+                              key as
+                                | "unit"
+                                | "measured_at"
+                                | "source"
+                                | "verification"
+                            ] ?? ""
+                          }
+                          select={Boolean(options)}
+                          type={key === "measured_at" ? "date" : "text"}
+                          disabled={disabled}
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          onChange={(event) =>
+                            set(field.id, {
+                              ...detail,
+                              [key]: event.target.value,
+                            })
+                          }
+                        >
+                          {options && (
+                            <MenuItem value="">Not recorded</MenuItem>
+                          )}
+                          {options?.map((option) => (
+                            <MenuItem key={option} value={option}>
+                              {option === "[in_i]"
+                                ? "inches"
+                                : option === "[lb_av]"
+                                  ? "pounds"
+                                  : option.replaceAll("_", " ")}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      );
+                    })}
+                </IntakeFieldFrame>
+              </Stack>
+            </Paper>
           );
         })}
-    </Stack>
+    </Box>
   );
 }
 
