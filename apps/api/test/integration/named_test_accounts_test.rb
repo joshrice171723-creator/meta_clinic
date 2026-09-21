@@ -138,6 +138,25 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "development account choices batch location lookups" do
+    local_mode do
+      Development::TestAccounts.prepare!
+      2.times do |index|
+        practice = Clinic::Practice.create!(name: "Location batching clinic #{index}")
+        user = User.create!(email_address: "location-batching-#{index}@example.invalid", password: SecureRandom.hex(20))
+        Clinic::Membership.create!(practice: practice, user: user)
+        practice.sites.create!(code: "BATCH-#{index}", name: "Batch location #{index}")
+      end
+
+      site_queries = []
+      ActiveSupport::Notifications.subscribed(->(*args) { site_queries << args.last[:sql] }, "sql.active_record") do
+        Development::TestAccounts.preview_accounts
+      end
+
+      assert_operator site_queries.count { |sql| sql.include?("FROM \"clinic_sites\"") }, :<=, 2
+    end
+  end
+
   test "development portal selection accepts only its eligible account type" do
     local_mode do
       Development::TestAccounts.prepare!

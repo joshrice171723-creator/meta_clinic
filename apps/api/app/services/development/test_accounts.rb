@@ -248,7 +248,8 @@ module Development
             destination: "/clinic",
             organization: membership.practice.organization && { id: membership.practice.organization.id, name: membership.practice.organization.name },
             clinic: { id: membership.practice.id, name: membership.practice.name },
-            locations: membership.practice.sites.order(:name, :id).map { |site| { id: site.id, name: site.name, code: site.code } }
+            locations: membership.practice.sites.sort_by { |site| [ site.name, site.id ] }
+              .map { |site| { id: site.id, name: site.name, code: site.code } }
           }
         end
     end

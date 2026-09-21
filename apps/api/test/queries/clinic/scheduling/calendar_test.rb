@@ -54,6 +54,20 @@ class Clinic::Scheduling::CalendarTest < ActiveSupport::TestCase
     assert_equal "Calendar Clinician", day[:appointments].first[:clinician_name]
   end
 
+  test "serializing appointments preloads telehealth visits" do
+    2.times do |index|
+      @practice.appointments.create!(patient: @patient, site: @site, booked_clinician: @clinician,
+        starts_at: @zone.local(2026, 9, 16, 9 + index), ends_at: @zone.local(2026, 9, 16, 9 + index, 30), status: "scheduled")
+    end
+
+    queries = []
+    ActiveSupport::Notifications.subscribed(->(*args) { queries << args.last[:sql] }, "sql.active_record") do
+      projection
+    end
+
+    assert_operator queries.count { |sql| sql.include?("FROM \"clinic_telehealth_visits\"") }, :<=, 1
+  end
+
   test "location hours and exceptions constrain clinician capacity" do
     weekly
     @site.hour_exceptions.create!(practice: @practice, date: @date, closed: true, reason: "Closed")

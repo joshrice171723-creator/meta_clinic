@@ -17,7 +17,8 @@ module Clinic
         @finish = midnight(@last.next_day)
         @rules = CapacityRule.where(practice: practice, active: true).to_a
         @appointments = practice.appointments.where("starts_at < ? AND ends_at > ?", @finish, @start)
-          .includes(:booked_clinician, :visit_type, :room, encounter: %i[notes observations participants], patient: :communication_endpoints).to_a
+          .includes(:booked_clinician, :visit_type, :room, :telehealth_visit,
+            encounter: %i[notes observations participants], patient: :communication_endpoints).to_a
         @busy = @appointments.select { |a| %w[scheduled confirmed].include?(a.status) }
         @offers = WaitlistEntry.where(practice: practice, state: "offered")
           .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, @finish, @start).to_a
