@@ -20,6 +20,14 @@ The demo link is https://aimetaclinic.com/demo. Google Fonts supplies Manrope an
 
 Joshua authorized public publication on September 20, 2026. The chosen URL is https://aimetaclinic.com/joshua/. Canonical metadata points to that address. The downloadable `Joshua_Rice_resume_2026.docx` preserves the newer Desktop résumé's career details, adds the portfolio and corrected GitHub link, and removes semester counts. Its two-page layout was rendered through Microsoft Word and visually inspected; the packaged LibreOffice renderer was unavailable on Windows.
 
+## Career positioning evidence (September 21, 2026)
+
+The homepage leads with Joshua's early-stage WeInfuse work. Third-engineer status, personal contributions, greenfield ownership, and more than $1 billion in product processed are owner-reported career facts, consistent with the supplied resume and his explicit description in this task. They are not independently verified employer metrics. Do not rewrite product processed as revenue or company valuation, or imply sole authorship of the entire platform.
+
+WeInfuse's [current product overview](https://weinfuse.com/infusion-center-software/) and [inventory page](https://weinfuse.com/infusion-center-software/inventory-management/) were checked on September 21, 2026. They support that inventory, billing, patient estimates, and treatment-margin capabilities are still marketed; they do not establish authorship or prove that historical code remains unchanged.
+
+HIPAA knowledge is owner-reported and presented as engineering judgment, not certification or a product compliance determination. The terminology was checked against the [HHS Security Rule summary](https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html). Technical controls are part of broader administrative, physical, and technical safeguards. No employer security implementation is claimed. This is a personal portfolio, not clinical workflow design; FHIR field mapping is not applicable.
+
 ## Static deployment
 
 The existing Lightsail HTTPS nginx server includes `/etc/nginx/snippets/joshua-portfolio.conf`, sourced from `deploy-nginx.conf`. Only `/joshua` and `/joshua/` are added; application proxies, images, credentials, and databases are outside this deployment.
