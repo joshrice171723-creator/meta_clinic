@@ -121,6 +121,10 @@ const OwnerActivationPage = lazyNamed(
   () => import("./features/owner/OwnerActivationPage"),
   (m) => m.OwnerActivationPage,
 );
+const OwnerPasswordResetPage = lazyNamed(
+  () => import("./features/owner/OwnerPasswordResetPage"),
+  (m) => m.OwnerPasswordResetPage,
+);
 const Workspace = lazyNamed(
   () => import("./features/clinic/Workspace"),
   (m) => m.Workspace,
@@ -828,6 +832,7 @@ function Application() {
       "/patient-portal/recovery",
       "/memberships/account/activate",
       "/owner/activate",
+      "/owner/password-reset",
       "/workforce/activate",
       "/workforce/kiosk",
       "/memberships",
@@ -936,6 +941,12 @@ function Application() {
     return (
       <RouteBoundary root>
         <OwnerActivationPage />
+      </RouteBoundary>
+    );
+  if (path === "/owner/password-reset")
+    return (
+      <RouteBoundary root>
+        <OwnerPasswordResetPage />
       </RouteBoundary>
     );
   if (path === "/workforce/activate")

@@ -457,6 +457,8 @@ Rails.application.routes.draw do
   end
   namespace :api, module: "identity/api" do
     post "owner_activation", to: "owner_activations#create"
+    post "owner_password_reset_requests", to: "owner_password_reset_requests#create"
+    post "owner_password_reset", to: "owner_password_resets#create"
     post "employee_activation", to: "employee_activations#create"
     get "csrf", to: "sessions#csrf"
     resource :session, only: %i[show create update destroy]

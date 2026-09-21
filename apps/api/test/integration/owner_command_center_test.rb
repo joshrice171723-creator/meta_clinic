@@ -226,6 +226,50 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_nil invitation.token_digest
   end
 
+  test "owner password reset is generic, single use, and signs the owner in" do
+    assert_difference -> { Platform::OwnerPasswordReset.count }, 1 do
+      assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+        post "/api/owner_password_reset_requests", params: {
+          owner_password_reset_request: { email_address: @admin.email_address }
+        }, headers: csrf_headers, as: :json
+      end
+    end
+    assert_response :accepted
+    assert_equal Platform::RequestOwnerPasswordReset::MESSAGE, response.parsed_body.fetch("message")
+
+    reset = Platform::OwnerPasswordReset.last
+    message = ActionMailer::Base.deliveries.sole
+    url = message.text_part.body.decoded[%r{http://example\.com/owner/password-reset#token=\S+}]
+    token = URI.decode_www_form_component(URI(url).fragment.delete_prefix("token="))
+    assert_predicate reset, :pending?
+    assert_nil response.parsed_body["token"]
+
+    new_password = "Changed-owner-password-2026!"
+    post "/api/owner_password_reset", params: {
+      owner_password_reset: { token:, password: new_password, password_confirmation: new_password }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "/owner", response.parsed_body.fetch("redirect_to")
+    assert @admin.reload.authenticate(new_password)
+    refute @admin.authenticate(PASSWORD)
+    assert_not_predicate reset.reload, :pending?
+    assert_not_nil reset.used_at
+    assert_nil reset.token_digest
+
+    post "/api/owner_password_reset", params: {
+      owner_password_reset: { token:, password: PASSWORD, password_confirmation: PASSWORD }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+
+    assert_no_difference [ -> { Platform::OwnerPasswordReset.count }, -> { ActionMailer::Base.deliveries.size } ] do
+      post "/api/owner_password_reset_requests", params: {
+        owner_password_reset_request: { email_address: "missing.owner@example.invalid" }
+      }, headers: csrf_headers, as: :json
+    end
+    assert_response :accepted
+    assert_equal Platform::RequestOwnerPasswordReset::MESSAGE, response.parsed_body.fetch("message")
+  end
+
   test "owner invitation delivery failure revokes the unusable token" do
     @admin.destroy!
     mailer = Platform::OwnerInvitationMailer.singleton_class

@@ -195,6 +195,11 @@ export function Login({
                 </a>
               </p>
             )}
+            {ownerPortal && (
+              <p>
+                <a href="/owner/password-reset">Forgot owner password?</a>
+              </p>
+            )}
             {(employeePortal ||
               (developmentLogin && !ownerPortal && !patientPortal)) && (
               <p>
