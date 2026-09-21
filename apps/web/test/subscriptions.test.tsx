@@ -2,57 +2,68 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../src/shared/ui", () => ({
   LoadState: () => null,
-  useResource: () => ({
-    data: {
-      catalog: [],
-      can_purchase: true,
-      processor: "development_fixture",
-      payment: { checkout_available: false, next_step: "clinic_follow_up" },
-      subscriptions: [
-        {
-          id: 81,
-          invoice_id: 91,
-          version_id: 101,
-          state: "pending_payment",
-          processor: "development_fixture",
-          checkout_status: null,
-          renewal_status: null,
-          renewal_canceled: false,
-          last_synced_at: null,
-          renewal_amount_due: null,
-          renewal_invoice_status: null,
-          amount: "25.00",
-          currency: "USD",
-          balance: "25.00",
-          invoice_status: "posted",
-          starts_at: null,
-          ends_at: null,
-          cancellation_effective_at: null,
-          events: [],
-          terms: {
-            family_id: 1,
-            family_name: "Memberships",
-            package_id: 1,
-            package_name: "Monthly membership",
-            description: "",
-            tier: "",
-            amount: "25.00",
-            currency: "USD",
-            duration: 1,
-            duration_unit: "months",
-            renewal: "automatic",
-            cancellation: "end_of_term",
-            refund_policy: "manual_review",
-            terms: "",
-            eligibility_review: false,
-            max_per_patient: 1,
-            available_from: null,
-            available_until: null,
-            components: [],
+  useResource: (path: string) => ({
+    data:
+      path === "/api/clinic/subscription_catalog"
+        ? {
+            families: [],
+            services: [],
+            packages: [],
+            capabilities: { write: true, publish: true },
+          }
+        : {
+            catalog: [],
+            can_purchase: true,
+            processor: "development_fixture",
+            payment: {
+              checkout_available: false,
+              next_step: "clinic_follow_up",
+            },
+            subscriptions: [
+              {
+                id: 81,
+                invoice_id: 91,
+                version_id: 101,
+                state: "pending_payment",
+                processor: "development_fixture",
+                checkout_status: null,
+                renewal_status: null,
+                renewal_canceled: false,
+                last_synced_at: null,
+                renewal_amount_due: null,
+                renewal_invoice_status: null,
+                amount: "25.00",
+                currency: "USD",
+                balance: "25.00",
+                invoice_status: "posted",
+                starts_at: null,
+                ends_at: null,
+                cancellation_effective_at: null,
+                events: [],
+                terms: {
+                  family_id: 1,
+                  family_name: "Memberships",
+                  package_id: 1,
+                  package_name: "Monthly membership",
+                  description: "",
+                  tier: "",
+                  amount: "25.00",
+                  currency: "USD",
+                  duration: 1,
+                  duration_unit: "months",
+                  renewal: "automatic",
+                  cancellation: "end_of_term",
+                  refund_policy: "manual_review",
+                  terms: "",
+                  eligibility_review: false,
+                  max_per_patient: 1,
+                  available_from: null,
+                  available_until: null,
+                  components: [],
+                },
+              },
+            ],
           },
-        },
-      ],
-    },
     refresh: () => {},
   }),
 }));
@@ -68,6 +79,7 @@ import {
   patientPortalReferenceLabel,
 } from "../src/features/patientPortal/patientPortalLabels";
 import { PatientSubscriptions } from "../src/features/patientPortal/PatientSubscriptions";
+import { SubscriptionCatalog } from "../src/features/clinic/subscriptions/SubscriptionCatalog";
 import {
   subscriptionMoney,
   type PackageTerms,
@@ -113,6 +125,16 @@ const terms: PackageTerms = {
 };
 
 describe("subscription purchase presentation", () => {
+  it("starts the admin catalog with programs before services and tiers", () => {
+    const html = renderToStaticMarkup(<SubscriptionCatalog />);
+
+    expect(html).toContain("Membership programs");
+    expect(html).toContain("No membership programs yet");
+    expect(html).not.toContain("Create membership tier");
+    expect(html.indexOf("Programs")).toBeLessThan(html.indexOf("Services"));
+    expect(html.indexOf("Services")).toBeLessThan(html.indexOf("Tiers"));
+  });
+
   it("projects published catalog copy without internal fixture markers", () => {
     const published = {
       ...terms,

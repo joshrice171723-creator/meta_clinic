@@ -102,7 +102,7 @@ export function SubscriptionCatalog() {
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [catalogSection, setCatalogSection] = useState("package");
+  const [catalogSection, setCatalogSection] = useState("family");
   const [editorStep, setEditorStep] = useState(0);
   const [edit, setEdit] = useState<{
     kind: string;
@@ -256,9 +256,9 @@ export function SubscriptionCatalog() {
             allowScrollButtonsMobile
             aria-label="Subscription catalog sections"
           >
-            <Tab value="package" label="Tiers" />
             <Tab value="family" label="Programs" />
             <Tab value="service" label="Services" />
+            <Tab value="package" label="Tiers" />
           </Tabs>
           {(
             [
