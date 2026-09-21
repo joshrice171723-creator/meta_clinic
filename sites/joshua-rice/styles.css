@@ -712,6 +712,11 @@ details p {
 .about-section .text-link {
   color: #e7c4a8;
 }
+.about-section .weinfuse-highlight {
+  width: calc(100% - 112px);
+  margin-top: 64px;
+  border: 1px solid #5d7d73;
+}
 .large-copy {
   font-size: 23px;
   line-height: 1.5;
@@ -747,6 +752,13 @@ details p {
   font-size: 11px;
   color: #bfc4b6;
   margin-top: 4px;
+}
+.independent-work-section {
+  padding-top: 58px;
+  padding-bottom: 58px;
+}
+.independent-work-section .project-pair {
+  margin-top: 0;
 }
 .experience-section {
   padding-top: 90px;
@@ -1114,6 +1126,14 @@ details p {
   .about-section h2 {
     font-size: 35px;
     margin: 18px 0 22px;
+  }
+  .about-section .weinfuse-highlight {
+    width: calc(100% - 40px);
+    margin-top: 38px;
+  }
+  .independent-work-section {
+    padding-top: 38px;
+    padding-bottom: 38px;
   }
   .large-copy {
     font-size: 21px;
