@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { demoRouteAllowed } from "../src/features/demo/DemoFrameBoundary";
 import { showsClinicScopeSelector } from "../src/features/clinic/Workspace";
 import {
+  demoPreparationDetails,
   isSandbox,
   isNavigationTour,
   lessonInstructions,
@@ -128,6 +129,24 @@ describe("guided demo navigation", () => {
     expect(html).toContain("Primary care");
     expect(html).toContain("Weight management");
     expect(html).toContain('aria-label="Open Sandbox"');
+  });
+
+  it("explains the demo's scoped feature availability before preparation", () => {
+    const details = demoPreparationDetails({
+      id: "clinic_setup",
+      title: "Set up clinic",
+      description: "Create the clinic profile.",
+      role: "administrator",
+      prepared: ["Sample clinic"],
+      status: "available",
+    });
+    expect(details.description).toContain(
+      "Most clinic features are disabled during this demo.",
+    );
+    expect(details.available).toBe("Set up clinic: Create the clinic profile.");
+    expect(details.next).toContain(
+      "Other clinic features remain unavailable until you choose a different walkthrough.",
+    );
   });
 
   it("selects the earliest available role lesson before a completed fallback", () => {

@@ -39,6 +39,72 @@ export function isSandbox(lessonId: string | null | undefined) {
   return lessonId === "sandbox";
 }
 
+export function demoPreparationDetails(lesson: DemoLesson) {
+  return {
+    description:
+      "Most clinic features are disabled during this demo. This guided walkthrough enables only the capability needed for this part of the demo.",
+    available: `${lesson.title}: ${lesson.description}`,
+    next: "Other clinic features remain unavailable until you choose a different walkthrough. We will prepare a fresh synthetic clinic for this lesson.",
+  };
+}
+
+export function DemoPreparationDialog({
+  lesson,
+  busy,
+  error,
+  onClose,
+  onPrepare,
+}: {
+  lesson: DemoLesson | null;
+  busy: boolean;
+  error: string | null;
+  onClose: () => void;
+  onPrepare: () => void;
+}) {
+  if (!lesson) return null;
+  const details = demoPreparationDetails(lesson);
+
+  return (
+    <Dialog
+      open
+      fullWidth
+      maxWidth="sm"
+      onClose={() => !busy && onClose()}
+      aria-labelledby="demo-preparation-title"
+      aria-describedby="demo-preparation-description"
+    >
+      <DialogTitle id="demo-preparation-title">
+        Prepare sandbox environment
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2}>
+          <Typography id="demo-preparation-description">
+            {details.description}
+          </Typography>
+          <Box>
+            <Typography variant="subtitle2">Available now</Typography>
+            <Typography color="text.secondary">{details.available}</Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            {details.next}
+          </Typography>
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button disabled={busy} onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="contained" disabled={busy} onClick={onPrepare}>
+          {busy
+            ? "Preparing sandbox environment…"
+            : "Prepare sandbox environment"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 const message = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
@@ -64,6 +130,9 @@ export function DemoJourney() {
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progressError, setProgressError] = useState<string | null>(null);
+  const [preparingLesson, setPreparingLesson] = useState<DemoLesson | null>(
+    null,
+  );
   const [restartOpen, setRestartOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [frameLoading, setFrameLoading] = useState(false);
@@ -138,9 +207,15 @@ export function DemoJourney() {
     const timeout = window.setTimeout(() => {
       setFrameLoading(false);
       setFrameFailed(true);
+      setPreparingLesson(null);
     }, 45_000);
     return () => window.clearTimeout(timeout);
   }, [frameLoading]);
+
+  const finishFrameLoading = () => {
+    setFrameLoading(false);
+    setPreparingLesson(null);
+  };
 
   const registerVisitor = async () => {
     setBusy(true);
@@ -283,11 +358,20 @@ export function DemoJourney() {
             <LessonCatalog
               lessons={state.value.lessons}
               busy={busy}
-              onSelect={(id) => void selectLesson(id)}
+              onSelect={(lesson) => setPreparingLesson(lesson)}
               onSandbox={() => void selectLesson("sandbox")}
             />
           </Stack>
         )}
+        <DemoPreparationDialog
+          lesson={preparingLesson}
+          busy={busy}
+          error={error}
+          onClose={() => setPreparingLesson(null)}
+          onPrepare={() =>
+            preparingLesson && void selectLesson(preparingLesson.id)
+          }
+        />
       </Stack>
     );
   if (!run) return null;
@@ -488,9 +572,9 @@ export function DemoJourney() {
                 name="clinic-demo-workspace"
                 title={`${sandbox ? "Sandbox" : activeLesson?.title} workspace`}
                 src={source}
-                onLoad={() => setFrameLoading(false)}
+                onLoad={finishFrameLoading}
                 onError={() => {
-                  setFrameLoading(false);
+                  finishFrameLoading();
                   setFrameFailed(true);
                 }}
                 sx={{
@@ -518,11 +602,20 @@ export function DemoJourney() {
           <LessonCatalog
             lessons={run.lessons}
             busy={busy}
-            onSelect={(id) => void selectLesson(id)}
+            onSelect={(lesson) => setPreparingLesson(lesson)}
             onSandbox={() => void selectLesson("sandbox")}
           />
         </Paper>
       )}
+      <DemoPreparationDialog
+        lesson={preparingLesson}
+        busy={busy}
+        error={error}
+        onClose={() => setPreparingLesson(null)}
+        onPrepare={() =>
+          preparingLesson && void selectLesson(preparingLesson.id)
+        }
+      />
       <Dialog
         open={completionOpen}
         onClose={() => !busy && setCompletionOpen(false)}
@@ -592,7 +685,7 @@ export function LessonCatalog({
 }: {
   lessons: DemoLesson[];
   busy: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (lesson: DemoLesson) => void;
   onSandbox: () => void;
 }) {
   const [clinicType, setClinicType] = useState("all");
@@ -702,7 +795,7 @@ export function LessonCatalog({
                     variant="outlined"
                     disabled={busy}
                     aria-label={`Open ${lesson.title}`}
-                    onClick={() => onSelect(lesson.id)}
+                    onClick={() => onSelect(lesson)}
                   >
                     Start demo
                   </Button>
