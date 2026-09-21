@@ -138,6 +138,13 @@ type AppointmentWorkingDraft = {
   outcomeUnconfirmed: boolean;
 };
 
+export function appointmentDraftRecoveryMessage(
+  draft: AppointmentWorkingDraft | null,
+): string | null {
+  if (!draft || draft.attempt || draft.outcomeUnconfirmed) return null;
+  return "Recovered appointment draft: its patient, time, and scheduling details are from your earlier work. Review them before scheduling, or start a new appointment to clear this saved draft.";
+}
+
 /**
  * Patient Flow owns the patient context for a selected scheduling handoff.
  * A recovered working copy may contain older editable values, but it must not
@@ -644,6 +651,7 @@ function BookingFormEditor({
     initialPatientId,
   );
   const effectiveDraft = boundBooking.draft;
+  const draftRecoveryMessage = appointmentDraftRecoveryMessage(initialDraft);
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
@@ -957,6 +965,24 @@ function BookingFormEditor({
             No clinicians are configured for this clinic. Add a clinician in
             clinic setup before booking. Your selected patient and draft are
             preserved.
+          </Alert>
+        )}
+        {draftRecoveryMessage && (
+          <Alert
+            severity="warning"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => void discard()}
+                disabled={busy}
+              >
+                Start new appointment
+              </Button>
+            }
+          >
+            {draftRecoveryMessage}
           </Alert>
         )}
         {created && (
@@ -1413,7 +1439,7 @@ function BookingFormEditor({
                 onClick={() => void discard()}
                 disabled={busy || outcomeUnconfirmed}
               >
-                Clear
+                {draftRecoveryMessage ? "Clear recovered draft" : "Clear"}
               </Button>
               <Button
                 type="submit"

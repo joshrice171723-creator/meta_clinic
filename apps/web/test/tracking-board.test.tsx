@@ -18,6 +18,7 @@ import { ClinicNavigation } from "../src/features/clinic/Workspace";
 import { OperationsView } from "../src/features/clinic/Operations";
 import {
   appointmentDefaults,
+  appointmentDraftRecoveryMessage,
   appointmentIntervalError,
   applySoapTemplate,
   EncounterView,
@@ -716,6 +717,53 @@ describe("mapped read-only care flow", () => {
     expect(start.getHours()).toBe(10);
     expect(start.getMinutes()).toBe(15);
     expect(end.getTime() - start.getTime()).toBe(30 * 60_000);
+  });
+  it("flags an editable recovered appointment draft before scheduling", () => {
+    expect(
+      appointmentDraftRecoveryMessage({
+        draft: {
+          patientId: "801",
+          startsAt: "2026-08-31T10:00",
+          endsAt: "2026-08-31T10:30",
+          siteId: "1",
+          roomId: "2",
+          clinicianId: "3",
+          visitTypeId: "4",
+          visitModality: "in_person",
+        },
+        attempt: null,
+        outcomeUnconfirmed: false,
+      }),
+    ).toContain("Recovered appointment draft");
+    expect(
+      appointmentDraftRecoveryMessage({
+        draft: {
+          patientId: "801",
+          startsAt: "2026-08-31T10:00",
+          endsAt: "2026-08-31T10:30",
+          siteId: "1",
+          roomId: "2",
+          clinicianId: "3",
+          visitTypeId: "4",
+          visitModality: "in_person",
+        },
+        attempt: {
+          body: {
+            appointment: {
+              patient_id: "801",
+              starts_at: "2026-08-31T10:00:00Z",
+              ends_at: "2026-08-31T10:30:00Z",
+              site_id: "1",
+              room_id: "2",
+              booked_clinician_id: "3",
+              visit_type_id: "4",
+              request_key: "reconcile-this-attempt",
+            },
+          },
+        },
+        outcomeUnconfirmed: true,
+      }),
+    ).toBeNull();
   });
   it("rejects invalid, reversed, and overlong appointment intervals", () => {
     expect(appointmentIntervalError("", "")).toContain("valid");
