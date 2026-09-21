@@ -51,6 +51,10 @@ __pycache__/
 /outputs/
 /work/
 
+# Local conversation attachments and temporary document inspection output.
+/.codex-remote-attachments/
+/tmp_resume_inspect/
+
 # OS/editor scratch files. Keep durable Obsidian configuration tracked, but ignore
 # the local workspace layout that changes whenever the vault is opened.
 .DS_Store
