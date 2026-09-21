@@ -259,7 +259,9 @@ describe("NurseEncounterWorkspace", () => {
 
     expect(html).toContain("Guided intake · staff assisted");
     expect(html).toContain("Today’s visit");
-    expect(html).toContain("Measurements and weight");
+    expect(html).toContain("Intake section");
+    expect(html).toContain("Visit reason &amp; goals");
+    expect(html).toContain("Symptoms &amp; changes");
     expect(html).toContain("What brings you in?");
     expect(html).toContain("What would you like help with?");
     expect(html).toContain("Record an exception");
@@ -290,13 +292,12 @@ describe("NurseEncounterWorkspace", () => {
     expect(html).not.toContain("No handoff has been requested.");
   });
 
-  it("renders the server-provided M7-M12 group definitions", () => {
+  it("uses the server group count in compact section navigation", () => {
     const html = renderWorkspace(19);
 
-    expect(html).toContain("Reproductive and product safety");
-    expect(html).toContain("Nutrition and sensitive support");
-    expect(html).toContain("Confirmation and clinician review");
-    expect(html).toContain("Follow-up and change");
+    expect(html).toContain("0 of 11 sections saved");
+    expect(html).toContain("1. Today’s visit");
+    expect(html).not.toContain('aria-label="Intake question groups"');
   });
 
   it("shows a recorded room when the encounter already has one", () => {
@@ -307,7 +308,7 @@ describe("NurseEncounterWorkspace", () => {
     const html = renderWorkspace(null, "video");
     expect(html).not.toContain("Room is still required.");
     expect(html).not.toContain("Record the room first.");
-    expect(html).toContain("Group 1 of 11");
+    expect(html).toContain("0 of 11 sections saved");
   });
 
   it("makes a superseded handoff visible without discarding its ownership", () => {

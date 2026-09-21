@@ -38,10 +38,10 @@ import type {
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import {
-  IntakeQuestions,
   intakeFieldVisible,
   type IntakeAnswers,
 } from "../patientPortal/IntakeQuestions";
+import { StaffIntakeSections } from "./StaffIntakeSections";
 import { VitalSignsEntry } from "./VitalSignsEntry";
 import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
@@ -866,206 +866,218 @@ export function NurseEncounterWorkspace({
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              lg: "minmax(0, 2fr) minmax(20rem, 1fr)",
+              lg: handoffStageAvailable
+                ? "minmax(0, 2fr) minmax(20rem, 1fr)"
+                : "minmax(0, 1fr)",
             },
             gap: 2,
           }}
         >
           <Stack spacing={2}>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={1.25}>
-                <Box>
-                  <Typography component="h3" variant="h6">
-                    Patient profile
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Reused from the patient record. Update the owning profile
-                    record when a demographic or contact detail is incorrect.
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 1.25,
-                  }}
-                >
-                  <Typography variant="body2">
-                    <strong>Preferred name:</strong>{" "}
-                    {patient.demographics?.preferred_name ||
-                      patient.demographics?.legal_name ||
-                      patient.display_name}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Date of birth:</strong>{" "}
-                    {patient.demographics?.date_of_birth ||
-                      patient.date_of_birth ||
-                      "Not recorded"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Primary language:</strong>{" "}
-                    {patient.demographics?.primary_language ||
-                      careSummary?.communication.primary_language ||
-                      "Not recorded"}
-                    {patient.demographics?.interpreter_required === true &&
-                      " · Interpreter requested"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Phone:</strong>{" "}
-                    {patient.contacts?.find(
-                      (contact) =>
-                        contact.contact_type === "phone" &&
-                        !contact.effective_until,
-                    )?.contact_value ||
-                      patient.phone_hint ||
-                      "Not recorded"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Email:</strong>{" "}
-                    {patient.contacts?.find(
-                      (contact) =>
-                        contact.contact_type === "email" &&
-                        !contact.effective_until,
-                    )?.contact_value || "Not recorded"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Address:</strong>{" "}
-                    {patient.primary_address?.formatted || "Not recorded"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Emergency contact:</strong>{" "}
-                    {patient.emergency_contacts?.find(
-                      (contact) => !contact.effective_until,
-                    )?.name || "Not recorded"}
-                    {" · "}
-                    {patient.emergency_contacts?.find(
-                      (contact) => !contact.effective_until,
-                    )?.relationship || "Relationship not recorded"}
-                    {" · "}
-                    {patient.emergency_contacts?.find(
-                      (contact) => !contact.effective_until,
-                    )?.phone || "Phone not recorded"}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Preferred contact:</strong>{" "}
-                    {patient.communication_preference
-                      ?.preferred_contact_method || "Not recorded"}
-                  </Typography>
-                </Box>
-                <Button
-                  href={`/clinic/patients/${patient.id}`}
-                  sx={{ alignSelf: "start" }}
-                >
-                  Open patient profile
-                </Button>
-              </Stack>
-            </Paper>
-            {encounter.visit_modality !== "video" && (
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2,
-                  bgcolor: roomId ? "background.paper" : "warning.50",
-                }}
-              >
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md:
+                    encounter.visit_modality === "video"
+                      ? "minmax(0, 1fr)"
+                      : "minmax(0, 1.3fr) minmax(0, 1fr)",
+                },
+                gap: 2,
+              }}
+            >
+              <Paper variant="outlined" sx={{ p: 2 }}>
                 <Stack spacing={1.25}>
                   <Box>
                     <Typography component="h3" variant="h6">
-                      Record the room
+                      Patient profile
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Choose the physical room before the patient moves into the
-                      encounter. This is required before clinician handoff.
+                      From the patient record. Open the profile to correct
+                      details.
                     </Typography>
                   </Box>
-                  <Autocomplete
-                    options={selectedRooms}
-                    value={
-                      selectedRooms.find((room) => room.id === roomId) ?? null
-                    }
-                    getOptionLabel={(room) => room.code}
-                    isOptionEqualToValue={(option, value) =>
-                      option.id === value.id
-                    }
-                    disabled={
-                      busy ||
-                      !workspace.capabilities.intake_write ||
-                      selectedRooms.length === 0
-                    }
-                    onChange={(_event, room) => void assignRoom(room)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Exam room"
-                        placeholder={
-                          selectedRooms.length
-                            ? "Choose a room"
-                            : "No rooms are configured for this site"
-                        }
-                        helperText={
-                          roomId
-                            ? "Room recorded for this encounter."
-                            : "Room is still required."
-                        }
-                      />
-                    )}
-                  />
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                      gap: 1.25,
+                    }}
+                  >
+                    <Typography variant="body2">
+                      <strong>Preferred name:</strong>{" "}
+                      {patient.demographics?.preferred_name ||
+                        patient.demographics?.legal_name ||
+                        patient.display_name}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Date of birth:</strong>{" "}
+                      {patient.demographics?.date_of_birth ||
+                        patient.date_of_birth ||
+                        "Not recorded"}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Primary language:</strong>{" "}
+                      {patient.demographics?.primary_language ||
+                        careSummary?.communication.primary_language ||
+                        "Not recorded"}
+                      {patient.demographics?.interpreter_required === true &&
+                        " · Interpreter requested"}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Phone:</strong>{" "}
+                      {patient.contacts?.find(
+                        (contact) =>
+                          contact.contact_type === "phone" &&
+                          !contact.effective_until,
+                      )?.contact_value ||
+                        patient.phone_hint ||
+                        "Not recorded"}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Email:</strong>{" "}
+                      {patient.contacts?.find(
+                        (contact) =>
+                          contact.contact_type === "email" &&
+                          !contact.effective_until,
+                      )?.contact_value || "Not recorded"}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Address:</strong>{" "}
+                      {patient.primary_address?.formatted || "Not recorded"}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Emergency contact:</strong>{" "}
+                      {patient.emergency_contacts?.find(
+                        (contact) => !contact.effective_until,
+                      )?.name || "Not recorded"}
+                      {" · "}
+                      {patient.emergency_contacts?.find(
+                        (contact) => !contact.effective_until,
+                      )?.relationship || "Relationship not recorded"}
+                      {" · "}
+                      {patient.emergency_contacts?.find(
+                        (contact) => !contact.effective_until,
+                      )?.phone || "Phone not recorded"}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Preferred contact:</strong>{" "}
+                      {patient.communication_preference
+                        ?.preferred_contact_method || "Not recorded"}
+                    </Typography>
+                  </Box>
+                  <Button
+                    href={`/clinic/patients/${patient.id}`}
+                    sx={{ alignSelf: "start" }}
+                  >
+                    Open patient profile
+                  </Button>
                 </Stack>
               </Paper>
-            )}
+              {encounter.visit_modality !== "video" && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    bgcolor: roomId ? "background.paper" : "warning.50",
+                  }}
+                >
+                  <Stack spacing={1.25}>
+                    <Box>
+                      <Typography component="h3" variant="h6">
+                        Record the room
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Choose a room for this visit. Required before clinician
+                        handoff.
+                      </Typography>
+                    </Box>
+                    <Autocomplete
+                      options={selectedRooms}
+                      value={
+                        selectedRooms.find((room) => room.id === roomId) ?? null
+                      }
+                      getOptionLabel={(room) => room.code}
+                      isOptionEqualToValue={(option, value) =>
+                        option.id === value.id
+                      }
+                      disabled={
+                        busy ||
+                        !workspace.capabilities.intake_write ||
+                        selectedRooms.length === 0
+                      }
+                      onChange={(_event, room) => void assignRoom(room)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Exam room"
+                          placeholder={
+                            selectedRooms.length
+                              ? "Choose a room"
+                              : "No rooms are configured for this site"
+                          }
+                          helperText={
+                            roomId
+                              ? "Room recorded for this encounter."
+                              : "Room is still required."
+                          }
+                        />
+                      )}
+                    />
+                  </Stack>
+                </Paper>
+              )}
+            </Box>
             {workspace.questionnaire_form && (
-              <Stack spacing={2}>
-                <Box>
-                  <Typography
-                    component="h3"
-                    variant="h6"
-                    ref={groupHeading}
-                    tabIndex={-1}
-                  >
-                    Guided intake · staff assisted
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Work through one question group at a time. Confirming and
-                    saving a group opens the next one; unanswered, unknown,
-                    declined, and not applicable remain distinct.
-                  </Typography>
-                </Box>
+              <Stack spacing={2.5} sx={{ pt: 2 }}>
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  useFlexGap
-                  sx={{ flexWrap: "wrap" }}
-                  aria-label="Intake question groups"
+                  spacing={2}
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: { sm: "center" },
+                  }}
                 >
-                  {intakeChunks.map((chunk, index) => (
-                    <Chip
-                      key={chunk.label}
-                      label={`${index + 1}. ${chunk.label}${confirmedChunkIndexes.includes(index) ? " · Confirmed" : ""}`}
-                      color={
-                        confirmedChunkIndexes.includes(index)
-                          ? "success"
-                          : index === activeChunkIndex
-                            ? "primary"
-                            : "default"
-                      }
-                      variant={
-                        index === activeChunkIndex ? "filled" : "outlined"
-                      }
-                      disabled={busy || index > confirmedChunkIndexes.length}
-                      onClick={() => setActiveChunk(index)}
-                      aria-label={`${chunk.label}${confirmedChunkIndexes.includes(index) ? ", confirmed" : ""}`}
-                    />
-                  ))}
+                  <Box>
+                    <Typography variant="overline" color="text.secondary">
+                      Guided intake · staff assisted
+                    </Typography>
+                    <Typography
+                      component="h3"
+                      variant="h5"
+                      ref={groupHeading}
+                      tabIndex={-1}
+                    >
+                      {intakeChunks[activeChunkIndex].label}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {intakeChunks[activeChunkIndex].description}
+                    </Typography>
+                  </Box>
+                  <TextField
+                    select
+                    label="Intake section"
+                    size="small"
+                    value={activeChunkIndex}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setActiveChunk(Number(event.target.value))
+                    }
+                    helperText={`${confirmedChunkIndexes.length} of ${intakeChunks.length} sections saved`}
+                    sx={{ minWidth: { sm: 260 }, maxWidth: { sm: 340 } }}
+                  >
+                    {intakeChunks.map((chunk, index) => (
+                      <MenuItem
+                        key={chunk.id}
+                        value={index}
+                        disabled={index > confirmedChunkIndexes.length}
+                      >
+                        {`${index + 1}. ${chunk.label}${confirmedChunkIndexes.includes(index) ? " · Saved" : ""}`}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Stack>
-                <Alert severity={!roomRequired || roomId ? "info" : "warning"}>
-                  {!roomRequired || roomId
-                    ? `Group ${activeChunkIndex + 1} of ${intakeChunks.length}: ${intakeChunks[activeChunkIndex].description}`
-                    : "Record the room first. You can still save intake drafts, but clinician handoff stays blocked until a room is recorded."}
-                </Alert>
-                <Typography color="text.secondary">
-                  Recording answers does not reconcile medicines or allergies,
-                  confirm patient consent, or complete clinical review.
-                </Typography>
                 {workspace.intake && (
                   <Accordion disableGutters>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -1146,7 +1158,9 @@ export function NurseEncounterWorkspace({
                     }
                   />
                 )}
-                <IntakeQuestions
+                <StaffIntakeSections
+                  sectionId={intakeChunks[activeChunkIndex].id}
+                  definitions={workspace.questionnaire_form.fields}
                   fields={workspace.questionnaire_form.fields.filter(
                     (field) =>
                       intakeChunks[activeChunkIndex].fields.some(
@@ -1236,6 +1250,10 @@ export function NurseEncounterWorkspace({
                     />
                   }
                 />
+                <Typography variant="body2" color="text.secondary">
+                  Saving answers does not reconcile medicines or allergies,
+                  confirm patient consent, or complete clinical review.
+                </Typography>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                   <Button
                     variant="contained"

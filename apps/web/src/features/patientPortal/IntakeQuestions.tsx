@@ -4,7 +4,6 @@ import {
   Button,
   Menu,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -252,6 +251,8 @@ export function answerState(answer: IntakeAnswer | undefined) {
 
 export function IntakeQuestions({
   fields,
+  definitions = fields,
+  layout = "grid",
   answers,
   disabled,
   onChange,
@@ -260,6 +261,8 @@ export function IntakeQuestions({
   answerStates = [...DEFAULT_ANSWER_STATES],
 }: {
   fields: IntakeField[];
+  definitions?: IntakeField[];
+  layout?: "grid" | "stack";
   answers: IntakeAnswers;
   disabled: boolean;
   onChange: (answers: IntakeAnswers) => void;
@@ -276,12 +279,13 @@ export function IntakeQuestions({
         gap: 2,
         gridTemplateColumns: {
           xs: "minmax(0, 1fr)",
-          md: "repeat(2, minmax(0, 1fr))",
+          md:
+            layout === "stack" ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))",
         },
       }}
     >
       {fields
-        .filter((field) => intakeFieldVisible(field, answers, fields))
+        .filter((field) => intakeFieldVisible(field, answers, definitions))
         .map((field) => {
           const answer = answers[field.id];
           const detail: Exclude<IntakeAnswer, string> =
@@ -311,15 +315,13 @@ export function IntakeQuestions({
                 : {}),
             });
           return (
-            <Paper
+            <Box
               key={field.id}
               component="section"
-              variant="outlined"
               aria-label={`${field.label} question`}
               sx={{
                 alignSelf: "start",
                 minWidth: 0,
-                p: { xs: 2, sm: 2.5 },
                 gridColumn:
                   field.history_kind || field.record_fields || repeatable
                     ? { md: "1 / -1" }
@@ -327,10 +329,15 @@ export function IntakeQuestions({
               }}
             >
               <Stack spacing={1.5}>
-                <Typography component="h3" variant="subtitle1">
-                  {field.label}
-                </Typography>
-                <IntakeFieldFrame field={field}>
+                {(field.history_kind ||
+                  field.record_fields ||
+                  repeatable ||
+                  !canEnterAnswer) && (
+                  <Typography component="h4" variant="subtitle2">
+                    {field.label}
+                  </Typography>
+                )}
+                <IntakeFieldFrame field={field} compact={layout === "stack"}>
                   {canEnterAnswer && field.history_kind ? (
                     state === "answered" ? (
                       <HistoryEntryEditor
@@ -564,7 +571,7 @@ export function IntakeQuestions({
                     </>
                   ) : canEnterAnswer ? (
                     <TextField
-                      label="Response"
+                      label={field.label}
                       type={field.units ? "number" : "text"}
                       value={answerValue(answer)}
                       disabled={disabled}
@@ -659,7 +666,7 @@ export function IntakeQuestions({
                     })}
                 </IntakeFieldFrame>
               </Stack>
-            </Paper>
+            </Box>
           );
         })}
     </Box>

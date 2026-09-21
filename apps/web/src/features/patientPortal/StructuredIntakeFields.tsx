@@ -4,6 +4,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Autocomplete,
+  Box,
   Button,
   MenuItem,
   Stack,
@@ -43,15 +44,17 @@ export function dependencyMatches(
 export function IntakeFieldFrame({
   field,
   children,
+  compact = false,
 }: {
   field: IntakeField;
   children: ReactNode;
+  compact?: boolean;
 }) {
   const id = useId();
   const [expanded, setExpanded] = useState(false);
   const content = (
     <Stack spacing={1} sx={{ minWidth: 0 }}>
-      {field.requiredness && (
+      {field.requiredness && !(compact && field.requiredness === "core") && (
         <Typography variant="body2" color="text.secondary">
           {field.requiredness === "extended"
             ? "Optional detail"
@@ -62,11 +65,16 @@ export function IntakeFieldFrame({
                 : "Core question"}
         </Typography>
       )}
-      {field.purpose && (
-        <Typography variant="body2" color="text.secondary">
-          {field.purpose}
-        </Typography>
-      )}
+      {field.purpose &&
+        !(
+          compact &&
+          field.purpose ===
+            `Record ${field.label.toLowerCase()} for discussion with the care team.`
+        ) && (
+          <Typography variant="body2" color="text.secondary">
+            {field.purpose}
+          </Typography>
+        )}
       {children}
     </Stack>
   );
@@ -241,7 +249,14 @@ export function RecordFields({
 }) {
   const ids = new Set(fields.map((field) => field.id));
   return (
-    <Stack spacing={1.5}>
+    <Box
+      sx={{
+        display: "grid",
+        alignItems: "start",
+        gap: 1.5,
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
+      }}
+    >
       {fields
         .filter((field) => {
           if (!field.depends_on) return true;
@@ -357,7 +372,7 @@ export function RecordFields({
             </IntakeFieldFrame>
           );
         })}
-    </Stack>
+    </Box>
   );
 }
 
