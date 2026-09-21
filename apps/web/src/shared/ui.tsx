@@ -79,9 +79,15 @@ export function useResource<T>(
     refresh: () => revise((n) => n + 1),
   };
 }
-export function LoadState({ error }: { error?: string }) {
+export function LoadState({
+  error,
+  onRetry,
+}: {
+  error?: string;
+  onRetry?: () => void;
+}) {
   return error ? (
-    <ResourceState state="error" message={error} />
+    <ResourceState state="error" message={error} onRetry={onRetry} />
   ) : (
     <ResourceState state="loading" />
   );

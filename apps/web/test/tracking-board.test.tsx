@@ -406,6 +406,18 @@ describe("board and Operations presentation boundaries", () => {
     expect(source).toContain("onReload={reload}");
     expect(source).toContain("disabled={reloading}");
   });
+  it("keeps recovery actions explicit when a board filter or provider assignment cannot proceed", () => {
+    const source = readSource("src/features/clinic/TrackingBoardPage.tsx");
+
+    expect(source).toContain("Choose a different provider to save changes.");
+    expect(source).toContain("const assignmentUnchanged =");
+    expect(source).toContain(
+      "assignmentReloadRequired ||\n                      assignmentUnchanged",
+    );
+    expect(source).toContain('onClick={() => selectDesktopFilter("all")}');
+    expect(source).toContain("Try another stage or show all patients.");
+    expect(source).toContain("<LoadState error={error} onRetry={reload} />");
+  });
   it("distinguishes expected, late, and checked-in operational states", () => {
     const scheduled = {
       ...EXAMPLE_VISITS[0],
