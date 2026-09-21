@@ -6,6 +6,14 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-20 — Combined session work published to Meta Clinic
+
+At Joshua's explicit request, inspected all registered worktrees, local and fetched remote branches, stashes and recent application tasks. All branch tips were already ancestors of main; no outstanding tracked changes or stashes required integration. Preserved unrelated attachment and résumé scratch directories. The remote has `main`, not `master`. Released application commit `664f978883430056a46018f8964e5744aef0ebc5` to https://aimetaclinic.com using matched API/web images built from its Git archive. Subsequent portfolio-only commits were published separately at `/joshua/` without changing application source.
+
+Both `apply` and `apply_guided_demo` databases were backed up and successfully restored into scratch databases before migrations. Stopped application writers, migrated both databases, reapplied ordinary runtime privileges, and restarted API, worker, guided-demo and web. All four containers report the exact release revision with zero restarts. Recovery files and previous image references remain at `/opt/meta-clinic/backups/release-664f9788-20260921T040521Z`; rollback was not needed. Existing secrets, database volume and the separately published portfolio nginx configuration were preserved.
+
+Verification passed: 47 focused frontend tests across client, guided-demo, subscriptions and front-desk layout; matched Docker builds including TypeScript and production bundling; public HTTPS `/demo`, `/up` and `/joshua/`; 46-lesson catalog, Sandbox creation, two locations, location switching, non-owner session and reset recreating locations in the same clinic. Anonymous clinic access and ordinary demo entry remain denied, and development login remains disabled. Browser automation timed out twice, so this release establishes direct HTTPS/API behavior rather than a fresh rendered walkthrough of every changed journey. GitHub CI jobs did not start because GitHub reported an account payment/spending restriction; full CI remains unverified. These hosted synthetic checks do not establish clinical, provider-integration or real-patient production acceptance.
+
 ## 2026-09-20 — Joshua Rice personal website published
 
 At Joshua's explicit request, published the [personal portfolio](https://aimetaclinic.com/joshua/) from commit `90afe053` as an isolated static route on the existing Lightsail host. It includes project highlights, the Meta Clinic demo link, the corrected GitHub profile, a web résumé without semester counts, and a Word résumé download. Saved `Joshua_Rice_resume_2026.docx` on the Desktop, preserving the newer desktop career details and adding the portfolio and corrected GitHub links. Both rendered Word pages were visually inspected; the public download's SHA-256 matches the Desktop copy.
