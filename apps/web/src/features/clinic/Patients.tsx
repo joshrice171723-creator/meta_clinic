@@ -833,6 +833,22 @@ export function registrationApiValues(values: RegistrationValues) {
   return submitted;
 }
 
+export function registrationContactError(values: RegistrationValues) {
+  const value = values.contact_value?.trim() ?? "";
+  if (!value) return "";
+
+  if (values.contact_type === "email") {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+      ? ""
+      : "Enter a valid email address.";
+  }
+
+  const digits = value.replace(/\D/g, "").length;
+  return digits >= 7 && digits <= 15
+    ? ""
+    : "Enter a valid phone number.";
+}
+
 function splitAddress(value: string): AddressParts {
   const empty = {
     address_line1: "",
@@ -1501,6 +1517,19 @@ function PatientRegistrationEditor({
           autosaveTimer.current = undefined;
         }
         const current = attempt.current ?? snapshotFrom(event.currentTarget);
+        const contactError = registrationContactError(
+          current.body.clinic_patient,
+        );
+        if (contactError) {
+          setError(contactError);
+          event.currentTarget
+            .querySelector<HTMLInputElement>(
+              '[name="clinic_patient[contact_value]"]',
+            )
+            ?.focus();
+          inFlight.current = false;
+          return;
+        }
         const pending = { ...current, pending: true };
         lastSnapshot.current = pending;
         if (!(await workingDraft.save(pending))) {
