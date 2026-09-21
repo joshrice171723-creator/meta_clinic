@@ -620,6 +620,7 @@ function TrackingBoardRow({
   const providerEditable = visit.providerAssignmentAvailable === true;
   const assignmentOutcomeUnknown =
     assignmentAttempt !== null && assignmentError !== null;
+  const assignmentUnchanged = draftClinicianId === (assignedClinicianId ?? "");
   const readings = vitalReadings(visit);
   const timing = operationalTiming(visit, now, timezone);
   const hasEncounter = visit.patientId != null && visit.encounterId != null;
@@ -985,6 +986,11 @@ function TrackingBoardRow({
                       {assignmentError}
                     </Typography>
                   )}
+                  {assignmentUnchanged && !assignmentError && (
+                    <Typography variant="caption" color="text.secondary">
+                      Choose a different provider to save changes.
+                    </Typography>
+                  )}
                 </DialogContent>
                 <DialogActions>
                   <Button
@@ -998,7 +1004,11 @@ function TrackingBoardRow({
                   </Button>
                   <Button
                     variant="contained"
-                    disabled={assignmentPending || assignmentReloadRequired}
+                    disabled={
+                      assignmentPending ||
+                      assignmentReloadRequired ||
+                      assignmentUnchanged
+                    }
                     onClick={() => {
                       if (assignmentPendingRef.current) return;
                       const clinicianId = draftClinicianId || null;
@@ -1766,14 +1776,14 @@ export function TrackingBoardView({
           </h2>
           <p>
             {visits.length
-              ? "Try another stage or clear the stage filter."
+              ? "Try another stage or show all patients."
               : "No visits are currently shown."}
           </p>
           {visits.length > 0 && (
             <button
               className="button"
               type="button"
-              onClick={() => setStage("all")}
+              onClick={() => selectDesktopFilter("all")}
             >
               Clear filters
             </button>
@@ -1846,7 +1856,7 @@ export function TrackingBoardPage({ active = true }: { active?: boolean }) {
       ),
     [data?.visits],
   );
-  if (!data) return <LoadState error={error} />;
+  if (!data) return <LoadState error={error} onRetry={reload} />;
   return (
     <TrackingBoardView
       visits={visits}

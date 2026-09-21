@@ -70,4 +70,15 @@ describe("shared resource state contract", () => {
     expect(error).toContain('data-resource-state="error"');
     expect(error).toContain("The patient record could not be loaded.");
   });
+
+  it("forwards a retry action when a caller supplies one", () => {
+    const html = renderToStaticMarkup(
+      <LoadState
+        error="The patient record could not be loaded."
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain(">Retry</button>");
+  });
 });
