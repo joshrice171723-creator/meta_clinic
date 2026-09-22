@@ -125,6 +125,10 @@ const OwnerPasswordResetPage = lazyNamed(
   () => import("./features/owner/OwnerPasswordResetPage"),
   (m) => m.OwnerPasswordResetPage,
 );
+const FounderDecisionWorkspace = lazyNamed(
+  () => import("./features/founder/FounderDecisionWorkspace"),
+  (m) => m.FounderDecisionWorkspace,
+);
 const Workspace = lazyNamed(
   () => import("./features/clinic/Workspace"),
   (m) => m.Workspace,
@@ -836,6 +840,7 @@ function Application() {
       "/workforce/activate",
       "/workforce/kiosk",
       "/memberships",
+      "/founder-decisions",
     ].includes(path) ||
     (publicMembership !== null && path !== "/memberships/account");
   const [session, setSession] = useState<SessionBootstrap>({});
@@ -959,6 +964,12 @@ function Application() {
     return (
       <RouteBoundary root>
         <KioskClockPage />
+      </RouteBoundary>
+    );
+  if (path === "/founder-decisions")
+    return (
+      <RouteBoundary root>
+        <FounderDecisionWorkspace />
       </RouteBoundary>
     );
   if (path === "/memberships")
