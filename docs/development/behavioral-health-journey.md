@@ -1,6 +1,6 @@
 # Behavioral-health journey evaluation
 
-Revision 4 — 2026-09-22. User-authorized autonomous local implementation and verification; the original two-visit walkthrough and its later continuity/provenance repairs are completed evidence, not completion of this assignment. This revision expands the omitted planning and acceptance contract; implementation status remains in the canonical tracker.
+Revision 5 — 2026-09-22. User-authorized autonomous local implementation and verification; the original two-visit walkthrough and its later continuity/provenance repairs are completed evidence, not completion of this assignment. This revision adds a proposed outpatient psychiatry and medication-management expansion; implementation status remains in the canonical tracker.
 
 ## Scope and continuity
 
@@ -165,6 +165,54 @@ Runtime: patient 300 registered in browser, appointment 97 booked for 2026-09-22
 No shared-matrix rules were changed. The specialty fix reuses CF-01–03 and CV-01/10; the journey exercised SC-04 and OP-02/04/12. Resume with the longitudinal plan projection and assessment contract decisions, not another clinic/patient creation. No outstanding clinical work should be marked resolved merely to make the demonstration look complete.
 
 Browser evidence: the October 6 day schedule showed Ethan Brooks, 10:00–10:30 AM, Scheduled, Behavioral health follow-up, Avery Morgan and Consultation 1. The signed return encounter then rendered the prior-care panel with the patient-selected coping goal and daily-functioning plan from visit 71, both marked Active, revision 2, with source-visit links. The two clinical-plan GET requests completed with HTTP 200; the render occurred after a visible delay. This is browser observation, not a browser source-update mutation.
+
+## Proposed outpatient psychiatry and medication-management expansion — 2026-09-22
+
+This is a planning addition requested by the founder, not an accepted clinic policy, clinical protocol, prescribing authority, state-law determination, vendor contract, or implementation authorization. It uses the existing `behavioral_health` clinic type and proposes an **Outpatient psychiatry and medication management** service profile. The initial reference is adult ADHD and general-psychiatry care; age range, therapy delivery versus coordination, substance-use-disorder services, clinic state, selected instruments, safety policy, and controlled-substance launch scope remain unresolved.
+
+### Proposed composition and journey
+
+Clinic Setup would record intended service scope for psychiatric diagnostic evaluation, ADHD evaluation, medication management, telepsychiatry, therapy coordination/referral, and controlled-substance prescribing. Selecting a service would remain configuration intent only: it cannot prescribe, activate a workflow, verify a clinician, or represent readiness. The controlled-substance option remains unavailable until the clinic's state mapping, policy, eligible prescriber configuration, electronic-prescribing contract, and acceptance evidence are selected.
+
+The specialty extension reuses registration, scheduling, versioned previsit intake, notes, assessment revisions, care plans, goals, tasks, prescription preparation, pharmacy destinations, and follow-up. It adds no duplicate patient, prescription, task, or screening truth. Proposed visit types are psychiatric evaluation, ADHD evaluation, medication follow-up, refill review, therapy/referral coordination, and urgent clinical follow-up. Each remains a configurable clinic offering; none implies a diagnosis, treatment eligibility, or a clinical protocol.
+
+| Stage | Proposed action, owner and durable result | Recovery and independent work |
+| --- | --- | --- |
+| Intake and review | Patient or authorized intake staff saves the existing narrative form; the configured instrument captures its exact version, item responses, scorer, score source/time, reviewer, and linked follow-up task. | Unconfigured instruments retain `unknown`/not-assessed rather than a fabricated score. Scheduling and ordinary chart work remain available. |
+| Clinical encounter | Authorized clinician records medication review, response, adverse effects, sleep, observed findings, plan, and next review using source-owned note, medication, assessment, care-plan, and goal revisions. | A draft or incomplete clinical finding cannot be treated as a decision. Preserve signed revisions and use the existing correction/retry path. |
+| Safety response | A clinic-selected policy assigns review, a follow-up record, and an escalation destination for a response requiring attention. | An unknown safety result is not clearance. It blocks only the affected configured decision; unrelated scheduling, coordination, and record work remain available. |
+| Refill and pharmacy coordination | Prescription support queue owns a refill review, clinician decision, patient-visible status, pharmacy outcome, and reconciliation of rejected or outcome-unknown transmission. | Do not resend a consequential request after an unknown outcome. Reconcile through the existing request/response history while unrelated care continues. |
+| Follow-up | Encounter closure leaves open medication, referral, assessment, and follow-up work owned and discoverable, with the next visit separately schedulable. | Closing an encounter does not complete child work; unavailable coverage remains an explicit exception. |
+
+### Proposed additions to the shared dependency matrix
+
+If this scope is accepted, add these rows with stable IDs to the canonical matrix in `meta-clinic-build-and-acceptance.md`; do not treat this planning table as runtime behavior before then.
+
+| Condition | Action affected | What is blocked | What remains available | Responsible party | Attention |
+| --- | --- | --- | --- | --- | --- |
+| Controlled-substance capability is not configured and accepted | Marking a controlled prescription ready, signing, or transmitting it | The specific controlled-substance transition | Draft preparation, ordinary medication history, scheduling, non-controlled workflows, and local review | Prescription support and authorized prescriber | Explain the missing capability/policy/vendor prerequisite and preserve the draft without sending it |
+| Configured assessment lacks valid version, scorer, reviewer, or completed response contract | Recording the assessment as completed or using its score in a configured follow-up action | Completion/score-dependent action only | Narrative intake, explicit unknown/not-assessed state, scheduling, notes, and independent tasks | Assessment-review team or authorized clinician | Show the missing configuration component; never derive a score or safety conclusion |
+| A response requires the clinic's configured safety review but has no eligible owner/coverage | Completing the affected safety-review or escalation task | That task's completion, not all patient care | Draft preservation, visible exception, authorized reassignment/coverage, unrelated coordination | Configured clinical coverage team | Keep the owner/coverage exception visible with the selected policy's next action |
+| Pharmacy transmission result is rejected, unavailable, or outcome unknown | Retrying, replacing, or marking the prescription fulfilled | Blind retry or false fulfilled status | Local draft/review, pharmacy follow-up, scheduling, and unrelated care | Prescription support and prescriber | Preserve request identity and response evidence; reconcile before another consequential send |
+
+### Source-to-change mapping
+
+| Source and review status | Applicability and interpretation | Planned data/UI/verification mapping |
+| --- | --- | --- |
+| [DEA EPCS Q&A](https://www.deadiversion.usdoj.gov/faq/epcs-faq.html), federal guidance, updated July 24, 2023; reviewed 2026-09-22 | Applies only if the product is selected for electronic controlled-substance prescribing. It requires an authorized practitioner's review/signature, individual authentication, and controls around EPCS access; it does not authorize a clinic or select its state policy. | Separate ready-to-sign, clinician review, signer identity, two-factor-signing adapter, immutable attempt/audit history, revocation/coverage handling, and simulated rejected/unknown-response tests. |
+| [DEA telemedicine extension](https://www.dea.gov/es/node/234606), federal notice dated 2025-12-31; reviewed 2026-09-22 | Current federal flexibility permits certain remote Schedule II–V prescribing through December 31, 2026, subject to other federal and state requirements. It is not a permanent or universal clinic rule. | Do not hard-code an in-person prerequisite. Make modality rules clinic/state/policy configuration with a required jurisdiction review before activation. |
+| [USCDI v6 Health Status Assessments](https://isp.healthit.gov/uscdi-data-class/health-status-assessments?page=2), U.S. interoperability reference; reviewed 2026-09-22 | Informs portable representation of assessments, functional status, and mental/cognitive status. It is not an instrument, score, threshold, or certification claim. | Versioned instrument and response provenance, explicit unknown/not-assessed values, reviewer/action linkage, and focused serialization/history tests. |
+| SAMHSA 2025 National Crisis Guidelines, U.S. source identified; direct PDF retrieval returned 403 during this review | Supports planning for coordinated crisis response and continuity, but does not supply a private-clinic protocol. Exact source sections must be reopened before a safety-policy implementation. | Keep safety routing policy-configured and unactivated. Verify responsible owner, escalation record, failure path, and follow-up visibility after the clinic selects a policy. |
+
+### Ordered delivery and proof
+
+1. Add the proposed service profile and visit-type composition using effective, versioned Clinic Setup configuration; prove protected-change denial, allowed clinic-managed change, and preserved existing work.
+2. Add an intake-review and refill-review queue by extending existing task/request owners; prove wrong-role denial, coverage transfer, explicit missing-review state, and encounter closure with open work.
+3. Implement item-level assessments only after the clinic selects a licensed/approved instrument, exact version, scorer, reviewer, and follow-up policy. Prove draft/unknown/declined behavior, score provenance, stale correction, and no automatic clinical action.
+4. Implement safety routing only after the clinic selects its policy and responsible coverage. Prove the affected escalation task is blocked when incomplete while unrelated coordination and scheduling remain available.
+5. Implement controlled-substance capability only after the jurisdiction, clinic policy, EPCS vendor contract, authorized prescriber controls, and transmission/reconciliation design are approved. Prove two-factor-signing integration with synthetic adapters, signing-versus-transmission separation, rejection, unavailable service, outcome unknown, duplicate retry, and revocation handling. Live transmission remains a separate external acceptance gate.
+
+The next decision gate is a founder/clinic choice of state, age range, therapy scope, selected instruments, safety policy/coverage, and whether controlled-substance prescribing belongs in the initial release. Until then, the safe product behavior is to retain the existing general behavioral-health workflow, preserve specialty setup as intent, and keep controlled-substance actions unavailable.
 
 ## Terra High autonomous continuation — 2026-09-22
 
