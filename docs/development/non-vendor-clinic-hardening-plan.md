@@ -1,6 +1,6 @@
 # Non-vendor clinic hardening — agent handoff
 
-**Revision:** 2 · **Date:** 2026-09-22 · **Planning status:** approved product direction; local implementation is in progress, not authorization for external or regulated operations.
+**Revision:** 3 · **Date:** 2026-09-22 · **Planning status:** approved product direction; local implementation is in progress, not authorization for external or regulated operations.
 
 **Owner:** Meta Clinic implementation agent, one slice at a time. The [implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) remains the current work inventory; this brief supplies the detailed sequence and handoff context for priorities 2–10.
 
@@ -36,6 +36,8 @@ At `caeec3ca` on `main`, the source has appointment/calendar, billing ledger/inv
 Slice 1 is implemented locally and awaiting the scoped final gate: `Clinic::ServiceOffering` is a tenant-scoped operational configuration record with draft/published/retired state, visit-type and optional billable-price references, eligible-site links, duration/modality, room and booking prerequisites, optimistic locking, idempotency, and audit evidence. Clinic Setup now has a synthetic browser-facing configuration panel. The focused API contract passed 3 runs/25 assertions; TypeScript and the production bundle passed. The test and local development migrations applied cleanly with generated PostgreSQL structure. Browser mutation proof, appointment linkage/retirement preservation, eligible-team coverage, contact/referral requirements, and all later slices remain open; this is not a claim of scheduling, clinical, legal, or release readiness.
 
 Slice 2 foundation is also local: `ScheduleHold` persists a bounded resource reservation with active/expired/released/converted/outcome-unknown states, explicit expiry, tenant-scoped clinician/site/room/patient references, idempotent create/release, and audit evidence. The booking path atomically validates and converts one matching active hold; capacity now rejects a conflicting active hold. The focused scheduling suite passed 19 runs/120 assertions and the test/development migrations passed. Slot projection, hold browser workflows, visible expiry recovery, service-resource compatibility, closure impact handling, and two-request concurrency/browser proof remain open.
+
+Slice 3 foundation is local: `CashPayEstimate` and its snapshot lines keep a general estimate or GFE candidate distinct from invoices, receipts, payments, and clinical authorization. API-backed creation snapshots selected active price-catalog entries; issuing a GFE candidate requires a human-supplied policy version and records an immutable issued state with delivery method. The focused service test passed 1 run/6 assertions and test/development migrations passed. Correction/supersession, delivery evidence/time, final-invoice comparison, authorization/export-denial coverage, and browser proof remain open; no estimate is automatically classified as legally required or delivered.
 
 ## Shared data, ownership, and failure contract
 
