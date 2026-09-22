@@ -48,6 +48,8 @@ module Clinic
           insurance_workflows_enabled: optional.fetch("insurance_workflows", false),
           clinic_type: optional["clinic_type"], service_scope: optional.fetch("service_scope"),
           assessment_scope: optional.fetch("assessment_scope"),
+          immunization_administration_enabled: stored["immunization_administration_enabled"] == true &&
+            optional.fetch("service_scope").include?("vaccinations"),
           assessment_configured: stored.key?("assessment_scope"),
           starter_profile: stored.fetch("starter_profile", {}),
           finalized: stored["finalized_at"].present?, finalized_at: stored["finalized_at"],

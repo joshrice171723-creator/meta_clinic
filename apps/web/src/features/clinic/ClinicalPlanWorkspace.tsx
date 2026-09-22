@@ -381,7 +381,7 @@ const RESOURCE_META: Record<
       route_text: "",
       administration_site_text: "",
       administered_at: "",
-      occurrence_source: "administered_here",
+      occurrence_source: "patient_reported",
       refusal_reason: "",
       source_document_id: "",
       medication_administration_id: "",
@@ -648,6 +648,8 @@ export function ClinicalPlanWorkspace({
     kind === "immunizations" &&
     form.status === "completed" &&
     form.occurrence_source === "administered_here";
+  const immunizationAdministrationEnabled =
+    workspace.data?.immunization_administration_enabled === true;
 
   useEffect(
     () =>
@@ -807,6 +809,17 @@ export function ClinicalPlanWorkspace({
     ) {
       setError(
         "Enter an outcome source and when it was reported or observed together.",
+      );
+      return;
+    }
+    if (
+      kind === "immunizations" &&
+      form.status === "completed" &&
+      form.occurrence_source === "administered_here" &&
+      !immunizationAdministrationEnabled
+    ) {
+      setError(
+        "Clinic-administered immunizations are not enabled for this clinic. Record a historical or external record instead.",
       );
       return;
     }
@@ -1597,7 +1610,16 @@ export function ClinicalPlanWorkspace({
                       })) ??
                       []
                     ).map((option) => (
-                      <MenuItem key={option.code} value={option.code}>
+                      <MenuItem
+                        key={option.code}
+                        value={option.code}
+                        disabled={
+                          kind === "immunizations" &&
+                          field.name === "occurrence_source" &&
+                          option.code === "administered_here" &&
+                          !immunizationAdministrationEnabled
+                        }
+                      >
                         {option.label}
                       </MenuItem>
                     ))}
@@ -1651,10 +1673,9 @@ export function ClinicalPlanWorkspace({
               )}
             {kind === "immunizations" && (
               <Alert severity="info">
-                An immunization administered here must reference its completed
-                medication administration so the dose and clinic-stock movement
-                remain connected. Manufacturer and expiration evidence are
-                required; VIS dates are recorded together when a VIS applies.
+                {immunizationAdministrationEnabled
+                  ? "An immunization administered here must reference its completed medication administration so the dose and clinic-stock movement remain connected. Manufacturer and expiration evidence are required; VIS dates are recorded together when a VIS applies."
+                  : "Clinic-administered immunizations are unavailable until clinic scope, sites, personnel, and review are configured. Historical, external, and registry records remain available."}{" "}
                 CVX and optional MVX entries are format-checked only.
               </Alert>
             )}
