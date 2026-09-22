@@ -290,6 +290,7 @@ describe("form contracts", () => {
   it("only resumes known local destinations", () => {
     expect(loginDestination("/clinic/pharmacy")).toBe("/portal");
     expect(loginDestination("/clinic")).toBe("/clinic");
+    expect(loginDestination("/clinic/setup")).toBe("/clinic/setup");
     for (const path of [
       "//example.invalid",
       "https://example.invalid",

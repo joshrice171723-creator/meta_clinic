@@ -1,7 +1,7 @@
 module Clinic
   class ServiceOfferingsController < ApiController
     before_action -> { require_capability_with_legacy("facilities.read", "appointments.book", any_site: true) }, only: :index
-    before_action -> { require_capability_with_legacy("facilities.write", "appointments.write") }, only: %i[create update publish]
+    before_action -> { require_capability_with_legacy("facilities.write", "appointments.write") }, only: %i[create update publish retire]
 
     def index
       offerings = current_practice.service_offerings.includes(:sites).order(:name, :id)
@@ -37,6 +37,17 @@ module Clinic
       offering = current_practice.service_offerings.find(requested_id!(params[:id], :id))
       input = parameter_hash!(:service_offering, %i[request_key lock_version])
       result = Configuration::ManageServiceOffering.publish(
+        practice: current_practice, actor: current_user, offering: offering,
+        request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
+        lock_version: bounded_integer!(input[:lock_version], field: :lock_version, min: 0, max: 2_147_483_647)
+      )
+      render_result(result)
+    end
+
+    def retire
+      offering = current_practice.service_offerings.find(requested_id!(params[:id], :id))
+      input = parameter_hash!(:service_offering, %i[request_key lock_version])
+      result = Configuration::ManageServiceOffering.retire(
         practice: current_practice, actor: current_user, offering: offering,
         request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
         lock_version: bounded_integer!(input[:lock_version], field: :lock_version, min: 0, max: 2_147_483_647)

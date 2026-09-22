@@ -96,6 +96,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
     "/api/clinic/billing_services?active=true&per_page=100",
   );
   const [dialog, setDialog] = useState<ServiceOffering | "new" | null>(null);
+  const [retiring, setRetiring] = useState<ServiceOffering | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -167,9 +168,6 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       booking_required: form.booking_required,
       requires_room: form.requires_room,
       site_ids: form.eligible_site_ids,
-      ...(creating || (dialog as ServiceOffering).status !== "published"
-        ? { status: form.status }
-        : {}),
       ...(creating
         ? {}
         : { lock_version: (dialog as ServiceOffering).lock_version }),
@@ -198,6 +196,22 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
         },
       },
       success: `${offering.name} is now available for configuration and scheduling work.`,
+    });
+  };
+
+  const retire = (offering: ServiceOffering) => {
+    if (!canManage || retryAttempt) return;
+    setRetiring(null);
+    void perform({
+      method: "POST",
+      path: `/api/clinic/service_offerings/${offering.id}/retire`,
+      body: {
+        service_offering: {
+          request_key: crypto.randomUUID(),
+          lock_version: offering.lock_version,
+        },
+      },
+      success: `${offering.name} was retired. Its catalog record remains available for historical references.`,
     });
   };
 
@@ -337,14 +351,16 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                       spacing={0.5}
                       sx={{ justifyContent: "flex-end" }}
                     >
-                      <Button
-                        size="small"
-                        startIcon={<EditOutlinedIcon />}
-                        disabled={controlsDisabled}
-                        onClick={() => open(offering)}
-                      >
-                        Edit
-                      </Button>
+                      {offering.status !== "retired" && (
+                        <Button
+                          size="small"
+                          startIcon={<EditOutlinedIcon />}
+                          disabled={controlsDisabled}
+                          onClick={() => open(offering)}
+                        >
+                          Edit
+                        </Button>
+                      )}
                       {offering.status === "draft" && (
                         <Button
                           size="small"
@@ -355,6 +371,16 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                           Publish
                         </Button>
                       )}
+                      {offering.status === "published" && (
+                        <Button
+                          size="small"
+                          color="warning"
+                          disabled={controlsDisabled}
+                          onClick={() => setRetiring(offering)}
+                        >
+                          Retire
+                        </Button>
+                      )}
                     </Stack>
                   </TableCell>
                 )}
@@ -363,6 +389,22 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
           </TableBody>
         </Table>
       </TableContainer>
+      <Dialog open={retiring !== null} onClose={() => setRetiring(null)}>
+        <DialogTitle>Retire service offering?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {retiring?.name} will no longer be active. Its catalog record stays
+            available for historical references, but cannot be edited or
+            republished here.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRetiring(null)}>Cancel</Button>
+          <Button color="warning" onClick={() => retiring && retire(retiring)}>
+            Retire offering
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={dialog !== null}
         onClose={() => !controlsDisabled && setDialog(null)}
@@ -541,25 +583,6 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 }
                 label="A room is required"
               />
-              {dialog && dialog !== "new" && dialog.status !== "published" && (
-                <FormControl fullWidth>
-                  <InputLabel id="offering-status">Status</InputLabel>
-                  <Select
-                    labelId="offering-status"
-                    label="Status"
-                    value={form.status}
-                    disabled={controlsDisabled}
-                    onChange={(event) =>
-                      update({
-                        status: event.target.value as FormState["status"],
-                      })
-                    }
-                  >
-                    <MenuItem value="draft">Draft</MenuItem>
-                    <MenuItem value="retired">Retired</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
             </Stack>
           </DialogContent>
           <DialogActions>

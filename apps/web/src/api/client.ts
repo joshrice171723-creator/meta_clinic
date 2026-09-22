@@ -327,6 +327,7 @@ export function loginDestination(value: string | null): string {
     "/clinic/reminders",
     "/clinic/messages",
     "/clinic/settings",
+    "/clinic/setup",
     "/clinic/telehealth",
     "/clinic/settings/telehealth",
     "/clinic/billing",
