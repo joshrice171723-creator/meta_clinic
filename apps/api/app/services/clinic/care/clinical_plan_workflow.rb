@@ -120,7 +120,8 @@ module Clinic
             "entered_in_error" => []
           },
           fields: %i[category instrument_name instrument_version score_value interpretation response_summary
-            follow_up_plan assessed_at response_source score_source score_recorded_at]
+            follow_up_plan assessed_at response_source score_source score_recorded_at assessment_state
+            reviewer_membership_id reviewed_at item_responses]
         }
       }.freeze
 
@@ -387,6 +388,7 @@ module Clinic
           unless configured.include?(values[:category])
             raise ArgumentError, "This assessment category is not enabled in Clinic Setup."
           end
+          practice.memberships.active.find(values[:reviewer_membership_id]) if values[:reviewer_membership_id].present?
         end
       end
       private_class_method :validate_references!

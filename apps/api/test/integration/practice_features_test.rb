@@ -111,7 +111,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
 
   test "finalized starter preserves exact forms and independent clinic operations" do
     practice = @membership.practice
-    practice.sites.create!(code: "WL", name: "Synthetic weight clinic", status: "active")
+    practice.sites.create!(code: "WL#{SecureRandom.hex(2).upcase}", name: "Synthetic weight clinic", status: "active")
     payload = profile_payload(clinic_type: "weight_loss", service_scope: %w[telehealth prescription_preparation])
     put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
     assert_response :success
@@ -144,6 +144,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     practice = @membership.practice
     initial = practice.visit_types.create!(code: "Behavioral health initial visit")
     payload = profile_payload(clinic_type: "behavioral_health", service_scope: [])
+    starter = nil
     2.times do
       put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
       assert_response :success
@@ -152,7 +153,9 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
       assert_equal "behavioral-health-initial-v1", starter.dig("visits", "initial", "form_id")
       assert_equal "behavioral-health-follow-up-v1", starter.dig("visits", "follow_up", "form_id")
     end
-    assert_equal 2, practice.visit_types.count
+    assert_equal 8, practice.visit_types.count
+    assert_equal "behavioral-health-follow-up-v1", starter.dig("visits", "medication_follow_up", "form_id")
+    assert_equal "behavioral-health-initial-v1", starter.dig("visits", "psychiatric_evaluation", "form_id")
   end
 
   private

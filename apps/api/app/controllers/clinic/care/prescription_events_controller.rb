@@ -23,11 +23,12 @@ module Clinic
 
       def submit
         order = readable_order
-        input = parameter_hash!(:prescription_submission, %i[pharmacy_destination_id scenario request_key])
+        input = parameter_hash!(:prescription_submission, %i[pharmacy_destination_id scenario request_key mode signer_state reviewer_state])
         attempt = PrescriptionTransmissionWorkflow.submit(practice: current_practice, actor: current_user, order:,
           pharmacy_destination_id: requested_id!(input[:pharmacy_destination_id], :pharmacy_destination_id),
           scenario: required_string!(input[:scenario], field: :scenario, maximum: 32),
-          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100))
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100),
+          mode: input[:mode], signer_state: input[:signer_state], reviewer_state: input[:reviewer_state])
         render json: { attempt: PrescriptionTransmissionWorkflow.serialize(attempt) }, status: :created
       end
 

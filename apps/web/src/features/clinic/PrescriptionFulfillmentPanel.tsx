@@ -39,7 +39,10 @@ type TransmissionAttempt = {
   pharmacy_destination_id: number;
   prescription_event_id: number;
   adapter: "simulated_pharmacy_network";
+  mode: "standard" | "controlled_test";
   outcome: string;
+  signer_snapshot: Record<string, string>;
+  reviewer_snapshot: Record<string, string>;
   destination_snapshot: Pick<
     PharmacyDestination,
     "id" | "name" | "city" | "state_code" | "postal_code"
@@ -91,6 +94,11 @@ export function PrescriptionFulfillmentPanel({
   const [when, setWhen] = useState("");
   const [note, setNote] = useState("");
   const [scenario, setScenario] = useState("failure_before_send");
+  const [simulationMode, setSimulationMode] = useState<
+    "standard" | "controlled_test"
+  >("standard");
+  const [signerState, setSignerState] = useState("active");
+  const [reviewerState, setReviewerState] = useState("active");
   const [destinations, setDestinations] = useState<PharmacyDestination[]>([]);
   const [destination, setDestination] = useState<PharmacyDestination | null>(
     null,
@@ -225,6 +233,10 @@ export function PrescriptionFulfillmentPanel({
         prescription_submission: {
           pharmacy_destination_id: destination.id,
           scenario,
+          mode: simulationMode,
+          signer_state: simulationMode === "controlled_test" ? signerState : undefined,
+          reviewer_state:
+            simulationMode === "controlled_test" ? reviewerState : undefined,
           request_key: crypto.randomUUID(),
         },
       },
@@ -294,7 +306,17 @@ export function PrescriptionFulfillmentPanel({
     .filter((event) => event.kind !== "review")
     .at(-1);
   const unresolved =
-    latest && ["unknown", "acknowledged"].includes(latest.kind);
+    latest &&
+    [
+      "unknown",
+      "acknowledged",
+      "accepted",
+      "outcome_unknown",
+      "rejected",
+      "unavailable",
+      "revoked",
+      "duplicate",
+    ].includes(latest.kind);
   const unavailable = busy || pending !== null || !evidence;
   const disabled = unavailable || !canWrite;
   return (
@@ -463,6 +485,43 @@ export function PrescriptionFulfillmentPanel({
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <TextField
                 select
+                label="Simulation mode"
+                value={simulationMode}
+                onChange={(event) =>
+                  setSimulationMode(
+                    event.target.value as "standard" | "controlled_test",
+                  )
+                }
+              >
+                <MenuItem value="standard">Standard simulated pharmacy</MenuItem>
+                <MenuItem value="controlled_test">
+                  Controlled prescription test mode
+                </MenuItem>
+              </TextField>
+              {simulationMode === "controlled_test" && (
+                <>
+                  <TextField
+                    select
+                    label="Synthetic signer state"
+                    value={signerState}
+                    onChange={(event) => setSignerState(event.target.value)}
+                  >
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="revoked">Revoked</MenuItem>
+                  </TextField>
+                  <TextField
+                    select
+                    label="Synthetic reviewer state"
+                    value={reviewerState}
+                    onChange={(event) => setReviewerState(event.target.value)}
+                  >
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="revoked">Revoked</MenuItem>
+                  </TextField>
+                </>
+              )}
+              <TextField
+                select
                 label="Simulator outcome"
                 value={scenario}
                 onChange={(event) => setScenario(event.target.value)}
@@ -472,6 +531,11 @@ export function PrescriptionFulfillmentPanel({
                   "rejected",
                   "acknowledged",
                   "unknown",
+                  "accepted",
+                  "unavailable",
+                  "revoked",
+                  "duplicate",
+                  "outcome_unknown",
                 ].map((value) => (
                   <MenuItem key={value} value={value}>
                     {value.replaceAll("_", " ")}
@@ -491,9 +555,12 @@ export function PrescriptionFulfillmentPanel({
         )}
         {evidence?.attempts.map((attempt) => (
           <Typography key={attempt.id} variant="body2">
-            Simulated pharmacy network · {attempt.outcome.replaceAll("_", " ")}{" "}
+            Simulated pharmacy network · {attempt.mode.replaceAll("_", " ")} ·{" "}
+            {attempt.outcome.replaceAll("_", " ")}{" "}
             · {attempt.destination_snapshot.name} ·{" "}
             {new Date(attempt.submitted_at).toLocaleString()}
+            {attempt.mode === "controlled_test" &&
+              ` · signer ${attempt.signer_snapshot.state ?? "unknown"} · reviewer ${attempt.reviewer_snapshot.state ?? "unknown"}`}
           </Typography>
         ))}
         {evidence?.events.map((item) => (

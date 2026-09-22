@@ -8,7 +8,7 @@ module Clinic
       belongs_to :recorded_by_membership, class_name: "Clinic::Membership"
       belongs_to :prior_event, class_name: name, optional: true
       encrypts :note
-      validates :kind, inclusion: { in: %w[review failure_before_send rejected acknowledged unknown cancelled confirmed_not_sent] }
+      validates :kind, inclusion: { in: %w[review failure_before_send rejected acknowledged unknown accepted unavailable revoked duplicate outcome_unknown cancelled confirmed_not_sent] }
       validates :source, inclusion: { in: %w[manual simulation] }
       validates :request_key, :recorded_at, presence: true
       validates :note, length: { maximum: 2000 }

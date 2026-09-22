@@ -15,10 +15,12 @@ module Clinic
         telehealth external_lab_coordination minor_office_procedures in_office_medications
         vaccinations point_of_care_testing infusions controlled_medications patient_supplied_medications
         prescription_preparation take_home_fulfillment
+        psychiatric_evaluation adhd_evaluation medication_management therapy_referral_coordination
+        urgent_clinical_follow_up
       ].freeze
       ASSESSMENT_SCOPE = %w[
         depression anxiety alcohol_use tobacco_use social_needs fall_risk
-        functional_status cognitive_status
+        functional_status cognitive_status psychiatry_assessment
       ].freeze
       RECOMMENDED_CLINIC_TYPE = "primary_care".freeze
       RECOMMENDED_SERVICE_SCOPE = %w[

@@ -179,7 +179,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assessment = revise_record("assessments", "assessment", assessment,
       { assessment: { status: "completed", assessed_at: "2026-09-10T15:45:00Z",
         response_summary: "Synthetic responses reviewed with the patient", follow_up_plan: "Routine follow-up",
-        response_source: "patient_reported",
+        response_source: "patient_reported", assessment_state: "assessed",
         expected_version: assessment.fetch("version_number"), request_key: "assessment-complete" } })
     assert_equal [ "completed", "depression", "patient_reported" ],
       assessment.values_at("status", "category", "response_source")
@@ -459,6 +459,108 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes response.parsed_body.fetch("error"), "Outcome source and recorded time"
   end
 
+  test "psychiatry assessment preserves item states and synthetic safety work after closure" do
+    Clinic::Configuration::PracticeFeatures.revise(
+      practice: @practice, actor: @membership, request_key: "psychiatry-profile", expected_revision: 0,
+      insurance_workflows_enabled: false, clinic_type: "behavioral_health",
+      service_scope: %w[psychiatric_evaluation medication_management urgent_clinical_follow_up],
+      assessment_scope: [ "psychiatry_assessment" ]
+    )
+    assert_equal 8, @practice.visit_types.active.count
+
+    assessment = create_record("assessments", "assessment", {
+      category: "psychiatry_assessment", instrument_name: "Synthetic attention check", instrument_version: "test-v1",
+      assessment_state: "unknown", response_source: "unknown", reviewer_membership_id: @membership.id,
+      item_responses: [ { item_id: "attention", state: "unknown" } ]
+    }, "psychiatry-assessment-unknown")
+    assert_equal [ "unknown", [ { "item_id" => "attention", "state" => "unknown" } ], @membership.id ],
+      assessment.values_at("assessment_state", "item_responses", "reviewer_membership_id")
+
+    patch "#{workspace_path(@patient)}/assessments/#{assessment.fetch('series_id')}", params: {
+      assessment: { status: "completed", expected_version: assessment.fetch("version_number"),
+        request_key: "psychiatry-assessment-unknown-complete" }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "must be assessed before completion"
+
+    assessment = revise_record("assessments", "assessment", assessment, {
+      assessment: { status: "completed", assessment_state: "assessed", response_source: "patient_reported",
+        response_summary: "Synthetic response retained for review.", assessed_at: "2026-09-10T16:30:00Z",
+        item_responses: [ { item_id: "attention", state: "answered", value: "sometimes" } ],
+        expected_version: assessment.fetch("version_number"), request_key: "psychiatry-assessment-complete" }
+    })
+    assert_equal "assessed", assessment.fetch("assessment_state")
+    assert_equal "sometimes", assessment.fetch("item_responses").first.fetch("value")
+
+    post "#{workspace_path(@patient)}/clinical_tasks", params: { task: {
+      request_key: "psychiatry-safety-follow-up", task_kind: "safety_follow_up", pool_code: "clinical"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    safety_task = Clinic::ClinicalTask.find(response.parsed_body.dig("task", "id"))
+    assert_equal [ "safety_follow_up", "open" ], safety_task.values_at(:task_kind, :state)
+
+    Clinic::Scheduling::CloseEncounter.call(encounter: @encounter, actor: @user, request_key: "psychiatry-close")
+    assert safety_task.reload.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
+  end
+
+  test "controlled prescription simulator snapshots synthetic signer state and fences recovery" do
+    Clinic::Configuration::PracticeFeatures.revise(
+      practice: @practice, actor: @membership, request_key: "controlled-profile", expected_revision: 0,
+      insurance_workflows_enabled: false, clinic_type: "behavioral_health",
+      service_scope: %w[controlled_medications medication_management], assessment_scope: []
+    )
+    destination = Clinic::Care::PharmacyDestination.create!(practice: @practice, name: "Synthetic Pharmacy",
+      address_line1: "1 Demo Way", city: "Austin", state_code: "TX", postal_code: "78701")
+
+    accepted = authorized_outside_pharmacy_order("controlled-accepted")
+    Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: accepted, kind: "review",
+      source: "manual", request_key: "controlled-accepted-review")
+    attempt = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: accepted,
+      pharmacy_destination_id: destination.id, scenario: "accepted", mode: "controlled_test",
+      signer_state: "active", reviewer_state: "active", request_key: "controlled-accepted-submit")
+    assert_equal [ "controlled_test", "accepted", "active", "active" ],
+      [ attempt.mode, attempt.outcome, attempt.signer_snapshot.fetch("state"), attempt.reviewer_snapshot.fetch("state") ]
+    assert_raises(ArgumentError) do
+      Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: accepted,
+        pharmacy_destination_id: destination.id, scenario: "accepted", mode: "controlled_test",
+        signer_state: "active", reviewer_state: "active", request_key: "controlled-accepted-new-submit")
+    end
+
+    %w[rejected unavailable duplicate].each do |scenario|
+      order = authorized_outside_pharmacy_order("controlled-#{scenario}")
+      Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order:, kind: "review",
+        source: "manual", request_key: "controlled-#{scenario}-review")
+      simulated = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order:,
+        pharmacy_destination_id: destination.id, scenario:, mode: "controlled_test",
+        signer_state: "active", reviewer_state: "active", request_key: "controlled-#{scenario}-submit")
+      assert_equal scenario, simulated.outcome
+    end
+
+    unknown = authorized_outside_pharmacy_order("controlled-unknown")
+    Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: unknown, kind: "review",
+      source: "manual", request_key: "controlled-unknown-review")
+    first = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: unknown,
+      pharmacy_destination_id: destination.id, scenario: "outcome_unknown", mode: "controlled_test",
+      signer_state: "active", reviewer_state: "active", request_key: "controlled-unknown-submit")
+    duplicate = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: unknown,
+      pharmacy_destination_id: destination.id, scenario: "outcome_unknown", mode: "controlled_test",
+      signer_state: "active", reviewer_state: "active", request_key: "controlled-unknown-submit")
+    assert_equal first.id, duplicate.id
+    assert_raises(ArgumentError) do
+      Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: unknown,
+        pharmacy_destination_id: destination.id, scenario: "accepted", mode: "controlled_test",
+        signer_state: "active", reviewer_state: "active", request_key: "controlled-unknown-new-submit")
+    end
+
+    revoked = authorized_outside_pharmacy_order("controlled-revoked")
+    Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: revoked, kind: "review",
+      source: "manual", request_key: "controlled-revoked-review")
+    attempt = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: revoked,
+      pharmacy_destination_id: destination.id, scenario: "revoked", mode: "controlled_test",
+      signer_state: "revoked", reviewer_state: "active", request_key: "controlled-revoked-submit")
+    assert_equal "revoked", attempt.signer_snapshot.fetch("state")
+  end
+
   private
 
   def enable_immunization_administration!
@@ -495,6 +597,20 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       params: body, headers: csrf_headers, as: :json
     assert_response :created
     response.parsed_body.fetch(root)
+  end
+
+  def authorized_outside_pharmacy_order(key)
+    order = create_record("medication_requests", "medication_request", {
+      medication_name: "Synthetic controlled medication #{key}", intent: "order", medication_strength: "10 mg",
+      medication_form: "tablet", medication_code_system: "test", medication_code: "#{key}-code",
+      catalog_source: "synthetic", dose_text: "10 mg", route_text: "Oral", frequency_text: "daily",
+      instructions: "Synthetic test instruction", prescribed_quantity: "30", quantity_unit: "tablet", refills: "0",
+      fulfillment_route: "outside_pharmacy", pharmacy_name: "Synthetic Pharmacy", pharmacy_location: "Austin"
+    }, "#{key}-create")
+    revise_record("medication_requests", "medication_request", order,
+      revision_body("medication_request", order, "authorized", "#{key}-authorize")).then do |result|
+        Clinic::Care::MedicationRequestRevision.find(result.fetch("id"))
+      end
   end
 
   def revision_body(root, record, status, request_key)

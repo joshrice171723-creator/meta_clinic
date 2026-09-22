@@ -4,7 +4,7 @@ module Clinic
     include TenantScoped
     include Auditable
 
-    KINDS = %w[intake handoff result_follow_up patient_call order_execution record_request staff_request].freeze
+    KINDS = %w[intake handoff result_follow_up patient_call order_execution record_request staff_request safety_follow_up].freeze
     STATES = %w[open claimed in_progress on_hold completed cancelled].freeze
     ACTIVE_STATES = %w[open claimed in_progress on_hold].freeze
     POOLS = %w[clinical front_desk records].freeze
