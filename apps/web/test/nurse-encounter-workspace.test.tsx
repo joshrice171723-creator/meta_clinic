@@ -304,6 +304,93 @@ describe("NurseEncounterWorkspace", () => {
     expect(renderWorkspace(19)).toContain("Room recorded for this encounter.");
   });
 
+  it("groups intake review work by responsible team without duplicating it as encounter tasks", () => {
+    const originalReviewItems = fixtures.workspace.review_items;
+    const originalTasks = fixtures.workspace.tasks;
+    const originalCapabilities = fixtures.workspace.capabilities;
+    fixtures.workspace.review_items = [
+      {
+        question_id: "disclosures",
+        label: "Required disclosures",
+        category: "evidence",
+        task_id: 7,
+        state: "open",
+        pool_code: "clinical",
+        assigned_to_membership_id: null,
+        reason:
+          "Confirm the source, date and availability of the referenced evidence.",
+        next_action:
+          "Claim the review task, clarify the response, and record the outcome.",
+        source_revision_version: 21,
+        recorded_at: "2026-09-21T00:00:00Z",
+        resolution_code: null,
+      },
+      {
+        question_id: "prior_treatments",
+        label: "Previous treatments and medicines",
+        category: "support",
+        task_id: 8,
+        state: "open",
+        pool_code: "front_desk",
+        assigned_to_membership_id: null,
+        reason: "A support preference or barrier needs coordination.",
+        next_action:
+          "Claim the support task and coordinate the requested help.",
+        source_revision_version: 21,
+        recorded_at: "2026-09-21T00:00:00Z",
+        resolution_code: null,
+      },
+      {
+        question_id: "patient_confirmation",
+        label: "Patient confirmation of recorded answers",
+        category: "evidence",
+        task_id: 9,
+        state: "open",
+        pool_code: "clinical",
+        assigned_to_membership_id: null,
+        reason:
+          "Confirm the source, date and availability of the referenced evidence.",
+        next_action:
+          "Claim the review task, clarify the response, and record the outcome.",
+        source_revision_version: 21,
+        recorded_at: "2026-09-21T00:00:00Z",
+        resolution_code: null,
+      },
+    ];
+    fixtures.workspace.tasks = [
+      { id: 7, task_kind: "intake", state: "open" },
+      { id: 8, task_kind: "intake", state: "open" },
+      { id: 9, task_kind: "intake", state: "open" },
+    ] as NurseWorkspace["tasks"];
+    fixtures.workspace.capabilities = {
+      ...fixtures.workspace.capabilities,
+      tasks_write: true,
+    };
+    try {
+      const html = renderWorkspace(19);
+      expect(html).toContain("Intake review queue");
+      expect(html).toContain("Clinical review");
+      expect(html).toContain("Support coordination");
+      expect(html).toContain("Required disclosures");
+      expect(html).toContain("Previous treatments and medicines");
+      expect(html).toContain("Patient confirmation of recorded answers");
+      expect(html).toContain("No separate encounter tasks are recorded.");
+      expect(html).not.toContain("Finish intake");
+      expect(html).not.toContain(
+        "Claim the review task, clarify the response, and record the outcome.",
+      );
+      expect(
+        html.match(
+          /Confirm the source, date and availability of the referenced evidence\./g,
+        )?.length,
+      ).toBe(1);
+    } finally {
+      fixtures.workspace.review_items = originalReviewItems;
+      fixtures.workspace.tasks = originalTasks;
+      fixtures.workspace.capabilities = originalCapabilities;
+    }
+  });
+
   it("does not require a physical room for a video encounter", () => {
     const html = renderWorkspace(null, "video");
     expect(html).not.toContain("Room is still required.");

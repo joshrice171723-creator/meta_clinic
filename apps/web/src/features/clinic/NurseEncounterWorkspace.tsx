@@ -15,6 +15,9 @@ import {
   Divider,
   FormControl,
   InputLabel,
+  List,
+  ListItem,
+  ListItemText,
   MenuItem,
   Paper,
   Select,
@@ -370,6 +373,32 @@ export function NurseEncounterWorkspaceContent({
   }
 
   const workspace = resource.data;
+  const reviewItems = workspace.review_items ?? [];
+  const reviewGroups = [
+    {
+      id: "clinical",
+      label: "Clinical review",
+      description: "Clarify the recorded response and record the outcome.",
+      items: reviewItems.filter((item) => item.pool_code === "clinical"),
+    },
+    {
+      id: "front_desk",
+      label: "Support coordination",
+      description: "Coordinate the reported support preference or barrier.",
+      items: reviewItems.filter((item) => item.pool_code === "front_desk"),
+    },
+    {
+      id: "other",
+      label: "Unassigned review",
+      description: "Assign or resolve the review task before it is lost.",
+      items: reviewItems.filter(
+        (item) => !["clinical", "front_desk"].includes(item.pool_code ?? ""),
+      ),
+    },
+  ].filter((group) => group.items.length > 0);
+  const encounterTasks = workspace.tasks.filter(
+    (task) => task.task_kind !== "intake",
+  );
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
   const confirmedChunkIndexes = form.questionnaire?.confirmed_chunks ?? [];
   const activeChunkIndex = Math.min(
@@ -822,86 +851,184 @@ export function NurseEncounterWorkspaceContent({
             )}
           </Stack>
         </Paper>
-        {(workspace.review_items?.length ?? 0) > 0 && (
-          <Accordion variant="outlined">
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        {reviewGroups.length > 0 && (
+          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+            <Stack spacing={0.5} sx={{ px: 2, pt: 2, pb: 1.25 }}>
               <Typography component="h3" variant="h6">
-                Intake review and support ·{" "}
+                Intake review queue
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {reviewItems.length} review items ·{" "}
                 {
-                  workspace.review_items?.filter(
+                  reviewItems.filter(
                     (item) => !["completed", "cancelled"].includes(item.state),
                   ).length
                 }{" "}
-                unresolved
+                unresolved. Open the team queue that can take the next action.
               </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={1.5}>
-                <Typography variant="body2" color="text.secondary">
-                  Review safety information, current symptoms, medication use
-                  and missing evidence before the general narrative. These are
-                  review categories, not an urgency score or treatment decision.
-                </Typography>
-                {workspace.review_items?.map((item) => {
-                  const task = workspace.tasks.find(
-                    (entry) => entry.id === item.task_id,
-                  );
-                  return (
-                    <Box
-                      key={item.task_id}
-                      sx={{ borderTop: 1, borderColor: "divider", pt: 1 }}
+            </Stack>
+            {reviewGroups.map((group) => {
+              const versions = [
+                ...new Set(
+                  group.items.map((item) => item.source_revision_version),
+                ),
+              ];
+              const displayedReasons = new Set<string>();
+              return (
+                <Accordion
+                  key={group.id}
+                  disableGutters
+                  elevation={0}
+                  sx={{
+                    borderTop: 1,
+                    borderColor: "divider",
+                    "&:before": { display: "none" },
+                  }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={{ xs: 0.5, sm: 1 }}
+                      sx={{
+                        alignItems: { sm: "center" },
+                        justifyContent: "space-between",
+                        width: "100%",
+                        pr: 1,
+                      }}
                     >
-                      <Typography variant="subtitle2">
-                        {item.label} · {stateLabel(item.state)}
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        {group.label}
                       </Typography>
-                      <Typography variant="body2">{item.reason}</Typography>
-                      <Typography variant="body2">
-                        Owner:{" "}
-                        {item.assigned_to_membership_id
-                          ? "Staff " + item.assigned_to_membership_id
-                          : (item.pool_code ?? "Unavailable") + " team"}
-                        {" · "}Intake version {item.source_revision_version}
-                      </Typography>
-                      <Typography variant="body2">
-                        {item.next_action}
-                      </Typography>
-                      {task?.assignment_exception && (
-                        <Alert severity="warning">
-                          {task.assignment_exception}
-                        </Alert>
-                      )}
-                      {task &&
-                        workspace.capabilities.tasks_write &&
-                        task.state === "open" && (
-                          <Button
-                            disabled={busy}
-                            onClick={() => void transitionTask(task, "claim")}
+                      <Stack direction="row" spacing={0.75}>
+                        <Chip
+                          size="small"
+                          label={`${group.items.length} items`}
+                        />
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={
+                            versions.length === 1
+                              ? `Intake v${versions[0]}`
+                              : "Multiple intake versions"
+                          }
+                        />
+                      </Stack>
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ pt: 0, pb: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      {group.description}
+                    </Typography>
+                    <List disablePadding aria-label={`${group.label} tasks`}>
+                      {group.items.map((item, index) => {
+                        const task = workspace.tasks.find(
+                          (entry) => entry.id === item.task_id,
+                        );
+                        const showReason = !displayedReasons.has(item.reason);
+                        displayedReasons.add(item.reason);
+                        const mine =
+                          task?.assigned_to_membership_id ===
+                          clinic.membership_id;
+                        const action =
+                          task &&
+                          workspace.capabilities.tasks_write &&
+                          task.state === "open" ? (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              disabled={busy}
+                              onClick={() => void transitionTask(task, "claim")}
+                            >
+                              Claim
+                            </Button>
+                          ) : task &&
+                            workspace.capabilities.tasks_write &&
+                            mine &&
+                            (item.pool_code !== "clinical" ||
+                              workspace.capabilities.handoff_respond) &&
+                            ["claimed", "in_progress"].includes(task.state) ? (
+                            <Button
+                              variant="contained"
+                              size="small"
+                              disabled={busy || dirty}
+                              onClick={() =>
+                                void transitionTask(task, "complete")
+                              }
+                            >
+                              Complete
+                            </Button>
+                          ) : undefined;
+                        return (
+                          <ListItem
+                            key={item.task_id}
+                            disableGutters
+                            divider={index < group.items.length - 1}
+                            secondaryAction={action}
+                            sx={{ py: 1.25, pr: action ? 11 : 0 }}
                           >
-                            Claim review
-                          </Button>
-                        )}
-                      {task &&
-                        workspace.capabilities.tasks_write &&
-                        task.assigned_to_membership_id ===
-                          clinic.membership_id &&
-                        (item.pool_code !== "clinical" ||
-                          workspace.capabilities.handoff_respond) &&
-                        ["claimed", "in_progress"].includes(task.state) && (
-                          <Button
-                            disabled={busy || dirty}
-                            onClick={() =>
-                              void transitionTask(task, "complete")
-                            }
-                          >
-                            Record review completed
-                          </Button>
-                        )}
-                    </Box>
-                  );
-                })}
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
+                            <ListItemText
+                              primary={
+                                <Stack
+                                  direction={{ xs: "column", sm: "row" }}
+                                  spacing={{ xs: 0.5, sm: 1 }}
+                                  sx={{ alignItems: { sm: "center" } }}
+                                >
+                                  <Typography variant="subtitle2">
+                                    {item.label}
+                                  </Typography>
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={stateLabel(item.state)}
+                                    sx={{
+                                      alignSelf: {
+                                        xs: "flex-start",
+                                        sm: "auto",
+                                      },
+                                    }}
+                                  />
+                                </Stack>
+                              }
+                              secondary={
+                                <Stack spacing={0.25} sx={{ mt: 0.25 }}>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    {item.assigned_to_membership_id
+                                      ? `Assigned to staff ${item.assigned_to_membership_id}`
+                                      : "Team-owned"}
+                                  </Typography>
+                                  {showReason && (
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      {item.reason}
+                                    </Typography>
+                                  )}
+                                </Stack>
+                              }
+                            />
+                            {task?.assignment_exception && (
+                              <Alert severity="warning" sx={{ mt: 1 }}>
+                                {task.assignment_exception}
+                              </Alert>
+                            )}
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </Paper>
         )}
         <Box
           sx={{
@@ -1641,12 +1768,13 @@ export function NurseEncounterWorkspaceContent({
             )}
           </Stack>
           <Stack spacing={1} sx={{ mt: 1.5 }}>
-            {workspace.tasks.length === 0 ? (
+            {encounterTasks.length === 0 ? (
               <Typography color="text.secondary">
-                No tasks are recorded for this encounter.
+                No separate encounter tasks are recorded. Intake review tasks
+                are listed in the review queue above.
               </Typography>
             ) : (
-              workspace.tasks.map((task) => {
+              encounterTasks.map((task) => {
                 const mine =
                   task.assigned_to_membership_id === clinic.membership_id;
                 return (
