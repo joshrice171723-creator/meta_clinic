@@ -198,6 +198,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   test "administered-here immunizations retain exact staff facility lot and optional VIS evidence" do
+    enable_immunization_administration!
     product = @practice.pharmacy_products.create!(
       name: "Synthetic vaccine dose", generic_name: "synthetic antigen", dosage_form: "injection",
       ndc: "00000-0999-01", sku: "PLAN-VAX-1", stock_unit: "mL", quantity_scale: 2,
@@ -459,6 +460,24 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def enable_immunization_administration!
+    optional_features = {
+      "clinic_type" => "primary_care",
+      "service_scope" => [ "vaccinations" ],
+      "assessment_scope" => [],
+      "immunization_administration_enabled" => true
+    }
+    Clinic::PracticeFeatureVersion.create!(
+      practice: @practice,
+      created_by_membership: @membership,
+      revision: 1,
+      optional_features:,
+      effective_from: Current.business_time,
+      request_key: "authorized-immunization-administration",
+      content_digest: Digest::SHA256.hexdigest(optional_features.to_json)
+    )
+  end
 
   def workspace_path(patient)
     "/api/clinic/patients/#{patient.id}/encounters/#{@encounter.id}"

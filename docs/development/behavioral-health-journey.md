@@ -1,6 +1,6 @@
 # Behavioral-health journey evaluation
 
-Revision 5 — 2026-09-22. User-authorized autonomous local implementation and verification; the original two-visit walkthrough and its later continuity/provenance repairs are completed evidence, not completion of this assignment. This revision adds a proposed outpatient psychiatry and medication-management expansion; implementation status remains in the canonical tracker.
+Revision 6 — 2026-09-22. User-authorized autonomous local implementation and verification; the original two-visit walkthrough and its later continuity/provenance repairs are completed evidence, not completion of this assignment. This revision reconciles the proposed outpatient psychiatry and medication-management expansion with the current behavioral-health, prescription-simulation, refill, assessment, and follow-up owners; implementation status remains in the canonical tracker.
 
 ## Scope and continuity
 
@@ -170,9 +170,22 @@ Browser evidence: the October 6 day schedule showed Ethan Brooks, 10:00–10:30 
 
 This is a planning addition for synthetic development only. It does not require a real clinic policy, clinical protocol, prescriber, state-law determination, vendor contract, credentials, external transmission, or implementation authorization. It uses the existing `behavioral_health` clinic type and proposes an **Outpatient psychiatry and medication management** service profile. The initial reference is adult ADHD and general-psychiatry care; age range, therapy delivery versus coordination, substance-use-disorder services, selected instruments, safety policy, and simulated controlled-substance scope remain product-design choices.
 
+### Reconciled implementation baseline
+
+This expansion must compose the following current owners rather than creating parallel specialty records:
+
+| Existing owner | Current boundary | Psychiatry-plan use |
+| --- | --- | --- |
+| Behavioral-health clinic type, starter visit mappings, and versioned previsit intake | The existing initial/return questionnaire preserves answer state, form/version, recorder, time, correction history, patient-reported symptom/function context, medication/allergy history, sleep, support, and optional sensitive context. It is unscored and is not a clinician assessment. | Add psychiatry visit-type/service configuration and reuse the form as intake context. A specialty plan must not add another patient questionnaire or infer a diagnosis from an answer. |
+| Assessment revisions | Existing records preserve instrument/version, category, score, score provenance/time, response source, interpretation, summary, and follow-up fields. Item responses, score derivation, reviewer contract, and clinic action policy are not yet complete. | Add item-level instrument support only after a synthetic instrument contract is chosen. Preserve `unknown`/not-assessed and never derive a treatment or safety outcome automatically. |
+| Medication requests, pharmacy destinations, transmission attempts, and prescription events | MC-10 already owns versioned order details, exact-version review, immutable destination snapshots/attempt history, backend-only bounded outcomes, outcome-unknown reconciliation, and refill replacement. Controlled substances and real transmission are expressly outside that delivered slice. | Extend the existing simulator with a controlled-prescription test mode if needed. Do not create a second prescription, pharmacy, attempt, or refill ledger; simulated events remain non-external evidence. |
+| Existing tasks, encounter closure, care plans, goals, and follow-up | Open work retains its owner and remains visible after the encounter closes; plans/goals remain versioned and source-linked. | Use these owners for intake review, safety follow-up, refill review, referral coordination, and next-visit work. Do not auto-complete them from an encounter or score. |
+
+Uncommitted application work in the shared checkout is intentionally excluded from this baseline until it is integrated and verified. This planning update neither claims that work nor changes its ownership.
+
 ### Proposed composition and journey
 
-Clinic Setup would record intended service scope for psychiatric diagnostic evaluation, ADHD evaluation, medication management, telepsychiatry, therapy coordination/referral, and controlled-substance prescribing. Selecting a service would remain configuration intent only: it cannot prescribe, activate a live workflow, verify a clinician, or represent readiness. The controlled-substance option can use a backend-only simulated adapter after its synthetic configuration, signer model, request lifecycle, and recovery cases are defined; no real EPCS vendor, credential, or transmission is needed.
+Clinic Setup would record intended service scope for psychiatric diagnostic evaluation, ADHD evaluation, medication management, telepsychiatry, therapy coordination/referral, and controlled-substance prescribing. Selecting a service would remain configuration intent only: it cannot prescribe, activate a live workflow, verify a clinician, or represent readiness. A controlled-substance test mode must extend the existing backend-only prescription simulator after its synthetic configuration, signer model, request lifecycle, and recovery cases are defined; no real EPCS vendor, credential, transmission, or separate adapter is needed.
 
 The specialty extension reuses registration, scheduling, versioned previsit intake, notes, assessment revisions, care plans, goals, tasks, prescription preparation, pharmacy destinations, and follow-up. It adds no duplicate patient, prescription, task, or screening truth. Proposed visit types are psychiatric evaluation, ADHD evaluation, medication follow-up, refill review, therapy/referral coordination, and urgent clinical follow-up. Each remains a configurable clinic offering; none implies a diagnosis, treatment eligibility, or a clinical protocol.
 

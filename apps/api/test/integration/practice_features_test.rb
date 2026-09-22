@@ -28,6 +28,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
       initial.fetch("recommended_service_scope")
     assert_equal [], initial.fetch("recommended_assessment_scope")
     assert_equal false, initial.fetch("assessment_configured")
+    assert_equal false, initial.fetch("immunization_administration_enabled")
     %w[cash_pricing estimates invoices receipts card_payments refunds credits packages memberships].each do |feature|
       assert_equal true, initial.fetch("core").fetch(feature)
     end
@@ -54,6 +55,14 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     put "/api/clinic/practice_features", params: payload, headers: csrf_headers, as: :json
     assert_response :success
     assert_equal 1, Clinic::PracticeFeatureVersion.where(practice: @membership.practice).count
+  end
+
+  test "selecting vaccination scope does not by itself enable administration" do
+    put "/api/clinic/practice_features", params: {
+      features: profile_payload(service_scope: %w[vaccinations], request_key: "vaccination-scope")
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal false, response.parsed_body.dig("features", "immunization_administration_enabled")
   end
 
   test "stale clinic setup edits do not overwrite a newer selection" do

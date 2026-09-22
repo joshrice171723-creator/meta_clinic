@@ -150,6 +150,8 @@ module Clinic
             routes: MedicationRequestRevision::ROUTES.map { |code, label| { code:, label: } }
           },
           assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope),
+          immunization_administration_enabled: Clinic::Configuration::PracticeFeatures.snapshot(practice:)
+            .fetch(:immunization_administration_enabled),
           new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind) },
           weight_context: weight_context(practice, patient),
           prior_orders: prior_orders(practice, actor, patient, encounter),
@@ -419,6 +421,11 @@ module Clinic
 
       def prepare_immunization_values!(practice, patient, encounter, values)
         values[:manufacturer_mvx_code] = values[:manufacturer_mvx_code].to_s.upcase.presence
+        if values[:status] == "completed" && values[:occurrence_source] == "administered_here" &&
+            !Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:immunization_administration_enabled)
+          raise ArgumentError,
+            "Clinic-administered immunizations are unavailable until clinic scope, sites, personnel, and review are configured."
+        end
         return unless values[:status] == "completed" && values[:occurrence_source] == "administered_here" &&
           values[:medication_administration_id].present?
 

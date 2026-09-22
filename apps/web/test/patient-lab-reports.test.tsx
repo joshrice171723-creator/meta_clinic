@@ -39,4 +39,14 @@ describe("PatientLabReports patient scope", () => {
     );
     expect(patientLabReportsSource).toContain("Prior results — refresh failed");
   });
+
+  it("captures and preserves source-supplied terminology, UCUM, and interpretation fields", () => {
+    expect(patientLabReportsSource).toContain('label="Test code system"');
+    expect(patientLabReportsSource).toContain('label="Test code version"');
+    expect(patientLabReportsSource).toContain('label="UCUM unit code"');
+    expect(patientLabReportsSource).toContain('label="Source interpretation"');
+    expect(patientLabReportsSource).toContain("code_system: row.code_system?.trim() || null");
+    expect(patientLabReportsSource).toContain("unit_code: row.unit_code?.trim() || null");
+    expect(patientLabReportsSource).toContain("interpretation: row.interpretation?.trim() || null");
+  });
 });
