@@ -55,11 +55,15 @@ Rails.application.configure do
   # schema dump. Ordinary development migrations retain Rails' default behavior.
   config.active_record.dump_schema_after_migration = ENV["APPLY_STARTDEV_SKIP_SCHEMA_DUMP"] != "1"
 
-  # Highlight code that triggered database queries in logs.
-  config.active_record.verbose_query_logs = true
+  # Per-query backtraces and synchronous debug output are expensive on Windows
+  # during encounter bootstrap. Opt in when investigating SQL; request/error
+  # logs and persisted application audits remain available by default.
+  verbose_sql = ENV["APPLY_VERBOSE_SQL"] == "1"
+  config.log_level = verbose_sql ? :debug : :info
+  config.active_record.verbose_query_logs = verbose_sql
 
   # Append comments with runtime information tags to SQL queries in logs.
-  config.active_record.query_log_tags_enabled = true
+  config.active_record.query_log_tags_enabled = verbose_sql
 
   # Highlight code that enqueued background job in logs.
   config.active_job.verbose_enqueue_logs = true

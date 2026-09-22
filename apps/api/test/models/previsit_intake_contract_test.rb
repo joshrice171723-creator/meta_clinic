@@ -11,7 +11,7 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
     assert Intake.fields.any? { |field| field[:id] == "instrument_status" }, "Legacy answers remain readable"
   end
 
-  test "confirmed chunks validate normalized answers and cannot keep changed downstream confirmations" do
+  test "confirmed sections validate normalized answers and preserve unrelated reviews" do
     answers = Intake.fields.to_h { |field| [ field[:id], { "state" => "not_asked", "value" => "" } ] }
     questionnaire = { "text" => "", "status" => "submitted", "confirmed" => true,
       "confirmed_chunks" => [ 0 ], "answers" => answers }
@@ -37,13 +37,19 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
     previous = Struct.new(:encrypted_questionnaire).new(saved[:encrypted_questionnaire])
     changed = second.deep_dup
     changed["answers"]["goals"] = { "state" => "answered", "value" => "Synthetic changed goal" }
+    changed.merge!("status" => "draft", "confirmed" => false)
     error = assert_raises(ArgumentError) do
       Workflow.normalize_intake(base.merge(questionnaire: changed), previous_intake: previous)
     end
-    assert_match(/reconfirming/, error.message)
-    changed["confirmed_chunks"] = [ 0 ]
+    assert_match(/affected section/, error.message)
+    changed.merge!("status" => "submitted", "confirmed" => true)
     result = Workflow.normalize_intake(base.merge(questionnaire: changed), previous_intake: previous)
-    assert_equal [ 0 ], Intake.decode(result[:encrypted_questionnaire])["confirmed_chunks"]
+    assert_equal [ 0, 1 ], Intake.decode(result[:encrypted_questionnaire])["confirmed_chunks"]
+    changed["answers"]["care_needs"] = { "state" => "answered", "value" => "Synthetic changed care need" }
+    error = assert_raises(ArgumentError) do
+      Workflow.normalize_intake(base.merge(questionnaire: changed), previous_intake: previous)
+    end
+    assert_match(/one intake section/, error.message)
   end
 
   test "schema versions reject invalid explicit values while preserving older records" do

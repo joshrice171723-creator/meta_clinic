@@ -1,12 +1,11 @@
 module Clinic
   module Care
-    # Immutable encrypted intake revisions link to work in the existing task
-    # system; assignment and completion never become questionnaire booleans.
+    # Answers are encounter documentation. Only deliberately assigned work
+    # belongs in the task queue; retain the history of legacy generated work.
     module IntakeReview
       module_function
 
       CATEGORIES = %w[safety symptom medication evidence changed support clinical].freeze
-      UNCERTAIN = %w[unknown not_asked declined].freeze
 
       def attach!(encoded:, previous:, practice:, patient:, encounter:, member:, chunks:, original_answers: {})
         payload = PrevisitIntake.decode(encoded)
@@ -39,86 +38,57 @@ module Clinic
           [id, item]
         end
 
-        items = fields.filter_map do |field|
-          id = field.fetch(:id)
-          answer = payload.fetch("answers")[id]
-          next unless NurseWorkflow.field_visible?(field, payload.fetch("answers"), form_id: payload.fetch("form_id"))
+        retire_unclaimed!(practice:, actor: member.user, patient:, encounter:)
+        items = previous_items.filter_map do |old|
+          task = Clinic::ClinicalTask.where(practice:, patient:, encounter:,
+            id: old["task_id"], source_type: "encounter", source_id: encounter.id,
+            task_kind: "intake", state: Clinic::ClinicalTask::ACTIVE_STATES).lock.first
+          next unless task
 
-          old = previous_items.find { |entry| entry["question_id"] == id }
-          changed = prior&.dig("answers", id).present? && prior.dig("answers", id) != answer
-          category = review_category(field, answer)
-          category ||= "changed" if changed && old
-          next unless category
-
+          answer = payload.fetch("answers")[old["question_id"]]
           digest = Digest::SHA256.hexdigest(JSON.generate(answer))
-          task = old && Clinic::ClinicalTask.where(practice:, patient:, encounter:,
-            id: old["task_id"], source_type: "encounter", source_id: encounter.id, task_kind: "intake").lock.first
-          task = nil if task && !task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES) && old["answer_digest"] != digest
-          if task && task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES) && old["answer_digest"] != digest
+          if old["answer_digest"] != digest
             task.touch
             TaskContinuity.record!(task, member, "intake_response_changed")
           end
-          unless task
-            task = Clinic::ClinicalTask.create!(practice:, patient:, encounter:, site: encounter.site,
-              task_kind: "intake", state: "open", pool_code: category == "support" ? "front_desk" : "clinical",
-              source_type: "encounter", source_id: encounter.id, recorded_by_membership: member)
-            TaskContinuity.record!(task, member, "intake_review_created")
-          end
-          { "question_id" => id, "label" => field[:label], "category" => category,
-            "task_id" => task.id, "answer_digest" => digest, "source_revision_version" => (previous&.version_number || 0) + 1,
-            "reason" => changed ? "Answer changed; review the current response and previous version." : review_reason(category),
-            "next_action" => category == "support" ? "Claim the support task and coordinate the requested help." :
-              "Claim the review task, clarify the response, and record the outcome.",
-            "recorded_at" => now }
+          old.merge("answer_digest" => digest,
+            "source_revision_version" => (previous&.version_number || 0) + 1,
+            "reason" => old["answer_digest"] != digest ? "Answer changed; review the updated intake." : old["reason"])
         end
-        # Hidden/corrected answers never silently close existing responsibility.
-        retained = previous_items.reject { |old| items.any? { |item| item["task_id"] == old["task_id"] } }
-        payload["review_items"] = (items + retained).uniq { |item| item["task_id"] }
+        payload["review_items"] = items
         PrevisitIntake::PREFIX + JSON.generate(payload)
       end
 
-      def review_category(field, answer)
-        return if field[:id] == "instrument_status"
-        return unless answer.is_a?(Hash) && answer["state"] != "unanswered"
-        id = field[:id]
-        category = field[:review_category]&.to_s
-        category ||= "safety" if field[:chunk_id] == "reproductive_product_safety" ||
-          %w[pregnancy_status pregnancy_plans breastfeeding_status product_safety_review].include?(id)
-        category ||= "symptom" if field[:history_kind] == "symptom"
-        category ||= "medication" if %w[medication allergy].include?(field[:history_kind])
-        category = "clinical" if %w[mental_health_support procedures].include?(id)
-        category ||= "support" if %w[barrier_support_route nutrition_support mental_health_support support_status].include?(id)
-        category ||= "evidence" if %w[outside_records_state lab_context_state].include?(id)
-        category ||= "changed" if %w[history family_history].include?(id)
-        return unless CATEGORIES.include?(category)
-        return category if UNCERTAIN.include?(answer["state"])
-        return unless answer["state"] == "answered"
-        return category if answer["entries"].present?
-        values = Array(answer["values"]).presence || [answer["value"]]
-        requested = Array(field[:review_values])
-        return category if requested.any? && (values & requested).any?
-        return if requested.any?
-        clear = %w[no not_pregnant not_applicable none_reported none_requested adequate available reviewed received not_selected not_discussed]
-        category unless values.all? { |value| value.blank? || clear.include?(value) }
-      end
+      def retire_unclaimed!(practice:, actor:, patient:, encounter:)
+        NurseWorkflow.authorize!(practice, actor, "intake.write", encounter)
+        raise ArgumentError, "Encounter must belong to the patient and practice." unless
+          encounter.patient_id == patient.id && patient.practice_id == practice.id && encounter.practice_id == practice.id
+        member = NurseWorkflow.membership!(practice, actor)
+        retired = []
+        encounter.with_lock do
+          Clinic::ClinicalTask.where(practice:, patient:, encounter:, task_kind: "intake",
+            source_type: "encounter", source_id: encounter.id, state: "open",
+            assigned_to_membership_id: nil, pending_assignee_membership_id: nil).lock.each do |task|
+            actions = task.events.pluck(:action)
+            next unless actions.include?("intake_review_created") &&
+              (actions - %w[intake_review_created intake_response_changed]).empty?
+            next if task.dependencies.exists? || Clinic::ClinicalTaskDependency.where(practice:, prerequisite_id: task.id).exists?
 
-      def review_reason(category)
-        {
-          "safety" => "Product or reproductive information needs clinician clarification.",
-          "symptom" => "Reported symptoms need the clinic's clinical review pathway.",
-          "medication" => "Reconcile reported medication use or reaction details; do not infer doses.",
-          "evidence" => "Confirm the source, date and availability of the referenced evidence.",
-          "changed" => "Review reported history or a changed fact.",
-          "support" => "A support preference or barrier needs coordination.",
-          "clinical" => "Reported information needs the clinic's clinical review pathway."
-        }.fetch(category)
+            task.update!(state: "completed", resolution_code: "superseded",
+              completed_by_membership: member, completed_at: Current.business_time)
+            TaskContinuity.record!(task, member, "intake_documentation_superseded")
+            retired << task.id
+          end
+        end
+        retired
       end
 
       def projection(intake, tasks)
         payload = intake && PrevisitIntake.decode(intake.encrypted_questionnaire)
         by_id = tasks.index_by(&:id)
-        Array(payload&.fetch("review_items", [])).map do |item|
+        Array(payload&.fetch("review_items", [])).filter_map do |item|
           task = by_id[item["task_id"]]
+          next unless task&.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
           item.merge("state" => task&.state || "unavailable", "pool_code" => task&.pool_code,
             "assigned_to_membership_id" => task&.assigned_to_membership_id,
             "resolution_code" => task&.resolution_code,

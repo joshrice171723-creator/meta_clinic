@@ -9,15 +9,9 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Checkbox,
-  FormControlLabel,
   TextField,
-  Divider,
   FormControl,
   InputLabel,
-  List,
-  ListItem,
-  ListItemText,
   MenuItem,
   Paper,
   Select,
@@ -25,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api, ApiError } from "../../api/client";
 import type {
@@ -89,7 +84,7 @@ const emptyIntake: IntakeForm = {
 };
 
 const taskLabels: Record<ClinicalTask["task_kind"], string> = {
-  intake: "Finish intake",
+  intake: "Intake follow-up",
   handoff: "Review handoff",
   result_follow_up: "Result follow-up",
   patient_call: "Patient call",
@@ -190,6 +185,8 @@ export function NurseEncounterWorkspaceContent({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [activeChunk, setActiveChunk] = useState(0);
+  const [groupExpanded, setGroupExpanded] = useState(true);
+  const [activeWorkspace, setActiveWorkspace] = useState("intake");
   const hydratedVersion = useRef<number | null>(null);
   const saveAttempt = useRef<{ signature: string; key: string } | null>(null);
   const groupHeading = useRef<HTMLHeadingElement | null>(null);
@@ -204,6 +201,8 @@ export function NurseEncounterWorkspaceContent({
     setError("");
     setNotice("");
     setActiveChunk(0);
+    setGroupExpanded(true);
+    setActiveWorkspace("intake");
     hydratedVersion.current = null;
     saveAttempt.current = null;
     setRoomId(encounter.room_id);
@@ -234,7 +233,8 @@ export function NurseEncounterWorkspaceContent({
         .filter(
           (item) =>
             item.encounter_id === encounter.id &&
-            MEASUREMENT_CODES.has(item.code),
+            MEASUREMENT_CODES.has(item.code) &&
+            item.numeric_value != null,
         )
         .sort((left, right) =>
           `${left.observed_at}:${left.id}`.localeCompare(
@@ -294,9 +294,7 @@ export function NurseEncounterWorkspaceContent({
     const nextChunk = chunkDefinitions.findIndex(
       (_chunk, index) => !savedChunks.includes(index),
     );
-    setActiveChunk(
-      nextChunk === -1 ? Math.max(chunkDefinitions.length - 1, 0) : nextChunk,
-    );
+    setActiveChunk(nextChunk === -1 ? 0 : nextChunk);
   }, [chunkDefinitions, dirty, resource.data?.intake]);
 
   useEffect(() => {
@@ -374,30 +372,10 @@ export function NurseEncounterWorkspaceContent({
 
   const workspace = resource.data;
   const reviewItems = workspace.review_items ?? [];
-  const reviewGroups = [
-    {
-      id: "clinical",
-      label: "Clinical review",
-      description: "Clarify the recorded response and record the outcome.",
-      items: reviewItems.filter((item) => item.pool_code === "clinical"),
-    },
-    {
-      id: "front_desk",
-      label: "Support coordination",
-      description: "Coordinate the reported support preference or barrier.",
-      items: reviewItems.filter((item) => item.pool_code === "front_desk"),
-    },
-    {
-      id: "other",
-      label: "Unassigned review",
-      description: "Assign or resolve the review task before it is lost.",
-      items: reviewItems.filter(
-        (item) => !["clinical", "front_desk"].includes(item.pool_code ?? ""),
-      ),
-    },
-  ].filter((group) => group.items.length > 0);
   const encounterTasks = workspace.tasks.filter(
-    (task) => task.task_kind !== "intake",
+    (task) =>
+      task.task_kind !== "handoff" &&
+      !["completed", "cancelled"].includes(task.state),
   );
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
   const confirmedChunkIndexes = form.questionnaire?.confirmed_chunks ?? [];
@@ -416,8 +394,6 @@ export function NurseEncounterWorkspaceContent({
   );
   const intakeRevisionSaved =
     workspace.intake?.status === "ready_for_handoff" && !dirty;
-  const handoffStageAvailable =
-    intakeRevisionSaved || Boolean(workspace.handoff);
   const staleHandoff = Boolean(
     workspace.handoff &&
     workspace.intake &&
@@ -503,8 +479,7 @@ export function NurseEncounterWorkspaceContent({
             ? undefined
             : questionnaire,
         expected_version: intakeVersion,
-        observation_ids:
-          formToSave.vitals_state === "recorded" ? observationIds : [],
+        observation_ids: observationIds,
         history_review_ids:
           formToSave.history_state === "reviewed" ? reviewIds : [],
       };
@@ -556,14 +531,11 @@ export function NurseEncounterWorkspaceContent({
       saveAttempt.current = null;
       hydratedVersion.current = response.intake.version;
       if (advanceChunk) {
-        setActiveChunk((current) =>
+        setActiveChunk(() =>
           Math.min(activeChunkIndex + 1, intakeChunks.length - 1),
         );
-        setNotice(
-          activeChunkIndex < intakeChunks.length - 1
-            ? "Saved and confirmed. The next question group is ready."
-            : "Saved and confirmed. All question groups are available for review.",
-        );
+        setGroupExpanded(activeChunkIndex < intakeChunks.length - 1);
+        setNotice("Group saved.");
       } else setNotice("Intake revision saved.");
     });
   }
@@ -693,11 +665,11 @@ export function NurseEncounterWorkspaceContent({
       <Stack spacing={2.5}>
         <Box>
           <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-            Nurse workspace
+            Rooming & intake
           </Typography>
           <Typography color="text.secondary">
-            {patient.display_name} · Encounter #{encounter.id}. Intake,
-            evidence, ownership, and handoff remain separate recorded facts.
+            {patient.display_name} · Encounter #{encounter.id} · Room{" "}
+            {roomStatusLabel}
           </Typography>
           <Stack
             direction="row"
@@ -715,45 +687,47 @@ export function NurseEncounterWorkspaceContent({
               color={encounter.status === "open" ? "primary" : "success"}
             />
             <Chip
-              label={`Intake: ${stateLabel(form.status)}`}
-              size="small"
-              icon={
-                form.status === "ready_for_handoff" ? undefined : (
-                  <WarningAmberOutlinedIcon />
-                )
-              }
-              color={
-                form.status === "ready_for_handoff" ? "default" : "warning"
-              }
-              variant="outlined"
-            />
-            <Chip
-              label={`Vitals: ${stateLabel(form.vitals_state)}`}
-              size="small"
-              icon={vitalSignsReady ? undefined : <WarningAmberOutlinedIcon />}
-              color={vitalSignsReady ? "default" : "warning"}
-              variant="outlined"
-            />
-            <Chip
-              label={`Site: ${encounter.site_id ?? "Not recorded"}`}
-              size="small"
-              variant="outlined"
-            />
-            <Chip
-              label={`Room: ${roomStatusLabel}`}
+              label={dirty ? "Unsaved changes" : "Saved"}
               size="small"
               variant="outlined"
             />
           </Stack>
         </Box>
-        {!readyEvidence && (
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          aria-label="Encounter preparation"
+          sx={{ flexWrap: "wrap" }}
+        >
+          {[
+            ["rooming", "Room & vitals"],
+            ["intake", "Intake"],
+            ["handoff", "Clinician handoff"],
+            [
+              "followup",
+              `Follow-up work${encounterTasks.length ? ` (${encounterTasks.length})` : ""}`,
+            ],
+          ].map(([value, label]) => (
+            <Button
+              key={value}
+              id={`preparation-tab-${value}`}
+              variant={activeWorkspace === value ? "outlined" : "text"}
+              aria-pressed={activeWorkspace === value}
+              onClick={() => setActiveWorkspace(value)}
+              aria-controls={`preparation-panel-${value}`}
+            >
+              {label}
+            </Button>
+          ))}
+        </Stack>
+        {activeWorkspace === "handoff" && !readyEvidence && (
           <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
             <Typography variant="subtitle2" component="div">
               Needs attention before clinician handoff
             </Typography>
             <Typography variant="body2">
-              {handoffAttention.join(" · ")}. These are operational intake
-              requirements, not a clinical priority or treatment decision.
+              {handoffAttention.join(" · ")}.
             </Typography>
           </Alert>
         )}
@@ -788,22 +762,24 @@ export function NurseEncounterWorkspaceContent({
         )}
         {notice && <Alert severity="success">{notice}</Alert>}
         <Paper
-          id="nurse-vitals"
+          id="preparation-panel-rooming"
+          role="region"
+          aria-labelledby="preparation-tab-rooming"
+          hidden={activeWorkspace !== "rooming"}
           variant="outlined"
           sx={{
             p: 2,
-            bgcolor: vitalSignsReady ? "background.paper" : "warning.50",
+            display: activeWorkspace === "rooming" ? "block" : "none",
           }}
         >
           <Stack spacing={1.25}>
             <Box>
               <Typography component="h3" variant="h6">
-                Record vital signs
+                Vitals & measurements
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Record measurements before clinician handoff when they apply to
-                this visit. The intake revision keeps the recorded value,
-                unavailable state, and not-applicable state distinct.
+                Enter today’s measurements. Recorded values are available
+                throughout this encounter.
               </Typography>
             </Box>
             {workspace.capabilities.observations_write ? (
@@ -825,7 +801,7 @@ export function NurseEncounterWorkspaceContent({
                     vitals_state: "recorded",
                   }));
                   setNotice(
-                    "Vital signs recorded. Save the intake revision to link them to this handoff.",
+                    "Vital signs saved. They will be linked when you save intake.",
                   );
                 }}
               />
@@ -851,201 +827,17 @@ export function NurseEncounterWorkspaceContent({
             )}
           </Stack>
         </Paper>
-        {reviewGroups.length > 0 && (
-          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-            <Stack spacing={0.5} sx={{ px: 2, pt: 2, pb: 1.25 }}>
-              <Typography component="h3" variant="h6">
-                Intake review queue
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {reviewItems.length} review items ·{" "}
-                {
-                  reviewItems.filter(
-                    (item) => !["completed", "cancelled"].includes(item.state),
-                  ).length
-                }{" "}
-                unresolved. Open the team queue that can take the next action.
-              </Typography>
-            </Stack>
-            {reviewGroups.map((group) => {
-              const versions = [
-                ...new Set(
-                  group.items.map((item) => item.source_revision_version),
-                ),
-              ];
-              const displayedReasons = new Set<string>();
-              return (
-                <Accordion
-                  key={group.id}
-                  disableGutters
-                  elevation={0}
-                  sx={{
-                    borderTop: 1,
-                    borderColor: "divider",
-                    "&:before": { display: "none" },
-                  }}
-                >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={{ xs: 0.5, sm: 1 }}
-                      sx={{
-                        alignItems: { sm: "center" },
-                        justifyContent: "space-between",
-                        width: "100%",
-                        pr: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {group.label}
-                      </Typography>
-                      <Stack direction="row" spacing={0.75}>
-                        <Chip
-                          size="small"
-                          label={`${group.items.length} items`}
-                        />
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={
-                            versions.length === 1
-                              ? `Intake v${versions[0]}`
-                              : "Multiple intake versions"
-                          }
-                        />
-                      </Stack>
-                    </Stack>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ pt: 0, pb: 1 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 1 }}
-                    >
-                      {group.description}
-                    </Typography>
-                    <List disablePadding aria-label={`${group.label} tasks`}>
-                      {group.items.map((item, index) => {
-                        const task = workspace.tasks.find(
-                          (entry) => entry.id === item.task_id,
-                        );
-                        const showReason = !displayedReasons.has(item.reason);
-                        displayedReasons.add(item.reason);
-                        const mine =
-                          task?.assigned_to_membership_id ===
-                          clinic.membership_id;
-                        const action =
-                          task &&
-                          workspace.capabilities.tasks_write &&
-                          task.state === "open" ? (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              disabled={busy}
-                              onClick={() => void transitionTask(task, "claim")}
-                            >
-                              Claim
-                            </Button>
-                          ) : task &&
-                            workspace.capabilities.tasks_write &&
-                            mine &&
-                            (item.pool_code !== "clinical" ||
-                              workspace.capabilities.handoff_respond) &&
-                            ["claimed", "in_progress"].includes(task.state) ? (
-                            <Button
-                              variant="contained"
-                              size="small"
-                              disabled={busy || dirty}
-                              onClick={() =>
-                                void transitionTask(task, "complete")
-                              }
-                            >
-                              Complete
-                            </Button>
-                          ) : undefined;
-                        return (
-                          <ListItem
-                            key={item.task_id}
-                            disableGutters
-                            divider={index < group.items.length - 1}
-                            secondaryAction={action}
-                            sx={{ py: 1.25, pr: action ? 11 : 0 }}
-                          >
-                            <ListItemText
-                              primary={
-                                <Stack
-                                  direction={{ xs: "column", sm: "row" }}
-                                  spacing={{ xs: 0.5, sm: 1 }}
-                                  sx={{ alignItems: { sm: "center" } }}
-                                >
-                                  <Typography variant="subtitle2">
-                                    {item.label}
-                                  </Typography>
-                                  <Chip
-                                    size="small"
-                                    variant="outlined"
-                                    label={stateLabel(item.state)}
-                                    sx={{
-                                      alignSelf: {
-                                        xs: "flex-start",
-                                        sm: "auto",
-                                      },
-                                    }}
-                                  />
-                                </Stack>
-                              }
-                              secondary={
-                                <Stack spacing={0.25} sx={{ mt: 0.25 }}>
-                                  <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                  >
-                                    {item.assigned_to_membership_id
-                                      ? `Assigned to staff ${item.assigned_to_membership_id}`
-                                      : "Team-owned"}
-                                  </Typography>
-                                  {showReason && (
-                                    <Typography
-                                      variant="body2"
-                                      color="text.secondary"
-                                    >
-                                      {item.reason}
-                                    </Typography>
-                                  )}
-                                </Stack>
-                              }
-                            />
-                            {task?.assignment_exception && (
-                              <Alert severity="warning" sx={{ mt: 1 }}>
-                                {task.assignment_exception}
-                              </Alert>
-                            )}
-                          </ListItem>
-                        );
-                      })}
-                    </List>
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })}
-          </Paper>
-        )}
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              lg: handoffStageAvailable
-                ? "minmax(0, 2fr) minmax(20rem, 1fr)"
-                : "minmax(0, 1fr)",
-            },
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: 2,
           }}
         >
           <Stack spacing={2}>
             <Box
               sx={{
-                display: "grid",
+                display: activeWorkspace === "rooming" ? "grid" : "none",
                 gridTemplateColumns: {
                   xs: "minmax(0, 1fr)",
                   md:
@@ -1199,256 +991,370 @@ export function NurseEncounterWorkspaceContent({
               )}
             </Box>
             {workspace.questionnaire_form && (
-              <Stack spacing={2.5} sx={{ pt: 2 }}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={2}
-                  sx={{
-                    justifyContent: "space-between",
-                    alignItems: { sm: "center" },
-                  }}
-                >
-                  <Box>
-                    <Typography variant="overline" color="text.secondary">
-                      Guided intake · staff assisted
-                    </Typography>
-                    <Typography
-                      component="h3"
-                      variant="h5"
-                      ref={groupHeading}
-                      tabIndex={-1}
-                    >
-                      {intakeChunks[activeChunkIndex].label}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {intakeChunks[activeChunkIndex].description}
-                    </Typography>
-                  </Box>
-                  <TextField
-                    select
-                    label="Intake section"
-                    size="small"
-                    value={activeChunkIndex}
-                    disabled={busy}
-                    onChange={(event) =>
-                      setActiveChunk(Number(event.target.value))
-                    }
-                    helperText={`${confirmedChunkIndexes.length} of ${intakeChunks.length} sections saved`}
-                    sx={{ minWidth: { sm: 260 }, maxWidth: { sm: 340 } }}
-                  >
-                    {intakeChunks.map((chunk, index) => (
-                      <MenuItem
-                        key={chunk.id}
-                        value={index}
-                        disabled={index > confirmedChunkIndexes.length}
-                      >
-                        {`${index + 1}. ${chunk.label}${confirmedChunkIndexes.includes(index) ? " · Saved" : ""}`}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Stack>
-                {workspace.intake && (
-                  <Accordion disableGutters>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                      <Typography>Compare saved intake answers</Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Stack spacing={1}>
-                        <Typography variant="body2" color="text.secondary">
-                          {workspace.intake_comparison?.source
-                            ? workspace.intake_comparison.source.kind ===
-                              "previous_encounter"
-                              ? `Compared with the latest readable intake from encounter ${workspace.intake_comparison.source.encounter_id}, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
-                              : `Compared with an earlier revision in this encounter, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
-                            : "No readable earlier intake is available for comparison."}
-                        </Typography>
-                        {(workspace.intake_comparison?.items ?? []).map(
-                          (item) => (
-                            <Box
-                              key={item.id}
-                              sx={{
-                                borderTop: 1,
-                                borderColor: "divider",
-                                pt: 1,
-                              }}
-                            >
-                              <Typography variant="subtitle2">
-                                {item.label}
-                                {item.changed ? " · Changed" : " · Unchanged"}
-                              </Typography>
-                              <Typography variant="body2">
-                                Previous: {item.previous || "Not recorded"}
-                              </Typography>
-                              <Typography variant="body2">
-                                Current: {item.current || "Not recorded"}
-                              </Typography>
-                            </Box>
-                          ),
-                        )}
-                        {workspace.intake_comparison?.source &&
-                          !workspace.intake_comparison.items.length && (
-                            <Typography variant="body2">
-                              No comparable saved answers are available.
-                            </Typography>
-                          )}
-                      </Stack>
-                    </AccordionDetails>
-                  </Accordion>
-                )}
-                {intakeChunks[activeChunkIndex].id ===
-                  "patient_coordination" && (
-                  <PatientCareCoordination patientId={patient.id} />
-                )}
-                {intakeChunks[activeChunkIndex].id ===
-                  "records_consent_admin" && (
-                  <IntakeConsentEvidence patientId={patient.id} />
-                )}
-                {intakeChunks[activeChunkIndex].id ===
-                  "records_consent_admin" && (
-                  <IntakeEvidencePicker
-                    options={workspace.evidence_options ?? []}
-                    selected={form.questionnaire?.evidence_keys ?? []}
-                    disabled={busy || !workspace.capabilities.intake_write}
-                    onChange={(evidence_keys) =>
-                      setForm((current) => ({
-                        ...current,
-                        questionnaire: {
-                          ...current.questionnaire,
-                          answers: current.questionnaire?.answers ?? {},
-                          text: current.questionnaire?.text ?? "",
-                          evidence_keys,
-                          status: "draft",
-                          confirmed: false,
-                          confirmed_chunks: (
-                            current.questionnaire?.confirmed_chunks ?? []
-                          ).filter((index) => index < activeChunkIndex),
-                        },
-                      }))
-                    }
-                  />
-                )}
-                <StaffIntakeSections
-                  sectionId={intakeChunks[activeChunkIndex].id}
-                  definitions={workspace.questionnaire_form.fields}
-                  fields={workspace.questionnaire_form.fields.filter(
-                    (field) =>
-                      intakeChunks[activeChunkIndex].fields.some(
-                        (id) => id === field.id,
-                      ) &&
-                      intakeFieldVisible(
-                        field,
-                        form.questionnaire?.answers ?? {},
-                        workspace.questionnaire_form?.fields ?? [],
-                      ) &&
-                      (![
-                        "telehealth_location",
-                        "telehealth_physical_location",
-                      ].includes(field.id) ||
-                        encounter.visit_modality === "video"),
-                  )}
-                  answerStates={workspace.questionnaire_form.answer_states}
-                  medicationOptions={
-                    workspace.questionnaire_form.medication_options
-                  }
-                  medicationReferences={
-                    workspace.questionnaire_form.medication_references
-                  }
-                  answers={form.questionnaire?.answers ?? {}}
-                  disabled={busy || !workspace.capabilities.intake_write}
-                  onChange={(answers) =>
-                    setForm((current) => ({
-                      ...current,
-                      questionnaire: {
-                        ...current.questionnaire,
-                        text: current.questionnaire?.text ?? "",
-                        answers,
-                        status: "draft",
-                        confirmed: false,
-                        confirmed_chunks: (
-                          current.questionnaire?.confirmed_chunks ?? []
-                        ).filter((index) => index < activeChunkIndex),
-                      },
-                    }))
-                  }
-                />
-                {activeChunkIndex === intakeChunks.length - 1 && (
-                  <TextField
-                    label="Additional patient-reported context"
-                    multiline
-                    value={form.questionnaire?.text ?? ""}
-                    disabled={busy || !workspace.capabilities.intake_write}
-                    slotProps={{ htmlInput: { maxLength: 5000 } }}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        questionnaire: {
-                          ...current.questionnaire,
-                          answers: current.questionnaire?.answers ?? {},
-                          text: event.target.value,
-                          status: "draft",
-                          confirmed: false,
-                          confirmed_chunks:
-                            current.questionnaire?.confirmed_chunks ?? [],
-                        },
-                      }))
-                    }
-                  />
-                )}
-                <FormControlLabel
-                  label="I confirm I recorded this group from the patient. This is not a patient attestation or clinical review."
-                  control={
-                    <Checkbox
-                      checked={form.questionnaire?.confirmed ?? false}
-                      disabled={busy || !workspace.capabilities.intake_write}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          questionnaire: {
-                            ...current.questionnaire,
-                            answers: current.questionnaire?.answers ?? {},
-                            text: current.questionnaire?.text ?? "",
-                            status: event.target.checked
-                              ? "submitted"
-                              : "draft",
-                            confirmed: event.target.checked,
-                            confirmed_chunks:
-                              current.questionnaire?.confirmed_chunks ?? [],
-                          },
-                        }))
-                      }
-                    />
-                  }
-                />
-                <Typography variant="body2" color="text.secondary">
-                  Saving answers does not reconcile medicines or allergies,
-                  confirm patient consent, or complete clinical review.
+              <Stack
+                spacing={2.5}
+                id="preparation-panel-intake"
+                role="region"
+                aria-labelledby="preparation-tab-intake"
+                hidden={activeWorkspace !== "intake"}
+                sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
+              >
+                <Typography color="text.secondary">
+                  {confirmedChunkIndexes.length} of {intakeChunks.length} groups
+                  saved · Save each group to unlock the next.
                 </Typography>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <Button
-                    variant="contained"
-                    disabled={
-                      busy ||
-                      !dirty ||
-                      !form.questionnaire?.confirmed ||
-                      !workspace.capabilities.intake_write
-                    }
-                    onClick={() => void saveIntake(form, true)}
-                  >
-                    Confirm and save group
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    disabled={
-                      busy || !dirty || !workspace.capabilities.intake_write
-                    }
-                    onClick={() => void saveIntake()}
-                  >
-                    Save draft
-                  </Button>
-                </Stack>
+                {intakeChunks.map((chunk, index) => {
+                  if (!workspace.questionnaire_form) return null;
+                  const locked = intakeChunks
+                    .slice(0, index)
+                    .some(
+                      (_item, preceding) =>
+                        !confirmedChunkIndexes.includes(preceding),
+                    );
+                  const expanded =
+                    index === activeChunkIndex && groupExpanded && !locked;
+                  return (
+                    <Accordion
+                      key={chunk.id}
+                      disableGutters
+                      elevation={0}
+                      expanded={expanded}
+                      disabled={locked || busy}
+                      onChange={(_event, nextExpanded) => {
+                        setActiveChunk(index);
+                        setGroupExpanded(nextExpanded);
+                      }}
+                      sx={{
+                        border: 1,
+                        borderColor: expanded ? "primary.main" : "divider",
+                        borderRadius: "12px !important",
+                        "&:before": { display: "none" },
+                        "&.Mui-disabled": {
+                          bgcolor: "background.paper",
+                        },
+                        "& .MuiAccordionSummary-root.Mui-disabled": {
+                          opacity: 1,
+                          color: "text.secondary",
+                        },
+                      }}
+                    >
+                      <AccordionSummary
+                        expandIcon={
+                          locked ? (
+                            <LockOutlinedIcon fontSize="small" />
+                          ) : (
+                            <ExpandMoreIcon />
+                          )
+                        }
+                        id={`intake-group-${chunk.id}`}
+                        aria-controls={`intake-group-${chunk.id}-content`}
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={2}
+                          sx={{
+                            width: "100%",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            pr: 1,
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: 650 }}>
+                            {index + 1}. {chunk.label}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {locked
+                              ? "Locked"
+                              : confirmedChunkIndexes.includes(index)
+                                ? "Saved"
+                                : "To complete"}
+                          </Typography>
+                        </Stack>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        {expanded && (
+                          <Stack spacing={2.5}>
+                            <Typography
+                              color="text.secondary"
+                              ref={groupHeading}
+                              tabIndex={-1}
+                            >
+                              {chunk.description}
+                            </Typography>
+                            {workspace.intake && (
+                              <Accordion disableGutters>
+                                <AccordionSummary
+                                  expandIcon={<ExpandMoreIcon />}
+                                >
+                                  <Typography>
+                                    Compare saved intake answers
+                                  </Typography>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                  <Stack spacing={1}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      {workspace.intake_comparison?.source
+                                        ? workspace.intake_comparison.source
+                                            .kind === "previous_encounter"
+                                          ? `Compared with the latest readable intake from encounter ${workspace.intake_comparison.source.encounter_id}, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
+                                          : `Compared with an earlier revision in this encounter, saved ${workspace.intake_comparison.source.recorded_at.slice(0, 10)}.`
+                                        : "No readable earlier intake is available for comparison."}
+                                    </Typography>
+                                    {(
+                                      workspace.intake_comparison?.items ?? []
+                                    ).map((item) => (
+                                      <Box
+                                        key={item.id}
+                                        sx={{
+                                          borderTop: 1,
+                                          borderColor: "divider",
+                                          pt: 1,
+                                        }}
+                                      >
+                                        <Typography variant="subtitle2">
+                                          {item.label}
+                                          {item.changed
+                                            ? " · Changed"
+                                            : " · Unchanged"}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          Previous:{" "}
+                                          {item.previous || "Not recorded"}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          Current:{" "}
+                                          {item.current || "Not recorded"}
+                                        </Typography>
+                                      </Box>
+                                    ))}
+                                    {workspace.intake_comparison?.source &&
+                                      !workspace.intake_comparison.items
+                                        .length && (
+                                        <Typography variant="body2">
+                                          No comparable saved answers are
+                                          available.
+                                        </Typography>
+                                      )}
+                                  </Stack>
+                                </AccordionDetails>
+                              </Accordion>
+                            )}
+                            {intakeChunks[activeChunkIndex].id ===
+                              "patient_coordination" && (
+                              <PatientCareCoordination patientId={patient.id} />
+                            )}
+                            {intakeChunks[activeChunkIndex].id ===
+                              "records_consent_admin" && (
+                              <IntakeConsentEvidence patientId={patient.id} />
+                            )}
+                            {intakeChunks[activeChunkIndex].id ===
+                              "records_consent_admin" && (
+                              <IntakeEvidencePicker
+                                options={workspace.evidence_options ?? []}
+                                selected={
+                                  form.questionnaire?.evidence_keys ?? []
+                                }
+                                disabled={
+                                  busy || !workspace.capabilities.intake_write
+                                }
+                                onChange={(evidence_keys) =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    questionnaire: {
+                                      ...current.questionnaire,
+                                      answers:
+                                        current.questionnaire?.answers ?? {},
+                                      text: current.questionnaire?.text ?? "",
+                                      evidence_keys,
+                                      status: "draft",
+                                      confirmed: false,
+                                      confirmed_chunks: (
+                                        current.questionnaire
+                                          ?.confirmed_chunks ?? []
+                                      ).filter(
+                                        (index) => index !== activeChunkIndex,
+                                      ),
+                                    },
+                                  }))
+                                }
+                              />
+                            )}
+                            {intakeChunks[activeChunkIndex].id ===
+                              "measurements" &&
+                              recordedMeasurements.length > 0 && (
+                                <Stack spacing={1}>
+                                  <Typography component="h4" variant="h6">
+                                    Recorded measurements
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    From this encounter’s vital signs. These
+                                    values are linked when you save intake.
+                                  </Typography>
+                                  {recordedMeasurements.map((measurement) => (
+                                    <Typography key={measurement.id}>
+                                      {measurement.display_label ||
+                                        measurement.code}
+                                      : {measurement.numeric_value}{" "}
+                                      {measurement.unit_label ||
+                                        measurement.unit_code}{" "}
+                                      ·{" "}
+                                      {new Date(
+                                        measurement.observed_at,
+                                      ).toLocaleString()}
+                                    </Typography>
+                                  ))}
+                                  <Button
+                                    sx={{ alignSelf: "start" }}
+                                    onClick={() =>
+                                      setActiveWorkspace("rooming")
+                                    }
+                                  >
+                                    Record another measurement
+                                  </Button>
+                                </Stack>
+                              )}
+                            <StaffIntakeSections
+                              sectionId={intakeChunks[activeChunkIndex].id}
+                              definitions={workspace.questionnaire_form.fields}
+                              fields={workspace.questionnaire_form.fields.filter(
+                                (field) =>
+                                  intakeChunks[activeChunkIndex].fields.some(
+                                    (id) => id === field.id,
+                                  ) &&
+                                  !recordedMeasurements.some(
+                                    (item) =>
+                                      ["height", "weight"].includes(field.id) &&
+                                      item.code === `vital-${field.id}`,
+                                  ) &&
+                                  intakeFieldVisible(
+                                    field,
+                                    form.questionnaire?.answers ?? {},
+                                    workspace.questionnaire_form?.fields ?? [],
+                                  ) &&
+                                  (![
+                                    "telehealth_location",
+                                    "telehealth_physical_location",
+                                  ].includes(field.id) ||
+                                    encounter.visit_modality === "video"),
+                              )}
+                              answerStates={
+                                workspace.questionnaire_form.answer_states
+                              }
+                              medicationOptions={
+                                workspace.questionnaire_form.medication_options
+                              }
+                              medicationReferences={
+                                workspace.questionnaire_form
+                                  .medication_references
+                              }
+                              answers={form.questionnaire?.answers ?? {}}
+                              disabled={
+                                busy || !workspace.capabilities.intake_write
+                              }
+                              onChange={(answers) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  questionnaire: {
+                                    ...current.questionnaire,
+                                    text: current.questionnaire?.text ?? "",
+                                    answers,
+                                    status: "draft",
+                                    confirmed: false,
+                                    confirmed_chunks: (
+                                      current.questionnaire?.confirmed_chunks ??
+                                      []
+                                    ).filter(
+                                      (index) => index !== activeChunkIndex,
+                                    ),
+                                  },
+                                }))
+                              }
+                            />
+                            {activeChunkIndex === intakeChunks.length - 1 && (
+                              <TextField
+                                label="Additional patient-reported context"
+                                multiline
+                                value={form.questionnaire?.text ?? ""}
+                                disabled={
+                                  busy || !workspace.capabilities.intake_write
+                                }
+                                slotProps={{ htmlInput: { maxLength: 5000 } }}
+                                onChange={(event) =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    questionnaire: {
+                                      ...current.questionnaire,
+                                      answers:
+                                        current.questionnaire?.answers ?? {},
+                                      text: event.target.value,
+                                      status: "draft",
+                                      confirmed: false,
+                                      confirmed_chunks:
+                                        current.questionnaire
+                                          ?.confirmed_chunks ?? [],
+                                    },
+                                  }))
+                                }
+                              />
+                            )}
+                            <Stack
+                              direction={{ xs: "column", sm: "row" }}
+                              spacing={1}
+                            >
+                              <Button
+                                variant="contained"
+                                disabled={
+                                  busy || !workspace.capabilities.intake_write
+                                }
+                                onClick={() =>
+                                  void saveIntake(
+                                    {
+                                      ...form,
+                                      questionnaire: {
+                                        ...form.questionnaire,
+                                        answers:
+                                          form.questionnaire?.answers ?? {},
+                                        text: form.questionnaire?.text ?? "",
+                                        confirmed_chunks: confirmedChunkIndexes,
+                                        status: "submitted",
+                                        confirmed: true,
+                                      },
+                                    },
+                                    true,
+                                  )
+                                }
+                              >
+                                {activeChunkIndex < intakeChunks.length - 1
+                                  ? "Save & continue"
+                                  : "Save group"}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                disabled={
+                                  busy ||
+                                  !dirty ||
+                                  !workspace.capabilities.intake_write
+                                }
+                                onClick={() => void saveIntake()}
+                              >
+                                Save draft
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        )}
+                      </AccordionDetails>
+                    </Accordion>
+                  );
+                })}
               </Stack>
             )}
-            {intakeQuestionGroupsSaved && (
+            {activeWorkspace === "handoff" && (
               <>
                 <Box>
                   <Stack
@@ -1457,7 +1363,7 @@ export function NurseEncounterWorkspaceContent({
                     sx={{ justifyContent: "space-between" }}
                   >
                     <Typography component="h3" variant="h6">
-                      Intake revision
+                      Prepare handoff
                     </Typography>
                     <Chip
                       variant="outlined"
@@ -1469,9 +1375,8 @@ export function NurseEncounterWorkspaceContent({
                     color="text.secondary"
                     sx={{ mt: 0.5 }}
                   >
-                    Clinical values stay in observations and history records;
-                    this revision records which evidence was used and whether
-                    each step is complete.
+                    Confirm the rooming checks before sending this encounter to
+                    the clinician.
                   </Typography>
                 </Box>
                 <Box
@@ -1565,7 +1470,7 @@ export function NurseEncounterWorkspaceContent({
                     }
                     onClick={() => void saveIntake()}
                   >
-                    Save intake revision
+                    Save preparation
                   </Button>
                   <Button
                     variant="text"
@@ -1578,19 +1483,30 @@ export function NurseEncounterWorkspaceContent({
                 {readyEvidence && form.status !== "ready_for_handoff" && (
                   <Button
                     sx={{ alignSelf: "flex-start" }}
-                    disabled={busy || !workspace.capabilities.intake_write}
+                    disabled={
+                      busy ||
+                      !intakeQuestionGroupsSaved ||
+                      !workspace.capabilities.intake_write
+                    }
                     onClick={() =>
-                      setForm({ ...form, status: "ready_for_handoff" })
+                      void saveIntake({ ...form, status: "ready_for_handoff" })
                     }
                   >
-                    Set ready, then save intake revision
+                    Save as ready for clinician
                   </Button>
                 )}
               </>
             )}
           </Stack>
-          {handoffStageAvailable && (
-            <Stack spacing={2}>
+          {(workspace.handoff || activeWorkspace === "handoff") && (
+            <Stack
+              spacing={2}
+              id="preparation-panel-handoff"
+              role="region"
+              aria-labelledby="preparation-tab-handoff"
+              hidden={activeWorkspace !== "handoff"}
+              sx={{ display: activeWorkspace === "handoff" ? "flex" : "none" }}
+            >
               <Box>
                 <Typography component="h3" variant="h6">
                   Handoff
@@ -1698,7 +1614,10 @@ export function NurseEncounterWorkspaceContent({
                   <Button
                     variant="contained"
                     disabled={
-                      busy || dirty || !workspace.capabilities.handoff_request
+                      busy ||
+                      dirty ||
+                      !intakeRevisionSaved ||
+                      !workspace.capabilities.handoff_request
                     }
                     onClick={() => void requestHandoff()}
                     sx={{ alignSelf: "flex-start" }}
@@ -1710,8 +1629,13 @@ export function NurseEncounterWorkspaceContent({
             </Stack>
           )}
         </Box>
-        <Divider />
-        <Box>
+        <Box
+          id="preparation-panel-followup"
+          role="region"
+          aria-labelledby="preparation-tab-followup"
+          hidden={activeWorkspace !== "followup"}
+          sx={{ display: activeWorkspace === "followup" ? "block" : "none" }}
+        >
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1}
@@ -1722,11 +1646,11 @@ export function NurseEncounterWorkspaceContent({
           >
             <Box>
               <Typography component="h3" variant="h6">
-                Encounter tasks
+                Follow-up work
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                The task owns responsibility; its linked record owns the
-                clinical fact.
+                Assign a specific action that needs follow-up outside routine
+                rooming.
               </Typography>
             </Box>
             {workspace.capabilities.tasks_write && (
@@ -1770,8 +1694,7 @@ export function NurseEncounterWorkspaceContent({
           <Stack spacing={1} sx={{ mt: 1.5 }}>
             {encounterTasks.length === 0 ? (
               <Typography color="text.secondary">
-                No separate encounter tasks are recorded. Intake review tasks
-                are listed in the review queue above.
+                No outstanding follow-up work.
               </Typography>
             ) : (
               encounterTasks.map((task) => {
@@ -1789,9 +1712,11 @@ export function NurseEncounterWorkspaceContent({
                     >
                       <Box>
                         <Typography sx={{ fontWeight: 650 }}>
-                          {task.source_kind
-                            ? stateLabel(task.source_kind)
-                            : taskLabels[task.task_kind]}
+                          {reviewItems.find((item) => item.task_id === task.id)
+                            ?.label ||
+                            (task.source_kind
+                              ? stateLabel(task.source_kind)
+                              : taskLabels[task.task_kind])}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {stateLabel(task.state)} ·{" "}

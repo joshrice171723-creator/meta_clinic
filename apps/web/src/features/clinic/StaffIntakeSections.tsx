@@ -1,4 +1,4 @@
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import type { ComponentProps } from "react";
 import {
   IntakeQuestions,
@@ -207,12 +207,16 @@ export function StaffIntakeSections({
         {columns.map((column) => (
           <Stack key={column[0].title} spacing={2.5} sx={{ minWidth: 0 }}>
             {column.map((group) => (
-              <Paper
+              <Box
                 key={group.title}
                 component="section"
                 aria-label={group.title}
-                variant="outlined"
-                sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}
+                sx={{
+                  pt: 2,
+                  borderTop: 1,
+                  borderColor: "divider",
+                  minWidth: 0,
+                }}
               >
                 <Stack spacing={2.5}>
                   <Typography component="h4" variant="h6">
@@ -225,7 +229,7 @@ export function StaffIntakeSections({
                     layout="stack"
                   />
                 </Stack>
-              </Paper>
+              </Box>
             ))}
           </Stack>
         ))}

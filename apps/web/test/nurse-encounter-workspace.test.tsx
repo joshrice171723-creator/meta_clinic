@@ -257,9 +257,9 @@ describe("NurseEncounterWorkspace", () => {
   it("uses server chunks, exposes normal answers directly, and surfaces room state", () => {
     const html = renderWorkspace(null);
 
-    expect(html).toContain("Guided intake · staff assisted");
+    expect(html).toContain("Rooming &amp; intake");
     expect(html).toContain("Today’s visit");
-    expect(html).toContain("Intake section");
+    expect(html).toContain('id="intake-group-today_visit"');
     expect(html).toContain("Visit reason &amp; goals");
     expect(html).toContain("Symptoms &amp; changes");
     expect(html).toContain("What brings you in?");
@@ -286,7 +286,7 @@ describe("NurseEncounterWorkspace", () => {
         ),
       ),
     ).toBe(true);
-    expect(html).toContain("Confirm and save group");
+    expect(html).toContain("Save &amp; continue");
     expect(html).not.toContain("Intake revision");
     expect(html).not.toContain("Request clinician handoff");
     expect(html).not.toContain("No handoff has been requested.");
@@ -295,8 +295,14 @@ describe("NurseEncounterWorkspace", () => {
   it("uses the server group count in compact section navigation", () => {
     const html = renderWorkspace(19);
 
-    expect(html).toContain("0 of 11 sections saved");
-    expect(html).toContain("1. Today’s visit");
+    expect(html).toContain("0 of 11 groups saved");
+    expect(html).toContain("Save each group to unlock the next.");
+    expect(html).toMatch(
+      /disabled=""[^>]*id="intake-group-patient_coordination"/,
+    );
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).not.toContain("Current medicines and supplements</label>");
+    expect(html).toContain("Today’s visit");
     expect(html).not.toContain('aria-label="Intake question groups"');
   });
 
@@ -304,7 +310,7 @@ describe("NurseEncounterWorkspace", () => {
     expect(renderWorkspace(19)).toContain("Room recorded for this encounter.");
   });
 
-  it("groups intake review work by responsible team without duplicating it as encounter tasks", () => {
+  it("keeps assigned follow-up separate from ordinary intake data entry", () => {
     const originalReviewItems = fixtures.workspace.review_items;
     const originalTasks = fixtures.workspace.tasks;
     const originalCapabilities = fixtures.workspace.capabilities;
@@ -358,9 +364,9 @@ describe("NurseEncounterWorkspace", () => {
       },
     ];
     fixtures.workspace.tasks = [
-      { id: 7, task_kind: "intake", state: "open" },
-      { id: 8, task_kind: "intake", state: "open" },
-      { id: 9, task_kind: "intake", state: "open" },
+      { id: 7, task_kind: "intake", state: "open", pool_code: "clinical" },
+      { id: 8, task_kind: "intake", state: "open", pool_code: "front_desk" },
+      { id: 9, task_kind: "intake", state: "open", pool_code: "clinical" },
     ] as NurseWorkspace["tasks"];
     fixtures.workspace.capabilities = {
       ...fixtures.workspace.capabilities,
@@ -368,22 +374,14 @@ describe("NurseEncounterWorkspace", () => {
     };
     try {
       const html = renderWorkspace(19);
-      expect(html).toContain("Intake review queue");
-      expect(html).toContain("Clinical review");
-      expect(html).toContain("Support coordination");
+      expect(html).not.toContain("Intake review queue");
+      expect(html).not.toContain("Support coordination");
+      expect(html).toContain("Follow-up work (3)");
       expect(html).toContain("Required disclosures");
-      expect(html).toContain("Previous treatments and medicines");
-      expect(html).toContain("Patient confirmation of recorded answers");
-      expect(html).toContain("No separate encounter tasks are recorded.");
+      expect(html).toContain('id="preparation-panel-followup"');
+      expect(html).toContain('hidden=""');
       expect(html).not.toContain("Finish intake");
-      expect(html).not.toContain(
-        "Claim the review task, clarify the response, and record the outcome.",
-      );
-      expect(
-        html.match(
-          /Confirm the source, date and availability of the referenced evidence\./g,
-        )?.length,
-      ).toBe(1);
+      expect(html).not.toContain("Claim the review task");
     } finally {
       fixtures.workspace.review_items = originalReviewItems;
       fixtures.workspace.tasks = originalTasks;
@@ -395,7 +393,7 @@ describe("NurseEncounterWorkspace", () => {
     const html = renderWorkspace(null, "video");
     expect(html).not.toContain("Room is still required.");
     expect(html).not.toContain("Record the room first.");
-    expect(html).toContain("0 of 11 sections saved");
+    expect(html).toContain("0 of 11 groups saved");
   });
 
   it("makes a superseded handoff visible without discarding its ownership", () => {

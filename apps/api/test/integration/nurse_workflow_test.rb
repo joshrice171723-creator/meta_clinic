@@ -246,13 +246,13 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
       item.values_at("previous", "current", "changed")
   end
 
-  test "staff intake rejects skipped out of range and unconfirmed groups" do
+  test "staff intake rejects bulk confirmation out of range and unconfirmed groups" do
     base = {
       status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
       history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: []
     }
     [
-      [ "journey-staff-skipped", [ 0, 2 ], "Confirm intake groups in order" ],
+      [ "journey-staff-skipped", [ 0, 2 ], "Save the previous intake groups" ],
       [ "journey-staff-out-of-range", [ 11 ], "outside the supported workflow" ],
       [ "journey-staff-unconfirmed", [ 0 ], "Confirm the current question group" ]
     ].each do |request_key, confirmed_chunks, error_text|
@@ -574,64 +574,117 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :created
   end
 
-  test "intake correction invalidates an older review task and evidence stays scoped" do
+  test "routine answers preserve provenance without generating work assignments" do
     intake = Clinic::Care::PrevisitIntake
-    review = Clinic::Care::IntakeReview
-    encode = ->(state) { intake.encode(text: "", answers: { pregnancy_status: { state: } },
-      attested: false, status: "draft", recorder: "staff") }
-    args = { practice: @practice, patient: @patient, encounter: @encounter,
-      member: @membership, chunks: Clinic::Care::NurseWorkflow.chunks_for(form_id: intake::FORM_ID) }
-    first = review.attach!(**args, encoded: encode.call("unknown"), previous: nil)
-    payload = intake.decode(first)
-    task = Clinic::ClinicalTask.find(payload.fetch("review_items").first.fetch("task_id"))
-    version = task.lock_version
-    prior = Struct.new(:encrypted_questionnaire, :version_number, :id).new(first, 1, 123)
-    corrected = review.attach!(**args, encoded: encode.call("declined"), previous: prior)
-    assert_equal task.id, intake.decode(corrected).fetch("review_items").first.fetch("task_id")
-    assert_operator task.reload.lock_version, :>, version
-    assert task.events.exists?(action: "intake_response_changed")
+    encoded = intake.encode(text: "", attested: false, status: "draft", recorder: "staff", answers: {
+      allergies: { state: "unknown" }, symptoms: { state: "not_asked" },
+      pregnancy_status: { state: "declined" }, nutrition_support: { state: "unknown" }
+    })
+    result = nil
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      result = Clinic::Care::IntakeReview.attach!(encoded:, previous: nil, practice: @practice,
+        patient: @patient, encounter: @encounter, member: @membership,
+        chunks: Clinic::Care::NurseWorkflow.chunks_for(form_id: intake::FORM_ID))
+    end
+    payload = intake.decode(result)
+    assert_empty payload.fetch("review_items")
+    assert_equal "unknown", payload.dig("answers", "allergies", "state")
+    assert_equal @membership.id, payload.dig("items", "allergies", "recorded_by_membership_id")
     assert_raises(ArgumentError) do
       Clinic::Care::IntakeEvidence.normalize(["document:999999999"],
         practice: @practice, actor: @user, patient: @patient, encounter: @encounter)
     end
   end
 
-  test "specialty mental health and procedure review routing preserves existing task ownership" do
-    intake = Clinic::Care::PrevisitIntake
-    review = Clinic::Care::IntakeReview
-    form_id = "weight-management-initial-v1"
-    encoded = intake.encode(text: "", attested: false, status: "draft", recorder: "staff", form_id:, answers: {
-      mental_health_support: { state: "unknown" },
-      procedures: { state: "answered", entries: [{ name: "Synthetic procedure" }] },
-      nutrition_support: { state: "unknown" }
-    })
-    args = { practice: @practice, patient: @patient, encounter: @encounter,
-      member: @membership, chunks: Clinic::Care::NurseWorkflow.chunks_for(form_id:) }
-    attached = review.attach!(**args, encoded:, previous: nil)
-    items = intake.decode(attached).fetch("review_items").index_by { |item| item.fetch("question_id") }
-
-    %w[mental_health_support procedures].each do |question_id|
-      assert_equal "support", intake.fields(form_id).find { |field| field[:id] == question_id }.fetch(:review_category)
-      item = items.fetch(question_id)
-      assert_equal "clinical", item.fetch("category")
-      assert_equal "clinical", Clinic::ClinicalTask.find(item.fetch("task_id")).pool_code
+  test "legacy cleanup is scoped repeatable and preserves deliberate responsibility and dependencies" do
+    make_task = -> {
+      task = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter,
+        site: @site, task_kind: "intake", state: "open", pool_code: "clinical",
+        source_type: "encounter", source_id: @encounter.id, recorded_by_membership: @membership)
+      Clinic::Care::TaskContinuity.record!(task, @membership, "intake_review_created")
+      task
+    }
+    untouched = make_task.call
+    claimed = make_task.call
+    claimed.update!(state: "claimed", assigned_to_membership: @membership)
+    manual = make_task.call
+    Clinic::Care::TaskContinuity.record!(manual, @membership, "reopen")
+    dependency = make_task.call
+    manual.dependencies.create!(practice: @practice, prerequisite: dependency)
+    other = make_task.call
+    other.update!(patient: @other_patient, encounter: nil, source_type: "manual", source_id: nil)
+    args = { practice: @practice, actor: @user, patient: @patient, encounter: @encounter }
+    assert_equal [untouched.id], Clinic::Care::IntakeReview.retire_unclaimed!(**args)
+    assert_empty Clinic::Care::IntakeReview.retire_unclaimed!(**args)
+    assert_equal ["completed", "superseded"], untouched.reload.attributes.values_at("state", "resolution_code")
+    assert untouched.events.exists?(action: "intake_documentation_superseded")
+    assert_equal "claimed", claimed.reload.state
+    [manual, dependency, other].each { |task| assert_equal "open", task.reload.state }
+    assert_raises(ArgumentError) do
+      Clinic::Care::IntakeReview.retire_unclaimed!(**args.merge(patient: @other_patient))
     end
-    support = items.fetch("nutrition_support")
-    assert_equal "support", support.fetch("category")
-    assert_equal "front_desk", Clinic::ClinicalTask.find(support.fetch("task_id")).pool_code
-
-    existing = Clinic::ClinicalTask.find(items.fetch("mental_health_support").fetch("task_id"))
-    existing.update!(pool_code: "front_desk", state: "claimed", assigned_to_membership: @membership)
-    prior = Struct.new(:encrypted_questionnaire, :version_number, :id).new(attached, 1, 123)
-    replay = nil
-    assert_no_difference "Clinic::ClinicalTask.count" do
-      replay = review.attach!(**args, encoded:, previous: prior)
+    assert_raises(Clinic::Authorization::Denied) do
+      Clinic::Care::IntakeReview.retire_unclaimed!(**args.merge(actor: @clinician))
     end
-    replay_item = intake.decode(replay).fetch("review_items").find { |item| item["question_id"] == "mental_health_support" }
-    assert_equal existing.id, replay_item.fetch("task_id")
-    assert_equal "front_desk", existing.reload.pool_code
-    assert_equal "claimed", existing.state
-    assert_equal @membership.id, existing.assigned_to_membership_id
+  end
+
+  test "groups unlock only after earlier saves and corrections retain other saved answers" do
+    answers = Clinic::Care::PrevisitIntake.fields.to_h { |field| [field[:id], { state: "not_asked", value: "" }] }
+    base = { status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+      history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [] }
+    post intake_path, params: { intake: base.merge(request_key: "locked-section", expected_version: 0,
+      questionnaire: { answers:, text: "", status: "submitted", confirmed: true, confirmed_chunks: [4] }) },
+      headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Save the previous intake groups"
+    [[0], [0, 1]].each_with_index do |confirmed_chunks, version|
+      post intake_path, params: { intake: base.merge(request_key: "independent-section-#{version}", expected_version: version,
+        questionnaire: { answers:, text: "", status: "submitted", confirmed: true, confirmed_chunks: }) },
+        headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal confirmed_chunks, response.parsed_body.dig("intake", "questionnaire", "confirmed_chunks")
+    end
+    answers["goals"] = { state: "answered", value: "Updated synthetic goal" }
+    post intake_path, params: { intake: base.merge(request_key: "independent-section-edit", expected_version: 2,
+      questionnaire: { answers:, text: "", status: "draft", confirmed: false, confirmed_chunks: [1] }) },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal [1], response.parsed_body.dig("intake", "questionnaire", "confirmed_chunks")
+  end
+
+  test "linked encounter measurements satisfy intake without a duplicate answer" do
+    answers = Clinic::Care::PrevisitIntake.fields.to_h { |field| [field[:id], { state: "not_asked", value: "" }] }
+    answers.except!("height", "weight")
+    4.times do |index|
+      post intake_path, params: { intake: { status: "incomplete", identity_state: "not_confirmed",
+        visit_reason_state: "not_recorded", history_state: "not_recorded", vitals_state: "not_recorded",
+        observation_ids: [], history_review_ids: [], expected_version: index, request_key: "measurement-prerequisite-#{index}",
+        questionnaire: { text: "", answers:, status: "submitted", confirmed: true, confirmed_chunks: (0..index).to_a } } },
+        headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    measurements = %w[height weight].map do |id|
+      Clinic::Care::Observation.create!(practice: @practice, patient: @patient, encounter: @encounter,
+        author_membership: @membership, code: "vital-#{id}", code_system: "meta-clinic", code_version: "1",
+        value_kind: "numeric", numeric_value: "70", unit_code: id == "height" ? "cm" : "kg",
+        observed_at: Time.current, recorded_at: Time.current)
+    end
+    request = { intake: { status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+      history_state: "not_recorded", vitals_state: "recorded", history_review_ids: [], expected_version: 4,
+      request_key: "linked-measurements", observation_ids: measurements.map(&:id),
+      questionnaire: { text: "", answers:, status: "submitted", confirmed: true, confirmed_chunks: (0..4).to_a } } }
+    assert_no_difference "Clinic::Care::Observation.count" do
+      post intake_path, params: request, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    saved = response.parsed_body.fetch("intake")
+    assert_equal measurements.map(&:id).sort, saved.fetch("observation_ids").sort
+    assert_equal (0..4).to_a, saved.dig("questionnaire", "confirmed_chunks")
+    assert_equal "unanswered", saved.dig("questionnaire", "answers", "weight", "state")
+    request[:intake].merge!(request_key: "missing-linked-measurements", expected_version: 5,
+      observation_ids: [], vitals_state: "not_recorded")
+    post intake_path, params: request, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
   end
 
   test "patient coordination is durable replay safe and rejects stale updates" do

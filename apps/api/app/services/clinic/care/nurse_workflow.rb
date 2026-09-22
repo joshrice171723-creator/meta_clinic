@@ -123,10 +123,10 @@ module Clinic
         previous_intake = latest_intake(practice, encounter)
         form = PrevisitIntake.form_for(practice: practice, appointment: encounter.appointment, recorder: "staff",
           payload: previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire))
-        input = normalize_intake(attributes, form_id: form[:id], previous_intake: previous_intake, encounter: encounter)
+        observations = observations_for(practice, patient, encounter, observation_ids)
+        input = normalize_intake(attributes, form_id: form[:id], previous_intake: previous_intake, encounter:, observations:)
         PrevisitIntake.validate_medication_references!(input[:encrypted_questionnaire], practice:)
         raw = (attributes[:questionnaire] || attributes["questionnaire"]).to_h.stringify_keys
-        observations = observations_for(practice, patient, encounter, observation_ids)
         history_reviews = history_reviews_for(practice, patient, encounter, history_review_ids)
         validate_intake_evidence!(input, observations, history_reviews)
         evidence = { observation_ids: observations.map(&:id).sort, history_review_ids: history_reviews.map(&:id).sort }
@@ -376,7 +376,7 @@ module Clinic
         [ prior_revision, prior_revision && "earlier_revision" ]
       end
 
-      def normalize_intake(attributes, form_id: PrevisitIntake::FORM_ID, previous_intake: nil, encounter: nil)
+      def normalize_intake(attributes, form_id: PrevisitIntake::FORM_ID, previous_intake: nil, encounter: nil, observations: [])
         input = attributes.to_h.symbolize_keys.slice(*INTAKE_FIELDS)
         missing = INTAKE_FIELDS - input.keys
         raise ArgumentError, "Missing intake field: #{missing.first}." if missing.any?
@@ -389,7 +389,7 @@ module Clinic
             attested: questionnaire["confirmed"] == true, recorder: "staff", form_id: form_id,
             confirmed_chunks: questionnaire.fetch("confirmed_chunks", []))
           normalized = PrevisitIntake.decode(input[:encrypted_questionnaire])
-          validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:,
+          validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:, observations:,
             answers: normalized&.fetch("answers", {}) || {})
         end
         input
@@ -418,32 +418,28 @@ module Clinic
           recorded_at: prior.recorded_at.iso8601(6) }, items: }
       end
 
-      def validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:, answers:)
+      def validate_confirmed_chunks!(questionnaire, form_id:, previous_intake:, encounter:, answers:, observations: [])
         definitions = chunks_for(form_id:)
         chunks = normalize_chunk_indexes(questionnaire.fetch("confirmed_chunks", []))
         if chunks.any? { |index| index >= definitions.length }
           raise ArgumentError, "The intake group is outside the supported workflow."
         end
-        unless chunks == (0...chunks.length).to_a
-          raise ArgumentError, "Confirm intake groups in order without skipping a group."
-        end
-
         previous_questionnaire = previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire)
         previous_chunks = normalize_chunk_indexes(previous_questionnaire&.fetch("confirmed_chunks", []) || [])
         previous_chunks = [] if previous_questionnaire && previous_questionnaire["questionnaire_version"] != PrevisitIntake::QUESTIONNAIRE_VERSION
-        unless previous_chunks == (0...previous_chunks.length).to_a
-          raise ArgumentError, "The saved intake groups are not in a valid order."
+        if (chunks - previous_chunks).any? { |index| (0...index).any? { |prior| !previous_chunks.include?(prior) } }
+          raise ArgumentError, "Save the previous intake groups before unlocking the next group."
         end
-        if chunks.length > previous_chunks.length + 1
-          raise ArgumentError, "Confirm the current question group before opening the next."
+        if (chunks - previous_chunks).length > 1
+          raise ArgumentError, "Review one intake section at a time."
         end
         confirmed = questionnaire.fetch("status", "draft") == "submitted" && questionnaire["confirmed"] == true
-        if chunks.length > previous_chunks.length && !confirmed
+        if (chunks - previous_chunks).any? && !confirmed
           raise ArgumentError, "Confirm the current question group before opening the next."
         end
 
         previous_answers = previous_questionnaire&.fetch("answers", {}) || {}
-        changed_chunk = previous_chunks.find do |index|
+        changed_chunks = previous_chunks.select do |index|
           definitions.fetch(index).fetch(:fields).any? do |id|
             next false unless answers.key?(id)
             field = PrevisitIntake.fields(form_id).find { |item| item[:id] == id }
@@ -451,18 +447,26 @@ module Clinic
             old != answers[id]
           end
         end
-        if changed_chunk && chunks.length > changed_chunk + (confirmed ? 1 : 0)
-          raise ArgumentError, "Changed answers require reconfirming this group and the following groups. Save a draft to reopen them."
+        if (changed_chunks & chunks).any? && !confirmed
+          raise ArgumentError, "Changed answers require reviewing the affected section again. Save a draft to reopen it."
+        end
+        if ((chunks - previous_chunks) | (changed_chunks & chunks)).length > 1
+          raise ArgumentError, "Review one intake section at a time."
         end
         evidence_index = definitions.index { |entry| entry[:id] == "records_consent_admin" }
         previous_evidence = Array(previous_questionnaire&.fetch("evidence_references", [])).map { |item| item["key"] }.sort
         if evidence_index && questionnaire.key?("evidence_keys") &&
             Array(questionnaire["evidence_keys"]).sort != previous_evidence &&
-            chunks.length > evidence_index + (confirmed ? 1 : 0)
-          raise ArgumentError, "Changed evidence requires reconfirming the records group and following groups."
+            chunks.include?(evidence_index) && !confirmed
+          raise ArgumentError, "Changed evidence requires reviewing the records section again."
         end
 
         fields = chunks.flat_map { |index| visible_fields(form_id:, chunk_index: index, answers:, encounter:) }
+        # Encounter observations supply measurement evidence without asking staff
+        # to copy those values into a second questionnaire field.
+        fields -= %w[height weight].select do |id|
+          observations.any? { |item| item.code == "vital-#{id}" && item.numeric_value.present? }
+        end
         fields -= [ "telehealth_location" ] unless encounter&.appointment&.visit_modality == "video"
         unanswered = fields.select { |field_id| answer_state(answers[field_id] || answers[field_id.to_sym]) == "unanswered" }
         if unanswered.any?

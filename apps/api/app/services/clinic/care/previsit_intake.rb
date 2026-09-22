@@ -278,7 +278,8 @@ module Clinic
           raise ArgumentError, "Staff verification, clinic measurements and imported sources must be recorded through the staff evidence workflow."
         end
         additional_text = text.to_s.strip
-        return additional_text if normalized.values.all? { |answer| answer["state"] == "unanswered" } && additional_text.blank? && status == "submitted"
+        return additional_text if normalized.values.all? { |answer| answer["state"] == "unanswered" } &&
+          additional_text.blank? && status == "submitted" && confirmed_chunks.empty?
         if status == "submitted" && attested != true
           raise ArgumentError, recorder == "staff" ? "Confirm that you recorded these answers from the patient." : "Confirm the intake is current and may be shared with your care team."
         end
