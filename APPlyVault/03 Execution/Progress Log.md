@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Ordinary-note psychotherapy boundary
+
+Added focused API regression proof that the ordinary encounter-note endpoint rejects a `psychotherapy` note kind before creating a note or idempotency receipt. This maintains the product boundary between ordinary SOAP documentation and a separately maintained psychotherapy-note capability; it does not claim that protected-note access, portal/export separation, consent, retention, or state-law policy has been implemented. `clinic_encounter_notes_idempotency_test.rb` passed 17 runs / 163 assertions, scoped RuboCop and vault verification passed, and the change was published in `e0a0c55b`.
+
 ## 2026-09-22 — Care-goal outcome provenance
 
 Added optional source and reported/observed time to immutable care-goal outcome revisions. The source/time pair is constrained in PostgreSQL and Rails, survives subsequent revisions, and remains optional so older outcome narratives are preserved as historical rather than backfilled with guessed provenance. The UI exposes the matching Material UI controls and blocks only a partial pair. This is source context, not a scoring system, goal-achievement decision, intervention, safety assessment or billing rule. The focused clinical-plan and frontend control contracts, scoped Ruby lint, TypeScript and Prettier checks passed; the PostgreSQL verifier passed upgrade, concurrency, backup/restore and fresh-schema checks. The broader backend verifier failed a separate appointment-overlap race check and is not represented as passing.
