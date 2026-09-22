@@ -30,6 +30,7 @@ import AddBusinessOutlinedIcon from "@mui/icons-material/AddBusinessOutlined";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
+import { WebsiteTraffic, type WebsiteTrafficData } from "./WebsiteTraffic";
 
 type ClinicSummary = {
   id: number;
@@ -52,6 +53,7 @@ type CommandCenterData = {
   schema_version: "owner-command-center-v1";
   delivery_methods: { email: boolean; sms: boolean };
   demo_usage: DemoUsage[];
+  website_traffic: WebsiteTrafficData;
   organizations: OrganizationSummary[];
   unassigned_clinics: ClinicSummary[];
 };
@@ -123,7 +125,9 @@ export function OwnerCommandCenter() {
   const [invitePhone, setInvitePhone] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
-  const [expandedVisitorId, setExpandedVisitorId] = useState<number | null>(null);
+  const [expandedVisitorId, setExpandedVisitorId] = useState<number | null>(
+    null,
+  );
 
   const clinicCount = useMemo(
     () =>
@@ -309,10 +313,15 @@ export function OwnerCommandCenter() {
       </Box>
 
       <Box component="nav" aria-label="Owner navigation">
+        <Button component="a" href="#website-traffic" variant="text">
+          Website visitors
+        </Button>
         <Button component="a" href="#demo-usage" variant="text">
           Demo usage
         </Button>
       </Box>
+
+      <WebsiteTraffic data={data.website_traffic} onRefresh={refresh} />
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <Paper variant="outlined" sx={{ px: 2.5, py: 2, minWidth: 180 }}>
@@ -392,7 +401,9 @@ export function OwnerCommandCenter() {
                         <TableCell align="right">
                           <Button
                             size="small"
-                            onClick={() => setExpandedVisitorId(expanded ? null : visitor.id)}
+                            onClick={() =>
+                              setExpandedVisitorId(expanded ? null : visitor.id)
+                            }
                             aria-expanded={expanded}
                             aria-controls={detailsId}
                           >
@@ -402,31 +413,51 @@ export function OwnerCommandCenter() {
                       </TableRow>
                       {expanded && (
                         <TableRow>
-                          <TableCell colSpan={6} sx={{ bgcolor: "action.hover", p: 2 }}>
+                          <TableCell
+                            colSpan={6}
+                            sx={{ bgcolor: "action.hover", p: 2 }}
+                          >
                             <Box id={detailsId}>
                               <Typography variant="subtitle2" sx={{ mb: 1 }}>
                                 Lessons opened
                               </Typography>
-                              <Table size="small" aria-label={`Lessons opened by ${visitor.name}`}>
+                              <Table
+                                size="small"
+                                aria-label={`Lessons opened by ${visitor.name}`}
+                              >
                                 <TableHead>
                                   <TableRow>
                                     <TableCell>Lesson</TableCell>
-                                    <TableCell align="right">Elapsed time</TableCell>
+                                    <TableCell align="right">
+                                      Elapsed time
+                                    </TableCell>
                                     <TableCell>Completion</TableCell>
                                   </TableRow>
                                 </TableHead>
                                 <TableBody>
                                   {visitor.lesson_usage.map((lesson, index) => (
-                                    <TableRow key={`${lesson.lesson_key}-${index}`}>
+                                    <TableRow
+                                      key={`${lesson.lesson_key}-${index}`}
+                                    >
                                       <TableCell>{lesson.title}</TableCell>
                                       <TableCell align="right">
-                                        {formatDemoDuration(lesson.elapsed_seconds)}
+                                        {formatDemoDuration(
+                                          lesson.elapsed_seconds,
+                                        )}
                                       </TableCell>
                                       <TableCell>
                                         <Chip
                                           size="small"
-                                          color={lesson.completed ? "success" : "default"}
-                                          label={lesson.completed ? "Completed" : "Not completed"}
+                                          color={
+                                            lesson.completed
+                                              ? "success"
+                                              : "default"
+                                          }
+                                          label={
+                                            lesson.completed
+                                              ? "Completed"
+                                              : "Not completed"
+                                          }
                                         />
                                       </TableCell>
                                     </TableRow>

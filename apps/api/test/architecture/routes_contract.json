@@ -1020,6 +1020,11 @@
     "/api/public/membership_storefronts(.:format)"
   ],
   [
+    "api_public_page_visits",
+    "POST",
+    "/api/public/page_visits(.:format)"
+  ],
+  [
     "api_session",
     "GET",
     "/api/session(.:format)"

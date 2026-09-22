@@ -12136,6 +12136,74 @@ ALTER SEQUENCE public.platform_owner_invitations_id_seq OWNED BY public.platform
 
 
 --
+-- Name: platform_page_visits; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.platform_page_visits (
+    id bigint NOT NULL,
+    event_id uuid NOT NULL,
+    visitor_id uuid NOT NULL,
+    path character varying(20) NOT NULL,
+    referrer_host character varying(253) DEFAULT ''::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT platform_page_visits_path CHECK (((path)::text = ANY ((ARRAY['/joshua'::character varying, '/demo'::character varying])::text[])))
+);
+
+
+
+--
+-- Name: platform_page_visits_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.platform_page_visits_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+
+--
+-- Name: platform_page_visits_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.platform_page_visits_id_seq OWNED BY public.platform_page_visits.id;
+
+
+
+--
+-- Name: platform_page_visits id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_page_visits ALTER COLUMN id SET DEFAULT nextval('public.platform_page_visits_id_seq'::regclass);
+
+
+
+--
+-- Name: platform_page_visits platform_page_visits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_page_visits
+    ADD CONSTRAINT platform_page_visits_pkey PRIMARY KEY (id);
+
+
+
+--
+-- Name: index_platform_page_visits_on_created_at_and_path; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_platform_page_visits_on_created_at_and_path ON public.platform_page_visits USING btree (created_at, path);
+
+
+
+--
+-- Name: index_platform_page_visits_on_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_platform_page_visits_on_event_id ON public.platform_page_visits USING btree (event_id);
+
+--
 -- Name: role_version_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -29965,6 +30033,7 @@ ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260921220000'),
 ('20260920010000'),
 ('20260919080000'),
 ('20260919070000'),
@@ -30146,4 +30215,3 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260830000200'),
 ('20260830000100'),
 ('20260920010100');
-

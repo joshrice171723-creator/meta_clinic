@@ -107,6 +107,7 @@ module Platform
           schema_version: "owner-command-center-v1",
           delivery_methods: { email: true, sms: Platform::ClinicOwnerInvitationSms.configured? },
           demo_usage: demo_usage_payload,
+          website_traffic: Platform::WebsiteTraffic.call,
           organizations: organizations.map { |organization| organization_payload(organization) },
           unassigned_clinics: unassigned.reject { |practice| assigned_ids.include?(practice.id) }.map { |practice| clinic_payload(practice) }
         }
