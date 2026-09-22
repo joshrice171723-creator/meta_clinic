@@ -102,6 +102,8 @@ Reviewed 2026-09-22: [US Core QuestionnaireResponse 9.0.0/STU9](https://hl7.org/
 
 [HHS mental-health information FAQ](https://www.hhs.gov/hipaa/for-professionals/faq/does-hipaa-provide-extra-protections-mental-health-information-compared-other-health.html) informs the distinction between ordinary clinical records and separately maintained psychotherapy notes. Dedicated access/export behavior remains to verify; this walkthrough is not a legal/compliance assessment.
 
+Decision preparation, reviewed 2026-09-22: [SAMHSA SAFE-T](https://www.samhsa.gov/resource/dbhis/safe-t-pocket-card-suicide-assessment-five-step-evaluation-triage-safe-t-clinicians), last updated 2025-02-21, describes a five-step suicide-assessment process that includes risk/protective factors, inquiry, risk determination, intervention selection and documentation/follow-up. It is a candidate source for a clinic-selected safety workflow, not authorization to automate a risk level, select a threshold or deploy a protocol here. HHS explains that psychotherapy notes are separate from the medical record and, with limited exceptions, require authorization for use or disclosure; the clinic must still select its access, authorization, export, retention and applicable state-law rules before a dedicated feature is built. US Core's questionnaire/observation profiles remain structural guidance only; they do not choose an assessment instrument, scoring method or follow-up requirement.
+
 ## Checkpoint
 
 ### Completed slice: specialty intake
