@@ -35,16 +35,12 @@ import type {
 export type LabResult = {
   name: string;
   code: string | null;
-  code_system?: string | null;
-  code_version?: string | null;
   value: string;
   value_kind?: "text" | "numeric" | "coded" | "absent";
   absent_reason?: string | null;
   value_code?: string | null;
   value_code_system?: string | null;
   unit: string | null;
-  unit_code?: string | null;
-  interpretation?: string | null;
   reference_range: string | null;
   flag: string | null;
 };
@@ -161,12 +157,8 @@ export function isCurrentPatientRequest(
 const blankResult = (): LabResult => ({
   name: "",
   code: null,
-  code_system: null,
-  code_version: null,
   value: "",
   unit: null,
-  unit_code: null,
-  interpretation: null,
   reference_range: null,
   flag: null,
 });
@@ -595,16 +587,12 @@ export function PatientLabReports({
             results: form.results.map((row) => ({
               name: row.name.trim(),
               code: row.code?.trim() || null,
-              code_system: row.code_system?.trim() || null,
-              code_version: row.code_version?.trim() || null,
               value: row.value.trim(),
               value_kind: row.value_kind ?? "text",
               absent_reason: row.absent_reason?.trim() || null,
               value_code: row.value_code?.trim() || null,
               value_code_system: row.value_code_system?.trim() || null,
               unit: row.unit?.trim() || null,
-              unit_code: row.unit_code?.trim() || null,
-              interpretation: row.interpretation?.trim() || null,
               reference_range: row.reference_range?.trim() || null,
               flag: row.flag?.trim() || null,
             })),
@@ -1198,22 +1186,6 @@ export function PatientLabReports({
                                 : ""}
                               {row.flag ? ` · ${row.flag}` : ""}
                             </Typography>
-                            {(row.code || row.unit_code || row.interpretation) && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {[
-                                  row.code &&
-                                    `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
-                                  row.unit_code && `UCUM unit: ${row.unit_code}`,
-                                  row.interpretation &&
-                                    `Source interpretation: ${row.interpretation}`,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </Typography>
-                            )}
                             {report.current_version.status !== "cancelled" && (
                               <Button
                                 size="small"
@@ -1426,19 +1398,6 @@ export function PatientLabReports({
                       {row.reference_range || "Range not recorded"}
                       {row.flag ? ` · ${row.flag}` : ""}
                     </Typography>
-                    {(row.code || row.unit_code || row.interpretation) && (
-                      <Typography variant="caption" color="text.secondary">
-                        {[
-                          row.code &&
-                            `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
-                          row.unit_code && `UCUM unit: ${row.unit_code}`,
-                          row.interpretation &&
-                            `Source interpretation: ${row.interpretation}`,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </Typography>
-                    )}
                     {history &&
                       version.id === history.current_version_id &&
                       version.status !== "cancelled" && (
@@ -2130,30 +2089,6 @@ function LabForm({
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                fullWidth
-                label="Test code"
-                value={row.code ?? ""}
-                onChange={(event) =>
-                  result(index, { code: event.target.value || null })
-                }
-              />
-              <TextField
-                fullWidth
-                label="Test code system"
-                value={row.code_system ?? ""}
-                onChange={(event) =>
-                  result(index, { code_system: event.target.value || null })
-                }
-              />
-              <TextField
-                fullWidth
-                label="Test code version"
-                value={row.code_version ?? ""}
-                onChange={(event) =>
-                  result(index, { code_version: event.target.value || null })
-                }
-              />
               {row.value_kind === "absent" && (
                 <TextField
                   label="Reason result is unavailable"
@@ -2190,24 +2125,6 @@ function LabForm({
                 value={row.unit ?? ""}
                 onChange={(event) =>
                   result(index, { unit: event.target.value || null })
-                }
-              />
-              <TextField
-                fullWidth
-                label="UCUM unit code"
-                value={row.unit_code ?? ""}
-                onChange={(event) =>
-                  result(index, { unit_code: event.target.value || null })
-                }
-              />
-              <TextField
-                fullWidth
-                label="Source interpretation"
-                value={row.interpretation ?? ""}
-                onChange={(event) =>
-                  result(index, {
-                    interpretation: event.target.value || null,
-                  })
                 }
               />
               <TextField

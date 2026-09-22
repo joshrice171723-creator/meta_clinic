@@ -131,12 +131,6 @@ describe("ClinicalPlanWorkspace", () => {
     );
   });
 
-  it("defaults immunization entry to a historical record while administration is unavailable", () => {
-    expect(clinicalPlanResourceMeta.immunizations.initial).toMatchObject({
-      occurrence_source: "patient_reported",
-    });
-  });
-
   it("shows accessible prior care with its source visit instead of copying it", () => {
     const html = renderToStaticMarkup(
       <ClinicalPlanWorkspace

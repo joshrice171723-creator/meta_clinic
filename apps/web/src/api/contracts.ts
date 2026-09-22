@@ -883,7 +883,6 @@ export type ClinicalPlanWorkspace = {
     routes: { code: string; label: string }[];
   };
   assessment_scope: ClinicAssessmentCode[];
-  immunization_administration_enabled: boolean;
   links: ClinicalPlanLink[];
   referral_events: ReferralExchangeEvent[];
   available_link_targets: {
