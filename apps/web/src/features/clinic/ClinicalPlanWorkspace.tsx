@@ -473,6 +473,8 @@ const RESOURCE_META: Record<
   },
 };
 
+export { RESOURCE_META as clinicalPlanResourceMeta };
+
 function humanize(value: string) {
   return value
     .replaceAll("_", " ")

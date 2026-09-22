@@ -5,7 +5,10 @@ import type {
   EncounterDetail,
   Patient,
 } from "../src/api/contracts";
-import { ClinicalPlanWorkspace } from "../src/features/clinic/ClinicalPlanWorkspace";
+import {
+  clinicalPlanResourceMeta,
+  ClinicalPlanWorkspace,
+} from "../src/features/clinic/ClinicalPlanWorkspace";
 
 const fixtures = vi.hoisted(() => ({
   workspace: {
@@ -84,6 +87,31 @@ vi.mock("../src/features/clinic/PrescriptionFulfillmentPanel", () => ({
 }));
 
 describe("ClinicalPlanWorkspace", () => {
+  it("keeps care-goal outcome provenance controls explicit and source-bounded", () => {
+    const fields = clinicalPlanResourceMeta.care_goals.fields;
+
+    expect(fields).toContainEqual(
+      expect.objectContaining({
+        name: "outcome_source",
+        label: "Outcome source",
+        options: [
+          "patient_reported",
+          "clinician_observed",
+          "proxy_reported",
+          "imported",
+          "unknown",
+        ],
+      }),
+    );
+    expect(fields).toContainEqual(
+      expect.objectContaining({
+        name: "outcome_recorded_at",
+        label: "Outcome reported or observed at",
+        type: "datetime-local",
+      }),
+    );
+  });
+
   it("shows accessible prior care with its source visit instead of copying it", () => {
     const html = renderToStaticMarkup(
       <ClinicalPlanWorkspace
