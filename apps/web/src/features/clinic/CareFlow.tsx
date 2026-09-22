@@ -9,6 +9,7 @@ import type {
   EncounterNote,
   FacilityRoom,
   FacilitySite,
+  NurseWorkspace,
   NoteTemplate,
   Observation,
   Pagination as PageInfo,
@@ -78,7 +79,12 @@ import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
-import { NurseEncounterWorkspace } from "./NurseEncounterWorkspace";
+import {
+  NurseEncounterWorkspace,
+  NurseEncounterWorkspaceContent,
+  type FacilityRoomsResource,
+  type NurseWorkspaceResource,
+} from "./NurseEncounterWorkspace";
 import { PatientEducationPanel } from "./PatientEducationPanel";
 import { ClinicalPlanWorkspace } from "./ClinicalPlanWorkspace";
 import { ClinicSchedule, type CalendarBooking } from "./ClinicSchedule";
@@ -3341,6 +3347,8 @@ export function ProviderEncounterWorkflow({
   careSummaryState = { status: "unlinked" },
   onCareSummaryRefresh,
   onEncounterRefresh,
+  nurseWorkspaceResource,
+  facilityRoomsResource,
 }: {
   patient: Patient;
   encounter: EncounterDetail;
@@ -3350,6 +3358,8 @@ export function ProviderEncounterWorkflow({
   careSummaryState?: CareSummaryLoadState;
   onCareSummaryRefresh?: () => void;
   onEncounterRefresh?: () => void;
+  nurseWorkspaceResource?: NurseWorkspaceResource;
+  facilityRoomsResource?: FacilityRoomsResource;
 }) {
   const { capabilities } = useClinic();
   const [recordedObservations, setRecordedObservations] = useState<
@@ -3566,24 +3576,51 @@ export function ProviderEncounterWorkflow({
         </Stack>
       </Paper>
 
-      <NurseEncounterWorkspace
-        patient={patient}
-        encounter={encounter}
-        observations={observations}
-        onObservationsRecorded={(saved) =>
-          setRecordedObservations((current) => [
-            ...current,
-            ...saved.filter(
-              (observation) =>
-                observation.patient_id === patient.id &&
-                observation.encounter_id === encounter.id,
-            ),
-          ])
-        }
-        careSummary={
-          careSummaryState.status === "ready" ? careSummaryState.summary : null
-        }
-      />
+      {nurseWorkspaceResource && facilityRoomsResource ? (
+        <NurseEncounterWorkspaceContent
+          patient={patient}
+          encounter={encounter}
+          observations={observations}
+          onObservationsRecorded={(saved) =>
+            setRecordedObservations((current) => [
+              ...current,
+              ...saved.filter(
+                (observation) =>
+                  observation.patient_id === patient.id &&
+                  observation.encounter_id === encounter.id,
+              ),
+            ])
+          }
+          careSummary={
+            careSummaryState.status === "ready"
+              ? careSummaryState.summary
+              : null
+          }
+          resource={nurseWorkspaceResource}
+          roomsResource={facilityRoomsResource}
+        />
+      ) : (
+        <NurseEncounterWorkspace
+          patient={patient}
+          encounter={encounter}
+          observations={observations}
+          onObservationsRecorded={(saved) =>
+            setRecordedObservations((current) => [
+              ...current,
+              ...saved.filter(
+                (observation) =>
+                  observation.patient_id === patient.id &&
+                  observation.encounter_id === encounter.id,
+              ),
+            ])
+          }
+          careSummary={
+            careSummaryState.status === "ready"
+              ? careSummaryState.summary
+              : null
+          }
+        />
+      )}
 
       <Paper id="chart-access" variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1.25}>
@@ -4571,6 +4608,14 @@ export function EncounterPage({
   const careSummary = useResource<PatientCareSummary>(
     `/api/clinic/patients/${patientId}/care_summary?encounter_id=${encounterId}`,
   );
+  const nurseWorkspace = useResource<NurseWorkspace>(
+    `/api/clinic/patients/${patientId}/encounters/${encounterId}/nurse_workspace`,
+    { retainDataOnRefresh: true },
+  );
+  const facilityRooms = useResource<{ rooms: FacilityRoom[] }>(
+    "/api/clinic/facilities?type=rooms&per_page=100",
+    { retainDataOnRefresh: true },
+  );
   const error = patient.error || encounter.error || observations.error;
   if (!patient.data || !encounter.data || !observations.data)
     return <LoadState error={error} />;
@@ -4600,6 +4645,8 @@ export function EncounterPage({
           }
           onEncounterRefresh={encounter.refresh}
           onCareSummaryRefresh={careSummary.refresh}
+          nurseWorkspaceResource={nurseWorkspace}
+          facilityRoomsResource={facilityRooms}
           noteWorkspace={
             <SoapNoteWorkspace
               encounter={encounter.data.encounter}

@@ -85,7 +85,9 @@ module Clinic
         intake = latest_intake(practice, encounter)
         handoff = Clinic::EncounterHandoff.where(practice:, patient:, encounter:).includes(:events).order(id: :desc).first
         tasks = Clinic::ClinicalTask.where(practice:, patient:, encounter:)
-          .includes(:assigned_to_membership).order(Arel.sql("CASE WHEN due_at IS NULL THEN 1 ELSE 0 END"), :due_at, :id)
+          .includes(:assigned_to_membership, :site, :events, dependencies: :prerequisite)
+          .order(Arel.sql("CASE WHEN due_at IS NULL THEN 1 ELSE 0 END"), :due_at, :id).to_a
+        task_projections = task_projections(practice:, tasks:)
         Clinic::AuditRecorder.record!(practice:, actor:, action_code: "nurse_workspace.read", outcome: :released,
           resource_version_ref: "patient/#{patient.id}:encounter/#{encounter.id}:intake/#{intake&.version_number || 0}")
         {
@@ -101,7 +103,7 @@ module Clinic
             medication_options: PrevisitIntake.medication_options(practice),
             medication_references: PrevisitIntake.medication_reference_options(practice) },
           handoff: handoff && serialize_handoff(handoff),
-          tasks: tasks.map { |task| serialize_task(task) },
+          tasks: tasks.map { |task| serialize_task(task, continuity: task_projections.fetch(task.id)) },
           review_items: IntakeReview.projection(intake, tasks),
           evidence_options: IntakeEvidence.options(practice:, actor:, patient:, encounter:),
           capabilities: {
@@ -329,7 +331,7 @@ module Clinic
         }
       end
 
-      def serialize_task(task)
+      def serialize_task(task, continuity: TaskContinuity.projection(task))
         {
           id: task.id, patient_id: task.patient_id, encounter_id: task.encounter_id, site_id: task.site_id,
           task_kind: task.task_kind, state: task.state, pool_code: task.pool_code,
@@ -337,7 +339,22 @@ module Clinic
           source_type: task.source_type, source_id: task.source_id, resolution_code: task.resolution_code,
           source_kind: task.source_kind,
           version: task.lock_version, updated_at: task.updated_at.iso8601(6)
-        }.merge(TaskContinuity.projection(task))
+        }.merge(continuity)
+      end
+
+      def task_projections(practice:, tasks:)
+        site_ids = tasks.filter_map(&:site_id).uniq
+        members = Clinic::Membership.where(practice:).active.includes(:user).to_a
+        abilities = members.to_h { |member| [member.id, Ability.new(member.user, practice:)] }
+        eligible_by_site = site_ids.to_h do |site_id|
+          [site_id, abilities.filter_map do |membership_id, ability|
+            membership_id if ability.allowed_permission?("encounters.write", site: site_id)
+          end]
+        end
+        tasks.to_h do |task|
+          [task.id, TaskContinuity.projection(task,
+            eligible_membership_ids: eligible_by_site.fetch(task.site_id, []))]
+        end
       end
 
       def latest_intake(practice, encounter, lock: false)

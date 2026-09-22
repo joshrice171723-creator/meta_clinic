@@ -205,6 +205,22 @@ describe("same-origin API boundary", () => {
     expect(readBody).not.toHaveBeenCalled();
     expect(fetch.mock.calls[1][1].headers["X-Clinic-Actor"]).toBe("41");
   });
+  it("reuses the initial CSRF bootstrap when binding the current session actor", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ csrf_token: "initial" }))
+      .mockResolvedValueOnce(json({ id: 7 }));
+    vi.stubGlobal("fetch", fetch);
+
+    await csrf();
+    setApiActor(41);
+    await api("/api/clinic/patients/7");
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][1].headers).toMatchObject({
+      "X-Clinic-Actor": "41",
+    });
+  });
   it("uses a new CSRF token after account/session rotation or logout", async () => {
     const fetch = vi
       .fn()

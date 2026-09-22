@@ -22,12 +22,22 @@ module Clinic
         model && !model.exists?(practice_id: task.practice_id, patient_id: task.patient_id, id: task.source_id)
       end
 
-      def projection(task)
-        prerequisites = task.dependencies.includes(:prerequisite).map(&:prerequisite)
+      def projection(task, eligible_membership_ids: nil)
+        dependencies = if task.association(:dependencies).loaded?
+          task.dependencies
+        else
+          task.dependencies.includes(:prerequisite)
+        end
+        prerequisites = dependencies.map(&:prerequisite)
         waiting = prerequisites.reject { |item| item.state == "completed" && item.resolution_code == "completed" }
-        owner_unavailable = task.assigned_to_membership_id.present? && !eligible?(task.assigned_to_membership, task)
-        candidates = task.practice.memberships.active.includes(:user).select { |member| eligible?(member, task) }
-        exception = if candidates.empty?
+        if eligible_membership_ids
+          owner_unavailable = task.assigned_to_membership_id.present? && !eligible_membership_ids.include?(task.assigned_to_membership_id)
+          candidates_present = eligible_membership_ids.any?
+        else
+          owner_unavailable = task.assigned_to_membership_id.present? && !eligible?(task.assigned_to_membership, task)
+          candidates_present = task.practice.memberships.active.includes(:user).any? { |member| eligible?(member, task) }
+        end
+        exception = if !candidates_present
           "No eligible coverage is configured. Assign an authorized team to this work."
         elsif owner_unavailable
           "The assigned owner is unavailable. Eligible coverage can claim this work."
@@ -40,7 +50,7 @@ module Clinic
             (waiting.any? ? "Waiting for prerequisite work: #{waiting.map(&:id).join(', ')}." : nil),
           assignment_exception: exception, owner_unavailable:,
           source_managed: source_managed?(task),
-          history: task.events.order(:id).map { |event| {
+          history: (task.association(:events).loaded? ? task.events.sort_by(&:id) : task.events.order(:id)).map { |event| {
             id: event.id, action: event.action, actor_membership_id: event.actor_membership_id,
             task_version: event.task_version, recorded_at: event.recorded_at.iso8601(6), snapshot: event.snapshot
           } }

@@ -65,6 +65,18 @@ type IntakeForm = Pick<
   };
 };
 
+export type NurseWorkspaceResource = {
+  data?: NurseWorkspace;
+  error?: string;
+  refresh: () => void;
+};
+
+export type FacilityRoomsResource = {
+  data?: { rooms: FacilityRoom[] };
+  error?: string;
+  refresh: () => void;
+};
+
 const emptyIntake: IntakeForm = {
   status: "incomplete",
   identity_state: "not_confirmed",
@@ -129,7 +141,6 @@ export function NurseEncounterWorkspace({
   careSummary: PatientCareSummary | null;
   onObservationsRecorded?: (observations: Observation[]) => void;
 }) {
-  const clinic = useClinic();
   const path = `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/nurse_workspace`;
   const resource = useResource<NurseWorkspace>(path, {
     retainDataOnRefresh: true,
@@ -138,6 +149,37 @@ export function NurseEncounterWorkspace({
     "/api/clinic/facilities?type=rooms&per_page=100",
     { retainDataOnRefresh: true },
   );
+  return (
+    <NurseEncounterWorkspaceContent
+      patient={patient}
+      encounter={encounter}
+      observations={observations}
+      careSummary={careSummary}
+      onObservationsRecorded={onObservationsRecorded}
+      resource={resource}
+      roomsResource={roomsResource}
+    />
+  );
+}
+
+export function NurseEncounterWorkspaceContent({
+  patient,
+  encounter,
+  observations,
+  careSummary,
+  onObservationsRecorded,
+  resource,
+  roomsResource,
+}: {
+  patient: Patient;
+  encounter: EncounterDetail;
+  observations: Observation[];
+  careSummary: PatientCareSummary | null;
+  onObservationsRecorded?: (observations: Observation[]) => void;
+  resource: NurseWorkspaceResource;
+  roomsResource: FacilityRoomsResource;
+}) {
+  const clinic = useClinic();
   const chunkDefinitions = resource.data?.questionnaire_form?.chunks ?? [];
   const [form, setForm] = useState<IntakeForm>(emptyIntake);
   const [baseline, setBaseline] = useState<IntakeForm>(emptyIntake);

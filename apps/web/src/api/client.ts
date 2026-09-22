@@ -44,10 +44,12 @@ let actorGeneration = 0;
 export const SESSION_CHANGED_EVENT = "apply:session-changed";
 export function setApiActor(actorId: number | undefined) {
   if (expectedActorId === actorId) return;
+  const firstActorBinding =
+    expectedActorId === undefined && csrfToken !== undefined;
   expectedActorId = actorId;
   expectedPracticeId = undefined;
   actorGeneration += 1;
-  clearCsrf();
+  if (!firstActorBinding) clearCsrf();
 }
 
 function reportSessionChanged() {
