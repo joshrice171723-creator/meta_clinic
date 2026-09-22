@@ -29,6 +29,19 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     assert_not Clinic::OperationReceipt.exists?(practice: @practice)
   end
 
+  test "ordinary note endpoint refuses psychotherapy note kinds" do
+    params = create_params(request_key: "note-psychotherapy-kind")
+    params[:encounter_note][:note_kind] = "psychotherapy"
+
+    post "/api/clinic/encounters/#{@encounter.id}/notes", params: params, headers: csrf_headers, as: :json
+
+    assert_response :bad_request
+    assert_equal "note_kind", response.parsed_body.fetch("field")
+    assert_includes response.parsed_body.fetch("error"), "soap"
+    assert_empty @encounter.notes.reload
+    assert_not Clinic::OperationReceipt.exists?(practice: @practice, request_key: "note-psychotherapy-kind")
+  end
+
   test "identical create retries return the same note without mutation replay" do
     params = create_params(request_key: "note-create-retry")
     post "/api/clinic/encounters/#{@encounter.id}/notes", params: params, headers: csrf_headers, as: :json
