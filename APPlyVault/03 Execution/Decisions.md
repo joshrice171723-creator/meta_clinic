@@ -1,9 +1,19 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-19
+updated: 2026-09-22
 ---
 # Decisions
+
+## Non-vendor workflow hardening and gated operations — 2026-09-22
+
+**D-079 — founder direction from the submitted decision response:** continue the shared, configurable U.S. weight-management reference journey as the non-vendor implementation focus. Complete the initial M1–M10 intake as structured, source-attributed information; keep patient/staff confirmation distinct from clinician review and signature (M11); use a separate, shorter, change-focused follow-up (M12); and create owned clarification or support work for unknown, conflicting, stale, declined, or incomplete information. Preserve drafts, corrections, incomplete encounters, original signed revisions, explicit answer states, and action-specific blocking: a missing safety-critical fact may block the dependent medication decision, but must not silently block unrelated coordination, education, scheduling, or record work.
+
+Build direction is to use named, versioned instruments only after their permitted-use and response pathways are selected; derive configured visit offerings, capacity, buffers, and booking requirements from one service catalog; keep advanced recurrence and unapproved overbooking unavailable; and preserve expiry, duplicate-request, cancellation, absence, result, and missed-follow-up recovery with a named owner and coverage. Medication administration remains conditional on repaired verification evidence and a confirmed offering; immunization administration stays unavailable for the first clinic; and point-of-care testing must fail closed until site-specific authority, test scope, and quality-control inputs are recorded. Implement typed, source-faithful laboratory data with code/version, status, original values and ranges, and UCUM where validated, without inferred clinical conversions, universal panels, or automatic interpretation.
+
+For the cash-pay core, build general estimate, receipt/correction, reconciliation, reporting/export, privacy/security, patient-access/recovery, accessibility, and pilot-evidence workflows as product infrastructure. Financial, clinical, reporting, privacy, and support actions remain independently owned; AI-assisted content stays an attributed draft until a human records approval; and no workflow may imply that an estimate, signed note, reported result, patient confirmation, or completed follow-up has independently approved payment, prescribing, administration, disclosure, or release.
+
+**Still unresolved and deliberately not authorized:** actual clinic/state/site, ages, modalities, service and test catalog, staffing/delegation/cosign/coverage, instrument and escalation pathways, medication products and clinical protocols, capacity/hold/buffer/cancellation policies, prices/tax/refund/receipt rules, lab sources/mappings/escalations, report/export/retention rules, named privacy/security/support owners, recovery methods, pilot cohort/dates/devices/accepting reviewers, and any legal, clinical, operational, real-data, pilot, or release acceptance. These require the relevant designated human reviewer and, where applicable, jurisdiction-specific review. The submitted response is durable product direction, not proof that those approvals or external integrations exist. The [implementation tracker](<Meta Clinic Implementation Tracker.md>) and the [2026-09-19 intake audit](../../records/implementation/2026-09-19-weight-management-intake-audit.md) retain the current partial-status and evidence requirements.
 
 ## Independent demo lessons — 2026-09-19
 
