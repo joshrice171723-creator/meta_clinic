@@ -207,6 +207,9 @@ Rails.application.routes.draw do
     resources :service_offerings, only: %i[index create update] do
       post :publish, on: :member
     end
+    resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: :create do
+      post :issue, on: :member
+    end
     resources :schedule_holds, controller: "scheduling/schedule_holds", only: :create do
       post :release, on: :member
     end

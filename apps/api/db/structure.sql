@@ -2488,6 +2488,90 @@ ALTER SEQUENCE public.clinic_cash_drawer_sessions_id_seq OWNED BY public.clinic_
 
 
 --
+-- Name: clinic_cash_pay_estimate_lines; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_cash_pay_estimate_lines (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    cash_pay_estimate_id bigint NOT NULL,
+    service_offering_id bigint,
+    billing_service_id bigint,
+    quantity numeric(14,3) NOT NULL,
+    unit_amount numeric(14,2) NOT NULL,
+    expected_amount numeric(14,2) NOT NULL,
+    description_snapshot character varying(500) NOT NULL,
+    inclusions character varying(500),
+    exclusions character varying(500),
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_cash_pay_estimate_lines_values CHECK (((quantity > (0)::numeric) AND (unit_amount >= (0)::numeric) AND (expected_amount >= (0)::numeric) AND (length(TRIM(BOTH FROM description_snapshot)) > 0)))
+);
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_cash_pay_estimate_lines_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_cash_pay_estimate_lines_id_seq OWNED BY public.clinic_cash_pay_estimate_lines.id;
+
+
+--
+-- Name: clinic_cash_pay_estimates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_cash_pay_estimates (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint,
+    classification character varying(24) NOT NULL,
+    status character varying(24) DEFAULT 'draft'::character varying NOT NULL,
+    currency character varying(3) NOT NULL,
+    policy_version character varying(80),
+    delivery_method character varying(40),
+    issued_at timestamp(6) without time zone,
+    delivered_at timestamp(6) without time zone,
+    supersedes_id bigint,
+    revision integer DEFAULT 1 NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_cash_pay_estimates_values CHECK ((((classification)::text = ANY ((ARRAY['general_estimate'::character varying, 'gfe_candidate'::character varying, 'issued_gfe'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'issued'::character varying, 'superseded'::character varying, 'void'::character varying])::text[])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (revision >= 1) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: clinic_cash_pay_estimates_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_cash_pay_estimates_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_cash_pay_estimates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_cash_pay_estimates_id_seq OWNED BY public.clinic_cash_pay_estimates.id;
+
+
+--
 -- Name: clinic_cash_tenders; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -12580,6 +12664,20 @@ ALTER TABLE ONLY public.clinic_cash_drawer_sessions ALTER COLUMN id SET DEFAULT 
 
 
 --
+-- Name: clinic_cash_pay_estimate_lines id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines ALTER COLUMN id SET DEFAULT nextval('public.clinic_cash_pay_estimate_lines_id_seq'::regclass);
+
+
+--
+-- Name: clinic_cash_pay_estimates id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimates ALTER COLUMN id SET DEFAULT nextval('public.clinic_cash_pay_estimates_id_seq'::regclass);
+
+
+--
 -- Name: clinic_cash_tenders id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -14363,6 +14461,22 @@ ALTER TABLE ONLY public.clinic_care_plan_revisions
 
 ALTER TABLE ONLY public.clinic_cash_drawer_sessions
     ADD CONSTRAINT clinic_cash_drawer_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines clinic_cash_pay_estimate_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines
+    ADD CONSTRAINT clinic_cash_pay_estimate_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_cash_pay_estimates clinic_cash_pay_estimates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimates
+    ADD CONSTRAINT clinic_cash_pay_estimates_pkey PRIMARY KEY (id);
 
 
 --
@@ -16575,6 +16689,27 @@ CREATE INDEX clinic_care_needs_active_lookup ON public.clinic_patient_care_needs
 --
 
 CREATE UNIQUE INDEX clinic_cash_drawer_one_open_per_site ON public.clinic_cash_drawer_sessions USING btree (practice_id, site_id) WHERE ((status)::text = 'open'::text);
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines_context; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_cash_pay_estimate_lines_context ON public.clinic_cash_pay_estimate_lines USING btree (practice_id, cash_pay_estimate_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimates_patient; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_cash_pay_estimates_patient ON public.clinic_cash_pay_estimates USING btree (practice_id, patient_id, status);
+
+
+--
+-- Name: clinic_cash_pay_estimates_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_cash_pay_estimates_practice_id ON public.clinic_cash_pay_estimates USING btree (practice_id, id);
 
 
 --
@@ -23551,6 +23686,46 @@ ALTER TABLE ONLY public.clinic_care_plan_revisions
 
 
 --
+-- Name: clinic_cash_pay_estimate_lines fk_cash_pay_estimate_lines_billing_service; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines
+    ADD CONSTRAINT fk_cash_pay_estimate_lines_billing_service FOREIGN KEY (practice_id, billing_service_id) REFERENCES public.clinic_billing_services(practice_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines fk_cash_pay_estimate_lines_estimate; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines
+    ADD CONSTRAINT fk_cash_pay_estimate_lines_estimate FOREIGN KEY (practice_id, cash_pay_estimate_id) REFERENCES public.clinic_cash_pay_estimates(practice_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines fk_cash_pay_estimate_lines_offering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines
+    ADD CONSTRAINT fk_cash_pay_estimate_lines_offering FOREIGN KEY (practice_id, service_offering_id) REFERENCES public.clinic_service_offerings(practice_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimates fk_cash_pay_estimates_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimates
+    ADD CONSTRAINT fk_cash_pay_estimates_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimates fk_cash_pay_estimates_supersedes; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimates
+    ADD CONSTRAINT fk_cash_pay_estimates_supersedes FOREIGN KEY (practice_id, supersedes_id) REFERENCES public.clinic_cash_pay_estimates(practice_id, id);
+
+
+--
 -- Name: clinic_cash_tenders fk_cash_tenders_drawer; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28439,6 +28614,14 @@ ALTER TABLE ONLY public.clinic_workforce_schedule_publications
 
 
 --
+-- Name: clinic_cash_pay_estimates fk_rails_a43b4265bc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimates
+    ADD CONSTRAINT fk_rails_a43b4265bc FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_scribe_drafts fk_rails_a4a0a9b474; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29324,6 +29507,14 @@ ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
 
 ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
     ADD CONSTRAINT fk_rails_e999cfba54 FOREIGN KEY (practice_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimate_lines fk_rails_e9a5d38252; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines
+    ADD CONSTRAINT fk_rails_e9a5d38252 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -30589,6 +30780,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922060000'),
 ('20260922050000'),
 ('20260922040000'),
 ('20260922030000'),
