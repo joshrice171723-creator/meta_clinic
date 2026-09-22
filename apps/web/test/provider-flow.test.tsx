@@ -9,6 +9,7 @@ import type {
 } from "../src/api/contracts";
 import {
   ChartQuickJump,
+  EncounterSectionRail,
   closeFailureState,
   closeRequestKey,
   closeRequestBody,
@@ -583,7 +584,7 @@ describe("provider encounter workflow", () => {
     expect(html).not.toContain("SOAP editor");
     expect(html).not.toContain("Open Scribe");
     expect(html.indexOf('id="nurse-workspace"')).toBeLessThan(
-      html.indexOf("Clinician chart"),
+      html.indexOf('id="chart-access"'),
     );
   });
 
@@ -639,6 +640,25 @@ describe("provider encounter workflow", () => {
     expect(html).toContain('href="#chart-hpi"');
     expect(html).toContain('href="#chart-ros"');
     expect(html).toContain("Quick jump");
+  });
+
+  it("keeps encounter navigation and status visible before chart confirmation", () => {
+    const html = renderToStaticMarkup(
+      <EncounterSectionRail chartConfirmed={false} />,
+    );
+
+    expect(html).toContain('aria-label="Encounter sections"');
+    expect(html).toContain('href="#chart-patient"');
+    expect(html).toContain('href="#nurse-workspace"');
+    expect(html).toContain('href="#chart-access"');
+    expect(html).not.toContain('href="#chart-hpi"');
+
+    const confirmedHtml = renderToStaticMarkup(
+      <EncounterSectionRail chartConfirmed />,
+    );
+    expect(confirmedHtml).toContain('href="#chart-context"');
+    expect(confirmedHtml).toContain('href="#chart-hpi"');
+    expect(confirmedHtml).toContain('href="#chart-completion"');
   });
 
   it("keeps SOAP save reconciliation inside the confirmed chart workspace", () => {

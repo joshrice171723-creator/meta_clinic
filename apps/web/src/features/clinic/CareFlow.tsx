@@ -3384,6 +3384,45 @@ export function ChartQuickJump() {
   );
 }
 
+export function EncounterSectionRail({
+  chartConfirmed,
+}: {
+  chartConfirmed: boolean;
+}) {
+  const links = [
+    ["Visit summary", "#chart-patient"],
+    ["Rooming & intake", "#nurse-workspace"],
+    ["Clinician chart", "#chart-access"],
+    ...(chartConfirmed
+      ? [
+          ["Encounter context", "#chart-context"],
+          ["Documentation", "#chart-hpi"],
+          ["Completion", "#chart-completion"],
+        ]
+      : []),
+  ];
+
+  return (
+    <Paper
+      component="nav"
+      variant="outlined"
+      className="encounter-section-rail"
+      aria-label="Encounter sections"
+    >
+      <Typography variant="subtitle2" component="h2">
+        Encounter sections
+      </Typography>
+      <Stack className="encounter-section-links">
+        {links.map(([label, href]) => (
+          <Button key={href} href={href} variant="text" size="small">
+            {label}
+          </Button>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
 export function ProviderEncounterWorkflow({
   patient,
   encounter,
@@ -3497,38 +3536,62 @@ export function ProviderEncounterWorkflow({
         id="chart-patient"
         variant="outlined"
         sx={{ p: 2 }}
-        className="chart-anchor"
+        className="chart-anchor encounter-summary-header"
       >
         <Stack spacing={1}>
           <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: "center", justifyContent: "space-between" }}
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{
+              alignItems: { sm: "flex-start" },
+              justifyContent: "space-between",
+            }}
           >
-            <Typography variant="subtitle2">Patient Demographics</Typography>
-            {chartConfirmed &&
-              encounter.telehealth?.clinic_href &&
-              capabilities.telehealth_read && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  href={encounter.telehealth.clinic_href}
-                >
-                  Open video visit &amp; Scribe
-                </Button>
-              )}
-            {chartConfirmed &&
-              capabilities.scribe_read === true &&
-              capabilities.scribe_write === true &&
-              capabilities.notes_write === true && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  href={`/clinic/scribe?patient_id=${patient.id}&clinical_encounter_id=${encounter.id}`}
-                >
-                  Open Scribe
-                </Button>
-              )}
+            <Box>
+              <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+                Encounter #{encounter.id}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Patient and visit summary
+              </Typography>
+            </Box>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}
+            >
+              <Chip
+                label={chartStateLabel(
+                  signedChart,
+                  chartConfirmed,
+                  existingChart,
+                )}
+                variant="outlined"
+              />
+              {chartConfirmed &&
+                encounter.telehealth?.clinic_href &&
+                capabilities.telehealth_read && (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    href={encounter.telehealth.clinic_href}
+                  >
+                    Open video visit &amp; Scribe
+                  </Button>
+                )}
+              {chartConfirmed &&
+                capabilities.scribe_read === true &&
+                capabilities.scribe_write === true &&
+                capabilities.notes_write === true && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    href={`/clinic/scribe?patient_id=${patient.id}&clinical_encounter_id=${encounter.id}`}
+                  >
+                    Open Scribe
+                  </Button>
+                )}
+            </Stack>
           </Stack>
           <TableContainer>
             <Table size="small" className="patient-demographics-table">
@@ -3622,254 +3685,306 @@ export function ProviderEncounterWorkflow({
         </Stack>
       </Paper>
 
-      {nurseWorkspaceResource && facilityRoomsResource ? (
-        <NurseEncounterWorkspaceContent
-          patient={patient}
-          encounter={encounter}
-          observations={observations}
-          onObservationsRecorded={(saved) =>
-            setRecordedObservations((current) => [
-              ...current,
-              ...saved.filter(
-                (observation) =>
-                  observation.patient_id === patient.id &&
-                  observation.encounter_id === encounter.id,
-              ),
-            ])
-          }
-          careSummary={
-            careSummaryState.status === "ready"
-              ? careSummaryState.summary
-              : null
-          }
-          resource={nurseWorkspaceResource}
-          roomsResource={facilityRoomsResource}
-        />
-      ) : (
-        <NurseEncounterWorkspace
-          patient={patient}
-          encounter={encounter}
-          observations={observations}
-          onObservationsRecorded={(saved) =>
-            setRecordedObservations((current) => [
-              ...current,
-              ...saved.filter(
-                (observation) =>
-                  observation.patient_id === patient.id &&
-                  observation.encounter_id === encounter.id,
-              ),
-            ])
-          }
-          careSummary={
-            careSummaryState.status === "ready"
-              ? careSummaryState.summary
-              : null
-          }
-        />
-      )}
-
-      <Paper id="chart-access" variant="outlined" sx={{ p: 2 }}>
-        <Stack spacing={1.25}>
-          <Box>
-            <Typography component="h2" variant="subtitle1">
-              Clinician chart
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Confirm the patient and encounter before opening the chart. This
-              confirmation does not accept a handoff or assign a provider.
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <Chip
-              label={chartStateLabel(
-                signedChart,
-                chartConfirmed,
-                existingChart,
-              )}
-              variant="outlined"
+      <Box className="encounter-workspace-layout">
+        <EncounterSectionRail chartConfirmed={chartConfirmed} />
+        <Stack spacing={2} className="encounter-workspace-primary">
+          {nurseWorkspaceResource && facilityRoomsResource ? (
+            <NurseEncounterWorkspaceContent
+              patient={patient}
+              encounter={encounter}
+              observations={observations}
+              onObservationsRecorded={(saved) =>
+                setRecordedObservations((current) => [
+                  ...current,
+                  ...saved.filter(
+                    (observation) =>
+                      observation.patient_id === patient.id &&
+                      observation.encounter_id === encounter.id,
+                  ),
+                ])
+              }
+              careSummary={
+                careSummaryState.status === "ready"
+                  ? careSummaryState.summary
+                  : null
+              }
+              resource={nurseWorkspaceResource}
+              roomsResource={facilityRoomsResource}
             />
-            {chartConfirmed && (
-              <Button href="/clinic" variant="text" size="small">
-                Close chart
-              </Button>
-            )}
-          </Stack>
-          {!chartConfirmed && (
-            <Alert severity="info">
-              {signedChart
-                ? "Confirm this patient reference and encounter before viewing the signed chart."
-                : existingChart
-                  ? "This encounter has an in-progress chart. Confirm the patient reference and encounter before opening it."
-                  : "Complete the available nurse preparation, then confirm this patient reference and encounter before opening the chart."}
-            </Alert>
+          ) : (
+            <NurseEncounterWorkspace
+              patient={patient}
+              encounter={encounter}
+              observations={observations}
+              onObservationsRecorded={(saved) =>
+                setRecordedObservations((current) => [
+                  ...current,
+                  ...saved.filter(
+                    (observation) =>
+                      observation.patient_id === patient.id &&
+                      observation.encounter_id === encounter.id,
+                  ),
+                ])
+              }
+              careSummary={
+                careSummaryState.status === "ready"
+                  ? careSummaryState.summary
+                  : null
+              }
+            />
           )}
-          {!chartConfirmed && (
-            <Button
-              variant="contained"
-              onClick={() => setChartConfirmed(true)}
-              sx={{ alignSelf: "flex-start" }}
-            >
-              {signedChart
-                ? "Confirm and view signed chart"
-                : existingChart
-                  ? "Confirm and open chart"
-                  : "Confirm and begin charting"}
-            </Button>
-          )}
-        </Stack>
-      </Paper>
 
-      {chartConfirmed && (
-        <Stack spacing={2}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={1.5}>
-              <Typography
-                ref={workspaceHeading}
-                tabIndex={-1}
-                variant="subtitle2"
-                component="h2"
-              >
-                Encounter context
-              </Typography>
+          <Paper id="chart-access" variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.25}>
               <Box>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Recorded care details
+                <Typography component="h2" variant="subtitle1">
+                  Clinician chart
                 </Typography>
-                {careSummaryState.status === "loading" ? (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    role="status"
-                  >
-                    Loading recorded care details…
-                  </Typography>
-                ) : careSummaryState.status === "error" ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Recorded care details could not be loaded.
-                  </Typography>
-                ) : (
-                  <CareIndicators
-                    state={careSummaryState}
-                    patientLabel={patient.display_name}
-                    timezone={timezone}
-                  />
-                )}
+                <Typography variant="body2" color="text.secondary">
+                  Confirm the patient and encounter before opening the chart.
+                  This confirmation does not accept a handoff or assign a
+                  provider.
+                </Typography>
               </Box>
-              {reviewNeededTopics.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2">Review needed</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Use the existing review controls to record the outcome for
-                    this encounter.
-                  </Typography>
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    sx={{ mt: 1 }}
-                  >
-                    {reviewNeededTopics.map((topic) => (
-                      <Button
-                        key={topic}
-                        size="small"
-                        variant="outlined"
-                        href={`#clinical-history-${topic}-review`}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          focusReview(topic);
-                        }}
-                      >
-                        Review {topic.replaceAll("_", " ")}
-                      </Button>
-                    ))}
-                  </Stack>
-                </Box>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                <Chip
+                  label={chartStateLabel(
+                    signedChart,
+                    chartConfirmed,
+                    existingChart,
+                  )}
+                  variant="outlined"
+                />
+                {chartConfirmed && (
+                  <Button href="/clinic" variant="text" size="small">
+                    Close chart
+                  </Button>
+                )}
+              </Stack>
+              {!chartConfirmed && (
+                <Alert severity="info">
+                  {signedChart
+                    ? "Confirm this patient reference and encounter before viewing the signed chart."
+                    : existingChart
+                      ? "This encounter has an in-progress chart. Confirm the patient reference and encounter before opening it."
+                      : "Complete the available nurse preparation, then confirm this patient reference and encounter before opening the chart."}
+                </Alert>
               )}
-              <Divider />
-              <Box>
-                <Typography variant="subtitle2">Vital signs</Typography>
-                {displayedObservations.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No recorded observations are available for this encounter.
-                  </Typography>
-                ) : (
-                  <>
-                    {sharedObservationTime && (
-                      <Typography variant="caption" color="text.secondary">
-                        Observed {sharedObservationTime}
-                      </Typography>
-                    )}
-                    <Box className="provider-vitals-grid">
-                      {displayedObservations.map((observation) => (
-                        <Box key={observation.id}>
-                          <Typography variant="caption" color="text.secondary">
-                            {observation.display_label ||
-                              observationLabel(observation.code)}
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {observationValue(observation)}
-                          </Typography>
-                          {!sharedObservationTime && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              {clinicDateTime(
-                                observation.observed_at,
-                                timezone,
-                              )}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  </>
-                )}
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                Values are displayed as recorded. No review status is inferred
-                or stored here.
-              </Typography>
+              {!chartConfirmed && (
+                <Button
+                  variant="contained"
+                  onClick={() => setChartConfirmed(true)}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  {signedChart
+                    ? "Confirm and view signed chart"
+                    : existingChart
+                      ? "Confirm and open chart"
+                      : "Confirm and begin charting"}
+                </Button>
+              )}
             </Stack>
           </Paper>
-          <Box className="provider-chart-layout">
-            <ChartQuickJump />
-            <Stack spacing={2} className="provider-chart-content">
-              <PatientEducationPanel patient={patient} encounter={encounter} />
-              <PatientClinicalHistory
-                patientId={patient.id}
-                encounterId={encounter.id}
-                onChanged={onCareSummaryRefresh}
-              />
-              <Box id="chart-labs">
-                <PatientLabReports
-                  patientId={patient.id}
-                  patientName={patient.display_name}
-                  encounterId={encounter.id}
-                  orderRevision={orderRevision}
-                />
+
+          {chartConfirmed && (
+            <Stack spacing={2}>
+              <Paper id="chart-context" variant="outlined" sx={{ p: 2 }}>
+                <Stack spacing={1.5}>
+                  <Typography
+                    ref={workspaceHeading}
+                    tabIndex={-1}
+                    variant="subtitle2"
+                    component="h2"
+                  >
+                    Encounter context
+                  </Typography>
+                  <Box>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>
+                      Recorded care details
+                    </Typography>
+                    {careSummaryState.status === "loading" ? (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        role="status"
+                      >
+                        Loading recorded care details…
+                      </Typography>
+                    ) : careSummaryState.status === "error" ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Recorded care details could not be loaded.
+                      </Typography>
+                    ) : (
+                      <CareIndicators
+                        state={careSummaryState}
+                        patientLabel={patient.display_name}
+                        timezone={timezone}
+                      />
+                    )}
+                  </Box>
+                  {reviewNeededTopics.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2">Review needed</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Use the existing review controls to record the outcome
+                        for this encounter.
+                      </Typography>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        sx={{ mt: 1 }}
+                      >
+                        {reviewNeededTopics.map((topic) => (
+                          <Button
+                            key={topic}
+                            size="small"
+                            variant="outlined"
+                            href={`#clinical-history-${topic}-review`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              focusReview(topic);
+                            }}
+                          >
+                            Review {topic.replaceAll("_", " ")}
+                          </Button>
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+                  <Divider />
+                  <Box>
+                    <Typography variant="subtitle2">Vital signs</Typography>
+                    {displayedObservations.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        No recorded observations are available for this
+                        encounter.
+                      </Typography>
+                    ) : (
+                      <>
+                        {sharedObservationTime && (
+                          <Typography variant="caption" color="text.secondary">
+                            Observed {sharedObservationTime}
+                          </Typography>
+                        )}
+                        <Box className="provider-vitals-grid">
+                          {displayedObservations.map((observation) => (
+                            <Box key={observation.id}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {observation.display_label ||
+                                  observationLabel(observation.code)}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600 }}
+                              >
+                                {observationValue(observation)}
+                              </Typography>
+                              {!sharedObservationTime && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {clinicDateTime(
+                                    observation.observed_at,
+                                    timezone,
+                                  )}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Values are displayed as recorded. No review status is
+                    inferred or stored here.
+                  </Typography>
+                </Stack>
+              </Paper>
+              <Box className="provider-chart-layout">
+                <ChartQuickJump />
+                <Stack spacing={2} className="provider-chart-content">
+                  <PatientEducationPanel
+                    patient={patient}
+                    encounter={encounter}
+                  />
+                  <PatientClinicalHistory
+                    patientId={patient.id}
+                    encounterId={encounter.id}
+                    onChanged={onCareSummaryRefresh}
+                  />
+                  <Box id="chart-labs">
+                    <PatientLabReports
+                      patientId={patient.id}
+                      patientName={patient.display_name}
+                      encounterId={encounter.id}
+                      orderRevision={orderRevision}
+                    />
+                  </Box>
+                  <MedicationAdministrations
+                    encounter={encounter}
+                    patient={patient}
+                    timezone={timezone}
+                    onChanged={onCareSummaryRefresh}
+                  />
+                  <ClinicalPlanWorkspace
+                    patient={patient}
+                    encounter={encounter}
+                    onChanged={() =>
+                      setOrderRevision((revision) => revision + 1)
+                    }
+                  />
+                  {noteWorkspace}
+                  <VisitWrapUp
+                    patient={patient}
+                    encounter={encounter}
+                    timezone={timezone}
+                    onEncounterRefresh={onEncounterRefresh}
+                  />
+                </Stack>
               </Box>
-              <MedicationAdministrations
-                encounter={encounter}
-                patient={patient}
-                timezone={timezone}
-                onChanged={onCareSummaryRefresh}
-              />
-              <ClinicalPlanWorkspace
-                patient={patient}
-                encounter={encounter}
-                onChanged={() => setOrderRevision((revision) => revision + 1)}
-              />
-              {noteWorkspace}
-              <VisitWrapUp
-                patient={patient}
-                encounter={encounter}
-                timezone={timezone}
-                onEncounterRefresh={onEncounterRefresh}
-              />
             </Stack>
-          </Box>
+          )}
         </Stack>
-      )}
+        <Paper
+          component="aside"
+          variant="outlined"
+          className="encounter-context-rail"
+          aria-label="Encounter status"
+        >
+          <Stack spacing={1.25}>
+            <Typography component="h2" variant="subtitle2">
+              Encounter status
+            </Typography>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Visit
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {statusLabel(encounter.status)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Chart
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {chartStateLabel(signedChart, chartConfirmed, existingChart)}
+              </Typography>
+            </Box>
+            <Divider />
+            <Typography variant="body2" color="text.secondary">
+              {chartConfirmed
+                ? "Use the active chart sections to document this encounter."
+                : "Complete available preparation, then confirm the patient and encounter before opening the chart."}
+            </Typography>
+          </Stack>
+        </Paper>
+      </Box>
     </Stack>
   );
 }
