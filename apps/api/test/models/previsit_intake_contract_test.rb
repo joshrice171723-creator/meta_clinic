@@ -17,7 +17,12 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
     assert_equal form, payload["form_id"]
     assert_equal "declined", payload.dig("answers", "bh_substance_context", "state")
     assert_equal "unknown", payload.dig("answers", "bh_history", "state")
-    assert_includes Intake.fields("behavioral-health-follow-up-v1").map { |field| field[:id] }, "treatment_response"
+    follow_up_fields = Intake.fields("behavioral-health-follow-up-v1").index_by { |field| field[:id] }
+    assert_equal %w[improved unchanged worse mixed not_applicable unknown],
+      follow_up_fields.fetch("treatment_response").fetch(:choices)
+    assert_equal %w[adequate needs_support changed not_applicable unknown],
+      follow_up_fields.fetch("support_status").fetch(:choices)
+    assert_nil follow_up_fields.fetch("follow_up_questions")[:choices]
     original = Intake.encode(text: "", answers: { "goals" => "Prior visit goal" }, attested: true)
     historical = Intake.decode(original)
     assert_equal Intake::FORM_ID, historical["form_id"]

@@ -6,6 +6,7 @@ import {
   exceptionAnswerStates,
   intakeFieldVisible,
 } from "../src/features/patientPortal/IntakeQuestions";
+import { choiceLabel } from "../src/features/patientPortal/StructuredIntakeFields";
 import {
   appendPrevisitNote,
   previsitNoteBlock,
@@ -80,6 +81,51 @@ describe("typed patient journey intake", () => {
     expect(html).toContain('aria-label="Support status question"');
     expect(html).not.toContain("Support status status");
     expect(html).toContain("Record an exception");
+  });
+
+  it("renders the behavioral-health return choices without treating an unknown response as a score", () => {
+    const html = renderToStaticMarkup(
+      <IntakeQuestions
+        fields={[
+          {
+            id: "treatment_response",
+            label: "Treatment response",
+            reusable: false,
+            choices: [
+              "improved",
+              "unchanged",
+              "worse",
+              "mixed",
+              "not_applicable",
+              "unknown",
+            ],
+          },
+        ]}
+        answers={{}}
+        disabled={false}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain("Treatment response");
+    expect(html).toContain('role="combobox"');
+    expect(
+      [
+        "improved",
+        "unchanged",
+        "worse",
+        "mixed",
+        "not_applicable",
+        "unknown",
+      ].map(choiceLabel),
+    ).toEqual([
+      "Improved",
+      "Unchanged",
+      "Worse",
+      "Mixed",
+      "Not applicable",
+      "Unknown",
+    ]);
+    expect(html).not.toContain("score");
   });
 
   it("offers only missing-answer exceptions in the secondary menu", () => {

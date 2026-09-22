@@ -18,7 +18,7 @@ import type {
   IntakeRecordEntry,
 } from "./IntakeQuestions";
 
-function choiceLabel(value: string) {
+export function choiceLabel(value: string) {
   return value
     .replaceAll("_", " ")
     .replace(/^./, (letter) => letter.toUpperCase());
