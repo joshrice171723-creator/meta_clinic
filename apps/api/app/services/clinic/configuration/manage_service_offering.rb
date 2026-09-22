@@ -1,0 +1,183 @@
+module Clinic
+  module Configuration
+    class ManageServiceOffering
+      CREATE_OPERATION = "clinic.service_offering.create"
+      UPDATE_OPERATION = "clinic.service_offering.update"
+      PUBLISH_OPERATION = "clinic.service_offering.publish"
+
+      Result = Data.define(:offering, :replayed)
+
+      def self.create(practice:, actor:, request_key:, attributes:)
+        authorize!(practice: practice, actor: actor)
+        normalized = normalize(attributes, creating: true)
+        execute(practice: practice, actor: actor, request_key: request_key, operation: CREATE_OPERATION, payload: normalized) do
+          offering = practice.service_offerings.create!(normalized.except(:site_ids))
+          replace_sites!(offering: offering, site_ids: normalized.fetch(:site_ids))
+          audit!(practice: practice, actor: actor, offering: offering, action: CREATE_OPERATION)
+          offering
+        end
+      end
+
+      def self.update(practice:, actor:, offering:, request_key:, lock_version:, attributes:)
+        authorize!(practice: practice, actor: actor)
+        normalized = normalize(attributes, creating: false)
+        expected_lock_version = Integer(lock_version.to_s, 10)
+        raise ArgumentError, "lock_version must be zero or greater." if expected_lock_version.negative?
+        execute(practice: practice, actor: actor, request_key: request_key, operation: UPDATE_OPERATION,
+          payload: { service_offering_id: offering.id, lock_version: expected_lock_version, attributes: normalized }) do
+          locked = practice.service_offerings.lock.find(offering.id)
+          raise ActiveRecord::StaleObjectError.new(locked, "update") unless locked.lock_version == expected_lock_version
+
+          locked.update!(normalized.except(:site_ids)) unless normalized.except(:site_ids).empty?
+          replace_sites!(offering: locked, site_ids: normalized[:site_ids]) if normalized.key?(:site_ids)
+          audit!(practice: practice, actor: actor, offering: locked, action: UPDATE_OPERATION)
+          locked
+        end
+      rescue ArgumentError => error
+        raise error unless error.message.match?(/invalid value for Integer/)
+
+        raise ArgumentError, "lock_version must be a whole number."
+      end
+
+      def self.publish(practice:, actor:, offering:, request_key:, lock_version:)
+        authorize!(practice: practice, actor: actor)
+        expected_lock_version = Integer(lock_version.to_s, 10)
+        execute(practice: practice, actor: actor, request_key: request_key, operation: PUBLISH_OPERATION,
+          payload: { service_offering_id: offering.id, lock_version: expected_lock_version }) do
+          locked = practice.service_offerings.lock.find(offering.id)
+          raise ActiveRecord::StaleObjectError.new(locked, "publish") unless locked.lock_version == expected_lock_version
+
+          locked.update!(status: "published", published_at: Time.current, retired_at: nil)
+          audit!(practice: practice, actor: actor, offering: locked, action: PUBLISH_OPERATION)
+          locked
+        end
+      rescue ArgumentError => error
+        raise error unless error.message.match?(/invalid value for Integer/)
+
+        raise ArgumentError, "lock_version must be a whole number."
+      end
+
+      def self.execute(practice:, actor:, request_key:, operation:, payload:, &block)
+        outcome = Clinic::Idempotency.execute(
+          practice: practice, actor: actor, operation_code: operation, request_key: request_key, payload: payload,
+          authorization: -> { authorize!(practice: practice, actor: actor) }, authorization_action: "facilities.write",
+          result_resource: ->(offering) { offering },
+          resource_resolver: ->(practice:, receipt:) { practice.service_offerings.find_by(id: receipt.resource_id) },
+          &block
+        )
+        raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+        Result.new(offering: outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed service offering is unavailable."), replayed: outcome.replayed)
+      end
+      private_class_method :execute
+
+      def self.normalize(attributes, creating:)
+        values = {}
+        values[:name] = required_text(attributes[:name], field: "name", maximum: 160) if creating || attributes.key?(:name)
+        values[:code] = optional_text(attributes[:code], field: "code", maximum: 50) if attributes.key?(:code)
+        values[:description] = optional_text(attributes[:description], field: "description", maximum: 500) if attributes.key?(:description)
+        values[:visit_type_id] = optional_id(attributes[:visit_type_id], field: "visit_type_id") if attributes.key?(:visit_type_id)
+        values[:billing_service_id] = optional_id(attributes[:billing_service_id], field: "billing_service_id") if attributes.key?(:billing_service_id)
+        values[:duration_minutes] = optional_duration(attributes[:duration_minutes]) if attributes.key?(:duration_minutes)
+        values[:modality] = enum(attributes[:modality], field: "modality", allowed: %w[in_person video either]) if attributes.key?(:modality)
+        values[:booking_required] = boolean(attributes[:booking_required], field: "booking_required") if attributes.key?(:booking_required)
+        values[:requires_room] = boolean(attributes[:requires_room], field: "requires_room") if attributes.key?(:requires_room)
+        values[:status] = enum(attributes[:status], field: "status", allowed: %w[draft retired]) if attributes.key?(:status)
+        values[:site_ids] = normalized_ids(attributes[:site_ids]) if attributes.key?(:site_ids)
+        values[:modality] ||= "in_person" if creating
+        values[:booking_required] = true if creating && !values.key?(:booking_required)
+        values[:requires_room] = false if creating && !values.key?(:requires_room)
+        values[:status] ||= "draft" if creating
+        values[:site_ids] ||= [] if creating
+        values
+      end
+      private_class_method :normalize
+
+      def self.replace_sites!(offering:, site_ids:)
+        site_ids = Array(site_ids).map(&:to_i).uniq.sort
+        sites = offering.practice.sites.where(id: site_ids).index_by(&:id)
+        raise ActiveRecord::RecordNotFound, "One or more eligible sites are unavailable." unless sites.length == site_ids.length
+
+        offering.offering_sites.delete_all
+        sites.each_value { |site| offering.offering_sites.create!(practice: offering.practice, site: site) }
+        offering.reload
+      end
+      private_class_method :replace_sites!
+
+      def self.authorize!(practice:, actor:)
+        Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "facilities.write", legacy_action: "appointments.write")
+      end
+      private_class_method :authorize!
+
+      def self.audit!(practice:, actor:, offering:, action:)
+        AuditRecorder.record!(practice: practice, actor: actor, action_code: action,
+          resource_version_ref: "clinic_service_offering:#{offering.id}:#{offering.lock_version}", outcome: :released)
+      end
+      private_class_method :audit!
+
+      def self.required_text(value, field:, maximum:)
+        text = optional_text(value, field: field, maximum: maximum)
+        raise ArgumentError, "#{field} is required." unless text
+
+        text
+      end
+      private_class_method :required_text
+
+      def self.optional_text(value, field:, maximum:)
+        return nil if value.nil?
+
+        text = value.to_s.strip.presence
+        raise ArgumentError, "#{field} must be at most #{maximum} characters." if text && text.length > maximum
+
+        text
+      end
+      private_class_method :optional_text
+
+      def self.optional_id(value, field:)
+        return nil if value.nil? || value == ""
+
+        id = Integer(value.to_s, 10)
+        raise ArgumentError, "#{field} must be positive." unless id.positive?
+
+        id
+      rescue ArgumentError
+        raise ArgumentError, "#{field} must be a whole number."
+      end
+      private_class_method :optional_id
+
+      def self.optional_duration(value)
+        return nil if value.nil? || value == ""
+
+        duration = Integer(value.to_s, 10)
+        raise ArgumentError, "duration_minutes must be between 5 and 1440." unless duration.between?(5, 1440)
+
+        duration
+      rescue ArgumentError
+        raise ArgumentError, "duration_minutes must be a whole number."
+      end
+      private_class_method :optional_duration
+
+      def self.normalized_ids(value)
+        raise ArgumentError, "site_ids must be a list." unless value.is_a?(Array)
+
+        value.map { |id| optional_id(id, field: "site_ids") }.compact.uniq.sort
+      end
+      private_class_method :normalized_ids
+
+      def self.enum(value, field:, allowed:)
+        normalized = value.to_s
+        raise ArgumentError, "#{field} is invalid." unless allowed.include?(normalized)
+
+        normalized
+      end
+      private_class_method :enum
+
+      def self.boolean(value, field:)
+        return value if [ true, false ].include?(value)
+
+        raise ArgumentError, "#{field} must be true or false."
+      end
+      private_class_method :boolean
+    end
+  end
+end

@@ -11,6 +11,8 @@ module Clinic
     has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error
     has_many :operating_hours, class_name: "Clinic::SiteOperatingHour", dependent: :restrict_with_error
     has_many :hour_exceptions, class_name: "Clinic::SiteHourException", dependent: :restrict_with_error
+    has_many :service_offering_sites, class_name: "Clinic::ServiceOfferingSite", dependent: :restrict_with_error
+    has_many :service_offerings, through: :service_offering_sites, class_name: "Clinic::ServiceOffering"
 
     validates :code, presence: true, length: { maximum: 80 }, uniqueness: { scope: :practice_id }
     validates :name, presence: true, length: { maximum: 120 }

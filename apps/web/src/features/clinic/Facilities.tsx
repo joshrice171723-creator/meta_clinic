@@ -23,6 +23,7 @@ import type {
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { VisitTypeSettings } from "./VisitTypeSettings";
+import { ServiceOfferingSettings } from "./ServiceOfferingSettings";
 import { useClinic } from "./Workspace";
 import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
 import { ClinicianSetup } from "./ClinicianSetup";
@@ -211,6 +212,7 @@ export function Facilities() {
         canWrite={capabilities.clinic_setup_write === true}
       />
       <VisitTypeSettings canWrite={canWrite} />
+      <ServiceOfferingSettings canWrite={canWrite} />
       {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
         <Paper variant="outlined" className="facilities-list">

@@ -204,6 +204,9 @@ Rails.application.routes.draw do
     get "billing/support_requests", to: "billing/support_requests#index"
     post "billing/support_requests/:id/transition", to: "billing/support_requests#transition"
     resources :billing_services, only: %i[index create update]
+    resources :service_offerings, only: %i[index create update] do
+      post :publish, on: :member
+    end
     get "stripe_connect", to: "billing/stripe_connect#show"
     post "stripe_connect/onboard", to: "billing/stripe_connect#onboard"
     post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"

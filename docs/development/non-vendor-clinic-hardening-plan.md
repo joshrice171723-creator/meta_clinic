@@ -1,6 +1,6 @@
 # Non-vendor clinic hardening — agent handoff
 
-**Revision:** 1 · **Date:** 2026-09-22 · **Planning status:** approved product direction, not implementation authorization for external or regulated operations.
+**Revision:** 2 · **Date:** 2026-09-22 · **Planning status:** approved product direction; local implementation is in progress, not authorization for external or regulated operations.
 
 **Owner:** Meta Clinic implementation agent, one slice at a time. The [implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) remains the current work inventory; this brief supplies the detailed sequence and handoff context for priorities 2–10.
 
@@ -30,6 +30,10 @@ This implements D-079's reusable product direction. It does **not** select an ac
 ### Baseline as of 2026-09-22
 
 At `caeec3ca` on `main`, the source has appointment/calendar, billing ledger/invoice, lab report, immunization, inventory, workforce, and setup primitives. The [remaining-work audit](../product-review/meta-clinic-remaining-work.md) reports local API/selective browser evidence for some journeys, while the [healthcare gap audit](../../records/audits/2026-09-10-us-healthcare-standards-product-gap-audit.md) identifies the missing GFE, Schedule/Slot-like, typed-lab, administration-grade immunization, and internal service-offering slices. Do not rely on this statement without reconciling the current checkout.
+
+### Current implementation checkpoint — 2026-09-22
+
+Slice 1 is implemented locally and awaiting the scoped final gate: `Clinic::ServiceOffering` is a tenant-scoped operational configuration record with draft/published/retired state, visit-type and optional billable-price references, eligible-site links, duration/modality, room and booking prerequisites, optimistic locking, idempotency, and audit evidence. Clinic Setup now has a synthetic browser-facing configuration panel. The focused API contract passed 3 runs/25 assertions; TypeScript and the production bundle passed. The test and local development migrations applied cleanly with generated PostgreSQL structure. Browser mutation proof, appointment linkage/retirement preservation, eligible-team coverage, contact/referral requirements, and all later slices remain open; this is not a claim of scheduling, clinical, legal, or release readiness.
 
 ## Shared data, ownership, and failure contract
 
