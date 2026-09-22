@@ -183,6 +183,18 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
         expected_version: assessment.fetch("version_number"), request_key: "assessment-complete" } })
     assert_equal [ "completed", "depression", "patient_reported" ],
       assessment.values_at("status", "category", "response_source")
+
+    patch "#{workspace_path(@patient)}/assessments/#{assessment.fetch('series_id')}",
+      params: { assessment: { score_source: "calculated", expected_version: assessment.fetch("version_number"),
+        request_key: "assessment-score-provenance-partial" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Score source and recorded time"
+
+    assessment = revise_record("assessments", "assessment", assessment,
+      { assessment: { score_source: "calculated", score_recorded_at: "2026-09-10T15:46:00Z",
+        expected_version: assessment.fetch("version_number"), request_key: "assessment-score-provenance" } })
+    assert_equal [ "4", "calculated", "2026-09-10T15:46:00Z" ],
+      assessment.values_at("score_value", "score_source", "score_recorded_at")
   end
 
   test "administered-here immunizations retain exact staff facility lot and optional VIS evidence" do

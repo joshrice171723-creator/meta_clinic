@@ -429,6 +429,8 @@ const RESOURCE_META: Record<
       instrument_name: "",
       instrument_version: "",
       score_value: "",
+      score_source: "",
+      score_recorded_at: "",
       interpretation: "",
       response_summary: "",
       follow_up_plan: "",
@@ -446,6 +448,16 @@ const RESOURCE_META: Record<
       { name: "instrument_name", label: "Instrument name", required: true },
       { name: "instrument_version", label: "Instrument version" },
       { name: "score_value", label: "Recorded score" },
+      {
+        name: "score_source",
+        label: "Score source",
+        options: ["calculated", "clinician_entered", "imported", "unknown"],
+      },
+      {
+        name: "score_recorded_at",
+        label: "Score recorded at",
+        type: "datetime-local",
+      },
       {
         name: "interpretation",
         label: "Recorded interpretation",
@@ -563,6 +575,9 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
   return [
     humanize(value.category),
     value.score_value && `Score ${value.score_value}`,
+    value.score_source && `Score source: ${humanize(value.score_source)}`,
+    value.score_recorded_at &&
+      `Score recorded ${new Date(value.score_recorded_at).toLocaleDateString()}`,
     value.assessed_at && new Date(value.assessed_at).toLocaleDateString(),
   ]
     .filter(Boolean)
@@ -758,6 +773,21 @@ export function ClinicalPlanWorkspace({
       setError(
         "Enter when the assessment was completed, its response source, and its responses or observations.",
       );
+      return;
+    }
+    if (
+      kind === "assessments" &&
+      Boolean(form.score_source) !== Boolean(form.score_recorded_at)
+    ) {
+      setError("Enter a score source and when it was recorded together.");
+      return;
+    }
+    if (
+      kind === "assessments" &&
+      form.score_source &&
+      !form.score_value?.trim()
+    ) {
+      setError("Enter the recorded score before recording its provenance.");
       return;
     }
     if (

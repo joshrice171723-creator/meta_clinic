@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Assessment-score provenance
+
+Added optional source and recorded time to immutable assessment-score revisions. New score provenance is a complete pair—calculated, clinician-entered, imported, or explicit unknown plus a timestamp—and cannot be recorded without an existing score. Existing scores remain historical rather than being backfilled. The implementation does not calculate a score, select an instrument, assign a reviewer, set a threshold, or create follow-up work. Focused clinical-plan API verification passed 10 runs / 236 assertions; the frontend control contract passed 3 tests, TypeScript/Prettier passed, and PostgreSQL upgrade, concurrency, restore, and fresh-schema verification passed. The broader backend verifier repeated the unrelated appointment-overlap race after its independent invoice/address checks passed.
+
 ## 2026-09-22 — Ordinary-note psychotherapy boundary
 
 Added focused API regression proof that the ordinary encounter-note endpoint rejects a `psychotherapy` note kind before creating a note or idempotency receipt. This maintains the product boundary between ordinary SOAP documentation and a separately maintained psychotherapy-note capability; it does not claim that protected-note access, portal/export separation, consent, retention, or state-law policy has been implemented. `clinic_encounter_notes_idempotency_test.rb` passed 17 runs / 163 assertions, scoped RuboCop and vault verification passed, and the change was published in `e0a0c55b`.

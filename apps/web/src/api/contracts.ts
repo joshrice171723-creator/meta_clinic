@@ -741,6 +741,9 @@ export type AssessmentRevision = ClinicalRevisionBase & {
   instrument_name: string;
   instrument_version: string | null;
   score_value: string | null;
+  score_source:
+    "calculated" | "clinician_entered" | "imported" | "unknown" | null;
+  score_recorded_at: string | null;
   interpretation: string | null;
   response_summary: string | null;
   follow_up_plan: string | null;

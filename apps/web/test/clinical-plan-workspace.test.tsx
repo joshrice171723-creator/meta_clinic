@@ -112,6 +112,25 @@ describe("ClinicalPlanWorkspace", () => {
     );
   });
 
+  it("keeps assessment score provenance explicit and source-bounded", () => {
+    const fields = clinicalPlanResourceMeta.assessments.fields;
+
+    expect(fields).toContainEqual(
+      expect.objectContaining({
+        name: "score_source",
+        label: "Score source",
+        options: ["calculated", "clinician_entered", "imported", "unknown"],
+      }),
+    );
+    expect(fields).toContainEqual(
+      expect.objectContaining({
+        name: "score_recorded_at",
+        label: "Score recorded at",
+        type: "datetime-local",
+      }),
+    );
+  });
+
   it("shows accessible prior care with its source visit instead of copying it", () => {
     const html = renderToStaticMarkup(
       <ClinicalPlanWorkspace

@@ -2085,7 +2085,10 @@ CREATE TABLE public.clinic_assessment_revisions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     response_source character varying(32),
+    score_source character varying(32),
+    score_recorded_at timestamp with time zone,
     CONSTRAINT clinic_assessments_response_source CHECK (((response_source IS NULL) OR ((response_source)::text = ANY ((ARRAY['patient_reported'::character varying, 'clinician_observed'::character varying, 'proxy_reported'::character varying, 'imported'::character varying, 'unknown'::character varying])::text[])))),
+    CONSTRAINT clinic_assessments_score_provenance CHECK ((((score_source IS NULL) AND (score_recorded_at IS NULL)) OR (((score_source)::text = ANY ((ARRAY['calculated'::character varying, 'clinician_entered'::character varying, 'imported'::character varying, 'unknown'::character varying])::text[])) AND (score_recorded_at IS NOT NULL)))),
     CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY (ARRAY[('in_progress'::character varying)::text, ('completed'::character varying)::text, ('entered_in_error'::character varying)::text])) AND (version_number > 0) AND ((category)::text = ANY (ARRAY[('depression'::character varying)::text, ('anxiety'::character varying)::text, ('alcohol_use'::character varying)::text, ('tobacco_use'::character varying)::text, ('social_needs'::character varying)::text, ('fall_risk'::character varying)::text, ('functional_status'::character varying)::text, ('cognitive_status'::character varying)::text])) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
 );
 
@@ -6060,10 +6063,10 @@ CREATE TABLE public.clinic_medication_request_revisions (
     pharmacy_identifier text,
     quantity_unit text,
     duration_text text,
-    refill_of_series_id character varying(36),
     prescribed_quantity numeric(18,6),
     refills integer,
     starts_on date,
+    refill_of_series_id character varying(36),
     CONSTRAINT clinic_med_request_dose_value CHECK (((dose_value IS NULL) OR ((dose_value > (0)::numeric) AND (dose_value <= (1000000)::numeric) AND (dose_value = round(dose_value, 6))))),
     CONSTRAINT clinic_med_request_states CHECK ((((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('authorized'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])) AND ((intent)::text = ANY (ARRAY[('proposal'::character varying)::text, ('plan'::character varying)::text, ('order'::character varying)::text])) AND ((transmission_state)::text = ANY (ARRAY[('not_requested'::character varying)::text, ('pending'::character varying)::text, ('accepted'::character varying)::text, ('rejected'::character varying)::text, ('failed'::character varying)::text, ('unknown'::character varying)::text])))),
     CONSTRAINT med_request_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160))))
@@ -7820,6 +7823,47 @@ ALTER SEQUENCE public.clinic_pharmacy_batches_id_seq OWNED BY public.clinic_phar
 
 
 --
+-- Name: clinic_pharmacy_destinations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_pharmacy_destinations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    name character varying NOT NULL,
+    address_line1 character varying NOT NULL,
+    address_line2 character varying,
+    city character varying NOT NULL,
+    state_code character varying(2) NOT NULL,
+    postal_code character varying NOT NULL,
+    phone_number character varying,
+    pharmacy_identifier character varying,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT pharmacy_destination_values CHECK ((((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 240)) AND ((length(TRIM(BOTH FROM address_line1)) >= 1) AND (length(TRIM(BOTH FROM address_line1)) <= 240)) AND ((length(TRIM(BOTH FROM city)) >= 1) AND (length(TRIM(BOTH FROM city)) <= 120)) AND ((state_code)::text ~ '^[A-Z]{2}$'::text) AND ((length(TRIM(BOTH FROM postal_code)) >= 3) AND (length(TRIM(BOTH FROM postal_code)) <= 16))))
+);
+
+
+--
+-- Name: clinic_pharmacy_destinations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_pharmacy_destinations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_pharmacy_destinations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_pharmacy_destinations_id_seq OWNED BY public.clinic_pharmacy_destinations.id;
+
+
+--
 -- Name: clinic_pharmacy_movements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7861,23 +7905,6 @@ ALTER SEQUENCE public.clinic_pharmacy_movements_id_seq OWNED BY public.clinic_ph
 --
 -- Name: clinic_pharmacy_products; Type: TABLE; Schema: public; Owner: -
 --
-
-CREATE TABLE public.clinic_pharmacy_destinations (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    name character varying NOT NULL,
-    address_line1 character varying NOT NULL,
-    address_line2 character varying,
-    city character varying NOT NULL,
-    state_code character varying(2) NOT NULL,
-    postal_code character varying NOT NULL,
-    phone_number character varying,
-    pharmacy_identifier character varying,
-    active boolean DEFAULT true NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT pharmacy_destination_values CHECK ((((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 240)) AND ((length(TRIM(BOTH FROM address_line1)) >= 1) AND (length(TRIM(BOTH FROM address_line1)) <= 240)) AND ((length(TRIM(BOTH FROM city)) >= 1) AND (length(TRIM(BOTH FROM city)) <= 120)) AND ((state_code)::text ~ '^[A-Z]{2}$'::text) AND ((length(TRIM(BOTH FROM postal_code)) >= 3) AND (length(TRIM(BOTH FROM postal_code)) <= 16))))
-);
 
 CREATE TABLE public.clinic_pharmacy_products (
     id bigint NOT NULL,
@@ -8013,22 +8040,6 @@ ALTER SEQUENCE public.clinic_practices_id_seq OWNED BY public.clinic_practices.i
 -- Name: clinic_prescription_events; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.clinic_prescription_transmission_attempts (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    patient_id bigint NOT NULL,
-    medication_request_revision_id bigint CONSTRAINT clinic_prescription_transmi_medication_request_revisio_not_null NOT NULL,
-    pharmacy_destination_id bigint CONSTRAINT clinic_prescription_transmissi_pharmacy_destination_id_not_null NOT NULL,
-    prescription_event_id bigint CONSTRAINT clinic_prescription_transmission_prescription_event_id_not_null NOT NULL,
-    initiated_by_membership_id bigint CONSTRAINT clinic_prescription_transmi_initiated_by_membership_id_not_null NOT NULL,
-    request_key character varying NOT NULL,
-    adapter character varying NOT NULL,
-    outcome character varying NOT NULL,
-    destination_snapshot jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_prescription_transmission__destination_snapshot_not_null NOT NULL,
-    submitted_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT prescription_transmission_attempt_values CHECK ((((adapter)::text = 'simulated_pharmacy_network'::text) AND ((outcome)::text = ANY ((ARRAY['failure_before_send'::character varying, 'rejected'::character varying, 'acknowledged'::character varying, 'unknown'::character varying])::text[])) AND (jsonb_typeof(destination_snapshot) = 'object'::text)))
-);
-
 CREATE TABLE public.clinic_prescription_events (
     id bigint NOT NULL,
     practice_id bigint NOT NULL,
@@ -8063,6 +8074,46 @@ CREATE SEQUENCE public.clinic_prescription_events_id_seq
 --
 
 ALTER SEQUENCE public.clinic_prescription_events_id_seq OWNED BY public.clinic_prescription_events.id;
+
+
+--
+-- Name: clinic_prescription_transmission_attempts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_prescription_transmission_attempts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    medication_request_revision_id bigint CONSTRAINT clinic_prescription_transmi_medication_request_revisio_not_null NOT NULL,
+    pharmacy_destination_id bigint CONSTRAINT clinic_prescription_transmissi_pharmacy_destination_id_not_null NOT NULL,
+    prescription_event_id bigint CONSTRAINT clinic_prescription_transmission_prescription_event_id_not_null NOT NULL,
+    initiated_by_membership_id bigint CONSTRAINT clinic_prescription_transmi_initiated_by_membership_id_not_null NOT NULL,
+    request_key character varying NOT NULL,
+    adapter character varying NOT NULL,
+    outcome character varying NOT NULL,
+    destination_snapshot jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_prescription_transmission__destination_snapshot_not_null NOT NULL,
+    submitted_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT prescription_transmission_attempt_values CHECK ((((adapter)::text = 'simulated_pharmacy_network'::text) AND ((outcome)::text = ANY ((ARRAY['failure_before_send'::character varying, 'rejected'::character varying, 'acknowledged'::character varying, 'unknown'::character varying])::text[])) AND (jsonb_typeof(destination_snapshot) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_prescription_transmission_attempts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_prescription_transmission_attempts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_prescription_transmission_attempts_id_seq OWNED BY public.clinic_prescription_transmission_attempts.id;
 
 
 --
@@ -12141,6 +12192,44 @@ ALTER SEQUENCE public.platform_owner_invitations_id_seq OWNED BY public.platform
 
 
 --
+-- Name: platform_owner_password_resets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.platform_owner_password_resets (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    token_digest character varying,
+    requested_at timestamp(6) without time zone NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    used_at timestamp(6) without time zone,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT platform_owner_password_resets_expiry CHECK ((expires_at > requested_at)),
+    CONSTRAINT platform_owner_password_resets_terminal_state CHECK (((used_at IS NULL) OR (revoked_at IS NULL)))
+);
+
+
+--
+-- Name: platform_owner_password_resets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.platform_owner_password_resets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: platform_owner_password_resets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.platform_owner_password_resets_id_seq OWNED BY public.platform_owner_password_resets.id;
+
+
+--
 -- Name: platform_page_visits; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -12155,7 +12244,6 @@ CREATE TABLE public.platform_page_visits (
 );
 
 
-
 --
 -- Name: platform_page_visits_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
@@ -12168,45 +12256,12 @@ CREATE SEQUENCE public.platform_page_visits_id_seq
     CACHE 1;
 
 
-
 --
 -- Name: platform_page_visits_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.platform_page_visits_id_seq OWNED BY public.platform_page_visits.id;
 
-
-
---
--- Name: platform_page_visits id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.platform_page_visits ALTER COLUMN id SET DEFAULT nextval('public.platform_page_visits_id_seq'::regclass);
-
-
-
---
--- Name: platform_page_visits platform_page_visits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.platform_page_visits
-    ADD CONSTRAINT platform_page_visits_pkey PRIMARY KEY (id);
-
-
-
---
--- Name: index_platform_page_visits_on_created_at_and_path; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_platform_page_visits_on_created_at_and_path ON public.platform_page_visits USING btree (created_at, path);
-
-
-
---
--- Name: index_platform_page_visits_on_event_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_platform_page_visits_on_event_id ON public.platform_page_visits USING btree (event_id);
 
 --
 -- Name: role_version_permissions; Type: TABLE; Schema: public; Owner: -
@@ -12320,49 +12375,6 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 --
 -- Name: clinic_allergies id; Type: DEFAULT; Schema: public; Owner: -
 --
-
-CREATE INDEX medication_request_refill_series ON public.clinic_medication_request_revisions USING btree (practice_id, refill_of_series_id);
-CREATE UNIQUE INDEX pharmacy_destination_identifier ON public.clinic_pharmacy_destinations USING btree (practice_id, pharmacy_identifier) WHERE (pharmacy_identifier IS NOT NULL);
-CREATE INDEX pharmacy_destination_lookup ON public.clinic_pharmacy_destinations USING btree (practice_id, name, city, state_code, postal_code);
-CREATE UNIQUE INDEX pharmacy_destination_tenant_key ON public.clinic_pharmacy_destinations USING btree (practice_id, id);
-CREATE INDEX prescription_transmission_attempt_order ON public.clinic_prescription_transmission_attempts USING btree (practice_id, medication_request_revision_id, submitted_at);
-CREATE UNIQUE INDEX prescription_transmission_attempt_request ON public.clinic_prescription_transmission_attempts USING btree (practice_id, request_key);
-
---
--- Name: clinic_pharmacy_destinations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_pharmacy_destinations_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_pharmacy_destinations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_pharmacy_destinations_id_seq OWNED BY public.clinic_pharmacy_destinations.id;
-
---
--- Name: clinic_prescription_transmission_attempts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_prescription_transmission_attempts_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_prescription_transmission_attempts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_prescription_transmission_attempts_id_seq OWNED BY public.clinic_prescription_transmission_attempts.id;
 
 ALTER TABLE ONLY public.clinic_allergies ALTER COLUMN id SET DEFAULT nextval('public.clinic_allergies_id_seq'::regclass);
 
@@ -13320,6 +13332,13 @@ ALTER TABLE ONLY public.clinic_pharmacy_batches ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: clinic_pharmacy_destinations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_pharmacy_destinations ALTER COLUMN id SET DEFAULT nextval('public.clinic_pharmacy_destinations_id_seq'::regclass);
+
+
+--
 -- Name: clinic_pharmacy_movements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -13352,6 +13371,13 @@ ALTER TABLE ONLY public.clinic_practices ALTER COLUMN id SET DEFAULT nextval('pu
 --
 
 ALTER TABLE ONLY public.clinic_prescription_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_prescription_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts ALTER COLUMN id SET DEFAULT nextval('public.clinic_prescription_transmission_attempts_id_seq'::regclass);
 
 
 --
@@ -14038,6 +14064,20 @@ ALTER TABLE ONLY public.platform_audit_events ALTER COLUMN id SET DEFAULT nextva
 --
 
 ALTER TABLE ONLY public.platform_owner_invitations ALTER COLUMN id SET DEFAULT nextval('public.platform_owner_invitations_id_seq'::regclass);
+
+
+--
+-- Name: platform_owner_password_resets id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_owner_password_resets ALTER COLUMN id SET DEFAULT nextval('public.platform_owner_password_resets_id_seq'::regclass);
+
+
+--
+-- Name: platform_page_visits id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_page_visits ALTER COLUMN id SET DEFAULT nextval('public.platform_page_visits_id_seq'::regclass);
 
 
 --
@@ -15206,6 +15246,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_batches
 
 
 --
+-- Name: clinic_pharmacy_destinations clinic_pharmacy_destinations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_pharmacy_destinations
+    ADD CONSTRAINT clinic_pharmacy_destinations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_pharmacy_movements clinic_pharmacy_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15243,6 +15291,14 @@ ALTER TABLE ONLY public.clinic_practices
 
 ALTER TABLE ONLY public.clinic_prescription_events
     ADD CONSTRAINT clinic_prescription_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts clinic_prescription_transmission_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT clinic_prescription_transmission_attempts_pkey PRIMARY KEY (id);
 
 
 --
@@ -16043,6 +16099,22 @@ ALTER TABLE ONLY public.platform_audit_events
 
 ALTER TABLE ONLY public.platform_owner_invitations
     ADD CONSTRAINT platform_owner_invitations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: platform_owner_password_resets platform_owner_password_resets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_owner_password_resets
+    ADD CONSTRAINT platform_owner_password_resets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: platform_page_visits platform_page_visits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_page_visits
+    ADD CONSTRAINT platform_page_visits_pkey PRIMARY KEY (id);
 
 
 --
@@ -20223,6 +20295,27 @@ CREATE INDEX index_platform_owner_invitations_on_email_digest ON public.platform
 
 
 --
+-- Name: index_platform_owner_password_resets_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_platform_owner_password_resets_on_user_id ON public.platform_owner_password_resets USING btree (user_id);
+
+
+--
+-- Name: index_platform_page_visits_on_created_at_and_path; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_platform_page_visits_on_created_at_and_path ON public.platform_page_visits USING btree (created_at, path);
+
+
+--
+-- Name: index_platform_page_visits_on_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_platform_page_visits_on_event_id ON public.platform_page_visits USING btree (event_id);
+
+
+--
 -- Name: index_users_on_email_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -20783,6 +20876,13 @@ CREATE UNIQUE INDEX med_request_series_version ON public.clinic_medication_reque
 
 
 --
+-- Name: medication_request_refill_series; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX medication_request_refill_series ON public.clinic_medication_request_revisions USING btree (practice_id, refill_of_series_id);
+
+
+--
 -- Name: membership_prospects_staff_customer; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -20916,6 +21016,27 @@ CREATE UNIQUE INDEX permissions_action_code ON public.permissions USING btree (a
 
 
 --
+-- Name: pharmacy_destination_identifier; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX pharmacy_destination_identifier ON public.clinic_pharmacy_destinations USING btree (practice_id, pharmacy_identifier) WHERE (pharmacy_identifier IS NOT NULL);
+
+
+--
+-- Name: pharmacy_destination_lookup; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX pharmacy_destination_lookup ON public.clinic_pharmacy_destinations USING btree (practice_id, name, city, state_code, postal_code);
+
+
+--
+-- Name: pharmacy_destination_tenant_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX pharmacy_destination_tenant_key ON public.clinic_pharmacy_destinations USING btree (practice_id, id);
+
+
+--
 -- Name: platform_owner_invitations_one_pending; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -20927,6 +21048,34 @@ CREATE UNIQUE INDEX platform_owner_invitations_one_pending ON public.platform_ow
 --
 
 CREATE UNIQUE INDEX platform_owner_invitations_token ON public.platform_owner_invitations USING btree (token_digest) WHERE (token_digest IS NOT NULL);
+
+
+--
+-- Name: platform_owner_password_resets_one_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX platform_owner_password_resets_one_pending ON public.platform_owner_password_resets USING btree (user_id) WHERE ((used_at IS NULL) AND (revoked_at IS NULL));
+
+
+--
+-- Name: platform_owner_password_resets_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX platform_owner_password_resets_token ON public.platform_owner_password_resets USING btree (token_digest) WHERE (token_digest IS NOT NULL);
+
+
+--
+-- Name: prescription_transmission_attempt_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX prescription_transmission_attempt_order ON public.clinic_prescription_transmission_attempts USING btree (practice_id, medication_request_revision_id, submitted_at);
+
+
+--
+-- Name: prescription_transmission_attempt_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX prescription_transmission_attempt_request ON public.clinic_prescription_transmission_attempts USING btree (practice_id, request_key);
 
 
 --
@@ -22740,6 +22889,13 @@ CREATE TRIGGER platform_audit_events_immutable BEFORE DELETE OR UPDATE ON public
 --
 
 CREATE TRIGGER prescription_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_prescription_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_prescription_transmission_attempts prescription_transmission_attempts_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER prescription_transmission_attempts_immutable BEFORE DELETE OR UPDATE ON public.clinic_prescription_transmission_attempts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -26213,6 +26369,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
 
 
 --
+-- Name: clinic_prescription_transmission_attempts fk_rails_20900d9045; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT fk_rails_20900d9045 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_purchase_cart_items fk_rails_22304a7fa5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -26605,6 +26769,14 @@ ALTER TABLE ONLY public.clinic_communication_endpoints
 
 
 --
+-- Name: clinic_prescription_transmission_attempts fk_rails_391cae9276; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT fk_rails_391cae9276 FOREIGN KEY (prescription_event_id) REFERENCES public.clinic_prescription_events(id);
+
+
+--
 -- Name: clinic_telehealth_commands fk_rails_3933c6c99f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -26965,6 +27137,14 @@ ALTER TABLE ONLY public.clinic_inventory_entries
 
 
 --
+-- Name: clinic_prescription_transmission_attempts fk_rails_53a7a2d013; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT fk_rails_53a7a2d013 FOREIGN KEY (pharmacy_destination_id) REFERENCES public.clinic_pharmacy_destinations(id);
+
+
+--
 -- Name: clinic_inventory_shipments fk_rails_53c98672d2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -27090,6 +27270,14 @@ ALTER TABLE ONLY public.clinic_workforce_kiosk_sessions
 
 ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
     ADD CONSTRAINT fk_rails_5dfe5faa88 FOREIGN KEY (practice_id, scribe_draft_id) REFERENCES public.clinic_scribe_drafts(practice_id, id);
+
+
+--
+-- Name: clinic_pharmacy_destinations fk_rails_5e4b3ebc4a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_pharmacy_destinations
+    ADD CONSTRAINT fk_rails_5e4b3ebc4a FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -27637,6 +27825,14 @@ ALTER TABLE ONLY public.clinic_inventory_counts
 
 
 --
+-- Name: platform_owner_password_resets fk_rails_8939dcd637; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_owner_password_resets
+    ADD CONSTRAINT fk_rails_8939dcd637 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_telehealth_wrap_ups fk_rails_897bf894bc; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28125,6 +28321,14 @@ ALTER TABLE ONLY public.clinic_workforce_employment_sites
 
 
 --
+-- Name: clinic_prescription_transmission_attempts fk_rails_b0ca05a71b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT fk_rails_b0ca05a71b FOREIGN KEY (medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(id);
+
+
+--
 -- Name: clinic_telehealth_visits fk_rails_b173f22f71; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28370,6 +28574,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipts
 
 ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
     ADD CONSTRAINT fk_rails_c366323e19 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts fk_rails_c4b06ddc83; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT fk_rails_c4b06ddc83 FOREIGN KEY (patient_id) REFERENCES public.clinic_patients(id);
 
 
 --
@@ -28850,6 +29062,14 @@ ALTER TABLE ONLY public.clinic_invoice_stripe_checkouts
 
 ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
     ADD CONSTRAINT fk_rails_e9e2e652e2 FOREIGN KEY (practice_id, visit_id) REFERENCES public.clinic_telehealth_visits(practice_id, id);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts fk_rails_eabea87e3c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT fk_rails_eabea87e3c FOREIGN KEY (initiated_by_membership_id) REFERENCES public.clinic_memberships(id);
 
 
 --
@@ -29989,6 +30209,30 @@ ALTER TABLE ONLY public.clinic_prescription_events
 
 
 --
+-- Name: clinic_prescription_transmission_attempts prescription_transmission_actor_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT prescription_transmission_actor_tenant FOREIGN KEY (practice_id, initiated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts prescription_transmission_destination_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT prescription_transmission_destination_tenant FOREIGN KEY (practice_id, pharmacy_destination_id) REFERENCES public.clinic_pharmacy_destinations(practice_id, id);
+
+
+--
+-- Name: clinic_prescription_transmission_attempts prescription_transmission_order_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
+    ADD CONSTRAINT prescription_transmission_order_tenant FOREIGN KEY (practice_id, medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(practice_id, id);
+
+
+--
 -- Name: clinic_subscription_agreements subscription_agreement_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30005,41 +30249,18 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 
 --
-ALTER TABLE ONLY public.clinic_pharmacy_destinations ALTER COLUMN id SET DEFAULT nextval('public.clinic_pharmacy_destinations_id_seq'::regclass);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts ALTER COLUMN id SET DEFAULT nextval('public.clinic_prescription_transmission_attempts_id_seq'::regclass);
-ALTER TABLE ONLY public.clinic_pharmacy_destinations
-    ADD CONSTRAINT clinic_pharmacy_destinations_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT clinic_prescription_transmission_attempts_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT fk_rails_20900d9045 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT fk_rails_391cae9276 FOREIGN KEY (prescription_event_id) REFERENCES public.clinic_prescription_events(id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT fk_rails_53a7a2d013 FOREIGN KEY (pharmacy_destination_id) REFERENCES public.clinic_pharmacy_destinations(id);
-ALTER TABLE ONLY public.clinic_pharmacy_destinations
-    ADD CONSTRAINT fk_rails_5e4b3ebc4a FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT fk_rails_b0ca05a71b FOREIGN KEY (medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT fk_rails_c4b06ddc83 FOREIGN KEY (patient_id) REFERENCES public.clinic_patients(id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT fk_rails_eabea87e3c FOREIGN KEY (initiated_by_membership_id) REFERENCES public.clinic_memberships(id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT prescription_transmission_actor_tenant FOREIGN KEY (practice_id, initiated_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT prescription_transmission_destination_tenant FOREIGN KEY (practice_id, pharmacy_destination_id) REFERENCES public.clinic_pharmacy_destinations(practice_id, id);
-ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
-    ADD CONSTRAINT prescription_transmission_order_tenant FOREIGN KEY (practice_id, medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(practice_id, id);
-
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922030000'),
 ('20260922020000'),
+('20260922010000'),
+('20260921221500'),
 ('20260921220000'),
+('20260920010100'),
 ('20260920010000'),
 ('20260919080000'),
 ('20260919070000'),
@@ -30219,5 +30440,4 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260830000400'),
 ('20260830000300'),
 ('20260830000200'),
-('20260830000100'),
-('20260920010100');
+('20260830000100');
