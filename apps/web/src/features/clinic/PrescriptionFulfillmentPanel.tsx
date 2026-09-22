@@ -234,7 +234,8 @@ export function PrescriptionFulfillmentPanel({
           pharmacy_destination_id: destination.id,
           scenario,
           mode: simulationMode,
-          signer_state: simulationMode === "controlled_test" ? signerState : undefined,
+          signer_state:
+            simulationMode === "controlled_test" ? signerState : undefined,
           reviewer_state:
             simulationMode === "controlled_test" ? reviewerState : undefined,
           request_key: crypto.randomUUID(),
@@ -493,7 +494,9 @@ export function PrescriptionFulfillmentPanel({
                   )
                 }
               >
-                <MenuItem value="standard">Standard simulated pharmacy</MenuItem>
+                <MenuItem value="standard">
+                  Standard simulated pharmacy
+                </MenuItem>
                 <MenuItem value="controlled_test">
                   Controlled prescription test mode
                 </MenuItem>
@@ -556,8 +559,8 @@ export function PrescriptionFulfillmentPanel({
         {evidence?.attempts.map((attempt) => (
           <Typography key={attempt.id} variant="body2">
             Simulated pharmacy network · {attempt.mode.replaceAll("_", " ")} ·{" "}
-            {attempt.outcome.replaceAll("_", " ")}{" "}
-            · {attempt.destination_snapshot.name} ·{" "}
+            {attempt.outcome.replaceAll("_", " ")} ·{" "}
+            {attempt.destination_snapshot.name} ·{" "}
             {new Date(attempt.submitted_at).toLocaleString()}
             {attempt.mode === "controlled_test" &&
               ` · signer ${attempt.signer_snapshot.state ?? "unknown"} · reviewer ${attempt.reviewer_snapshot.state ?? "unknown"}`}
