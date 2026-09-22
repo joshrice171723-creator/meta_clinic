@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Per-slice remediation and validation dashboard
+
+Recorded the founder-requested 16-slice delivery dashboard in [[Meta Clinic Implementation Tracker]]. It separates estimated local build coverage, current validation coverage, and external/human acceptance rather than presenting a single platform-completion number. The dashboard links each MC row to its missing evidence, next bounded local work, and completion gate; the existing non-vendor hardening packet remains the detailed field/paired-failure plan. This was a documentation planning change only: no application behavior, browser proof, vendor connection, professional decision, pilot, or release gate was completed.
+
 ## 2026-09-22 — Synthetic outpatient psychiatry workflow
 
 Implemented the bounded outpatient psychiatry/medication-management composition in the existing synthetic behavioral-health workflow. The profile reuses intake, tasks, assessment revisions, medication requests, refill replacement, pharmacy destinations, prescription events, and attempts. Assessment revisions now retain explicit item/reviewer state, and a manually owned safety follow-up remains open after encounter closure; no clinical score, policy, or automatic action was added. A configured controlled-test simulator stores fake signer/reviewer snapshots only and covers accepted, rejected, unavailable, revoked, duplicate, and outcome-unknown recovery without a vendor, credential, external transmission, or real signer. Focused isolated API verification passed 18 runs / 355 assertions. Browser acceptance is still unverified because this worktree has no owned web runtime; the shared stack was not reused.
