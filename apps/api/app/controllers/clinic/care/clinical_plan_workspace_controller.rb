@@ -18,7 +18,7 @@ module Clinic
           lot_expiration_date dose_text route_text administration_site_text administered_at occurrence_source
           refusal_reason source_document_id medication_administration_id vis_edition_date vis_given_date],
         assessments: %i[status category instrument_name instrument_version score_value interpretation response_summary
-          follow_up_plan assessed_at response_source score_source score_recorded_at]
+          follow_up_plan assessed_at response_source score_source score_recorded_at assessment_state reviewer_membership_id reviewed_at]
       }.freeze
       ROOTS = {
         medication_requests: :medication_request,
@@ -118,16 +118,20 @@ module Clinic
       def record_input(kind, revising:)
         fields = FIELD_SETS.fetch(kind) + %i[request_key]
         fields += %i[expected_version reconcile_completion] if revising
-        parameter_hash!(ROOTS.fetch(kind), fields)
+        parameter_hash!(ROOTS.fetch(kind), fields,
+          nested_arrays: kind == :assessments ? { item_responses: %i[item_id state value] } : {})
       end
 
       def normalized_input(kind, input)
         value = input.dup
+        if value[:item_responses]
+          value[:item_responses] = value[:item_responses].map(&:to_h)
+        end
         %i[inventory_product_id source_medication_statement_id service_request_revision_id care_plan_revision_id
-          source_document_id medication_administration_id].each do |field|
+          source_document_id medication_administration_id reviewer_membership_id].each do |field|
           value[field] = optional_id(value[field], field) if value.key?(field)
         end
-        %i[due_at performed_at administered_at scheduled_for assessed_at outcome_recorded_at].each do |field|
+        %i[due_at performed_at administered_at scheduled_for assessed_at outcome_recorded_at reviewed_at].each do |field|
           value[field] = value[field].present? ? time_param!(value[field], field:) : nil if value.key?(field)
         end
         %i[starts_on ends_on target_on lot_expiration_date vis_edition_date vis_given_date].each do |field|

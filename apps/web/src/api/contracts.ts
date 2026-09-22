@@ -755,6 +755,20 @@ export type AssessmentRevision = ClinicalRevisionBase & {
     | "imported"
     | "unknown"
     | null;
+  assessment_state: "not_assessed" | "unknown" | "assessed";
+  item_responses: Array<{
+    item_id: string;
+    state:
+      | "answered"
+      | "unanswered"
+      | "not_asked"
+      | "unknown"
+      | "declined"
+      | "not_applicable";
+    value?: string;
+  }>;
+  reviewer_membership_id: number | null;
+  reviewed_at: string | null;
 };
 export type ClinicalPlanLink = {
   id: number;

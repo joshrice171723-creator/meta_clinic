@@ -6,7 +6,8 @@ module Clinic
       include Clinic::Auditable
 
       ADAPTER = "simulated_pharmacy_network".freeze
-      OUTCOMES = %w[failure_before_send rejected acknowledged unknown].freeze
+      MODES = %w[standard controlled_test].freeze
+      OUTCOMES = %w[failure_before_send rejected acknowledged unknown accepted unavailable revoked duplicate outcome_unknown].freeze
 
       belongs_to :patient, class_name: "Clinic::Care::Patient"
       belongs_to :medication_request_revision, class_name: "Clinic::Care::MedicationRequestRevision"
@@ -15,6 +16,7 @@ module Clinic
       belongs_to :initiated_by_membership, class_name: "Clinic::Membership"
 
       validates :adapter, inclusion: { in: [ ADAPTER ] }
+      validates :mode, inclusion: { in: MODES }
       validates :outcome, inclusion: { in: OUTCOMES }
       validates :request_key, :submitted_at, presence: true
       validates :request_key, uniqueness: { scope: :practice_id }

@@ -225,6 +225,16 @@ If this scope is accepted, add these rows with stable IDs to the canonical matri
 4. Implement safety routing only after the clinic selects its policy and responsible coverage. Prove the affected escalation task is blocked when incomplete while unrelated coordination and scheduling remain available.
 5. Implement controlled-substance capability through a backend-only simulator after defining its synthetic configuration, signer state, request lifecycle, and recovery contract. Prove signing-versus-submission separation, rejection, unavailable service, outcome unknown, duplicate retry, and revocation handling. No vendor connection, credential, external transmission, or clinical acceptance is in scope.
 
+### Implementation checkpoint — 2026-09-22
+
+The local synthetic implementation now composes the outpatient psychiatry profile with psychiatric evaluation, ADHD evaluation, medication follow-up, refill review, therapy/referral coordination, and urgent clinical follow-up visit types. It reuses the existing behavioral-health initial/follow-up forms and existing task, refill, medication-request, pharmacy-destination, prescription-event, and attempt owners; no specialty ledger or external connection was added.
+
+Assessment revisions now preserve explicit `not_assessed`, `unknown`, or `assessed` state, item responses, reviewer membership, and review time. Completion requires an explicit assessed state. A manually created `safety_follow_up` task remains open after encounter closure; no assessment response creates, completes, or clinically routes work automatically.
+
+The existing prescription simulator has a strictly configured `controlled_test` mode. It stores only synthetic signer/reviewer identity and state snapshots and exercises accepted, rejected, unavailable, revoked, duplicate, and outcome-unknown outcomes. Consequential retries remain fenced after unresolved outcomes. No vendor credential, real signer, external transmission, dispensing assertion, or clinical acceptance exists.
+
+Focused synthetic API verification passed on the isolated database: 18 runs, 355 assertions. It includes profile retry/no-duplicate behavior, explicit incomplete-assessment rejection, persisted item states, retained open safety work, controlled simulation outcomes, exact retry, and unresolved-outcome fencing. Existing focused contracts in the same suite cover authorization, stale versions, ownership transfer, and draft/retry behavior. Browser acceptance is not yet evidenced from this worktree because it has no worktree-owned web runtime; the shared 3000/3001 stack was not reused.
+
 The next product-design choices are age range, therapy scope, selected instruments, safety routing shape, and simulated controlled-substance scope. Until then, retain the existing general behavioral-health workflow, preserve specialty setup as intent, and keep the simulated controlled-substance action unavailable.
 
 ## Terra High autonomous continuation — 2026-09-22

@@ -436,6 +436,9 @@ const RESOURCE_META: Record<
       follow_up_plan: "",
       assessed_at: "",
       response_source: "",
+      assessment_state: "not_assessed",
+      reviewer_membership_id: "",
+      reviewed_at: "",
     },
     statuses: ["in_progress", "completed", "entered_in_error"],
     fields: [
@@ -479,6 +482,13 @@ const RESOURCE_META: Record<
           "unknown",
         ],
       },
+      {
+        name: "assessment_state",
+        label: "Assessment state",
+        options: ["not_assessed", "unknown", "assessed"],
+      },
+      { name: "reviewer_membership_id", label: "Reviewer membership ID" },
+      { name: "reviewed_at", label: "Reviewed at", type: "datetime-local" },
       { name: "follow_up_plan", label: "Follow-up plan", multiline: true },
       { name: "assessed_at", label: "Assessed at", type: "datetime-local" },
     ],
@@ -766,12 +776,13 @@ export function ClinicalPlanWorkspace({
     if (
       kind === "assessments" &&
       form.status === "completed" &&
-      (!form.assessed_at ||
+      (form.assessment_state !== "assessed" ||
+        !form.assessed_at ||
         !form.response_summary?.trim() ||
         !form.response_source)
     ) {
       setError(
-        "Enter when the assessment was completed, its response source, and its responses or observations.",
+        "Mark the assessment as assessed and enter when it was completed, its response source, and its responses or observations.",
       );
       return;
     }

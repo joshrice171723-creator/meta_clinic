@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Synthetic outpatient psychiatry workflow
+
+Implemented the bounded outpatient psychiatry/medication-management composition in the existing synthetic behavioral-health workflow. The profile reuses intake, tasks, assessment revisions, medication requests, refill replacement, pharmacy destinations, prescription events, and attempts. Assessment revisions now retain explicit item/reviewer state, and a manually owned safety follow-up remains open after encounter closure; no clinical score, policy, or automatic action was added. A configured controlled-test simulator stores fake signer/reviewer snapshots only and covers accepted, rejected, unavailable, revoked, duplicate, and outcome-unknown recovery without a vendor, credential, external transmission, or real signer. Focused isolated API verification passed 18 runs / 355 assertions. Browser acceptance is still unverified because this worktree has no owned web runtime; the shared stack was not reused.
+
 ## 2026-09-22 — Assessment-score provenance
 
 Added optional source and recorded time to immutable assessment-score revisions. New score provenance is a complete pair—calculated, clinician-entered, imported, or explicit unknown plus a timestamp—and cannot be recorded without an existing score. Existing scores remain historical rather than being backfilled. The implementation does not calculate a score, select an instrument, assign a reviewer, set a threshold, or create follow-up work. Focused clinical-plan API verification passed 10 runs / 236 assertions; the frontend control contract passed 3 tests, TypeScript/Prettier passed, and PostgreSQL upgrade, concurrency, restore, and fresh-schema verification passed. The broader backend verifier repeated the unrelated appointment-overlap race after its independent invoice/address checks passed.
