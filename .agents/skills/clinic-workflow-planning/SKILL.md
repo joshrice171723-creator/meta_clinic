@@ -1,6 +1,6 @@
 ---
 name: clinic-workflow-planning
-description: Plan or revise Meta Clinic patient and staff workflows using authoritative U.S. references, field-level data design, and the existing ownership and dependency matrix. Use for connected clinic journeys, workflow prerequisites, parallel progress, vendor-independent preparation, or additions and changes to the workflow matrix. Not for general brainstorming, cosmetic UI work, or automatically starting implementation.
+description: Plan or revise Meta Clinic patient and staff workflows using authoritative U.S. references, field-level data design, and the existing ownership and dependency matrix. Every writable run creates or updates one assignment plan in docs/development/clinic-workflow-plans/. Use for connected clinic journeys, workflow prerequisites, parallel progress, vendor-independent preparation, or matrix changes. Not for general brainstorming, cosmetic UI work, or automatically starting implementation.
 ---
 
 # Clinic workflow planning
@@ -20,7 +20,15 @@ Read repository instructions and retrieve relevant current vault context. In Met
 
 Inspect relevant current code, tests and configuration using the repository's discovery procedure before claiming what exists or is missing. Dated evidence is not fresh verification. Archived proposals are not current requirements. Reuse owning records, queues, consent processes and controls; identify actual gaps rather than planning a duplicate system.
 
-Planning does not authorize implementation, deployment, external submissions, purchases, task dispatch or overnight execution. When asked to discuss or remain read-only, present the plan without edits. When asked to save or update planning documents, update their canonical owners under repository procedures. Do not change product scope merely to finish a plan.
+Planning does not authorize implementation, deployment, external submissions, purchases, task dispatch or overnight execution. The founder's standing instruction authorizes saving this skill's plan output on every run unless the current request explicitly requires read-only work or a repository safety stop applies. A read-only run must present the proposed file content and state that no file was saved. Do not change product scope merely to finish a plan.
+
+## Required output on every writable run
+
+This skill owns exactly one new or updated Markdown file per assignment: `docs/development/clinic-workflow-plans/<assignment-slug>.md`. Create the directory when needed. Use a short, stable, lowercase hyphenated slug from the accepted assignment or tracker row; find and reuse its existing file on later runs. Do not create a new file for each turn or a second project-wide status register. Do not put skill-created briefs, source maps, checkpoints, or handoff files elsewhere. Do not silently move or overwrite plans that predate this convention; link them from the new assignment file when relevant.
+
+After the required preflight and before planning, run `python .agents/skills/clinic-workflow-planning/scripts/ensure_plan.py <assignment-slug>` from the repository root. The helper creates the fixed-section file or refreshes only its **Last run** section with an in-progress marker; it never overwrites the other sections. Finish the plan and replace that marker with the date, inspected revision, outcome, changed canonical paths, checks actually performed, and next action. Every writable invocation must actually create or update the file, including a scoped review that finds no substantive plan change. In that case, record what was checked and the no-change finding. Verify the saved file on disk and link its exact path in the final answer. Do not use a plan update to claim implementation, acceptance, or release.
+
+Keep the file's sections in this fixed order: **Assignment and authority**, **Current sources and decisions**, **Connected journey**, **Fields and action rules**, **Ownership and dependency matrix references**, **Implementation and acceptance**, **Checkpoint**, and **Last run**. Use the requirements below to fill them; state a justified `Not applicable` where a section has no applicable content. Keep the assignment-specific detail in this file and link, rather than duplicate, the canonical tracker, matrix, decisions, and dated evidence. Existing canonical files remain at their owning paths and may be updated in place when required by repository instructions. If another repository rule requires creating a canonical record outside this folder, follow that rule, list the exception in the plan and handoff, and do not describe the folder as an exhaustive inventory of repository changes.
 
 ## Establish the journey
 
@@ -77,9 +85,9 @@ Plan durable local data collection, review, request preparation, owned work, his
 
 Capture available contract mappings and unresolved partner-specific fields. Keep manual, simulated and vendor-confirmed evidence distinct. Use backend synthetic simulation for future verification, not frontend-only dummy data. Preserve request/version identity, correlation and idempotency where supported. Connecting credentials must not automatically transmit a prepared backlog. Missing vendor access blocks the external action, not independent local work.
 
-## Durable implementation brief and drift prevention
+## Required plan content and drift prevention
 
-For a substantial or long-running assignment, create or update one durable implementation brief when saving planning documents is authorized. Reuse an existing assignment brief rather than creating a new one per turn. Select its location under current repository documentation rules, link it from the owning tracker item, and include its exact path in the handoff. For read-only discussion, present the proposed brief without writing it. A small matrix correction can use the existing brief or tracker entry instead of adding another file.
+The required assignment file is the durable implementation brief even for a small matrix correction. Link it from the owning tracker item when the work is accepted and the tracker is being updated. Do not replace the tracker or shared matrix with this brief.
 
 The brief must contain:
 
@@ -89,6 +97,7 @@ The brief must contain:
 - Assignment-specific data/question/control requirements or links to their canonical mapping; action prerequisites, responsible queues, handoffs and recovery requirements referenced by matrix ID.
 - Acceptance criteria and intended checks, with local API, browser, simulator and live-provider evidence distinguished; remaining decisions, blockers and stop conditions.
 - A concise checkpoint: completed work with evidence, in-progress or unverified work, affected paths/revisions, checks actually run and their results, the next unfinished action and any dependencies needed to resume it.
+- A Last run entry for the current invocation: date, inspected revision, outcome, changed canonical paths, source/check results actually obtained, and the next action. Replace the previous Last run entry; retain material history in the normal canonical records rather than building a transcript here.
 
 Include these execution instructions in the brief so a building agent receives them even without loading this skill: read the brief and its relevant canonical references before starting, resuming after a context reset, or accepting a handoff. Compare its recorded baseline and decisions against the current checkout and newer user direction. Reconcile stale assumptions before dependent edits; do not silently change scope, reinstate deferred ideas or repeat completed work solely because conversational context was lost.
 
@@ -102,6 +111,6 @@ For every changed dependency, define paired checks: the exact dependent action i
 
 Map each affected matrix ID to its owning tracker item, source/field requirements, current implementation evidence, planned changes and remaining proof. Keep local API, browser, simulator and live-provider acceptance separate. A written test case is not a passed test.
 
-When document updates are authorized, maintain the existing guide and tracker; record only actual new decisions and material dated outcomes in the vault. Keep reusable procedure here, not duplicated as product knowledge. Follow the repository's validation and Git handoff requirements for changed files.
+On writable runs, save the required assignment file and maintain the existing guide and tracker when their requirements or status actually change; record only actual new decisions and material dated outcomes in the vault. Keep reusable procedure here, not duplicated as product knowledge. Follow the repository's validation and Git handoff requirements for changed files.
 
 Finish with the scoped journey, sources actually reviewed, material matrix changes, unresolved decisions, exact document links and next verification step. Leave the result ready for review or an explicitly authorized implementation task; do not launch one automatically.

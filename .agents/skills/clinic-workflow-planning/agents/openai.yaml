@@ -1,4 +1,4 @@
 interface:
   display_name: "Clinic Workflow Planning"
   short_description: "Source-guided journeys, data, ownership and blockers"
-  default_prompt: "Use $clinic-workflow-planning to plan this clinic journey, review applicable U.S. sources, and update the existing data requirements and ownership/dependency matrix within my requested scope."
+  default_prompt: "Use $clinic-workflow-planning to plan this clinic journey, review applicable U.S. sources, update the existing data requirements and ownership/dependency matrix within my requested scope, and create or update its assignment file in docs/development/clinic-workflow-plans/."
