@@ -4,6 +4,7 @@ module Clinic
       CREATE_OPERATION = "clinic.service_offering.create"
       UPDATE_OPERATION = "clinic.service_offering.update"
       PUBLISH_OPERATION = "clinic.service_offering.publish"
+      RETIRE_OPERATION = "clinic.service_offering.retire"
 
       Result = Data.define(:offering, :replayed)
 
@@ -27,6 +28,7 @@ module Clinic
           payload: { service_offering_id: offering.id, lock_version: expected_lock_version, attributes: normalized }) do
           locked = practice.service_offerings.lock.find(offering.id)
           raise ActiveRecord::StaleObjectError.new(locked, "update") unless locked.lock_version == expected_lock_version
+          raise ArgumentError, "Retired service offerings cannot be edited." if locked.status == "retired"
 
           locked.update!(normalized.except(:site_ids)) unless normalized.except(:site_ids).empty?
           replace_sites!(offering: locked, site_ids: normalized[:site_ids]) if normalized.key?(:site_ids)
@@ -46,9 +48,29 @@ module Clinic
           payload: { service_offering_id: offering.id, lock_version: expected_lock_version }) do
           locked = practice.service_offerings.lock.find(offering.id)
           raise ActiveRecord::StaleObjectError.new(locked, "publish") unless locked.lock_version == expected_lock_version
+          raise ArgumentError, "Only draft service offerings can be published." unless locked.status == "draft"
 
           locked.update!(status: "published", published_at: Time.current, retired_at: nil)
           audit!(practice: practice, actor: actor, offering: locked, action: PUBLISH_OPERATION)
+          locked
+        end
+      rescue ArgumentError => error
+        raise error unless error.message.match?(/invalid value for Integer/)
+
+        raise ArgumentError, "lock_version must be a whole number."
+      end
+
+      def self.retire(practice:, actor:, offering:, request_key:, lock_version:)
+        authorize!(practice: practice, actor: actor)
+        expected_lock_version = Integer(lock_version.to_s, 10)
+        execute(practice: practice, actor: actor, request_key: request_key, operation: RETIRE_OPERATION,
+          payload: { service_offering_id: offering.id, lock_version: expected_lock_version }) do
+          locked = practice.service_offerings.lock.find(offering.id)
+          raise ActiveRecord::StaleObjectError.new(locked, "retire") unless locked.lock_version == expected_lock_version
+          raise ArgumentError, "Only published service offerings can be retired." unless locked.status == "published"
+
+          locked.update!(status: "retired", retired_at: Time.current)
+          audit!(practice: practice, actor: actor, offering: locked, action: RETIRE_OPERATION)
           locked
         end
       rescue ArgumentError => error
@@ -82,7 +104,9 @@ module Clinic
         values[:modality] = enum(attributes[:modality], field: "modality", allowed: %w[in_person video either]) if attributes.key?(:modality)
         values[:booking_required] = boolean(attributes[:booking_required], field: "booking_required") if attributes.key?(:booking_required)
         values[:requires_room] = boolean(attributes[:requires_room], field: "requires_room") if attributes.key?(:requires_room)
-        values[:status] = enum(attributes[:status], field: "status", allowed: %w[draft retired]) if attributes.key?(:status)
+        if attributes.key?(:status) && (!creating || attributes[:status] != "draft")
+          raise ArgumentError, "Use the publish or retire action to change service offering status."
+        end
         values[:site_ids] = normalized_ids(attributes[:site_ids]) if attributes.key?(:site_ids)
         values[:modality] ||= "in_person" if creating
         values[:booking_required] = true if creating && !values.key?(:booking_required)
@@ -98,9 +122,13 @@ module Clinic
         sites = offering.practice.sites.where(id: site_ids).index_by(&:id)
         raise ActiveRecord::RecordNotFound, "One or more eligible sites are unavailable." unless sites.length == site_ids.length
 
-        offering.offering_sites.delete_all
-        sites.each_value { |site| offering.offering_sites.create!(practice: offering.practice, site: site) }
+        current_site_ids = offering.offering_sites.pluck(:site_id)
+        offering.offering_sites.where(site_id: current_site_ids - site_ids).delete_all
+        (site_ids - current_site_ids).each do |site_id|
+          offering.offering_sites.create!(practice: offering.practice, site: sites.fetch(site_id))
+        end
         offering.reload
+        raise ActiveRecord::RecordInvalid, offering if offering.published? && !offering.valid?
       end
       private_class_method :replace_sites!
 

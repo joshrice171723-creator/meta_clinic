@@ -17,6 +17,7 @@ ops/portable/.env
 
 # Dependencies, build output and caches.
 node_modules/
+apps/web/.pnpm-isolated-store/
 vendor/bundle/
 .bundle/
 dist/

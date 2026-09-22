@@ -46,14 +46,64 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     assert_equal "published", published.fetch("status")
     assert_not_nil published.fetch("published_at")
 
-    patch "/api/clinic/service_offerings/#{created.fetch('id')}",
-      params: { service_offering: { request_key: "service-offering-retire-follow-up", lock_version: published.fetch("lock_version"), status: "retired" } },
+    post "/api/clinic/service_offerings/#{created.fetch('id')}/retire",
+      params: { service_offering: { request_key: "service-offering-retire-follow-up", lock_version: published.fetch("lock_version") } },
       headers: csrf_headers, as: :json
     assert_response :success
     retired = response.parsed_body.fetch("service_offering")
     assert_equal "retired", retired.fetch("status")
+    assert_not_nil retired.fetch("retired_at")
+    assert_equal published.fetch("published_at"), retired.fetch("published_at")
     assert_equal created.fetch("id"), retired.fetch("id")
     assert_equal [ @site.id ], retired.fetch("eligible_site_ids")
+
+    post "/api/clinic/service_offerings/#{created.fetch('id')}/retire",
+      params: { service_offering: { request_key: "service-offering-retire-follow-up", lock_version: published.fetch("lock_version") } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("replayed")
+    assert_equal retired.fetch("retired_at"), response.parsed_body.dig("service_offering", "retired_at")
+
+    get "/api/clinic/service_offerings?status=retired", headers: @headers
+    assert_response :success
+    assert_equal [ created.fetch("id") ], response.parsed_body.fetch("service_offerings").map { |item| item.fetch("id") }
+  end
+
+  test "retired offerings cannot be edited or republished and status cannot bypass retirement" do
+    post "/api/clinic/service_offerings", params: {
+      service_offering: { request_key: "retirement-guard-create", name: "Guarded offering",
+        visit_type_id: @visit_type.id, duration_minutes: 30, site_ids: [ @site.id ] }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    draft = response.parsed_body.fetch("service_offering")
+
+    patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: {
+      service_offering: { request_key: "retirement-guard-bypass", lock_version: draft.fetch("lock_version"), status: "retired" }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "draft", @practice.service_offerings.find(draft.fetch("id")).status
+
+    post "/api/clinic/service_offerings/#{draft.fetch('id')}/publish", params: {
+      service_offering: { request_key: "retirement-guard-publish", lock_version: draft.fetch("lock_version") }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    published = response.parsed_body.fetch("service_offering")
+
+    post "/api/clinic/service_offerings/#{draft.fetch('id')}/retire", params: {
+      service_offering: { request_key: "retirement-guard-retire", lock_version: published.fetch("lock_version") }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    retired = response.parsed_body.fetch("service_offering")
+
+    patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: {
+      service_offering: { request_key: "retirement-guard-edit", lock_version: retired.fetch("lock_version"), name: "Reopened" }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    post "/api/clinic/service_offerings/#{draft.fetch('id')}/publish", params: {
+      service_offering: { request_key: "retirement-guard-republish", lock_version: retired.fetch("lock_version") }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "retired", @practice.service_offerings.find(draft.fetch("id")).status
   end
 
   test "publication refuses a missing eligible site or an unavailable required room" do
@@ -90,10 +140,43 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "room"
   end
 
+  test "published offering keeps its eligible site when an edit removes required coverage" do
+    post "/api/clinic/service_offerings", params: {
+      service_offering: { request_key: "coverage-create", name: "Covered offering",
+        visit_type_id: @visit_type.id, duration_minutes: 30, requires_room: true, site_ids: [ @site.id ] }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    draft = response.parsed_body.fetch("service_offering")
+    post "/api/clinic/service_offerings/#{draft.fetch('id')}/publish", params: {
+      service_offering: { request_key: "coverage-publish", lock_version: draft.fetch("lock_version") }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    published = response.parsed_body.fetch("service_offering")
+
+    patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: {
+      service_offering: { request_key: "coverage-remove-site", lock_version: published.fetch("lock_version"), site_ids: [] }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.body, "eligible site"
+    assert_equal [ @site.id ], @practice.service_offerings.find(draft.fetch("id")).sites.pluck(:id)
+
+    roomless = @practice.sites.create!(code: "ROOMLESS", name: "Roomless site", status: "draft")
+    patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: {
+      service_offering: { request_key: "coverage-roomless-site", lock_version: published.fetch("lock_version"), site_ids: [ roomless.id ] }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.body, "room"
+    assert_equal [ @site.id ], @practice.service_offerings.find(draft.fetch("id")).sites.pluck(:id)
+  end
+
   test "foreign offering is not addressable through this practice" do
     foreign = @other_practice.service_offerings.create!(name: "Foreign offering")
     patch "/api/clinic/service_offerings/#{foreign.id}",
       params: { service_offering: { request_key: "foreign-offering", lock_version: foreign.lock_version, name: "Nope" } },
+      headers: csrf_headers, as: :json
+    assert_response :not_found
+    post "/api/clinic/service_offerings/#{foreign.id}/retire",
+      params: { service_offering: { request_key: "foreign-retire", lock_version: foreign.lock_version } },
       headers: csrf_headers, as: :json
     assert_response :not_found
   end
