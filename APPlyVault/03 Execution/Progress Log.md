@@ -1,11 +1,19 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-20
+updated: 2026-09-21
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-21 — Public-page visitor reporting published
+
+At Joshua's request, released `cc236d46b789f025f1a09ab462b21520970e0d2f` to aimetaclinic.com. The owner dashboard now reports 30-day public views, estimated unique browsers, per-page last visits, daily UTC totals and referring hostnames for `/joshua` and `/demo`. `/Joshua` and `/Joshua/` redirect to `/joshua/` with query strings preserved. The first-party tracker uses the main API even on the isolated demo page, keeps CSRF/Origin and owner authorization, respects DNT/GPC, and does not store names, email addresses, IP addresses or complete referring URLs in analytics. Registered demo lesson reporting remains separate; no historical visits were reconstructed.
+
+Focused verification passed: Rails 4 tests / 27 assertions, eager loading, changed-file RuboCop, frontend type check, 8 related tests plus 2 tracker tests, formatting and production bundle. Both hosted databases were backed up and restored into temporary scratch databases before their additive migration; ordinary runtime privileges were reapplied. Local Docker became unresponsive during the full frontend image build. The release therefore packaged the already-verified bundle on the host and layered the exact committed API source over the previous runtime after byte-comparing unchanged Gemfile and lockfile. Windows executable line endings were normalized before successful migration. API, worker, guided-demo and web now use the matched `cc236d46` tags. Previous images, database backups, `/opt/meta-clinic/backups/release-before-traffic-cc236d46.env`, and `/var/backups/joshua-portfolio/traffic-cc236d46` remain available for recovery; no existing records or credentials were reset.
+
+Live browser verification confirmed the capitalized redirect and owner-only Website visitors panel showing 1 portfolio view plus 2 demo views from 1 browser; these are the verification visits, not organic traffic. HTTPS `/up` returned 200, anonymous command-center access returned 401, and nginx configuration validation passed. The existing Material UI table/stack/paper patterns were reused. Full CI, broad clinical regression, SMTP recovery delivery and a full guided-lesson replay were not part of this analytics verification; no clinical or real-patient acceptance is implied.
+
 ## 2026-09-20 — Combined session work published to Meta Clinic
 
 At Joshua's explicit request, inspected all registered worktrees, local and fetched remote branches, stashes and recent application tasks. All branch tips were already ancestors of main; no outstanding tracked changes or stashes required integration. Preserved unrelated attachment and résumé scratch directories. The remote has `main`, not `master`. Released application commit `664f978883430056a46018f8964e5744aef0ebc5` to https://aimetaclinic.com using matched API/web images built from its Git archive. Subsequent portfolio-only commits were published separately at `/joshua/` without changing application source.
