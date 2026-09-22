@@ -783,6 +783,16 @@ export type MedicationAdministrationLinkTarget = ClinicalPlanLinkTarget & {
   administering_site_label: string;
 };
 export type ClinicalPlanWorkspace = {
+  prior_care?: {
+    kind: "care_plans" | "care_goals";
+    id: number;
+    revision: number;
+    encounter_id: number;
+    recorded_at: string;
+    status: string;
+    label: string;
+    outcome: string | null;
+  }[];
   prior_orders?: {
     kind: string;
     id: number;
@@ -1434,6 +1444,7 @@ export type CalendarResponse = {
 export type VisitType = { id: number; code: string; retired_at: string | null };
 export type Clinician = {
   id: number;
+  display_name?: string;
   membership_id: number;
   reference: string | null;
   assignments?: {

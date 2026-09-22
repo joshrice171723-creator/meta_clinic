@@ -1224,7 +1224,9 @@ function RescheduleDialog({
             </MenuItem>
             {clinicians.map((clinician) => (
               <MenuItem key={clinician.id} value={String(clinician.id)}>
-                {clinician.reference || `Clinician profile #${clinician.id}`}
+                {clinician.display_name?.trim() ||
+                  clinician.reference ||
+                  `Clinician profile #${clinician.id}`}
               </MenuItem>
             ))}
           </TextField>

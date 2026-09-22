@@ -515,7 +515,8 @@ function ReviewDialog({
                 <MenuItem value="">Not assigned</MenuItem>
                 {(clinicians.data?.clinicians || []).map((clinician) => (
                   <MenuItem key={clinician.id} value={String(clinician.id)}>
-                    {clinician.reference ||
+                    {clinician.display_name?.trim() ||
+                      clinician.reference ||
                       `Clinician profile #${clinician.id}`}
                   </MenuItem>
                 ))}

@@ -376,9 +376,7 @@ export function ClinicSchedule({
       hour: "numeric",
       minute: "2-digit",
     });
-  const actionLabel = initialPatientId
-    ? "Schedule first appointment"
-    : "Book appointment";
+  const actionLabel = "Book appointment";
   function openDay(date: string) {
     setDay(date);
     setView("day");
@@ -569,8 +567,7 @@ export function ClinicSchedule({
               </Typography>
             )}
             <Typography variant="body2">
-              Choose a day and available time to schedule their first
-              appointment.
+              Choose a day and available time to schedule an appointment.
             </Typography>
           </Stack>
         </Alert>

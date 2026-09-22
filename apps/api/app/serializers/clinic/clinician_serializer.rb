@@ -4,6 +4,7 @@ module Clinic
       payload = {
         id: profile.id,
         membership_id: profile.membership_id,
+        display_name: profile.display_name,
         reference: profile.reference
       }
       return payload unless detail

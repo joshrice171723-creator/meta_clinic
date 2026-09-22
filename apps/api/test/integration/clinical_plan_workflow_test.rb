@@ -384,6 +384,34 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal "not_requested", Clinic::Care::MedicationRequestRevision.find(medication.fetch("id")).transmission_state
   end
 
+  test "return workspace projects latest prior plans and goals without copying or crossing sites" do
+    plan = create_record("care_plans", "care_plan", { title: "Prior care plan", description: "Original intent" }, "prior-plan")
+    plan = revise_record("care_plans", "care_plan", plan,
+      revision_body("care_plan", plan, "active", "prior-plan-active"))
+    goal = create_record("care_goals", "care_goal", { care_plan_revision_id: plan.fetch("id"), description: "Practice the agreed goal" }, "prior-goal")
+    original = @encounter
+    @encounter = @practice.encounters.create!(patient: @patient, site: @site, started_at: 1.day.from_now, status: "open")
+    assert_no_difference ["Clinic::Care::CarePlanRevision.count", "Clinic::Care::CareGoalRevision.count"] do
+      get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+      assert_response :success
+    end
+    prior = response.parsed_body.fetch("prior_care")
+    assert_equal 2, prior.length
+    assert_equal [original.id], prior.map { |row| row.fetch("encounter_id") }.uniq
+    assert_equal 2, prior.find { |row| row["kind"] == "care_plans" }.fetch("revision")
+    assert_equal goal.fetch("id"), prior.find { |row| row["kind"] == "care_goals" }.fetch("id")
+    assert_empty response.parsed_body.dig("records", "care_plans")
+
+    other_site = @practice.sites.create!(code: "PRIVATE", status: "active")
+    @encounter.update!(site: other_site)
+    reader = staff_user("return-reader", %w[patients.read clinical_records.read], scope_kind: "site", site: other_site)
+    grant_permissions!(@practice.memberships.find_by!(user: reader), "patients.read")
+    login(reader)
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("prior_care")
+  end
+
   private
 
   def workspace_path(patient)

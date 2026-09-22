@@ -913,6 +913,38 @@ export function ClinicalPlanWorkspace({
             ))}
           </Paper>
         )}
+        {!!data.prior_care?.length && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography component="h3" variant="subtitle2">
+              Care plans and goals from previous visits
+            </Typography>
+            <Typography variant="body2">
+              Up to 20 latest accessible source records. Open the original visit
+              to review or update its plan or goal; this visit does not create a
+              copy.
+            </Typography>
+            {data.prior_care.map((item) => (
+              <Stack key={`${item.kind}-${item.id}`} spacing={1} sx={{ mt: 2 }}>
+                <Typography>
+                  {item.label} · {humanize(item.status)} · revision{" "}
+                  {item.revision}
+                </Typography>
+                {item.outcome && (
+                  <Typography variant="body2">{item.outcome}</Typography>
+                )}
+                <Typography variant="caption">
+                  Recorded {item.recorded_at} · visit {item.encounter_id}
+                </Typography>
+                <Button
+                  size="small"
+                  href={`/clinic/patients/${patient.id}/encounters/${item.encounter_id}?focus=clinical-plan-workspace`}
+                >
+                  Review source visit {item.encounter_id}
+                </Button>
+              </Stack>
+            ))}
+          </Paper>
+        )}
         {!!data.prior_orders?.length && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h3">Orders from previous visits</Typography>
@@ -1009,8 +1041,10 @@ export function ClinicalPlanWorkspace({
         )}
         {kind === "assessments" && data.assessment_scope.length === 0 && (
           <Alert severity="info">
-            Enable the clinic-approved assessment categories in Clinic Setup
-            before recording an assessment.
+            Clinic Setup exposes categories only. Before recording a completed
+            assessment, document its instrument and version, when it was
+            administered, and the responses or observations. Category selection
+            does not configure a scoring or follow-up rule.
           </Alert>
         )}
         {records.length === 0 ? (

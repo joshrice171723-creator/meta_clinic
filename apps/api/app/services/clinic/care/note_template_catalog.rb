@@ -2,6 +2,18 @@ module Clinic
   module Care
     module NoteTemplateCatalog
       SOURCE_URL = "https://www.timeofcare.com/physical-exam-template-adult-12-years-and-older/".freeze
+      BEHAVIORAL_HEALTH = {
+          id: "behavioral-health-progress", version: 1, label: "Behavioral health progress note", note_kind: "soap",
+          source_label: "Meta Clinic behavioral-health documentation prompts",
+          source_url: "https://www.cms.gov/medicare-coverage-database/view/article.aspx?articleId=56937&ver=43",
+          caution: "Ordinary clinical progress note, not separately maintained psychotherapy notes. Prompts do not establish findings, a completed assessment or a safety protocol.",
+          sections: {
+            subjective: "Patient priorities and interval changes:\nSymptoms and impact on daily functioning:\nPatient-reported response, barriers and support:\nMedication, allergy and relevant history changes:",
+            objective: "Encounter modality and participants:\nActual session start, end and duration (not scheduled duration):\nObserved mental-status findings; identify what was not assessed:\nAssessment instrument, version, response source and results, if administered:",
+            assessment: "Clinical assessment and rationale:\nProgress against the identified care plan and goal revision:\nSafety assessment findings, limitations and clinician judgment (unknown is not negative):",
+            plan: "Interventions delivered and patient response:\nAgreed next steps and patient instructions:\nSafety actions and escalation under the clinic's selected protocol, when applicable:\nUnfinished work, responsible team and follow-up arrangement:"
+          }.freeze
+        }.freeze
       TEMPLATES = [
         {
           id: "scribe-reviewed-soap",
@@ -75,7 +87,7 @@ module Clinic
             plan: "Shared next steps:\nSupport and monitoring:\nFollow-up:"
           }.freeze
         }.freeze
-      ].freeze
+      ].push(BEHAVIORAL_HEALTH).freeze
 
       def self.all
         TEMPLATES

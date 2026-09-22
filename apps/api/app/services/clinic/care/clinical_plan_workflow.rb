@@ -152,7 +152,8 @@ module Clinic
           assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope),
           new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind) },
           weight_context: weight_context(practice, patient),
-          prior_orders: prior_orders(practice, actor, patient, encounter)
+          prior_orders: prior_orders(practice, actor, patient, encounter),
+          prior_care: prior_care(practice, actor, patient, encounter)
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
@@ -521,6 +522,24 @@ module Clinic
             end
         end.sort_by { |record| record[:recorded_at] }.reverse.first(20)
       end
+      def prior_care(practice, actor, patient, encounter)
+        ability = Ability.new(actor, practice:)
+        visible_sites = practice.sites.select { |site| ability.allowed_permission?("clinical_records.read", site:) }.map(&:id)
+        %i[care_plans care_goals].flat_map do |kind|
+          klass = DEFINITIONS.fetch(kind).fetch(:klass)
+          table = klass.table_name
+          klass.where(practice:, patient:, site_id: visible_sites).where.not(encounter:)
+            .where("NOT EXISTS (SELECT 1 FROM #{table} newer WHERE newer.practice_id = #{table}.practice_id AND newer.series_id = #{table}.series_id AND newer.version_number > #{table}.version_number)")
+            .includes(encounter: :site).order(recorded_at: :desc, id: :desc).limit(20).filter_map do |record|
+              next unless allowed?(practice, actor, "clinical_records.read", record.encounter)
+              { kind:, id: record.id, revision: record.version_number, encounter_id: record.encounter_id,
+                recorded_at: record.recorded_at.iso8601, status: record.status,
+                label: kind == :care_plans ? record.title : record.description,
+                outcome: kind == :care_goals ? record.outcome_text : record.description }
+            end.first(20)
+        end.sort_by { |record| record[:recorded_at] }.reverse.first(20)
+      end
+      private_class_method :prior_care
       private_class_method :allowed_statuses
 
       def active_order_tasks(kind, record)
