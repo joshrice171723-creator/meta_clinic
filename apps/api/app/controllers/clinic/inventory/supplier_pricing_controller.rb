@@ -29,7 +29,12 @@ module Clinic
 
       def preview
         supplier = current_practice.inventory_suppliers.find(requested_id!(params[:supplier_id], :supplier_id))
-        preview = IngestPriceSheet.preview(practice: current_practice, supplier:, csv: required_csv)
+        preview = IngestPriceSheet.preview(
+          practice: current_practice,
+          supplier:,
+          csv: required_csv,
+          page: preview_page_param
+        )
         render json: { preview: serialize_preview(preview, supplier:) }
       end
 
@@ -70,6 +75,13 @@ module Clinic
         raise ArgumentError, "Choose a supplier CSV file first." if value.blank?
 
         value
+      end
+
+      def preview_page_param
+        value = params[:page].presence || "1"
+        raise ArgumentError, "Choose a valid supplier preview page." unless /\A[1-9][0-9]{0,2}\z/.match?(value.to_s)
+
+        value.to_i
       end
 
       def mutation_response

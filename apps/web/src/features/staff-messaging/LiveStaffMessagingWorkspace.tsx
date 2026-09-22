@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
+import { useClinicRealtimeTopic } from "../clinic/ClinicRealtime";
 import {
   StaffMessagingWorkspace,
   type StaffConversation,
@@ -360,8 +361,15 @@ export function LiveStaffMessagingWorkspace() {
         deepLinkedConversationId > 0
           ? deepLinkedConversationId
           : 0;
+      const currentConversationId = selectedConversationId.current;
       const firstConversationId =
-        requestedConversationId || conversations[0]?.id || 0;
+        requestedConversationId ||
+        (conversations.some(
+          (conversation) => conversation.id === currentConversationId,
+        )
+          ? currentConversationId
+          : conversations[0]?.id) ||
+        0;
       selectedConversationId.current = firstConversationId;
       setState({
         conversations,
@@ -396,6 +404,12 @@ export function LiveStaffMessagingWorkspace() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useClinicRealtimeTopic("staff_messaging", () => void load(), {
+    enabled: capability(capabilities, "staff_messaging_read"),
+    fallbackIntervalMs: 30_000,
+    freshnessIntervalMs: 30_000,
+  });
 
   const selectConversation = (conversationId: number) => {
     if (conversationId === selectedConversationId.current) return;

@@ -101,6 +101,32 @@ class OwnerCommandCenterTest < ActionDispatch::IntegrationTest
     assert_equal 0, aggregate.fetch("clinics").sole.fetch("member_count")
   end
 
+  test "command center paginates global collections and clamps out-of-range pages" do
+    26.times { |index| Organization.create!(name: format("Paged Organization %02d", index)) }
+    26.times do |index|
+      Development::DemoVisitor.create!(
+        name: "Visitor #{index}", email: "visitor-#{index}@example.invalid", company: "Demo"
+      )
+    end
+    sign_in(@admin)
+
+    get "/api/owner/command_center", params: { organization_page: 1, demo_page: 1 }
+    assert_response :success
+    first_page = response.parsed_body
+    assert_equal 26, first_page.dig("counts", "organizations")
+    assert_equal 25, first_page.fetch("organizations").length
+    assert_equal 25, first_page.fetch("demo_usage").length
+    assert_equal 2, first_page.dig("organization_pagination", "total_pages")
+    assert_equal 26, first_page.fetch("organization_options").length
+
+    get "/api/owner/command_center", params: { organization_page: 999_999, demo_page: 2 }
+    assert_response :success
+    last_page = response.parsed_body
+    assert_equal 2, last_page.dig("organization_pagination", "page")
+    assert_equal 1, last_page.fetch("organizations").length
+    assert_equal 1, last_page.fetch("demo_usage").length
+  end
+
   test "platform owner can review registered demo usage" do
     practice = Clinic::Practice.create!(name: "Demo usage clinic", timezone: "America/Chicago")
     operator = User.create!(email_address: "demo.operator@example.invalid", password: PASSWORD)

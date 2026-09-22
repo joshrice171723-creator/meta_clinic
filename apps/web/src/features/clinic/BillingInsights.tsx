@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -75,7 +75,7 @@ type IncomeOutlook = {
 
 export type BillingWorkspaceData = Omit<
   BillingDashboard,
-  "metrics" | "recent_invoices"
+  "metrics" | "recent_invoices" | "income_outlook"
 > & {
   metrics: Omit<BillingDashboard["metrics"], "currencies"> & {
     currencies: (BillingCurrencyMetrics & {
@@ -93,7 +93,6 @@ export type BillingWorkspaceData = Omit<
   payment_activity: BillingPayment[];
   payment_count: number;
   card_collection: { available: boolean; reason: string };
-  income_outlook: IncomeOutlook;
 };
 
 export function billingMoney(value: string, currency: string) {
@@ -517,17 +516,21 @@ export function BillingPayments({
   );
 }
 
-export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
-  const [start, setStart] = useState(initial.start_month.slice(0, 7));
-  const [months, setMonths] = useState(initial.months);
-  const [currency, setCurrency] = useState(
-    initial.currencies[0]?.currency ?? "",
-  );
+export function BillingIncomeOutlook() {
+  const [start, setStart] = useState("");
+  const [months, setMonths] = useState(6);
+  const [currency, setCurrency] = useState("");
   const [request, setRequest] = useState("");
-  const resource = useResource<BillingWorkspaceData>(
-    `/api/clinic/billing${request}`,
+  const resource = useResource<{ income_outlook: IncomeOutlook }>(
+    `/api/clinic/billing/income_outlook${request}`,
   );
   const outlook = resource.data?.income_outlook;
+  useEffect(() => {
+    if (!outlook) return;
+    setStart((current) => current || outlook.start_month.slice(0, 7));
+    setMonths((current) => current || outlook.months);
+    setCurrency((current) => current || outlook.currencies[0]?.currency || "");
+  }, [outlook]);
   const selected =
     outlook?.currencies.find((item) => item.currency === currency) ??
     outlook?.currencies[0];
@@ -562,7 +565,7 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
           required
           slotProps={{
             inputLabel: { shrink: true },
-            htmlInput: { min: initial.start_month.slice(0, 7) },
+            htmlInput: { min: outlook?.start_month.slice(0, 7) },
           }}
         />
         <TextField
@@ -578,7 +581,7 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
             </MenuItem>
           ))}
         </TextField>
-        {initial.currencies.length > 1 && (
+        {(outlook?.currencies.length ?? 0) > 1 && (
           <TextField
             select
             label="Currency"
@@ -586,7 +589,7 @@ export function BillingIncomeOutlook({ initial }: { initial: IncomeOutlook }) {
             value={currency}
             onChange={(event) => setCurrency(event.target.value)}
           >
-            {initial.currencies.map((item) => (
+            {outlook?.currencies.map((item) => (
               <MenuItem key={item.currency} value={item.currency}>
                 {item.currency}
               </MenuItem>

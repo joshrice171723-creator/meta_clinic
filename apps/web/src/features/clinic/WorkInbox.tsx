@@ -34,6 +34,7 @@ import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
 import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
+import { useClinicRealtimeTopic } from "./ClinicRealtime";
 
 type AssignmentFilter = "all" | "mine" | "overdue";
 type WorkType =
@@ -1489,22 +1490,24 @@ export function WorkInbox() {
     SourceState<WorkExceptionsResponse>
   >({ loading: canLoadExceptions });
   const [scheduledVisits, setScheduledVisits] = useState<
-    SourceState<{ appointments: Appointment[] }>
+    SourceState<{ appointments: Appointment[]; has_more: boolean }>
   >({ loading: canLoadScheduledVisits });
 
-  useEffect(() => {
-    if (!canLoadWork) return;
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible")
-        setRefreshRevision((value) => value + 1);
-    };
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    const interval = window.setInterval(refreshWhenVisible, 15000);
-    return () => {
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.clearInterval(interval);
-    };
-  }, [canLoadWork]);
+  useClinicRealtimeTopic(
+    "work_inbox",
+    () => setRefreshRevision((value) => value + 1),
+    {
+      enabled:
+        canLoadWork ||
+        canLoadLabs ||
+        canLoadRefills ||
+        canLoadExceptions ||
+        canLoadScheduledVisits ||
+        canLoadCallbacks,
+      fallbackIntervalMs: 15_000,
+      freshnessIntervalMs: 60_000,
+    },
+  );
 
   useEffect(() => {
     if (!canLoadCallbacks) return;
@@ -1636,30 +1639,25 @@ export function WorkInbox() {
       loading: true,
       error: undefined,
     }));
-    const load = async () => {
-      const appointments: Appointment[] = [];
-      let page = 1;
-      let pages = 1;
-      do {
-        const params = new URLSearchParams({
-          upcoming: "true",
-          per_page: "100",
-          page: String(page),
-        });
-        if (current_site?.id) params.set("site_id", String(current_site.id));
-        const data = await api<{
-          appointments: Appointment[];
-          pagination: Pagination;
-        }>(`/api/clinic/appointments?${params}`, { signal: abort.signal });
-        appointments.push(...data.appointments);
-        pages = data.pagination.total_pages;
-        page += 1;
-      } while (page <= pages);
-      return { appointments };
-    };
-    load()
-      .then((data) => {
-        if (!abort.signal.aborted) setScheduledVisits({ loading: false, data });
+    const params = new URLSearchParams({
+      upcoming: "true",
+      per_page: "100",
+      page: "1",
+    });
+    if (current_site?.id) params.set("site_id", String(current_site.id));
+    api<{
+      appointments: Appointment[];
+      pagination: Pagination;
+    }>(`/api/clinic/appointments?${params}`, { signal: abort.signal })
+      .then((response) => {
+        if (!abort.signal.aborted)
+          setScheduledVisits({
+            loading: false,
+            data: {
+              appointments: response.appointments,
+              has_more: response.pagination.total_pages > 1,
+            },
+          });
       })
       .catch((error: unknown) => {
         if (!abort.signal.aborted)
@@ -2107,6 +2105,12 @@ export function WorkInbox() {
             : "All accessible locations"}
         </Typography>
       </Box>
+      {scheduledVisits.data?.has_more && (
+        <Alert severity="info" role="status">
+          Showing the next 100 scheduled visits in Patient Flow. Use Schedule to
+          review additional upcoming visits.
+        </Alert>
+      )}
 
       {sourceErrors.length > 0 && (
         <Alert severity="warning">

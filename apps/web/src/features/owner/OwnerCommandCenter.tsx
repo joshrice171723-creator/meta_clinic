@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import {
   Alert,
   Box,
@@ -56,6 +56,18 @@ type CommandCenterData = {
   website_traffic: WebsiteTrafficData;
   organizations: OrganizationSummary[];
   unassigned_clinics: ClinicSummary[];
+  organization_options: Array<{ id: number; name: string }>;
+  counts: { organizations: number; clinics: number; active_members: number };
+  organization_pagination: PageMetadata;
+  demo_usage_pagination: PageMetadata;
+  unassigned_clinic_pagination: PageMetadata;
+};
+
+type PageMetadata = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
 };
 
 type DemoUsage = {
@@ -100,9 +112,49 @@ export function formatDemoDuration(seconds: number) {
   return `${remainder}s`;
 }
 
+function PageControls({
+  pagination,
+  onPageChange,
+}: {
+  pagination: PageMetadata;
+  onPageChange: (page: number) => void;
+}) {
+  if (pagination.total_pages <= 1) return null;
+
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{ p: 1.5, alignItems: "center", justifyContent: "flex-end" }}
+    >
+      <Typography variant="body2" color="text.secondary">
+        Page {pagination.page} of {pagination.total_pages} ({pagination.total}{" "}
+        total)
+      </Typography>
+      <Button
+        size="small"
+        disabled={pagination.page <= 1}
+        onClick={() => onPageChange(pagination.page - 1)}
+      >
+        Previous
+      </Button>
+      <Button
+        size="small"
+        disabled={pagination.page >= pagination.total_pages}
+        onClick={() => onPageChange(pagination.page + 1)}
+      >
+        Next
+      </Button>
+    </Stack>
+  );
+}
+
 export function OwnerCommandCenter() {
+  const [organizationPage, setOrganizationPage] = useState(1);
+  const [demoPage, setDemoPage] = useState(1);
+  const [unassignedPage, setUnassignedPage] = useState(1);
   const { data, error, refresh } = useResource<CommandCenterData>(
-    "/api/owner/command_center",
+    `/api/owner/command_center?organization_page=${organizationPage}&demo_page=${demoPage}&unassigned_clinic_page=${unassignedPage}`,
     { retainDataOnRefresh: true },
   );
   const [open, setOpen] = useState(false);
@@ -127,32 +179,6 @@ export function OwnerCommandCenter() {
   const [inviting, setInviting] = useState(false);
   const [expandedVisitorId, setExpandedVisitorId] = useState<number | null>(
     null,
-  );
-
-  const clinicCount = useMemo(
-    () =>
-      (data?.organizations.reduce(
-        (total, organization) => total + organization.clinics.length,
-        0,
-      ) ?? 0) + (data?.unassigned_clinics.length ?? 0),
-    [data],
-  );
-  const memberCount = useMemo(
-    () =>
-      (data?.organizations.reduce(
-        (total, organization) =>
-          total +
-          organization.clinics.reduce(
-            (clinicTotal, clinic) => clinicTotal + clinic.member_count,
-            0,
-          ),
-        0,
-      ) ?? 0) +
-      (data?.unassigned_clinics.reduce(
-        (total, clinic) => total + clinic.member_count,
-        0,
-      ) ?? 0),
-    [data],
   );
 
   const close = () => {
@@ -328,19 +354,19 @@ export function OwnerCommandCenter() {
           <Typography variant="body2" color="text.secondary">
             Organizations
           </Typography>
-          <Typography variant="h4">{data.organizations.length}</Typography>
+          <Typography variant="h4">{data.counts.organizations}</Typography>
         </Paper>
         <Paper variant="outlined" sx={{ px: 2.5, py: 2, minWidth: 180 }}>
           <Typography variant="body2" color="text.secondary">
             Clinics
           </Typography>
-          <Typography variant="h4">{clinicCount}</Typography>
+          <Typography variant="h4">{data.counts.clinics}</Typography>
         </Paper>
         <Paper variant="outlined" sx={{ px: 2.5, py: 2, minWidth: 180 }}>
           <Typography variant="body2" color="text.secondary">
             Active members
           </Typography>
-          <Typography variant="h4">{memberCount}</Typography>
+          <Typography variant="h4">{data.counts.active_members}</Typography>
         </Paper>
       </Stack>
       <Alert severity="info">
@@ -365,7 +391,7 @@ export function OwnerCommandCenter() {
           </Typography>
         </Box>
         <Divider />
-        {data.demo_usage.length === 0 ? (
+        {data.demo_usage_pagination.total === 0 ? (
           <Typography sx={{ p: 2.5 }} color="text.secondary">
             No demo visitors have registered yet.
           </Typography>
@@ -475,6 +501,10 @@ export function OwnerCommandCenter() {
             </Table>
           </TableContainer>
         )}
+        <PageControls
+          pagination={data.demo_usage_pagination}
+          onPageChange={setDemoPage}
+        />
       </Paper>
 
       {invitation && (
@@ -527,8 +557,7 @@ export function OwnerCommandCenter() {
         </Alert>
       )}
 
-      {data.organizations.length === 0 &&
-      data.unassigned_clinics.length === 0 ? (
+      {data.counts.clinics === 0 ? (
         <Paper variant="outlined" sx={{ p: 4 }}>
           <Typography component="h2" variant="h5" gutterBottom>
             No clinics yet
@@ -565,7 +594,13 @@ export function OwnerCommandCenter() {
               />
             </Paper>
           ))}
-          {data.unassigned_clinics.length > 0 && (
+          {data.organization_pagination.total > 0 && (
+            <PageControls
+              pagination={data.organization_pagination}
+              onPageChange={setOrganizationPage}
+            />
+          )}
+          {data.unassigned_clinic_pagination.total > 0 && (
             <Paper variant="outlined" sx={{ overflow: "hidden" }}>
               <Box sx={{ px: 2.5, py: 2 }}>
                 <Typography component="h2" variant="h5">
@@ -576,6 +611,10 @@ export function OwnerCommandCenter() {
               <ClinicTable
                 clinics={data.unassigned_clinics}
                 onInviteOwner={openOwnerInvitation}
+              />
+              <PageControls
+                pagination={data.unassigned_clinic_pagination}
+                onPageChange={setUnassignedPage}
               />
             </Paper>
           )}
@@ -596,7 +635,7 @@ export function OwnerCommandCenter() {
                 required
               >
                 <MenuItem value="new">Create a new organization</MenuItem>
-                {data.organizations.map((organization) => (
+                {data.organization_options.map((organization) => (
                   <MenuItem
                     key={organization.id}
                     value={String(organization.id)}

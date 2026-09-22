@@ -3,6 +3,8 @@ module Platform
     class CommandCenterController < ApplicationController
       include Clinic::Api::RequestParameters
 
+      PAGE_SIZE = 25
+
       before_action :require_admin
 
       rescue_from Clinic::Api::RequestParameters::Invalid do |error|
@@ -92,30 +94,47 @@ module Platform
       end
 
       def command_center_payload
-        organizations = Organization.includes(practices: [
+        organization_scope = Organization.includes(practices: [
           { memberships: [ :user, { role_grants: :role_version } ] },
           { workforce_employee_invitations: :role_version }
-        ])
-          .order(:name, :id)
-        assigned_ids = organizations.flat_map { |organization| organization.practices.map(&:id) }
-        unassigned = Clinic::Practice.where(organization_id: nil)
+        ]).order(:name, :id)
+        organization_total = Organization.count
+        organization_page = page_param!(:organization_page, organization_total)
+        organizations = organization_scope.limit(PAGE_SIZE).offset((organization_page - 1) * PAGE_SIZE)
+        unassigned_scope = Clinic::Practice.where(organization_id: nil).order(:name, :id)
+        unassigned_total = unassigned_scope.count
+        unassigned_page = page_param!(:unassigned_clinic_page, unassigned_total)
+        unassigned = unassigned_scope
+          .limit(PAGE_SIZE).offset((unassigned_page - 1) * PAGE_SIZE)
           .includes(
             { memberships: [ :user, { role_grants: :role_version } ] },
             { workforce_employee_invitations: :role_version }
-          ).order(:name, :id)
+          )
+        demo_visitors = Development::DemoVisitor.order(created_at: :desc, id: :desc)
+        demo_total = demo_visitors.count
+        demo_page = page_param!(:demo_page, demo_total)
         {
           schema_version: "owner-command-center-v1",
           delivery_methods: { email: true, sms: Platform::ClinicOwnerInvitationSms.configured? },
-          demo_usage: demo_usage_payload,
+          counts: {
+            organizations: organization_total,
+            clinics: Clinic::Practice.count,
+            active_members: Clinic::Membership.active.joins(:user).where(users: { active: true }).count
+          },
+          organization_options: Organization.order(:name, :id).pluck(:id, :name).map { |id, name| { id:, name: } },
+          demo_usage: demo_usage_payload(demo_visitors.limit(PAGE_SIZE).offset((demo_page - 1) * PAGE_SIZE)),
+          demo_usage_pagination: page_metadata(demo_page, demo_total),
           website_traffic: Platform::WebsiteTraffic.call,
           organizations: organizations.map { |organization| organization_payload(organization) },
-          unassigned_clinics: unassigned.reject { |practice| assigned_ids.include?(practice.id) }.map { |practice| clinic_payload(practice) }
+          organization_pagination: page_metadata(organization_page, organization_total),
+          unassigned_clinics: unassigned.map { |practice| clinic_payload(practice) },
+          unassigned_clinic_pagination: page_metadata(unassigned_page, unassigned_total)
         }
       end
 
-      def demo_usage_payload
+      def demo_usage_payload(visitors)
         now = Time.current
-        Development::DemoVisitor.includes(:demo_runs).order(created_at: :desc, id: :desc).map do |visitor|
+        visitors.includes(:demo_runs).map do |visitor|
           runs = visitor.demo_runs
           {
             id: visitor.id,
@@ -127,6 +146,23 @@ module Platform
             lesson_usage: runs.filter_map { |run| demo_lesson_usage(run, now) }
           }
         end
+      end
+
+      def page_param!(name, total)
+        value = params[name].presence || "1"
+        raise Clinic::Api::RequestParameters::Invalid.new("Choose a valid page.", field: name) unless /\A[1-9][0-9]{0,5}\z/.match?(value.to_s)
+
+        total_pages = (total.to_f / PAGE_SIZE).ceil
+        [ value.to_i, [ total_pages, 1 ].max ].min
+      end
+
+      def page_metadata(page, total)
+        {
+          page: page,
+          per_page: PAGE_SIZE,
+          total: total,
+          total_pages: (total.to_f / PAGE_SIZE).ceil
+        }
       end
 
       def demo_lesson_usage(run, now)

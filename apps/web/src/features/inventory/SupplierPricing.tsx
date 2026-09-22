@@ -29,6 +29,10 @@ type PreviewRow = {
 type PreviewError = { line: number; message: string };
 type PricePreview = {
   total_rows: number;
+  valid_count: number;
+  invalid_count: number;
+  page: number;
+  page_count: number;
   rows: PreviewRow[];
   errors: PreviewError[];
   unmatched_ndcs: string[];
@@ -159,7 +163,7 @@ export function SupplierPricingScreen({
     }
   };
 
-  const previewFile = async () => {
+  const previewFile = async (pageNumber = 1) => {
     if (!supplierId || !csv || writeBlocked || busy) return;
     setBusy("preview");
     setError("");
@@ -167,15 +171,19 @@ export function SupplierPricingScreen({
     try {
       const response = await api<{ preview: PricePreview }>(
         "/api/clinic/inventory/suppliers/preview",
-        { method: "POST", body: { supplier_id: supplierId, csv } },
+        {
+          method: "POST",
+          body: { supplier_id: supplierId, csv, page: pageNumber },
+        },
       );
       setPreview(response.preview);
-      setSelectedLines(
-        response.preview.rows
-          .filter((row) => row.matched && row.eligible)
-          .map((row) => row.line),
-      );
-      setNotice("Preview ready. Review the rows before importing.");
+      const eligibleLines = response.preview.rows
+        .filter((row) => row.matched && row.eligible)
+        .map((row) => row.line);
+      setSelectedLines((current) => [
+        ...new Set([...current, ...eligibleLines]),
+      ]);
+      setNotice("Preview page ready. Review each page before importing.");
     } catch (reason) {
       setError(friendlyError(reason));
     } finally {
@@ -476,10 +484,10 @@ export function SupplierPricingScreen({
             >
               <div className="supplier-preview-summary">
                 <span>
-                  <strong>{preview.rows.length}</strong> valid
+                  <strong>{preview.valid_count}</strong> valid
                 </span>
-                <span className={preview.errors.length ? "has-issue" : ""}>
-                  <strong>{preview.errors.length}</strong> invalid
+                <span className={preview.invalid_count ? "has-issue" : ""}>
+                  <strong>{preview.invalid_count}</strong> invalid
                 </span>
                 <span
                   className={preview.unmatched_ndcs.length ? "has-issue" : ""}
@@ -488,6 +496,12 @@ export function SupplierPricingScreen({
                   NDCs
                 </span>
               </div>
+              <p className="inventory-results-count" role="status">
+                Showing data rows {(preview.page - 1) * 200 + 1}–
+                {Math.min(preview.page * 200, preview.total_rows)} of{" "}
+                {preview.total_rows}. Invalid-row details below apply to this
+                page.
+              </p>
               {preview.errors.length > 0 && (
                 <div className="supplier-preview-issues">
                   <strong>Rows needing correction</strong>
@@ -581,6 +595,34 @@ export function SupplierPricingScreen({
                   {busy === "import" ? "Importing…" : "Import selected rows"}
                 </button>
               </div>
+              {preview.page_count > 1 && (
+                <nav
+                  className="inventory-pagination"
+                  aria-label="Supplier preview pagination"
+                >
+                  <Button
+                    variant="outlined"
+                    type="button"
+                    disabled={busy !== "" || preview.page === 1}
+                    onClick={() => void previewFile(preview.page - 1)}
+                  >
+                    Previous rows
+                  </Button>
+                  <span aria-live="polite">
+                    Page {preview.page} of {preview.page_count}
+                  </span>
+                  <Button
+                    variant="outlined"
+                    type="button"
+                    disabled={
+                      busy !== "" || preview.page === preview.page_count
+                    }
+                    onClick={() => void previewFile(preview.page + 1)}
+                  >
+                    Next rows
+                  </Button>
+                </nav>
+              )}
             </div>
           )}
         </section>
