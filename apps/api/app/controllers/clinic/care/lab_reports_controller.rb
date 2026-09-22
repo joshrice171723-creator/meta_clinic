@@ -6,7 +6,7 @@ module Clinic
         only: %i[index show review_queue follow_up_queue result_history]
 
       VERSION_FIELDS = %i[title status result_priority collected_at issued_at].freeze
-      RESULT_FIELDS = %i[name code value unit reference_range flag value_kind absent_reason value_code value_code_system].freeze
+      RESULT_FIELDS = %i[name code code_system code_version value unit unit_code interpretation reference_range flag value_kind absent_reason value_code value_code_system].freeze
 
       def index
         patient = readable_patient!
@@ -276,12 +276,16 @@ module Clinic
           {
             name: required_string!(row[:name], field: "#{field}.name", maximum: 200),
             code: optional_string(row[:code], field: "#{field}.code", maximum: 80),
+            code_system: optional_string(row[:code_system], field: "#{field}.code_system", maximum: 240),
+            code_version: optional_string(row[:code_version], field: "#{field}.code_version", maximum: 80),
             value: row[:value_kind] == "absent" ? optional_string(row[:value], field: "#{field}.value", maximum: 500) : required_string!(row[:value], field: "#{field}.value", maximum: 500),
             value_kind: optional_string(row[:value_kind], field: "#{field}.value_kind", maximum: 20),
             absent_reason: optional_string(row[:absent_reason], field: "#{field}.absent_reason", maximum: 200),
             value_code: optional_string(row[:value_code], field: "#{field}.value_code", maximum: 200),
             value_code_system: optional_string(row[:value_code_system], field: "#{field}.value_code_system", maximum: 240),
             unit: optional_string(row[:unit], field: "#{field}.unit", maximum: 80),
+            unit_code: optional_string(row[:unit_code], field: "#{field}.unit_code", maximum: 80),
+            interpretation: optional_string(row[:interpretation], field: "#{field}.interpretation", maximum: 80),
             reference_range: optional_string(row[:reference_range], field: "#{field}.reference_range", maximum: 200),
             flag: optional_string(row[:flag], field: "#{field}.flag", maximum: 80)
           }

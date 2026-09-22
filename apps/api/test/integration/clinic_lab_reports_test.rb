@@ -475,7 +475,7 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
   test "T07 typed and absent results round trip while receipt acknowledgment does not review or close work" do
     request = create_params(request_key: "journey-partial-results")
     request[:lab_report].merge!(status: "preliminary", results: [
-      { name: "Synthetic measurement", value: "1.2500", value_kind: "numeric", unit: "mg/L", reference_range: "Source range" },
+      { name: "Synthetic measurement", code: "1234-5", code_system: "http://loinc.org", code_version: "synthetic", value: "1.2500", value_kind: "numeric", unit: "mg/L", unit_code: "mg/L", interpretation: "H", reference_range: "Source range" },
       { name: "Synthetic coded finding", value: "Source supplied finding", value_kind: "coded", value_code: "LOCAL-1", value_code_system: "urn:synthetic:lab" },
       { name: "Synthetic pending analyte", value: "", value_kind: "absent", absent_reason: "Specimen processing continues" }
     ])
@@ -484,6 +484,7 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
     version = report.current_version
     assert_equal "1.2500", version.results.first.fetch("value")
+    assert_equal [ "http://loinc.org", "mg/L", "H" ], version.results.first.values_at("code_system", "unit_code", "interpretation")
     assert_equal "urn:synthetic:lab", version.results.second.fetch("value_code_system")
     assert_equal ["", "Specimen processing continues"], version.results.third.values_at("value", "absent_reason")
 

@@ -187,7 +187,7 @@ module Clinic
         results.map do |row|
           values = row.to_h.symbolize_keys
           kind = values[:value_kind].presence || "text"
-          raise ArgumentError, "Choose a supported result value kind." unless %w[text numeric coded absent].include?(kind)
+          raise ArgumentError, "Choose a supported result value kind." unless %w[text numeric coded boolean range absent].include?(kind)
           value = kind == "absent" ? "" : required_text(values[:value], "result value", 500)
           if kind == "numeric" && !value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/)
             raise ArgumentError, "Numeric results require an exact decimal value."
@@ -196,15 +196,23 @@ module Clinic
           raise ArgumentError, "An absent result cannot also carry a value." if kind == "absent" && values[:value].present?
           value_code = kind == "coded" ? required_text(values[:value_code], "result value code", 200) : nil
           value_code_system = kind == "coded" ? required_text(values[:value_code_system], "result value code system", 240) : nil
+          raise ArgumentError, "Boolean results require true or false." if kind == "boolean" && !%w[true false].include?(value.downcase)
+          if kind == "range" && !value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*[-–]\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/)
+            raise ArgumentError, "Range results require two exact decimal bounds."
+          end
           {
             "name" => required_text(values[:name], "result name", 200),
             "code" => optional_text(values[:code], "result code", 80),
+            "code_system" => optional_text(values[:code_system], "result code system", 240),
+            "code_version" => optional_text(values[:code_version], "result code version", 80),
             "value" => value,
             "value_kind" => kind,
             "absent_reason" => absent_reason,
             "value_code" => value_code,
             "value_code_system" => value_code_system,
             "unit" => optional_text(values[:unit], "result unit", 80),
+            "unit_code" => optional_text(values[:unit_code], "result unit code", 80),
+            "interpretation" => optional_text(values[:interpretation], "result interpretation", 80),
             "reference_range" => optional_text(values[:reference_range], "reference_range", 200),
             "flag" => optional_text(values[:flag], "result flag", 80)
           }
