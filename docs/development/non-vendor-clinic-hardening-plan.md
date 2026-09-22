@@ -237,4 +237,4 @@ Stop only the dependent path and surface a named decision when any of these is r
 
 ## Checkpoint
 
-**Created 2026-09-22:** planning brief only. No implementation or verification was performed by creating this document. Current next action is Slice 1: reconcile the existing billing price catalog, visit type/settings, and scheduling owner records; then implement the smallest versioned internal service-offering vertical slice with CF-01/02/03/04 paired tests and one synthetic browser walkthrough.
+**Created 2026-09-22; checkpoint updated 2026-09-22:** slices 1–3 now have local backend foundations recorded above. Current next action is Slice 4: complete typed lab semantics with source-faithful provenance and focused negative/correction/browser proof; then continue the ordered acceptance gates without treating any foundation as a completed slice.
