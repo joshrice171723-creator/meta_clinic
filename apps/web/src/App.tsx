@@ -41,6 +41,10 @@ import {
   type ClinicNavigateOptions,
   type ClinicRoute,
 } from "./features/clinic/clinicNavigation";
+import {
+  ClinicRealtimeNotice,
+  ClinicRealtimeProvider,
+} from "./features/clinic/ClinicRealtime";
 
 function lazyNamed<Module, Props>(
   load: () => Promise<Module>,
@@ -754,32 +758,35 @@ function ClinicApplication({
     );
 
   return (
-    <ClinicNavigationProvider value={navigation}>
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-      <RouteBoundary root>
-        <Workspace
-          key={user.id}
-          user={user}
-          path={route.path}
-          search={route.search}
-          homeView={route.homeView}
-          developmentAccounts={developmentAccounts}
-          environment={environment}
-          businessDate={businessDate}
-        >
-          <div hidden={!home}>
-            <ClinicHome
-              view={route.homeView}
-              active={home}
-              search={route.search}
-            />
-          </div>
-          {!home && page}
-        </Workspace>
-      </RouteBoundary>
-    </ClinicNavigationProvider>
+    <ClinicRealtimeProvider key={user.id}>
+      <ClinicNavigationProvider value={navigation}>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        <ClinicRealtimeNotice />
+        <RouteBoundary root>
+          <Workspace
+            key={user.id}
+            user={user}
+            path={route.path}
+            search={route.search}
+            homeView={route.homeView}
+            developmentAccounts={developmentAccounts}
+            environment={environment}
+            businessDate={businessDate}
+          >
+            <div hidden={!home}>
+              <ClinicHome
+                view={route.homeView}
+                active={home}
+                search={route.search}
+              />
+            </div>
+            {!home && page}
+          </Workspace>
+        </RouteBoundary>
+      </ClinicNavigationProvider>
+    </ClinicRealtimeProvider>
   );
 }
 

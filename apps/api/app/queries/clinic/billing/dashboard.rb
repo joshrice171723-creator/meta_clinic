@@ -19,7 +19,7 @@ module Clinic
       SQL
       OUTSTANDING_BALANCE_DESC_SQL = "#{OUTSTANDING_BALANCE_SQL} DESC, clinic_invoices.id DESC".freeze
 
-      def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", outlook_months: 6, outlook_start: nil, patient_identity_access: false)
+      def self.call(practice:, now: Current.business_time, page: 1, per_page: 25, query: "", filter: "all", sort: "recent", patient_identity_access: false)
         local_now = now.in_time_zone(practice.timezone)
         period_start = local_now.beginning_of_month
         period_end = period_start.next_month
@@ -35,16 +35,17 @@ module Clinic
         invoice_scope = invoice_scope.order(invoice_order(sort))
         invoice_total = invoice_scope.count
         invoice_pages = invoice_total.zero? ? 0 : (invoice_total.to_f / per_page).ceil
+        invoice_counts = invoices.group(:status).count
 
         {
           schema_version: "clinic-billing-v1",
           practice: { id: practice.id, name: practice.name, timezone: practice.timezone },
           period: { start: period_start.iso8601, end: period_end.iso8601 },
           metrics: {
-            invoice_count: invoices.count,
-            posted_count: invoices.where(status: "posted").count,
-            draft_count: invoices.where(status: "draft").count,
-            void_count: invoices.where(status: "void").count,
+            invoice_count: invoice_counts.values.sum,
+            posted_count: invoice_counts.fetch("posted", 0),
+            draft_count: invoice_counts.fetch("draft", 0),
+            void_count: invoice_counts.fetch("void", 0),
             currencies: currencies.map { |currency| currency_metrics(invoices, currency, period_start, period_end, practice) }
           },
           recent_invoices: invoice_scope.includes(:lines, :payment_allocations, :credit_notes,
@@ -59,7 +60,6 @@ module Clinic
           card_collection: card_collection(practice),
           pending_online_payments: pending_online_payments(practice),
           collection_worklist: collection_worklist(practice, patient_identity_access: patient_identity_access),
-          income_outlook: IncomeOutlook.call(practice: practice, now: now, months: outlook_months, start_month: outlook_start),
           unbilled_encounters: unbilled_encounters(practice, available: patient_identity_access)
         }
       end
@@ -167,15 +167,16 @@ module Clinic
         outstanding = posted.sum(Arel.sql(OUTSTANDING_BALANCE_SQL))
         payments = Clinic::PaymentEvent.where(practice: practice, currency: currency, created_at: period_start...period_end)
         refunds = Clinic::RefundEvent.where(practice: practice, currency: currency, created_at: period_start...period_end).sum(:amount)
+        monthly_received = payments.sum(:amount)
 
         {
           currency: currency,
           monthly_invoiced: decimal(monthly_invoiced),
           monthly_collected: decimal(monthly_collected),
           collected: decimal(collected),
-          monthly_received: decimal(payments.sum(:amount)),
+          monthly_received: decimal(monthly_received),
           monthly_refunded: decimal(refunds),
-          monthly_net_collected: decimal(payments.sum(:amount) - refunds),
+          monthly_net_collected: decimal(monthly_received - refunds),
           outstanding: decimal(outstanding),
           open_invoice_count: open_invoice_count(posted)
         }

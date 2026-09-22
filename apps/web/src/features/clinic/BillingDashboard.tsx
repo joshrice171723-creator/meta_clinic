@@ -1421,9 +1421,7 @@ export function BillingDashboard() {
         aria-labelledby="billing-tab-outlook"
         hidden={activeTab !== "outlook"}
       >
-        {activeTab === "outlook" && (
-          <BillingIncomeOutlook initial={data.income_outlook} />
-        )}
+        {activeTab === "outlook" && <BillingIncomeOutlook />}
       </div>
       <div
         className="billing-panel"

@@ -53,6 +53,12 @@ module Clinic
         operation.call
       else
         attribute_clinic_mutation(operation)
+        if response.successful?
+          Clinic::Realtime::Publisher.publish(
+            practice: current_practice,
+            topics: Clinic::Realtime::Publisher.topics_for(controller_path, action_name)
+          )
+        end
       end
     rescue Clinic::AuditRecorder::Unavailable
       # The action has rendered, but the response must not release protected data
@@ -201,6 +207,7 @@ module Clinic
       when [ "clinic/document_categories", "index" ] then "documents.categories.read"
       when [ "clinic/billing/invoices", "index" ], [ "clinic/billing/invoices", "show" ] then "billing.read"
       when [ "clinic/billing/dashboard", "show" ] then "billing.read"
+      when [ "clinic/billing/dashboard", "income_outlook" ] then "billing.read"
       when [ "clinic/billing/support_requests", "index" ] then "billing.read"
       when [ "clinic/messaging/message_intents", "index" ], [ "clinic/messaging/message_intents", "show" ] then "messages.read"
       when [ "clinic/scheduling/appointments", "index" ], [ "clinic/scheduling/appointments", "show" ] then "appointments.read"

@@ -27,7 +27,7 @@ import { useResource } from "../../shared/ui";
 import { useClinic } from "../clinic/Workspace";
 import type { BookingOptions } from "../clinic/TelehealthBookingFormat";
 import { ApiError, loginDestination } from "../../api/client";
-import { useVisiblePolling } from "./useVisiblePolling";
+import { useClinicRealtimeTopic } from "../clinic/ClinicRealtime";
 import { loadTelehealthQueue } from "./api";
 import type {
   TelehealthEnvelope,
@@ -209,7 +209,10 @@ export function TelehealthQueue() {
     };
   }, [refresh]);
 
-  useVisiblePolling(refresh, true, error ? 15_000 : 5_000);
+  useClinicRealtimeTopic("telehealth_queue", refresh, {
+    fallbackIntervalMs: error ? 15_000 : 5_000,
+    freshnessIntervalMs: 5_000,
+  });
 
   const clinicianLabel = (
     membershipId: number | null,

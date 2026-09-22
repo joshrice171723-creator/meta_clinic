@@ -11,10 +11,19 @@ module Clinic
           query: query_param,
           filter: invoice_filter_param,
           sort: invoice_sort_param,
-          outlook_months: outlook_months_param,
-          outlook_start: outlook_start_param,
           patient_identity_access: patient_identity_access?
         )
+      end
+
+      def income_outlook
+        render json: {
+          income_outlook: IncomeOutlook.call(
+            practice: current_practice,
+            now: Current.business_time,
+            months: outlook_months_param,
+            start_month: outlook_start_param
+          )
+        }
       end
 
       private

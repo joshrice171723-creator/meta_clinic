@@ -35,6 +35,7 @@ import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
 import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import { useClinic } from "./Workspace";
+import { useClinicRealtimeTopic } from "./ClinicRealtime";
 import type { ClinicTrackingBoard } from "../../api/contracts";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { LoadState } from "../../shared/ui";
@@ -116,6 +117,11 @@ function useTrackingBoard(active = true) {
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const reload = () => setRefreshRevision((revision) => revision + 1);
+  useClinicRealtimeTopic("tracking_board", reload, {
+    enabled: active,
+    fallbackIntervalMs: 45_000,
+    freshnessIntervalMs: 45_000,
+  });
 
   useEffect(() => {
     if (!active) return;

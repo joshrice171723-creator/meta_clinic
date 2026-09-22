@@ -40,6 +40,25 @@ let expectedPracticeId: number | undefined;
 export function setClinicPractice(practiceId: number | undefined) {
   expectedPracticeId = practiceId;
 }
+
+export function clinicRealtimeSession(): {
+  enabled: boolean;
+  headers: Record<string, string>;
+} {
+  if (demoSessionHeaders()["X-Clinic-Demo"])
+    return { enabled: false, headers: {} };
+
+  return {
+    enabled: expectedActorId !== undefined && expectedPracticeId !== undefined,
+    headers: {
+      Accept: "text/event-stream",
+      "X-Clinic-Actor": String(expectedActorId ?? ""),
+      ...(expectedPracticeId === undefined
+        ? {}
+        : { "X-Clinic-Practice": String(expectedPracticeId) }),
+    },
+  };
+}
 let actorGeneration = 0;
 export const SESSION_CHANGED_EVENT = "apply:session-changed";
 export function setApiActor(actorId: number | undefined) {

@@ -24,10 +24,10 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     supplier_id = response.parsed_body.fetch("data").fetch("suppliers").find { |supplier| supplier.fetch("name") == "Acme Medical Supply" }.fetch("id")
 
     csv = <<~CSV
-      ndc,vendor_sku,description,package_qty,wholesale_cost,effective_date
-      12345-6789-01,ACME-001,Supplier priced tablet bottle,90,12.50,2026-09-01
-      not-an-ndc,ACME-BAD,Bad row,90,1.00,2026-09-01
-      00000-0000-00,ACME-UNKNOWN,Unmatched item,90,9.50,2026-09-01
+      ndc,vendor_sku,description,package_qty,wholesale_cost,effective_date,currency,ordering_unit,contract_status,available
+      12345-6789-01,ACME-001,Supplier priced tablet bottle,90,12.50,2026-09-01,USD,package,active,true
+      not-an-ndc,ACME-BAD,Bad row,90,1.00,2026-09-01,USD,package,active,true
+      00000-0000-00,ACME-UNKNOWN,Unmatched item,90,9.50,2026-09-01,USD,package,active,true
     CSV
     post "/api/clinic/inventory/suppliers/preview", params: { supplier_id:, csv: }, headers: csrf_headers, as: :json
     assert_response :success

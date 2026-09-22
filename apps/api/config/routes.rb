@@ -28,6 +28,7 @@ Rails.application.routes.draw do
   post "public/membership_accounts/local_payment", to: "public/local_membership_payments#create"
   namespace :clinic do
     root "dashboard#show"
+    get "realtime/events", to: "realtime/events#show"
     get "context", to: "context#show"
     patch "context", to: "context#update"
     get "working_drafts/:kind", to: "working_drafts#show"
@@ -201,6 +202,7 @@ Rails.application.routes.draw do
         post "online_payment/cancel", on: :member, to: "billing/invoice_online_payments#cancel"
       end
     get "billing", to: "billing/dashboard#show"
+    get "billing/income_outlook", to: "billing/dashboard#income_outlook"
     get "billing/support_requests", to: "billing/support_requests#index"
     post "billing/support_requests/:id/transition", to: "billing/support_requests#transition"
     resources :billing_services, only: %i[index create update]
