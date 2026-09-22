@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-21
+updated: 2026-09-22
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Behavioral-health synthetic journey
+
+Created and exercised Cedar Behavioral Health with Ethan Brooks: registration, initial booking/check-in, specialty intake, cross-account handoff, signed notes, care-plan/goal history, encounter closure and return simulation. Added backend-owned behavioral-health starter forms after the browser exposed weight-management intake in this specialty. Focused tests passed; two unfinished tasks persisted across closure. [Evidence and remaining gaps](../../docs/development/behavioral-health-journey.md) separate browser mutations, domain-service execution and unverified paths. Scored instruments, automatic prior-plan visibility and dedicated psychotherapy-note privacy are not declared complete. No deployment or real-data use.
+
 ## 2026-09-21 — Public-page visitor reporting published
 
 At Joshua's request, released `cc236d46b789f025f1a09ab462b21520970e0d2f` to aimetaclinic.com. The owner dashboard now reports 30-day public views, estimated unique browsers, per-page last visits, daily UTC totals and referring hostnames for `/joshua` and `/demo`. `/Joshua` and `/Joshua/` redirect to `/joshua/` with query strings preserved. The first-party tracker uses the main API even on the isolated demo page, keeps CSRF/Origin and owner authorization, respects DNT/GPC, and does not store names, email addresses, IP addresses or complete referring URLs in analytics. Registered demo lesson reporting remains separate; no historical visits were reconstructed.

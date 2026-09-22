@@ -131,6 +131,21 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_equal "weight-management-initial-v1", Clinic::Care::PrevisitIntake.decode(original).fetch("form_id")
   end
 
+  test "behavioral health starter reuses explicit visits and retries without duplication" do
+    practice = @membership.practice
+    initial = practice.visit_types.create!(code: "Behavioral health initial visit")
+    payload = profile_payload(clinic_type: "behavioral_health", service_scope: [])
+    2.times do
+      put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+      assert_response :success
+      starter = response.parsed_body.dig("features", "starter_profile")
+      assert_equal initial.id, starter.dig("visits", "initial", "visit_type_id")
+      assert_equal "behavioral-health-initial-v1", starter.dig("visits", "initial", "form_id")
+      assert_equal "behavioral-health-follow-up-v1", starter.dig("visits", "follow_up", "form_id")
+    end
+    assert_equal 2, practice.visit_types.count
+  end
+
   private
 
   def profile_payload(overrides = {})

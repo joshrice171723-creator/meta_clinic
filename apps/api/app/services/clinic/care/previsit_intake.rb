@@ -135,6 +135,8 @@ module Clinic
       ALLERGY_TYPES = %w[allergy intolerance adverse_effect other].freeze
       REACTION_SEVERITIES = %w[mild moderate severe unknown].freeze
       SPECIALTY_FORMS = {
+        "behavioral-health-initial-v1" => BehavioralHealthQuestionnaire.fields(FIELDS),
+        "behavioral-health-follow-up-v1" => BehavioralHealthQuestionnaire.fields(FIELDS, follow_up: true),
         "weight-management-initial-v1" => WeightManagementQuestionnaire.fields(FIELDS),
         "weight-management-follow-up-v1" => WeightManagementQuestionnaire.fields(FIELDS, follow_up: true)
       }.freeze

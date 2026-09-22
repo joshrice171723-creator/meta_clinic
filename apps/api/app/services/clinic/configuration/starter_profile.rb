@@ -3,6 +3,13 @@ module Clinic
     # Code-owned recipes compose existing domain records; they never select care.
     class StarterProfile
       PRESETS = {
+        "behavioral_health" => {
+          "id" => "behavioral-health", "version" => 1, "components" => [],
+          "visits" => {
+            "initial" => { "name" => "Behavioral health initial visit", "form_id" => "behavioral-health-initial-v1" },
+            "follow_up" => { "name" => "Behavioral health follow-up", "form_id" => "behavioral-health-follow-up-v1" }
+          }
+        },
         "weight_loss" => {
           "id" => "weight-management", "version" => 1,
           "components" => %w[weight_context],
@@ -19,7 +26,11 @@ module Clinic
         return {} unless recipe
 
         visits = recipe.fetch("visits").transform_values do |definition|
-          visit = practice.visit_types.create!(code: definition.fetch("name"))
+          visit = if clinic_type == "behavioral_health"
+            practice.visit_types.active.find_by(code: definition.fetch("name")) || practice.visit_types.create!(code: definition.fetch("name"))
+          else
+            practice.visit_types.create!(code: definition.fetch("name"))
+          end
           definition.merge("visit_type_id" => visit.id)
         end
         recipe.except("visits").merge("visits" => visits)

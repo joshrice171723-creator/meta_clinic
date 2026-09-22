@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-20
+updated: 2026-09-22
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -18,6 +18,10 @@ This is the single current Meta Clinic implementation tracker. Individual tasks 
 Consolidated 2026-09-13 around the founder-approved strategy. Older records supply dated implementation evidence only: they do not add requirements, features, exclusions or approval steps. Historical row baselines remain dated; the current revision-4 assignment below links fresh local runtime/browser evidence. “Dated local evidence” means a linked record reports scoped passing checks; “reconcile” means inspect current source against current direction before deciding what remains. Owners and deadlines are unassigned unless explicitly agreed.
 
 ## Workflow inventory and next proof
+
+### Behavioral-health journey — authorized 2026-09-22
+
+MC-01/04/05/06/12: [bounded local execution brief](../../docs/development/behavioral-health-journey.md) records the new synthetic clinic and completed initial/return simulation, with browser and domain-service evidence separated. Added specialty visit mappings and four-group behavioral-health intake; 32 focused tests/535 assertions plus 7 tests/74 assertions for the final preservation check passed. Prior-plan visibility, scored instrument data and specialty clinical/privacy controls remain incomplete or unverified. Next appointment is persisted; unfinished tasks remain owned and open. Shared matrix unchanged; no clinical protocol, external transmission or release approval is inferred.
 
 ### Full application review delivery — authorized 2026-09-15
 

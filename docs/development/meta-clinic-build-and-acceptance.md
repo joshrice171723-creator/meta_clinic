@@ -24,6 +24,8 @@ Use the React/Rails/PostgreSQL modular architecture and source-owned records. Un
 
 ## Configurable capability contract
 
+Behavioral-health implementation uses the existing shared owners and matrix. The [bounded journey and field mapping](behavioral-health-journey.md) records the unscored initial/return questionnaire, exact form identity, permitted answer exceptions and remaining assessment/longitudinal/privacy gaps. A specialty starter is not a validated screening instrument or clinical protocol.
+
 The strategy's [shared-core and clinic capability map](../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md#shared-core-and-composable-capabilities--d-076) owns product composition. The [D-078 architecture contract](../architecture/clinic-capability-architecture.md) owns shared core and clinic/team/FDE change tiers. Implement capabilities against source-owned records, not scattered specialty-name checks. Presets initialize reviewed choices; effective configuration, service, modality and current privileges determine actions. Existing practice-feature versions are a reuse candidate, not a mandated structure or proof that composition exists.
 
 For every new or materially changed configurable capability, deliver together:

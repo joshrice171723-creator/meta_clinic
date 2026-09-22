@@ -503,6 +503,13 @@ module Clinic
 
       def chunks_for(form_id:)
         fields = PrevisitIntake.fields(form_id)
+        if form_id.start_with?("behavioral-health-")
+          return BehavioralHealthQuestionnaire::CHUNKS.map.with_index do |chunk, index|
+            shared = INTAKE_CHUNKS.find { |item| item[:id] == chunk[:id] }.fetch(:fields)
+            ids = fields.select { |field| field[:chunk_id] == chunk[:id] || shared.include?(field[:id]) }.map { |field| field[:id] }
+            chunk.merge(index:, fields: ids)
+          end
+        end
         definitions = INTAKE_CHUNKS.map do |chunk|
           ids = fields.select { |field| field[:chunk_id] == chunk[:id] || chunk[:fields].include?(field[:id]) }.map { |field| field[:id] }
           chunk.merge(fields: ids)

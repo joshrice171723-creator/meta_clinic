@@ -4,6 +4,27 @@ class PrevisitIntakeContractTest < ActiveSupport::TestCase
   Intake = Clinic::Care::PrevisitIntake
   Workflow = Clinic::Care::NurseWorkflow
 
+  test "behavioral health uses scoped groups and preserves explicit answer states" do
+    form = "behavioral-health-initial-v1"
+    ids = Intake.fields(form).map { |field| field[:id] }
+    assert_includes ids, "bh_functioning"
+    %w[weight pregnancy_status treatment_product_class nutrition_pattern].each { |id| assert_not_includes ids, id }
+    assert_equal 4, Workflow.chunks_for(form_id: form).size
+    assert_equal ids.sort, Workflow.chunks_for(form_id: form).flat_map { |chunk| chunk[:fields] }.sort
+    answers = { "bh_functioning" => { "state" => "answered", "value" => "Difficulty concentrating at work" },
+      "bh_substance_context" => { "state" => "declined" }, "bh_history" => { "state" => "unknown" } }
+    payload = Intake.decode(Intake.encode(text: "", answers:, attested: false, status: "draft", recorder: "staff", form_id: form))
+    assert_equal form, payload["form_id"]
+    assert_equal "declined", payload.dig("answers", "bh_substance_context", "state")
+    assert_equal "unknown", payload.dig("answers", "bh_history", "state")
+    assert_includes Intake.fields("behavioral-health-follow-up-v1").map { |field| field[:id] }, "treatment_response"
+    original = Intake.encode(text: "", answers: { "goals" => "Prior visit goal" }, attested: true)
+    historical = Intake.decode(original)
+    assert_equal Intake::FORM_ID, historical["form_id"]
+    assert_equal "Prior visit goal", historical.dig("answers", "goals", "value")
+    assert_equal Intake::FORM_ID, Intake.form_for(practice: nil, payload: historical)[:id]
+  end
+
   test "unconfigured scored instruments are not offered as completed screens" do
     %w[patient staff].each do |recorder|
       assert_not_includes Intake.fields_for_recorder(recorder:).map { |field| field[:id] }, "instrument_status"
