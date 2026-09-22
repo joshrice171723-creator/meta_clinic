@@ -2361,7 +2361,10 @@ CREATE TABLE public.clinic_care_goal_revisions (
     target_on date,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    outcome_source character varying(32),
+    outcome_recorded_at timestamp with time zone,
     CONSTRAINT care_goal_revision_values CHECK (((version_number > 0) AND (length((content_digest)::text) = 64) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 160)))),
+    CONSTRAINT clinic_care_goal_outcome_provenance CHECK ((((outcome_source IS NULL) AND (outcome_recorded_at IS NULL)) OR (((outcome_source)::text = ANY ((ARRAY['patient_reported'::character varying, 'clinician_observed'::character varying, 'proxy_reported'::character varying, 'imported'::character varying, 'unknown'::character varying])::text[])) AND (outcome_recorded_at IS NOT NULL)))),
     CONSTRAINT clinic_care_goal_states CHECK (((status)::text = ANY (ARRAY[('proposed'::character varying)::text, ('active'::character varying)::text, ('achieved'::character varying)::text, ('not_achieved'::character varying)::text, ('cancelled'::character varying)::text, ('entered_in_error'::character varying)::text])))
 );
 
@@ -30035,6 +30038,7 @@ ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922020000'),
 ('20260921220000'),
 ('20260920010000'),
 ('20260919080000'),

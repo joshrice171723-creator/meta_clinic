@@ -331,6 +331,8 @@ const RESOURCE_META: Record<
       care_plan_revision_id: "",
       description: "",
       outcome_text: "",
+      outcome_source: "",
+      outcome_recorded_at: "",
       target_on: "",
     },
     statuses: [
@@ -345,6 +347,22 @@ const RESOURCE_META: Record<
       { name: "description", label: "Goal", required: true, multiline: true },
       { name: "target_on", label: "Target date", type: "date" },
       { name: "outcome_text", label: "Outcome", multiline: true },
+      {
+        name: "outcome_source",
+        label: "Outcome source",
+        options: [
+          "patient_reported",
+          "clinician_observed",
+          "proxy_reported",
+          "imported",
+          "unknown",
+        ],
+      },
+      {
+        name: "outcome_recorded_at",
+        label: "Outcome reported or observed at",
+        type: "datetime-local",
+      },
     ],
   },
   immunizations: {
@@ -737,6 +755,15 @@ export function ClinicalPlanWorkspace({
     ) {
       setError(
         "Enter when the assessment was completed, its response source, and its responses or observations.",
+      );
+      return;
+    }
+    if (
+      kind === "care_goals" &&
+      Boolean(form.outcome_source) !== Boolean(form.outcome_recorded_at)
+    ) {
+      setError(
+        "Enter an outcome source and when it was reported or observed together.",
       );
       return;
     }

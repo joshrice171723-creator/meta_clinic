@@ -703,6 +703,14 @@ export type CareGoalRevision = ClinicalRevisionBase & {
   care_plan_revision_id: number;
   description: string;
   outcome_text: string | null;
+  outcome_source:
+    | "patient_reported"
+    | "clinician_observed"
+    | "proxy_reported"
+    | "imported"
+    | "unknown"
+    | null;
+  outcome_recorded_at: string | null;
   target_on: string | null;
 };
 export type ImmunizationRevision = ClinicalRevisionBase & {

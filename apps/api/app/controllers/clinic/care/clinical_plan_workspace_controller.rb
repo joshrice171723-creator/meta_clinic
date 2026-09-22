@@ -13,7 +13,7 @@ module Clinic
         procedures: %i[status code_system procedure_code procedure_display performed_at outcome_text complication_state
           complication_text service_request_revision_id],
         care_plans: %i[status title description starts_on ends_on],
-        care_goals: %i[status care_plan_revision_id description outcome_text target_on],
+        care_goals: %i[status care_plan_revision_id description outcome_text outcome_source outcome_recorded_at target_on],
         immunizations: %i[status vaccine_name cvx_code manufacturer manufacturer_mvx_code lot_number
           lot_expiration_date dose_text route_text administration_site_text administered_at occurrence_source
           refusal_reason source_document_id medication_administration_id vis_edition_date vis_given_date],
@@ -127,7 +127,7 @@ module Clinic
           source_document_id medication_administration_id].each do |field|
           value[field] = optional_id(value[field], field) if value.key?(field)
         end
-        %i[due_at performed_at administered_at scheduled_for assessed_at].each do |field|
+        %i[due_at performed_at administered_at scheduled_for assessed_at outcome_recorded_at].each do |field|
           value[field] = value[field].present? ? time_param!(value[field], field:) : nil if value.key?(field)
         end
         %i[starts_on ends_on target_on lot_expiration_date vis_edition_date vis_given_date].each do |field|

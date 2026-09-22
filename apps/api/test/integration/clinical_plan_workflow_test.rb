@@ -421,6 +421,31 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_empty response.parsed_body.fetch("prior_care")
   end
 
+  test "care goal outcome provenance is revision-bound and complete when recorded" do
+    plan = create_record("care_plans", "care_plan", {
+      title: "Synthetic outcome plan", description: "Track a patient-selected goal"
+    }, "goal-outcome-plan")
+    goal = create_record("care_goals", "care_goal", {
+      care_plan_revision_id: plan.fetch("id"), description: "Practice the agreed coping skill",
+      outcome_text: "Patient reports partial progress.", outcome_source: "patient_reported",
+      outcome_recorded_at: "2026-09-10T16:15:00Z"
+    }, "goal-outcome-create")
+    assert_equal [ "Patient reports partial progress.", "patient_reported", "2026-09-10T16:15:00Z" ],
+      goal.values_at("outcome_text", "outcome_source", "outcome_recorded_at")
+
+    revised = revise_record("care_goals", "care_goal", goal,
+      revision_body("care_goal", goal, "active", "goal-outcome-activate"))
+    assert_equal [ "patient_reported", "2026-09-10T16:15:00Z" ],
+      revised.values_at("outcome_source", "outcome_recorded_at")
+
+    post "#{workspace_path(@patient)}/care_goals", params: { care_goal: {
+      care_plan_revision_id: plan.fetch("id"), description: "Incomplete provenance", outcome_source: "patient_reported",
+      request_key: "goal-outcome-incomplete"
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Outcome source and recorded time"
+  end
+
   private
 
   def workspace_path(patient)

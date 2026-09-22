@@ -93,7 +93,7 @@ module Clinic
             "achieved" => %w[entered_in_error], "not_achieved" => %w[entered_in_error],
             "cancelled" => %w[entered_in_error], "entered_in_error" => []
           },
-          fields: %i[care_plan_revision_id description outcome_text target_on]
+          fields: %i[care_plan_revision_id description outcome_text outcome_source outcome_recorded_at target_on]
         },
         immunizations: {
           klass: ImmunizationRevision,

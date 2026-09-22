@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Care-goal outcome provenance
+
+Added optional source and reported/observed time to immutable care-goal outcome revisions. The source/time pair is constrained in PostgreSQL and Rails, survives subsequent revisions, and remains optional so older outcome narratives are preserved as historical rather than backfilled with guessed provenance. The UI exposes the matching Material UI controls and blocks only a partial pair. This is source context, not a scoring system, goal-achievement decision, intervention, safety assessment or billing rule. The focused clinical-plan contract, scoped Ruby lint, TypeScript and Prettier checks passed; the PostgreSQL verifier passed upgrade, concurrency, backup/restore and fresh-schema checks. The broader backend verifier failed a separate appointment-overlap race check and is not represented as passing.
+
 ## 2026-09-22 — Actual session-duration capture
 
 Added optional actual session duration in whole minutes to the encrypted, versioned SOAP-note body. It is preserved through creation, revision, signed correction, exact retry and editor working-draft recovery; a legacy request that omits it takes the expected immutable revision's value, while an explicit blank clears it. The frontend labels it as documentation only. The change does not calculate billing time, select a treatment, infer a clinical finding, assign a risk level or alter safety behavior. Focused behavioral-template and note idempotency/correction tests, scoped Ruby lint, TypeScript and Prettier checks passed. Browser mutation remains unexercised; clinic-selected instrument, safety and psychotherapy-note controls remain open.
