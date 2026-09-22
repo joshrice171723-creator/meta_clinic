@@ -120,7 +120,7 @@ module Clinic
             "entered_in_error" => []
           },
           fields: %i[category instrument_name instrument_version score_value interpretation response_summary
-            follow_up_plan assessed_at]
+            follow_up_plan assessed_at response_source]
         }
       }.freeze
 

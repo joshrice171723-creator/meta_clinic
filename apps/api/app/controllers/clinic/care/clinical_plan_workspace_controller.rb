@@ -18,7 +18,7 @@ module Clinic
           lot_expiration_date dose_text route_text administration_site_text administered_at occurrence_source
           refusal_reason source_document_id medication_administration_id vis_edition_date vis_given_date],
         assessments: %i[status category instrument_name instrument_version score_value interpretation response_summary
-          follow_up_plan assessed_at]
+          follow_up_plan assessed_at response_source]
       }.freeze
       ROOTS = {
         medication_requests: :medication_request,

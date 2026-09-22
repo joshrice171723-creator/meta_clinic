@@ -2084,6 +2084,8 @@ CREATE TABLE public.clinic_assessment_revisions (
     content_digest character varying(64) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    response_source character varying(32),
+    CONSTRAINT clinic_assessments_response_source CHECK (((response_source IS NULL) OR ((response_source)::text = ANY ((ARRAY['patient_reported'::character varying, 'clinician_observed'::character varying, 'proxy_reported'::character varying, 'imported'::character varying, 'unknown'::character varying])::text[])))),
     CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY (ARRAY[('in_progress'::character varying)::text, ('completed'::character varying)::text, ('entered_in_error'::character varying)::text])) AND (version_number > 0) AND ((category)::text = ANY (ARRAY[('depression'::character varying)::text, ('anxiety'::character varying)::text, ('alcohol_use'::character varying)::text, ('tobacco_use'::character varying)::text, ('social_needs'::character varying)::text, ('fall_risk'::character varying)::text, ('functional_status'::character varying)::text, ('cognitive_status'::character varying)::text])) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
 );
 

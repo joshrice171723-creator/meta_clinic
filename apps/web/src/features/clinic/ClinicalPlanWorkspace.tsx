@@ -415,6 +415,7 @@ const RESOURCE_META: Record<
       response_summary: "",
       follow_up_plan: "",
       assessed_at: "",
+      response_source: "",
     },
     statuses: ["in_progress", "completed", "entered_in_error"],
     fields: [
@@ -436,6 +437,17 @@ const RESOURCE_META: Record<
         name: "response_summary",
         label: "Responses and observations",
         multiline: true,
+      },
+      {
+        name: "response_source",
+        label: "Response source",
+        options: [
+          "patient_reported",
+          "clinician_observed",
+          "proxy_reported",
+          "imported",
+          "unknown",
+        ],
       },
       { name: "follow_up_plan", label: "Follow-up plan", multiline: true },
       { name: "assessed_at", label: "Assessed at", type: "datetime-local" },
@@ -719,10 +731,12 @@ export function ClinicalPlanWorkspace({
     if (
       kind === "assessments" &&
       form.status === "completed" &&
-      (!form.assessed_at || !form.response_summary?.trim())
+      (!form.assessed_at ||
+        !form.response_summary?.trim() ||
+        !form.response_source)
     ) {
       setError(
-        "Enter when the assessment was completed and record its responses or observations.",
+        "Enter when the assessment was completed, its response source, and its responses or observations.",
       );
       return;
     }

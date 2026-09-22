@@ -737,6 +737,13 @@ export type AssessmentRevision = ClinicalRevisionBase & {
   response_summary: string | null;
   follow_up_plan: string | null;
   assessed_at: string | null;
+  response_source:
+    | "patient_reported"
+    | "clinician_observed"
+    | "proxy_reported"
+    | "imported"
+    | "unknown"
+    | null;
 };
 export type ClinicalPlanLink = {
   id: number;

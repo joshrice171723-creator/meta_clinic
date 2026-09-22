@@ -169,11 +169,20 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
 
+    patch "#{workspace_path(@patient)}/assessments/#{assessment.fetch('series_id')}",
+      params: { assessment: { status: "completed", assessed_at: "2026-09-10T15:45:00Z",
+        response_summary: "Synthetic responses reviewed with the patient", expected_version: assessment.fetch("version_number"),
+        request_key: "assessment-source-required" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Response source"
+
     assessment = revise_record("assessments", "assessment", assessment,
       { assessment: { status: "completed", assessed_at: "2026-09-10T15:45:00Z",
         response_summary: "Synthetic responses reviewed with the patient", follow_up_plan: "Routine follow-up",
+        response_source: "patient_reported",
         expected_version: assessment.fetch("version_number"), request_key: "assessment-complete" } })
-    assert_equal [ "completed", "depression" ], assessment.values_at("status", "category")
+    assert_equal [ "completed", "depression", "patient_reported" ],
+      assessment.values_at("status", "category", "response_source")
   end
 
   test "administered-here immunizations retain exact staff facility lot and optional VIS evidence" do
