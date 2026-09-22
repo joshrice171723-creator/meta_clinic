@@ -1579,6 +1579,7 @@ export type SoapNoteBody = {
   template_version: number;
   sections: SoapNoteSections;
   patient_instructions?: string | null;
+  session_duration_minutes?: number | null;
   correction?: {
     corrected_revision_id: number;
     reason: string;

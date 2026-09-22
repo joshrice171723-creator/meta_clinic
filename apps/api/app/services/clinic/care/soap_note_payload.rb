@@ -9,8 +9,9 @@ module Clinic
       MAX_SECTION_LENGTH = 50_000
       MAX_PATIENT_INSTRUCTIONS_LENGTH = 5_000
       MAX_CORRECTION_REASON_LENGTH = 2_000
+      MAX_SESSION_DURATION_MINUTES = 1_440
 
-      def self.dump(template_id:, template_version:, sections:, patient_instructions: nil)
+      def self.dump(template_id:, template_version:, sections:, patient_instructions: nil, session_duration_minutes: nil)
         template = NoteTemplateCatalog.fetch!(template_id.to_s, template_version)
         normalized = normalize_sections!(sections)
         payload = {
@@ -22,11 +23,13 @@ module Clinic
         }
         instructions = normalize_patient_instructions!(patient_instructions)
         payload[:patient_instructions] = instructions if instructions
+        duration = normalize_session_duration_minutes!(session_duration_minutes)
+        payload[:session_duration_minutes] = duration if duration
         JSON.generate(payload)
       end
 
       def self.dump_correction(template_id:, template_version:, sections:, corrected_revision_id:,
-        corrected_revision_no:, reason:, patient_instructions: nil, source: { kind: "manual" })
+        corrected_revision_no:, reason:, patient_instructions: nil, session_duration_minutes: nil, source: { kind: "manual" })
         template = NoteTemplateCatalog.fetch!(template_id.to_s, template_version)
         normalized = normalize_sections!(sections)
         correction = normalize_correction!(
@@ -46,6 +49,8 @@ module Clinic
         }
         instructions = normalize_patient_instructions!(patient_instructions)
         payload[:patient_instructions] = instructions if instructions
+        duration = normalize_session_duration_minutes!(session_duration_minutes)
+        payload[:session_duration_minutes] = duration if duration
         JSON.generate(payload)
       end
 
@@ -64,7 +69,8 @@ module Clinic
           template_id: template[:id],
           template_version: template[:version],
           sections: sections,
-          patient_instructions: normalize_patient_instructions!(payload[:patient_instructions])
+          patient_instructions: normalize_patient_instructions!(payload[:patient_instructions]),
+          session_duration_minutes: normalize_session_duration_minutes!(payload[:session_duration_minutes])
         }
         if payload[:schema] == "soap-note-v2"
           correction = payload[:correction]
@@ -112,6 +118,7 @@ module Clinic
             template_version: replacement.fetch(:template_version),
             sections: replacement.fetch(:sections),
             patient_instructions: replacement[:patient_instructions],
+            session_duration_minutes: replacement[:session_duration_minutes],
             corrected_revision_id: correction.fetch(:corrected_revision_id),
             corrected_revision_no: correction.fetch(:corrected_revision_no),
             reason: correction.fetch(:reason),
@@ -145,6 +152,24 @@ module Clinic
         text
       end
       private_class_method :normalize_patient_instructions!
+
+      def self.normalize_session_duration_minutes!(value)
+        return nil if value.nil? || value == ""
+
+        duration = if value.is_a?(Integer)
+          value
+        elsif value.is_a?(String)
+          Integer(value, 10)
+        else
+          raise ArgumentError
+        end
+        return duration if duration.between?(1, MAX_SESSION_DURATION_MINUTES)
+
+        raise ArgumentError, "Actual session duration must be between 1 and #{MAX_SESSION_DURATION_MINUTES} minutes."
+      rescue TypeError, ArgumentError
+        raise ArgumentError, "Actual session duration must be between 1 and #{MAX_SESSION_DURATION_MINUTES} minutes."
+      end
+      private_class_method :normalize_session_duration_minutes!
 
       def self.normalize_correction!(corrected_revision_id:, corrected_revision_no:, reason:, source:)
         revision_id = positive_integer!(corrected_revision_id, "The corrected revision is invalid.")

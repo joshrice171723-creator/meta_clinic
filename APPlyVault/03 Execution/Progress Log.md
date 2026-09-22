@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Actual session-duration capture
+
+Added optional actual session duration in whole minutes to the encrypted, versioned SOAP-note body. It is preserved through creation, revision, signed correction, exact retry and editor working-draft recovery; a legacy request that omits it takes the expected immutable revision's value, while an explicit blank clears it. The frontend labels it as documentation only. The change does not calculate billing time, select a treatment, infer a clinical finding, assign a risk level or alter safety behavior. Focused behavioral-template and note idempotency/correction tests, scoped Ruby lint, TypeScript and Prettier checks passed. Browser mutation remains unexercised; clinic-selected instrument, safety and psychotherapy-note controls remain open.
+
 ## 2026-09-22 — Behavioral-health synthetic journey
 
 Created and exercised Cedar Behavioral Health with Ethan Brooks: registration, initial booking/check-in, specialty intake, cross-account handoff, signed notes, care-plan/goal history, encounter closure and return simulation. Added backend-owned behavioral-health starter forms after the browser exposed weight-management intake in this specialty. Focused tests passed; two unfinished tasks persisted across closure. [Evidence and remaining gaps](../../docs/development/behavioral-health-journey.md) separate browser mutations, domain-service execution and unverified paths. Scored instruments, automatic prior-plan visibility and dedicated psychotherapy-note privacy are not declared complete. No deployment or real-data use.

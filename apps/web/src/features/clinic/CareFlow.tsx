@@ -1843,6 +1843,7 @@ type SoapEditorBaseline = {
   revisionNo: number | null;
   sections: SoapNoteSections;
   patientInstructions: string;
+  sessionDurationMinutes: number | null;
   template: { id: string; version: number } | null;
 };
 
@@ -1853,6 +1854,7 @@ type SoapWorkingDraft = {
   baseline: SoapEditorBaseline;
   sections: SoapNoteSections;
   patient_instructions: string;
+  session_duration_minutes?: number | null;
   applied_template: { id: string; version: number } | null;
   correction_target: CorrectionTarget | null;
   pending_attempt: NoteSaveAttempt | null;
@@ -1863,6 +1865,19 @@ function validSoapSections(value: unknown): value is SoapNoteSections {
   const sections = value as Record<string, unknown>;
   return SOAP_SECTION_LABELS.every(
     ([key]) => typeof sections[key] === "string",
+  );
+}
+
+function validSessionDuration(
+  value: unknown,
+): value is number | null | undefined {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 1 &&
+      value <= 1440)
   );
 }
 
@@ -1963,6 +1978,7 @@ export function SoapNoteForm({
     revisionNo: note?.current_revision?.revision_no ?? null,
     sections: savedBody?.sections ?? EMPTY_SOAP_SECTIONS,
     patientInstructions: savedBody?.patient_instructions ?? "",
+    sessionDurationMinutes: savedBody?.session_duration_minutes ?? null,
     template: savedBody
       ? { id: savedBody.template_id, version: savedBody.template_version }
       : null,
@@ -1972,6 +1988,9 @@ export function SoapNoteForm({
   const [patientInstructions, setPatientInstructions] = useState(
     baseline.patientInstructions,
   );
+  const [sessionDurationMinutes, setSessionDurationMinutes] = useState<
+    number | null
+  >(baseline.sessionDurationMinutes);
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
     version: number;
@@ -2007,6 +2026,7 @@ export function SoapNoteForm({
       ([key]) => sections[key] !== baseline.sections[key],
     ) ||
     patientInstructions !== baseline.patientInstructions ||
+    sessionDurationMinutes !== baseline.sessionDurationMinutes ||
     templateChanged;
   const signed = note?.current_revision?.signed === true;
   const editorDisabled =
@@ -2047,6 +2067,7 @@ export function SoapNoteForm({
           baseline,
           sections,
           patient_instructions: patientInstructions,
+          session_duration_minutes: sessionDurationMinutes,
           applied_template: appliedTemplate,
           correction_target: correctionTarget,
           pending_attempt: pendingAttempt,
@@ -2089,6 +2110,8 @@ export function SoapNoteForm({
       !validSoapSections(restored.baseline.sections) ||
       !validSoapSections(restored.sections) ||
       typeof restored.patient_instructions !== "string" ||
+      !validSessionDuration(restored.baseline.sessionDurationMinutes) ||
+      !validSessionDuration(restored.session_duration_minutes) ||
       (restored.pending_attempt !== null &&
         !noteAttemptMatchesContext(
           restored.pending_attempt,
@@ -2103,9 +2126,13 @@ export function SoapNoteForm({
       return;
     }
     skipNextDraftSave.current = true;
-    setBaseline(restored.baseline);
+    setBaseline({
+      ...restored.baseline,
+      sessionDurationMinutes: restored.baseline.sessionDurationMinutes ?? null,
+    });
     setSections(restored.sections);
     setPatientInstructions(restored.patient_instructions);
+    setSessionDurationMinutes(restored.session_duration_minutes ?? null);
     setAppliedTemplate(restored.applied_template);
     setCorrectionTarget(restored.correction_target);
     saveAttemptRef.current = restored.pending_attempt;
@@ -2142,6 +2169,7 @@ export function SoapNoteForm({
     setBaseline(next);
     setSections(next.sections);
     setPatientInstructions(next.patientInstructions);
+    setSessionDurationMinutes(next.sessionDurationMinutes);
     setAppliedTemplate(next.template);
     setIncomingNote(null);
   }, [note?.current_revision?.id, note?.current_revision?.revision_no]);
@@ -2168,6 +2196,7 @@ export function SoapNoteForm({
     correctionTarget,
     dirty,
     patientInstructions,
+    sessionDurationMinutes,
     sections,
     workingDraft.ready,
   ]);
@@ -2212,6 +2241,7 @@ export function SoapNoteForm({
       template_version: appliedTemplate.version,
       ...sections,
       patient_instructions: patientInstructions,
+      session_duration_minutes: sessionDurationMinutes,
     };
     const requestKey = noteSaveRequestKey(
       saveAttemptRef.current?.requestKey ?? null,
@@ -2406,6 +2436,7 @@ export function SoapNoteForm({
         revisionNo: reconciled.current_revision?.revision_no ?? null,
         sections: body.sections,
         patientInstructions: body.patient_instructions ?? "",
+        sessionDurationMinutes: body.session_duration_minutes ?? null,
         template: {
           id: body.template_id,
           version: body.template_version,
@@ -2600,6 +2631,7 @@ export function SoapNoteForm({
       revisionNo: incomingNote.current_revision.revision_no,
       sections: incomingBody.sections,
       patientInstructions: incomingBody.patient_instructions ?? "",
+      sessionDurationMinutes: incomingBody.session_duration_minutes ?? null,
       template: {
         id: incomingBody.template_id,
         version: incomingBody.template_version,
@@ -2611,6 +2643,7 @@ export function SoapNoteForm({
     setBaseline(next);
     setSections(next.sections);
     setPatientInstructions(next.patientInstructions);
+    setSessionDurationMinutes(next.sessionDurationMinutes);
     setAppliedTemplate(next.template);
     setCorrectionTarget(null);
     setIncomingNote(null);
@@ -2637,6 +2670,7 @@ export function SoapNoteForm({
       revisionNo: incomingNote.current_revision.revision_no,
       sections: incomingBody.sections,
       patientInstructions: incomingBody.patient_instructions ?? "",
+      sessionDurationMinutes: incomingBody.session_duration_minutes ?? null,
       template: {
         id: incomingBody.template_id,
         version: incomingBody.template_version,
@@ -2827,6 +2861,18 @@ export function SoapNoteForm({
           slotProps={{ htmlInput: { maxLength: 5_000 } }}
           disabled={editorDisabled}
           helperText="Optional. These exact instructions are available to the patient portal only after this revision is signed and the encounter is completed."
+        />
+        <TextField
+          label="Actual session duration (minutes)"
+          type="number"
+          value={sessionDurationMinutes ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            setSessionDurationMinutes(value === "" ? null : Number(value));
+          }}
+          slotProps={{ htmlInput: { min: 1, max: 1440, step: 1 } }}
+          disabled={editorDisabled}
+          helperText="Optional. Record the actual documented session duration; this does not infer billing time, a treatment, or a clinical finding."
         />
       </Stack>
       {!canWrite && !signed && (

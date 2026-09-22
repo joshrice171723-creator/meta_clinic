@@ -472,11 +472,13 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     assert_empty other_encounter.notes
   end
 
-  test "legacy omitted instructions use the expected immutable revision for exact retries" do
+  test "legacy omitted instructions and session duration use the expected immutable revision for exact retries" do
     create = create_params(request_key: "note-instructions-legacy-create")
     create[:encounter_note][:patient_instructions] = "Keep the original directions."
+    create[:encounter_note][:session_duration_minutes] = 50
     post "/api/clinic/encounters/#{@encounter.id}/notes", params: create, headers: csrf_headers, as: :json
     assert_response :created
+    assert_equal 50, response.parsed_body.dig("note", "current_revision", "body", "session_duration_minutes")
     note = @encounter.notes.sole
 
     legacy_revise = revise_params(request_key: "note-instructions-legacy-revise")
@@ -484,12 +486,15 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     assert_response :created
     inherited_revision = response.parsed_body.fetch("revision")
     assert_equal "Keep the original directions.", inherited_revision.dig("body", "patient_instructions")
+    assert_equal 50, inherited_revision.dig("body", "session_duration_minutes")
 
     changed_revise = revise_params(request_key: "note-instructions-change", subjective: "Later content")
     changed_revise[:revision][:expected_revision] = 2
     changed_revise[:revision][:patient_instructions] = "Use the later directions."
+    changed_revise[:revision][:session_duration_minutes] = 55
     post "/api/clinic/notes/#{note.id}/revisions", params: changed_revise, headers: csrf_headers, as: :json
     assert_response :created
+    assert_equal 55, response.parsed_body.dig("revision", "body", "session_duration_minutes")
 
     post "/api/clinic/notes/#{note.id}/revisions", params: legacy_revise, headers: csrf_headers, as: :json
     assert_response :created
@@ -509,6 +514,7 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
     assert_response :created
     inherited_correction = response.parsed_body.fetch("revision")
     assert_equal "Use the later directions.", inherited_correction.dig("body", "patient_instructions")
+    assert_equal 55, inherited_correction.dig("body", "session_duration_minutes")
 
     correction_revision = note.revisions.find(inherited_correction.fetch("id"))
     Clinic::Care::SignEncounterNote.call(
@@ -520,8 +526,10 @@ class ClinicEncounterNotesIdempotencyTest < ActionDispatch::IntegrationTest
       request_key: "note-instructions-later-correction", revision: correction_revision
     )
     later_correction[:correction][:patient_instructions] = "Use the newest directions."
+    later_correction[:correction][:session_duration_minutes] = 60
     post "/api/clinic/notes/#{note.id}/corrections", params: later_correction, headers: csrf_headers, as: :json
     assert_response :created
+    assert_equal 60, response.parsed_body.dig("revision", "body", "session_duration_minutes")
 
     post "/api/clinic/notes/#{note.id}/corrections", params: legacy_correction, headers: csrf_headers, as: :json
     assert_response :created
