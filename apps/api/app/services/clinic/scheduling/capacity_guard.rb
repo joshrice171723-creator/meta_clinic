@@ -5,7 +5,7 @@ module Clinic
 
       # Call inside the booking transaction. The shared clinician row serializes
       # offers, bookings and changes to capacity for this provider across sites.
-      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, appointment_id: nil, waitlist_entry_id: nil)
+      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil)
         return unless clinician && site
         clinician.lock!
         site.lock!
@@ -46,6 +46,10 @@ module Clinic
           .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, ends_at, starts_at)
         offers = offers.where.not(id: waitlist_entry_id) if waitlist_entry_id
         raise ArgumentError, "This time is held for a waitlist offer. Choose another time or release that offer." if offers.exists?
+        holds = ScheduleHold.where(practice: practice, clinician: clinician, state: "active")
+          .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, ends_at, starts_at)
+        holds = holds.where.not(id: schedule_hold_id) if schedule_hold_id
+        raise ArgumentError, "This time is held pending booking. Choose another time or release that hold." if holds.exists?
       end
 
       def check_site_hours!(practice:, site:, starts_at:, ends_at:)

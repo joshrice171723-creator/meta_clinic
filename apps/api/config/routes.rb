@@ -207,6 +207,9 @@ Rails.application.routes.draw do
     resources :service_offerings, only: %i[index create update] do
       post :publish, on: :member
     end
+    resources :schedule_holds, controller: "scheduling/schedule_holds", only: :create do
+      post :release, on: :member
+    end
     get "stripe_connect", to: "billing/stripe_connect#show"
     post "stripe_connect/onboard", to: "billing/stripe_connect#onboard"
     post "stripe_connect/refresh", to: "billing/stripe_connect#refresh"

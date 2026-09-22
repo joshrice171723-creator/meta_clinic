@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
-        reason: nil, request_key: nil, visit_modality: "in_person")
+        reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil)
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
@@ -17,6 +17,15 @@ module Clinic
         raise ArgumentError, "The visit type must belong to the selected practice." unless visit_type.practice_id == practice.id
         if room && (room.practice_id != practice.id || room.site_id != site.id)
           raise ArgumentError, "The selected room must belong to the appointment site."
+        end
+        if schedule_hold
+          schedule_hold.lock!
+          schedule_hold.expire_if_needed!
+          unless schedule_hold.active? && schedule_hold.practice_id == practice.id && schedule_hold.patient_id == patient.id &&
+            schedule_hold.site_id == site.id && schedule_hold.clinician_id == booked_clinician.id && schedule_hold.room_id == room&.id &&
+            schedule_hold.starts_at == starts_at && schedule_hold.ends_at == ends_at
+            raise ArgumentError, "The selected hold is no longer available for this appointment."
+          end
         end
 
         visit_modality = visit_modality.to_s.presence || "in_person"
@@ -35,6 +44,7 @@ module Clinic
           starts_at: starts_at,
           ends_at: ends_at,
           visit_modality: visit_modality,
+          schedule_hold: schedule_hold,
           actor: actor
         }
         return create_appointment(practice: practice, **attributes) if request_key.nil?
@@ -52,6 +62,7 @@ module Clinic
             room_id: room&.id,
             booked_clinician_id: booked_clinician&.id,
             visit_type_id: visit_type&.id,
+            schedule_hold_id: schedule_hold&.id,
             reason: reason.to_s.strip.presence,
             starts_at: starts_at.utc.iso8601(6),
             ends_at: ends_at.utc.iso8601(6),
@@ -68,15 +79,16 @@ module Clinic
       end
 
       def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:, reason:,
-        visit_modality:, actor:)
+        visit_modality:, actor:, schedule_hold: nil)
         ApplicationRecord.transaction do
           practice.lock!
           Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
           CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient,
-            starts_at: starts_at, ends_at: ends_at)
+            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id)
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
             booked_clinician: booked_clinician, visit_type: visit_type, reason: reason, starts_at: starts_at, ends_at: ends_at,
-            status: "scheduled", visit_modality: visit_modality)
+            status: "scheduled", visit_modality: visit_modality, schedule_hold: schedule_hold)
+          schedule_hold.update!(state: "converted") if schedule_hold
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor) if visit_modality == "video"
           appointment
         end

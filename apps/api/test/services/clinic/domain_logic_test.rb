@@ -79,6 +79,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
     clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
     visit_type = Clinic::VisitType.create!(practice: @practice, code: "DOMAIN-VISIT")
     start_time = Time.utc(2026, 8, 31, 9)
+    Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: site, clinician: clinician,
+      kind: "weekly", weekday: start_time.wday, start_minute: 8 * 60, end_minute: 17 * 60)
 
     first = Clinic::Scheduling::BookAppointment.call(
       practice: @practice,
@@ -144,6 +146,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       invited_at: 1.day.ago, activated_at: 1.day.ago
     )
     offer_starts_at = 2.hours.from_now
+    Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: site, clinician: clinician,
+      kind: "weekly", weekday: offer_starts_at.wday, start_minute: 0, end_minute: 1440)
     entry = Clinic::Scheduling::WaitlistEntry.create!(
       practice: @practice, patient: @patient, site:, clinician:, visit_type:,
       earliest_at: 1.hour.from_now, latest_at: 1.day.from_now, duration_minutes: 30,
@@ -169,6 +173,34 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
         entry:, identity:, actor: @actor, action: "decline", expected_version: 0,
         request_key: "patient-waitlist-accept-1"
       )
+    end
+  end
+
+  test "a schedule hold blocks competing reservations and converts exactly once into its matching appointment" do
+    site = Clinic::Site.create!(practice: @practice, code: "HOLDS")
+    room = Clinic::Room.create!(practice: @practice, site: site, code: "HOLD-ROOM")
+    clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
+    visit_type = Clinic::VisitType.create!(practice: @practice, code: "HOLD-VISIT")
+    starts_at = 2.days.from_now.change(hour: 10, min: 0)
+    Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: site, clinician: clinician,
+      kind: "weekly", weekday: starts_at.wday, start_minute: 8 * 60, end_minute: 17 * 60)
+    hold = Clinic::Scheduling::HoldSlot.call(practice: @practice, actor: @actor, patient: @patient, site: site,
+      clinician: clinician, room: room, starts_at: starts_at, ends_at: starts_at + 30.minutes,
+      expires_at: starts_at - 30.minutes, request_key: "hold-create-1")
+    assert_raises(ArgumentError) do
+      Clinic::Scheduling::HoldSlot.call(practice: @practice, actor: @actor, patient: @patient, site: site,
+        clinician: clinician, room: room, starts_at: starts_at, ends_at: starts_at + 30.minutes,
+        expires_at: starts_at - 20.minutes, request_key: "hold-create-conflict")
+    end
+    appointment = Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @actor, patient: @patient,
+      site: site, room: room, booked_clinician: clinician, visit_type: visit_type, starts_at: starts_at,
+      ends_at: starts_at + 30.minutes, schedule_hold: hold, request_key: "hold-convert-1")
+    assert_equal hold.id, appointment.schedule_hold_id
+    assert_equal "converted", hold.reload.state
+    assert_raises(ArgumentError) do
+      Clinic::Scheduling::BookAppointment.call(practice: @practice, actor: @actor, patient: @patient,
+        site: site, room: room, booked_clinician: clinician, visit_type: visit_type, starts_at: starts_at,
+        ends_at: starts_at + 30.minutes, schedule_hold: hold, request_key: "hold-convert-twice")
     end
   end
 

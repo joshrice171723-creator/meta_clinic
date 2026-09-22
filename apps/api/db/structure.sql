@@ -2030,6 +2030,7 @@ CREATE TABLE public.clinic_appointments (
     updated_at timestamp(6) without time zone NOT NULL,
     visit_modality character varying(16) DEFAULT 'in_person'::character varying NOT NULL,
     reason text,
+    schedule_hold_id bigint,
     CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
     CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
     CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at)),
@@ -8491,6 +8492,48 @@ ALTER SEQUENCE public.clinic_rooms_id_seq OWNED BY public.clinic_rooms.id;
 
 
 --
+-- Name: clinic_schedule_holds; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_schedule_holds (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint,
+    site_id bigint NOT NULL,
+    clinician_id bigint NOT NULL,
+    room_id bigint,
+    starts_at timestamp(6) without time zone NOT NULL,
+    ends_at timestamp(6) without time zone NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    state character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    request_key character varying(160) NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_schedule_holds_values CHECK (((ends_at > starts_at) AND ((state)::text = ANY ((ARRAY['active'::character varying, 'expired'::character varying, 'released'::character varying, 'converted'::character varying, 'outcome_unknown'::character varying])::text[])) AND (lock_version >= 0)))
+);
+
+
+--
+-- Name: clinic_schedule_holds_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_schedule_holds_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_schedule_holds_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_schedule_holds_id_seq OWNED BY public.clinic_schedule_holds.id;
+
+
+--
 -- Name: clinic_scribe_documents; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13524,6 +13567,13 @@ ALTER TABLE ONLY public.clinic_rooms ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: clinic_schedule_holds id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds ALTER COLUMN id SET DEFAULT nextval('public.clinic_schedule_holds_id_seq'::regclass);
+
+
+--
 -- Name: clinic_scribe_documents id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15476,6 +15526,14 @@ ALTER TABLE ONLY public.clinic_rooms
 
 
 --
+-- Name: clinic_schedule_holds clinic_schedule_holds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds
+    ADD CONSTRAINT clinic_schedule_holds_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_scribe_documents clinic_scribe_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16377,6 +16435,13 @@ CREATE UNIQUE INDEX clinic_appointments_practice_id ON public.clinic_appointment
 --
 
 CREATE UNIQUE INDEX clinic_appointments_practice_patient_id ON public.clinic_appointments USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_appointments_schedule_hold; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointments_schedule_hold ON public.clinic_appointments USING btree (practice_id, schedule_hold_id) WHERE (schedule_hold_id IS NOT NULL);
 
 
 --
@@ -17924,6 +17989,27 @@ CREATE UNIQUE INDEX clinic_rooms_practice_site_id ON public.clinic_rooms USING b
 --
 
 CREATE UNIQUE INDEX clinic_rooms_site_code ON public.clinic_rooms USING btree (practice_id, site_id, code);
+
+
+--
+-- Name: clinic_schedule_holds_clinician; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_schedule_holds_clinician ON public.clinic_schedule_holds USING btree (practice_id, clinician_id, state, starts_at);
+
+
+--
+-- Name: clinic_schedule_holds_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_schedule_holds_practice_id ON public.clinic_schedule_holds USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_schedule_holds_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_schedule_holds_request ON public.clinic_schedule_holds USING btree (practice_id, request_key);
 
 
 --
@@ -23222,6 +23308,14 @@ ALTER TABLE ONLY public.clinic_appointments
 
 ALTER TABLE ONLY public.clinic_appointments
     ADD CONSTRAINT fk_appointments_room FOREIGN KEY (practice_id, site_id, room_id) REFERENCES public.clinic_rooms(practice_id, site_id, id);
+
+
+--
+-- Name: clinic_appointments fk_appointments_schedule_hold; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_appointments_schedule_hold FOREIGN KEY (practice_id, schedule_hold_id) REFERENCES public.clinic_schedule_holds(practice_id, id);
 
 
 --
@@ -29161,6 +29255,14 @@ ALTER TABLE ONLY public.clinic_telehealth_visits
 
 
 --
+-- Name: clinic_schedule_holds fk_rails_e5fca54f5f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds
+    ADD CONSTRAINT fk_rails_e5fca54f5f FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_count_approvals fk_rails_e61d4862fb; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29694,6 +29796,38 @@ ALTER TABLE ONLY public.role_version_permissions
 
 ALTER TABLE ONLY public.clinic_rooms
     ADD CONSTRAINT fk_rooms_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_schedule_holds fk_schedule_holds_clinician; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds
+    ADD CONSTRAINT fk_schedule_holds_clinician FOREIGN KEY (practice_id, clinician_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_schedule_holds fk_schedule_holds_patient; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds
+    ADD CONSTRAINT fk_schedule_holds_patient FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_schedule_holds fk_schedule_holds_room; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds
+    ADD CONSTRAINT fk_schedule_holds_room FOREIGN KEY (practice_id, site_id, room_id) REFERENCES public.clinic_rooms(practice_id, site_id, id);
+
+
+--
+-- Name: clinic_schedule_holds fk_schedule_holds_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_schedule_holds
+    ADD CONSTRAINT fk_schedule_holds_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -30455,6 +30589,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922050000'),
 ('20260922040000'),
 ('20260922030000'),
 ('20260922020000'),
