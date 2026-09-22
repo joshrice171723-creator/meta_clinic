@@ -142,7 +142,7 @@ The user explicitly requested a detailed long-running plan and handoff to **gpt-
 
 ### Ownership and exact starting state
 
-- Working checkout: `C:/Users/joshr/Desktop/meta_clinic`, branch `main`, current checkpoint `a37adc57`; `git pull origin main` was up to date before this evidence update. There is no remote master branch. Recheck before final integration.
+- Working checkout: `C:/Users/joshr/Desktop/meta_clinic`, branch `main`; pull `origin main` and record the resulting HEAD before resuming. There is no remote master branch. Recheck before final integration.
 - The coordinator relinquishes all application, documentation, test and browser writes when the Terra task is dispatched. Terra becomes the sole Git writer for this task. Do not spawn additional workers unless needed and explicitly permitted by current instructions; avoid competing runtime/database owners.
 - Preserve unrelated untracked `.tmp_resume_render/`. Do not stage, delete, inspect for this assignment or claim it is your output.
 - Delivered implementation: the API clinician serializer adds a display name; clinical-plan workspace has a site-permission-filtered `prior_care` projection (up to 20 latest plan/goal source records); the frontend contract and MUI prior-care panel link to original encounters; Schedule uses neutral Book appointment; request-review/reschedule selectors use clinician display name. An optional behavioral-health ordinary progress-note template has no default findings. Assessment completions now require a recorded response source. Review current source and tests before relying on any historic handoff assertion.
