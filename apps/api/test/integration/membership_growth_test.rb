@@ -455,7 +455,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "account-first local simulator enrollment verifies email pays through public endpoints and reloads the same entitlement" do
+  test "account-first local simulator API preserves entitlement through renewal failure and period-end cancellation" do
     travel_to Time.utc(2026, 9, 22, 12) do
       practice = Clinic::Practice.create!(name: "Local Account First Clinic")
       admin = create_staff(practice, "local-account-admin@example.invalid",
@@ -520,12 +520,85 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       assert prospect.reload.status_paid_onboarding?
       assert_equal prospect.account_user_id, prospect.portal_identity.user_id
 
+      agreement = Clinic::Care::SubscriptionAgreement.find_by!(practice:, id: prospect.agreement_id)
+      checkout = Clinic::Billing::StripeCheckout.find_by!(practice:, agreement:)
+      paid_projection = Clinic::Care::SubscriptionProjection.agreement(agreement.reload)
+      assert_equal "active", paid_projection.fetch(:state)
+      paid_period_end = paid_projection.fetch(:ends_at)
+
+      paid_snapshot = [ checkout.reload.attributes, Clinic::PaymentEvent.where(practice:).count,
+        Clinic::BillingReceipt.where(practice:).count, Clinic::Billing::StripeMembershipCycle.where(practice:, checkout:).count ]
+      ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = @foreign_practice.id.to_s
+      post "/api/public/membership_accounts/local_payment",
+        params: { payment: { outcome: "renewal_failed", request_key: "wrong-practice-renewal" } },
+        headers: csrf_headers, as: :json
+      assert_response :not_found
+      assert_equal paid_snapshot,
+        [ checkout.reload.attributes, Clinic::PaymentEvent.where(practice:).count,
+          Clinic::BillingReceipt.where(practice:).count,
+          Clinic::Billing::StripeMembershipCycle.where(practice:, checkout:).count ]
+      ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = practice.id.to_s
+
+      post "/api/public/membership_accounts/local_payment",
+        params: { payment: { outcome: "renewal_failed", request_key: "local-account-first-renewal-failed" } },
+        headers: csrf_headers, as: :json
+      assert_response :success
+      failed_event_id = response.parsed_body.dig("payment", "event_id")
+      get "/api/public/membership_accounts/current", headers: @headers
+      assert_response :success
+      renewal_state = response.parsed_body.dig("enrollment", "local_simulator")
+      assert_equal "past_due", renewal_state.fetch("renewal_status")
+      assert_equal "open", renewal_state.fetch("renewal_invoice_status")
+      assert_equal "79.25", renewal_state.fetch("renewal_amount_due")
+      failure_projection = Clinic::Care::SubscriptionProjection.agreement(agreement.reload)
+      assert_equal "active", failure_projection.fetch(:state)
+      assert_equal paid_period_end, failure_projection.fetch(:ends_at)
+
+      failed_snapshot = [ checkout.reload.attributes, Clinic::PaymentEvent.where(practice:).count,
+        Clinic::BillingReceipt.where(practice:).count, Clinic::Billing::StripeMembershipCycle.where(practice:, checkout:).count ]
+      post "/api/public/membership_accounts/local_payment",
+        params: { payment: { outcome: "renewal_failed", request_key: "local-account-first-renewal-failed" } },
+        headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal failed_event_id, response.parsed_body.dig("payment", "event_id")
+      assert_equal failed_snapshot,
+        [ checkout.reload.attributes, Clinic::PaymentEvent.where(practice:).count,
+          Clinic::BillingReceipt.where(practice:).count,
+          Clinic::Billing::StripeMembershipCycle.where(practice:, checkout:).count ]
+
+      post "/api/public/membership_accounts/local_payment",
+        params: { payment: { outcome: "cancel_at_period_end", request_key: "local-account-first-cancel" } },
+        headers: csrf_headers, as: :json
+      assert_response :success
+      canceled_event_id = response.parsed_body.dig("payment", "event_id")
+      get "/api/public/membership_accounts/current", headers: @headers
+      assert_response :success
+      cancellation_state = response.parsed_body.dig("enrollment", "local_simulator")
+      assert_equal true, cancellation_state.fetch("cancel_at_period_end")
+      assert_equal "past_due", cancellation_state.fetch("renewal_status")
+      cancellation_projection = Clinic::Care::SubscriptionProjection.agreement(agreement.reload)
+      assert_equal "active", cancellation_projection.fetch(:state)
+      assert_equal true, cancellation_projection.fetch(:renewal_canceled)
+      assert_equal paid_period_end, cancellation_projection.fetch(:ends_at)
+      assert_equal prospect.account_user_id, prospect.portal_identity.reload.user_id
+
+      canceled_snapshot = [ checkout.reload.attributes, Clinic::PaymentEvent.where(practice:).count,
+        Clinic::BillingReceipt.where(practice:).count, Clinic::Billing::StripeMembershipCycle.where(practice:, checkout:).count ]
+      post "/api/public/membership_accounts/local_payment",
+        params: { payment: { outcome: "cancel_at_period_end", request_key: "local-account-first-cancel" } },
+        headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal canceled_event_id, response.parsed_body.dig("payment", "event_id")
+      assert_equal canceled_snapshot,
+        [ checkout.reload.attributes, Clinic::PaymentEvent.where(practice:).count,
+          Clinic::BillingReceipt.where(practice:).count,
+          Clinic::Billing::StripeMembershipCycle.where(practice:, checkout:).count ]
+
       get "/api/public/membership_accounts/current", headers: @headers
       assert_response :success
       assert_equal false, response.parsed_body.dig("enrollment", "can_pay")
       assert_equal "/patient-portal?membership_payment=local#onboarding",
         response.parsed_body.dig("enrollment", "redirect_to")
-      agreement = Clinic::Care::SubscriptionAgreement.find_by!(practice:, id: prospect.agreement_id)
       projection = Clinic::Care::SubscriptionProjection.agreement(agreement.reload)
       assert_equal "active", projection.fetch(:state)
       assert_equal "local_membership_simulator", projection.fetch(:processor)

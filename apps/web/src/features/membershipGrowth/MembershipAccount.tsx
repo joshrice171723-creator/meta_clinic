@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
@@ -29,12 +29,17 @@ type Enrollment = {
   };
 };
 
+type LocalPaymentOutcome = "paid" | "renewal_failed" | "cancel_at_period_end";
+type LocalPaymentAttempt = { outcome: LocalPaymentOutcome; requestKey: string };
+
 export function MembershipAccount() {
   const guidedDemo = isDemoFrame();
   const resource = useResource<{ enrollment: Enrollment }>(
     "/api/public/membership_accounts/current",
   );
   const [busy, setBusy] = useState(false);
+  const operationPendingRef = useRef(false);
+  const paymentAttemptRef = useRef<LocalPaymentAttempt | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const enrollment = resource.data?.enrollment;
@@ -67,20 +72,26 @@ export function MembershipAccount() {
     }
   }
 
-  async function simulate(
-    outcome: "paid" | "renewal_failed" | "cancel_at_period_end",
-  ) {
-    if (busy) return;
+  async function simulate(outcome: LocalPaymentOutcome) {
+    if (busy || operationPendingRef.current) return;
+    operationPendingRef.current = true;
     setBusy(true);
     setError("");
     setNotice("");
+    const attempt =
+      paymentAttemptRef.current?.outcome === outcome
+        ? paymentAttemptRef.current
+        : { outcome, requestKey: crypto.randomUUID() };
+    paymentAttemptRef.current = attempt;
     try {
       await api("/api/public/membership_accounts/local_payment", {
         method: "POST",
         body: {
-          payment: { outcome, request_key: crypto.randomUUID() },
+          payment: { outcome, request_key: attempt.requestKey },
         },
       });
+      if (paymentAttemptRef.current === attempt)
+        paymentAttemptRef.current = null;
       setNotice(
         outcome === "paid"
           ? "The signed local payment event was verified and reconciled."
@@ -96,6 +107,7 @@ export function MembershipAccount() {
           : "The local payment event could not be recorded.",
       );
     } finally {
+      operationPendingRef.current = false;
       setBusy(false);
     }
   }
