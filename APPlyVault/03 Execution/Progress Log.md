@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-23 — Repeatable Lightsail release path prepared
+
+Added a manual PowerShell release command with local Docker build/transfer by default and optional prebuilt GHCR images. Its host script checks the exact API/web revision and Nginx syntax, restore-checks both synthetic databases, requires a verified encrypted off-host recovery copy before migration, deploys matched images, checks hosted login/authorization and Sandbox behavior, and attempts image rollback on failure. The runbook names the one-time registry credential setup and recovery limits. Static script parsing, DPAPI round trip, portable Compose validation, harness verification and the scoped diff check passed. A Linux/amd64 API image for `54a03172` built and carried the matching revision label. The web build was stopped after a prolonged TypeScript step, so the complete local image pair and the new hosted release command remain unverified. GitHub Actions did not start the `9b006747` image-publish jobs because it reported an account payment or spending-limit restriction. The existing hosted `2e866283` application release was not changed by this tooling work.
+
 ## 2026-09-23 — Patient-journey plans consolidated and archived
 
 At the founder's request, the [single current patient-journey document](../../PATIENT_JOURNEY_PLAN.md) now reconciles the original T01–T10 contracts with revision 4's locally proved J0–J7 result. Both full originals moved to historical records with their dated detail preserved; the tracker links the consolidated scope and separate evidence owner. This was documentation consolidation only: no application behavior, browser proof, provider acceptance, clinical policy or launch status changed. [Archive and link manifest](../../records/progress/2026/09/2026-09-23-patient-journey-plan-consolidation.md).

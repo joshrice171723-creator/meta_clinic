@@ -1,7 +1,7 @@
 ---
 type: dashboard
 status: active
-updated: 2026-09-14
+updated: 2026-09-23
 lifecycle: active
 canonical_for: vault-orientation
 ---
@@ -20,7 +20,7 @@ Use the [developer handbook](../docs/README.md) for setup, local commands, branc
 | Current source | Hosted state |
 | --- | --- |
 | `apps/web`: React/TypeScript/Vite; `apps/api`: Rails JSON + PostgreSQL. Local frontend/API split complete. | New founder-selected Lightsail synthetic demo has verified HTTPS login, access checks, restart and PostgreSQL restore; see [[CICD]]. No current production acceptance is claimed. |
-| Six CI jobs—including vault/agent-document validation—and manual API/web image publication are defined in source. | The former AWS environments are retired. New image publication passes; pre-existing full CI failures remain separate from demo availability. |
+| Six CI jobs—including vault/agent-document validation—and manual API/web image publication are defined in source. A local Lightsail release command is documented in the [runbook](../ops/lightsail/README.md). | The former AWS environments are retired. The latest image-publish attempt did not start because GitHub reported an account billing/spending-limit restriction; the existing synthetic demo remains live. See [[CICD]] for the local fallback and proof limits. |
 
 The retired `reference/` folder was removed by the founder after its useful behavior was mapped into the app. Use Rails migrations and `apps/api/db/structure.sql`, not the old reference SQL. Shared `.gitignore` rules now protect local artifacts; the vault and source remain tracked. All development stays synthetic; no clinical/confidential release is implied.
 
