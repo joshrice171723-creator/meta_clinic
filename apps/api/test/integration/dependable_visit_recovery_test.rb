@@ -245,6 +245,45 @@ class DependableVisitRecoveryTest < ActionDispatch::IntegrationTest
     assert_equal "completed", Clinic::EncounterFollowUp.find(follow_up_id).state
   end
 
+  test "follow-up owner choices and writes respect the encounter site" do
+    encounter_site = @practice.sites.create!(code: "FOLLOW-UP-MAIN")
+    other_site = @practice.sites.create!(code: "FOLLOW-UP-OTHER")
+    encounter = @practice.encounters.create!(
+      patient: @patient, site: encounter_site, status: "completed",
+      started_at: 2.hours.ago, ended_at: 1.hour.ago
+    )
+    eligible_user = User.create!(email_address: "follow-up-main@example.invalid", password: @password)
+    eligible = @practice.memberships.create!(user: eligible_user)
+    grant_permissions!(eligible, "encounters.write", scope_kind: "site", site: encounter_site)
+    other_user = User.create!(email_address: "follow-up-other@example.invalid", password: @password)
+    other = @practice.memberships.create!(user: other_user)
+    grant_permissions!(other, "encounters.write", scope_kind: "site", site: other_site)
+
+    path = "/api/clinic/encounters/#{encounter.id}/follow_up"
+    get path, headers: @headers
+    assert_response :success
+    assert_includes response.parsed_body.dig("options", "eligible_assignees").pluck("membership_id"), eligible.id
+    assert_not_includes response.parsed_body.dig("options", "eligible_assignees").pluck("membership_id"), other.id
+
+    payload = {
+      follow_up: {
+        request_key: "site-follow-up-denied", expected_version: 0,
+        status: "needed", plan: "Arrange a return visit.", assigned_to_membership_id: other.id
+      }
+    }
+    put path, params: payload, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_nil Clinic::EncounterFollowUp.find_by(encounter: encounter)
+
+    payload[:follow_up].merge!(request_key: "site-follow-up-assigned", assigned_to_membership_id: eligible.id)
+    put path, params: payload, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal eligible.id, response.parsed_body.dig("follow_up", "assigned_to_membership_id")
+    put path, params: payload, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal 1, Clinic::EncounterFollowUp.where(encounter: encounter).count
+  end
+
   test "invoice draft updates replay exactly and reject stale replacement bodies" do
     invoice = Clinic::Billing::DraftInvoice.call(
       practice: @practice,

@@ -486,10 +486,7 @@ export function PatientLabReports({
         if (controller.signal.aborted) return;
         const report = result.report;
         const version =
-          report.current_version_id === target.versionId &&
-          report.current_version.id === target.versionId
-            ? report.current_version
-            : null;
+          report.versions?.find((item) => item.id === target.versionId) ?? null;
         if (
           report.id !== target.reportId ||
           report.patient_id !== patientId ||
@@ -501,7 +498,19 @@ export function PatientLabReports({
           );
           return;
         }
-        if (!version.reviewed_at && canReview) {
+        if (
+          version.id !== report.current_version_id &&
+          version.follow_up?.state === "open" &&
+          canReview
+        ) {
+          setFollowUpTarget({ report, version, action: "complete" });
+          setFollowUpOutcome("");
+        } else if (version.id !== report.current_version_id) {
+          setHistory(report);
+          setDirectReviewError(
+            "This report version is no longer current. Review the corrected version in the report history.",
+          );
+        } else if (!version.reviewed_at && canReview) {
           setReviewTarget({ report, version });
           setReviewConfirmed(false);
           setReviewDisposition(null);
@@ -1375,25 +1384,23 @@ export function PatientLabReports({
                         Set follow-up
                       </Button>
                     )}
-                  {version.follow_up?.state === "open" &&
-                    version.id === history?.current_version_id &&
-                    canReview && (
-                      <Button
-                        disabled={busy || followUpRetryPending}
-                        onClick={() => {
-                          if (history) {
-                            setFollowUpTarget({
-                              report: history,
-                              version,
-                              action: "complete",
-                            });
-                            setFollowUpOutcome("");
-                          }
-                        }}
-                      >
-                        Complete follow-up
-                      </Button>
-                    )}
+                  {version.follow_up?.state === "open" && canReview && (
+                    <Button
+                      disabled={busy || followUpRetryPending}
+                      onClick={() => {
+                        if (history) {
+                          setFollowUpTarget({
+                            report: history,
+                            version,
+                            action: "complete",
+                          });
+                          setFollowUpOutcome("");
+                        }
+                      }}
+                    >
+                      Complete follow-up
+                    </Button>
+                  )}
                 </Stack>
                 {version.reviewed_at && (
                   <Typography
@@ -1675,6 +1682,15 @@ export function PatientLabReports({
                 {followUpTarget.version.version_number}
               </Typography>
             )}
+            {followUpTarget?.action === "complete" &&
+              followUpTarget.version.id !==
+                followUpTarget.report.current_version_id && (
+                <Alert severity="warning">
+                  This follow-up belongs to an earlier report version. Review
+                  the corrected result and document what happened to the
+                  patient-contact work before completing it.
+                </Alert>
+              )}
             {followUpTarget?.action === "set" ? (
               <>
                 <Box>

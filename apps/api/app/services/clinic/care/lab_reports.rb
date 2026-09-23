@@ -83,9 +83,6 @@ module Clinic
             raise ActiveRecord::StaleObjectError.new(locked, "update")
           end
           current = locked.report_versions.find(expected_id)
-          LabResultFollowUps.supersede_open!(
-            practice:, actor:, patient:, report: locked, version: current
-          )
           lab_version = create_version!(report: locked, member:, number: current.version_number + 1, attributes: version_payload)
           locked.update!(current_version: lab_version)
           root = ServiceRequestRevision.where(practice:, series_id: locked.service_request_revision.series_id, version_number: 1).first!

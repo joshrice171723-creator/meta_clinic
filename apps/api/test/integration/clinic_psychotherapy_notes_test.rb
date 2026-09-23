@@ -110,6 +110,25 @@ class ClinicPsychotherapyNotesTest < ActionDispatch::IntegrationTest
     assert_empty Clinic::Care::PsychotherapyNote.where(practice: @practice)
   end
 
+  test "clinician permission at another site cannot access this protected note" do
+    put note_path, params: { psychotherapy_note: { body: "Site-isolated synthetic private content",
+      expected_version: 0, request_key: "private-note-site" } }, headers: csrf_headers, as: :json
+    assert_response :success
+
+    other_site = @practice.sites.create!(code: "THERAPY-OTHER", status: "active")
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "patients.read")
+    grant_permissions!(@membership, "notes.sign", scope_kind: "site", site: other_site)
+
+    get note_path, headers: @headers
+    assert_response :forbidden
+    refute_includes response.body, "Site-isolated synthetic private content"
+    put note_path, params: { psychotherapy_note: { body: "Denied site edit", revision_reason: "Denied",
+      expected_version: 1, request_key: "private-note-site-denied" } }, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_equal 1, Clinic::Care::PsychotherapyNote.where(encounter: @encounter).count
+  end
+
   private
 
   def note_path = "/api/clinic/encounters/#{@encounter.id}/psychotherapy_note"

@@ -303,12 +303,7 @@ module Clinic
       end
 
       def eligible_assignees_for_encounter(encounter)
-        practice.memberships.active.joins(:user).where(users: { active: true }).includes(:user).filter_map do |membership|
-          next unless Ability.new(membership.user, practice: practice)
-            .allowed_permission?("encounters.write", site: encounter.site)
-
-          { membership_id: membership.id, label: membership.user.email_address }
-        end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
+        Clinic::Operations::EncounterFollowUps.eligible_assignees(encounter)
       end
 
       def serialize_encounter_follow_up(follow_up, member)

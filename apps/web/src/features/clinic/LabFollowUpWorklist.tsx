@@ -20,6 +20,7 @@ import { useClinic } from "./Workspace";
 type LabFollowUpItem = {
   patient: { id: number; display_name: string; reference: string | null };
   report_id: number;
+  current_version_id: number;
   version: {
     id: number;
     version_number: number;
@@ -110,8 +111,8 @@ function LabFollowUpInbox() {
           <Button onClick={resource.refresh}>Refresh</Button>
         </Stack>
         <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: "70ch" }}>
-          Open follow-ups from current lab report versions. Open the exact
-          report to record its outcome.
+          Open follow-ups remain visible when a corrected report needs a new
+          review. Open the exact version to record its outcome.
         </Typography>
       </Box>
       <Paper
@@ -165,7 +166,7 @@ function LabFollowUpInbox() {
               />
               <Typography variant="h6">No open lab follow-ups</Typography>
               <Typography color="text.secondary">
-                Open follow-ups from current report versions will appear here.
+                Open lab follow-ups will appear here.
               </Typography>
             </Box>
           )}
@@ -222,6 +223,13 @@ function LabFollowUpInbox() {
                                 : "warning"
                             }
                             label={item.version.result_priority}
+                          />
+                        )}
+                        {item.version.id !== item.current_version_id && (
+                          <Chip
+                            size="small"
+                            color="info"
+                            label="Report corrected"
                           />
                         )}
                         {dueLabel(item.follow_up.due_at) && (

@@ -57,9 +57,7 @@ module Clinic
         visible_patient_ids = current_practice.patients.accessible_by(current_ability, :read).select(:id)
         relation = LabResultFollowUp.where(
           practice: current_practice, patient_id: visible_patient_ids, state: "open"
-        ).joins(:lab_report).merge(visible_reports("notes.read")).where(
-          "clinic_lab_reports.current_version_id = clinic_lab_result_follow_ups.lab_report_version_id"
-        )
+        ).joins(:lab_report).merge(visible_reports("notes.read"))
         total = relation.count
         follow_ups = relation.includes(:patient, :lab_report, :lab_report_version)
           .order(Arel.sql("CASE clinic_lab_result_follow_ups.priority " \

@@ -41,7 +41,10 @@ export type EncounterFollowUpRecord = {
 };
 type FollowUpResponse = {
   follow_up: EncounterFollowUpRecord | null;
-  options: { follow_up_appointments: FollowUpAppointment[] };
+  options: {
+    follow_up_appointments: FollowUpAppointment[];
+    eligible_assignees: { membership_id: number; label: string }[];
+  };
 };
 type FollowUpRequest = {
   kind: "record" | "reopen";
@@ -54,6 +57,7 @@ type FollowUpRequest = {
       plan?: string;
       due_at?: string;
       follow_up_appointment_id?: number;
+      assigned_to_membership_id?: number | null;
       action?: "reopen";
     };
   };
@@ -63,6 +67,7 @@ type FollowUpDraft = {
   plan: string;
   dueAt: string;
   appointmentId: string;
+  assigneeId: string;
   baselineFollowUpId?: number | null;
   requestKey: string | null;
   expectedVersion: number;
@@ -106,12 +111,16 @@ function followUpMatchesRequest(
   const appointmentMatches =
     expected.status !== "arranged" ||
     followUp.follow_up_appointment?.id === expected.follow_up_appointment_id;
+  const assigneeMatches =
+    expected.assigned_to_membership_id === undefined ||
+    followUp.assigned_to_membership_id === expected.assigned_to_membership_id;
   return (
     mutationConfirmed &&
     followUp.recorded_status === expected.status &&
     followUp.plan === (expected.plan ?? "") &&
     dueAtMatches &&
-    appointmentMatches
+    appointmentMatches &&
+    assigneeMatches
   );
 }
 
@@ -153,6 +162,7 @@ export function EncounterFollowUpPanel({
   const [plan, setPlan] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [appointmentId, setAppointmentId] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -179,6 +189,9 @@ export function EncounterFollowUpPanel({
       setPlan(draft.plan);
       setDueAt(draft.dueAt);
       setAppointmentId(draft.appointmentId);
+      setAssigneeId(
+        draft.assigneeId ?? String(followUp?.assigned_to_membership_id ?? ""),
+      );
       baseVersionRef.current = draft.expectedVersion;
       let pendingDraft = draft.pendingRequest ? draft : null;
       if (!pendingDraft && draft.requestKey) {
@@ -193,6 +206,11 @@ export function EncounterFollowUpPanel({
           ...(draft.status === "arranged"
             ? { follow_up_appointment_id: Number(draft.appointmentId) }
             : {}),
+          assigned_to_membership_id:
+            draft.status === "not_required" ||
+            !(draft.assigneeId ?? followUp?.assigned_to_membership_id)
+              ? null
+              : Number(draft.assigneeId ?? followUp?.assigned_to_membership_id),
         };
         pendingDraft = {
           ...draft,
@@ -224,6 +242,7 @@ export function EncounterFollowUpPanel({
       setPlan(followUp?.plan ?? "");
       setDueAt(localDateTime(followUp?.due_at ?? null));
       setAppointmentId(String(followUp?.follow_up_appointment?.id ?? ""));
+      setAssigneeId(String(followUp?.assigned_to_membership_id ?? ""));
       setRestored(true);
     }
   }, [followUp, recovery.ready, recovery.restored, resource.data, restored]);
@@ -246,6 +265,7 @@ export function EncounterFollowUpPanel({
         plan,
         dueAt,
         appointmentId,
+        assigneeId,
         requestKey: null,
         expectedVersion: baseVersionRef.current,
         pendingRequest: null,
@@ -259,6 +279,7 @@ export function EncounterFollowUpPanel({
     };
   }, [
     appointmentId,
+    assigneeId,
     canWrite,
     dueAt,
     followUp?.status,
@@ -278,6 +299,7 @@ export function EncounterFollowUpPanel({
     plan,
     dueAt,
     appointmentId,
+    assigneeId,
     baselineFollowUpId: followUp?.id ?? null,
     requestKey: null,
     expectedVersion: baseVersionRef.current,
@@ -332,6 +354,7 @@ export function EncounterFollowUpPanel({
       setAppointmentId(
         String(result.follow_up.follow_up_appointment?.id ?? ""),
       );
+      setAssigneeId(String(result.follow_up.assigned_to_membership_id ?? ""));
       setNotice(
         request.kind === "record"
           ? "Follow-up plan saved."
@@ -395,6 +418,10 @@ export function EncounterFollowUpPanel({
               ...(status === "arranged"
                 ? { follow_up_appointment_id: Number(appointmentId) }
                 : {}),
+              assigned_to_membership_id:
+                status === "not_required" || !assigneeId
+                  ? null
+                  : Number(assigneeId),
             },
           },
         };
@@ -438,6 +465,7 @@ export function EncounterFollowUpPanel({
       plan: followUp.plan,
       dueAt: "",
       appointmentId: "",
+      assigneeId: String(followUp.assigned_to_membership_id ?? ""),
       baselineFollowUpId: followUp.id,
       requestKey,
       expectedVersion: followUp.version,
@@ -662,6 +690,35 @@ export function EncounterFollowUpPanel({
                     </MenuItem>
                   ),
                 )}
+              </TextField>
+            )}
+            {status !== "not_required" && (
+              <TextField
+                select
+                label="Responsible staff"
+                value={assigneeId}
+                disabled={!canWrite || busy || pending || !recovery.ready}
+                onChange={(event) => setAssigneeId(event.target.value)}
+                helperText="Unassigned follow-ups remain visible in Operations for assignment."
+              >
+                <MenuItem value="">Unassigned — needs an owner</MenuItem>
+                {assigneeId &&
+                  !resource.data.options.eligible_assignees.some(
+                    (candidate) =>
+                      String(candidate.membership_id) === assigneeId,
+                  ) && (
+                    <MenuItem value={assigneeId} disabled>
+                      Previous owner is no longer eligible; choose another
+                    </MenuItem>
+                  )}
+                {resource.data.options.eligible_assignees.map((candidate) => (
+                  <MenuItem
+                    key={candidate.membership_id}
+                    value={String(candidate.membership_id)}
+                  >
+                    {candidate.label}
+                  </MenuItem>
+                ))}
               </TextField>
             )}
             {canWrite && (

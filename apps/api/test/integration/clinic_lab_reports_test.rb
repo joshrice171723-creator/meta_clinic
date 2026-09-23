@@ -370,7 +370,7 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
-  test "a corrected version supersedes only the open prior-version follow-up" do
+  test "a corrected version reopens review without hiding prior patient contact" do
     report = create_report(
       patient: @patient, key: "follow-up-correction-base", issued_at: Time.utc(2026, 9, 6, 21),
       title: "Report requiring correction"
@@ -393,20 +393,27 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     refute_equal prior_version.id, corrected_version.id
     assert_nil response.parsed_body.dig("version", "follow_up")
 
-    superseded = prior_version.reload.follow_up
-    assert_equal follow_up_id, superseded.id
-    assert_equal "superseded", superseded.state
-    assert superseded.superseded_at.present?
-    assert_nil superseded.completed_at
-    assert_nil superseded.completed_by_membership_id
+    prior_follow_up = prior_version.reload.follow_up
+    assert_equal follow_up_id, prior_follow_up.id
+    assert_equal "open", prior_follow_up.state
+    assert_nil prior_follow_up.completed_at
+    assert_nil corrected_version.reviewed_at
+
+    get review_queue_path, headers: @headers
+    assert_response :success
+    assert_includes response.parsed_body.fetch("items").pluck("report_id"), report.id
+    get follow_up_queue_path, headers: @headers
+    assert_response :success
+    retained = response.parsed_body.fetch("items").find { |item| item.dig("follow_up", "id") == follow_up_id }
+    assert_equal prior_version.id, retained.dig("version", "id")
+    assert_equal corrected_version.id, retained.fetch("current_version_id")
 
     post complete_follow_up_path(report, prior_version),
-      params: { follow_up: { request_key: "complete-stale-follow-up", outcome: "Must not complete." } },
+      params: { follow_up: { request_key: "complete-prior-contact", outcome: "Corrected report reviewed; contact work resolved." } },
       headers: csrf_headers, as: :json
-    assert_response :conflict
-    assert_equal "stale_record", response.parsed_body.fetch("code")
-    assert_equal "superseded", superseded.reload.state
-    assert @practice.audit_events.exists?(action_code: "lab_report.follow_up.supersede", outcome: "committed")
+    assert_response :success
+    assert_equal "completed", prior_follow_up.reload.state
+    assert_nil corrected_version.reload.reviewed_at
   end
 
   test "critical results require escalation and patient-contact closure evidence" do

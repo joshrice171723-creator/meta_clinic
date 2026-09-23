@@ -93,6 +93,7 @@ module Clinic
           },
           report_id: value.lab_report_id,
           site_id: value.lab_report.site_id,
+          current_version_id: value.lab_report.current_version_id,
           version: {
             id: version.id,
             version_number: version.version_number,

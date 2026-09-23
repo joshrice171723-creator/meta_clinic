@@ -7,7 +7,7 @@ module Clinic
         authorize_read!(practice, actor)
         follow_up = Clinic::EncounterFollowUp.includes(:follow_up_appointment, :assigned_to_membership)
           .find_by(practice_id: practice.id, encounter_id: encounter.id)
-        { follow_up: follow_up && serialize(follow_up), options: options(encounter) }
+        { follow_up: follow_up && serialize(follow_up), options: options(encounter, actor:) }
       end
 
       def record(practice:, actor:, encounter:, request_key:, expected_version:, attributes:)
@@ -134,12 +134,25 @@ module Clinic
         }
       end
 
-      def options(encounter)
+      def options(encounter, actor:)
         after = encounter.appointment&.ends_at || encounter.ended_at || encounter.started_at
         appointments = Clinic::Appointment.where(practice_id: encounter.practice_id, patient_id: encounter.patient_id,
           status: %w[scheduled confirmed]).where("starts_at > ?", after).where.not(id: encounter.appointment_id)
           .order(:starts_at, :id).limit(25)
-        { follow_up_appointments: appointments.map { |appointment| appointment_payload(appointment) } }
+        can_assign = Ability.new(actor, practice: encounter.practice)
+          .allowed_permission?("encounters.write", site: encounter.site)
+        { follow_up_appointments: appointments.map { |appointment| appointment_payload(appointment) },
+          eligible_assignees: can_assign ? eligible_assignees(encounter) : [] }
+      end
+
+      def eligible_assignees(encounter)
+        practice = encounter.practice
+        practice.memberships.active.joins(:user).where(users: { active: true }).includes(:user).filter_map do |membership|
+          next unless Ability.new(membership.user, practice:)
+            .allowed_permission?("encounters.write", site: encounter.site)
+
+          { membership_id: membership.id, label: membership.user.email_address }
+        end.sort_by { |candidate| [candidate.fetch(:label), candidate.fetch(:membership_id)] }
       end
 
       def appointment_payload(appointment)
@@ -168,8 +181,8 @@ module Clinic
         end
         due_at = value[:due_at].present? ? Time.iso8601(value[:due_at].to_s) : nil
         assignee_id = value[:assigned_to_membership_id].present? ? Integer(value[:assigned_to_membership_id].to_s, 10) : nil
-        if assignee_id
-          Clinic::Membership.active.find_by!(practice_id: encounter.practice_id, id: assignee_id)
+        if assignee_id && !eligible_assignees(encounter).any? { |candidate| candidate[:membership_id] == assignee_id }
+          raise ArgumentError, "Choose an eligible follow-up owner for this site."
         end
         {
           state: state,

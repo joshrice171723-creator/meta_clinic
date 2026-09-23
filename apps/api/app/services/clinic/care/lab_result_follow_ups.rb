@@ -74,9 +74,6 @@ module Clinic
         ) do
           member = authorize!(practice:, actor:, patient:, site: report.site)
           locked_report = practice.lab_reports.where(patient:).lock.find(report.id)
-          unless locked_report.current_version_id == version.id
-            raise ActiveRecord::StaleObjectError.new(locked_report, "complete follow-up")
-          end
           follow_up = LabResultFollowUp.where(
             practice:, patient:, lab_report: locked_report, lab_report_version: version
           ).lock.first
@@ -114,17 +111,6 @@ module Clinic
         raise ArgumentError, "A follow-up decision was already recorded for this lab report version." if existing
 
         create_decision!(practice:, actor:, patient:, report:, version:, member:, decision:)
-      end
-
-      def self.supersede_open!(practice:, actor:, patient:, report:, version:)
-        follow_up = LabResultFollowUp.where(
-          practice:, patient:, lab_report: report, lab_report_version: version, state: "open"
-        ).lock.first
-        return unless follow_up
-
-        follow_up.update!(state: "superseded", superseded_at: Current.business_time)
-        audit!(practice:, actor:, action: "lab_report.follow_up.supersede", follow_up:)
-        follow_up
       end
 
       def self.normalize_decision(disposition:, note:, due_at:, priority:)
