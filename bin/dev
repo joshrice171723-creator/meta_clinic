@@ -5,6 +5,19 @@
 require_relative "lib/development_lifecycle"
 
 root = File.expand_path("..", __dir__)
+if ARGV.first == "preview"
+  profile_path = File.join(root, "tmp/dev/preview-profile.json")
+  abort "Create #{profile_path} with this checkout's existing database and ports before previewing." unless File.file?(profile_path)
+
+  profile = JSON.parse(File.read(profile_path))
+  required = %w[APPLY_POSTGRES_CONTAINER PGPORT APPLY_DEVELOPMENT_DATABASE APPLY_WEB_PORT APPLY_API_PORT]
+  optional = %w[APPLY_API_READINESS_TIMEOUT]
+  abort "Invalid preview profile keys" unless profile.is_a?(Hash) &&
+    (required - profile.keys).empty? && (profile.keys - required - optional).empty? &&
+    profile.values.all? { |value| value.is_a?(String) && !value.empty? }
+
+  profile.each { |key, value| ENV[key] = value }
+end
 %w[INT TERM].each { |signal| Signal.trap(signal) { raise Interrupt } }
 lifecycle = Apply::DevelopmentLifecycle.new(root: root)
 exit lifecycle.run(ARGV)

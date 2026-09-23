@@ -19,7 +19,7 @@ module Apply
 
     Check = Struct.new(:name, :ok, :detail, keyword_init: true)
 
-    COMMANDS = %w[start stop restart status setup prewarm refresh reset-data].freeze
+    COMMANDS = %w[start preview stop restart status setup prewarm refresh reset-data].freeze
     PROCESS_ROLES = {
       "api" => {port_key: :api, directory: "apps/api"},
       "web" => {port_key: :web, directory: "apps/web"},
@@ -102,6 +102,7 @@ module Apply
 
         Commands:
           start                 Migrate, start, and strictly verify the local stack
+          preview               Resume this checkout using only its existing current database
           stop                  Stop checkout-owned services and PostgreSQL
           restart               Restart services without reinstalling or resetting data
           status                Run strict runtime, process, database, and HTTP checks
@@ -133,8 +134,9 @@ module Apply
       unknown = arguments - allowed
       fail_with("Unknown option for #{command}: #{unknown.first}") unless unknown.empty?
       {
-        no_browser: arguments.include?("--no-browser"),
-        no_docker_start: arguments.include?("--no-docker-start"),
+        no_browser: command == "preview" || arguments.include?("--no-browser"),
+        no_docker_start: command == "preview" || arguments.include?("--no-docker-start"),
+        existing_database: command == "preview",
         confirmed: arguments.include?("--yes")
       }
     end
@@ -142,6 +144,8 @@ module Apply
     def dispatch(command, options)
       case command
       when "start"
+        start_services(options)
+      when "preview"
         start_services(options)
       when "stop"
         stop_services(stop_database: true)
@@ -280,9 +284,18 @@ module Apply
         phase("Check locked dependencies", category: "dependency") { require_dependencies! }
       end
       phase("Start PostgreSQL", category: "database") do
+        if options.fetch(:existing_database)
+          fail_with("preview requires the existing running PostgreSQL container #{@container}; it will not create or start one") unless docker_ready? && container_running?
+        end
         ensure_postgres!(auto_start_docker: !options.fetch(:no_docker_start))
       end
-      phase("Migrate the development database", category: "database") { migrate_database! }
+      if options.fetch(:existing_database)
+        phase("Require existing current database", category: "database") do
+          fail_with("preview requires existing #{@database} with current migrations; use the normal setup path only when preparing a database") unless database_schema_current?
+        end
+      else
+        phase("Migrate the development database", category: "database") { migrate_database! }
+      end
       phase("Validate application ports", category: "server") { require_ports_available_or_owned! }
       phase("Start application services", category: "server") do
         spawn_missing_services!(started_roles, roles: %w[api web])

@@ -25,6 +25,7 @@ Use only repository-root `bin/dev` for the combined local stack:
 
 ```sh
 bin/dev start
+bin/dev preview
 bin/dev restart
 bin/dev status
 bin/dev stop
@@ -33,6 +34,8 @@ bin/dev reset-data --yes
 ```
 
 `start` and `restart` do not run Git, install dependencies or reset data. They compare the source migration versions directly with the guarded development database, run Rails migrations only when needed, launch the API and frontend, verify database and HTTP readiness without extra Rails boots, and then start the checkout-owned worker. `refresh` requires a clean branch and fast-forwards only; divergence stops before runtime mutation. It reconciles only locked dependencies and never auto-merges or resets data. `reset-data --yes` is the sole destructive command and replants only the selected loopback `apply*_development` database with synthetic fixtures.
+
+For quick page review, keep the checkout's API, Vite and PostgreSQL running: Vite applies frontend edits immediately at the same local URL. After a restart, use `ruby .\bin\dev preview` on Windows (`bin/dev preview` elsewhere). It loads `tmp/dev/preview-profile.json`, reuses that checkout's existing running PostgreSQL container and database, and refuses to create a container, create a database, or run migrations. The page still uses the Rails API and persistent PostgreSQL data. If the database or schema is missing, prepare it deliberately with the normal setup/start path, then reuse it for subsequent edits.
 
 Each command prints phase durations and writes a metadata-only JSON trace plus SVG timeline under ignored `tmp/task-traces/`. Use `--no-browser` with `start`, `restart` or `refresh` when needed. On Windows use `ruby .\bin\dev ACTION`. Older launchers remain compatibility shims only.
 
@@ -51,5 +54,20 @@ ruby .\bin\dev start
 ```
 
 The container name and PostgreSQL port are part of the isolation boundary because each checkout keeps its local PostgreSQL credential file beside its source. Do not reuse another checkout's container, database, credential file, or running services. These settings affect only the current shell; set them again in a new shell or store them in a local ignored profile.
+
+For `preview`, create the ignored `tmp/dev/preview-profile.json` once in that same checkout, using its existing values (no password belongs in this file):
+
+```json
+{
+  "APPLY_POSTGRES_CONTAINER": "apply-meta-pilot-closeout",
+  "PGPORT": "54331",
+  "APPLY_DEVELOPMENT_DATABASE": "apply_pilotcloseout_development",
+  "APPLY_WEB_PORT": "3100",
+  "APPLY_API_PORT": "3101",
+  "APPLY_API_READINESS_TIMEOUT": "240"
+}
+```
+
+Use the actual container, database and ports already assigned to the checkout. Leave the stack running while editing a page; reopening the browser or database is unnecessary.
 
 The explicit `$startdev` skill delegates every action to `bin/dev`; it does not make refresh destructive. `$task-trace` measures observable task work and returns the same safe timeline format. Neither skill authorizes hosted changes.
