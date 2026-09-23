@@ -34,6 +34,8 @@ def prepare(number):
         # Never switch or advance an existing checkout automatically.
         entry = {"path": str(path), "revision": git(path, "rev-parse", "HEAD"), "claimed_by": None,
                  "environment": {"APPLY_WEB_PORT": str(3200 + number * 10), "APPLY_API_PORT": str(3201 + number * 10),
+                                 "APPLY_POSTGRES_CONTAINER": f"apply-postgres-prepared-{number}",
+                                 "PGPORT": str(54400 + number),
                                  "APPLY_DEVELOPMENT_DATABASE": f"apply_prepared_{number}_development",
                                  "APPLY_TEST_DATABASE": f"apply_prepared_{number}_test"}, "ready": False}
         write_json(state, entry)
