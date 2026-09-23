@@ -11,9 +11,12 @@ during a routine release. The `184.194.129.57` address below records the initial
 deployment and is no longer the site's current destination.
 
 Deployment is manual: pushing `main` does not change the running website.
-The `publish-containers.yml` workflow builds matched API/web images for every
-`main` commit. Use the release command below after both publish jobs succeed.
-It preserves the host's existing secrets and Compose configuration, backs up
+Use the PowerShell release command below. It builds matched API/web images
+locally from a clean, pushed `main` checkout, then transfers them to the host.
+For a prebuilt release, the optional `publish-containers.yml` workflow can
+publish the same commit to GHCR; its jobs may be unavailable while GitHub
+account billing restricts Actions. The release command preserves the host's
+existing secrets and Compose configuration, backs up
 and restore-checks both databases, migrates each with its own credentials,
 then updates the matched image references and restarts API, worker,
 guided-demo and web. It verifies image revisions, login/authorization and the
@@ -21,11 +24,23 @@ public Sandbox creation, location switch and reset flows.
 
 ## Routine release from a Windows checkout
 
-One-time host setup: give root a GitHub Container Registry credential with
-`read:packages` only. Keep it in the existing root-only secrets directory,
-never in Git or a command argument. The release script uses this Docker config
-only to pull images; it pins the deployed references by digest. Set up the
-credential interactively on the host:
+Use a clean, pushed `main` checkout with local Docker running. From PowerShell:
+
+```powershell
+./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>'
+```
+
+The default `local` mode uses Docker's layer cache, builds both images with the
+same Git revision label, saves and transfers them together, then loads them on
+the host. No GitHub Actions job or GHCR credential is needed. A cold build or a
+large image transfer can still exceed ten minutes.
+
+Optional prebuilt mode: first run **Publish portable containers** on `main`
+and wait for both API and web jobs to pass for its exact commit. Give host root
+a GitHub Container Registry credential with `read:packages` only. Keep it in
+the existing root-only secrets directory, never in Git or a command argument.
+The release script uses this Docker config only to pull images; it pins the
+deployed references by digest. Set up the credential interactively on the host:
 
 ```sh
 sudo install -d -m 700 /opt/meta-clinic/secrets/docker-config
@@ -37,16 +52,15 @@ unset GHCR_TOKEN
 exit
 ```
 
-Use a clean, pushed `main` checkout. Wait for both API and web jobs in
-`Publish portable containers` to pass for its exact commit. From PowerShell:
+Then release the prebuilt images:
 
 ```powershell
-./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>'
+./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>' -ImageSource registry
 ```
 
 `release.ps1` confirms local `main` equals `origin/main`, uploads the current
-release and verifier scripts, and calls `release.sh prepare`. Preparation pulls
-both images, checks their commit labels and web Nginx syntax, restore-checks
+release and verifier scripts, and calls `release.sh prepare`. Preparation checks
+both image commit labels and web Nginx syntax, restore-checks
 the ordinary and guided-demo PostgreSQL dumps, and bundles both dumps with
 the existing host secrets. The wrapper downloads that bundle, checks its SHA-256,
 encrypts it with Windows DPAPI CurrentUser in `Desktop/06 - Secure Files`,

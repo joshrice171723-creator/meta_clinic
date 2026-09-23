@@ -1,6 +1,6 @@
 # Owner-controlled portable deployment
 
-The former AWS-specific deployment path is retired. **Publish portable containers** now builds matched `sha-<commit>` API and web images on every `main` push; it can also be dispatched manually. The workflow uses only GitHub's short-lived repository token. Publishing images does not deploy a site. The current aimetaclinic.com release procedure is in the [Lightsail runbook](../lightsail/README.md#routine-release-from-a-windows-checkout).
+The former AWS-specific deployment path is retired. **Publish portable containers** can be manually dispatched on `main` to build matched `sha-<commit>` API and web images. The workflow uses only GitHub's short-lived repository token; GitHub account billing must allow Actions jobs to start. Publishing images does not deploy a site. The current aimetaclinic.com release procedure, including the local-build fallback, is in the [Lightsail runbook](../lightsail/README.md#routine-release-from-a-windows-checkout).
 
 This package is deliberately provider-neutral. It can run on a server owned by the founder, but it does not create an account, server, DNS, TLS certificate, backup service, or public endpoint. The checked-in Compose file binds only to `127.0.0.1:8443`.
 

@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory = $true)][string]$KeyPath,
   [string]$Server = 'ubuntu@aimetaclinic.com',
-  [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files')
+  [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files'),
+  [ValidateSet('local', 'registry')][string]$ImageSource = 'local'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,10 +30,40 @@ try {
 $remoteScript = "/tmp/meta-clinic-release-$revision.sh"
 $remoteVerify = "/tmp/meta-clinic-verify-$revision.py"
 $remoteArchive = $null
+$remoteImages = "/home/ubuntu/meta-clinic-images-$revision.tar"
+$localImages = Join-Path $env:TEMP "meta-clinic-images-$revision.tar"
 $plain = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision.tar.gz.partial"
 $encrypted = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision.tar.gz.dpapi"
 if (Test-Path -LiteralPath $plain) { throw "Remove or inspect existing partial download: $plain" }
 if (Test-Path -LiteralPath $encrypted) { throw "An encrypted recovery archive already exists: $encrypted" }
+if ($ImageSource -eq 'local' -and (Test-Path -LiteralPath $localImages)) {
+  throw "Remove or inspect existing image archive: $localImages"
+}
+
+if ($ImageSource -eq 'local') {
+  Push-Location $root
+  try {
+    $apiImage = "meta-clinic-api:$revision"
+    $webImage = "meta-clinic-web:$revision"
+    & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $apiImage apps/api
+    if ($LASTEXITCODE -ne 0) { throw 'API image build failed.' }
+    & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
+    if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+    & docker save -o $localImages $apiImage $webImage
+    if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
+  } finally {
+    Pop-Location
+  }
+  try {
+    & scp -o BatchMode=yes -i $key $localImages "${Server}:$remoteImages"
+    if ($LASTEXITCODE -ne 0) { throw 'Could not transfer matched images.' }
+    & ssh -o BatchMode=yes -i $key $Server "sudo docker load -i $remoteImages"
+    if ($LASTEXITCODE -ne 0) { throw 'Could not load matched images on the host.' }
+  } finally {
+    if (Test-Path -LiteralPath $localImages) { Remove-Item -LiteralPath $localImages }
+    & ssh -o BatchMode=yes -i $key $Server "rm -f $remoteImages" | Out-Null
+  }
+}
 
 & scp -o BatchMode=yes -i $key (Join-Path $PSScriptRoot 'release.sh') "${Server}:$remoteScript"
 if ($LASTEXITCODE -ne 0) { throw 'Could not upload the release script.' }
@@ -40,7 +71,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not upload the release script.' }
 if ($LASTEXITCODE -ne 0) { throw 'Could not upload the release verifier.' }
 
 try {
-  $prepared = & ssh -o BatchMode=yes -i $key $Server "sudo sed -i 's/\r$//' $remoteScript && sudo bash $remoteScript prepare $revision"
+  $prepared = & ssh -o BatchMode=yes -i $key $Server "sudo sed -i 's/\r$//' $remoteScript && sudo bash $remoteScript prepare $revision $ImageSource"
   if ($LASTEXITCODE -ne 0) { throw 'Host preparation failed; the current release remains active.' }
   $archiveLine = $prepared | Where-Object { $_ -match '^RECOVERY_ARCHIVE=' } | Select-Object -Last 1
   $hashLine = $prepared | Where-Object { $_ -match '^RECOVERY_SHA256=' } | Select-Object -Last 1

@@ -3,14 +3,14 @@
 set -Eeuo pipefail
 umask 077
 
-usage() { echo "Usage: release.sh prepare|deploy COMMIT_SHA [RECOVERY_SHA256]" >&2; exit 2; }
+usage() { echo "Usage: release.sh prepare COMMIT_SHA local|registry | deploy COMMIT_SHA RECOVERY_SHA256" >&2; exit 2; }
 [[ $# -ge 2 && $# -le 3 ]] || usage
 phase=$1
 revision=$2
 [[ $revision =~ ^[0-9a-f]{40}$ ]] || usage
 [[ $EUID -eq 0 ]] || { echo "Run as root on the Lightsail host." >&2; exit 2; }
 [[ $phase == prepare || $phase == deploy ]] || usage
-[[ $phase == prepare && $# -eq 2 || $phase == deploy && $# -eq 3 ]] || usage
+[[ $# -eq 3 ]] || usage
 
 cd /opt/meta-clinic/deploy
 exec 9>/opt/meta-clinic/release.lock
@@ -52,23 +52,38 @@ backup_and_check() {
 }
 
 if [[ $phase == prepare ]]; then
+  image_source=$3
+  [[ $image_source == local || $image_source == registry ]] || usage
   [[ -f $release_file && -f $secrets/guided-demo.env ]] || { echo "Existing release or guided-demo credentials are missing." >&2; exit 1; }
   [[ ! -e $state ]] || { echo "A preparation for this commit already exists: $state" >&2; exit 1; }
-  api_tag=$repo/meta-clinic-api:sha-$revision
-  web_tag=$repo/meta-clinic-web:sha-$revision
-  docker pull "$api_tag" >/dev/null
-  docker pull "$web_tag" >/dev/null
+  if [[ $image_source == registry ]]; then
+    api_tag=$repo/meta-clinic-api:sha-$revision
+    web_tag=$repo/meta-clinic-web:sha-$revision
+    docker pull "$api_tag" >/dev/null
+    docker pull "$web_tag" >/dev/null
+  else
+    api_tag=meta-clinic-api:$revision
+    web_tag=meta-clinic-web:$revision
+  fi
   for tag in "$api_tag" "$web_tag"; do
     actual=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$tag")
     [[ $actual == "$revision" ]] || { echo "Image revision mismatch: $tag" >&2; exit 1; }
   done
   docker run --rm --entrypoint nginx "$web_tag" -t >/dev/null
-  api_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$api_tag")
-  web_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$web_tag")
-  [[ $api_image == *@sha256:* && $web_image == *@sha256:* ]] || { echo "Image digests unavailable." >&2; exit 1; }
+  if [[ $image_source == registry ]]; then
+    api_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$api_tag")
+    web_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$web_tag")
+    [[ $api_image == *@sha256:* && $web_image == *@sha256:* ]] || { echo "Image digests unavailable." >&2; exit 1; }
+  else
+    api_image=$api_tag
+    web_image=$web_tag
+  fi
   install -d -m 700 "$backups" "$state"
   cp "$release_file" "$state/previous.env"
   printf 'API_IMAGE=%s\nWEB_IMAGE=%s\n' "$api_image" "$web_image" > "$state/candidate.env"
+  printf 'API_ID=%s\nWEB_ID=%s\n' \
+    "$(docker image inspect --format '{{.Id}}' "$api_tag")" \
+    "$(docker image inspect --format '{{.Id}}' "$web_tag")" > "$state/image-ids"
   compose "$state/candidate.env" config --quiet
   backup_and_check apply "$state/apply.dump"
   backup_and_check apply_guided_demo "$state/apply_guided_demo.dump"
@@ -76,7 +91,8 @@ if [[ $phase == prepare ]]; then
     "backups/release-$revision/apply.dump" \
     "backups/release-$revision/apply_guided_demo.dump" \
     "backups/release-$revision/previous.env" \
-    "backups/release-$revision/candidate.env" secrets
+    "backups/release-$revision/candidate.env" \
+    "backups/release-$revision/image-ids" secrets
   handoff="/home/ubuntu/meta-clinic-recovery-$revision.tar.gz"
   install -m 600 -o ubuntu -g ubuntu "$state/recovery.tar.gz" "$handoff"
   printf '%s\n' "$revision" > "$state/prepared"
@@ -96,6 +112,13 @@ expected_sha=$3
 cmp -s "$release_file" "$state/previous.env" || {
   echo "The hosted release changed after preparation; prepare again." >&2; exit 1;
 }
+for component in API WEB; do
+  image=$(sed -n "s/^${component}_IMAGE=//p" "$state/candidate.env")
+  expected_id=$(sed -n "s/^${component}_ID=//p" "$state/image-ids")
+  [[ -n $image && -n $expected_id && $(docker image inspect --format '{{.Id}}' "$image") == "$expected_id" ]] || {
+    echo "Prepared $component image changed or is missing." >&2; exit 1;
+  }
+done
 
 activated=0
 rollback() {

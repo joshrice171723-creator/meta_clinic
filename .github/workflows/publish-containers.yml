@@ -1,8 +1,6 @@
 name: Publish portable containers
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       confirm:
@@ -19,7 +17,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirm == 'publish-containers')
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'publish-containers'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
