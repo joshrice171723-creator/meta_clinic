@@ -412,6 +412,7 @@ class DevelopmentLifecycleTest < Minitest::Test
     File.write(File.join(@temporary_directory, "apps/api/.ruby-version"), "ruby-#{RUBY_VERSION}\n")
     File.write(File.join(@temporary_directory, "apps/api/Gemfile.lock"), "BUNDLED WITH\n  4.0.15\n")
     File.write(File.join(@temporary_directory, "apps/web/.node-version"), "#{node}\n")
+    File.write(File.join(@temporary_directory, "apps/web/package.json"), '{"packageManager":"pnpm@11.19.0"}')
   end
 
   def configure_git(directory)

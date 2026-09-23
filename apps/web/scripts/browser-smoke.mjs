@@ -300,7 +300,7 @@ try {
           const scope =
             account.account_type !== "omni" &&
             account.clinic &&
-            locations.length === 1
+            locations.length > 0
               ? { practice_id: account.clinic.id, site_id: locations[0].id }
               : {};
           const response = await fetch("/api/development_session", {
@@ -354,10 +354,51 @@ try {
       .locator("main")
       .first()
       .waitFor({ state: "visible", timeout: 15000 });
-    await page
-      .locator("main h1:visible, main [role=heading]:visible")
-      .first()
-      .waitFor({ state: "visible", timeout: 15000 });
+    if (selected.portal === "clinic") {
+      await page.waitForFunction(
+        () =>
+          document.querySelector("main h1, main [role=heading]") ||
+          document.querySelector(
+            '[role="dialog"][aria-labelledby="location-picker-title"]',
+          ),
+        undefined,
+        { timeout: 60000 },
+      );
+      const locationPicker = page.getByRole("dialog", {
+        name: "Choose your location",
+      });
+      if (await locationPicker.isVisible()) {
+        await locationPicker
+          .getByRole("list", { name: "Available locations" })
+          .locator('[role="button"]')
+          .first()
+          .click();
+      }
+    }
+    try {
+      await page
+        .locator("main h1:visible, main [role=heading]:visible")
+        .first()
+        .waitFor({ state: "visible", timeout: 60000 });
+    } catch (error) {
+      await page.screenshot({ path: screenshot, fullPage: true });
+      fail(
+        `${route} did not render a heading: ${JSON.stringify({
+          url: page.url(),
+          main: (await page.locator("main").first().textContent())?.slice(
+            0,
+            600,
+          ),
+          body: (await page.locator("body").textContent())?.slice(0, 900),
+          screenshot,
+          errors: failures,
+          api_outcomes: apiOutcomes,
+          pending_api: [...requestStarts.keys()].map(
+            (request) => new URL(request.url()).pathname,
+          ),
+        })}; ${error.message}`,
+      );
+    }
     try {
       await waitForRouteDataState(page, route);
     } catch (error) {

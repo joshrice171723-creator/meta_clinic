@@ -6,11 +6,11 @@ The kernel lock allows one heavy job at a time and releases when its owner exits
 
 Rails workers are bounded to one; selected Vitest commands explicitly use one worker. Raw commands must supply their framework's worker limit if it does not honor these defaults.
 
-## Two prepared slots
+## Three prepared slots
 
-Prepare sequentially with `python bin/agent-resources prepare --slot 1` and `--slot 2`. New detached worktrees are siblings named `meta_clinic_prepared_1` and `meta_clinic_prepared_2`. Existing checkouts are never reset, deleted or advanced. Preparation invokes the existing locked-dependency prewarm through the heavy queue; services/databases are not started.
+Prepare sequentially with `python bin/agent-resources prepare --slot 1`, `--slot 2`, and `--slot 3`. New detached worktrees are siblings named `meta_clinic_prepared_1`, `meta_clinic_prepared_2`, and `meta_clinic_prepared_3`. Existing checkouts are never reset, deleted or advanced. Preparation invokes the existing locked-dependency prewarm through the heavy queue; services/databases are not started.
 
-Claim with `python bin/agent-resources claim --slot 1 --owner TASK_ID`. Run commands through `python bin/agent-resources exec --slot 1 --owner TASK_ID -- ruby bin/dev start` so the slot environment is applied. Slot 1 uses web/API 3210/3211 and databases `apply_prepared_1_development` / `apply_prepared_1_test`; slot 2 uses 3220/3221 and corresponding `_2_` databases. Lifecycle startup checks port ownership; a collision is an error, not permission to take over. Database names are reservations until explicitly prepared through the normal synthetic lifecycle.
+Claim with `python bin/agent-resources claim --slot 1 --owner TASK_ID`. Run commands through `python bin/agent-resources exec --slot 1 --owner TASK_ID -- ruby bin/dev start` so the slot environment is applied. Slot 1 uses web/API 3210/3211 and databases `apply_prepared_1_development` / `apply_prepared_1_test`; slot 2 uses 3220/3221 and corresponding `_2_` databases; slot 3 uses 3230/3231 and corresponding `_3_` databases. Lifecycle startup checks port ownership; a collision is an error, not permission to take over. Database names are reservations until explicitly prepared through the normal synthetic lifecycle.
 
 Use `status` to inspect readiness and assigned owner. Release requires the matching owner and a clean checkout. Stop owned services and preserve commits before release; the helper never resets or removes unfinished work. Claims are persistent and are not expired merely because a task is slow. To update a clean slot, claim it, deliberately choose a Git revision/branch, prewarm if lockfiles changed, then release when finished. Do not treat a ready slot as necessarily current main.
 
