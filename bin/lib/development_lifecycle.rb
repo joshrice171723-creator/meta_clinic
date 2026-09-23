@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "digest"
+require "fiddle" if Gem.win_platform?
 require "fileutils"
 require "json"
 require "net/http"
@@ -1049,12 +1050,42 @@ module Apply
     end
 
     def process_alive?(pid)
+      return windows_process_alive?(pid) if Gem.win_platform?
+
       Process.kill(0, pid)
       true
     rescue Errno::ESRCH
       false
     rescue Errno::EPERM
       true
+    end
+
+    def windows_process_alive?(pid)
+      api = windows_process_api
+      handle = api.fetch(:open).call(0x1000, 0, pid)
+      return Fiddle.win32_last_error != 87 if handle.to_i.zero?
+
+      begin
+        exit_code = Fiddle::Pointer.malloc(4)
+        return true if api.fetch(:exit_code).call(handle, exit_code).zero?
+
+        exit_code[0, 4].unpack1("L<") == 259
+      ensure
+        api.fetch(:close).call(handle)
+      end
+    end
+
+    def windows_process_api
+      @windows_process_api ||= begin
+        kernel = Fiddle.dlopen("kernel32.dll")
+        {
+          # Keep the library handle alive while its function pointers are cached.
+          kernel: kernel,
+          open: Fiddle::Function.new(kernel["OpenProcess"], [Fiddle::TYPE_LONG, Fiddle::TYPE_INT, Fiddle::TYPE_LONG], Fiddle::TYPE_VOIDP),
+          exit_code: Fiddle::Function.new(kernel["GetExitCodeProcess"], [Fiddle::TYPE_VOIDP, Fiddle::TYPE_VOIDP], Fiddle::TYPE_INT),
+          close: Fiddle::Function.new(kernel["CloseHandle"], [Fiddle::TYPE_VOIDP], Fiddle::TYPE_INT)
+        }
+      end
     end
 
     def unsafe_process_group?(pid)

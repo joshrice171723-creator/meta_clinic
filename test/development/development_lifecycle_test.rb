@@ -357,6 +357,21 @@ class DevelopmentLifecycleTest < Minitest::Test
     refute lifecycle.send(:process_alive?, 2_147_483_647)
   end
 
+  def test_windows_process_liveness_rejects_an_exited_process_with_an_open_handle
+    skip unless Gem.win_platform?
+
+    lifecycle = build_lifecycle
+    pid = Process.spawn(RbConfig.ruby, "-e", "sleep 0.2")
+    api = lifecycle.send(:windows_process_api)
+    handle = api.fetch(:open).call(0x1000, 0, pid)
+    assert_operator handle.to_i, :>, 0
+
+    Process.wait(pid)
+    refute lifecycle.send(:process_alive?, pid)
+  ensure
+    api&.fetch(:close)&.call(handle) if handle && handle.to_i > 0
+  end
+
   def test_refresh_refuses_diverged_git_before_changing_head
     remote = File.join(@temporary_directory, "remote.git")
     seed = File.join(@temporary_directory, "seed")
