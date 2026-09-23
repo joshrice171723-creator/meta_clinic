@@ -13,7 +13,7 @@ Our shared workspace for **Meta Clinic**, configurable software for independent 
 
 ## Developers — start with the handbook
 
-Current architecture direction is D-078: [shared core with clinic/team/FDE change tiers](../docs/architecture/clinic-capability-architecture.md). Foundational choices are made during setup; later changes use the appropriate authority and supported operation. Development code/data are not target-design constraints. [Weight-loss journey revision 4](../PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md) remains the next bounded assignment, not a universal reconfiguration build.
+Current architecture direction is D-078: [shared core with clinic/team/FDE change tiers](../docs/architecture/clinic-capability-architecture.md). Foundational choices are made during setup; later changes use the appropriate authority and supported operation. Development code/data are not target-design constraints. The [consolidated patient journey](../PATIENT_JOURNEY_PLAN.md) records the locally proved weight-loss example and its remaining evidence boundaries; it does not authorize a universal reconfiguration build.
 
 Use the [developer handbook](../docs/README.md) for setup, local commands, branches, checks and current architecture. The active task context owns scope, acceptance, claims and status; then select only the relevant product context, decisions, risks and evidence from this vault. `AGENTS.md`, `agent-harness/` and `.agents/skills/` govern agents; `records/` retains detailed dated evidence outside the default context.
 

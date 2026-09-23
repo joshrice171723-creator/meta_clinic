@@ -70,8 +70,7 @@ Compare the following in one pass:
 - [Remaining-work report](./meta-clinic-remaining-work.md)
 - [P0–P2 audit](./meta-clinic-p0-p2-audit.md)
 - [Implementation tracker](../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md)
-- [Patient journey execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md)
-- [Weight-loss journey brief](../../PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md)
+- [Consolidated patient journey](../../PATIENT_JOURNEY_PLAN.md)
 - [Patient-journey evidence](../development/patient-journey-implementation-evidence.md)
 - [Engineering guide](../development/meta-clinic-build-and-acceptance.md)
 
@@ -280,4 +279,3 @@ Stop and report the affected step when:
 
 Independent safe steps may continue, but the whole session must not be labeled
 closed while a required closeout step is blocked.
-

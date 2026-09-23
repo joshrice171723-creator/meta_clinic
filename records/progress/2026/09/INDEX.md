@@ -9,6 +9,7 @@ One file per material outcome. The active [Progress Log](../../../../APPlyVault/
 
 | Date | Record |
 | --- | --- |
+| 2026-09-23 | [Patient-journey plan consolidation and archive](2026-09-23-patient-journey-plan-consolidation.md) |
 | 2026-09-14 | [Weight-loss clinic and connected journey](2026-09-14-weight-loss-connected-journey.md) |
 | 2026-09-13 | [Account-first membership enrollment and Growth](2026-09-13-account-first-membership-growth.md) |
 | 2026-09-13 | [Location selection startup](2026-09-13-location-selection-startup.md) |

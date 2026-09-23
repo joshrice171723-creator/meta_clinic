@@ -1,6 +1,6 @@
 # Patient journey implementation and acceptance
 
-Date: 2026-09-14. Scope owner: [approved execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md). Matrix owner: [build and acceptance guide](meta-clinic-build-and-acceptance.md). This record adds evidence and exact local field owners; it does not add matrix rows, clinical policy or vendor requirements.
+Date: 2026-09-14. Historical scope owner: [approved execution plan](../../records/superseded-plans/PATIENT_JOURNEY_EXECUTION_PLAN.md); [current consolidated scope](../../PATIENT_JOURNEY_PLAN.md). Matrix owner: [build and acceptance guide](meta-clinic-build-and-acceptance.md). This record adds evidence and exact local field owners; it does not add matrix rows, clinical policy or vendor requirements.
 
 ## Candidate and evidence boundary
 

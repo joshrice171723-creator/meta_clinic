@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-23 — Patient-journey plans consolidated and archived
+
+At the founder's request, the [single current patient-journey document](../../PATIENT_JOURNEY_PLAN.md) now reconciles the original T01–T10 contracts with revision 4's locally proved J0–J7 result. Both full originals moved to historical records with their dated detail preserved; the tracker links the consolidated scope and separate evidence owner. This was documentation consolidation only: no application behavior, browser proof, provider acceptance, clinical policy or launch status changed. [Archive and link manifest](../../records/progress/2026/09/2026-09-23-patient-journey-plan-consolidation.md).
+
 ## 2026-09-23 — Main integration and Lightsail synthetic release
 
 Integrated the tracker-delivery branch and scoped local workflow edits into `main`; source commit `2e866283e99065a73c0e8a9e1b21f16d5aca19f9` is running on aimetaclinic.com as matched API, worker, guided-demo and web images. The first image rollout exposed an nginx asset-cache regex syntax error. The prior `cc236d46` images were restored while the one-line source correction was committed, checked with nginx, and released. Public HTTPS checks returned 200 for `/login`, `/up`, `/demo`, `/joshua/`, `/clinic` and `/clinic/schedule`.
@@ -252,15 +256,15 @@ Expanded the existing [[Meta Clinic Product Strategy and Scope]] rather than add
 
 ## 2026-09-14 — Weight-loss setup and continuous journey gap plan
 
-Saved [revision 3](../../PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md): a new synthetic weight-loss clinic through Clinic Setup, meaningful setting-driven forms/visits/components and one membership-to-return patient demonstration. D-075 records the founder's clarified outcome; tracker MC-01 and shared CF-01–03 capture configuration gaps without duplicating the matrix. Bounded current configuration/intake inspection and U.S. NIDDK/US Core source review inform the plan; measurement-profile lookup remains unresolved. Prior focused evidence is retained, not replayed. Documentation only; no application changes, fixtures, browser tests or execution dispatch.
+Saved [revision 3](../../records/superseded-plans/PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md): a new synthetic weight-loss clinic through Clinic Setup, meaningful setting-driven forms/visits/components and one membership-to-return patient demonstration. D-075 records the founder's clarified outcome; tracker MC-01 and shared CF-01–03 capture configuration gaps without duplicating the matrix. Bounded current configuration/intake inspection and U.S. NIDDK/US Core source review inform the plan; measurement-profile lookup remains unresolved. Prior focused evidence is retained, not replayed. Documentation only; no application changes, fixtures, browser tests or execution dispatch.
 
 ## 2026-09-14 — Single execution plan strengthened with skill-test evidence
 
-At the founder's request, revision 2 of [the execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) combines the original scope/questions with selected dated research, code observations, field/action contracts and paired test cases from the seven-file evaluation. It keeps one checkpoint, preserves the shared matrix owner and original sequence, and separates unapproved scope additions. Test artifacts remain evidence, not required instructions. This is document integration, not fresh clinical-source review or application verification; no implementation was launched.
+At the founder's request, revision 2 of [the execution plan](../../records/superseded-plans/PATIENT_JOURNEY_EXECUTION_PLAN.md) combines the original scope/questions with selected dated research, code observations, field/action contracts and paired test cases from the seven-file evaluation. It keeps one checkpoint, preserves the shared matrix owner and original sequence, and separates unapproved scope additions. Test artifacts remain evidence, not required instructions. This is document integration, not fresh clinical-source review or application verification; no implementation was launched.
 
 ## 2026-09-14 — Detailed patient-journey execution plan saved
 
-Created the founder-requested [execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) from the supplied research conversation and its final clarifications. It preserves field/question/control detail, links the shared matrix, and adds bounded execution/acceptance and resume instructions. The earlier tracker summary was not the full assignment document; the isolated skill-test draft is not adopted. Exact source citations and current code reconciliation remain explicitly identified work, not newly claimed verification. No application changes or overnight dispatch.
+Created the founder-requested [execution plan](../../records/superseded-plans/PATIENT_JOURNEY_EXECUTION_PLAN.md) from the supplied research conversation and its final clarifications. It preserves field/question/control detail, links the shared matrix, and adds bounded execution/acceptance and resume instructions. The earlier tracker summary was not the full assignment document; the isolated skill-test draft is not adopted. Exact source citations and current code reconciliation remain explicitly identified work, not newly claimed verification. No application changes or overnight dispatch.
 
 ## 2026-09-14 — Full-journey dependency planning expanded
 
