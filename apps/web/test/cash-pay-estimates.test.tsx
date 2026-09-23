@@ -25,7 +25,7 @@ const issued: CashPayEstimate = {
     {
       id: 1,
       billing_service_id: 2,
-      service_offering_id: null,
+      service_offering_id: 17,
       quantity: "1.0",
       unit_amount: "75.0",
       expected_amount: "75.0",
@@ -71,8 +71,9 @@ describe("cash-pay estimate snapshots", () => {
     expect(html).toContain("USD 75.0");
     expect(html).toContain("USD 95.0");
     expect(html).toContain("Price catalog changed");
+    expect(html).toContain("Linked service offering #17");
     expect(html).toContain("Delivery not recorded");
-    expect(html).toContain("Selected delivery method: portal");
+    expect(html).toContain("Planned delivery method: portal");
     expect(estimateDeliveryLabel(correction)).toBe("Delivery not recorded");
   });
 

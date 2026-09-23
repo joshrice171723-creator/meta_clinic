@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-23 — Service offering to estimate link
+
+Estimate staff can select a published service offering paired with its billable price. The API rejects draft, retired, wrong-practice and mismatched new links; same-state create replay works, and correction may retain its predecessor's historical offering/price pair. Billing-only staff can read published offerings for the estimate form without managing the catalog. The focused Rails batch passed 13 runs/111 assertions, the estimate frontend file passed 2 tests, and TypeScript passed. Exact create replay after a catalog change remains open under the existing receipt contract. This is source and focused-test evidence only; offering selection, reload and delivery were not exercised in a browser, and no document was sent or payment collected. See [[Meta Clinic Implementation Tracker]].
+
 ## 2026-09-23 — Telehealth audio-only join continuity
 
 The patient device check's policy-permitted audio-only choice now carries through the Twilio media join and fresh-grant reconnect, so the browser does not request a camera for that path. Selected microphone and camera preferences also reach join/rejoin with browser fallback if a device disappears. Focused adapter, session and recovery tests passed 25/25; TypeScript passed. This is local source proof, not a connected patient/provider browser visit or two-party Twilio media verification. Provider readiness, credentials, policy and release acceptance remain open in [[Meta Clinic Implementation Tracker]].

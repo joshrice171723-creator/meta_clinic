@@ -24,6 +24,45 @@ class CashPayEstimateTest < ActiveSupport::TestCase
     assert_equal "issued", issued.status
   end
 
+  test "new estimate links a published offering and correction preserves its retired link" do
+    offering = published_offering
+    lines = [ { billing_service_id: @service.id, service_offering_id: offering.id, quantity: "1" } ]
+    estimate = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+      classification: "gfe_candidate", currency: "USD", request_key: "linked-offering", lines: lines)
+    assert_equal offering.id, estimate.lines.sole.service_offering_id
+
+    replay = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+      classification: "gfe_candidate", currency: "USD", request_key: "linked-offering", lines: lines)
+    assert_equal estimate.id, replay.id
+    offering.update!(status: "retired", retired_at: Time.current)
+    assert_raises(ArgumentError) do
+      Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+        classification: "gfe_candidate", currency: "USD", request_key: "retired-offering", lines: lines)
+    end
+
+    issued = Clinic::Billing::IssueCashPayEstimate.call(estimate: estimate, practice: @practice, actor: @actor,
+      policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "linked-offering-issue")
+    correction = Clinic::Billing::CorrectCashPayEstimate.call(predecessor: issued, practice: @practice, actor: @actor,
+      reason: "Revised estimate", lines: lines, request_key: "linked-offering-correct")
+    assert_equal offering.id, correction.lines.sole.service_offering_id
+  end
+
+  test "offering link rejects drafts mismatched prices and another practice" do
+    draft = @practice.service_offerings.create!(name: "Unpublished", billing_service: @service)
+    other_service = @practice.billing_services.create!(name: "Other price", unit_amount: "55.00", currency: "USD")
+    published = published_offering
+    other_practice = Clinic::Practice.create!(name: "Foreign estimate practice", timezone: "UTC")
+    foreign = other_practice.service_offerings.create!(name: "Foreign")
+
+    [ [ draft.id, @service.id ], [ published.id, other_service.id ], [ foreign.id, @service.id ] ].each_with_index do |(offering_id, service_id), index|
+      assert_raises(index == 2 ? ActiveRecord::RecordNotFound : ArgumentError) do
+        Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+          classification: "gfe_candidate", currency: "USD", request_key: "bad-offering-#{index}",
+          lines: [ { billing_service_id: service_id, service_offering_id: offering_id, quantity: "1" } ])
+      end
+    end
+  end
+
   test "correction snapshots current price and supersedes only when explicitly issued" do
     original = issued_estimate
     original_issued_at = original.issued_at
@@ -83,6 +122,16 @@ class CashPayEstimateTest < ActiveSupport::TestCase
   end
 
   private
+
+  def published_offering
+    site = @practice.sites.create!(code: "ESTIMATE", name: "Estimate site", status: "draft")
+    visit_type = @practice.visit_types.create!(code: "Estimate visit")
+    offering = @practice.service_offerings.create!(name: "Visit offering", billing_service: @service,
+      visit_type: visit_type, duration_minutes: 30, modality: "either", status: "draft")
+    offering.offering_sites.create!(practice: @practice, site: site)
+    offering.update!(status: "published", published_at: Time.current)
+    offering
+  end
 
   def correction_lines
     [ { billing_service_id: @service.id, quantity: "1", inclusions: "Visit" } ]

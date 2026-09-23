@@ -181,6 +181,36 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "billing estimate staff see published offerings only and cannot manage them" do
+    draft = @practice.service_offerings.create!(name: "Unpublished offering")
+    published = @practice.service_offerings.create!(name: "Published offering", visit_type: @visit_type,
+      billing_service: @billing_service, duration_minutes: 30, modality: "either")
+    published.offering_sites.create!(practice: @practice, site: @site)
+    published.update!(status: "published", published_at: Time.current)
+    @other_practice.service_offerings.create!(name: "Foreign offering")
+
+    biller = User.create!(email_address: "offering-biller@example.invalid", password: @password)
+    grant_permissions!(@practice.memberships.create!(user: biller), "billing.invoice_draft")
+    post "/api/session", params: { email_address: biller.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/service_offerings", headers: @headers
+    assert_response :success
+    assert_equal [ published.id ], response.parsed_body.fetch("service_offerings").map { |item| item.fetch("id") }
+    assert_equal false, response.parsed_body.fetch("can_write")
+    post "/api/clinic/service_offerings", params: { service_offering: {
+      request_key: "billing-cannot-create-offering", name: "Denied"
+    } }, headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    viewer = User.create!(email_address: "offering-no-access@example.invalid", password: @password)
+    @practice.memberships.create!(user: viewer)
+    post "/api/session", params: { email_address: viewer.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/service_offerings", headers: @headers
+    assert_response :forbidden
+    assert draft.persisted?
+  end
+
   test "eligible clinicians are practice scoped, editable, and optional for existing offerings" do
     clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic eligible clinician")
     other_user = User.create!(email_address: "foreign-offering-clinician@example.invalid", password: @password)

@@ -39,7 +39,16 @@ export type CashPayEstimate = {
   }[];
 };
 
-type DraftLine = { billing_service_id: number; quantity: string };
+type DraftLine = {
+  billing_service_id: number;
+  service_offering_id: number | null;
+  quantity: string;
+};
+type EstimateOffering = {
+  id: number;
+  name: string;
+  billing_service_id: number | null;
+};
 type EstimateAttempt = {
   path: string;
   body: { estimate: Record<string, unknown> };
@@ -116,6 +125,11 @@ export function CashPayEstimateSnapshot({
               {line.quantity} × {estimate.currency} {line.unit_amount} ={" "}
               {estimate.currency} {line.expected_amount}
             </Typography>
+            {line.service_offering_id && (
+              <Typography color="text.secondary" variant="caption">
+                Linked service offering #{line.service_offering_id}
+              </Typography>
+            )}
             {line.inclusions && (
               <Typography variant="caption">
                 Includes: {line.inclusions}
@@ -167,8 +181,10 @@ export function CashPayEstimates({
   const [revision, setRevision] = useState(0);
   const [services, setServices] = useState<BillingService[]>([]);
   const [serviceError, setServiceError] = useState("");
+  const [offerings, setOfferings] = useState<EstimateOffering[]>([]);
+  const [offeringError, setOfferingError] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([
-    { billing_service_id: 0, quantity: "1" },
+    { billing_service_id: 0, service_offering_id: null, quantity: "1" },
   ]);
   const [reason, setReason] = useState("");
   const [policyVersion, setPolicyVersion] = useState("");
@@ -231,6 +247,27 @@ export function CashPayEstimates({
   }, [canDraft]);
 
   useEffect(() => {
+    if (!canDraft) return;
+    const controller = new AbortController();
+    api<{ service_offerings: EstimateOffering[] }>(
+      "/api/clinic/service_offerings?status=published",
+      { signal: controller.signal },
+    )
+      .then((value) => {
+        if (!controller.signal.aborted) setOfferings(value.service_offerings);
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted)
+          setOfferingError(
+            reason instanceof Error
+              ? reason.message
+              : "Unable to load service offerings.",
+          );
+      });
+    return () => controller.abort();
+  }, [canDraft]);
+
+  useEffect(() => {
     if (!unknownOutcome) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
@@ -250,13 +287,14 @@ export function CashPayEstimates({
             .filter((line) => line.billing_service_id)
             .map((line) => ({
               billing_service_id: line.billing_service_id!,
+              service_offering_id: line.service_offering_id,
               quantity: line.quantity,
             }))
         : [];
     setLines(
       fromSnapshot.length
         ? fromSnapshot
-        : [{ billing_service_id: 0, quantity: "1" }],
+        : [{ billing_service_id: 0, service_offering_id: null, quantity: "1" }],
     );
     setReason("");
     setPolicyVersion("");
@@ -466,6 +504,12 @@ export function CashPayEstimates({
         {canDraft && (
           <Stack spacing={1.5}>
             {serviceError && <Alert severity="error">{serviceError}</Alert>}
+            {offeringError && (
+              <Alert severity="warning">
+                {offeringError} You can still prepare an estimate using a
+                service price.
+              </Alert>
+            )}
             <Typography component="h4" variant="subtitle1">
               {isCorrection ? "Prepare correction" : "Prepare a GFE candidate"}
             </Typography>
@@ -486,6 +530,7 @@ export function CashPayEstimates({
                           ? {
                               ...item,
                               billing_service_id: Number(event.target.value),
+                              service_offering_id: null,
                             }
                           : item,
                       ),
@@ -499,6 +544,47 @@ export function CashPayEstimates({
                       {service.name} · {service.currency} {service.unit_amount}
                     </MenuItem>
                   ))}
+                </TextField>
+                <TextField
+                  select
+                  label="Service offering (optional)"
+                  value={line.service_offering_id ?? ""}
+                  onChange={(event) =>
+                    setLines((current) =>
+                      current.map((item, at) =>
+                        at === index
+                          ? {
+                              ...item,
+                              service_offering_id: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            }
+                          : item,
+                      ),
+                    )
+                  }
+                  disabled={busy || unknownOutcome || !line.billing_service_id}
+                  sx={{ flex: 2 }}
+                >
+                  <MenuItem value="">No linked offering</MenuItem>
+                  {line.service_offering_id &&
+                    !offerings.some(
+                      (offering) => offering.id === line.service_offering_id,
+                    ) && (
+                      <MenuItem value={line.service_offering_id}>
+                        Previously linked offering #{line.service_offering_id}
+                      </MenuItem>
+                    )}
+                  {offerings
+                    .filter(
+                      (offering) =>
+                        offering.billing_service_id === line.billing_service_id,
+                    )
+                    .map((offering) => (
+                      <MenuItem key={offering.id} value={offering.id}>
+                        {offering.name}
+                      </MenuItem>
+                    ))}
                 </TextField>
                 <TextField
                   label="Quantity"
@@ -532,7 +618,11 @@ export function CashPayEstimates({
               onClick={() =>
                 setLines((current) => [
                   ...current,
-                  { billing_service_id: 0, quantity: "1" },
+                  {
+                    billing_service_id: 0,
+                    service_offering_id: null,
+                    quantity: "1",
+                  },
                 ])
               }
               disabled={busy || unknownOutcome}

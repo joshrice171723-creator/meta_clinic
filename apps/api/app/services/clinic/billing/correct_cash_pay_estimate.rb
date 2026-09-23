@@ -21,7 +21,11 @@ module Clinic
           if CashPayEstimate.where(practice: practice, supersedes_id: predecessor.id).exists?
             raise ArgumentError, "This estimate already has a correction draft. Review it before another correction."
           end
-          normalized = CreateCashPayEstimate.normalize_lines(practice: practice, currency: predecessor.currency, lines: lines)
+          historical_pairs = predecessor.lines.filter_map do |line|
+            [ line.service_offering_id, line.billing_service_id ] if line.service_offering_id
+          end
+          normalized = CreateCashPayEstimate.normalize_lines(practice: practice, currency: predecessor.currency,
+            lines: lines, historical_pairs: historical_pairs)
           estimate = CashPayEstimate.create!(practice: practice, patient: predecessor.patient,
             classification: "gfe_candidate", status: "draft", currency: predecessor.currency,
             supersedes: predecessor, revision: predecessor.revision + 1, correction_reason: reason)

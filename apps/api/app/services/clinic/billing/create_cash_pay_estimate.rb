@@ -22,7 +22,7 @@ module Clinic
         outcome.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
-      def self.normalize_lines(practice:, currency:, lines:)
+      def self.normalize_lines(practice:, currency:, lines:, historical_pairs: [])
         raise ArgumentError, "An estimate needs at least one service line." unless lines.is_a?(Array) && lines.any?
         lines.map do |item|
           values = item.to_h.symbolize_keys
@@ -31,6 +31,9 @@ module Clinic
           raise ArgumentError, "Selected services must use the estimate currency." unless service.currency == currency
           quantity = Money.decimal(values.fetch(:quantity), name: "quantity", positive: true)
           offering = values[:service_offering_id] && practice.service_offerings.find(values[:service_offering_id])
+          if offering && !historical_pairs.include?([ offering.id, service.id ])
+            raise ArgumentError, "Choose a published offering linked to the selected service." unless offering.published? && offering.billing_service_id == service.id
+          end
           { billing_service: service, service_offering: offering, quantity: quantity.to_s("F"), unit_amount: service.unit_amount.to_s("F"), expected_amount: Money.line_total(quantity: quantity, unit_amount: service.unit_amount), description_snapshot: [ service.name, service.description ].compact.join(" — "), inclusions: values[:inclusions].to_s.strip.presence, exclusions: values[:exclusions].to_s.strip.presence }
         end
       end
