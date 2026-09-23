@@ -14,6 +14,8 @@ Claim with `python bin/agent-resources claim --slot 1 --owner TASK_ID`. Run comm
 
 Use `status` to inspect readiness and assigned owner. Release requires the matching owner and a clean checkout. Stop owned services and preserve commits before release; the helper never resets or removes unfinished work. Claims are persistent and are not expired merely because a task is slow. To update a clean slot, claim it, deliberately choose a Git revision/branch, prewarm if lockfiles changed, then release when finished. Do not treat a ready slot as necessarily current main.
 
+The [2026-09-23 local timing record](../../records/progress/2026/09/2026-09-23-worktree-startup.md) separates first-time dependency and database preparation from a measured prepared-slot start.
+
 ## Passing evidence
 
 `bin/agent-check --reuse-evidence` can reuse passing frontend test evidence only. It fingerprints actual tracked/nonignored source, lockfiles, local `.env*`, dependency metadata, command, working-directory role, environment and Node/Ruby/Python versions. A changed source snapshot during execution prevents recording a pass. Matching environment is conservative: different paths/settings may prevent cross-worktree reuse. Secrets are hashed, not stored in evidence.

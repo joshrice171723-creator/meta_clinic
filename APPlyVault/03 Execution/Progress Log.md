@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-23 — Prepared worktree startup improved
+
+A third protected worktree slot was dependency-prewarmed and given its own persistent synthetic PostgreSQL database. A subsequent full local start took 42.24 seconds with current schema, then managed stop and slot release passed. Cold API readiness now allows 120 seconds, and Windows managed-stop checks the actual process exit state; the browser smoke can pass the required clinic location choice. The one-time pnpm hard-link step still took 7m46s despite zero downloads, and a faster SQL schema-load path was deferred because its snapshot differs from fresh migrations. This is local development tooling and a clinic Growth route smoke, not completion of T01–T10 patient-journey acceptance. [Timing and limits](../../records/progress/2026/09/2026-09-23-worktree-startup.md).
+
 ## 2026-09-23 — Repeatable Lightsail release path prepared
 
 Added a manual PowerShell release command with local Docker build/transfer by default and optional prebuilt GHCR images. Its host script checks the exact API/web revision and Nginx syntax, restore-checks both synthetic databases, requires a verified encrypted off-host recovery copy before migration, deploys matched images, checks hosted login/authorization and Sandbox behavior, and attempts image rollback on failure. The runbook names the one-time registry credential setup and recovery limits. Static script parsing, DPAPI round trip, portable Compose validation, harness verification and the scoped diff check passed. A Linux/amd64 API image for `54a03172` built and carried the matching revision label. The web build was stopped after a prolonged TypeScript step, so the complete local image pair and the new hosted release command remain unverified. GitHub Actions did not start the `9b006747` image-publish jobs because it reported an account payment or spending-limit restriction. The existing hosted `2e866283` application release was not changed by this tooling work.
