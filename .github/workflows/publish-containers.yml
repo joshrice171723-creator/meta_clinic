@@ -1,6 +1,8 @@
 name: Publish portable containers
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       confirm:
@@ -17,7 +19,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main' && inputs.confirm == 'publish-containers'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirm == 'publish-containers')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -44,8 +46,12 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          platforms: linux/amd64
           push: true
           provenance: true
           sbom: true
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/meta-clinic-${{ matrix.component }}:sha-${{ github.sha }}

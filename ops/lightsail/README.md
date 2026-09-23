@@ -11,12 +11,63 @@ during a routine release. The `184.194.129.57` address below records the initial
 deployment and is no longer the site's current destination.
 
 Deployment is manual: pushing `main` does not change the running website.
-Build both images from an archive of the same committed revision, preserve the
-host's existing secrets and Compose configuration, back up and restore-check
-both databases, migrate each with its own deployment credentials, then update
-the matched image references and restart API, worker, guided-demo and web.
-Verify image revisions and the public Sandbox creation, location switch and
-reset flows before reporting that a release is live.
+The `publish-containers.yml` workflow builds matched API/web images for every
+`main` commit. Use the release command below after both publish jobs succeed.
+It preserves the host's existing secrets and Compose configuration, backs up
+and restore-checks both databases, migrates each with its own credentials,
+then updates the matched image references and restarts API, worker,
+guided-demo and web. It verifies image revisions, login/authorization and the
+public Sandbox creation, location switch and reset flows.
+
+## Routine release from a Windows checkout
+
+One-time host setup: give root a GitHub Container Registry credential with
+`read:packages` only. Keep it in the existing root-only secrets directory,
+never in Git or a command argument. The release script uses this Docker config
+only to pull images; it pins the deployed references by digest. Set up the
+credential interactively on the host:
+
+```sh
+sudo install -d -m 700 /opt/meta-clinic/secrets/docker-config
+sudo -s
+export DOCKER_CONFIG=/opt/meta-clinic/secrets/docker-config
+read -rsp 'GHCR read token: ' GHCR_TOKEN; echo
+printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u joshrice171723-creator --password-stdin
+unset GHCR_TOKEN
+exit
+```
+
+Use a clean, pushed `main` checkout. Wait for both API and web jobs in
+`Publish portable containers` to pass for its exact commit. From PowerShell:
+
+```powershell
+./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>'
+```
+
+`release.ps1` confirms local `main` equals `origin/main`, uploads the current
+release and verifier scripts, and calls `release.sh prepare`. Preparation pulls
+both images, checks their commit labels and web Nginx syntax, restore-checks
+the ordinary and guided-demo PostgreSQL dumps, and bundles both dumps with
+the existing host secrets. The wrapper downloads that bundle, checks its SHA-256,
+encrypts it with Windows DPAPI CurrentUser in `Desktop/06 - Secure Files`,
+verifies a decrypt/hash round trip, and removes its plaintext local copy.
+Only then does it call `release.sh deploy` with the exact commit and bundle hash.
+The DPAPI archive requires this Windows user's profile to decrypt; retain the
+host backup and previous images for recovery.
+
+Deployment migrates both databases, reapplies ordinary runtime privileges,
+starts the matched images, and checks public routes, anonymous denial, password
+login and the isolated Sandbox API journey. It restores the previous image
+references if rollout or verification fails. Database migrations are **not**
+automatically reversed; stop and review the saved dumps before any database
+restore. Preparation failure leaves the current site running. If preparation
+fails after creating `/opt/meta-clinic/backups/release-<commit>`, inspect that
+directory before retrying the same commit. Do not delete it blindly.
+
+The release command does not merge branches, include uncommitted files, deploy
+on every push, or claim clinical/production readiness. Record the hosted result
+and exact revision in the Progress Log. For a site-only emergency rollback,
+use the saved `previous.env` and review schema compatibility first.
 
 ## Initial host record
 

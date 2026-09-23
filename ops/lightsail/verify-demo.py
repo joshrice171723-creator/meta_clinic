@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 import requests
 
-origin = 'https://184.194.129.57'
+origin = 'https://aimetaclinic.com'
 session = requests.Session()
 session.headers['Origin'] = origin
 def check(condition, label):
@@ -40,3 +40,33 @@ check(all(status == 200 for status, _ in outcomes), 'five concurrent context rea
 print('Concurrent read durations (seconds):', [duration for _, duration in outcomes])
 check(session.delete(origin + '/api/session', timeout=20).status_code in (200, 204), 'logout')
 check(session.get(origin + '/api/clinic/context', timeout=20).status_code in (401, 403, 404), 'clinic access denied after logout')
+
+# Exercise the public, isolated Sandbox through the same API prefix the iframe uses.
+sandbox = requests.Session()
+sandbox.headers['Origin'] = origin
+base = origin + '/api/demo-workspace'
+csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
+sandbox.headers['X-CSRF-Token'] = csrf
+visitor = {'name': 'Release Check', 'email': 'release-check@example.test', 'company': 'Synthetic demo'}
+check(sandbox.post(base + '/demo/visitor', json=visitor, timeout=20).status_code == 200,
+      'Sandbox visitor registration')
+csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
+sandbox.headers['X-CSRF-Token'] = csrf
+opened = sandbox.post(base + '/demo/lesson', json={'lesson_key': 'sandbox'}, timeout=30)
+check(opened.status_code == 201 and opened.json()['run']['sandbox'], 'Sandbox creation')
+clinic_id = opened.json()['run']['clinic']['id']
+context = sandbox.get(base + '/clinic/context', timeout=20).json()
+sites = context['sites']
+check(len(sites) >= 2, 'Sandbox has multiple sites')
+csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
+sandbox.headers['X-CSRF-Token'] = csrf
+selected = sandbox.patch(base + '/clinic/context', json={'site_id': sites[1]['id']}, timeout=20)
+check(selected.status_code == 200 and selected.json()['current_site']['id'] == sites[1]['id'],
+      'Sandbox location switch')
+check(sandbox.get(base + '/clinic/context', timeout=20).json()['current_site']['id'] == sites[1]['id'],
+      'Sandbox location persisted')
+csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
+sandbox.headers['X-CSRF-Token'] = csrf
+restarted = sandbox.post(base + '/demo/lesson', json={'lesson_key': 'sandbox', 'restart': True}, timeout=30)
+check(restarted.status_code == 201 and restarted.json()['run']['clinic']['id'] == clinic_id,
+      'Sandbox reset retained its clinic')
