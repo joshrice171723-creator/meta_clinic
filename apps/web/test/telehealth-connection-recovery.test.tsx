@@ -22,6 +22,11 @@ const media = vi.hoisted(() => ({
     leave: ReturnType<typeof vi.fn>;
     destroy: ReturnType<typeof vi.fn>;
   }>,
+  callbacks: [] as Array<{
+    onState: (
+      state: "joining" | "joined" | "reconnecting" | "ended" | "error",
+    ) => void;
+  }>,
 }));
 const terminateCapture = vi.hoisted(() => vi.fn());
 
@@ -59,8 +64,12 @@ vi.mock("react/jsx-runtime", () => ({
 vi.mock("../src/features/telehealth/api", () => api);
 vi.mock("../src/features/telehealth/mediaAdapter", () => ({
   createTelehealthMediaAdapter: vi.fn(
-    () =>
-      new (class {
+    (
+      _provider: "twilio" | "daily",
+      callbacks: (typeof media.callbacks)[number],
+    ) => {
+      media.callbacks.push(callbacks);
+      return new (class {
         join = vi.fn().mockResolvedValue(undefined);
         leave = vi.fn().mockResolvedValue(undefined);
         destroy = vi.fn().mockResolvedValue(undefined);
@@ -74,7 +83,8 @@ vi.mock("../src/features/telehealth/mediaAdapter", () => ({
         constructor() {
           media.instances.push(this);
         }
-      })(),
+      })();
+    },
   ),
 }));
 vi.mock("../src/features/scribe/ScribeRecordingProvider", () => ({
@@ -87,11 +97,21 @@ import { TelehealthSessionProvider } from "../src/features/telehealth/Telehealth
 
 type ProviderValue = {
   active: {
+    visitId: string;
     encounterId: number | null;
     patientId: number;
     returnPath: string;
     version: number;
   } | null;
+  callState:
+    | "idle"
+    | "joining"
+    | "joined"
+    | "reconnecting"
+    | "leaving"
+    | "ended"
+    | "error";
+  error: string | null;
   join: (input: {
     actor: "staff";
     visitId: string;
@@ -157,6 +177,7 @@ beforeEach(() => {
   hooks.states = [];
   hooks.refs = [];
   media.instances = [];
+  media.callbacks = [];
   vi.clearAllMocks();
   api.leaveStaffVisit.mockResolvedValue(undefined);
   api.leavePatientVisit.mockResolvedValue(undefined);
@@ -168,6 +189,40 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("telehealth connection recovery", () => {
+  it("recovers an unexpected provider disconnect with a fresh grant for the same encounter", async () => {
+    const provider = await joinedProvider();
+    media.callbacks[0].onState("ended");
+
+    const disconnected = renderProvider();
+    expect(disconnected.callState).toBe("error");
+    expect(disconnected.error).toContain("video call disconnected");
+    expect(disconnected.active).toMatchObject({
+      visitId: "visit-1",
+      encounterId: 73,
+      patientId: 41,
+    });
+
+    api.requestStaffJoinGrant.mockResolvedValueOnce(
+      grant("recovered-token", 9, "participant-2"),
+    );
+    await disconnected.retryConnection();
+
+    const recovered = renderProvider();
+    expect(media.instances[0].destroy).toHaveBeenCalledTimes(1);
+    expect(api.requestStaffJoinGrant).toHaveBeenLastCalledWith("visit-1", 7);
+    expect(media.instances[1].join).toHaveBeenCalledWith({
+      roomName: "apply-visit-1",
+      token: "recovered-token",
+    });
+    expect(recovered.active).toMatchObject({
+      visitId: "visit-1",
+      encounterId: 73,
+      patientId: 41,
+      returnPath: "/clinic/patients/41/encounters/73/telehealth",
+      version: 9,
+    });
+  });
+
   it("tears down old media before using a fresh grant for the same encounter", async () => {
     const provider = await joinedProvider();
     const oldAdapter = media.instances[0];

@@ -17,14 +17,9 @@ const TERMS_VERSION = "patient-portal-terms-v1";
 
 export function MembershipAccountActivation() {
   const [token] = useState(() => {
-    const value =
-      new URLSearchParams(window.location.hash.slice(1)).get("token") || "";
-    window.history.replaceState(
-      {},
-      "",
-      window.location.pathname + window.location.search,
+    return (
+      new URLSearchParams(window.location.hash.slice(1)).get("token") || ""
     );
-    return value;
   });
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -55,6 +50,11 @@ export function MembershipAccountActivation() {
             },
           },
         },
+      );
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + window.location.search,
       );
       window.location.assign(result.account.redirect_to);
     } catch (reason) {
