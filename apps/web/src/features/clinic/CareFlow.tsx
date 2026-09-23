@@ -685,20 +685,7 @@ function BookingFormEditor({
       visitModality: initialVisitModality,
     };
   }, [initialPatientId, initialVisitModality, initialSlot]);
-  const restoredDraft = initialDraft?.attempt
-    ? initialDraft.draft
-    : {
-        ...(initialDraft?.draft ?? defaultDraft),
-        ...(initialSlot
-          ? {
-              startsAt: defaultDraft.startsAt,
-              endsAt: defaultDraft.endsAt,
-              siteId: defaultDraft.siteId,
-              roomId: defaultDraft.roomId,
-              clinicianId: defaultDraft.clinicianId,
-            }
-          : {}),
-      };
+  const restoredDraft = initialDraft?.draft ?? defaultDraft;
   const boundBooking = bindBookingPatient(
     restoredDraft,
     initialDraft?.attempt ?? null,
@@ -986,32 +973,22 @@ function BookingFormEditor({
       );
   };
   const reset = () => {
-    const next = appointmentDefaults();
-    setBaseline({
-      patientId: "",
-      startsAt: next.startsAt,
-      endsAt: next.endsAt,
-      siteId: "",
-      roomId: "",
-      clinicianId: "",
-      visitTypeId: "",
-      serviceOfferingId: "",
-      reason: "",
-      visitModality: "in_person",
-    });
-    setPatientId("");
-    setReplacementPatientId(undefined);
-    setStartsAt(next.startsAt);
+    setBaseline(defaultDraft);
+    setPatientId(defaultDraft.patientId);
+    setReplacementPatientId(
+      defaultDraft.patientId ? Number(defaultDraft.patientId) : undefined,
+    );
+    setStartsAt(defaultDraft.startsAt);
     setReplacementPatient(undefined);
     setChangingPatient(false);
-    setEndsAt(next.endsAt);
-    setSiteId("");
-    setRoomId("");
-    setClinicianId("");
+    setEndsAt(defaultDraft.endsAt);
+    setSiteId(defaultDraft.siteId);
+    setRoomId(defaultDraft.roomId);
+    setClinicianId(defaultDraft.clinicianId);
     setVisitTypeId("");
     setServiceOfferingId("");
     setReason("");
-    setVisitModality("in_person");
+    setVisitModality(defaultDraft.visitModality ?? "in_person");
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
     setHasWorkingDraft(false);

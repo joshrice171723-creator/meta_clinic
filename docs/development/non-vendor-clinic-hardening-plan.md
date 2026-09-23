@@ -136,6 +136,8 @@ Each implementation agent must record: current commit; source paths inspected; e
 
 **Acceptance:** billing role can save a draft; undefined service price or missing GFE policy blocks only issuance; issued snapshot remains immutable after price change; invoice comparison works with synthetic data; unauthorized issue/export is denied; browser proves patient-safe presentation, retry, correction, and posted-invoice comparison.
 
+2026-09-23 U.S. source check: [CMS GFE provider FAQ, Part 1](https://www.cms.gov/cciio/resources/regulations-and-guidance/downloads/guidance-good-faith-estimates-faq.pdf) says a self-pay/uninsured GFE is furnished in written paper or electronic form by the individual's requested method. The current backend stores the issued snapshot, planned method and a separately audited staff-reported `delivered_at`; the clinic billing view labels the attestation and states that the app does not send the document. Focused API proof covers one recording, exact retry and reload. This does not verify the individual's requested method, generate a compliant document, transmit it, or establish legal applicability.
+
 ### 4. Typed laboratory-result semantics
 
 **Reuse and inspect first:** `PatientLabReports.tsx`, `LabReviewWorklist.tsx`, `LabFollowUpWorklist.tsx`, lab-report versions, result-review operations, and existing order/specimen/report tests.
@@ -152,6 +154,8 @@ Each implementation agent must record: current commit; source paths inspected; e
 | Review/follow-up | Received, reviewed, patient-contacted, and action-completed are separate attributed states. Corrections reopen affected review/work under LB-06/07. |
 
 **Acceptance:** source report with numeric, coded, text, and absent result examples persists/reloads; invalid code/unit pair is rejected without losing the source document; corrected result creates renewed review without closing patient contact; wrong patient/source mismatch is denied; browser displays provenance and unchanged original text.
+
+2026-09-23 U.S. source check: [US Core Laboratory Result Observation 9.0.0](https://hl7.org/fhir/us/core/StructureDefinition-us-core-observation-lab-definitions.html) preserves a test coding system and UCUM code for coded quantity units. The current history query now compares both fields in addition to source/name/code/display unit, and the browser history heading displays them; the focused integration test keeps otherwise identical results from differing systems or unit codes separate. This is a source-faithful comparison guard, not terminology validation, conversion, automated interpretation or full FHIR conformance. Typed-value validation and correction/review gates remain separately owned.
 
 ### 5. Administration-grade immunization records
 

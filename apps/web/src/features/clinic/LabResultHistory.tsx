@@ -25,7 +25,9 @@ type Source = {
   result_index: number;
   name: string;
   code: string | null;
+  code_system: string | null;
   unit: string | null;
+  unit_code: string | null;
   source_name: string | null;
 };
 
@@ -43,6 +45,7 @@ type ResultHistoryItem = {
   value_kind?: string;
   absent_reason?: string | null;
   unit: string | null;
+  unit_code: string | null;
   reference_range: string | null;
   flag: string | null;
   reviewed_at: string | null;
@@ -154,9 +157,15 @@ export function LabResultHistory({
                 <Typography variant="subtitle2">
                   {data.selected.name}
                   {data.selected.code ? ` (${data.selected.code})` : ""}
+                  {data.selected.code_system
+                    ? ` · ${data.selected.code_system}`
+                    : ""}
                   {data.selected.unit
                     ? ` · ${data.selected.unit}`
                     : " · Unit not recorded"}
+                  {data.selected.unit_code
+                    ? ` · UCUM ${data.selected.unit_code}`
+                    : ""}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {data.selected.source_name || "Source not recorded"}
@@ -166,8 +175,8 @@ export function LabResultHistory({
                   color="text.secondary"
                   sx={{ mt: 0.5 }}
                 >
-                  Results match this source, test name, code, and unit. Current
-                  noncancelled report versions only.
+                  Results match this source, test name, code/system, and
+                  unit/code. Current noncancelled report versions only.
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Specimen and method may differ; compare the reported ranges.

@@ -32,8 +32,12 @@ module Clinic
       def preserve_issued_snapshot
         return unless status_in_database.in?(%w[issued superseded])
 
-        changed = changes_to_save.keys - %w[status updated_at lock_version]
+        changed = changes_to_save.keys - %w[status delivered_at updated_at lock_version]
         errors.add(:base, "An issued estimate snapshot cannot be changed.") if changed.any?
+        if will_save_change_to_delivered_at? &&
+            (delivered_at_in_database.present? || status != "issued" || classification != "issued_gfe" || delivery_method.blank?)
+          errors.add(:delivered_at, "can only be recorded once for an issued GFE with a delivery method")
+        end
         if will_save_change_to_status? && !(status_in_database == "issued" && status == "superseded")
           errors.add(:status, "can only move from issued to superseded")
         end

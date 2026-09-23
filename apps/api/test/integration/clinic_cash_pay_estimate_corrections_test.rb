@@ -97,6 +97,29 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "written delivery is a separate attributed and replayable step" do
+    path = "/api/clinic/cash_pay_estimates/#{@original.id}/deliver"
+    payload = { estimate: { request_key: "api-delivery" } }
+    assert_nil @original.delivered_at
+
+    post path, params: payload, headers: csrf_headers, as: :json
+    assert_response :success
+    delivered_at = response.parsed_body.dig("estimate", "delivered_at")
+    assert delivered_at.present?
+    assert_equal "portal", response.parsed_body.dig("estimate", "delivery_method")
+    assert_equal 1, @practice.audit_events.where(action_code: "cash_pay_estimate.delivery.record").count
+
+    post path, params: payload, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal delivered_at, response.parsed_body.dig("estimate", "delivered_at")
+    post path, params: { estimate: { request_key: "second-delivery" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+
+    get "/api/clinic/cash_pay_estimates/#{@original.id}"
+    assert_response :success
+    assert_equal delivered_at, response.parsed_body.dig("estimate", "delivered_at")
+  end
+
   private
 
   def csrf_headers

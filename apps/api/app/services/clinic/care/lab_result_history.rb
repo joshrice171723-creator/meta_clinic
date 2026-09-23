@@ -61,7 +61,9 @@ module Clinic
           result_index: result_index,
           name: result.fetch("name").to_s.strip,
           code: normalized_optional(result["code"]),
+          code_system: normalized_optional(result["code_system"]),
           unit: normalized_optional(result["unit"]),
+          unit_code: normalized_optional(result["unit_code"]),
           source_name: report.source_name.to_s.strip
         }
       end
@@ -71,7 +73,9 @@ module Clinic
         normalized_fold(source_name) == normalized_fold(selected.fetch(:source_name)) &&
           normalized_fold(result["name"]) == normalized_fold(selected.fetch(:name)) &&
           normalized_optional(result["code"]) == selected.fetch(:code) &&
-          normalized_optional(result["unit"]) == selected.fetch(:unit)
+          normalized_optional(result["code_system"]) == selected.fetch(:code_system) &&
+          normalized_optional(result["unit"]) == selected.fetch(:unit) &&
+          normalized_optional(result["unit_code"]) == selected.fetch(:unit_code)
       end
       private_class_method :same_result?
 
@@ -92,6 +96,7 @@ module Clinic
           value_code: result["value_code"],
           value_code_system: result["value_code_system"],
           unit: normalized_optional(result["unit"]),
+          unit_code: normalized_optional(result["unit_code"]),
           reference_range: normalized_optional(result["reference_range"]),
           flag: normalized_optional(result["flag"]),
           reviewed_at: version.reviewed_at&.iso8601(6)

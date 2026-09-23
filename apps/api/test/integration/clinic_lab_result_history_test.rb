@@ -66,7 +66,9 @@ class ClinicLabResultHistoryTest < ActionDispatch::IntegrationTest
       "result_index" => 0,
       "name" => "White blood cells",
       "code" => "WBC",
+      "code_system" => nil,
       "unit" => "10^3/uL",
+      "unit_code" => nil,
       "source_name" => "Community Laboratory"
     }, payload.fetch("selected"))
     assert_equal({ "page" => 1, "per_page" => 2, "total" => 3 }, payload.fetch("pagination"))
@@ -86,6 +88,23 @@ class ClinicLabResultHistoryTest < ActionDispatch::IntegrationTest
     assert_equal 2, @practice.audit_events.where(
       action_code: "lab_report.result_history.read", outcome: "released"
     ).count
+  end
+
+  test "coded lab history keeps test systems and UCUM units distinct" do
+    source = result(name: "Synthetic analyte", code: "X1", value: "2", unit: "units")
+      .merge("code_system" => "urn:synthetic:system-a", "unit_code" => "mg")
+    selected = create_report(source_name: "Synthetic lab", collected_at: Time.utc(2026, 9, 6), result: source)
+    match = create_report(source_name: "Synthetic lab", collected_at: Time.utc(2026, 9, 5), result: source.merge("value" => "3"))
+    create_report(source_name: "Synthetic lab", collected_at: Time.utc(2026, 9, 4),
+      result: source.merge("value" => "wrong test", "code_system" => "urn:synthetic:system-b"))
+    create_report(source_name: "Synthetic lab", collected_at: Time.utc(2026, 9, 3),
+      result: source.merge("value" => "wrong unit", "unit_code" => "g"))
+
+    get history_path(selected), headers: @headers
+    assert_response :success
+    assert_equal "urn:synthetic:system-a", response.parsed_body.dig("selected", "code_system")
+    assert_equal "mg", response.parsed_body.dig("selected", "unit_code")
+    assert_equal [selected.id, match.id], response.parsed_body.fetch("items").map { |item| item.fetch("report_id") }
   end
 
   test "blank codes match only blank codes and stale tenant patient and capability targets are rejected" do

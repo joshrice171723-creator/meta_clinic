@@ -47,7 +47,7 @@ type EstimateAttempt = {
 
 export function estimateDeliveryLabel(estimate: CashPayEstimate) {
   return estimate.delivered_at
-    ? `Delivery recorded ${new Date(estimate.delivered_at).toLocaleString()}`
+    ? `Staff-reported delivery ${new Date(estimate.delivered_at).toLocaleString()}`
     : "Delivery not recorded";
 }
 
@@ -91,7 +91,7 @@ export function CashPayEstimateSnapshot({
         </Typography>
         {estimate.delivery_method && (
           <Typography color="text.secondary" variant="body2">
-            Selected delivery method: {estimate.delivery_method}
+            Planned delivery method: {estimate.delivery_method}
           </Typography>
         )}
         {estimate.policy_version && (
@@ -438,6 +438,31 @@ export function CashPayEstimates({
             when a correction is issued.
           </Typography>
         )}
+        {canDraft &&
+          selected?.status === "issued" &&
+          !selected.delivered_at && (
+            <Stack spacing={0.5} sx={{ alignItems: "flex-start" }}>
+              <Button
+                variant="outlined"
+                disabled={busy || unknownOutcome || !selected.delivery_method}
+                onClick={() =>
+                  void submit(
+                    {
+                      path: `/api/clinic/cash_pay_estimates/${selected.id}/deliver`,
+                      body: { estimate: { request_key: crypto.randomUUID() } },
+                    },
+                    "Staff-reported delivery saved for this issued GFE.",
+                  )
+                }
+              >
+                Record written delivery
+              </Button>
+              <Typography color="text.secondary" variant="caption">
+                Record only after providing the written copy by the planned
+                method. This action does not send the GFE.
+              </Typography>
+            </Stack>
+          )}
         {canDraft && (
           <Stack spacing={1.5}>
             {serviceError && <Alert severity="error">{serviceError}</Alert>}

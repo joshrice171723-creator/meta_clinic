@@ -2,7 +2,7 @@ module Clinic
   module Billing
     class CashPayEstimatesController < Clinic::ApiController
       before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show]
-      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create issue correct]
+      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create issue correct deliver]
 
       def index
         patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
@@ -42,6 +42,14 @@ module Clinic
           reason: required_string!(input[:reason], field: :reason, maximum: 500), lines: input[:lines]&.map(&:to_h),
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
         render json: { estimate: serialize(estimate) }, status: :created
+      end
+
+      def deliver
+        estimate = CashPayEstimate.where(practice: current_practice).find(requested_id!(params[:id], :id))
+        input = parameter_hash!(:estimate, %i[request_key])
+        delivered = RecordCashPayEstimateDelivery.call(estimate:, practice: current_practice, actor: current_user,
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
+        render json: { estimate: serialize(delivered) }
       end
 
       private

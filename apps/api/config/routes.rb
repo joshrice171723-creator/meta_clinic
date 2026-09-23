@@ -215,6 +215,7 @@ Rails.application.routes.draw do
     resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: %i[index show create] do
       post :issue, on: :member
       post :correct, on: :member
+      post :deliver, on: :member
     end
     resources :schedule_holds, controller: "scheduling/schedule_holds", only: :create do
       post :release, on: :member
