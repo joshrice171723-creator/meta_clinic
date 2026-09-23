@@ -746,7 +746,9 @@ export function ClinicSchedule({
       {!siteId ? (
         <Alert severity="info">Choose a location to view its schedule.</Alert>
       ) : !data ? (
-        <Typography role="status">Loading calendar…</Typography>
+        calendar.error ? null : (
+          <Typography role="status">Loading calendar…</Typography>
+        )
       ) : (
         <>
           {!data.capacity_configured && (

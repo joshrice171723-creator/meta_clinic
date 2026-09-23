@@ -233,6 +233,20 @@ fieldset {
     min-height: 40px;
   }
 }
+@media (max-width: 400px) {
+  .development-toolbar .development-date-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .development-toolbar .development-date-row > :not(style) ~ :not(style) {
+    margin-left: 0;
+    margin-top: 0;
+  }
+  .development-toolbar .development-date-input {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
 .preserve-lines {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

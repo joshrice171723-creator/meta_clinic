@@ -38,7 +38,7 @@ export type LabResult = {
   code_system?: string | null;
   code_version?: string | null;
   value: string;
-  value_kind?: "text" | "numeric" | "coded" | "absent";
+  value_kind?: "text" | "numeric" | "coded" | "boolean" | "range" | "absent";
   absent_reason?: string | null;
   value_code?: string | null;
   value_code_system?: string | null;
@@ -1221,6 +1221,7 @@ export function PatientLabReports({
                               {row.flag ? ` · ${row.flag}` : ""}
                             </Typography>
                             {(row.code ||
+                              row.value_code ||
                               row.unit_code ||
                               row.interpretation) && (
                               <Typography
@@ -1230,6 +1231,8 @@ export function PatientLabReports({
                                 {[
                                   row.code &&
                                     `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
+                                  row.value_code &&
+                                    `Value code: ${row.value_code}${row.value_code_system ? ` (${row.value_code_system})` : ""}`,
                                   row.unit_code &&
                                     `UCUM unit: ${row.unit_code}`,
                                   row.interpretation &&
@@ -1449,11 +1452,16 @@ export function PatientLabReports({
                       {row.reference_range || "Range not recorded"}
                       {row.flag ? ` · ${row.flag}` : ""}
                     </Typography>
-                    {(row.code || row.unit_code || row.interpretation) && (
+                    {(row.code ||
+                      row.value_code ||
+                      row.unit_code ||
+                      row.interpretation) && (
                       <Typography variant="caption" color="text.secondary">
                         {[
                           row.code &&
                             `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
+                          row.value_code &&
+                            `Value code: ${row.value_code}${row.value_code_system ? ` (${row.value_code_system})` : ""}`,
                           row.unit_code && `UCUM unit: ${row.unit_code}`,
                           row.interpretation &&
                             `Source interpretation: ${row.interpretation}`,
@@ -2138,6 +2146,13 @@ function LabForm({
                 required={row.value_kind !== "absent"}
                 disabled={row.value_kind === "absent"}
                 value={row.value}
+                helperText={
+                  row.value_kind === "boolean"
+                    ? "Enter true or false as supplied by the source."
+                    : row.value_kind === "range"
+                      ? "Enter two decimal bounds, such as 1.0-2.5."
+                      : undefined
+                }
                 onChange={(event) =>
                   result(index, { value: event.target.value })
                 }
@@ -2156,11 +2171,13 @@ function LabForm({
                   })
                 }
               >
-                {["text", "numeric", "coded", "absent"].map((value) => (
-                  <MenuItem key={value} value={value}>
-                    {optionLabel(value)}
-                  </MenuItem>
-                ))}
+                {["text", "numeric", "coded", "boolean", "range", "absent"].map(
+                  (value) => (
+                    <MenuItem key={value} value={value}>
+                      {optionLabel(value)}
+                    </MenuItem>
+                  ),
+                )}
               </TextField>
               <TextField
                 fullWidth

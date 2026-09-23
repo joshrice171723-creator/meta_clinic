@@ -44,7 +44,7 @@ Source review (2026-09-19): [NIDDK, Talking with Your Patients about Weight](htt
 
 Specialty notes use distinct templates and starting context. Backend verification exercises note completion and reset separately from browser evidence.
 
-## Hosted isolation — September 19
+## Hosted isolation â€” September 19
 
 The authorized AWS release keeps shared inventory/Scribe layout improvements. Tutorial requests use `/api/demo-workspace/` and a separate encrypted `_apply_demo_session` cookie; ordinary app sessions retain `_apply_session`. The prefix is handled locally and routed to a separate API process on AWS. Sample Scribe creation requires the current active Scribe lesson and its operator/clinic binding.
 
