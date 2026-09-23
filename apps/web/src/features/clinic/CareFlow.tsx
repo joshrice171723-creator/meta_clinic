@@ -79,6 +79,7 @@ import { MedicationAdministrations } from "./MedicationAdministrations";
 import { EncounterNoteSigning } from "./EncounterNoteSigning";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { EncounterFollowUpPanel } from "./EncounterFollowUp";
+import { PsychotherapyNotePanel } from "./PsychotherapyNotePanel";
 import {
   NurseEncounterWorkspace,
   NurseEncounterWorkspaceContent,
@@ -3606,7 +3607,7 @@ export function ProviderEncounterWorkflow({
   nurseWorkspaceResource?: NurseWorkspaceResource;
   facilityRoomsResource?: FacilityRoomsResource;
 }) {
-  const { capabilities } = useClinic();
+  const { capabilities, membership_id } = useClinic();
   const [recordedObservations, setRecordedObservations] = useState<
     Observation[]
   >([]);
@@ -4099,6 +4100,13 @@ export function ProviderEncounterWorkflow({
                     }
                   />
                   {noteWorkspace}
+                  {encounter.individual_therapy_visit &&
+                    capabilities.psychotherapy_notes && (
+                      <PsychotherapyNotePanel
+                        key={`${membership_id}:${patient.id}:${encounter.id}`}
+                        encounter={encounter}
+                      />
+                    )}
                   <VisitWrapUp
                     patient={patient}
                     encounter={encounter}

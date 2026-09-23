@@ -110,6 +110,7 @@ Rails.application.routes.draw do
       post "intake_ownership/claim", to: "scheduling/intake_ownership#claim"
       post "intake_ownership/release", to: "scheduling/intake_ownership#release"
       resources :notes, controller: "care/encounter_notes", only: %i[index create]
+      resource :psychotherapy_note, controller: "care/psychotherapy_notes", only: %i[show update]
       resources :medication_administrations, controller: "care/medication_administrations", only: %i[index create]
     end
       get "patients/:patient_id/encounters/:encounter_id/nurse_workspace", to: "care/nurse_workflow#show"

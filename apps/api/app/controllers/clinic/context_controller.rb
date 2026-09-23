@@ -56,6 +56,8 @@ module Clinic
           encounters_assign_provider: allowed?("encounters.assign_provider"),
           notes_read: allowed?("notes.read"),
           notes_sign: allowed?("notes.sign"),
+          psychotherapy_notes: current_ability.role_code_allowed?("clinician") &&
+            current_ability.allowed_permission?("notes.sign", any_site: true),
           observations_write: allowed?("observations.write"),
           clinical_records_read: allowed?("clinical_records.read"),
           medication_requests_write: allowed?("medication_requests.write"),

@@ -4,7 +4,7 @@ module Clinic
     class StarterProfile
       PRESETS = {
         "behavioral_health" => {
-          "id" => "behavioral-health", "version" => 2, "components" => [],
+          "id" => "behavioral-health", "version" => 3, "components" => [],
           "visits" => {
             "initial" => { "name" => "Behavioral health initial visit", "form_id" => "behavioral-health-initial-v1" },
             "follow_up" => { "name" => "Behavioral health follow-up", "form_id" => "behavioral-health-follow-up-v1" },
@@ -13,6 +13,7 @@ module Clinic
             "medication_follow_up" => { "name" => "Medication follow-up", "form_id" => "behavioral-health-follow-up-v1" },
             "refill_review" => { "name" => "Refill review", "form_id" => "behavioral-health-follow-up-v1" },
             "therapy_referral_coordination" => { "name" => "Therapy/referral coordination", "form_id" => "behavioral-health-follow-up-v1" },
+            "individual_therapy" => { "name" => "Individual therapy", "form_id" => "behavioral-health-follow-up-v1" },
             "urgent_clinical_follow_up" => { "name" => "Urgent clinical follow-up", "form_id" => "behavioral-health-follow-up-v1" }
           }
         },
@@ -26,17 +27,23 @@ module Clinic
         }
       }.freeze
 
-      def self.apply(practice:, clinic_type:, previous:)
+      def self.apply(practice:, clinic_type:, service_scope: [], previous:)
         recipe = PRESETS[clinic_type]
         return {} unless recipe
         return previous if previous.present? && previous["id"] != recipe.fetch("id")
 
-        visits = recipe.fetch("visits").transform_values do |definition|
+        selected_visits = recipe.fetch("visits").reject do |key, _definition|
+          key == "individual_therapy" && !service_scope.include?("individual_therapy")
+        end
+        visits = selected_visits.transform_values do |definition|
           visit = practice.visit_types.active.find_by(code: definition.fetch("name")) ||
             practice.visit_types.create!(code: definition.fetch("name"))
           definition.merge("visit_type_id" => visit.id)
         end
-        recipe.except("visits").merge(previous || {}).merge("visits" => (previous || {}).fetch("visits", {}).merge(visits))
+        recipe.except("visits").merge(previous || {}).merge(
+          "version" => recipe.fetch("version"),
+          "visits" => (previous || {}).fetch("visits", {}).merge(visits)
+        )
       end
 
       def self.form_id(practice:, appointment: nil)

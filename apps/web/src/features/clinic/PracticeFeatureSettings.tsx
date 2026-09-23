@@ -153,6 +153,13 @@ const services: Array<{
       "Custody, identity, storage, authorization, and administration controls.",
     readiness: "Implementation required",
   },
+  {
+    code: "individual_therapy",
+    label: "Individual therapy",
+    description:
+      "Available in the behavioral-health profile. Uses a separate originator-only private note; routine care stays in the ordinary chart.",
+    readiness: "Hardening required",
+  },
 ];
 
 const assessments: Array<{
@@ -454,6 +461,9 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
               const hardening = service.readiness === "Hardening required";
               const implementation =
                 service.readiness === "Implementation required";
+              const therapyRequiresBehavioralHealth =
+                service.code === "individual_therapy" &&
+                clinicType !== "behavioral_health";
               return (
                 <Paper
                   key={service.code}
@@ -472,8 +482,12 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
                     control={
                       <Checkbox
                         disabled={
-                          features.finalized &&
-                          !features.selected_services?.includes(service.code)
+                          (features.finalized &&
+                            !features.selected_services?.includes(
+                              service.code,
+                            )) ||
+                          (therapyRequiresBehavioralHealth &&
+                            !serviceScope.includes(service.code))
                         }
                         checked={serviceScope.includes(service.code)}
                         onChange={(event) =>

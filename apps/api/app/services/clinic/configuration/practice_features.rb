@@ -15,7 +15,7 @@ module Clinic
         telehealth external_lab_coordination minor_office_procedures in_office_medications
         vaccinations point_of_care_testing infusions controlled_medications patient_supplied_medications
         prescription_preparation take_home_fulfillment
-        psychiatric_evaluation adhd_evaluation medication_management therapy_referral_coordination
+        psychiatric_evaluation adhd_evaluation medication_management therapy_referral_coordination individual_therapy
         urgent_clinical_follow_up
       ].freeze
       ASSESSMENT_SCOPE = %w[
@@ -75,6 +75,9 @@ module Clinic
         normalized_scope = Array(service_scope).map { |code| code.to_s.strip }.uniq
         unsupported = normalized_scope - SERVICE_SCOPE
         raise ArgumentError, "service_scope includes unsupported services: #{unsupported.join(', ')}" if unsupported.any?
+        if normalized_scope.include?("individual_therapy") && normalized_type != "behavioral_health"
+          raise ArgumentError, "Individual therapy is currently available with the behavioral-health clinic profile."
+        end
 
         normalized_assessments = Array(assessment_scope).map { |code| code.to_s.strip }.uniq
         unsupported_assessments = normalized_assessments - ASSESSMENT_SCOPE
@@ -112,7 +115,7 @@ module Clinic
             raise ArgumentError, "This starter profile already has linked records. Request a scoped Meta Clinic review to change the specialty."
           end
           optional["starter_profile"] = StarterProfile.apply(practice: practice, clinic_type: normalized_type,
-            previous: old["starter_profile"])
+            service_scope: normalized_scope, previous: old["starter_profile"])
           optional["selected_services"] = current[:finalized] ? current[:selected_services] : normalized_scope
           optional["finalized_at"] = old["finalized_at"]
           optional["finalized_by_membership_id"] = old["finalized_by_membership_id"]

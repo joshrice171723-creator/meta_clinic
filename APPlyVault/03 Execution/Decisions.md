@@ -5,6 +5,10 @@ updated: 2026-09-22
 ---
 # Decisions
 
+## Behavioral-health private note scope — 2026-09-22
+
+**D-080 — founder direction in the active tracker task:** include a separate protected psychotherapy-note feature in BH-02. The first bounded local implementation uses an explicitly selected individual-therapy service and visit; group therapy was not selected. Keep ordinary treatment, medication, timing, diagnosis, plan, progress, and follow-up documentation in the ordinary chart. A private note is a separate originator-only record with no automatic portal, chart-summary, export, or other-clinician disclosure path. This local access design is deliberately narrower than a complete disclosure policy. Clinic-specific mental-health professional eligibility, consent/authorization, exceptional disclosure, retention, group scope, and professional/privacy review remain open and are not inferred from the local feature. The [tracker](<Meta Clinic Implementation Tracker.md>) owns implementation status and proof.
+
 ## Non-vendor workflow hardening and gated operations — 2026-09-22
 
 **D-079 — founder direction from the submitted decision response:** continue the shared, configurable U.S. weight-management reference journey as the non-vendor implementation focus. Complete the initial M1–M10 intake as structured, source-attributed information; keep patient/staff confirmation distinct from clinician review and signature (M11); use a separate, shorter, change-focused follow-up (M12); and create owned clarification or support work for unknown, conflicting, stale, declined, or incomplete information. Preserve drafts, corrections, incomplete encounters, original signed revisions, explicit answer states, and action-specific blocking: a missing safety-critical fact may block the dependent medication decision, but must not silently block unrelated coordination, education, scheduling, or record work.

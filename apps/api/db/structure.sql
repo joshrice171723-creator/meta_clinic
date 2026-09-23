@@ -30928,12 +30928,136 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 
 --
+--
+-- Name: clinic_psychotherapy_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_psychotherapy_notes (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    originator_membership_id bigint NOT NULL,
+    previous_revision_id bigint,
+    version_number integer NOT NULL,
+    request_key character varying(160) NOT NULL,
+    body text NOT NULL,
+    revision_reason text,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT psychotherapy_notes_revision_contract CHECK (((version_number > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(TRIM(BOTH FROM body)) > 0) AND (((version_number = 1) AND (previous_revision_id IS NULL) AND (revision_reason IS NULL)) OR ((version_number > 1) AND (previous_revision_id IS NOT NULL) AND (length(TRIM(BOTH FROM revision_reason)) > 0)))))
+);
+
+
+--
+-- Name: clinic_psychotherapy_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_psychotherapy_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_psychotherapy_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_psychotherapy_notes_id_seq OWNED BY public.clinic_psychotherapy_notes.id;
+
+
+--
+-- Name: clinic_psychotherapy_notes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes ALTER COLUMN id SET DEFAULT nextval('public.clinic_psychotherapy_notes_id_seq'::regclass);
+
+
+--
+-- Name: clinic_psychotherapy_notes clinic_psychotherapy_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes
+    ADD CONSTRAINT clinic_psychotherapy_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: psychotherapy_notes_exact_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_exact_request ON public.clinic_psychotherapy_notes USING btree (practice_id, originator_membership_id, request_key);
+
+
+--
+-- Name: psychotherapy_notes_originator_revision_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_originator_revision_id ON public.clinic_psychotherapy_notes USING btree (practice_id, encounter_id, originator_membership_id, id);
+
+
+--
+-- Name: psychotherapy_notes_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_practice_id ON public.clinic_psychotherapy_notes USING btree (practice_id, id);
+
+
+--
+-- Name: psychotherapy_notes_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_version ON public.clinic_psychotherapy_notes USING btree (practice_id, encounter_id, originator_membership_id, version_number);
+
+
+--
+-- Name: clinic_psychotherapy_notes clinic_psychotherapy_notes_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_psychotherapy_notes_immutable BEFORE DELETE OR UPDATE ON public.clinic_psychotherapy_notes FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_psychotherapy_notes psychotherapy_notes_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes
+    ADD CONSTRAINT psychotherapy_notes_encounter FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_psychotherapy_notes psychotherapy_notes_originator; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes
+    ADD CONSTRAINT psychotherapy_notes_originator FOREIGN KEY (practice_id, originator_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_psychotherapy_notes psychotherapy_notes_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes
+    ADD CONSTRAINT psychotherapy_notes_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_psychotherapy_notes psychotherapy_notes_predecessor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes
+    ADD CONSTRAINT psychotherapy_notes_predecessor FOREIGN KEY (practice_id, encounter_id, originator_membership_id, previous_revision_id) REFERENCES public.clinic_psychotherapy_notes(practice_id, encounter_id, originator_membership_id, id);
+
+
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260923010000'),
 ('20260922110000'),
 ('20260922100000'),
 ('20260922090000'),

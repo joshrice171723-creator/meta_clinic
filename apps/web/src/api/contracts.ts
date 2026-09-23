@@ -1001,6 +1001,7 @@ export type ClinicCapabilities = {
   notes_read: boolean;
   notes_write: boolean;
   notes_sign?: boolean;
+  psychotherapy_notes?: boolean;
   observations_write?: boolean;
   clinical_records_read?: boolean;
   medication_requests_write?: boolean;
@@ -1394,7 +1395,8 @@ export type ClinicServiceCode =
   | "point_of_care_testing"
   | "infusions"
   | "controlled_medications"
-  | "patient_supplied_medications";
+  | "patient_supplied_medications"
+  | "individual_therapy";
 export type ClinicAssessmentCode =
   | "depression"
   | "anxiety"
@@ -1519,6 +1521,7 @@ export type Encounter = {
 };
 export type EncounterDetail = Encounter & {
   visit_modality?: "in_person" | "video";
+  individual_therapy_visit?: boolean;
   participants: {
     id: string;
     membership_id: string;
