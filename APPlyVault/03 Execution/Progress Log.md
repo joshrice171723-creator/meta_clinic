@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Behavioral-health and therapy tracking correction
+
+Linked the existing behavioral-health journey and a focused clinic-workflow assignment brief from the canonical implementation tracker. BH-01 now names the partially implemented, locally evidenced behavioral-health/psychiatry journey and its remaining browser, recovery and clinical-policy proof; BH-02 names the unresolved direct-therapy scope and unavailable dedicated psychotherapy-note capability. These are specialty checkpoints across the existing 16 MC workflows, not additional platform parts or newly measured percentages. The shared dependency matrix, application source and clinical decisions did not change. Vault verification passed 43 notes/509 links; harness verification and 23 harness tests passed. Vault audit reported existing size/metadata advisories. No new browser, clinical, external or release acceptance is claimed.
+
 ## 2026-09-22 — Service-offering retirement and published-site guard
 
 Implemented a dedicated idempotent service-offering retirement operation with a recorded `retired_at`, blocked generic status bypass and later editing/republishing, and added a confirmation action to Clinic setup. A focused failure-first test exposed a published-offering site update that raised a database null-constraint error; site links now update atomically and a published offering cannot lose required eligible site/room coverage. The isolated synthetic browser published the existing draft, retired it, and showed the retained retired catalog row after reload without Edit or Publish actions. Focused Rails service-offering tests passed 5 runs/53 assertions; the session suite passed 11 runs/83 assertions; 16 focused client tests and the web production build passed. Appointment linkage, independent-service behavior, browser tenant denial, and professional/release gates remain open; this is not completion of MC-01.
