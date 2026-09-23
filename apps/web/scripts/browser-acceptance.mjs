@@ -34,9 +34,17 @@ const selectedProfiles = process.env.BROWSER_PROFILES
       .filter(Boolean)
   : profiles;
 const skipRoutes = process.env.BROWSER_SKIP_ROUTES === "1";
+const viewportWidth = Number(process.env.BROWSER_VIEWPORT_WIDTH || 390);
+if (
+  !Number.isInteger(viewportWidth) ||
+  viewportWidth < 320 ||
+  viewportWidth > 1920
+) {
+  throw new Error("BROWSER_VIEWPORT_WIDTH must be an integer from 320 to 1920");
+}
 
 const routes = [
-  ["/clinic", "Tracking Board"],
+  ["/clinic", ["Tracking Board", "Operations"]],
   ["/clinic/schedule", "Schedule"],
   ["/clinic/work", "Patient Flow"],
   ["/clinic/billing", "Billing"],
@@ -87,6 +95,7 @@ const outputPath = resolve(
 );
 const failures = [];
 const results = {
+  viewport_width: viewportWidth,
   profiles: [],
   action_denials: [],
   site_boundaries: [],
@@ -176,14 +185,23 @@ async function inspectRoute(page, [path, expected]) {
   try {
     await page.waitForFunction(
       (expectedHeading) => {
-        const text = (document.querySelector("main")?.textContent || "").trim();
+        const text = (document.querySelector("main")?.innerText || "").trim();
+        const headings = Array.isArray(expectedHeading)
+          ? expectedHeading
+          : [expectedHeading];
+        const loading =
+          /Loading(?:…| this page| work inbox| calendar)|Updating work queues…/i.test(
+            text,
+          );
         return (
-          text.includes(expectedHeading) ||
-          !/^Loading(?:…| this page)/.test(text)
+          (!loading && headings.some((heading) => text.includes(heading))) ||
+          /permission|not authorized|access denied|no access|does not include access|try again/i.test(
+            text,
+          )
         );
       },
-      { timeout: 10000 },
       expected,
+      { timeout: 20000 },
     );
   } catch {
     // Preserve a persistent loading/error state for the acceptance result.
@@ -191,7 +209,8 @@ async function inspectRoute(page, [path, expected]) {
   const details = await page.evaluate(
     ({ expected }) => {
       const main = document.querySelector("main");
-      const text = main?.textContent?.replace(/\s+/g, " ").trim() || "";
+      const text = main?.innerText?.replace(/\s+/g, " ").trim() || "";
+      const headings = Array.isArray(expected) ? expected : [expected];
       const interactive = [
         ...document.querySelectorAll(
           "button,a,input,select,textarea,[tabindex]",
@@ -221,11 +240,38 @@ async function inspectRoute(page, [path, expected]) {
         const enclosingLabel = node.closest("label")?.textContent?.trim();
         return !label && !labelledBy && !associated && !enclosingLabel;
       });
+      const overflowingElements = [...document.querySelectorAll("body *")]
+        .filter((node) => {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return (
+            rect.width > 0 &&
+            rect.right > window.innerWidth + 1 &&
+            style.display !== "none" &&
+            style.visibility !== "hidden"
+          );
+        })
+        .slice(0, 8)
+        .map((node) => ({
+          tag: node.tagName.toLowerCase(),
+          class_name: typeof node.className === "string" ? node.className : "",
+          label: (node.getAttribute("aria-label") || node.textContent || "")
+            .trim()
+            .slice(0, 80),
+          right: Math.round(node.getBoundingClientRect().right),
+        }));
       return {
-        contains_expected_heading: text.includes(expected),
+        contains_expected_heading: headings.some((heading) =>
+          text.includes(heading),
+        ),
+        loading:
+          /Loading(?:…| this page| work inbox| calendar)|Updating work queues…/i.test(
+            text,
+          ),
         text_sample: text.slice(0, 320),
         horizontal_overflow:
           document.documentElement.scrollWidth > window.innerWidth + 1,
+        overflowing_elements: overflowingElements,
         interactive_count: interactive.length,
         unnamed_interactive_count: unnamed.length,
         has_main: Boolean(main),
@@ -328,7 +374,7 @@ async function main() {
   });
   try {
     const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
+      viewport: { width: viewportWidth, height: 844 },
     });
     const page = await context.newPage();
     for (const profile of selectedProfiles) {
@@ -336,6 +382,7 @@ async function main() {
       const account = await login(page, profile);
       const routeResults = [];
       for (const route of skipRoutes ? [] : routes) {
+        process.stderr.write(`Checking ${profile} ${route[0]}\n`);
         try {
           const details = await inspectRoute(page, route);
           routeResults.push({ route: route[0], ...details });
@@ -362,11 +409,12 @@ async function main() {
           continue;
         }
         const deniedState =
-          /permission|not authorized|access denied|unavailable|blocked|no access|reload|try again|loading this page/i.test(
+          /permission|not authorized|access denied|no access|does not include access|try again/i.test(
             routeResult.text_sample,
           );
         const routePassed =
-          routeResult.contains_expected_heading || deniedState;
+          (routeResult.contains_expected_heading && !routeResult.loading) ||
+          deniedState;
         const passed =
           routePassed &&
           !routeResult.horizontal_overflow &&
@@ -374,14 +422,23 @@ async function main() {
         results.accessibility.push({
           profile,
           ...routeResult,
-          state: routeResult.contains_expected_heading
-            ? "content"
-            : "explicit-error-or-denial",
+          state:
+            routeResult.contains_expected_heading && !routeResult.loading
+              ? "content"
+              : "explicit-error-or-denial",
           passed,
         });
         if (!routePassed)
           failures.push(
             `${profile} ${routeResult.route} did not render its permitted heading or an explicit denial state`,
+          );
+        if (routeResult.horizontal_overflow)
+          failures.push(
+            `${profile} ${routeResult.route} overflows the viewport`,
+          );
+        if (routeResult.unnamed_interactive_count > 0)
+          failures.push(
+            `${profile} ${routeResult.route} has ${routeResult.unnamed_interactive_count} unnamed interactive controls`,
           );
       }
       await checkActions(page, account, clinicContext);

@@ -62,6 +62,21 @@ function options(argv) {
   return result;
 }
 
+async function waitForRouteDataState(page, route) {
+  if (new URL(route, base).pathname !== "/clinic/work") return;
+  await page.waitForFunction(
+    () => {
+      const text = document.querySelector("main")?.textContent || "";
+      return (
+        !text.includes("Updating work queues…") &&
+        !text.includes("Loading work inbox…")
+      );
+    },
+    undefined,
+    { timeout: 35_000 },
+  );
+}
+
 const selected = options(process.argv.slice(2));
 if (selected.help) {
   help();
@@ -121,6 +136,31 @@ try {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const failures = [];
+  const requestStarts = new Map();
+  const apiOutcomes = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/"))
+      requestStarts.set(request, Date.now());
+  });
+  page.on("response", (response) => {
+    const request = response.request();
+    if (!requestStarts.has(request)) return;
+    apiOutcomes.push({
+      path: new URL(response.url()).pathname,
+      status: response.status(),
+      duration_ms: Date.now() - requestStarts.get(request),
+    });
+    requestStarts.delete(request);
+  });
+  page.on("requestfailed", (request) => {
+    if (!requestStarts.has(request)) return;
+    apiOutcomes.push({
+      path: new URL(request.url()).pathname,
+      failure: request.failure()?.errorText || "request failed",
+      duration_ms: Date.now() - requestStarts.get(request),
+    });
+    requestStarts.delete(request);
+  });
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") failures.push(message.text());
@@ -205,9 +245,28 @@ try {
       .getByRole("option", { name: account.label, exact: true })
       .click();
     await page.getByRole("button", { name: "Log in", exact: true }).click();
-    await page.waitForURL((url) => url.pathname !== "/login", {
-      timeout: 15000,
-    });
+    try {
+      await page.waitForURL((url) => url.pathname !== "/login", {
+        // The client allows 30 seconds for an explicit API outcome.
+        timeout: 35_000,
+        waitUntil: "domcontentloaded",
+      });
+    } catch (error) {
+      const visibleError = await page
+        .getByRole("alert")
+        .allTextContents()
+        .catch(() => []);
+      fail(
+        `visible login did not navigate: ${JSON.stringify({
+          current_path: new URL(page.url()).pathname,
+          alerts: visibleError,
+          api_outcomes: apiOutcomes,
+          pending_api: [...requestStarts.keys()].map(
+            (request) => new URL(request.url()).pathname,
+          ),
+        })}; ${error.message}`,
+      );
+    }
     return { status: 201, body: {}, profile: account.id };
   };
   const login = selected.uiLogin
@@ -299,6 +358,18 @@ try {
       .locator("main h1:visible, main [role=heading]:visible")
       .first()
       .waitFor({ state: "visible", timeout: 15000 });
+    try {
+      await waitForRouteDataState(page, route);
+    } catch (error) {
+      fail(
+        `${route} did not settle: ${JSON.stringify({
+          api_outcomes: apiOutcomes,
+          pending_api: [...requestStarts.keys()].map(
+            (request) => new URL(request.url()).pathname,
+          ),
+        })}; ${error.message}`,
+      );
+    }
     const routeScreenshot = selected.matrix
       ? screenshot.replace(
           /\.png$/,
@@ -308,10 +379,30 @@ try {
     await page.screenshot({ path: routeScreenshot, fullPage: true });
     if (failures.length)
       fail(`${route} reported errors: ${[...new Set(failures)].join(" | ")}`);
-    observations.push({ route, screenshot: routeScreenshot });
+    const dataState =
+      new URL(route, base).pathname === "/clinic/work"
+        ? await page.evaluate(() => {
+            const main = document.querySelector("main");
+            const text = main?.textContent || "";
+            return {
+              settled:
+                !text.includes("Updating work queues…") &&
+                !text.includes("Loading work inbox…"),
+              source_warning: text.includes(
+                "Some inbox sources are unavailable",
+              ),
+              item_count: Number(/(\d+) items? shown/.exec(text)?.[1] ?? 0),
+            };
+          })
+        : undefined;
+    observations.push({
+      route,
+      screenshot: routeScreenshot,
+      data_state: dataState,
+    });
   }
   process.stdout.write(
-    `${JSON.stringify({ routes: observations, profile: login.profile, portal: selected.portal, viewport: selected.viewport })}\n`,
+    `${JSON.stringify({ routes: observations, profile: login.profile, portal: selected.portal, viewport: selected.viewport, api_outcomes: apiOutcomes })}\n`,
   );
   await context.close();
 } finally {

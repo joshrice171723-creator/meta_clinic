@@ -477,7 +477,9 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     request[:lab_report].merge!(status: "preliminary", results: [
       { name: "Synthetic measurement", code: "1234-5", code_system: "http://loinc.org", code_version: "synthetic", value: "1.2500", value_kind: "numeric", unit: "mg/L", unit_code: "mg/L", interpretation: "H", reference_range: "Source range" },
       { name: "Synthetic coded finding", value: "Source supplied finding", value_kind: "coded", value_code: "LOCAL-1", value_code_system: "urn:synthetic:lab" },
-      { name: "Synthetic pending analyte", value: "", value_kind: "absent", absent_reason: "Specimen processing continues" }
+      { name: "Synthetic pending analyte", value: "", value_kind: "absent", absent_reason: "Specimen processing continues" },
+      { name: "Synthetic boolean finding", value: "true", value_kind: "boolean" },
+      { name: "Synthetic interval", value: "1.0-2.5", value_kind: "range" }
     ])
     post reports_path, params: request, headers: csrf_headers, as: :json
     assert_response :created
@@ -487,6 +489,8 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert_equal [ "http://loinc.org", "mg/L", "H" ], version.results.first.values_at("code_system", "unit_code", "interpretation")
     assert_equal "urn:synthetic:lab", version.results.second.fetch("value_code_system")
     assert_equal ["", "Specimen processing continues"], version.results.third.values_at("value", "absent_reason")
+    assert_equal ["boolean", "true"], version.results.fourth.values_at("value_kind", "value")
+    assert_equal ["range", "1.0-2.5"], version.results.fifth.values_at("value_kind", "value")
 
     body = { lab_action: { kind: "acknowledged", request_key: "journey-partial-ack" } }
     assert_difference "Clinic::Care::LabReportAction.count", 1 do
