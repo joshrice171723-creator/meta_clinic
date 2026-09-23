@@ -12,6 +12,7 @@ export type TelehealthMediaAdapterCallbacks = {
 export type TelehealthMediaJoinInput = {
   roomName: string;
   token: string;
+  videoEnabled?: boolean;
 };
 
 export interface TelehealthMediaAdapter {

@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-22
+updated: 2026-09-23
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-23 — Telehealth audio-only join continuity
+
+The patient device check's policy-permitted audio-only choice now carries through the Twilio media join and fresh-grant reconnect, so the browser does not request a camera for that path. Focused adapter, session and recovery tests passed 24/24; TypeScript passed. This is local source proof, not a connected patient/provider browser visit or two-party Twilio media verification. Provider readiness, credentials, policy and release acceptance remain open in [[Meta Clinic Implementation Tracker]].
 
 ## 2026-09-22 — Individual therapy and separate private-note source slice
 

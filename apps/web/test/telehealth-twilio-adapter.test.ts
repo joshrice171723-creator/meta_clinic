@@ -305,6 +305,25 @@ describe("Twilio media lifecycle", () => {
     ]);
   });
 
+  it("joins an audio-only visit without requesting a camera", async () => {
+    const fixture = roomFixture();
+    twilio.connect.mockReturnValueOnce(
+      cancelable(Promise.resolve(fixture.room)),
+    );
+    const adapter = new TwilioMediaAdapter(callbacks());
+
+    await adapter.join({
+      roomName: "apply-visit-1",
+      token: "ephemeral-token",
+      videoEnabled: false,
+    });
+
+    expect(twilio.connect).toHaveBeenCalledWith(
+      "ephemeral-token",
+      expect.objectContaining({ audio: true, video: false }),
+    );
+  });
+
   it("stops all local media immediately when Twilio disconnects", async () => {
     const { events, fixture } = await joinedAdapter();
 

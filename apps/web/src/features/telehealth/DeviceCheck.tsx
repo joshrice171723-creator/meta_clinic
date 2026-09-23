@@ -94,7 +94,11 @@ export function DeviceCheck({
             .catch(() => undefined)
         }
       >
-        {check.running ? "Try again" : "Enable camera and microphone"}
+        {check.running
+          ? "Try again"
+          : audioOnly
+            ? "Enable microphone"
+            : "Enable camera and microphone"}
       </Button>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <FormControl fullWidth disabled={!check.running}>
@@ -198,12 +202,20 @@ export function DeviceCheck({
         }
         label="I can hear the test sound"
       />
-      {allowAudioOnly && results.camera !== "passed" && (
+      {allowAudioOnly && (
         <FormControlLabel
           control={
             <Checkbox
               checked={audioOnly}
-              onChange={(event) => setAudioOnly(event.target.checked)}
+              disabled={busy || check.requesting}
+              onChange={(event) => {
+                const selected = event.target.checked;
+                setAudioOnly(selected);
+                if (check.running || check.error)
+                  void check
+                    .enable(audioDevice, videoDevice, !selected)
+                    .catch(() => undefined);
+              }}
             />
           }
           label="Continue with audio only"

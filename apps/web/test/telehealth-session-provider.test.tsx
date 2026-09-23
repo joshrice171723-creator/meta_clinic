@@ -181,6 +181,7 @@ type ProviderHarnessValue = {
     patientName: string;
     encounterId: number | null;
     returnPath: string;
+    audioOnly?: boolean;
   }) => Promise<void>;
   reconcileAuthorization: (
     visit: TelehealthVisit,
@@ -281,6 +282,7 @@ describe("persistent telehealth session authorization", () => {
     expect(adapter.join).toHaveBeenCalledWith({
       roomName: "apply-visit-1",
       token: "ephemeral-provider-token",
+      videoEnabled: true,
     });
     expect(active).toMatchObject({
       visitId: "visit-1",

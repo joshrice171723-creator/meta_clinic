@@ -113,13 +113,14 @@ type ProviderValue = {
     | "error";
   error: string | null;
   join: (input: {
-    actor: "staff";
+    actor: "staff" | "patient";
     visitId: string;
     version: number;
     patientId: number;
     patientName: string;
-    encounterId: number;
+    encounterId: number | null;
     returnPath: string;
+    audioOnly?: boolean;
   }) => Promise<void>;
   retryConnection: () => Promise<void>;
 };
@@ -213,6 +214,7 @@ describe("telehealth connection recovery", () => {
     expect(media.instances[1].join).toHaveBeenCalledWith({
       roomName: "apply-visit-1",
       token: "recovered-token",
+      videoEnabled: true,
     });
     expect(recovered.active).toMatchObject({
       visitId: "visit-1",
@@ -247,6 +249,7 @@ describe("telehealth connection recovery", () => {
     expect(freshAdapter.join).toHaveBeenCalledWith({
       roomName: "apply-visit-1",
       token: "fresh-token",
+      videoEnabled: true,
     });
     expect(recovered.active).toMatchObject({
       encounterId: 73,
@@ -279,6 +282,42 @@ describe("telehealth connection recovery", () => {
     expect(media.instances[1].join).toHaveBeenCalledWith({
       roomName: "apply-visit-1",
       token: "fresh-token",
+      videoEnabled: true,
+    });
+  });
+
+  it("preserves the patient's audio-only choice after an unexpected disconnect", async () => {
+    api.requestPatientJoinGrant.mockResolvedValueOnce(
+      grant("audio-token", 7, "patient-participant"),
+    );
+    const provider = renderProvider();
+    await provider.join({
+      actor: "patient",
+      visitId: "visit-1",
+      version: 6,
+      patientId: 41,
+      patientName: "Patient",
+      encounterId: 73,
+      returnPath: "/patient-portal/telehealth/visit-1",
+      audioOnly: true,
+    });
+    expect(media.instances[0].join).toHaveBeenCalledWith({
+      roomName: "apply-visit-1",
+      token: "audio-token",
+      videoEnabled: false,
+    });
+
+    media.callbacks[0].onState("ended");
+    api.requestPatientJoinGrant.mockResolvedValueOnce(
+      grant("rejoin-token", 9, "patient-participant"),
+    );
+    await renderProvider().retryConnection();
+
+    expect(api.requestPatientJoinGrant).toHaveBeenLastCalledWith("visit-1", 7);
+    expect(media.instances[1].join).toHaveBeenCalledWith({
+      roomName: "apply-visit-1",
+      token: "rejoin-token",
+      videoEnabled: false,
     });
   });
 

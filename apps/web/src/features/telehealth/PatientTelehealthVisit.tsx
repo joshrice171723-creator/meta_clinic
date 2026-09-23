@@ -537,6 +537,10 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
           visit.appointment.patient.display_name,
         encounterId: visit.encounter_id,
         returnPath: window.location.pathname,
+        audioOnly: Boolean(
+          visit.policy.allow_audio_only &&
+          visit.preparation.device_results?.audio_only_requested,
+        ),
       });
     } catch (reason) {
       if (mountedRef.current)

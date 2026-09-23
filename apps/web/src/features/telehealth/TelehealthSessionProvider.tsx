@@ -42,12 +42,13 @@ export type TelehealthActiveSession = {
   encounterId: number | null;
   returnPath: string;
   roomExpiresAt: string | null;
+  audioOnly: boolean;
 };
 
 type TelehealthJoinInput = Omit<
   TelehealthActiveSession,
-  "roomExpiresAt" | "participantId" | "providerSubjectId"
->;
+  "roomExpiresAt" | "participantId" | "providerSubjectId" | "audioOnly"
+> & { audioOnly?: boolean };
 
 type TelehealthAuthorizationStatus =
   "idle" | "checking" | "confirmed" | "stale";
@@ -462,6 +463,7 @@ export function TelehealthSessionProvider({
         if (!adapter) return;
         const session: TelehealthActiveSession = {
           ...input,
+          audioOnly: input.audioOnly ?? false,
           version: response.version,
           participantId: grant.participant.id,
           providerSubjectId: grant.participant.provider_subject_id,
@@ -474,6 +476,7 @@ export function TelehealthSessionProvider({
         await adapter.join({
           roomName: grant.room_name,
           token: grant.token,
+          videoEnabled: !session.audioOnly,
         });
         grant = undefined;
       } catch (reason) {
@@ -554,6 +557,7 @@ export function TelehealthSessionProvider({
       await adapter.join({
         roomName: grant.room_name,
         token: grant.token,
+        videoEnabled: !refreshed.audioOnly,
       });
       grant = undefined;
     } catch (reason) {
