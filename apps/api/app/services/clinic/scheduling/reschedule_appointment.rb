@@ -64,7 +64,7 @@ module Clinic
             next_room_id = nil if modality == "video" || (appointment.room && appointment.room.site_id != next_site&.id)
             next_room = next_room_id && appointment.practice.rooms.find(next_room_id)
             snapshot = next_offering && BookAppointment.offering_snapshot!(offering: next_offering,
-              practice: appointment.practice, site: next_site, room: next_room, visit_type: next_visit_type,
+              practice: appointment.practice, site: next_site, clinician: next_clinician, room: next_room, visit_type: next_visit_type,
               visit_modality: modality, starts_at: starts_at, ends_at: ends_at)
             CapacityGuard.check!(practice: appointment.practice, clinician: next_clinician, site: next_site, room: next_room,
               patient: appointment.patient, starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id)

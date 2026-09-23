@@ -46,6 +46,7 @@ type ServiceOffering = {
   requires_room: boolean;
   status: "draft" | "published" | "retired";
   eligible_site_ids: number[];
+  eligible_clinician_ids: number[];
   lock_version: number;
 };
 
@@ -69,6 +70,7 @@ function emptyForm(): FormState {
     booking_required: true,
     requires_room: false,
     eligible_site_ids: [],
+    eligible_clinician_ids: [],
     status: "draft",
   };
 }
@@ -82,10 +84,11 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
     data,
     error: loadError,
     refresh,
-  } = useResource<{ service_offerings: ServiceOffering[]; can_write: boolean }>(
-    "/api/clinic/service_offerings",
-    { retainDataOnRefresh: true },
-  );
+  } = useResource<{
+    service_offerings: ServiceOffering[];
+    can_write: boolean;
+    eligible_clinicians: { id: number; name: string }[];
+  }>("/api/clinic/service_offerings", { retainDataOnRefresh: true });
   const { data: sites } = useResource<{ sites: ClinicSite[] }>(
     "/api/clinic/facilities?type=sites&per_page=100",
   );
@@ -168,6 +171,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       booking_required: form.booking_required,
       requires_room: form.requires_room,
       site_ids: form.eligible_site_ids,
+      clinician_ids: form.eligible_clinician_ids,
       ...(creating
         ? {}
         : { lock_version: (dialog as ServiceOffering).lock_version }),
@@ -334,6 +338,9 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   <Typography variant="body2" color="text.secondary">
                     {offering.eligible_site_ids.length} eligible site
                     {offering.eligible_site_ids.length === 1 ? "" : "s"}
+                    {offering.eligible_clinician_ids.length > 0
+                      ? ` · ${offering.eligible_clinician_ids.length} eligible clinician${offering.eligible_clinician_ids.length === 1 ? "" : "s"}`
+                      : " · All schedulable clinicians"}
                     {offering.requires_room ? " · Room required" : ""}
                   </Typography>
                 </TableCell>
@@ -556,6 +563,36 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                       />
                     }
                     label={site.name ?? site.code}
+                  />
+                ))}
+              </Box>
+              <Box>
+                <Typography variant="subtitle2">Eligible clinicians</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Leave all unchecked to allow any clinician who is otherwise
+                  schedulable at an eligible site.
+                </Typography>
+                {data.eligible_clinicians.map((clinician) => (
+                  <FormControlLabel
+                    key={clinician.id}
+                    control={
+                      <Checkbox
+                        checked={form.eligible_clinician_ids.includes(
+                          clinician.id,
+                        )}
+                        disabled={controlsDisabled}
+                        onChange={(event) =>
+                          update({
+                            eligible_clinician_ids: event.target.checked
+                              ? [...form.eligible_clinician_ids, clinician.id]
+                              : form.eligible_clinician_ids.filter(
+                                  (id) => id !== clinician.id,
+                                ),
+                          })
+                        }
+                      />
+                    }
+                    label={clinician.name}
                   />
                 ))}
               </Box>

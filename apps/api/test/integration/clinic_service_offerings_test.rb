@@ -181,6 +181,39 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "eligible clinicians are practice scoped, editable, and optional for existing offerings" do
+    clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic eligible clinician")
+    other_user = User.create!(email_address: "foreign-offering-clinician@example.invalid", password: @password)
+    other_member = @other_practice.memberships.create!(user: other_user)
+    foreign_clinician = @other_practice.clinician_profiles.create!(membership: other_member, display_name: "Foreign clinician")
+
+    get "/api/clinic/service_offerings", headers: @headers
+    assert_response :success
+    assert_equal [ clinician.id ], response.parsed_body.fetch("eligible_clinicians").map { |item| item.fetch("id") }
+
+    post "/api/clinic/service_offerings", params: { service_offering: {
+      request_key: "eligible-team-create", name: "Team follow-up", visit_type_id: @visit_type.id,
+      duration_minutes: 30, site_ids: [ @site.id ], clinician_ids: [ clinician.id ]
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    draft = response.parsed_body.fetch("service_offering")
+    assert_equal [ clinician.id ], draft.fetch("eligible_clinician_ids")
+
+    patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: { service_offering: {
+      request_key: "eligible-team-foreign", lock_version: draft.fetch("lock_version"),
+      clinician_ids: [ foreign_clinician.id ]
+    } }, headers: csrf_headers, as: :json
+    assert_response :not_found
+    assert_equal [ clinician.id ], @practice.service_offerings.find(draft.fetch("id")).clinicians.pluck(:id)
+
+    patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: { service_offering: {
+      request_key: "eligible-team-all", lock_version: draft.fetch("lock_version"), clinician_ids: []
+    } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_empty response.parsed_body.dig("service_offering", "eligible_clinician_ids")
+    assert_operator response.parsed_body.dig("service_offering", "lock_version"), :>, draft.fetch("lock_version")
+  end
+
   private
 
   def csrf_headers

@@ -801,11 +801,13 @@ describe("mapped read-only care flow", () => {
       requires_room: true,
       status: "published",
       eligible_site_ids: [1],
+      eligible_clinician_ids: [],
     };
     const check = (changes: Partial<typeof offering> = {}) =>
       offeringEligibilityIssue(
         { ...offering, ...changes },
         "1",
+        "3",
         "4",
         "in_person",
         "2",
@@ -815,6 +817,8 @@ describe("mapped read-only care flow", () => {
     expect(check()).toBeNull();
     expect(check({ status: "retired" })).toContain("no longer published");
     expect(check({ eligible_site_ids: [2] })).toContain("selected site");
+    expect(check({ eligible_clinician_ids: [2] })).toContain("clinician");
+    expect(check({ eligible_clinician_ids: [3] })).toBeNull();
     expect(check({ visit_type_id: 5 })).toContain("visit type");
     expect(check({ modality: "video" })).toContain("visit format");
     expect(check({ duration_minutes: 45 })).toContain("45-minute");
@@ -822,6 +826,7 @@ describe("mapped read-only care flow", () => {
       offeringEligibilityIssue(
         offering,
         "1",
+        "3",
         "4",
         "in_person",
         "",

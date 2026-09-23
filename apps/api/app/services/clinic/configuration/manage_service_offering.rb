@@ -12,8 +12,9 @@ module Clinic
         authorize!(practice: practice, actor: actor)
         normalized = normalize(attributes, creating: true)
         execute(practice: practice, actor: actor, request_key: request_key, operation: CREATE_OPERATION, payload: normalized) do
-          offering = practice.service_offerings.create!(normalized.except(:site_ids))
+          offering = practice.service_offerings.create!(normalized.except(:site_ids, :clinician_ids))
           replace_sites!(offering: offering, site_ids: normalized.fetch(:site_ids))
+          replace_clinicians!(offering: offering, clinician_ids: normalized.fetch(:clinician_ids))
           audit!(practice: practice, actor: actor, offering: offering, action: CREATE_OPERATION)
           offering
         end
@@ -30,8 +31,11 @@ module Clinic
           raise ActiveRecord::StaleObjectError.new(locked, "update") unless locked.lock_version == expected_lock_version
           raise ArgumentError, "Retired service offerings cannot be edited." if locked.status == "retired"
 
-          locked.update!(normalized.except(:site_ids)) unless normalized.except(:site_ids).empty?
+          fields = normalized.except(:site_ids, :clinician_ids)
+          locked.update!(fields) unless fields.empty?
           replace_sites!(offering: locked, site_ids: normalized[:site_ids]) if normalized.key?(:site_ids)
+          replace_clinicians!(offering: locked, clinician_ids: normalized[:clinician_ids]) if normalized.key?(:clinician_ids)
+          locked.touch if fields.empty? && (normalized.key?(:site_ids) || normalized.key?(:clinician_ids))
           audit!(practice: practice, actor: actor, offering: locked, action: UPDATE_OPERATION)
           locked
         end
@@ -107,12 +111,14 @@ module Clinic
         if attributes.key?(:status) && (!creating || attributes[:status] != "draft")
           raise ArgumentError, "Use the publish or retire action to change service offering status."
         end
-        values[:site_ids] = normalized_ids(attributes[:site_ids]) if attributes.key?(:site_ids)
+        values[:site_ids] = normalized_ids(attributes[:site_ids], field: "site_ids") if attributes.key?(:site_ids)
+        values[:clinician_ids] = normalized_ids(attributes[:clinician_ids], field: "clinician_ids") if attributes.key?(:clinician_ids)
         values[:modality] ||= "in_person" if creating
         values[:booking_required] = true if creating && !values.key?(:booking_required)
         values[:requires_room] = false if creating && !values.key?(:requires_room)
         values[:status] ||= "draft" if creating
         values[:site_ids] ||= [] if creating
+        values[:clinician_ids] ||= [] if creating
         values
       end
       private_class_method :normalize
@@ -131,6 +137,20 @@ module Clinic
         raise ActiveRecord::RecordInvalid, offering if offering.published? && !offering.valid?
       end
       private_class_method :replace_sites!
+
+      def self.replace_clinicians!(offering:, clinician_ids:)
+        clinician_ids = Array(clinician_ids).map(&:to_i).uniq.sort
+        clinicians = offering.practice.clinician_profiles.where(id: clinician_ids).index_by(&:id)
+        raise ActiveRecord::RecordNotFound, "One or more eligible clinicians are unavailable." unless clinicians.length == clinician_ids.length
+
+        current_ids = offering.offering_clinicians.pluck(:clinician_id)
+        offering.offering_clinicians.where(clinician_id: current_ids - clinician_ids).delete_all
+        (clinician_ids - current_ids).each do |clinician_id|
+          offering.offering_clinicians.create!(practice: offering.practice, clinician: clinicians.fetch(clinician_id))
+        end
+        offering.reload
+      end
+      private_class_method :replace_clinicians!
 
       def self.authorize!(practice:, actor:)
         Authorization.authorize_with_legacy!(actor: actor, practice: practice, action: "facilities.write", legacy_action: "appointments.write")
@@ -185,10 +205,10 @@ module Clinic
       end
       private_class_method :optional_duration
 
-      def self.normalized_ids(value)
-        raise ArgumentError, "site_ids must be a list." unless value.is_a?(Array)
+      def self.normalized_ids(value, field:)
+        raise ArgumentError, "#{field} must be a list." unless value.is_a?(Array)
 
-        value.map { |id| optional_id(id, field: "site_ids") }.compact.uniq.sort
+        value.map { |id| optional_id(id, field: field) }.compact.uniq.sort
       end
       private_class_method :normalized_ids
 

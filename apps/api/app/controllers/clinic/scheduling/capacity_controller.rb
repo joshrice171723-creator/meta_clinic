@@ -7,7 +7,8 @@ module Clinic
         sites = current_practice.sites.where(id: site_ids).includes(:operating_hours, :hour_exceptions).order(:id)
         rules = CapacityRule.where(practice: current_practice, site_id: site_ids, active: true).order(:site_id, :clinician_id, :id).limit(200)
         render json: { rules: rules.map { |rule| serialize(rule) }, timezone: current_practice.timezone,
-          site_availability: sites.map { |site| serialize_site_availability(site) } }
+          site_availability: sites.map { |site| serialize_site_availability(site) },
+          can_block: current_ability.practice_scope_for?("facilities.write") && current_ability.practice_scope_for?("appointments.read") }
       end
 
       def create
@@ -16,6 +17,9 @@ module Clinic
         authorize = -> {
           require_capability("facilities.write", site: site)
           if input[:kind] == "block" && !current_ability.practice_scope_for?("facilities.write")
+            raise Clinic::Authorization::Denied
+          end
+          if input[:kind] == "block" && !current_ability.practice_scope_for?("appointments.read")
             raise Clinic::Authorization::Denied
           end
         }
@@ -37,20 +41,19 @@ module Clinic
         ) do
           clinician.lock!
           if kind == "block"
-            appointments = current_practice.appointments.where(booked_clinician: clinician, status: %w[scheduled confirmed])
-              .where("starts_at < ? AND ends_at > ?", values[:ends_at], values[:starts_at])
             offers = WaitlistEntry.where(practice: current_practice, clinician: clinician, state: "offered")
               .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, values[:ends_at], values[:starts_at])
             holds = ScheduleHold.where(practice: current_practice, clinician: clinician, state: "active")
               .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, values[:ends_at], values[:starts_at])
-            if appointments.exists? || offers.exists? || holds.exists?
-              raise ArgumentError, "Move existing appointments or release waitlist offers and schedule holds before blocking this time."
+            if offers.exists? || holds.exists?
+              raise ArgumentError, "Release waitlist offers and schedule holds before blocking this time."
             end
           end
           CapacityRule.create!(values.merge(practice: current_practice))
         end
         rule = result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
-        render json: { rule: serialize(rule) }, status: :created
+        affected = rule.kind == "block" ? affected_appointments(rule) : []
+        render json: { rule: serialize(rule), affected_appointments: affected.map { |appointment| serialize_affected_appointment(appointment) } }, status: :created
       end
 
       def deactivate
@@ -77,6 +80,17 @@ module Clinic
           weekday: rule.weekday, start_minute: rule.start_minute, end_minute: rule.end_minute,
           starts_at: rule.starts_at&.iso8601(6), ends_at: rule.ends_at&.iso8601(6), reason: rule.reason,
           active: rule.active, version: rule.lock_version }
+      end
+
+      def affected_appointments(rule)
+        current_practice.appointments.where(booked_clinician_id: rule.clinician_id, status: %w[scheduled confirmed])
+          .where("starts_at < ? AND ends_at > ?", rule.ends_at, rule.starts_at)
+          .order(:starts_at, :id).to_a
+      end
+
+      def serialize_affected_appointment(appointment)
+        { id: appointment.id, site_id: appointment.site_id, starts_at: appointment.starts_at.iso8601(6),
+          ends_at: appointment.ends_at.iso8601(6), status: appointment.status }
       end
 
       def serialize_site_availability(site)

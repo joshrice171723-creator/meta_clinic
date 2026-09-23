@@ -86,6 +86,13 @@ type Rule = {
   reason: string;
   version: number;
 };
+type AffectedAppointment = {
+  id: number;
+  site_id: number;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+};
 type Attempt = { path: string; body: unknown };
 const days = [
   "Sunday",
@@ -115,6 +122,7 @@ export function WaitlistWorkspace() {
     rules: Rule[];
     timezone: string;
     site_availability: SiteAvailability[];
+    can_block: boolean;
   }>("/api/clinic/capacity");
   const [patientQuery, setPatientQuery] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -141,6 +149,9 @@ export function WaitlistWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [affectedAppointments, setAffectedAppointments] = useState<
+    AffectedAppointment[]
+  >([]);
   const [uncertain, setUncertain] = useState(false);
   const attempt = useRef<Attempt | null>(null);
   const canBook =
@@ -184,11 +195,23 @@ export function WaitlistWorkspace() {
     setError("");
     setNotice("");
     try {
-      await api(current.path, { method: "POST", body: current.body });
+      const saved = await api<{
+        rule?: Rule;
+        affected_appointments?: AffectedAppointment[];
+      }>(current.path, { method: "POST", body: current.body });
       attempt.current = null;
       setUncertain(false);
       setOffer(null);
-      setNotice("Saved. The queue is refreshing from the clinic records.");
+      const affected =
+        current.path === "/api/clinic/capacity" && saved.rule?.kind === "block"
+          ? (saved.affected_appointments ?? [])
+          : [];
+      setAffectedAppointments(affected);
+      setNotice(
+        affected.length > 0
+          ? "Blocked time saved. Review the appointments that still overlap it."
+          : "Saved. The queue is refreshing from the clinic records.",
+      );
       queue.refresh();
       capacity.refresh();
     } catch (value) {
@@ -310,6 +333,21 @@ export function WaitlistWorkspace() {
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {affectedAppointments.length > 0 && (
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" size="small" href="/clinic/schedule">
+              Open schedule
+            </Button>
+          }
+        >
+          {affectedAppointments.length} existing appointment
+          {affectedAppointments.length === 1 ? "" : "s"} remain scheduled inside
+          this block. The block did not cancel or move them. Review appointment{" "}
+          {affectedAppointments.map((item) => `#${item.id}`).join(", ")}.
+        </Alert>
+      )}
       {uncertain && (
         <Alert
           severity="warning"
@@ -712,7 +750,12 @@ export function WaitlistWorkspace() {
                     onChange={(event) => setKind(event.target.value)}
                   >
                     <MenuItem value="weekly">Weekly hours</MenuItem>
-                    <MenuItem value="block">Blocked time</MenuItem>
+                    <MenuItem
+                      value="block"
+                      disabled={!capacity.data?.can_block}
+                    >
+                      Blocked time
+                    </MenuItem>
                   </TextField>
                   {kind === "weekly" ? (
                     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -746,6 +789,11 @@ export function WaitlistWorkspace() {
                     </Stack>
                   ) : (
                     <Stack spacing={2}>
+                      <Alert severity="info">
+                        A block prevents new bookings. Existing appointments
+                        stay scheduled and must be reviewed separately after
+                        saving.
+                      </Alert>
                       <TextField
                         type="datetime-local"
                         label="Block starts"
@@ -777,7 +825,10 @@ export function WaitlistWorkspace() {
                       !site ||
                       !clinician ||
                       (kind === "block" &&
-                        (!blockStart || !blockEnd || !capacityReason.trim()))
+                        (!capacity.data?.can_block ||
+                          !blockStart ||
+                          !blockEnd ||
+                          !capacityReason.trim()))
                     }
                     onClick={createRule}
                   >

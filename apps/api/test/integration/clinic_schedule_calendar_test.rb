@@ -4,8 +4,8 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
   setup do
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
-    password = SecureRandom.hex(18)
-    @user = User.create!(email_address: "calendar-flow@example.invalid", password: password)
+    @password = SecureRandom.hex(18)
+    @user = User.create!(email_address: "calendar-flow@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Synthetic Calendar Flow", organization: Organization.create!(name: "Synthetic Calendar Flow"), timezone: "America/Chicago")
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "appointments.read", "appointments.book", "appointments.status_transition", "encounters.write")
@@ -17,7 +17,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     @start = ActiveSupport::TimeZone[@practice.timezone].local(@date.year, @date.month, @date.day, 9)
     Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
       kind: "weekly", weekday: @date.wday, start_minute: 540, end_minute: 600, active: true)
-    post "/api/session", params: { email_address: @user.email_address, password: password }, headers: csrf_headers, as: :json
+    post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
     assert_response :success
   end
 
@@ -94,7 +94,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
     end
     assert_response :unprocessable_entity
-    assert_match "release", response.parsed_body.fetch("error")
+    assert_match(/release/i, response.parsed_body.fetch("error"))
 
     post "/api/clinic/schedule_holds/#{hold.fetch('id')}/release",
       params: { hold: { request_key: "release-for-capacity-block", lock_version: hold.fetch("lock_version") } },
@@ -106,6 +106,63 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
     end
     assert_response :created
+  end
+
+  test "a capacity block keeps overlapping appointments visible and prevents only new bookings" do
+    grant_permissions!(@membership, "facilities.write")
+    get "/api/clinic/capacity", headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("can_block")
+    finish = @start + 30.minutes
+    booking = { appointment: { patient_id: @patient.id, site_id: @site.id,
+      booked_clinician_id: @clinician.id, visit_type_id: @type.id,
+      starts_at: @start.iso8601, ends_at: finish.iso8601, request_key: "book-before-closure" } }
+    post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    assert_response :created
+    appointment_id = response.parsed_body.fetch("appointment").fetch("id")
+
+    block = { capacity: { request_key: "block-over-booking", site_id: @site.id,
+      clinician_id: @clinician.id, kind: "block", starts_at: @start.iso8601,
+      ends_at: finish.iso8601, reason: "Synthetic clinic closure" } }
+    assert_difference -> { Clinic::Scheduling::CapacityRule.where(practice: @practice, kind: "block").count }, 1 do
+      post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal [ appointment_id ], response.parsed_body.fetch("affected_appointments").map { |item| item.fetch("id") }
+    end
+    assert_equal "scheduled", @practice.appointments.find(appointment_id).status
+
+    post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal [ appointment_id ], response.parsed_body.fetch("affected_appointments").map { |item| item.fetch("id") }
+    assert_equal 1, Clinic::Scheduling::CapacityRule.where(practice: @practice, kind: "block").count
+
+    second_patient = @practice.patients.create!(display_name: "Synthetic Closure Patient", reference: "CAL-CLOSURE")
+    blocked_booking = { appointment: booking.fetch(:appointment).merge(
+      patient_id: second_patient.id, request_key: "book-during-closure") }
+    assert_no_difference -> { @practice.appointments.count } do
+      post "/api/clinic/appointments", params: blocked_booking, headers: csrf_headers, as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_match "blocked time", response.parsed_body.fetch("error")
+
+    later_booking = { appointment: blocked_booking.fetch(:appointment).merge(
+      starts_at: finish.iso8601, ends_at: (finish + 30.minutes).iso8601,
+      request_key: "book-after-closure") }
+    assert_difference -> { @practice.appointments.count }, 1 do
+      post "/api/clinic/appointments", params: later_booking, headers: csrf_headers, as: :json
+    end
+    assert_response :created
+    get_calendar
+    assert_equal 2, day.fetch("scheduled")
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "appointments.read")
+    get "/api/clinic/capacity", headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.fetch("can_block")
+    post "/api/clinic/capacity", params: { capacity: block.fetch(:capacity).merge(request_key: "unauthorized-block") },
+      headers: csrf_headers, as: :json
+    assert_response :forbidden
   end
 
   test "a room hold blocks another clinician's booking and hold until released" do
@@ -150,6 +207,72 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
     end
     assert_response :created
+  end
+
+  test "simultaneous hold requests reserve one clinician and room interval and replay the outcome" do
+    room = @site.rooms.create!(practice: @practice, code: "RACE-ROOM")
+    finish = @start + 30.minutes
+    expires_at = Current.business_time + 30.minutes
+    ready = Queue.new
+    release = Queue.new
+
+    workers = 2.times.map do |index|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          session = ActionDispatch::Integration::Session.new(Rails.application)
+          session.host! "localhost:3000"
+          session_headers = @headers.dup
+          session.get "/api/csrf", headers: session_headers
+          login_token = session.response.parsed_body.fetch("csrf_token")
+          session.post "/api/session",
+            params: { email_address: @user.email_address, password: @password },
+            headers: session_headers.merge("X-CSRF-Token" => login_token), as: :json
+          raise "Synthetic schedule race session login failed" unless session.response.successful?
+
+          session.get "/api/csrf", headers: session_headers
+          token = session.response.parsed_body.fetch("csrf_token")
+          request_key = "calendar-hold-race-#{index}"
+          params = { hold: { request_key: request_key, patient_id: @patient.id,
+            site_id: @site.id, clinician_id: @clinician.id, room_id: room.id,
+            starts_at: @start.iso8601, ends_at: finish.iso8601, expires_at: expires_at.iso8601 } }
+          headers = session_headers.merge("X-CSRF-Token" => token)
+
+          ready << true
+          release.pop
+          session.post "/api/clinic/schedule_holds", params:, headers:, as: :json
+          first_status = session.response.status
+          first_body = session.response.parsed_body
+
+          session.get "/api/csrf", headers: session_headers
+          retry_headers = session_headers.merge("X-CSRF-Token" => session.response.parsed_body.fetch("csrf_token"))
+          session.post "/api/clinic/schedule_holds", params:, headers: retry_headers, as: :json
+          retry_status = session.response.status
+          retry_body = session.response.parsed_body
+
+          { request_key:, first_status:, first_body:, retry_status:, retry_body: }
+        end
+      end
+    end
+
+    2.times { ready.pop }
+    2.times { release << true }
+    results = workers.map(&:value)
+
+    assert_equal [ 201, 422 ], results.map { |result| result.fetch(:first_status) }.sort
+    winner = results.find { |result| result.fetch(:first_status) == 201 }
+    loser = results.find { |result| result.fetch(:first_status) == 422 }
+    assert_equal 201, winner.fetch(:retry_status)
+    assert_equal winner.dig(:first_body, "hold", "id"), winner.dig(:retry_body, "hold", "id")
+    assert_equal 422, loser.fetch(:retry_status)
+    assert_match "held pending booking", loser.dig(:retry_body, "error")
+
+    holds = Clinic::Scheduling::ScheduleHold.where(practice: @practice, site: @site, room:, starts_at: @start)
+    assert_equal 1, holds.count
+    assert_equal "active", holds.sole.state
+    assert_equal winner.fetch(:request_key), holds.sole.request_key
+    assert_equal 1, Clinic::OperationReceipt.where(practice: @practice, request_key: winner.fetch(:request_key)).count
+  ensure
+    workers&.each { |worker| worker.kill if worker.alive? }
   end
 
   test "calendar does not disclose another clinic or allow unprivileged reads" do

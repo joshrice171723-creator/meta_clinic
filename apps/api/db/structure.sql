@@ -9159,6 +9159,39 @@ ALTER SEQUENCE public.clinic_scribe_sources_id_seq OWNED BY public.clinic_scribe
 
 
 --
+-- Name: clinic_service_offering_clinicians; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_service_offering_clinicians (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    service_offering_id bigint NOT NULL,
+    clinician_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clinic_service_offering_clinicians_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_service_offering_clinicians_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_service_offering_clinicians_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_service_offering_clinicians_id_seq OWNED BY public.clinic_service_offering_clinicians.id;
+
+
+--
 -- Name: clinic_service_offering_sites; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13771,6 +13804,13 @@ ALTER TABLE ONLY public.clinic_scribe_sources ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: clinic_service_offering_clinicians id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_offering_clinicians ALTER COLUMN id SET DEFAULT nextval('public.clinic_service_offering_clinicians_id_seq'::regclass);
+
+
+--
 -- Name: clinic_service_offering_sites id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15756,6 +15796,14 @@ ALTER TABLE ONLY public.clinic_scribe_source_segments
 
 ALTER TABLE ONLY public.clinic_scribe_sources
     ADD CONSTRAINT clinic_scribe_sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_service_offering_clinicians clinic_service_offering_clinicians_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_offering_clinicians
+    ADD CONSTRAINT clinic_service_offering_clinicians_pkey PRIMARY KEY (id);
 
 
 --
@@ -18244,6 +18292,20 @@ CREATE UNIQUE INDEX clinic_scribe_sources_practice_id ON public.clinic_scribe_so
 --
 
 CREATE UNIQUE INDEX clinic_scribe_sources_scope ON public.clinic_scribe_sources USING btree (practice_id, encounter_id, id);
+
+
+--
+-- Name: clinic_service_offering_clinicians_clinician; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_service_offering_clinicians_clinician ON public.clinic_service_offering_clinicians USING btree (practice_id, clinician_id, service_offering_id);
+
+
+--
+-- Name: clinic_service_offering_clinicians_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_service_offering_clinicians_unique ON public.clinic_service_offering_clinicians USING btree (practice_id, service_offering_id, clinician_id);
 
 
 --
@@ -29522,6 +29584,14 @@ ALTER TABLE ONLY public.clinic_inventory_count_approvals
 
 
 --
+-- Name: clinic_service_offering_clinicians fk_rails_e6a534e2fb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_offering_clinicians
+    ADD CONSTRAINT fk_rails_e6a534e2fb FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_scribe_recordings fk_rails_e6b7ab814d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30258,6 +30328,22 @@ ALTER TABLE ONLY public.clinic_scribe_sources
 
 
 --
+-- Name: clinic_service_offering_clinicians fk_service_offering_clinicians_clinician; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_offering_clinicians
+    ADD CONSTRAINT fk_service_offering_clinicians_clinician FOREIGN KEY (practice_id, clinician_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
+-- Name: clinic_service_offering_clinicians fk_service_offering_clinicians_offering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_offering_clinicians
+    ADD CONSTRAINT fk_service_offering_clinicians_offering FOREIGN KEY (practice_id, service_offering_id) REFERENCES public.clinic_service_offerings(practice_id, id);
+
+
+--
 -- Name: clinic_service_offering_sites fk_service_offering_sites_offering; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30848,6 +30934,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922110000'),
 ('20260922100000'),
 ('20260922090000'),
 ('20260922080000'),

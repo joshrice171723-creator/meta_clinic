@@ -9,6 +9,8 @@ module Clinic
     belongs_to :billing_service, class_name: "Clinic::BillingService", optional: true
     has_many :offering_sites, class_name: "Clinic::ServiceOfferingSite", dependent: :restrict_with_error
     has_many :sites, through: :offering_sites, class_name: "Clinic::Site"
+    has_many :offering_clinicians, class_name: "Clinic::ServiceOfferingClinician", dependent: :restrict_with_error
+    has_many :clinicians, through: :offering_clinicians, class_name: "Clinic::ClinicianProfile"
 
     validates :name, presence: true, length: { maximum: 160 }
     validates :code, length: { maximum: 50 }, uniqueness: { scope: :practice_id }, allow_nil: true

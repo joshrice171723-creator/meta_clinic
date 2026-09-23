@@ -85,7 +85,7 @@ module Clinic
         ApplicationRecord.transaction do
           practice.lock!
           snapshot = service_offering && offering_snapshot!(offering: service_offering, practice: practice,
-            site: site, room: room, visit_type: visit_type, visit_modality: visit_modality,
+            site: site, clinician: booked_clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
             starts_at: starts_at, ends_at: ends_at)
           Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
           CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
@@ -101,10 +101,14 @@ module Clinic
       end
       private_class_method :create_appointment
 
-      def self.offering_snapshot!(offering:, practice:, site:, room:, visit_type:, visit_modality:, starts_at:, ends_at:)
+      def self.offering_snapshot!(offering:, practice:, site:, clinician:, room:, visit_type:, visit_modality:, starts_at:, ends_at:)
         offering = practice.service_offerings.lock.find(offering.id)
         raise ArgumentError, "Choose a published service offering." unless offering.published?
         raise ArgumentError, "The service offering is unavailable at this site." unless offering.sites.exists?(id: site.id)
+        eligible_clinician_ids = offering.offering_clinicians.pluck(:clinician_id).sort
+        if eligible_clinician_ids.any? && !eligible_clinician_ids.include?(clinician.id)
+          raise ArgumentError, "The selected clinician is not eligible for this service offering."
+        end
         raise ArgumentError, "Choose the visit type configured for this service offering." unless offering.visit_type_id == visit_type&.id
         unless offering.modality == "either" || offering.modality == visit_modality
           raise ArgumentError, "The service offering does not support this visit format."
@@ -118,7 +122,8 @@ module Clinic
 
         { "name" => offering.name, "code" => offering.code, "visit_type_id" => offering.visit_type_id,
           "duration_minutes" => offering.duration_minutes, "modality" => offering.modality,
-          "requires_room" => offering.requires_room, "published_at" => offering.published_at&.iso8601(6),
+          "requires_room" => offering.requires_room, "eligible_clinician_ids" => eligible_clinician_ids,
+          "published_at" => offering.published_at&.iso8601(6),
           "revision" => offering.lock_version }
       end
     end

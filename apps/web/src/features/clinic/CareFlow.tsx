@@ -132,11 +132,13 @@ type BookingServiceOffering = {
   requires_room: boolean;
   status: "draft" | "published" | "retired";
   eligible_site_ids: number[];
+  eligible_clinician_ids: number[];
 };
 
 export function offeringEligibilityIssue(
   offering: BookingServiceOffering,
   siteId: string,
+  clinicianId: string,
   visitTypeId: string,
   visitModality: VisitModality,
   roomId: string,
@@ -147,6 +149,11 @@ export function offeringEligibilityIssue(
     return "This service offering is no longer published. Choose another offering or use visit-type booking.";
   if (!offering.eligible_site_ids.includes(Number(siteId)))
     return "This service offering is unavailable at the selected site.";
+  if (
+    offering.eligible_clinician_ids.length > 0 &&
+    !offering.eligible_clinician_ids.includes(Number(clinicianId))
+  )
+    return "The selected clinician is not eligible for this service offering.";
   if (offering.visit_type_id !== Number(visitTypeId))
     return "Choose the visit type configured for this service offering.";
   if (offering.modality !== "either" && offering.modality !== visitModality)
@@ -818,6 +825,7 @@ function BookingFormEditor({
       ? offeringEligibilityIssue(
           selectedOffering,
           siteId,
+          clinicianId,
           visitTypeId,
           visitModality,
           roomId,

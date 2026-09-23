@@ -139,6 +139,46 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     assert_nil @own.fetch(:practice).appointments.find(booked.fetch("id")).service_offering_snapshot
   end
 
+  test "an eligible team limits new and rescheduled offering bookings without limiting visit-type booking" do
+    offering = published_offering(@own)
+    practice = @own.fetch(:practice)
+    selected_clinician = @own.fetch(:clinician)
+    other_user = User.create!(email_address: "offering-other-clinician@example.invalid", password: @password)
+    other_member = practice.memberships.create!(user: other_user)
+    other_clinician = practice.clinician_profiles.create!(membership: other_member, display_name: "Other synthetic clinician")
+    Clinic::Scheduling::CapacityRule.create!(practice: practice, site: @own.fetch(:site), clinician: other_clinician,
+      kind: "weekly", weekday: 4, start_minute: 0, end_minute: 1440, active: true)
+    offering.offering_clinicians.create!(practice: practice, clinician: selected_clinician)
+
+    denied = appointment_payload(@own, request_key: "offering-wrong-clinician").deep_merge(
+      appointment: { booked_clinician_id: other_clinician.id, service_offering_id: offering.id })
+    assert_no_difference -> { practice.appointments.count } do
+      submit "/api/clinic/appointments", denied
+    end
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "not eligible"
+
+    submit "/api/clinic/appointments", appointment_payload(@own, request_key: "offering-right-clinician").deep_merge(
+      appointment: { service_offering_id: offering.id })
+    assert_response :created
+    booked = response.parsed_body.fetch("appointment")
+    assert_equal [ selected_clinician.id ], booked.dig("service_offering_snapshot", "eligible_clinician_ids")
+
+    patch "/api/clinic/appointments/#{booked.fetch('id')}", params: { appointment: {
+      starts_at: "2026-10-01T10:00:00Z", ends_at: "2026-10-01T10:30:00Z",
+      expected_updated_at: booked.fetch("updated_at"), request_key: "offering-reschedule-wrong-clinician",
+      booked_clinician_id: other_clinician.id
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "not eligible"
+
+    submit "/api/clinic/appointments", appointment_payload(@own, request_key: "independent-other-clinician").deep_merge(
+      appointment: { booked_clinician_id: other_clinician.id, starts_at: "2026-10-01T10:00:00Z",
+        ends_at: "2026-10-01T10:30:00Z" })
+    assert_response :created
+    assert_nil response.parsed_body.dig("appointment", "service_offering_id")
+  end
+
   test "appointment creation rejects missing operational setup" do
     assert_no_difference -> { @own.fetch(:practice).appointments.count } do
       submit "/api/clinic/appointments", appointment_payload(@own).deep_merge(
