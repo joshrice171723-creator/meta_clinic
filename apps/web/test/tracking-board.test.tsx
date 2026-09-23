@@ -20,6 +20,7 @@ import {
   appointmentDefaults,
   appointmentDraftRecoveryMessage,
   appointmentIntervalError,
+  offeringEligibilityIssue,
   applySoapTemplate,
   EncounterView,
   hasSoapContent,
@@ -789,6 +790,46 @@ describe("mapped read-only care flow", () => {
       appointmentIntervalError("2026-08-31T10:00", "2026-08-31T10:30"),
     ).toBe("");
   });
+  it("checks a selected offering without blocking independent visit-type booking", () => {
+    const offering: Parameters<typeof offeringEligibilityIssue>[0] = {
+      id: 31,
+      name: "Follow-up visit",
+      code: "FU",
+      visit_type_id: 4,
+      duration_minutes: 30,
+      modality: "in_person",
+      requires_room: true,
+      status: "published",
+      eligible_site_ids: [1],
+    };
+    const check = (changes: Partial<typeof offering> = {}) =>
+      offeringEligibilityIssue(
+        { ...offering, ...changes },
+        "1",
+        "4",
+        "in_person",
+        "2",
+        "2026-10-01T10:00",
+        "2026-10-01T10:30",
+      );
+    expect(check()).toBeNull();
+    expect(check({ status: "retired" })).toContain("no longer published");
+    expect(check({ eligible_site_ids: [2] })).toContain("selected site");
+    expect(check({ visit_type_id: 5 })).toContain("visit type");
+    expect(check({ modality: "video" })).toContain("visit format");
+    expect(check({ duration_minutes: 45 })).toContain("45-minute");
+    expect(
+      offeringEligibilityIssue(
+        offering,
+        "1",
+        "4",
+        "in_person",
+        "",
+        "2026-10-01T10:00",
+        "2026-10-01T10:30",
+      ),
+    ).toContain("room");
+  });
   it("presents scheduled records without calling them arrivals or board rows", () => {
     const html = renderToStaticMarkup(
       <ScheduleView
@@ -801,6 +842,17 @@ describe("mapped read-only care flow", () => {
             room_id: null,
             booked_clinician_id: null,
             visit_type_id: null,
+            service_offering_id: 31,
+            service_offering_snapshot: {
+              name: "Original follow-up visit",
+              code: "FU",
+              visit_type_id: 4,
+              duration_minutes: 30,
+              modality: "in_person",
+              requires_room: false,
+              published_at: "2026-08-01T00:00:00Z",
+              revision: 2,
+            },
             starts_at: "2026-08-31T15:00:00Z",
             ends_at: "2026-08-31T15:30:00Z",
             status: "confirmed",
@@ -813,6 +865,7 @@ describe("mapped read-only care flow", () => {
     expect(html).toContain('aria-label="Scheduled visits"');
     expect(html).toContain('href="/clinic/patients/7"');
     expect(html).toContain('href="/clinic/patients/7/encounters/9"');
+    expect(html).toContain("Service: Original follow-up visit");
     expect(html).not.toContain("Start intake");
   });
   it("shows recorded encounter context while requiring the protected note workspace", () => {

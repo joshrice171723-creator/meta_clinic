@@ -95,6 +95,7 @@ Rails.application.routes.draw do
     end
     get "tracking_board", to: "scheduling/tracking_board#show"
     get "schedule_calendar", to: "scheduling/calendar#show"
+    get "reports/daily_visits_by_state", to: "reports/daily_visits_by_state#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
       patch "encounter_follow_ups/:id", to: "encounter_follow_ups#update"
@@ -212,6 +213,7 @@ Rails.application.routes.draw do
     end
     resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: :create do
       post :issue, on: :member
+      post :correct, on: :member
     end
     resources :schedule_holds, controller: "scheduling/schedule_holds", only: :create do
       post :release, on: :member

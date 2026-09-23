@@ -22,10 +22,21 @@ module Clinic
         render json: { estimate: serialize(issued) }
       end
 
+      def correct
+        predecessor = CashPayEstimate.where(practice: current_practice).find(requested_id!(params[:id], :id))
+        input = parameter_hash!(:estimate, %i[request_key reason], nested_arrays: { lines: %i[billing_service_id service_offering_id quantity inclusions exclusions] })
+        estimate = CorrectCashPayEstimate.call(predecessor: predecessor, practice: current_practice, actor: current_user,
+          reason: required_string!(input[:reason], field: :reason, maximum: 500), lines: input[:lines]&.map(&:to_h),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
+        render json: { estimate: serialize(estimate) }, status: :created
+      end
+
       private
       def serialize(estimate)
         { id: estimate.id, patient_id: estimate.patient_id, classification: estimate.classification, status: estimate.status, currency: estimate.currency,
-          policy_version: estimate.policy_version, delivery_method: estimate.delivery_method, issued_at: estimate.issued_at&.iso8601(6), revision: estimate.revision,
+          policy_version: estimate.policy_version, delivery_method: estimate.delivery_method, issued_at: estimate.issued_at&.iso8601(6),
+          delivered_at: estimate.delivered_at&.iso8601(6), supersedes_id: estimate.supersedes_id, correction_reason: estimate.correction_reason,
+          revision: estimate.revision,
           lines: estimate.lines.map { |line| { id: line.id, billing_service_id: line.billing_service_id, service_offering_id: line.service_offering_id, quantity: line.quantity.to_s("F"), unit_amount: line.unit_amount.to_s("F"), expected_amount: line.expected_amount.to_s("F"), description: line.description_snapshot, inclusions: line.inclusions, exclusions: line.exclusions } } }
       end
     end

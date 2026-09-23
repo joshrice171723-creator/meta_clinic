@@ -54,6 +54,32 @@ class Clinic::Scheduling::CalendarTest < ActiveSupport::TestCase
     assert_equal "Calendar Clinician", day[:appointments].first[:clinician_name]
   end
 
+  test "active holds hide clinician capacity and held rooms until release or expiry" do
+    travel_to @zone.local(2026, 9, 15, 12) do
+      weekly
+      other_user = User.create!(email_address: "calendar-other@example.invalid", password: SecureRandom.hex(18))
+      other_membership = @practice.memberships.create!(user: other_user)
+      other_clinician = @practice.clinician_profiles.create!(membership: other_membership, display_name: "Other Clinician")
+      Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: other_clinician,
+        kind: "weekly", weekday: @date.wday, start_minute: 540, end_minute: 660, active: true)
+      hold = Clinic::Scheduling::ScheduleHold.create!(practice: @practice, patient: @patient, site: @site,
+        clinician: @clinician, room: @room, starts_at: @zone.local(2026, 9, 16, 9),
+        ends_at: @zone.local(2026, 9, 16, 9, 30), expires_at: @zone.local(2026, 9, 15, 13),
+        request_key: SecureRandom.uuid)
+
+      day = projection[:days].find { |row| row[:date] == @date.iso8601 }
+      assert_equal 7, day[:available]
+      assert_equal [other_clinician.id], day[:slots].select { |slot| Time.iso8601(slot[:starts_at]).strftime("%H:%M") == "09:00" }.map { |slot| slot[:clinician_id] }
+      assert_empty day[:slots].first[:room_ids]
+
+      hold.update!(state: "released")
+      assert_equal 8, projection[:days].find { |row| row[:date] == @date.iso8601 }[:available]
+
+      hold.update!(state: "active", expires_at: 1.minute.ago)
+      assert_equal 8, projection[:days].find { |row| row[:date] == @date.iso8601 }[:available]
+    end
+  end
+
   test "serializing appointments preloads telehealth visits" do
     2.times do |index|
       @practice.appointments.create!(patient: @patient, site: @site, booked_clinician: @clinician,

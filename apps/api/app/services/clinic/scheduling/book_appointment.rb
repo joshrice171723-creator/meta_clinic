@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
-        reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil)
+        reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil, service_offering: nil)
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
@@ -45,6 +45,7 @@ module Clinic
           ends_at: ends_at,
           visit_modality: visit_modality,
           schedule_hold: schedule_hold,
+          service_offering: service_offering,
           actor: actor
         }
         return create_appointment(practice: practice, **attributes) if request_key.nil?
@@ -62,6 +63,7 @@ module Clinic
             room_id: room&.id,
             booked_clinician_id: booked_clinician&.id,
             visit_type_id: visit_type&.id,
+            service_offering_id: service_offering&.id,
             schedule_hold_id: schedule_hold&.id,
             reason: reason.to_s.strip.presence,
             starts_at: starts_at.utc.iso8601(6),
@@ -79,21 +81,46 @@ module Clinic
       end
 
       def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:, reason:,
-        visit_modality:, actor:, schedule_hold: nil)
+        visit_modality:, actor:, schedule_hold: nil, service_offering: nil)
         ApplicationRecord.transaction do
           practice.lock!
+          snapshot = service_offering && offering_snapshot!(offering: service_offering, practice: practice,
+            site: site, room: room, visit_type: visit_type, visit_modality: visit_modality,
+            starts_at: starts_at, ends_at: ends_at)
           Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
           CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient,
             starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id)
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
             booked_clinician: booked_clinician, visit_type: visit_type, reason: reason, starts_at: starts_at, ends_at: ends_at,
-            status: "scheduled", visit_modality: visit_modality, schedule_hold: schedule_hold)
+            status: "scheduled", visit_modality: visit_modality, schedule_hold: schedule_hold,
+            service_offering: service_offering, service_offering_snapshot: snapshot)
           schedule_hold.update!(state: "converted") if schedule_hold
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor) if visit_modality == "video"
           appointment
         end
       end
       private_class_method :create_appointment
+
+      def self.offering_snapshot!(offering:, practice:, site:, room:, visit_type:, visit_modality:, starts_at:, ends_at:)
+        offering = practice.service_offerings.lock.find(offering.id)
+        raise ArgumentError, "Choose a published service offering." unless offering.published?
+        raise ArgumentError, "The service offering is unavailable at this site." unless offering.sites.exists?(id: site.id)
+        raise ArgumentError, "Choose the visit type configured for this service offering." unless offering.visit_type_id == visit_type&.id
+        unless offering.modality == "either" || offering.modality == visit_modality
+          raise ArgumentError, "The service offering does not support this visit format."
+        end
+        if offering.requires_room && room.nil? && visit_modality == "in_person"
+          raise ArgumentError, "Choose a room for this service offering."
+        end
+        unless ends_at - starts_at == offering.duration_minutes.minutes
+          raise ArgumentError, "Choose the configured duration for this service offering."
+        end
+
+        { "name" => offering.name, "code" => offering.code, "visit_type_id" => offering.visit_type_id,
+          "duration_minutes" => offering.duration_minutes, "modality" => offering.modality,
+          "requires_room" => offering.requires_room, "published_at" => offering.published_at&.iso8601(6),
+          "revision" => offering.lock_version }
+      end
     end
   end
 end

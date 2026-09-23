@@ -2031,6 +2031,9 @@ CREATE TABLE public.clinic_appointments (
     visit_modality character varying(16) DEFAULT 'in_person'::character varying NOT NULL,
     reason text,
     schedule_hold_id bigint,
+    service_offering_id bigint,
+    service_offering_snapshot jsonb,
+    CONSTRAINT clinic_appointments_offering_snapshot_pair CHECK (((service_offering_id IS NULL) = (service_offering_snapshot IS NULL))),
     CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
     CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
     CONSTRAINT clinic_appointments_valid_time_range CHECK ((ends_at > starts_at)),
@@ -2553,6 +2556,8 @@ CREATE TABLE public.clinic_cash_pay_estimates (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    correction_reason character varying(500),
+    CONSTRAINT clinic_cash_pay_estimates_correction_reason CHECK ((((supersedes_id IS NULL) AND (correction_reason IS NULL)) OR ((supersedes_id IS NOT NULL) AND (correction_reason IS NOT NULL) AND (length(TRIM(BOTH FROM correction_reason)) > 0)))),
     CONSTRAINT clinic_cash_pay_estimates_values CHECK ((((classification)::text = ANY (ARRAY[('general_estimate'::character varying)::text, ('gfe_candidate'::character varying)::text, ('issued_gfe'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('issued'::character varying)::text, ('superseded'::character varying)::text, ('void'::character varying)::text])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (revision >= 1) AND (lock_version >= 0)))
 );
 
@@ -16567,6 +16572,13 @@ CREATE UNIQUE INDEX clinic_appointments_schedule_hold ON public.clinic_appointme
 
 
 --
+-- Name: clinic_appointments_service_offering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_appointments_service_offering ON public.clinic_appointments USING btree (practice_id, service_offering_id);
+
+
+--
 -- Name: clinic_appointments_waitlist_context; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -16704,6 +16716,13 @@ CREATE UNIQUE INDEX clinic_cash_drawer_one_open_per_site ON public.clinic_cash_d
 --
 
 CREATE UNIQUE INDEX clinic_cash_pay_estimate_lines_context ON public.clinic_cash_pay_estimate_lines USING btree (practice_id, cash_pay_estimate_id, id);
+
+
+--
+-- Name: clinic_cash_pay_estimates_one_correction; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_cash_pay_estimates_one_correction ON public.clinic_cash_pay_estimates USING btree (practice_id, supersedes_id) WHERE (supersedes_id IS NOT NULL);
 
 
 --
@@ -23806,6 +23825,14 @@ ALTER TABLE ONLY public.clinic_appointments
 
 
 --
+-- Name: clinic_appointments fk_clinic_appointments_service_offering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointments
+    ADD CONSTRAINT fk_clinic_appointments_service_offering FOREIGN KEY (practice_id, service_offering_id) REFERENCES public.clinic_service_offerings(practice_id, id);
+
+
+--
 -- Name: clinic_audit_delivery_receipts fk_clinic_audit_delivery_receipts_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30804,6 +30831,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922090000'),
+('20260922080000'),
 ('20260922070000'),
 ('20260922060000'),
 ('20260922050000'),

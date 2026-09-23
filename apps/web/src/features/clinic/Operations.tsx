@@ -175,7 +175,10 @@ export function Operations() {
                   context.capabilities.telehealth_configure === true
                 }
               />
-              <OperationsReportsCatalog capabilities={context.capabilities} />
+              <OperationsReportsCatalog
+                capabilities={context.capabilities}
+                siteId={context.current_site?.id}
+              />
             </div>
           </>
         }

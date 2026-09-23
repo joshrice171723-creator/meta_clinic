@@ -34,7 +34,6 @@ module Clinic
           { billing_service: service, service_offering: offering, quantity: quantity.to_s("F"), unit_amount: service.unit_amount.to_s("F"), expected_amount: Money.line_total(quantity: quantity, unit_amount: service.unit_amount), description_snapshot: [ service.name, service.description ].compact.join(" — "), inclusions: values[:inclusions].to_s.strip.presence, exclusions: values[:exclusions].to_s.strip.presence }
         end
       end
-      private_class_method :normalize_lines
 
       def self.authorize!(practice:, actor:)
         Authorization.authorize_with_legacy!(practice: practice, actor: actor, action: "billing.invoice_draft", legacy_action: "billing.write")

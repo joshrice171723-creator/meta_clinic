@@ -10,9 +10,22 @@ module Clinic
       validates :unit_amount, :expected_amount, numericality: { greater_than_or_equal_to: 0 }
       validates :description_snapshot, presence: true, length: { maximum: 500 }
       validate :same_practice
+      before_create :reject_issued_change
+      before_update :reject_issued_change
+      before_destroy :reject_issued_change
       private
       def same_practice
         [ cash_pay_estimate, service_offering, billing_service ].compact.each { |record| errors.add(:base, "Estimate records must belong to one practice.") if record.practice_id != practice_id }
+      end
+
+      def reject_issued_change
+        original_estimate = if persisted? && will_save_change_to_cash_pay_estimate_id?
+          Clinic::Billing::CashPayEstimate.find(cash_pay_estimate_id_in_database)
+        end
+        return unless [ cash_pay_estimate, original_estimate ].compact.any? { |estimate| estimate.status.in?(%w[issued superseded]) }
+
+        errors.add(:base, "Issued estimate lines cannot be changed.")
+        throw :abort
       end
     end
   end

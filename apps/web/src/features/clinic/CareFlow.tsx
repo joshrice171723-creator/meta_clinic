@@ -114,12 +114,51 @@ type BookingDraft = {
   roomId: string;
   clinicianId: string;
   visitTypeId: string;
+  serviceOfferingId?: string;
   reason?: string;
 };
 
 type BookingClinician = Clinician & {
   display_name?: string | null;
 };
+
+type BookingServiceOffering = {
+  id: number;
+  name: string;
+  code: string | null;
+  visit_type_id: number | null;
+  duration_minutes: number | null;
+  modality: "in_person" | "video" | "either";
+  requires_room: boolean;
+  status: "draft" | "published" | "retired";
+  eligible_site_ids: number[];
+};
+
+export function offeringEligibilityIssue(
+  offering: BookingServiceOffering,
+  siteId: string,
+  visitTypeId: string,
+  visitModality: VisitModality,
+  roomId: string,
+  startsAt: string,
+  endsAt: string,
+): string | null {
+  if (offering.status !== "published")
+    return "This service offering is no longer published. Choose another offering or use visit-type booking.";
+  if (!offering.eligible_site_ids.includes(Number(siteId)))
+    return "This service offering is unavailable at the selected site.";
+  if (offering.visit_type_id !== Number(visitTypeId))
+    return "Choose the visit type configured for this service offering.";
+  if (offering.modality !== "either" && offering.modality !== visitModality)
+    return "This service offering does not support the selected visit format.";
+  if (offering.requires_room && visitModality === "in_person" && !roomId)
+    return "Choose a room for this service offering.";
+  const minutes =
+    (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000;
+  if (minutes !== offering.duration_minutes)
+    return `This service offering requires a ${offering.duration_minutes}-minute appointment.`;
+  return null;
+}
 
 type BookingAttempt = {
   body: {
@@ -131,6 +170,7 @@ type BookingAttempt = {
       room_id: string;
       booked_clinician_id: string;
       visit_type_id: string;
+      service_offering_id?: string;
       reason?: string;
       request_key: string;
       visit_modality?: VisitModality;
@@ -632,6 +672,7 @@ function BookingFormEditor({
         ? String(initialSlot.clinician_id)
         : "",
       visitTypeId: "",
+      serviceOfferingId: "",
       reason: "",
       visitModality: initialVisitModality,
     };
@@ -674,6 +715,9 @@ function BookingFormEditor({
   const [roomId, setRoomId] = useState(restoredDraft.roomId);
   const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
   const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
+  const [serviceOfferingId, setServiceOfferingId] = useState(
+    restoredDraft.serviceOfferingId ?? "",
+  );
   const [reason, setReason] = useState(restoredDraft.reason ?? "");
   const [visitModality, setVisitModality] = useState<VisitModality>(
     restoredDraft.visitModality ?? initialVisitModality,
@@ -726,6 +770,7 @@ function BookingFormEditor({
       roomId,
       clinicianId,
       visitTypeId,
+      serviceOfferingId,
       reason,
       visitModality,
     }),
@@ -737,6 +782,7 @@ function BookingFormEditor({
       roomId,
       clinicianId,
       visitTypeId,
+      serviceOfferingId,
       reason,
       visitModality,
     ],
@@ -761,6 +807,29 @@ function BookingFormEditor({
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
+  const serviceOfferings = useResource<{
+    service_offerings: BookingServiceOffering[];
+  }>("/api/clinic/service_offerings?status=published");
+  const selectedOffering = serviceOfferings.data?.service_offerings.find(
+    (offering) => String(offering.id) === serviceOfferingId,
+  );
+  const offeringIssue = serviceOfferingId
+    ? selectedOffering
+      ? offeringEligibilityIssue(
+          selectedOffering,
+          siteId,
+          visitTypeId,
+          visitModality,
+          roomId,
+          startsAt,
+          endsAt,
+        )
+      : serviceOfferings.error
+        ? "The selected service offering could not be verified. Retry loading it or use visit-type booking."
+        : serviceOfferings.data
+          ? "This service offering is no longer published. Choose another offering or use visit-type booking."
+          : "Checking the selected service offering…"
+    : null;
   const scheduledResources = useResource<{ appointments: Appointment[] }>(
     `/api/clinic/appointments?${scheduledResourceParams.toString()}`,
     { retainDataOnRefresh: true },
@@ -917,6 +986,7 @@ function BookingFormEditor({
       roomId: "",
       clinicianId: "",
       visitTypeId: "",
+      serviceOfferingId: "",
       reason: "",
       visitModality: "in_person",
     });
@@ -930,6 +1000,7 @@ function BookingFormEditor({
     setRoomId("");
     setClinicianId("");
     setVisitTypeId("");
+    setServiceOfferingId("");
     setReason("");
     setVisitModality("in_person");
     setBookingAttempt(null);
@@ -1007,6 +1078,8 @@ function BookingFormEditor({
           >
             Appointment #{created.id} scheduled for{" "}
             {clinicDateTime(created.starts_at, timezone)}.
+            {created.service_offering_snapshot?.name &&
+              ` Service: ${created.service_offering_snapshot.name}.`}
             {created.telehealth?.clinic_href && (
               <Button size="small" href={created.telehealth.clinic_href}>
                 Open video visit
@@ -1033,6 +1106,8 @@ function BookingFormEditor({
               return setSubmitError(
                 "Choose a site, clinician, and visit type before scheduling.",
               );
+            if (!bookingAttempt && offeringIssue)
+              return setSubmitError(offeringIssue);
             inFlight.current = true;
             if (autosaveTimer.current) {
               window.clearTimeout(autosaveTimer.current);
@@ -1050,6 +1125,9 @@ function BookingFormEditor({
                     room_id: visitModality === "video" ? "" : roomId,
                     booked_clinician_id: clinicianId,
                     visit_type_id: visitTypeId,
+                    ...(serviceOfferingId
+                      ? { service_offering_id: serviceOfferingId }
+                      : {}),
                     reason,
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
@@ -1104,6 +1182,7 @@ function BookingFormEditor({
                 lastWorkingDraft.current = unresolved;
                 await workingDraft.save(unresolved);
               } else {
+                if (serviceOfferingId) serviceOfferings.refresh();
                 setBookingAttempt(null);
                 const editable = {
                   draft: currentDraft,
@@ -1168,7 +1247,10 @@ function BookingFormEditor({
                   if (Number.isFinite(start.valueOf()))
                     setEndsAt(
                       localDateTimeValue(
-                        new Date(start.getTime() + 30 * 60_000),
+                        new Date(
+                          start.getTime() +
+                            (selectedOffering?.duration_minutes ?? 30) * 60_000,
+                        ),
                       ),
                     );
                 }}
@@ -1327,6 +1409,70 @@ function BookingFormEditor({
                     ))}
                 </Select>
               </FormControl>
+              <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
+                  <InputLabel id="service-offering-label">
+                    Service offering
+                  </InputLabel>
+                  <Select
+                    labelId="service-offering-label"
+                    label="Service offering"
+                    value={serviceOfferingId}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setServiceOfferingId(value);
+                      const offering =
+                        serviceOfferings.data?.service_offerings.find(
+                          (item) => String(item.id) === value,
+                        );
+                      if (offering?.visit_type_id)
+                        setVisitTypeId(String(offering.visit_type_id));
+                      if (offering?.duration_minutes)
+                        setDuration(offering.duration_minutes);
+                    }}
+                  >
+                    <MenuItem value="">
+                      Visit type only (no service offering)
+                    </MenuItem>
+                    {serviceOfferingId && !selectedOffering && (
+                      <MenuItem value={serviceOfferingId} disabled>
+                        Previously selected offering is unavailable
+                      </MenuItem>
+                    )}
+                    {serviceOfferings.data?.service_offerings.map(
+                      (offering) => (
+                        <MenuItem key={offering.id} value={String(offering.id)}>
+                          {offering.name}
+                          {offering.code ? ` · ${offering.code}` : ""}
+                        </MenuItem>
+                      ),
+                    )}
+                  </Select>
+                </FormControl>
+                {serviceOfferings.error && (
+                  <Alert
+                    severity="warning"
+                    sx={{ mt: 1 }}
+                    action={
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={serviceOfferings.refresh}
+                      >
+                        Retry
+                      </Button>
+                    }
+                  >
+                    Service offerings could not be loaded. Visit-type booking
+                    remains available.
+                  </Alert>
+                )}
+                {offeringIssue && (
+                  <Alert severity="warning" sx={{ mt: 1 }}>
+                    {offeringIssue}
+                  </Alert>
+                )}
+              </Box>
               <TextField
                 fullWidth
                 label="Visit reason"
@@ -1594,6 +1740,12 @@ export function ScheduleView({
                             context.practice.timezone,
                           )}
                         </Typography>
+                        {appointment.service_offering_snapshot?.name && (
+                          <Typography variant="body2" color="text.secondary">
+                            Service:{" "}
+                            {appointment.service_offering_snapshot.name}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         {context.capabilities.patients ? (

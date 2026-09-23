@@ -171,6 +171,11 @@ export function Patients({ id }: { id?: string }) {
 
 export function PatientRegistrationPage() {
   const clinic = useClinic();
+  const [identityReviewed, setIdentityReviewed] = useState(false);
+  const [submittedIdentity, setSubmittedIdentity] =
+    useState<RegistrationValues | null>(null);
+  const [reviewedIdentity, setReviewedIdentity] = useState<string | null>(null);
+  const canLookupIdentity = clinic.capabilities.patient_identity_read === true;
 
   return (
     <>
@@ -198,11 +203,53 @@ export function PatientRegistrationPage() {
       </Stack>
       {clinic.capabilities.patients_write ? (
         <Box sx={{ maxWidth: 960, minWidth: 0 }}>
-          <Card title="Patient registration">
-            <PatientRegistrationForm
-              onSuccess={createdPath("/clinic/patients")}
-            />
-          </Card>
+          {canLookupIdentity && !identityReviewed ? (
+            <Card title="Check for an existing patient">
+              <Stack spacing={2}>
+                <Alert severity="info">
+                  Search before creating a chart. Compare the identity details
+                  with the person in front of you; a similar name alone does not
+                  establish that two records belong to the same person.
+                </Alert>
+                <PatientLookup onProceed={() => setIdentityReviewed(true)} />
+              </Stack>
+            </Card>
+          ) : (
+            <Stack spacing={2}>
+              {submittedIdentity && (
+                <Card title="Review the submitted identity">
+                  <PatientSubmittedIdentityReview
+                    values={submittedIdentity}
+                    onEdit={() => setSubmittedIdentity(null)}
+                    onProceed={() => {
+                      setReviewedIdentity(
+                        registrationIdentitySignature(submittedIdentity),
+                      );
+                      setSubmittedIdentity(null);
+                    }}
+                  />
+                </Card>
+              )}
+              {!canLookupIdentity && (
+                <Alert severity="warning">
+                  Your role cannot search patient identities here. Follow your
+                  clinic&apos;s identity-check procedure before creating a
+                  record.
+                </Alert>
+              )}
+              <Card title="Patient registration">
+                <Box sx={{ display: submittedIdentity ? "none" : undefined }}>
+                  <PatientRegistrationForm
+                    onSuccess={createdPath("/clinic/patients")}
+                    reviewedIdentity={reviewedIdentity}
+                    onIdentityReviewRequired={
+                      canLookupIdentity ? setSubmittedIdentity : undefined
+                    }
+                  />
+                </Box>
+              </Card>
+            </Stack>
+          )}
         </Box>
       ) : (
         <Alert severity="error">
@@ -213,7 +260,7 @@ export function PatientRegistrationPage() {
   );
 }
 
-function PatientLookup() {
+function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
   const [query, setQuery] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [phone, setPhone] = useState("");
@@ -303,12 +350,24 @@ function PatientLookup() {
           Updating search…
         </Typography>
       )}
-      {lookupQuery && <PatientLookupResults search={lookupQuery} />}
+      {lookupQuery && (
+        <PatientLookupResults
+          key={lookupQuery}
+          search={lookupQuery}
+          onProceed={onProceed}
+        />
+      )}
     </Stack>
   );
 }
 
-function PatientLookupResults({ search }: { search: string }) {
+function PatientLookupResults({
+  search,
+  onProceed,
+}: {
+  search: string;
+  onProceed?: () => void;
+}) {
   const lookup = useResource<{ patients: Patient[]; pagination: Pagination }>(
     `/api/clinic/patients/lookup?${search}&page=1&per_page=25`,
   );
@@ -334,89 +393,265 @@ function PatientLookupResults({ search }: { search: string }) {
     );
   if (!lookup.data?.patients.length)
     return (
-      <Typography color="text.secondary">
-        No matching patients were found. You can still register a new patient
-        below.
-      </Typography>
+      <Stack spacing={1.5}>
+        <Typography color="text.secondary">
+          No matching patients were found. Check the information you entered
+          before creating a new record.
+        </Typography>
+        {onProceed && (
+          <Button onClick={onProceed} variant="contained">
+            Continue to registration
+          </Button>
+        )}
+      </Stack>
     );
 
   const data = lookup.data;
 
   return (
-    <Stack
-      component="ul"
-      spacing={1}
-      sx={{ listStyle: "none", m: 0, p: 0 }}
-      aria-label="Matching patients"
-    >
-      {data.patients.map((patient) => (
-        <Box
-          component="li"
-          key={patient.id}
-          sx={{
-            alignItems: { sm: "center" },
-            border: "1px solid",
-            borderColor: "divider",
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            gap: 1,
-            justifyContent: "space-between",
-            p: 1.5,
-          }}
-        >
-          <Box>
-            <Stack
-              direction="row"
-              spacing={1}
-              useFlexGap
-              sx={{ alignItems: "center", flexWrap: "wrap" }}
-            >
-              <Typography sx={{ fontWeight: 600 }}>
-                {patient.display_name}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                color={data.pagination.total > 1 ? "warning" : "default"}
-                label={
-                  data.pagination.total > 1
-                    ? "Possible duplicate"
-                    : "Candidate match"
-                }
-              />
-            </Stack>
-            <Typography color="text.secondary" variant="body2">
-              Clinic reference:{" "}
-              {patientReferenceLabel(patient.reference) ?? "Not recorded"}
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              Date of birth: {patient.date_of_birth || "Not recorded"} · Phone:{" "}
-              {patient.phone_hint || "Not recorded"}
-            </Typography>
-            {data.pagination.total > 1 && (
-              <Typography color="warning.main" variant="caption">
-                Compare the identity details before opening or registering
-                another record.
-              </Typography>
-            )}
-          </Box>
-          <Button
-            component="a"
-            href={`/clinic/patients/${patient.id}`}
-            variant="outlined"
+    <Stack spacing={2}>
+      <Stack
+        component="ul"
+        spacing={1}
+        sx={{ listStyle: "none", m: 0, p: 0 }}
+        aria-label="Matching patients"
+      >
+        {data.patients.map((patient) => (
+          <Box
+            component="li"
+            key={patient.id}
+            sx={{
+              alignItems: { sm: "center" },
+              border: "1px solid",
+              borderColor: "divider",
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 1,
+              justifyContent: "space-between",
+              p: 1.5,
+            }}
           >
-            Open patient
+            <Box>
+              <Stack
+                direction="row"
+                spacing={1}
+                useFlexGap
+                sx={{ alignItems: "center", flexWrap: "wrap" }}
+              >
+                <Typography sx={{ fontWeight: 600 }}>
+                  {patient.display_name}
+                </Typography>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={data.pagination.total > 1 ? "warning" : "default"}
+                  label={
+                    data.pagination.total > 1
+                      ? "Possible duplicate"
+                      : "Candidate match"
+                  }
+                />
+              </Stack>
+              <Typography color="text.secondary" variant="body2">
+                Clinic reference:{" "}
+                {patientReferenceLabel(patient.reference) ?? "Not recorded"}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                Date of birth: {patient.date_of_birth || "Not recorded"} ·
+                Phone: {patient.phone_hint || "Not recorded"}
+              </Typography>
+              {data.pagination.total > 1 && (
+                <Typography color="warning.main" variant="caption">
+                  Compare the identity details before opening or registering
+                  another record.
+                </Typography>
+              )}
+            </Box>
+            <Button
+              component="a"
+              href={`/clinic/patients/${patient.id}`}
+              variant="outlined"
+            >
+              Open patient
+            </Button>
+          </Box>
+        ))}
+        {data.pagination.total > data.patients.length && (
+          <Box component="li">
+            <Typography color="text.secondary" variant="body2">
+              More than 25 matches were found. Use a more specific name or
+              clinic reference.
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+      {onProceed && (
+        <Stack spacing={1}>
+          <Alert severity="warning">
+            If this person matches a record above, open that patient. Continue
+            only when staff have confirmed this is a different person.
+          </Alert>
+          <Button onClick={onProceed} variant="outlined">
+            Register a separate patient
           </Button>
-        </Box>
-      ))}
-      {data.pagination.total > data.patients.length && (
-        <Box component="li">
-          <Typography color="text.secondary" variant="body2">
-            More than 25 matches were found. Use a more specific name or clinic
-            reference.
-          </Typography>
-        </Box>
+        </Stack>
       )}
+    </Stack>
+  );
+}
+
+function PatientSubmittedIdentityReview({
+  values,
+  onEdit,
+  onProceed,
+}: {
+  values: RegistrationValues;
+  onEdit: () => void;
+  onProceed: () => void;
+}) {
+  const searches = registrationIdentitySearches(values);
+  const searchSignature = searches.join("|");
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<{
+    patients: Patient[];
+    incomplete: boolean;
+    error?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!searches.length) return;
+    const abort = new AbortController();
+    setResult(null);
+    Promise.all(
+      searches.map((search) =>
+        api<{ patients: Patient[]; pagination: Pagination }>(
+          `/api/clinic/patients/lookup?${search}&page=1&per_page=100`,
+          { signal: abort.signal },
+        ),
+      ),
+    )
+      .then((responses) => {
+        if (abort.signal.aborted) return;
+        setResult({
+          patients: Array.from(
+            new Map(
+              responses
+                .flatMap((response) => response.patients)
+                .map((patient) => [patient.id, patient]),
+            ).values(),
+          ),
+          incomplete: responses.some(
+            (response) => response.pagination.total > response.patients.length,
+          ),
+        });
+      })
+      .catch((reason: unknown) => {
+        if (abort.signal.aborted) return;
+        setResult({
+          patients: [],
+          incomplete: false,
+          error:
+            reason instanceof Error
+              ? reason.message
+              : "The identity check could not be completed.",
+        });
+      });
+    return () => abort.abort();
+  }, [searchSignature, revision]);
+
+  return (
+    <Stack spacing={1.5}>
+      <Alert severity="info">
+        Review the identity entered in registration before creating a chart:{" "}
+        {values.display_name || "Name not entered"} · DOB{" "}
+        {values.date_of_birth || "not recorded"} · clinic reference{" "}
+        {values.reference || "not entered"}.
+      </Alert>
+      {!searches.length && (
+        <Alert severity="warning">
+          Enter at least two name or reference characters, a complete birth
+          date, or a complete phone number before registering.
+        </Alert>
+      )}
+      {searches.length > 0 && !result && (
+        <Typography role="status">Checking the submitted identity…</Typography>
+      )}
+      {result?.error && (
+        <Alert
+          severity="error"
+          action={
+            <Button onClick={() => setRevision((value) => value + 1)}>
+              Retry
+            </Button>
+          }
+        >
+          {result.error}
+        </Alert>
+      )}
+      {result && !result.error && (
+        <>
+          {result.patients.length ? (
+            <Stack
+              component="ul"
+              spacing={1}
+              sx={{ listStyle: "none", m: 0, p: 0 }}
+            >
+              {result.patients.map((patient) => (
+                <Box
+                  component="li"
+                  key={patient.id}
+                  sx={{ border: "1px solid", borderColor: "divider", p: 1.5 }}
+                >
+                  <Typography sx={{ fontWeight: 600 }}>
+                    {patient.display_name}
+                  </Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    Clinic reference:{" "}
+                    {patientReferenceLabel(patient.reference) ?? "Not recorded"}{" "}
+                    · DOB {patient.date_of_birth || "Not recorded"} · Phone{" "}
+                    {patient.phone_hint || "Not recorded"}
+                  </Typography>
+                  <Button
+                    component="a"
+                    href={`/clinic/patients/${patient.id}`}
+                    variant="outlined"
+                  >
+                    Open patient
+                  </Button>
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <Typography>
+              No matching patients were found for the submitted details.
+            </Typography>
+          )}
+          {result.incomplete && (
+            <Alert severity="warning">
+              A search returned more than 100 records. Narrow the identity
+              details before registering.
+            </Alert>
+          )}
+          {!result.incomplete && (
+            <Alert severity="warning">
+              Open an existing record if it belongs to this person. Register a
+              separate patient only after confirming these are different people.
+            </Alert>
+          )}
+        </>
+      )}
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+        <Button onClick={onEdit} variant="outlined">
+          Edit registration details
+        </Button>
+        <Button
+          disabled={!result || Boolean(result.error) || result.incomplete}
+          onClick={onProceed}
+          variant="contained"
+        >
+          Register a separate patient
+        </Button>
+      </Stack>
     </Stack>
   );
 }
@@ -802,6 +1037,54 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
 }
 
 type RegistrationValues = Record<string, string>;
+
+export function registrationIdentitySignature(values: RegistrationValues) {
+  return JSON.stringify(
+    [
+      "display_name",
+      "legal_name",
+      "preferred_name",
+      "reference",
+      "date_of_birth",
+      "contact_type",
+      "contact_value",
+    ].map((field) => values[field]?.trim().toLocaleLowerCase() ?? ""),
+  );
+}
+
+export function registrationIdentityReviewRequired(
+  values: RegistrationValues,
+  reviewedIdentity: string | null | undefined,
+  exactRetry: boolean,
+) {
+  return (
+    !exactRetry && registrationIdentitySignature(values) !== reviewedIdentity
+  );
+}
+
+export function registrationIdentitySearches(values: RegistrationValues) {
+  const searches = new Set<string>();
+  ["display_name", "legal_name", "preferred_name", "reference"].forEach(
+    (field) => {
+      const query = values[field]?.trim();
+      if (query && query.length >= 2) {
+        searches.add(new URLSearchParams({ q: query }).toString());
+      }
+    },
+  );
+  if (/^\d{4}-\d{2}-\d{2}$/.test(values.date_of_birth ?? "")) {
+    searches.add(
+      new URLSearchParams({ date_of_birth: values.date_of_birth }).toString(),
+    );
+  }
+  if (values.contact_type === "phone") {
+    const phone = (values.contact_value ?? "").replace(/\D/g, "");
+    if (phone.length >= 7 && phone.length <= 15) {
+      searches.add(new URLSearchParams({ phone }).toString());
+    }
+  }
+  return Array.from(searches);
+}
 type RegistrationDraft = {
   body: { clinic_patient: RegistrationValues };
   requestKey: string;
@@ -844,9 +1127,7 @@ export function registrationContactError(values: RegistrationValues) {
   }
 
   const digits = value.replace(/\D/g, "").length;
-  return digits >= 7 && digits <= 15
-    ? ""
-    : "Enter a valid phone number.";
+  return digits >= 7 && digits <= 15 ? "" : "Enter a valid phone number.";
 }
 
 function splitAddress(value: string): AddressParts {
@@ -1348,9 +1629,13 @@ function PatientFields({
 export function PatientRegistrationForm({
   patient,
   onSuccess,
+  reviewedIdentity,
+  onIdentityReviewRequired,
 }: {
   patient?: Patient;
   onSuccess?: (result: Record<string, unknown> | undefined) => void;
+  reviewedIdentity?: string | null;
+  onIdentityReviewRequired?: (values: RegistrationValues) => void;
 }) {
   const workingDraft = useWorkingDraft<RegistrationDraft>({
     kind: patient ? "patient_update" : "registration",
@@ -1379,6 +1664,8 @@ export function PatientRegistrationForm({
         workingDraft.reload();
       }}
       onSuccess={onSuccess}
+      reviewedIdentity={reviewedIdentity}
+      onIdentityReviewRequired={onIdentityReviewRequired}
     />
   );
 }
@@ -1389,12 +1676,16 @@ function PatientRegistrationEditor({
   workingDraft,
   onReloadDraft,
   onSuccess,
+  reviewedIdentity,
+  onIdentityReviewRequired,
 }: {
   patient?: RegistrationPatient;
   initialDraft: RegistrationDraft | null;
   workingDraft: ReturnType<typeof useWorkingDraft<RegistrationDraft>>;
   onReloadDraft: (snapshot: RegistrationDraft) => void;
   onSuccess?: (result: Record<string, unknown> | undefined) => void;
+  reviewedIdentity?: string | null;
+  onIdentityReviewRequired?: (values: RegistrationValues) => void;
 }) {
   const { registerBlocker } = useClinicNavigation();
   const initialValues = useMemo(
@@ -1527,6 +1818,28 @@ function PatientRegistrationEditor({
               '[name="clinic_patient[contact_value]"]',
             )
             ?.focus();
+          inFlight.current = false;
+          return;
+        }
+        if (
+          !patient &&
+          onIdentityReviewRequired &&
+          registrationIdentityReviewRequired(
+            current.body.clinic_patient,
+            reviewedIdentity,
+            Boolean(attempt.current),
+          )
+        ) {
+          lastSnapshot.current = current;
+          if (!(await workingDraft.save(current))) {
+            setError(
+              "The working copy could not be saved. Keep this page open and retry the identity review.",
+            );
+          } else {
+            setDirty(true);
+            setError("");
+            onIdentityReviewRequired(current.body.clinic_patient);
+          }
           inFlight.current = false;
           return;
         }

@@ -22,6 +22,8 @@ module Clinic
         @busy = @appointments.select { |a| %w[scheduled confirmed].include?(a.status) }
         @offers = WaitlistEntry.where(practice: practice, state: "offered")
           .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, @finish, @start).to_a
+        @holds = ScheduleHold.where(practice: practice, state: "active")
+          .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, @finish, @start).to_a
         @hours = site.operating_hours.to_a
         @exceptions = site.hour_exceptions.where(date: @first.prev_day..@last.next_day).index_by(&:date)
         @clinicians = practice.clinician_profiles.order(:id).to_a
@@ -73,8 +75,12 @@ module Clinic
             next if @rules.any? { |r| r.kind == "block" && r.clinician_id == rule.clinician_id && overlap?(start, finish, r.starts_at, r.ends_at) }
             next if @busy.any? { |a| a.booked_clinician_id == rule.clinician_id && overlap?(start, finish, a.starts_at, a.ends_at) }
             next if @offers.any? { |o| o.clinician_id == rule.clinician_id && overlap?(start, finish, o.offer_starts_at, o.offer_ends_at) }
+            next if @holds.any? { |h| h.clinician_id == rule.clinician_id && overlap?(start, finish, h.starts_at, h.ends_at) }
 
-            rooms = @rooms.reject { |room| @busy.any? { |a| a.room_id == room.id && overlap?(start, finish, a.starts_at, a.ends_at) } }
+            rooms = @rooms.reject do |room|
+              @busy.any? { |a| a.room_id == room.id && overlap?(start, finish, a.starts_at, a.ends_at) } ||
+                @holds.any? { |h| h.room_id == room.id && overlap?(start, finish, h.starts_at, h.ends_at) }
+            end
             slots << { starts_at: start.iso8601, ends_at: finish.iso8601, clinician_id: rule.clinician_id,
               room_ids: rooms.map(&:id) }
           end

@@ -1419,6 +1419,17 @@ export type Appointment = {
   room_id: number | null;
   booked_clinician_id: number | null;
   visit_type_id: number | null;
+  service_offering_id?: number | null;
+  service_offering_snapshot?: {
+    name: string;
+    code: string | null;
+    visit_type_id: number;
+    duration_minutes: number;
+    modality: "in_person" | "video" | "either";
+    requires_room: boolean;
+    published_at: string | null;
+    revision: number;
+  } | null;
   reason?: string | null;
   starts_at: string;
   ends_at: string;

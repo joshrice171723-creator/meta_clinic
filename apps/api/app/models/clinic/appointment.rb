@@ -9,6 +9,7 @@ module Clinic
     belongs_to :room, class_name: "Clinic::Room", optional: true
     belongs_to :booked_clinician, class_name: "Clinic::ClinicianProfile", optional: true
     belongs_to :visit_type, class_name: "Clinic::VisitType", optional: true
+    belongs_to :service_offering, class_name: "Clinic::ServiceOffering", optional: true
     belongs_to :schedule_hold, class_name: "Clinic::Scheduling::ScheduleHold", optional: true
     has_one :encounter, class_name: "Clinic::Encounter", dependent: :restrict_with_error
     has_one :telehealth_visit, class_name: "Clinic::Telehealth::Visit", dependent: :restrict_with_error
@@ -48,6 +49,7 @@ module Clinic
     validate :positive_interval
     validate :room_requires_site
     validate :related_records_belong_to_practice
+    validate :offering_snapshot_pair
 
     private
 
@@ -61,10 +63,17 @@ module Clinic
     end
 
     def related_records_belong_to_practice
-      { patient: patient, site: site, room: room, booked_clinician: booked_clinician, visit_type: visit_type, schedule_hold: schedule_hold }.each do |attribute, record|
+      { patient: patient, site: site, room: room, booked_clinician: booked_clinician, visit_type: visit_type,
+        service_offering: service_offering, schedule_hold: schedule_hold }.each do |attribute, record|
         errors.add(attribute, "must belong to this practice") if record && record.practice_id != practice_id
       end
       errors.add(:room, "must belong to the selected site") if room && site && room.site_id != site.id
+    end
+
+    def offering_snapshot_pair
+      return if service_offering_id.present? == service_offering_snapshot.present?
+
+      errors.add(:service_offering_snapshot, "must accompany the selected service offering")
     end
   end
 end

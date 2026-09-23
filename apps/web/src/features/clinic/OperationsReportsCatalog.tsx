@@ -1,6 +1,26 @@
-import { Alert, Button, Chip, Divider, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Chip,
+  Divider,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useState, type FormEvent } from "react";
 import type { ClinicCapabilities } from "../../api/contracts";
-import { Card } from "../../shared/ui";
+import { Card, LoadState, useResource } from "../../shared/ui";
+
+type DailyVisitsReport = {
+  definition: { revision: number; source: string; date_basis: string };
+  date: string;
+  timezone: string;
+  as_of: string;
+  freshness: string;
+  counts: Record<string, number>;
+  total: number;
+  unknown_state_count: number;
+};
 
 type ReportDestination = {
   title: string;
@@ -59,8 +79,10 @@ function destinations(capabilities: ClinicCapabilities): ReportDestination[] {
 
 export function OperationsReportsCatalog({
   capabilities,
+  siteId,
 }: {
   capabilities: ClinicCapabilities;
+  siteId?: number;
 }) {
   return (
     <Card title="Reports and exports">
@@ -111,6 +133,87 @@ export function OperationsReportsCatalog({
         permission boundary, and export/reference metadata so a report can be
         reconciled back to the ledger that produced it.
       </Alert>
+      {siteId && capabilities.appointments_read === true && (
+        <DailyVisitsByState siteId={siteId} />
+      )}
     </Card>
+  );
+}
+
+function DailyVisitsByState({ siteId }: { siteId: number }) {
+  const [inputDate, setInputDate] = useState("");
+  const [loadedDate, setLoadedDate] = useState("");
+  const path = `/api/clinic/reports/daily_visits_by_state?date=${encodeURIComponent(loadedDate)}&site_id=${siteId}`;
+  const result = useResource<{ report: DailyVisitsReport }>(path, {
+    enabled: Boolean(loadedDate),
+  });
+  const report = result.data?.report;
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (inputDate) {
+      if (inputDate === loadedDate) result.refresh();
+      else setLoadedDate(inputDate);
+    }
+  };
+
+  return (
+    <Stack spacing={1.5} sx={{ mt: 3 }}>
+      <Divider />
+      <Typography variant="h6" component="h3">
+        Daily visits by state
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Current appointment states for one clinic location and local date.
+        Counts include cancelled and no-show visits; requests and holds are
+        excluded.
+      </Typography>
+      <Stack
+        component="form"
+        onSubmit={submit}
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ alignItems: { sm: "center" } }}
+      >
+        <TextField
+          label="Clinic date"
+          type="date"
+          value={inputDate}
+          onChange={(event) => setInputDate(event.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          size="small"
+        />
+        <Button type="submit" variant="outlined" disabled={!inputDate}>
+          {loadedDate && loadedDate === inputDate ? "Refresh report" : "Show report"}
+        </Button>
+      </Stack>
+      {loadedDate && !report && (
+        <LoadState error={result.error} onRetry={result.refresh} />
+      )}
+      {report && (
+        <Stack spacing={1} aria-live="polite">
+          <Typography>
+            {report.date} · {report.total} visits
+          </Typography>
+          {Object.entries(report.counts).map(([state, count]) => (
+            <Typography variant="body2" key={state}>
+              {state.replaceAll("_", " ")}: {count}
+            </Typography>
+          ))}
+          {report.unknown_state_count > 0 && (
+            <Typography variant="body2">
+              Unknown states: {report.unknown_state_count}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.definition.source} · Definition revision{" "}
+            {report.definition.revision}
+            {" · "}Date basis: {report.definition.date_basis} ·{" "}
+            {report.timezone}
+            {" · "}As of {report.as_of} · {report.freshness}. No export is
+            available.
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
   );
 }

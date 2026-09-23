@@ -55,6 +55,90 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "published offering booking persists its identity and original configuration after retirement" do
+    offering = published_offering(@own)
+    payload = appointment_payload(@own, request_key: "offering-booking").deep_merge(
+      appointment: { service_offering_id: offering.id }
+    )
+
+    submit "/api/clinic/appointments", payload
+    assert_response :created
+    booked = response.parsed_body.fetch("appointment")
+    assert_equal offering.id, booked.fetch("service_offering_id")
+    assert_equal offering.name, booked.dig("service_offering_snapshot", "name")
+
+    offering.update!(status: "retired", retired_at: Time.current)
+    submit "/api/clinic/appointments", payload
+    assert_response :created
+    assert_equal booked.fetch("id"), response.parsed_body.dig("appointment", "id")
+
+    appointment = @own.fetch(:practice).appointments.find(booked.fetch("id"))
+    assert_equal offering.id, appointment.service_offering_id
+    assert_equal offering.name, appointment.service_offering_snapshot.fetch("name")
+    assert_equal offering.name, Clinic::Scheduling::AppointmentSerializer.call(appointment).dig(:service_offering_snapshot, "name")
+
+    submit "/api/clinic/appointments", appointment_payload(@own, request_key: "retired-new").deep_merge(
+      appointment: { service_offering_id: offering.id, starts_at: "2026-10-01T10:00:00Z", ends_at: "2026-10-01T10:30:00Z" }
+    )
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "published"
+
+    submit "/api/clinic/appointments", appointment_payload(@own, request_key: "independent-booking").deep_merge(
+      appointment: { starts_at: "2026-10-01T11:00:00Z", ends_at: "2026-10-01T11:30:00Z" }
+    )
+    assert_response :created
+    assert_nil response.parsed_body.dig("appointment", "service_offering_id")
+  end
+
+  test "offering booking denies foreign and incompatible configuration and reschedule cannot reuse retirement" do
+    offering = published_offering(@own)
+    base = appointment_payload(@own, request_key: "offering-validation")
+    incomplete = @own.fetch(:practice).appointments.create!(patient: @own.fetch(:patient),
+      starts_at: Time.iso8601("2026-10-01T12:00:00Z"), ends_at: Time.iso8601("2026-10-01T12:30:00Z"),
+      status: "scheduled")
+    patch "/api/clinic/appointments/#{incomplete.id}", params: { appointment: {
+      starts_at: "2026-10-01T13:00:00Z", ends_at: "2026-10-01T13:30:00Z",
+      expected_updated_at: incomplete.updated_at.iso8601(6), request_key: "incomplete-offering-reschedule",
+      service_offering_id: offering.id
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "site, clinician, and visit type"
+
+    foreign = published_offering(@foreign)
+    submit "/api/clinic/appointments", base.deep_merge(appointment: { service_offering_id: foreign.id })
+    assert_response :not_found
+
+    other_site = @own.fetch(:practice).sites.create!(code: "OTHER-SITE")
+    submit "/api/clinic/appointments", base.deep_merge(appointment: { service_offering_id: offering.id, site_id: other_site.id })
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "site"
+
+    submit "/api/clinic/appointments", base.deep_merge(appointment: { service_offering_id: offering.id,
+      ends_at: "2026-10-01T10:00:00Z" })
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "duration"
+
+    submit "/api/clinic/appointments", base.deep_merge(appointment: { service_offering_id: offering.id })
+    assert_response :created
+    booked = response.parsed_body.fetch("appointment")
+    offering.update!(status: "retired", retired_at: Time.current)
+
+    patch "/api/clinic/appointments/#{booked.fetch('id')}", params: { appointment: {
+      starts_at: "2026-10-01T10:00:00Z", ends_at: "2026-10-01T10:30:00Z",
+      expected_updated_at: booked.fetch("updated_at"), request_key: "retired-reschedule"
+    } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "published"
+
+    patch "/api/clinic/appointments/#{booked.fetch('id')}", params: { appointment: {
+      starts_at: "2026-10-01T10:00:00Z", ends_at: "2026-10-01T10:30:00Z",
+      expected_updated_at: booked.fetch("updated_at"), request_key: "independent-reschedule", service_offering_id: nil
+    } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_nil response.parsed_body.dig("appointment", "service_offering_id")
+    assert_nil @own.fetch(:practice).appointments.find(booked.fetch("id")).service_offering_snapshot
+  end
+
   test "appointment creation rejects missing operational setup" do
     assert_no_difference -> { @own.fetch(:practice).appointments.count } do
       submit "/api/clinic/appointments", appointment_payload(@own).deep_merge(
@@ -134,6 +218,15 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def published_offering(tenant)
+    practice = tenant.fetch(:practice)
+    offering = practice.service_offerings.create!(name: "Selected follow-up", visit_type: tenant.fetch(:visit_type),
+      duration_minutes: 30, modality: "either")
+    offering.offering_sites.create!(practice: practice, site: tenant.fetch(:site))
+    offering.update!(status: "published", published_at: Time.current)
+    offering
+  end
 
   def tenant(label)
     organization = Organization.create!(name: "Appointment create #{label} organization")

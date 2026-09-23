@@ -6,6 +6,23 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-22 — Site-scoped daily visits report
+
+Added a clinic-local daily appointment-state aggregate in the API with site/practice scope, a definition revision, source/date-basis metadata, as-of time and freshness. Focused API integration checks passed 3 runs / 32 assertions, including report access and reconciliation cases. Operations now renders a date-selected read-only view without patient rows or export. In the synthetic clinic browser, September 24 returned one scheduled visit and zero in the other states, with source/revision/freshness visible. Reload and denied-role browser checks remain open; this is one bounded MC-14 report, not a general reporting acceptance. See [[Meta Clinic Implementation Tracker]].
+
+## 2026-09-22 — Linked service booking, identity review, hold projection, and estimate correction
+
+In a worktree-owned synthetic clinic, staff created and published a service offering, booked one September 24 appointment with it, and saw the appointment on the schedule. Database inspection confirmed the offering link and booking-time snapshot. A full setup reload retained the offering; retirement then left its catalog row visible without edit/publish actions. The registration page now presents an identity search before registration for authorized roles; the browser showed both an existing candidate and a no-match path, but did not complete a walk-in-to-portal return or bind the reviewed search to final form details. The calendar now subtracts active unexpired schedule holds from clinician and room availability (8 focused tests/26 assertions passed). A reasoned linked cash-pay estimate correction draft has focused service/HTTP proof (6 runs/40 assertions), with browser issue/delivery still open. The remaining gates and precise evidence boundaries are in [[Meta Clinic Implementation Tracker]].
+
+## 2026-09-22 — Public membership contact and account browser checkpoint
+
+On an isolated synthetic stack, the public directory opened two clinic-specific membership catalogs. A contact-first request in clinic 1 persisted as an outreach prospect without a patient link. An adult account-first request in clinic 2 reached email verification and remained unpaid; an underage account attempt was rejected without another prospect. The storefront dialog now states that contact-only does not create an account or start payment. Account activation, local payment/failure recovery, retries, and broader website tools remain open. See the MC-02 checkpoint in [[Meta Clinic Implementation Tracker]] for the evidence boundary.
+
+## 2026-09-22 — Optional-insurance tracker row reconciled
+
+Added MC-16 to the main implementation inventory, where it was missing despite appearing in the existing delivery dashboard and vendor-preparation section. The row restates D-064's optional-insurance boundary and D-072's local-preparation direction; it records no new source implementation, payer connection, policy decision or acceptance evidence. Current source reconciliation and a bounded local workflow remain next.
+
 ## 2026-09-22 — Service-offering retirement and published-site guard
 
 Implemented a dedicated idempotent service-offering retirement operation with a recorded `retired_at`, blocked generic status bypass and later editing/republishing, and added a confirmation action to Clinic setup. A focused failure-first test exposed a published-offering site update that raised a database null-constraint error; site links now update atomically and a published offering cannot lose required eligible site/room coverage. The isolated synthetic browser published the existing draft, retired it, and showed the retained retired catalog row after reload without Edit or Publish actions. Focused Rails service-offering tests passed 5 runs/53 assertions; the session suite passed 11 runs/83 assertions; 16 focused client tests and the web production build passed. Appointment linkage, independent-service behavior, browser tenant denial, and professional/release gates remain open; this is not completion of MC-01.
