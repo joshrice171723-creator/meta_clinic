@@ -65,7 +65,7 @@ module Apply
         web: parse_port("APPLY_WEB_PORT", 3000),
         api: parse_port("APPLY_API_PORT", 3001)
       }
-      @api_readiness_timeout = parse_timeout("APPLY_API_READINESS_TIMEOUT", 45)
+      @api_readiness_timeout = parse_timeout("APPLY_API_READINESS_TIMEOUT", 120)
       @web_readiness_timeout = parse_timeout("APPLY_WEB_READINESS_TIMEOUT", 60)
       @trace = nil
       @owns_trace = false

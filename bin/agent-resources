@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared heavy-command queue and two protected prepared worktree slots."""
+"""Shared heavy-command queue and three protected prepared worktree slots."""
 import argparse
 import json
 import os
@@ -48,7 +48,7 @@ def prepare(number):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("run", "prepare", "status", "claim", "release", "exec"))
-    parser.add_argument("--slot", type=int, choices=(1, 2))
+    parser.add_argument("--slot", type=int, choices=(1, 2, 3))
     parser.add_argument("--owner")
     argv = sys.argv[1:]
     split = argv.index("--") if "--" in argv else len(argv)
