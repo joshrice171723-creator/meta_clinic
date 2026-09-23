@@ -532,10 +532,11 @@ export function PublicMembershipStorefront({
                         Your contact details
                       </Typography>
                       <Typography color="text.secondary">
-                        Your name and email create a membership account before
-                        payment and place the enrollment in the clinic Growth
-                        pipeline. Use the emailed link to set a password, then
-                        secure checkout opens.
+                        To ask for clinic contact, enter your name and agree to
+                        outreach; this does not create an account or start
+                        payment. To purchase, enter your email and birth date.
+                        We will send a link to verify your address and set a
+                        password before the payment step.
                       </Typography>
                       <TextField
                         required
@@ -634,10 +635,9 @@ export function PublicMembershipStorefront({
                           label={`I agree that ${resource.data?.practice.name || "the clinic"} may contact me about this membership request.`}
                         />
                         <FormHelperText>
-                          This lets the clinic contact you about this request
-                          and post-payment onboarding. Payment authorization
-                          happens only after you create your password and open
-                          the secure checkout page.
+                          This lets the clinic contact you about this request.
+                          Choosing to create an account does not authorize a
+                          payment; that happens in a later step.
                         </FormHelperText>
                       </FormControl>
                     </>
