@@ -79,7 +79,7 @@ module Clinic
         status
       end
 
-      def move!(kind:, amount:, reason:, actor:, request_key:, occurred_at: Current.business_time)
+      def move!(kind:, amount:, reason:, actor:, request_key:, reverses_entry_id: nil, occurred_at: Current.business_time)
         if kind == "receipt"
           receipt = Clinic::Inventory::Receiving.call(practice: practice, actor: actor, reason: reason, request_key: request_key, supplier: supplier,
             lines: [ { product_id: product_id, lot_number: lot_number, location_id: location_id, location: location, expires_on: expires_on, amount: amount, input_unit: product.stock_unit } ], received_at: occurred_at)
@@ -88,7 +88,8 @@ module Clinic
         end
         direction = PharmacyMovement::KINDS.fetch(kind) { raise ArgumentError, "Choose a supported movement." }
         count = Clinic::Inventory::Quantity.parse(amount, scale: product.quantity_scale)
-        attributes = { practice_id: practice_id, batch_id: id, actor_id: actor.id, kind: kind, quantity: count * direction, reason: reason, request_key: request_key }
+        attributes = { practice_id: practice_id, batch_id: id, actor_id: actor.id, kind: kind, quantity: count * direction,
+          reason: reason, request_key: request_key, reverses_entry_id: reverses_entry_id }
         Clinic::Inventory::Access.with(practice_id, actor, "adjust") do |profile|
           Clinic::Inventory::Access.retry_lock(practice_id, request_key)
           PharmacyProduct.lock("FOR SHARE").find(product_id)

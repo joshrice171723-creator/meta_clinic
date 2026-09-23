@@ -2900,6 +2900,7 @@ export function InventoryApp({ path }: { path: string }) {
           "recalls",
           "counts",
           "controlled",
+          "activity",
         ].includes(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
@@ -2920,6 +2921,7 @@ export function InventoryApp({ path }: { path: string }) {
           "recalls",
           "counts",
           "controlled",
+          "activity",
         ].includes(screen)
       ) {
         if (payload.acknowledged !== true)
@@ -2955,6 +2957,7 @@ export function InventoryApp({ path }: { path: string }) {
           "recalls",
           "counts",
           "controlled",
+          "activity",
         ].includes(screen)
       )
         await load();
@@ -3139,6 +3142,9 @@ export function InventoryApp({ path }: { path: string }) {
                 loading={loading}
                 error={error}
                 onRead={load}
+                busy={busy}
+                pendingMutation={uncertainMutation}
+                run={run}
               />
             ) : "catalog_page" in data ? (
               <CatalogScreen
@@ -7338,17 +7344,52 @@ export function ActivityScreen({
   loading = false,
   error = "",
   onRead,
+  busy = false,
+  pendingMutation = null,
+  run,
 }: {
   data: InventoryActivityData;
   loading?: boolean;
   error?: string;
   onRead: (query: { q?: string; before?: string | null }) => Promise<void>;
+  busy?: boolean;
+  pendingMutation?: PendingInventoryMutation | null;
+  run?: (
+    endpoint: string,
+    body: Record<string, unknown>,
+    title: string,
+    detail: string,
+    afterSuccess?: () => void,
+  ) => Promise<void>;
 }) {
   const page = data.activity_page;
   const [filter, setFilter] = useState(page.query);
   useEffect(() => setFilter(page.query), [page.query]);
   const normalizedFilter = page.query;
   const rows = data.movements;
+  const [reversalTarget, setReversalTarget] = useState<
+    (typeof rows)[number] | null
+  >(null);
+  const [reversalReason, setReversalReason] = useState("");
+  const reversalEndpoint = reversalTarget
+    ? `/api/clinic/inventory/lots/${reversalTarget.lot_id}/adjust`
+    : "";
+  const reversalBody = reversalTarget
+    ? {
+        adjustment: {
+          lot_id: reversalTarget.lot_id,
+          location_id: reversalTarget.location_id,
+          reverses_entry_id: reversalTarget.id,
+          reason: reversalReason.trim(),
+        },
+      }
+    : null;
+  const exactRetry =
+    pendingMutation &&
+    reversalBody &&
+    pendingMutation.endpoint === reversalEndpoint &&
+    pendingMutation.intent ===
+      JSON.stringify({ endpoint: reversalEndpoint, body: reversalBody });
   const viewState =
     page.before_cursor && rows.length === 0 && page.filtered_count > 0
       ? "page_empty"
@@ -7436,6 +7477,7 @@ export function ActivityScreen({
                   <th>Quantity</th>
                   <th>Reason / source</th>
                   <th>Recorded by</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -7472,6 +7514,23 @@ export function ActivityScreen({
                       )}
                     </td>
                     <td>{item.actor_name ?? "System record"}</td>
+                    <td>
+                      {item.can_reverse && run && (
+                        <Button
+                          size="small"
+                          disabled={busy || Boolean(pendingMutation)}
+                          onClick={() => {
+                            setReversalTarget(item);
+                            setReversalReason("");
+                          }}
+                        >
+                          Reverse stock removal
+                        </Button>
+                      )}
+                      {item.reverses_entry_id && (
+                        <span>Reverses entry #{item.reverses_entry_id}</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -7496,6 +7555,70 @@ export function ActivityScreen({
                   : "Recorded stock receipts, transfers, adjustments, and counts will appear here with their source."}
             </p>
           </div>
+        )}
+        {reversalTarget && run && (
+          <form
+            className="inventory-form-grid"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (
+                !reversalBody ||
+                !reversalReason.trim() ||
+                busy ||
+                (pendingMutation && !exactRetry)
+              )
+                return;
+              void run(
+                reversalEndpoint,
+                reversalBody,
+                "Stock use reversed",
+                `Entry #${reversalTarget.id} was reversed once. The original movement remains in the ledger.`,
+                () => {
+                  setReversalTarget(null);
+                  setReversalReason("");
+                },
+              );
+            }}
+          >
+            <Alert severity="warning" sx={{ gridColumn: "1 / -1" }}>
+              Reverse entry #{reversalTarget.id}: restore exactly{" "}
+              {number(reversalTarget.quantity_units)}{" "}
+              {reversalTarget.stock_unit} to lot {reversalTarget.lot_number} at{" "}
+              {reversalTarget.location_name}. Review the physical stock and
+              reason before posting.
+            </Alert>
+            <TextField
+              label="Reversal reason"
+              required
+              multiline
+              minRows={2}
+              value={reversalReason}
+              onChange={(event) => setReversalReason(event.target.value)}
+              disabled={busy || Boolean(pendingMutation)}
+              slotProps={{ htmlInput: { maxLength: 200 } }}
+            />
+            <div className="inventory-form-actions">
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={busy || Boolean(pendingMutation)}
+                onClick={() => setReversalTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={
+                  busy ||
+                  !reversalReason.trim() ||
+                  Boolean(pendingMutation && !exactRetry)
+                }
+              >
+                {exactRetry ? "Retry exact reversal" : "Post reversal"}
+              </Button>
+            </div>
+          </form>
         )}
         <div className="inventory-form-actions">
           <Button

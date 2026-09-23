@@ -451,14 +451,23 @@ module Clinic
         input = params[:adjustment].presence || params
         validate_request_key!(input.require(:request_key).to_s)
         batch = batch_for(input)
-        delta = Quantity.parse(input.require(:delta_units), scale: batch.product.quantity_scale, signed: true)
         reason = required_adjustment_reason!(input[:reason])
-        raise ArgumentError, "Adjustment cannot be zero." if delta.zero?
-        movement = batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs, reason: reason, actor: current_user, request_key: input[:request_key].to_s)
+        movement = if input[:reverses_entry_id].present?
+          raise ArgumentError, "A reversal derives its quantity from the original stock use." if input[:delta_units].present?
+          ReverseStockUse.call(practice: current_practice, actor: current_user,
+            original_entry_id: input[:reverses_entry_id], batch: batch, reason: reason,
+            request_key: input[:request_key].to_s)
+        else
+          delta = Quantity.parse(input.require(:delta_units), scale: batch.product.quantity_scale, signed: true)
+          raise ArgumentError, "Adjustment cannot be zero." if delta.zero?
+          batch.move!(kind: delta.positive? ? "adjustment_in" : "adjustment_out", amount: delta.abs,
+            reason: reason, actor: current_user, request_key: input[:request_key].to_s)
+        end
         batch.reload
         adjustment = {
           id: movement.id.to_s,
           delta_units: movement.quantity.to_d.to_s("F"),
+          reverses_entry_id: movement.reverses_entry_id&.to_s,
           reason: movement.reason,
           product_name: batch.product.name,
           lot_number: batch.lot.number,

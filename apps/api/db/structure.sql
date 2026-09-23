@@ -4229,8 +4229,10 @@ CREATE TABLE public.clinic_inventory_entries (
     count_id bigint,
     transfer_id bigint,
     recall_disposition_id bigint,
+    reverses_entry_id bigint,
     CONSTRAINT inventory_count_entry CHECK ((((kind)::text = 'count_correction'::text) = (count_id IS NOT NULL))),
     CONSTRAINT inventory_entry_direction CHECK (((((kind)::text = ANY (ARRAY[('receipt'::character varying)::text, ('adjustment_in'::character varying)::text])) AND (quantity > (0)::numeric)) OR (((kind)::text = ANY (ARRAY[('adjustment_out'::character varying)::text, ('damaged'::character varying)::text, ('expired'::character varying)::text, ('return_to_supplier'::character varying)::text])) AND (quantity < (0)::numeric)) OR ((kind)::text = ANY (ARRAY[('office_adjustment'::character varying)::text, ('count_correction'::character varying)::text, ('opening_balance'::character varying)::text])))),
+    CONSTRAINT inventory_entry_no_self_reversal CHECK (((reverses_entry_id IS NULL) OR (reverses_entry_id <> id))),
     CONSTRAINT inventory_entry_provenance CHECK ((((origin)::text = ANY (ARRAY[('posted'::character varying)::text, ('legacy_movement'::character varying)::text, ('legacy_opening_balance'::character varying)::text])) AND ((actor_id IS NOT NULL) OR ((origin)::text = 'legacy_opening_balance'::text)) AND (((origin)::text <> 'posted'::text) OR (profile_id IS NOT NULL)))),
     CONSTRAINT inventory_entry_target CHECK (((((stock_type)::text = 'pharmacy'::text) AND (batch_id IS NOT NULL) AND (item_id IS NULL)) OR (((stock_type)::text = 'office'::text) AND (item_id IS NOT NULL) AND (batch_id IS NULL)))),
     CONSTRAINT inventory_entry_values CHECK (((quantity <> (0)::numeric) AND ((quantity >= ('-1000000'::integer)::numeric) AND (quantity <= (1000000)::numeric)) AND (quantity = round(quantity, 6)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 200)) AND ((length((request_key)::text) >= 1) AND (length((request_key)::text) <= 100))))
@@ -20625,6 +20627,13 @@ CREATE UNIQUE INDEX index_identity_preferences_on_user_id ON public.identity_pre
 
 
 --
+-- Name: index_inventory_entries_unique_reversal; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_inventory_entries_unique_reversal ON public.clinic_inventory_entries USING btree (practice_id, reverses_entry_id) WHERE (reverses_entry_id IS NOT NULL);
+
+
+--
 -- Name: index_invoices_on_practice_and_voider; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -25062,6 +25071,14 @@ ALTER TABLE ONLY public.clinic_inventory_count_sessions
 
 ALTER TABLE ONLY public.clinic_inventory_counts
     ADD CONSTRAINT fk_inventory_counts_session_line FOREIGN KEY (practice_id, count_session_line_id) REFERENCES public.clinic_inventory_count_session_lines(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_entries fk_inventory_entries_reversed_entry; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_entries
+    ADD CONSTRAINT fk_inventory_entries_reversed_entry FOREIGN KEY (practice_id, reverses_entry_id) REFERENCES public.clinic_inventory_entries(practice_id, id);
 
 
 --
@@ -30831,6 +30848,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922100000'),
 ('20260922090000'),
 ('20260922080000'),
 ('20260922070000'),

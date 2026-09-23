@@ -99,6 +99,58 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
     assert_equal before_movements, @batch.movements.count
   end
 
+  test "received package units support one linked stock-use reversal with exact retry and role denial" do
+    assert_equal BigDecimal("2.5"), @batch.quantity, "two 1.25 mL packages were received"
+    use_key = SecureRandom.uuid
+    post_adjustment(delta_units: "-1.25", reason: "Synthetic stock use", request_key: use_key)
+    assert_response :success
+    original_id = response.parsed_body.dig("adjustment", "id")
+    assert_equal BigDecimal("1.25"), @batch.reload.quantity
+
+    other_receipt = Clinic::Inventory::Receiving.call(practice: @practice, actor: @actor,
+      reason: "Separate synthetic lot", request_key: SecureRandom.uuid,
+      lines: [ { product_id: @batch.product_id, lot_number: "ACTIVITY-OTHER-LOT",
+        location_id: @batch.location_id, expires_on: "2099-01-01", amount: "1", input_unit: "package" } ])
+    other_batch = other_receipt.lines.sole.batch
+    post "/api/clinic/inventory/lots/#{other_batch.lot_id}/adjust", params: {
+      adjustment: { lot_id: other_batch.lot_id, location_id: other_batch.location_id,
+        reverses_entry_id: original_id, reason: "Wrong lot", request_key: SecureRandom.uuid }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal BigDecimal("1.25"), other_batch.reload.quantity
+    assert_equal BigDecimal("1.25"), @batch.reload.quantity
+
+    reverse_key = SecureRandom.uuid
+    reversal = { reverses_entry_id: original_id, reason: "Correct duplicate synthetic use", request_key: reverse_key }
+    post_adjustment(**reversal)
+    assert_response :success
+    reversal_id = response.parsed_body.dig("adjustment", "id")
+    assert_equal original_id, response.parsed_body.dig("adjustment", "reverses_entry_id")
+    assert_equal "1.25", response.parsed_body.dig("adjustment", "delta_units")
+    assert_equal BigDecimal("2.5"), @batch.reload.quantity
+    assert_equal "-1.25", Clinic::Inventory::PharmacyMovement.find(original_id).quantity.to_d.to_s("F")
+
+    post_adjustment(**reversal)
+    assert_response :success
+    assert_equal reversal_id, response.parsed_body.dig("adjustment", "id")
+    assert_equal BigDecimal("2.5"), @batch.reload.quantity
+
+    post_adjustment(**reversal.merge(request_key: SecureRandom.uuid))
+    assert_response :unprocessable_entity
+    assert_equal BigDecimal("2.5"), @batch.reload.quantity
+    post_adjustment(**reversal.merge(reason: "Different reason"))
+    assert_response :unprocessable_entity
+
+    read_page
+    reversed = response.parsed_body.dig("data", "movements").find { |row| row.fetch("id") == reversal_id }
+    assert_equal original_id, reversed.fetch("reverses_entry_id")
+
+    set_permission!(@membership, "inventory.adjust", false)
+    post_adjustment(reverses_entry_id: original_id, reason: "Denied reversal", request_key: SecureRandom.uuid)
+    assert_response :forbidden
+    assert_equal 1, Clinic::Inventory::PharmacyMovement.where(practice_id: @practice.id, reverses_entry_id: original_id).count
+  end
+
   test "read scope ignores a supplied practice and rechecks permission" do
     other = Clinic::Practice.create!(name: "Other activity fixture")
     read_page(practice_id: other.id)
@@ -120,6 +172,12 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def post_adjustment(**values)
+    post "/api/clinic/inventory/lots/#{@batch.lot_id}/adjust", params: {
+      adjustment: { lot_id: @batch.lot_id, location_id: @batch.location_id }.merge(values)
+    }, headers: csrf_headers, as: :json
+  end
 
   def csrf_headers
     get "/api/csrf", headers: @headers

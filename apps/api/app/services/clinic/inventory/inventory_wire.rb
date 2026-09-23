@@ -82,12 +82,20 @@ module Clinic
 
       def activity(practice:, actor:, query: nil, before: nil, lot_id: nil)
         result = ActivityQuery.call(practice: practice, query: query, before: before, lot_id: lot_id)
-        context(practice: practice, actor: actor).merge(
+        read_context = context(practice: practice, actor: actor)
+        use_ids = result.movements.filter_map { |movement| movement.id if movement.kind == "adjustment_out" }
+        reversed_ids = PharmacyMovement.where(practice_id: practice.id, reverses_entry_id: use_ids).pluck(:reverses_entry_id).to_set
+        administration_ids = Clinic::Care::MedicationAdministrationMovement.where(practice_id: practice.id, inventory_entry_id: use_ids).pluck(:inventory_entry_id).to_set
+        dispense_ids = Clinic::Care::MedicationDispense.where(practice_id: practice.id, inventory_entry_id: use_ids).pluck(:inventory_entry_id).to_set
+        read_context.merge(
           activity_page: { query: result.query, total_count: result.total_count, filtered_count: result.filtered_count,
             before_cursor: result.before_cursor, next_cursor: result.next_cursor, page_size: ActivityQuery::PAGE_SIZE, lot_id: result.lot&.id&.to_s, lot_number: result.lot&.number },
           movements: result.movements.map do |movement|
             movement_wire(movement).merge(lot_number: movement.batch.lot.number,
-              location_name: movement.batch.location_record.name, stock_unit: movement.stock_unit)
+              location_name: movement.batch.location_record.name, stock_unit: movement.stock_unit,
+              can_reverse: read_context[:capabilities]["inventory.adjust"] && movement.kind == "adjustment_out" &&
+                movement.transfer_id.nil? && movement.recall_disposition_id.nil? &&
+                !reversed_ids.include?(movement.id) && !administration_ids.include?(movement.id) && !dispense_ids.include?(movement.id))
           end)
       end
 
@@ -525,6 +533,7 @@ module Clinic
           { kind: "inventory_movement", label: movement.kind.to_s.humanize }
         end
         { id: movement.id.to_s, type: type, lot_id: movement.batch.lot_id.to_s, location_id: movement.batch.location_id.to_s,
+          reverses_entry_id: movement.reverses_entry_id&.to_s,
           quantity_units: quantity.abs.to_s("F"), direction: quantity.negative? ? "out" : "in",
           source: source,
           occurred_at: movement.occurred_at.iso8601, actor_id: movement.actor_id&.to_s,

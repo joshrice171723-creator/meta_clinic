@@ -12,6 +12,8 @@ module Clinic
       belongs_to :count, class_name: "Clinic::Inventory::Count", optional: true
       belongs_to :transfer, class_name: "Clinic::Inventory::Transfer", optional: true
       belongs_to :recall_disposition, class_name: "Clinic::Inventory::RecallDisposition", optional: true
+      belongs_to :reversed_entry, class_name: "Clinic::Inventory::Entry", foreign_key: :reverses_entry_id, optional: true
+      has_one :reversal, class_name: "Clinic::Inventory::Entry", foreign_key: :reverses_entry_id, dependent: :restrict_with_error
       has_one :medication_administration_movement,
         class_name: "Clinic::Care::MedicationAdministrationMovement",
         foreign_key: :inventory_entry_id,

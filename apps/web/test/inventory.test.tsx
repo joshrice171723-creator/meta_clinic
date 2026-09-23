@@ -175,6 +175,23 @@ describe("inventory integration", () => {
     expect(render(false, "Request failed")).toContain(
       "Request failed The previous ledger page remains visible.",
     );
+    data.movements[0] = {
+      ...data.movements[0],
+      type: "adjustment_out",
+      direction: "out",
+      can_reverse: true,
+    };
+    expect(
+      renderToStaticMarkup(
+        <ActivityScreen data={data} onRead={async () => {}} run={async () => {}} />,
+      ),
+    ).toContain("Reverse stock removal");
+    data.movements[0] = {
+      ...data.movements[0],
+      can_reverse: false,
+      reverses_entry_id: "119",
+    };
+    expect(render()).toContain("Reverses entry #119");
     data.movements = [];
     expect(render()).toContain("No older movements");
     data.activity_page = {

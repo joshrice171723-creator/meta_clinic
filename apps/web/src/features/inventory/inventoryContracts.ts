@@ -228,6 +228,8 @@ export type InventoryMovement = {
   actor_id?: string;
   actor_name?: string | null;
   reason?: string;
+  reverses_entry_id?: string | null;
+  can_reverse?: boolean;
 };
 export type InventoryPurchaseOrderLine = {
   id: string;
