@@ -112,6 +112,10 @@ export type LabReport = {
   external_report_id: string | null;
   current_version_id: number;
   current_version: LabReportVersion;
+  open_prior_follow_ups: {
+    version_id: number;
+    version_number: number;
+  }[];
   created_at: string;
   updated_at: string;
   versions?: LabReportVersion[];
@@ -1089,6 +1093,13 @@ export function PatientLabReports({
                           size="small"
                           variant="outlined"
                         />
+                        {report.open_prior_follow_ups.length > 0 && (
+                          <Chip
+                            color="warning"
+                            label={`${report.open_prior_follow_ups.length} earlier version follow-up${report.open_prior_follow_ups.length === 1 ? "" : "s"} open`}
+                            size="small"
+                          />
+                        )}
                       </Stack>
                       <LabReportActionsPanel
                         key={`${report.id}-${report.current_version_id}`}
@@ -1161,7 +1172,9 @@ export function PatientLabReports({
                         startIcon={<HistoryOutlinedIcon />}
                         onClick={() => void openHistory(report)}
                       >
-                        Report history
+                        {report.open_prior_follow_ups.length > 0
+                          ? "View open prior follow-up"
+                          : "Report history"}
                       </Button>
                       {canWrite && (
                         <Button

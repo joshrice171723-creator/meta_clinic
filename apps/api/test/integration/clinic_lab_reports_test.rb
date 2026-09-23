@@ -399,6 +399,13 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert_nil prior_follow_up.completed_at
     assert_nil corrected_version.reviewed_at
 
+    get reports_path, headers: @headers
+    assert_response :success
+    summary = response.parsed_body.fetch("reports").find { |item| item.fetch("id") == report.id }
+    assert_equal corrected_version.id, summary.fetch("current_version_id")
+    assert_equal [{ "version_id" => prior_version.id, "version_number" => prior_version.version_number }],
+      summary.fetch("open_prior_follow_ups")
+
     get review_queue_path, headers: @headers
     assert_response :success
     assert_includes response.parsed_body.fetch("items").pluck("report_id"), report.id
@@ -414,6 +421,9 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "completed", prior_follow_up.reload.state
     assert_nil corrected_version.reload.reviewed_at
+    get reports_path, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("reports").find { |item| item.fetch("id") == report.id }.fetch("open_prior_follow_ups")
   end
 
   test "critical results require escalation and patient-contact closure evidence" do

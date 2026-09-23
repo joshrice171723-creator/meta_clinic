@@ -10,7 +10,7 @@ module Clinic
 
       def index
         patient = readable_patient!
-        relation = visible_reports("notes.read").where(patient:).includes(:lab_specimen, current_version: :follow_up)
+        relation = visible_reports("notes.read").where(patient:).includes(:lab_specimen, { current_version: :follow_up }, follow_ups: :lab_report_version)
         page = page_param
         per_page = per_page_param
         total = relation.count

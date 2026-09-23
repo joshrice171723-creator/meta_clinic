@@ -12,6 +12,11 @@ module Clinic
           external_report_id: report.external_report_id,
           current_version_id: report.current_version_id,
           current_version: report.current_version && version(report.current_version),
+          open_prior_follow_ups: report.follow_ups.select { |item|
+            item.state_open? && item.lab_report_version_id != report.current_version_id
+          }.map { |item|
+            { version_id: item.lab_report_version_id, version_number: item.lab_report_version.version_number }
+          },
           created_at: iso(report.created_at),
           updated_at: iso(report.updated_at)
         }
