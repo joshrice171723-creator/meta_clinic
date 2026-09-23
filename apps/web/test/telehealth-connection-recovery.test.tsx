@@ -121,6 +121,8 @@ type ProviderValue = {
     encounterId: number | null;
     returnPath: string;
     audioOnly?: boolean;
+    audioDeviceId?: string;
+    videoDeviceId?: string;
   }) => Promise<void>;
   retryConnection: () => Promise<void>;
 };
@@ -215,6 +217,8 @@ describe("telehealth connection recovery", () => {
       roomName: "apply-visit-1",
       token: "recovered-token",
       videoEnabled: true,
+      audioDeviceId: undefined,
+      videoDeviceId: undefined,
     });
     expect(recovered.active).toMatchObject({
       visitId: "visit-1",
@@ -250,6 +254,8 @@ describe("telehealth connection recovery", () => {
       roomName: "apply-visit-1",
       token: "fresh-token",
       videoEnabled: true,
+      audioDeviceId: undefined,
+      videoDeviceId: undefined,
     });
     expect(recovered.active).toMatchObject({
       encounterId: 73,
@@ -283,6 +289,8 @@ describe("telehealth connection recovery", () => {
       roomName: "apply-visit-1",
       token: "fresh-token",
       videoEnabled: true,
+      audioDeviceId: undefined,
+      videoDeviceId: undefined,
     });
   });
 
@@ -300,11 +308,14 @@ describe("telehealth connection recovery", () => {
       encounterId: 73,
       returnPath: "/patient-portal/telehealth/visit-1",
       audioOnly: true,
+      audioDeviceId: "selected-microphone",
     });
     expect(media.instances[0].join).toHaveBeenCalledWith({
       roomName: "apply-visit-1",
       token: "audio-token",
       videoEnabled: false,
+      audioDeviceId: "selected-microphone",
+      videoDeviceId: undefined,
     });
 
     media.callbacks[0].onState("ended");
@@ -318,6 +329,8 @@ describe("telehealth connection recovery", () => {
       roomName: "apply-visit-1",
       token: "rejoin-token",
       videoEnabled: false,
+      audioDeviceId: "selected-microphone",
+      videoDeviceId: undefined,
     });
   });
 

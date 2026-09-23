@@ -27,7 +27,10 @@ export function DeviceCheck({
   busy: boolean;
   error?: string | null;
   onBack: () => void;
-  onContinue: (results: TelehealthDeviceResults) => Promise<void>;
+  onContinue: (
+    results: TelehealthDeviceResults,
+    devices: { audioDeviceId?: string; videoDeviceId?: string },
+  ) => Promise<void>;
 }) {
   const check = useTelehealthDevices();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -240,7 +243,12 @@ export function DeviceCheck({
         <Button
           variant="contained"
           disabled={!ready || busy}
-          onClick={() => void onContinue(results).catch(() => undefined)}
+          onClick={() =>
+            void onContinue(results, {
+              audioDeviceId: audioDevice || undefined,
+              videoDeviceId: audioOnly ? undefined : videoDevice || undefined,
+            }).catch(() => undefined)
+          }
         >
           {busy ? "Saving…" : "Continue"}
         </Button>

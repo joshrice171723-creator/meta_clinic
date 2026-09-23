@@ -13,6 +13,8 @@ export type TelehealthMediaJoinInput = {
   roomName: string;
   token: string;
   videoEnabled?: boolean;
+  audioDeviceId?: string;
+  videoDeviceId?: string;
 };
 
 export interface TelehealthMediaAdapter {

@@ -333,6 +333,10 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
   const session = useTelehealthSession();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [checkedDevices, setCheckedDevices] = useState<{
+    audioDeviceId?: string;
+    videoDeviceId?: string;
+  }>({});
   const [error, setError] = useState<string | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
   const mountedRef = useRef(false);
@@ -498,7 +502,10 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
       1,
     );
   };
-  const saveDevices = async (deviceResults: TelehealthDeviceResults) => {
+  const saveDevices = async (
+    deviceResults: TelehealthDeviceResults,
+    devices: { audioDeviceId?: string; videoDeviceId?: string },
+  ) => {
     const location = visit.preparation.location;
     if (
       (visit.policy.require_location && !location) ||
@@ -520,6 +527,7 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
         }),
       2,
     );
+    setCheckedDevices(devices);
   };
   const join = async () => {
     if (actionPendingRef.current) return;
@@ -541,6 +549,7 @@ function PatientTelehealthVisitWorkspace({ visitId }: { visitId: string }) {
           visit.policy.allow_audio_only &&
           visit.preparation.device_results?.audio_only_requested,
         ),
+        ...checkedDevices,
       });
     } catch (reason) {
       if (mountedRef.current)

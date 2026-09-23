@@ -283,6 +283,8 @@ describe("persistent telehealth session authorization", () => {
       roomName: "apply-visit-1",
       token: "ephemeral-provider-token",
       videoEnabled: true,
+      audioDeviceId: undefined,
+      videoDeviceId: undefined,
     });
     expect(active).toMatchObject({
       visitId: "visit-1",

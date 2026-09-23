@@ -210,8 +210,15 @@ export class TwilioMediaAdapter implements TelehealthMediaAdapter {
     this.callbacks.onState("joining");
     const connecting = connect(input.token, {
       name: input.roomName,
-      audio: true,
-      video: input.videoEnabled ?? true,
+      audio: input.audioDeviceId
+        ? { deviceId: { ideal: input.audioDeviceId } }
+        : true,
+      video:
+        input.videoEnabled === false
+          ? false
+          : input.videoDeviceId
+            ? { deviceId: { ideal: input.videoDeviceId } }
+            : true,
       logLevel: "off",
       networkQuality: { local: 1, remote: 1 },
     });

@@ -324,6 +324,29 @@ describe("Twilio media lifecycle", () => {
     );
   });
 
+  it("prefers the devices selected during check-in while allowing browser fallback", async () => {
+    const fixture = roomFixture();
+    twilio.connect.mockReturnValueOnce(
+      cancelable(Promise.resolve(fixture.room)),
+    );
+    const adapter = new TwilioMediaAdapter(callbacks());
+
+    await adapter.join({
+      roomName: "apply-visit-1",
+      token: "ephemeral-token",
+      audioDeviceId: "selected-microphone",
+      videoDeviceId: "selected-camera",
+    });
+
+    expect(twilio.connect).toHaveBeenCalledWith(
+      "ephemeral-token",
+      expect.objectContaining({
+        audio: { deviceId: { ideal: "selected-microphone" } },
+        video: { deviceId: { ideal: "selected-camera" } },
+      }),
+    );
+  });
+
   it("stops all local media immediately when Twilio disconnects", async () => {
     const { events, fixture } = await joinedAdapter();
 

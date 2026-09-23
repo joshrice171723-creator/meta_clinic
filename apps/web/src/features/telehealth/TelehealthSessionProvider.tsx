@@ -43,6 +43,8 @@ export type TelehealthActiveSession = {
   returnPath: string;
   roomExpiresAt: string | null;
   audioOnly: boolean;
+  audioDeviceId?: string;
+  videoDeviceId?: string;
 };
 
 type TelehealthJoinInput = Omit<
@@ -477,6 +479,8 @@ export function TelehealthSessionProvider({
           roomName: grant.room_name,
           token: grant.token,
           videoEnabled: !session.audioOnly,
+          audioDeviceId: session.audioDeviceId,
+          videoDeviceId: session.videoDeviceId,
         });
         grant = undefined;
       } catch (reason) {
@@ -558,6 +562,8 @@ export function TelehealthSessionProvider({
         roomName: grant.room_name,
         token: grant.token,
         videoEnabled: !refreshed.audioOnly,
+        audioDeviceId: refreshed.audioDeviceId,
+        videoDeviceId: refreshed.videoDeviceId,
       });
       grant = undefined;
     } catch (reason) {
