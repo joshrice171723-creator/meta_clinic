@@ -5,10 +5,15 @@ module Clinic
 
       # Call inside the booking transaction. The shared clinician row serializes
       # offers, bookings and changes to capacity for this provider across sites.
-      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil)
+      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, room: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil)
         return unless clinician && site
         clinician.lock!
         site.lock!
+        if room
+          raise ArgumentError, "The room must belong to the selected site." unless room.practice_id == practice.id && room.site_id == site.id
+
+          room.lock!
+        end
         raise ArgumentError, "Choose an end after the start." unless starts_at && ends_at && ends_at > starts_at
         check_site_hours!(practice: practice, site: site, starts_at: starts_at, ends_at: ends_at)
         check_clinician_assignment!(practice: practice, clinician: clinician, site: site, starts_at: starts_at)
@@ -50,6 +55,19 @@ module Clinic
           .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, ends_at, starts_at)
         holds = holds.where.not(id: schedule_hold_id) if schedule_hold_id
         raise ArgumentError, "This time is held pending booking. Choose another time or release that hold." if holds.exists?
+
+        if room
+          room_appointments = practice.appointments.where(room: room, status: %w[scheduled confirmed])
+          room_appointments = room_appointments.where.not(id: appointment_id) if appointment_id
+          if room_appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
+            raise ArgumentError, "This room is already booked for that time."
+          end
+
+          room_holds = ScheduleHold.where(practice: practice, room: room, state: "active")
+            .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, ends_at, starts_at)
+          room_holds = room_holds.where.not(id: schedule_hold_id) if schedule_hold_id
+          raise ArgumentError, "This room is held pending booking. Choose another room or release that hold." if room_holds.exists?
+        end
       end
 
       def check_site_hours!(practice:, site:, starts_at:, ends_at:)

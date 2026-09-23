@@ -57,6 +57,7 @@ import { GuidedCheckout } from "./GuidedCheckout";
 import { InvoiceCheckoutControls } from "./InvoiceCheckoutControls";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
+import { CashPayEstimates } from "./CashPayEstimates";
 
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
@@ -266,6 +267,7 @@ export function Billing() {
     null,
   );
   const [reloadLedger, setReloadLedger] = useState(0);
+  const [estimateOutcomeUnknown, setEstimateOutcomeUnknown] = useState(false);
   const [ledger, setLedger] = useState<{
     data?: BillingPatientLedger;
     error?: string;
@@ -422,7 +424,9 @@ export function Billing() {
         ) : (
           <PatientDirectory
             selectedPatientId={selectedPatientId}
-            onSelect={setSelectedPatientId}
+            onSelect={(id) => {
+              if (!estimateOutcomeUnknown) setSelectedPatientId(id);
+            }}
           />
         )}
         <Box component="section" aria-live="polite">
@@ -462,6 +466,12 @@ export function Billing() {
           ) : (
             <Stack spacing={2}>
               {ledger.error && <Alert severity="error">{ledger.error}</Alert>}
+              {estimateOutcomeUnknown && (
+                <Alert severity="warning">
+                  Resolve the estimate action before switching patients. Retry
+                  the exact request or refresh the estimate list here.
+                </Alert>
+              )}
               <LedgerDetails
                 ledger={ledger.data}
                 selectedInvoice={selectedInvoice}
@@ -470,6 +480,7 @@ export function Billing() {
                 canDraft={capabilities.billing_invoice_draft === true}
                 canPost={capabilities.billing_invoice_post === true}
                 canAdjust={capabilities.billing_invoice_post === true}
+                onEstimateUnknownOutcomeChange={setEstimateOutcomeUnknown}
                 checkoutEncounterId={checkoutEncounterId}
                 checkoutInvoice={checkoutInvoice}
                 financialRevision={reloadLedger}
@@ -494,6 +505,7 @@ function LedgerDetails({
   canDraft,
   canPost,
   canAdjust,
+  onEstimateUnknownOutcomeChange,
   checkoutEncounterId,
   checkoutInvoice,
   financialRevision,
@@ -506,6 +518,7 @@ function LedgerDetails({
   canDraft: boolean;
   canPost: boolean;
   canAdjust: boolean;
+  onEstimateUnknownOutcomeChange: (unknown: boolean) => void;
   checkoutEncounterId: number | null;
   checkoutInvoice: {
     active?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
@@ -533,6 +546,12 @@ function LedgerDetails({
           </Typography>
         )}
       </Box>
+      <CashPayEstimates
+        key={ledger.patient.id}
+        patientId={ledger.patient.id}
+        canDraft={canDraft}
+        onUnknownOutcomeChange={onEstimateUnknownOutcomeChange}
+      />
       {ledger.currencies.length === 0 ? (
         <Alert severity="info">
           No invoice or payment activity has been recorded for this patient.

@@ -7,7 +7,7 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     @password = SecureRandom.hex(18)
     @actor = User.create!(email_address: "estimate-correction-api@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @actor)
-    grant_permissions!(@membership, "billing.invoice_draft")
+    grant_permissions!(@membership, "billing.invoice_draft", "billing.read")
     @patient = @practice.patients.create!(display_name: "Correction patient", reference: "CORR-1")
     @service = @practice.billing_services.create!(name: "Visit", unit_amount: "75.00", currency: "USD")
     draft = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
@@ -45,6 +45,54 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     assert_response :success
     post "/api/clinic/cash_pay_estimates/#{@original.id}/correct",
       params: { estimate: { request_key: "denied-correction", reason: "Changed price", lines: [ { billing_service_id: @service.id, quantity: "1" } ] } },
+      headers: csrf_headers, as: :json
+    assert_response :forbidden
+  end
+
+  test "patient estimate history is readable, scoped, and includes both correction snapshots" do
+    @service.update!(unit_amount: "95.00")
+    post "/api/clinic/cash_pay_estimates/#{@original.id}/correct",
+      params: { estimate: { request_key: "history-correction", reason: "Updated charge",
+        lines: [ { billing_service_id: @service.id, quantity: "1" } ] } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    correction_id = response.parsed_body.fetch("estimate").fetch("id")
+
+    get "/api/clinic/cash_pay_estimates", params: { patient_id: @patient.id }
+    assert_response :success
+    history = response.parsed_body.fetch("estimates")
+    assert_equal [ correction_id, @original.id ], history.map { |item| item.fetch("id") }
+    assert_equal [ "95.0", "75.0" ], history.map { |item| item.fetch("lines").sole.fetch("unit_amount") }
+    assert_equal @original.id, history.first.fetch("supersedes_id")
+    assert_equal false, response.parsed_body.fetch("truncated")
+
+    get "/api/clinic/cash_pay_estimates/#{@original.id}"
+    assert_response :success
+    assert_equal "75.0", response.parsed_body.fetch("estimate").fetch("lines").sole.fetch("unit_amount")
+
+    foreign_patient = @other_practice.patients.create!(display_name: "Other patient", reference: "OTHER-CORR")
+    get "/api/clinic/cash_pay_estimates", params: { patient_id: foreign_patient.id }
+    assert_response :not_found
+    foreign_estimate = Clinic::Billing::CashPayEstimate.create!(practice: @other_practice, patient: foreign_patient,
+      classification: "gfe_candidate", status: "draft", currency: "USD")
+    get "/api/clinic/cash_pay_estimates/#{foreign_estimate.id}"
+    assert_response :not_found
+  end
+
+  test "estimate history permits billing readers but keeps correction write denied" do
+    reader_password = SecureRandom.hex(18)
+    reader = User.create!(email_address: "estimate-history-reader@example.invalid", password: reader_password)
+    reader_membership = @practice.memberships.create!(user: reader)
+    grant_permissions!(reader_membership, "billing.read")
+    post "/api/session", params: { email_address: reader.email_address, password: reader_password }, headers: csrf_headers, as: :json
+    assert_response :success
+
+    get "/api/clinic/cash_pay_estimates", params: { patient_id: @patient.id }
+    assert_response :success
+    assert_equal [ @original.id ], response.parsed_body.fetch("estimates").map { |item| item.fetch("id") }
+    post "/api/clinic/cash_pay_estimates/#{@original.id}/correct",
+      params: { estimate: { request_key: "reader-denied-correction", reason: "No write access",
+        lines: [ { billing_service_id: @service.id, quantity: "1" } ] } },
       headers: csrf_headers, as: :json
     assert_response :forbidden
   end

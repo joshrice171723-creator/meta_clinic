@@ -41,7 +41,11 @@ module Clinic
               .where("starts_at < ? AND ends_at > ?", values[:ends_at], values[:starts_at])
             offers = WaitlistEntry.where(practice: current_practice, clinician: clinician, state: "offered")
               .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, values[:ends_at], values[:starts_at])
-            raise ArgumentError, "Move existing appointments or release waitlist offers before blocking this time." if appointments.exists? || offers.exists?
+            holds = ScheduleHold.where(practice: current_practice, clinician: clinician, state: "active")
+              .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, values[:ends_at], values[:starts_at])
+            if appointments.exists? || offers.exists? || holds.exists?
+              raise ArgumentError, "Move existing appointments or release waitlist offers and schedule holds before blocking this time."
+            end
           end
           CapacityRule.create!(values.merge(practice: current_practice))
         end

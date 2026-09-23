@@ -9,7 +9,8 @@ module Clinic
           payload: { patient_id: patient&.id, site_id: site.id, clinician_id: clinician.id, room_id: room&.id, starts_at: starts_at.iso8601(6), ends_at: ends_at.iso8601(6), expires_at: expires_at.iso8601(6) }, authorization: authorize,
           result_resource: ->(hold) { hold }, resource_resolver: ->(practice:, receipt:) { ScheduleHold.find_by(practice: practice, id: receipt.resource_id) }) do
           ApplicationRecord.transaction do
-            CapacityGuard.check!(practice: practice, clinician: clinician, site: site, patient: patient, starts_at: starts_at, ends_at: ends_at)
+            CapacityGuard.check!(practice: practice, clinician: clinician, site: site, patient: patient, room: room,
+              starts_at: starts_at, ends_at: ends_at)
             hold = ScheduleHold.create!(practice: practice, patient: patient, site: site, clinician: clinician, room: room, starts_at: starts_at, ends_at: ends_at, expires_at: expires_at, request_key: request_key)
             AuditRecorder.record!(practice: practice, actor: actor, action_code: "schedule_hold.create", outcome: :committed, resource_version_ref: "schedule_hold/#{hold.id}:#{hold.lock_version}")
             hold

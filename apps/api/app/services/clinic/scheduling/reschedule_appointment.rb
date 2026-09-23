@@ -66,7 +66,7 @@ module Clinic
             snapshot = next_offering && BookAppointment.offering_snapshot!(offering: next_offering,
               practice: appointment.practice, site: next_site, room: next_room, visit_type: next_visit_type,
               visit_modality: modality, starts_at: starts_at, ends_at: ends_at)
-            CapacityGuard.check!(practice: appointment.practice, clinician: next_clinician, site: next_site,
+            CapacityGuard.check!(practice: appointment.practice, clinician: next_clinician, site: next_site, room: next_room,
               patient: appointment.patient, starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id)
             appointment.update!(starts_at: starts_at, ends_at: ends_at, visit_modality: modality,
               site: next_site, booked_clinician: next_clinician, visit_type: next_visit_type, room_id: next_room_id,

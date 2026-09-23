@@ -1,7 +1,20 @@
 module Clinic
   module Billing
     class CashPayEstimatesController < Clinic::ApiController
-      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show]
+      before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create issue correct]
+
+      def index
+        patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
+        estimates = CashPayEstimate.where(practice: current_practice, patient: patient)
+          .includes(:lines).order(created_at: :desc, id: :desc).limit(201).to_a
+        render json: { estimates: estimates.first(200).map { |estimate| serialize(estimate) }, truncated: estimates.length > 200 }
+      end
+
+      def show
+        estimate = CashPayEstimate.where(practice: current_practice).includes(:lines).find(requested_id!(params[:id], :id))
+        render json: { estimate: serialize(estimate) }
+      end
 
       def create
         input = parameter_hash!(:estimate, %i[request_key patient_id classification currency], nested_arrays: { lines: %i[billing_service_id service_offering_id quantity inclusions exclusions] })

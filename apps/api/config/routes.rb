@@ -211,7 +211,7 @@ Rails.application.routes.draw do
       post :publish, on: :member
       post :retire, on: :member
     end
-    resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: :create do
+    resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: %i[index show create] do
       post :issue, on: :member
       post :correct, on: :member
     end

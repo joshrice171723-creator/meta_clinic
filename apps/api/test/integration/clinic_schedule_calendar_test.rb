@@ -76,6 +76,82 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     assert_match "not assigned to this site", response.parsed_body.fetch("error")
   end
 
+  test "an active hold prevents a conflicting capacity block until released" do
+    grant_permissions!(@membership, "facilities.write")
+    finish = @start + 30.minutes
+    post "/api/clinic/schedule_holds",
+      params: { hold: { request_key: "capacity-held-slot", patient_id: @patient.id,
+        site_id: @site.id, clinician_id: @clinician.id, starts_at: @start.iso8601,
+        ends_at: finish.iso8601, expires_at: (Current.business_time + 30.minutes).iso8601 } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    hold = response.parsed_body.fetch("hold")
+
+    block = { capacity: { request_key: "held-capacity-block", site_id: @site.id,
+      clinician_id: @clinician.id, kind: "block", starts_at: @start.iso8601,
+      ends_at: finish.iso8601, reason: "Synthetic closure" } }
+    assert_no_difference -> { Clinic::Scheduling::CapacityRule.where(practice: @practice, kind: "block").count } do
+      post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_match "release", response.parsed_body.fetch("error")
+
+    post "/api/clinic/schedule_holds/#{hold.fetch('id')}/release",
+      params: { hold: { request_key: "release-for-capacity-block", lock_version: hold.fetch("lock_version") } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "released", response.parsed_body.fetch("hold").fetch("state")
+
+    assert_difference -> { Clinic::Scheduling::CapacityRule.where(practice: @practice, kind: "block").count }, 1 do
+      post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
+    end
+    assert_response :created
+  end
+
+  test "a room hold blocks another clinician's booking and hold until released" do
+    room = @site.rooms.create!(practice: @practice, code: "HELD-ROOM")
+    other_user = User.create!(email_address: "other-calendar-clinician@example.invalid", password: SecureRandom.hex(18))
+    other_membership = @practice.memberships.create!(user: other_user)
+    other_clinician = @practice.clinician_profiles.create!(membership: other_membership, display_name: "Other clinician")
+    Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: other_clinician,
+      kind: "weekly", weekday: @date.wday, start_minute: 540, end_minute: 600, active: true)
+    finish = @start + 30.minutes
+    post "/api/clinic/schedule_holds",
+      params: { hold: { request_key: "room-held-first", patient_id: @patient.id,
+        site_id: @site.id, clinician_id: @clinician.id, room_id: room.id,
+        starts_at: @start.iso8601, ends_at: finish.iso8601,
+        expires_at: (Current.business_time + 30.minutes).iso8601 } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    hold = response.parsed_body.fetch("hold")
+
+    assert_no_difference -> { Clinic::Scheduling::ScheduleHold.where(practice: @practice).count } do
+      post "/api/clinic/schedule_holds",
+        params: { hold: { request_key: "room-held-second", site_id: @site.id,
+          clinician_id: other_clinician.id, room_id: room.id, starts_at: @start.iso8601,
+          ends_at: finish.iso8601, expires_at: (Current.business_time + 30.minutes).iso8601 } },
+        headers: csrf_headers, as: :json
+    end
+    assert_response :unprocessable_entity
+
+    booking = { appointment: { patient_id: @patient.id, site_id: @site.id,
+      booked_clinician_id: other_clinician.id, room_id: room.id, visit_type_id: @type.id,
+      starts_at: @start.iso8601, ends_at: finish.iso8601, request_key: "room-held-booking" } }
+    assert_no_difference -> { @practice.appointments.count } do
+      post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    end
+    assert_response :unprocessable_entity
+
+    post "/api/clinic/schedule_holds/#{hold.fetch('id')}/release",
+      params: { hold: { request_key: "room-held-release", lock_version: hold.fetch("lock_version") } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert_difference -> { @practice.appointments.count }, 1 do
+      post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    end
+    assert_response :created
+  end
+
   test "calendar does not disclose another clinic or allow unprivileged reads" do
     other = Clinic::Practice.create!(name: "Other Synthetic Calendar", organization: Organization.create!(name: "Other Synthetic Calendar"))
     site = other.sites.create!(code: "OTHER")

@@ -7,6 +7,14 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-22 — Walk-in identity recheck and portal return
+
+Registration now rechecks the identity fields actually submitted after staff review and preserves an uncertain exact retry. The patient record exposes a permission-gated, practice-scoped summary of persisted portal linkage and invite/recovery state. A focused synthetic HTTP journey registered a walk-in, invited and activated portal access, and signed back in to the same patient/practice ID without a duplicate; cross-practice and unauthorized role paths were denied (1 run / 28 assertions). The earlier browser showed only candidate and no-match review. A connected browser walk-in-to-portal return, reload, correction and telehealth return remain open. See [[Meta Clinic Implementation Tracker]].
+
+## 2026-09-22 — Estimate correction browser journey and room-hold conflict repair
+
+In the isolated synthetic clinic, an administrator created a $95 billing service, selected patient Avery Rowan, saved and issued a $95 GFE candidate, then created a linked correction for quantity two with a reason. The browser showed the preserved $95 prior snapshot beside the $190 draft, and after issue it showed the original as superseded and the correction as issued. Both versions explicitly said delivery was not recorded. Patient-scoped estimate read and authorization checks passed 4 runs / 26 assertions; a full browser reload and delivery recording were not exercised. Separately, failure-first calendar tests reproduced a capacity block over an active hold and two clinicians holding the same room. After the serialized guard repairs, the full calendar integration file passed 7 runs / 65 assertions. Actual concurrent requests and browser hold recovery remain open. See [[Meta Clinic Implementation Tracker]].
+
 ## 2026-09-22 — Site-scoped daily visits report
 
 Added a clinic-local daily appointment-state aggregate in the API with site/practice scope, a definition revision, source/date-basis metadata, as-of time and freshness. Focused API integration checks passed 3 runs / 32 assertions, including report access and reconciliation cases. Operations now renders a date-selected read-only view without patient rows or export. In the synthetic clinic browser, September 24 returned one scheduled visit and zero in the other states, with source/revision/freshness visible. Reload and denied-role browser checks remain open; this is one bounded MC-14 report, not a general reporting acceptance. See [[Meta Clinic Implementation Tracker]].

@@ -59,6 +59,13 @@ type LegacyNote = {
   created_at: string;
 };
 
+type PortalAccess = {
+  status: "invited" | "active" | "revoked";
+  invitation_expires_at: string | null;
+  activated_at: string | null;
+  invitation_open: boolean;
+};
+
 function currentPage() {
   if (typeof window === "undefined") return 1;
   const page = Number(new URLSearchParams(window.location.search).get("page"));
@@ -73,6 +80,7 @@ export function Patients({ id }: { id?: string }) {
     patient?: Patient;
     activity_history?: PatientActivityHistory;
     notes?: LegacyNote[];
+    portal_access?: PortalAccess | null;
     pagination?: Pagination;
   }>(`/api/clinic/patients${id ? `/${id}` : `?page=${page}`}`);
   if (!data) return <LoadState error={error} />;
@@ -85,6 +93,7 @@ export function Patients({ id }: { id?: string }) {
         notes={data.notes}
         onRegistrationSaved={refresh}
         patient={data.patient}
+        portalAccess={data.portal_access}
         activityHistory={data.activity_history}
       />
     );
@@ -662,6 +671,7 @@ function PatientRecord({
   notes,
   onRegistrationSaved,
   patient,
+  portalAccess,
   activityHistory,
 }: {
   canEditRegistration: boolean;
@@ -669,6 +679,7 @@ function PatientRecord({
   notes?: LegacyNote[];
   onRegistrationSaved: () => void;
   patient: Patient;
+  portalAccess?: PortalAccess | null;
   activityHistory?: PatientActivityHistory;
 }) {
   const { registerBlocker } = useClinicNavigation();
@@ -704,7 +715,12 @@ function PatientRecord({
       <h1>{patient.display_name}</h1>
       {reference && <p>Reference: {reference}</p>}
       <ActiveEncounterAction patientId={patient.id} />
-      {canInvitePortal && <PatientPortalInvitation patient={patient} />}
+      {canInvitePortal && (
+        <PatientPortalInvitation
+          patient={patient}
+          portalAccess={portalAccess}
+        />
+      )}
       {canEditRegistration && (
         <>
           <Button onClick={() => setRegistrationOpen(true)} variant="outlined">
@@ -889,14 +905,22 @@ type PortalInvitation = {
   expires_at: string;
   identity_id: number;
   purpose: "activation" | "recovery";
-  status: string;
+  status: PortalAccess["status"];
 };
 
-function PatientPortalInvitation({ patient }: { patient: Patient }) {
+function PatientPortalInvitation({
+  patient,
+  portalAccess,
+}: {
+  patient: Patient;
+  portalAccess?: PortalAccess | null;
+}) {
   const currentEmail = patient.contacts?.find(
     (contact) => contact.contact_type === "email" && !contact.effective_until,
   )?.contact_value;
   const [invitation, setInvitation] = useState<PortalInvitation | null>(null);
+  const [currentAccess, setCurrentAccess] = useState(portalAccess);
+  useEffect(() => setCurrentAccess(portalAccess), [portalAccess]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -919,6 +943,12 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
         },
       );
       setInvitation(result.invitation);
+      setCurrentAccess({
+        status: result.invitation.status,
+        invitation_expires_at: result.invitation.expires_at,
+        activated_at: portalAccess?.activated_at ?? null,
+        invitation_open: result.invitation.purpose === "activation",
+      });
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -943,6 +973,27 @@ function PatientPortalInvitation({ patient }: { patient: Patient }) {
   return (
     <Card title="Patient portal access">
       <Stack spacing={1.5}>
+        {currentAccess?.status === "active" ? (
+          <Alert severity="success">
+            Portal access is linked to this patient record.
+            {currentAccess.activated_at &&
+              ` Activated ${new Date(currentAccess.activated_at).toLocaleString()}.`}
+          </Alert>
+        ) : currentAccess?.status === "invited" ? (
+          <Alert severity={currentAccess.invitation_open ? "info" : "warning"}>
+            {currentAccess.invitation_open
+              ? "A portal invitation is pending for this patient record."
+              : "The previous portal invitation expired. Create a new link if access is still needed."}
+          </Alert>
+        ) : currentAccess?.status === "revoked" ? (
+          <Alert severity="warning">
+            Previous portal access was revoked for this patient record.
+          </Alert>
+        ) : (
+          <Alert severity="info">
+            No portal account is linked to this patient record.
+          </Alert>
+        )}
         <Typography color="text.secondary">
           Create a one-time link for the current patient email. It activates new
           access or securely resets an existing password, and expires after 30

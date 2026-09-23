@@ -88,7 +88,7 @@ module Clinic
             site: site, room: room, visit_type: visit_type, visit_modality: visit_modality,
             starts_at: starts_at, ends_at: ends_at)
           Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
-          CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient,
+          CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
             starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id)
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
             booked_clinician: booked_clinician, visit_type: visit_type, reason: reason, starts_at: starts_at, ends_at: ends_at,

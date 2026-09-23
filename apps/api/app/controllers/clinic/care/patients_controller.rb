@@ -130,11 +130,21 @@ module Clinic
 
       def show
         patient = patient_detail_scope.find(integer_id!(params[:id], field: :id))
-        render json: { patient: PatientSerializer.call(patient, detail: true),
+        payload = { patient: PatientSerializer.call(patient, detail: true),
           activity_history: PatientActivityHistory.call(patient: patient, ability: current_ability),
           notes: patient.notes.order(created_at: :desc, id: :desc).map { |note| {
             id: note.id, body: note.body, author_id: note.author_id, created_at: note.created_at
           } } }
+        if current_ability.allowed_permission?("patient_portal.identity.invite", any_site: true)
+          identity = Clinic::PatientPortal::Identity.find_by(practice_id: current_practice.id, patient_id: patient.id)
+          payload[:portal_access] = identity && {
+            status: identity.status,
+            invitation_expires_at: identity.invitation_expires_at&.iso8601(6),
+            activated_at: identity.activated_at&.iso8601(6),
+            invitation_open: identity.invited? && identity.invitation_expires_at&.future?
+          }
+        end
+        render json: payload
       end
 
       def note
