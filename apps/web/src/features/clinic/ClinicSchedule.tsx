@@ -872,13 +872,7 @@ export function ClinicSchedule({
                     }
                   }}
                 />
-                <Typography variant="h6">{dateLabel(day)}</Typography>
               </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {selectedDay?.appointments.length ?? 0} appointments · Select an
-                open time to book. Capacity counts clinician time, not
-                additional room capacity.
-              </Typography>
               {holdError && (
                 <Alert severity="error">
                   {holdError}{" "}
@@ -957,21 +951,42 @@ export function ClinicSchedule({
               )}
               <Paper
                 variant="outlined"
-                sx={{ overflow: "auto", maxHeight: "70vh" }}
+                sx={{
+                  overflow: "auto",
+                  maxHeight: "70vh",
+                  borderRadius: 2,
+                  boxShadow: "0 16px 36px rgba(32, 53, 47, 0.06)",
+                }}
               >
+                <Box
+                  sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "divider" }}
+                >
+                  <Typography
+                    component="h2"
+                    variant="h6"
+                    sx={{ fontWeight: 700 }}
+                  >
+                    {dateLabel(day)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedDay?.appointments.length ?? 0} appointments ·
+                    Select an open time to book. Capacity counts clinician time,
+                    not additional room capacity.
+                  </Typography>
+                </Box>
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: `72px repeat(${lanes.length}, minmax(220px, 1fr))`,
-                    gridTemplateRows: `44px repeat(${ticks.length}, 84px)`,
-                    minWidth: 72 + lanes.length * 220,
+                    gridTemplateColumns: `88px repeat(${lanes.length}, minmax(250px, 1fr))`,
+                    gridTemplateRows: `48px repeat(${ticks.length}, 104px)`,
+                    minWidth: 88 + lanes.length * 250,
                   }}
                 >
                   <Box
                     sx={{
                       gridColumn: 1,
                       gridRow: 1,
-                      bgcolor: "background.paper",
+                      bgcolor: "action.hover",
                       position: "sticky",
                       top: 0,
                       zIndex: 2,
@@ -985,8 +1000,9 @@ export function ClinicSchedule({
                         fontWeight: 700,
                         gridColumn: index + 2,
                         gridRow: 1,
-                        p: 1,
-                        bgcolor: "background.paper",
+                        px: 2,
+                        py: 1.5,
+                        bgcolor: "action.hover",
                         borderBottom: 1,
                         borderColor: "divider",
                         position: "sticky",
@@ -1007,6 +1023,8 @@ export function ClinicSchedule({
                         p: 1,
                         borderTop: 1,
                         borderColor: "divider",
+                        color: "text.secondary",
+                        fontVariantNumeric: "tabular-nums",
                       }}
                     >{`${Math.floor(minute / 60)
                       .toString()
@@ -1111,41 +1129,43 @@ export function ClinicSchedule({
                             width: `calc((100% - 8px) / ${tracks.get(appointment.id)?.tracks ?? 1})`,
                             marginLeft: `calc(4px + (100% - 8px) * ${tracks.get(appointment.id)?.track ?? 0} / ${tracks.get(appointment.id)?.tracks ?? 1})`,
                             alignSelf: "start",
-                            transform: `translateY(${((start % 30) / 30) * 84}px)`,
+                            transform: `translateY(${((start % 30) / 30) * 104}px)`,
                             textAlign: "left",
                             justifyContent: "flex-start",
                             display: "block",
                             mt: 0.5,
                             mb: 0.5,
                             mr: 0.5,
-                            p: 1,
-                            bgcolor: "background.paper",
+                            p: 1.5,
+                            bgcolor: "action.hover",
                             border: 1,
                             borderLeft: 4,
-                            borderColor: appointment.conflict
+                            borderColor: "divider",
+                            borderLeftColor: appointment.conflict
                               ? "error.main"
                               : "primary.main",
                             borderRadius: 1,
                             zIndex: 1,
-                            minHeight: 52,
+                            minHeight: 88,
+                            boxShadow: "0 2px 5px rgba(32, 53, 47, 0.04)",
                             "&.Mui-focusVisible": { outline: "2px solid" },
                           }}
                         >
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 700 }}>
                             {appointment.patient?.display_name ??
                               "Patient name unavailable"}
                           </Typography>
                           <Typography
-                            variant="caption"
-                            sx={{ display: "block" }}
+                            variant="body2"
+                            sx={{ display: "block", color: "text.secondary" }}
                           >
                             {time(appointment.starts_at)}–
                             {time(appointment.ends_at)} ·{" "}
                             {workflowStatusLabel(appointment.calendar_status)}
                           </Typography>
                           <Typography
-                            variant="caption"
-                            sx={{ display: "block" }}
+                            variant="body2"
+                            sx={{ display: "block", color: "text.secondary" }}
                           >
                             {appointment.visit_type_name ??
                               "Visit type not set"}{" "}
