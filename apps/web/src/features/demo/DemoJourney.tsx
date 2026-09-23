@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
-  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -689,71 +689,120 @@ export function LessonCatalog({
   onSandbox: () => void;
 }) {
   const [clinicType, setClinicType] = useState("all");
-  const [search, setSearch] = useState("");
   const visibleLessons = lessons.filter(
     (lesson) =>
-      (clinicType === "all" ||
-        !lesson.clinic_type ||
-        lesson.clinic_type === clinicType) &&
-      `${lesson.title} ${lesson.description} ${lesson.section ?? ""}`
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
+      clinicType === "all" ||
+      !lesson.clinic_type ||
+      lesson.clinic_type === clinicType,
   );
   const sectionFor = (lesson: DemoLesson) =>
     lesson.section || roleLabel(lesson.role);
   return (
     <Stack spacing={4} sx={{ mt: 3 }}>
-      <Box>
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>
-          Choose your clinic focus
-        </Typography>
-        <Stack
-          direction="row"
-          spacing={2}
-          sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
-        >
-          <ToggleButtonGroup
-            exclusive
-            value={clinicType}
-            aria-label="Clinic type"
-            onChange={(_, value: string | null) =>
-              value && setClinicType(value)
-            }
-            sx={{ flexWrap: "wrap" }}
+      <Box
+        component="section"
+        aria-labelledby="sandbox-invitation-title"
+        sx={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 3,
+          bgcolor: "#12384d",
+          color: "common.white",
+          p: { xs: 3, sm: 4 },
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            width: 300,
+            height: 300,
+            border: "1px solid rgba(255, 255, 255, 0.14)",
+            borderRadius: "50%",
+            top: -190,
+            right: -85,
+            pointerEvents: "none",
+          },
+        }}
+      >
+        <Stack spacing={2} sx={{ position: "relative", zIndex: 1 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: "#addbed", letterSpacing: "0.14em", fontWeight: 700 }}
           >
-            <ToggleButton value="all">All lessons</ToggleButton>
-            <ToggleButton value="primary_care">Primary care</ToggleButton>
-            <ToggleButton value="weight_management">
-              Weight management
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Divider orientation="vertical" flexItem />
+            The full experience
+          </Typography>
+          <Typography
+            component="h2"
+            id="sandbox-invitation-title"
+            variant="h5"
+            sx={{ fontWeight: 700, letterSpacing: "-0.025em" }}
+          >
+            Step inside a working clinic.
+          </Typography>
+          <Typography sx={{ color: "#d8e8ef", maxWidth: 650 }}>
+            Explore the entire workspace with prepared sample data. Go where
+            your curiosity takes you, at your own pace.
+          </Typography>
           <Button
             variant="contained"
             color="info"
-            disableElevation
+            fullWidth
+            size="large"
             disabled={busy}
             aria-label="Open Sandbox"
             onClick={onSandbox}
+            endIcon={<ArrowForwardRoundedIcon />}
+            sx={{
+              justifyContent: "space-between",
+              px: 3,
+              py: 1.75,
+              fontSize: "1.05rem",
+              fontWeight: 700,
+              textTransform: "none",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2)",
+              transition: "transform 180ms ease, box-shadow 180ms ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 12px 28px rgba(0, 0, 0, 0.24)",
+              },
+              "&:focus-visible": {
+                outline: "3px solid #fff",
+                outlineOffset: 3,
+              },
+              "@media (prefers-reduced-motion: reduce)": {
+                transition: "none",
+                "&:hover": { transform: "none" },
+              },
+            }}
           >
-            Sandbox
+            Full Sandbox Demo
           </Button>
         </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Specialty scenarios plus shared clinic workflows. Every lesson starts
-          fresh; Sandbox opens a full clinic with prepared data across the
-          workspace.
-        </Typography>
       </Box>
-      <TextField
-        label="Find a lesson"
-        type="search"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        fullWidth
-      />
+      <Box>
+        <Typography component="h2" variant="h6" sx={{ fontWeight: 700 }}>
+          Or choose a guided demo
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Start with one clinic task and a fresh, prepared workspace.
+        </Typography>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          Clinic focus
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          value={clinicType}
+          aria-label="Clinic type"
+          onChange={(_, value: string | null) => value && setClinicType(value)}
+          sx={{ flexWrap: "wrap" }}
+        >
+          <ToggleButton value="all">All lessons</ToggleButton>
+          <ToggleButton value="primary_care">Primary care</ToggleButton>
+          <ToggleButton value="weight_management">
+            Weight management
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
       {visibleLessons.length === 0 && (
-        <Typography>No matching lessons. Try another search.</Typography>
+        <Typography>No lessons in this clinic focus.</Typography>
       )}
       {Array.from(new Set(visibleLessons.map(sectionFor))).map((section) => (
         <Box component="section" key={section} aria-label={section}>
@@ -796,6 +845,17 @@ export function LessonCatalog({
                     disabled={busy}
                     aria-label={`Open ${lesson.title}`}
                     onClick={() => onSelect(lesson)}
+                    endIcon={<ArrowForwardRoundedIcon fontSize="small" />}
+                    sx={{
+                      px: 2,
+                      fontWeight: 700,
+                      textTransform: "none",
+                      whiteSpace: "nowrap",
+                      "&:hover": {
+                        bgcolor: "primary.main",
+                        color: "common.white",
+                      },
+                    }}
                   >
                     Start demo
                   </Button>

@@ -129,6 +129,9 @@ describe("guided demo navigation", () => {
     expect(html).toContain("Primary care");
     expect(html).toContain("Weight management");
     expect(html).toContain('aria-label="Open Sandbox"');
+    expect(html).toContain("Full Sandbox Demo");
+    expect(html).toContain("Start demo");
+    expect(html).not.toContain("Find a lesson");
   });
 
   it("explains the demo's scoped feature availability before preparation", () => {
