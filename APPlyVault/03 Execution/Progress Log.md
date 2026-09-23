@@ -6,6 +6,10 @@ lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+## 2026-09-22 — Clinic workflow plan tracking audit
+
+Audited repository-visible `clinic-workflow-planning` outputs and related plan references. The earlier weight-loss skill-test material was consolidated into the linked patient-journey plans; the dedicated behavioral-health/therapy assignment file is linked as BH-01/BH-02. The full application review applies the planning method and is already tracked as PR-01–10; it is not identified as a separate skill-produced file. Added a coverage index to the implementation tracker and made future writable skill runs require an owning tracker link and evidence-bounded status. Harness verification now fails if an assignment file in the skill output folder lacks a tracker Markdown link; its positive/negative test passed, all 24 harness tests passed, harness verification reported one tracked plan, and vault verification passed 43 notes/509 links. Vault audit retains existing size/metadata advisories. No clinical workflow, acceptance status or product decision changed.
+
 ## 2026-09-22 — Behavioral-health and therapy tracking correction
 
 Linked the existing behavioral-health journey and a focused clinic-workflow assignment brief from the canonical implementation tracker. BH-01 now names the partially implemented, locally evidenced behavioral-health/psychiatry journey and its remaining browser, recovery and clinical-policy proof; BH-02 names the unresolved direct-therapy scope and unavailable dedicated psychotherapy-note capability. These are specialty checkpoints across the existing 16 MC workflows, not additional platform parts or newly measured percentages. The shared dependency matrix, application source and clinical decisions did not change. Vault verification passed 43 notes/509 links; harness verification and 23 harness tests passed. Vault audit reported existing size/metadata advisories. No new browser, clinical, external or release acceptance is claimed.

@@ -131,6 +131,26 @@ def check_links(path: Path, text: str, errors: list[str]) -> None:
             errors.append(f"{path.relative_to(ROOT)}: missing relative link target {target!r}")
 
 
+def check_clinic_workflow_plan_tracking(root: Path, errors: list[str]) -> int:
+    plan_dir = root / "docs" / "development" / "clinic-workflow-plans"
+    tracker = root / "APPlyVault" / "03 Execution" / "Meta Clinic Implementation Tracker.md"
+    if not plan_dir.is_dir() or not tracker.is_file():
+        errors.append("clinic workflow plan tracking requires the plan folder and implementation tracker")
+        return 0
+
+    linked_paths: set[Path] = set()
+    for match in MARKDOWN_LINK.finditer(tracker.read_text(encoding="utf-8")):
+        target = clean_link_target(match.group(1)).partition("#")[0]
+        if target and not target.startswith(("http://", "https://", "mailto:", "app://")):
+            linked_paths.add((tracker.parent / target).resolve())
+
+    plans = sorted(path for path in plan_dir.glob("*.md") if path.name != "README.md")
+    for plan in plans:
+        if plan.resolve() not in linked_paths:
+            errors.append(f"{plan.relative_to(root)}: missing Markdown link from implementation tracker")
+    return len(plans)
+
+
 def check_skill(path: Path, errors: list[str]) -> tuple[str, str] | None:
     text = path.read_text(encoding="utf-8")
     values = frontmatter(path, text, errors)
@@ -184,6 +204,8 @@ def main() -> int:
         metadata = path.parent / "agents" / "openai.yaml"
         if not metadata.is_file():
             errors.append(f"{path.parent.relative_to(ROOT)}: missing agents/openai.yaml")
+
+    workflow_plan_count = check_clinic_workflow_plan_tracking(ROOT, errors)
 
     for name in ("plan", "act", "startdev", "task-trace"):
         metadata = canonical_root / name / "agents" / "openai.yaml"
@@ -345,8 +367,9 @@ def main() -> int:
         return 1
 
     print(
-        f"Verified {len(documents)} harness documents, {len(canonical_names)} canonical skills "
-        f"and {len(REQUIRED_COMMANDS)} commands."
+        f"Verified {len(documents)} harness documents, {len(canonical_names)} canonical skills, "
+        f"{len(REQUIRED_COMMANDS)} commands and {workflow_plan_count} tracked clinic workflow "
+        f"plan{'s' if workflow_plan_count != 1 else ''}."
     )
     return 0
 

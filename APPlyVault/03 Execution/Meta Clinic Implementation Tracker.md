@@ -21,6 +21,16 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+### Clinic workflow planning coverage — 2026-09-22 audit
+
+Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked from its owning item even when the plan itself is the only changed artifact. A plan is not implementation or acceptance evidence. The dedicated [assignment folder](../../docs/development/clinic-workflow-plans/README.md) currently contains one assignment file; earlier skill-test material was consolidated into the existing weight-loss plans before that folder convention.
+
+| Planning assignment or method | Current tracking and plan | Boundary |
+| --- | --- | --- |
+| Weight-loss connected patient journey | MC-01–12/15 and the M1–M12 intake correction below; [original execution plan](../../PATIENT_JOURNEY_EXECUTION_PLAN.md) and [revision-4 brief](../../PATIENT_JOURNEY_PROOF_AND_REFINEMENT.md) | Seven skill-test artifacts were selected inputs to one consolidated assignment, not seven independent completed workflows. |
+| Behavioral health and therapy | BH-01/BH-02 below; [skill assignment file](../../docs/development/clinic-workflow-plans/behavioral-health-therapy.md) and [detailed journey](../../docs/development/behavioral-health-journey.md) | Local behavioral-health proof and unselected therapy scope remain separate. |
+| Full application review | PR-01–10 below; [review and workflow-planning overlay](../../docs/product-review/meta-clinic-full-application-review.md) | The review uses the planning method; repository evidence does not identify it as a separate skill-produced assignment file. |
+
 ### Behavioral-health journey — authorized 2026-09-22
 
 **Psychiatry-plan reconciliation — local synthetic implementation checkpoint:** The [behavioral-health journey](../../docs/development/behavioral-health-journey.md) now records the implemented outpatient psychiatry/medication-management profile. MC-05 reuses behavioral-health intake, assessment revisions with explicit item/reviewer state, and manually owned `safety_follow_up` tasks that remain open after encounter closure. MC-10 reuses medication requests, pharmacy destinations, refill replacement, prescription events, and simulated transmission attempts; its configured `controlled_test` mode stores synthetic signer/reviewer state only and covers accepted, rejected, unavailable, revoked, duplicate, and outcome-unknown recovery. The isolated focused API suite passed 18 runs/355 assertions. No duplicate ledger, vendor, credential, external transmission, real signer, dispensing claim, clinical-policy automation, or live clinic workflow was added. Browser acceptance from this worktree remains unverified because no worktree-owned web runtime is available.
