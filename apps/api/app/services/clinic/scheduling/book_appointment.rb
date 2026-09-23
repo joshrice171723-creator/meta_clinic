@@ -18,16 +18,6 @@ module Clinic
         if room && (room.practice_id != practice.id || room.site_id != site.id)
           raise ArgumentError, "The selected room must belong to the appointment site."
         end
-        if schedule_hold
-          schedule_hold.lock!
-          schedule_hold.expire_if_needed!
-          unless schedule_hold.active? && schedule_hold.practice_id == practice.id && schedule_hold.patient_id == patient.id &&
-            schedule_hold.site_id == site.id && schedule_hold.clinician_id == booked_clinician.id && schedule_hold.room_id == room&.id &&
-            schedule_hold.starts_at == starts_at && schedule_hold.ends_at == ends_at
-            raise ArgumentError, "The selected hold is no longer available for this appointment."
-          end
-        end
-
         visit_modality = visit_modality.to_s.presence || "in_person"
         raise ArgumentError, "Visit format must be in person or video." unless %w[in_person video].include?(visit_modality)
         if visit_modality == "video"
@@ -84,6 +74,15 @@ module Clinic
         visit_modality:, actor:, schedule_hold: nil, service_offering: nil)
         ApplicationRecord.transaction do
           practice.lock!
+          if schedule_hold
+            schedule_hold.lock!
+            schedule_hold.expire_if_needed!
+            unless schedule_hold.active? && schedule_hold.practice_id == practice.id && schedule_hold.patient_id == patient.id &&
+              schedule_hold.site_id == site.id && schedule_hold.clinician_id == booked_clinician.id && schedule_hold.room_id == room&.id &&
+              schedule_hold.starts_at == starts_at && schedule_hold.ends_at == ends_at
+              raise ArgumentError, "The selected hold is no longer available for this appointment."
+            end
+          end
           snapshot = service_offering && offering_snapshot!(offering: service_offering, practice: practice,
             site: site, clinician: booked_clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
             starts_at: starts_at, ends_at: ends_at)

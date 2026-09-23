@@ -1,5 +1,6 @@
 import type {
   Appointment,
+  CalendarHold,
   Clinician,
   ClinicWorkspaceContext,
   Encounter,
@@ -179,9 +180,25 @@ type BookingAttempt = {
       booked_clinician_id: string;
       visit_type_id: string;
       service_offering_id?: string;
+      schedule_hold_id?: number;
       reason?: string;
       request_key: string;
       visit_modality?: VisitModality;
+    };
+  };
+};
+
+type HoldAttempt = {
+  body: {
+    hold: {
+      request_key: string;
+      patient_id: string;
+      site_id: string;
+      clinician_id: string;
+      room_id: string;
+      starts_at: string;
+      ends_at: string;
+      expires_at: string;
     };
   };
 };
@@ -190,12 +207,21 @@ type AppointmentWorkingDraft = {
   draft: BookingDraft;
   attempt: BookingAttempt | null;
   outcomeUnconfirmed: boolean;
+  holdAttempt?: HoldAttempt | null;
+  holdOutcomeUnconfirmed?: boolean;
 };
 
 export function appointmentDraftRecoveryMessage(
   draft: AppointmentWorkingDraft | null,
 ): string | null {
-  if (!draft || draft.attempt || draft.outcomeUnconfirmed) return null;
+  if (
+    !draft ||
+    draft.attempt ||
+    draft.outcomeUnconfirmed ||
+    draft.holdAttempt ||
+    draft.holdOutcomeUnconfirmed
+  )
+    return null;
   return "Recovered appointment draft: its patient, time, and scheduling details are from your earlier work. Review them before scheduling, or start a new appointment to clear this saved draft.";
 }
 
@@ -596,6 +622,8 @@ function BookingForm({
   initialPatientId,
   initialVisitModality = "in_person",
   initialSlot,
+  onHoldChanged,
+  onChooseNewSlot,
 }: {
   timezone: string;
   onCreated?: (appointment: Appointment) => void;
@@ -603,6 +631,8 @@ function BookingForm({
   initialPatientId?: number;
   initialVisitModality?: VisitModality;
   initialSlot?: CalendarBooking;
+  onHoldChanged?: () => void;
+  onChooseNewSlot?: () => void;
 }) {
   const workingDraft = useWorkingDraft<AppointmentWorkingDraft>({
     kind: "appointment",
@@ -629,6 +659,8 @@ function BookingForm({
         initialPatientId={initialPatientId}
         initialVisitModality={initialVisitModality}
         initialSlot={initialSlot}
+        onHoldChanged={onHoldChanged}
+        onChooseNewSlot={onChooseNewSlot}
         initialDraft={
           preserved.current ??
           (workingDraft.ready ? workingDraft.restored : null)
@@ -649,6 +681,8 @@ function BookingFormEditor({
   initialPatientId,
   initialVisitModality = "in_person",
   initialSlot,
+  onHoldChanged,
+  onChooseNewSlot,
   initialDraft,
   workingDraft,
   onReloadDraft,
@@ -658,6 +692,8 @@ function BookingFormEditor({
   initialPatientId?: number;
   initialVisitModality?: VisitModality;
   initialSlot?: CalendarBooking;
+  onHoldChanged?: () => void;
+  onChooseNewSlot?: () => void;
   initialDraft: AppointmentWorkingDraft | null;
   workingDraft: ReturnType<typeof useWorkingDraft<AppointmentWorkingDraft>>;
   onReloadDraft: (snapshot: AppointmentWorkingDraft) => void;
@@ -686,6 +722,20 @@ function BookingFormEditor({
     };
   }, [initialPatientId, initialVisitModality, initialSlot]);
   const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  const initialHold = initialSlot?.hold ?? null;
+  const initialHoldDeferred = Boolean(
+    initialHold &&
+    initialDraft &&
+    ((initialDraft.attempt &&
+      initialDraft.attempt.body.appointment.schedule_hold_id !==
+        initialHold.id) ||
+      initialDraft.draft.patientId !== String(initialHold.patient_id) ||
+      initialDraft.draft.siteId !== String(initialSlot?.site_id ?? "") ||
+      initialDraft.draft.clinicianId !== String(initialHold.clinician_id) ||
+      initialDraft.draft.roomId !== String(initialHold.room_id ?? "") ||
+      initialDraft.draft.startsAt !== defaultDraft.startsAt ||
+      initialDraft.draft.endsAt !== defaultDraft.endsAt),
+  );
   const boundBooking = bindBookingPatient(
     restoredDraft,
     initialDraft?.attempt ?? null,
@@ -721,6 +771,32 @@ function BookingFormEditor({
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
     boundBooking.attempt,
   );
+  const [heldSlot, setHeldSlot] = useState<CalendarHold | null>(
+    initialHoldDeferred ? null : initialHold,
+  );
+  const [holdAttempt, setHoldAttempt] = useState<HoldAttempt | null>(
+    initialPatientId &&
+      initialDraft?.holdAttempt?.body.hold.patient_id !==
+        String(initialPatientId)
+      ? null
+      : (initialDraft?.holdAttempt ?? null),
+  );
+  const [holdOutcomeUnconfirmed, setHoldOutcomeUnconfirmed] = useState(
+    Boolean(
+      initialDraft?.holdAttempt &&
+      (!initialPatientId ||
+        initialDraft.holdAttempt?.body.hold.patient_id ===
+          String(initialPatientId)),
+    ),
+  );
+  const [holdExpired, setHoldExpired] = useState(
+    Boolean(
+      !initialHoldDeferred &&
+      initialHold &&
+      Date.parse(initialHold.expires_at) <= businessNow().getTime(),
+    ),
+  );
+  const [holdError, setHoldError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
     boundBooking.outcomeUnconfirmed,
   );
@@ -745,6 +821,25 @@ function BookingFormEditor({
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
   const [created, setCreated] = useState<Appointment>();
+  const onHoldChangedRef = useRef(onHoldChanged);
+  onHoldChangedRef.current = onHoldChanged;
+  useEffect(() => {
+    if (!heldSlot) {
+      setHoldExpired(false);
+      return;
+    }
+    const remaining = Date.parse(heldSlot.expires_at) - businessNow().getTime();
+    if (remaining <= 0) {
+      setHoldExpired(true);
+      onHoldChangedRef.current?.();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setHoldExpired(true);
+      onHoldChangedRef.current?.();
+    }, remaining + 100);
+    return () => window.clearTimeout(timer);
+  }, [heldSlot]);
   const resourceDate =
     clinicDateForBooking(startsAt, timezone) ??
     clinicDateForBooking(businessNow().toISOString(), timezone) ??
@@ -874,7 +969,15 @@ function BookingFormEditor({
     return () => controller.abort();
   }, [replacementPatientId]);
   useEffect(() => {
-    if (!dirty || bookingAttempt || outcomeUnconfirmed || busy) return;
+    if (
+      !dirty ||
+      bookingAttempt ||
+      outcomeUnconfirmed ||
+      holdAttempt ||
+      holdOutcomeUnconfirmed ||
+      busy
+    )
+      return;
     const snapshot: AppointmentWorkingDraft = {
       draft: currentDraft,
       attempt: null,
@@ -894,6 +997,8 @@ function BookingFormEditor({
     };
   }, [
     bookingAttempt,
+    holdAttempt,
+    holdOutcomeUnconfirmed,
     busy,
     currentDraft,
     dirty,
@@ -901,24 +1006,27 @@ function BookingFormEditor({
     workingDraft.save,
   ]);
   useEffect(() => {
-    if ((!dirty && !outcomeUnconfirmed) || typeof window === "undefined")
+    if (
+      (!dirty && !outcomeUnconfirmed && !holdOutcomeUnconfirmed) ||
+      typeof window === "undefined"
+    )
       return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty, outcomeUnconfirmed]);
+  }, [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed]);
   useEffect(
     () =>
       registerBlocker(
-        outcomeUnconfirmed
+        outcomeUnconfirmed || holdOutcomeUnconfirmed
           ? () =>
-              "The scheduling outcome is unknown. Retry the exact request before leaving scheduling."
+              "A scheduling request outcome is unknown. Retry the exact request before leaving scheduling."
           : dirty
             ? () =>
                 "This appointment draft has unsaved changes. Leave scheduling and discard them?"
             : null,
       ),
-    [dirty, outcomeUnconfirmed, registerBlocker],
+    [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, registerBlocker],
   );
   const resourceError =
     facilities.error || rooms.error || clinicians.error || visitTypes.error;
@@ -991,6 +1099,16 @@ function BookingFormEditor({
     setVisitModality(defaultDraft.visitModality ?? "in_person");
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
+    setHeldSlot(initialSlot?.hold ?? null);
+    setHoldAttempt(null);
+    setHoldOutcomeUnconfirmed(false);
+    setHoldExpired(
+      Boolean(
+        initialSlot?.hold &&
+        Date.parse(initialSlot.hold.expires_at) <= businessNow().getTime(),
+      ),
+    );
+    setHoldError("");
     setHasWorkingDraft(false);
     setPatientQuery("");
   };
@@ -1006,6 +1124,164 @@ function BookingFormEditor({
       return;
     }
     reset();
+  };
+  const createHold = async () => {
+    if (
+      inFlight.current ||
+      busy ||
+      bookingAttempt ||
+      (heldSlot && !holdAttempt)
+    )
+      return;
+    setHoldError("");
+    if (
+      !holdAttempt &&
+      (!selectedPatient ||
+        changingPatient ||
+        !siteId ||
+        !clinicianId ||
+        intervalError)
+    ) {
+      setHoldError(
+        "Choose a patient, site, clinician, and valid interval before holding this slot.",
+      );
+      return;
+    }
+    if (!holdAttempt && visitModality !== "in_person") {
+      setHoldError(
+        "Slot holds are available for in-person visits. Schedule video visits directly.",
+      );
+      return;
+    }
+    const starts = new Date(startsAt).getTime();
+    const now = businessNow().getTime();
+    if (!holdAttempt && (!Number.isFinite(starts) || starts <= now + 60_000)) {
+      setHoldError(
+        "Choose a slot at least one minute in the future before placing a hold.",
+      );
+      return;
+    }
+    const attempt =
+      holdAttempt ??
+      ({
+        body: {
+          hold: {
+            request_key: crypto.randomUUID(),
+            patient_id: patientId,
+            site_id: siteId,
+            clinician_id: clinicianId,
+            room_id: visitModality === "video" ? "" : roomId,
+            starts_at: new Date(startsAt).toISOString(),
+            ends_at: new Date(endsAt).toISOString(),
+            expires_at: new Date(
+              Math.min(starts, now + 10 * 60_000),
+            ).toISOString(),
+          },
+        },
+      } satisfies HoldAttempt);
+    const pending: AppointmentWorkingDraft = {
+      draft: currentDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+      holdAttempt: attempt,
+      holdOutcomeUnconfirmed: false,
+    };
+    inFlight.current = true;
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    if (!(await workingDraft.save(pending))) {
+      inFlight.current = false;
+      setHoldError(
+        "The working copy could not be saved. Keep this page open and retry before placing a hold.",
+      );
+      return;
+    }
+    lastWorkingDraft.current = pending;
+    setHoldAttempt(attempt);
+    setBusy(true);
+    try {
+      const result = await api<{ hold: CalendarHold & { state: string } }>(
+        "/api/clinic/schedule_holds",
+        { method: "POST", body: attempt.body },
+      );
+      const hold = result.hold;
+      if (
+        hold.patient_id !== Number(attempt.body.hold.patient_id) ||
+        hold.site_id !== Number(attempt.body.hold.site_id) ||
+        hold.clinician_id !== Number(attempt.body.hold.clinician_id) ||
+        hold.room_id !==
+          (attempt.body.hold.room_id
+            ? Number(attempt.body.hold.room_id)
+            : null) ||
+        Date.parse(hold.starts_at) !==
+          Date.parse(attempt.body.hold.starts_at) ||
+        Date.parse(hold.ends_at) !== Date.parse(attempt.body.hold.ends_at)
+      )
+        throw new Error(
+          "The hold response did not match this booking. Refresh the schedule before retrying.",
+        );
+      if (
+        hold.state !== "active" ||
+        Date.parse(hold.expires_at) <= businessNow().getTime()
+      ) {
+        const cleared: AppointmentWorkingDraft = {
+          ...pending,
+          holdAttempt: null,
+          holdOutcomeUnconfirmed: false,
+        };
+        lastWorkingDraft.current = cleared;
+        await workingDraft.save(cleared);
+        setHoldAttempt(null);
+        setHoldOutcomeUnconfirmed(false);
+        setHoldError(
+          "This hold expired or was used. Close this form and choose a currently available slot.",
+        );
+        onHoldChangedRef.current?.();
+        return;
+      }
+      setHeldSlot(hold);
+      setHoldExpired(Date.parse(hold.expires_at) <= businessNow().getTime());
+      onHoldChangedRef.current?.();
+      const cleared: AppointmentWorkingDraft = {
+        ...pending,
+        holdAttempt: null,
+        holdOutcomeUnconfirmed: false,
+      };
+      lastWorkingDraft.current = cleared;
+      if (await workingDraft.save(cleared)) {
+        setHoldAttempt(null);
+        setHoldOutcomeUnconfirmed(false);
+      } else {
+        setHoldOutcomeUnconfirmed(true);
+        setHoldError(
+          "The hold was created, but its saved retry state could not be updated. Retry the same request before booking.",
+        );
+      }
+    } catch (reason) {
+      const unknown =
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
+      const snapshot: AppointmentWorkingDraft = {
+        ...pending,
+        holdAttempt: unknown ? attempt : null,
+        holdOutcomeUnconfirmed: unknown,
+      };
+      lastWorkingDraft.current = snapshot;
+      await workingDraft.save(snapshot);
+      setHoldAttempt(unknown ? attempt : null);
+      setHoldOutcomeUnconfirmed(unknown);
+      setHoldError(
+        unknown
+          ? "The hold outcome is unknown. Retry this exact hold request before booking or editing."
+          : reason instanceof Error
+            ? reason.message
+            : "The slot could not be held.",
+      );
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
   };
   return (
     <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
@@ -1048,6 +1324,35 @@ function BookingFormEditor({
             {draftRecoveryMessage}
           </Alert>
         )}
+        {initialHoldDeferred && hasWorkingDraft && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            A saved appointment draft is open. Resolve its pending request or
+            clear that draft before booking the selected hold.
+          </Alert>
+        )}
+        {heldSlot && (
+          <Alert
+            severity={holdExpired ? "warning" : "info"}
+            sx={{ mb: 2 }}
+            action={
+              holdExpired && onChooseNewSlot ? (
+                <Button color="inherit" onClick={onChooseNewSlot}>
+                  Choose new slot
+                </Button>
+              ) : undefined
+            }
+          >
+            {holdExpired
+              ? "This hold expired. Choose a currently available slot before booking."
+              : `This slot is held until ${new Date(heldSlot.expires_at).toLocaleString("en-US", { timeZone: timezone })}. Book before it expires or close this form to release it from the calendar.`}
+          </Alert>
+        )}
+        {holdOutcomeUnconfirmed && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            The hold outcome is unknown. Retry the same request before editing
+            or booking.
+          </Alert>
+        )}
         {created && (
           <Alert
             severity="success"
@@ -1080,6 +1385,21 @@ function BookingFormEditor({
             event.preventDefault();
             if (inFlight.current) return;
             setSubmitError("");
+            if (!bookingAttempt && (holdAttempt || holdOutcomeUnconfirmed))
+              return setSubmitError(
+                "Resolve the pending hold request before booking.",
+              );
+            if (
+              !bookingAttempt &&
+              heldSlot &&
+              (holdExpired ||
+                Date.parse(heldSlot.expires_at) <= businessNow().getTime())
+            ) {
+              onHoldChangedRef.current?.();
+              return setSubmitError(
+                "The hold expired. Close this form and choose a currently available slot.",
+              );
+            }
             if (!bookingAttempt && changingPatient)
               return setSubmitError(
                 "Choose a replacement patient or keep the current patient before scheduling.",
@@ -1108,12 +1428,13 @@ function BookingFormEditor({
                     starts_at: new Date(startsAt).toISOString(),
                     ends_at: new Date(endsAt).toISOString(),
                     site_id: siteId,
-                    room_id: visitModality === "video" ? "" : roomId,
+                    room_id: roomId,
                     booked_clinician_id: clinicianId,
                     visit_type_id: visitTypeId,
                     ...(serviceOfferingId
                       ? { service_offering_id: serviceOfferingId }
                       : {}),
+                    ...(heldSlot ? { schedule_hold_id: heldSlot.id } : {}),
                     reason,
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
@@ -1143,6 +1464,18 @@ function BookingFormEditor({
                   body: attempt.body,
                 },
               );
+              if (
+                attempt.body.appointment.schedule_hold_id &&
+                (result.appointment.schedule_hold_id !==
+                  attempt.body.appointment.schedule_hold_id ||
+                  result.appointment.patient_id !==
+                    Number(attempt.body.appointment.patient_id) ||
+                  result.appointment.site_id !==
+                    Number(attempt.body.appointment.site_id))
+              )
+                throw new Error(
+                  "The booked appointment did not match the held slot. Refresh before retrying the exact request.",
+                );
               if (!(await workingDraft.clear())) {
                 setOutcomeUnconfirmed(true);
                 setSubmitError(
@@ -1169,6 +1502,14 @@ function BookingFormEditor({
                 await workingDraft.save(unresolved);
               } else {
                 if (serviceOfferingId) serviceOfferings.refresh();
+                if (
+                  heldSlot &&
+                  reason instanceof ApiError &&
+                  [409, 422].includes(reason.status)
+                ) {
+                  setHoldExpired(true);
+                  onHoldChangedRef.current?.();
+                }
                 setBookingAttempt(null);
                 const editable = {
                   draft: currentDraft,
@@ -1203,7 +1544,12 @@ function BookingFormEditor({
                 !patients.error,
               )}
               error={patients.error}
-              disabled={busy || outcomeUnconfirmed}
+              disabled={
+                busy ||
+                outcomeUnconfirmed ||
+                holdOutcomeUnconfirmed ||
+                Boolean(heldSlot)
+              }
               onEditingChange={setChangingPatient}
               canReviewPatient={clinic.capabilities.patients === true}
               onQueryChange={setPatientQuery}
@@ -1224,7 +1570,12 @@ function BookingFormEditor({
                 label="Starts"
                 type="datetime-local"
                 required
-                disabled={busy || outcomeUnconfirmed}
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
                 value={startsAt}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -1246,7 +1597,12 @@ function BookingFormEditor({
                 label="Ends"
                 type="datetime-local"
                 required
-                disabled={busy || outcomeUnconfirmed}
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
                 value={endsAt}
                 error={Boolean(intervalError)}
                 helperText={
@@ -1269,7 +1625,12 @@ function BookingFormEditor({
                   key={minutes}
                   size="small"
                   variant="outlined"
-                  disabled={busy || outcomeUnconfirmed}
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    Boolean(heldSlot)
+                  }
                   onClick={() => setDuration(minutes)}
                 >
                   {minutes} min
@@ -1284,7 +1645,12 @@ function BookingFormEditor({
             </Alert>
             <TelehealthBookingFormat
               value={visitModality}
-              disabled={busy || outcomeUnconfirmed}
+              disabled={
+                busy ||
+                outcomeUnconfirmed ||
+                holdOutcomeUnconfirmed ||
+                Boolean(heldSlot)
+              }
               canConfigure={clinic.capabilities.telehealth_configure === true}
               onChange={(format) => {
                 setVisitModality(format);
@@ -1302,7 +1668,12 @@ function BookingFormEditor({
               <FormControl
                 fullWidth
                 required
-                disabled={busy || outcomeUnconfirmed}
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
               >
                 <InputLabel id="site-label">Site</InputLabel>
                 <Select
@@ -1327,7 +1698,13 @@ function BookingFormEditor({
               {visitModality !== "video" && (
                 <FormControl
                   fullWidth
-                  disabled={!siteId || busy || outcomeUnconfirmed}
+                  disabled={
+                    !siteId ||
+                    busy ||
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    Boolean(heldSlot)
+                  }
                 >
                   <InputLabel id="room-label">Room</InputLabel>
                   <Select
@@ -1348,7 +1725,12 @@ function BookingFormEditor({
               <FormControl
                 fullWidth
                 required
-                disabled={busy || outcomeUnconfirmed}
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
               >
                 <InputLabel id="clinician-label">Booked clinician</InputLabel>
                 <Select
@@ -1396,7 +1778,15 @@ function BookingFormEditor({
                 </Select>
               </FormControl>
               <Box sx={{ gridColumn: { md: "1 / -1" } }}>
-                <FormControl fullWidth disabled={busy || outcomeUnconfirmed}>
+                <FormControl
+                  fullWidth
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    Boolean(heldSlot)
+                  }
+                >
                   <InputLabel id="service-offering-label">
                     Service offering
                   </InputLabel>
@@ -1530,6 +1920,11 @@ function BookingFormEditor({
                 {submitError}
               </Alert>
             )}
+            {holdError && (
+              <Alert severity="error" role="alert">
+                {holdError}
+              </Alert>
+            )}
             {workingDraft.status === "saving" && (
               <Typography role="status">Saving working copy…</Typography>
             )}
@@ -1575,15 +1970,44 @@ function BookingFormEditor({
                 type="button"
                 color="inherit"
                 onClick={() => void discard()}
-                disabled={busy || outcomeUnconfirmed}
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
               >
                 {draftRecoveryMessage ? "Clear recovered draft" : "Clear"}
               </Button>
+              {onHoldChanged && (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  disabled={
+                    busy ||
+                    Boolean(bookingAttempt) ||
+                    (Boolean(heldSlot) && !holdAttempt) ||
+                    (!holdAttempt && visitModality !== "in_person") ||
+                    (!holdAttempt &&
+                      (!selectedPatient ||
+                        changingPatient ||
+                        Boolean(intervalError)))
+                  }
+                  onClick={() => void createHold()}
+                >
+                  {holdAttempt
+                    ? "Retry same hold request"
+                    : "Hold slot for up to 10 minutes"}
+                </Button>
+              )}
               <Button
                 type="submit"
                 variant="contained"
                 disabled={
                   busy ||
+                  (Boolean(holdAttempt) && !bookingAttempt) ||
+                  (holdOutcomeUnconfirmed && !bookingAttempt) ||
+                  (holdExpired && !bookingAttempt) ||
                   (!outcomeUnconfirmed && (!selectedPatient || changingPatient))
                 }
                 startIcon={
@@ -1830,12 +2254,15 @@ export function Schedule({
       key={initialPatientId ?? "schedule"}
       initialPatientId={initialPatientId}
       canBook={bookingAvailability(context.capabilities).visible}
-      renderBooking={(slot, onCreated) => (
+      renderBooking={(slot, onCreated, onHoldChanged, onChooseNewSlot) => (
         <BookingForm
           timezone={context.practice.timezone}
-          initialPatientId={initialPatientId}
+          initialPatientId={slot?.hold?.patient_id ?? initialPatientId}
           initialSlot={slot}
+          onHoldChanged={onHoldChanged}
+          onChooseNewSlot={onChooseNewSlot}
           initialVisitModality={
+            !slot?.hold &&
             new URLSearchParams(search).get("visit_modality") === "video"
               ? "video"
               : "in_person"

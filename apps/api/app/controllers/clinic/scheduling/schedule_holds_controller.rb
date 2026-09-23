@@ -10,7 +10,9 @@ module Clinic
           room: input[:room_id].present? ? current_practice.rooms.find(requested_id!(input[:room_id], :room_id)) : nil,
           starts_at: time_param!(input[:starts_at], field: :starts_at), ends_at: time_param!(input[:ends_at], field: :ends_at),
           expires_at: time_param!(input[:expires_at], field: :expires_at), request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
-        render json: { hold: { id: hold.id, state: hold.state, starts_at: hold.starts_at.iso8601(6), ends_at: hold.ends_at.iso8601(6), expires_at: hold.expires_at.iso8601(6), lock_version: hold.lock_version } }, status: :created
+        render json: { hold: { id: hold.id, state: hold.state, patient_id: hold.patient_id, site_id: hold.site_id,
+          clinician_id: hold.clinician_id, room_id: hold.room_id, starts_at: hold.starts_at.iso8601(6),
+          ends_at: hold.ends_at.iso8601(6), expires_at: hold.expires_at.iso8601(6), lock_version: hold.lock_version } }, status: :created
       end
 
       def release

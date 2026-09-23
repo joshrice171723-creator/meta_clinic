@@ -1422,6 +1422,7 @@ export type Appointment = {
   booked_clinician_id: number | null;
   visit_type_id: number | null;
   service_offering_id?: number | null;
+  schedule_hold_id?: number | null;
   service_offering_snapshot?: {
     name: string;
     code: string | null;
@@ -1456,6 +1457,9 @@ export type CalendarSlot = {
 };
 export type CalendarHold = {
   id: number;
+  patient_id: number | null;
+  patient_name?: string | null;
+  site_id?: number;
   clinician_id: number;
   room_id: number | null;
   starts_at: string;

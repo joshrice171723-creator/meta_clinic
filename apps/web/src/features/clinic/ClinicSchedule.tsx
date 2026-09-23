@@ -37,6 +37,7 @@ export type CalendarBooking = {
   room_id?: number;
   starts_at?: string;
   ends_at?: string;
+  hold?: CalendarHold;
 };
 
 export function calendarTimezone(
@@ -269,6 +270,8 @@ export function ClinicSchedule({
   renderBooking: (
     slot: CalendarBooking | undefined,
     onCreated: (appointment: Appointment) => void,
+    onHoldChanged: () => void,
+    onChooseNewSlot: () => void,
   ) => ReactNode;
 }) {
   const context = useClinic();
@@ -330,6 +333,26 @@ export function ClinicSchedule({
     calendar.data?.month === month && String(calendar.data.site_id) === siteId
       ? calendar.data
       : undefined;
+  const refreshCalendar = useRef(calendar.refresh);
+  refreshCalendar.current = calendar.refresh;
+  const nextHoldExpiry = data?.days
+    .flatMap((item) => item.holds)
+    .map((hold) => Date.parse(hold.expires_at))
+    .filter((instant) => instant > businessNow().getTime())
+    .sort((left, right) => left - right)[0];
+  useEffect(() => {
+    if (nextHoldExpiry === undefined) return;
+    const timer = window.setTimeout(
+      () => {
+        refreshCalendar.current();
+        setNotice(
+          "A slot hold expired. Choose a currently available slot before booking.",
+        );
+      },
+      Math.max(1, nextHoldExpiry - businessNow().getTime() + 100),
+    );
+    return () => window.clearTimeout(timer);
+  }, [nextHoldExpiry]);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -856,7 +879,8 @@ export function ClinicSchedule({
               </Typography>
               {holdError && (
                 <Alert severity="error">
-                  {holdError} <Button onClick={calendar.refresh}>Refresh</Button>
+                  {holdError}{" "}
+                  <Button onClick={calendar.refresh}>Refresh</Button>
                 </Alert>
               )}
               {selectedDay && selectedDay.holds.length > 0 && (
@@ -880,6 +904,9 @@ export function ClinicSchedule({
                           {data.clinicians.find(
                             (clinician) => clinician.id === hold.clinician_id,
                           )?.name ?? "Clinician"}
+                          {hold.patient_id
+                            ? ` · ${hold.patient_name || `Patient #${hold.patient_id}`}`
+                            : ""}
                           {hold.room_id
                             ? ` · ${data.rooms.find((room) => room.id === hold.room_id)?.name ?? "Room"}`
                             : ""}
@@ -895,6 +922,32 @@ export function ClinicSchedule({
                             Release hold
                           </Button>
                         )}
+                        {canBook &&
+                          hold.patient_id &&
+                          (!initialPatientId ||
+                            initialPatientId === hold.patient_id) && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              disabled={
+                                busy ||
+                                Date.parse(hold.expires_at) <=
+                                  businessNow().getTime()
+                              }
+                              onClick={() =>
+                                setBooking({
+                                  site_id: Number(siteId),
+                                  clinician_id: hold.clinician_id,
+                                  room_id: hold.room_id ?? undefined,
+                                  starts_at: hold.starts_at,
+                                  ends_at: hold.ends_at,
+                                  hold,
+                                })
+                              }
+                            >
+                              Book held slot
+                            </Button>
+                          )}
                       </Stack>
                     ))}
                   </Stack>
@@ -1140,7 +1193,16 @@ export function ClinicSchedule({
       >
         <DialogTitle>{actionLabel}</DialogTitle>
         <DialogContent>
-          {booking && renderBooking(booking, booked)}
+          {booking &&
+            renderBooking(
+              booking,
+              booked,
+              () => refreshCalendar.current(),
+              () => {
+                setBooking(undefined);
+                refreshCalendar.current();
+              },
+            )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBooking(undefined)}>

@@ -7,6 +7,7 @@ module Clinic
 
       def initialize(practice:, site:, date:, actor:)
         @practice, @site, @actor = practice, site, actor
+        @can_read_hold_patient = Ability.new(actor, practice: practice).allowed_permission?("patients.read", site: site)
         @timezone_name = site.timezone_override.presence || practice.timezone
         @zone = ActiveSupport::TimeZone[@timezone_name]
         raise ArgumentError, "The clinic timezone is unavailable." unless @zone
@@ -23,7 +24,8 @@ module Clinic
         @offers = WaitlistEntry.where(practice: practice, state: "offered")
           .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, @finish, @start).to_a
         @holds = ScheduleHold.where(practice: practice, state: "active")
-          .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, @finish, @start).to_a
+          .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, @finish, @start)
+          .includes(:patient).to_a
         @hours = site.operating_hours.to_a
         @exceptions = site.hour_exceptions.where(date: @first.prev_day..@last.next_day).index_by(&:date)
         @clinicians = practice.clinician_profiles.order(:id).to_a
@@ -138,7 +140,9 @@ module Clinic
       end
 
       def serialize_hold(hold)
-        { id: hold.id, clinician_id: hold.clinician_id, room_id: hold.room_id,
+        { id: hold.id, patient_id: (@can_read_hold_patient ? hold.patient_id : nil),
+          patient_name: (@can_read_hold_patient ? hold.patient&.display_name : nil),
+          clinician_id: hold.clinician_id, room_id: hold.room_id,
           starts_at: hold.starts_at.iso8601(6), ends_at: hold.ends_at.iso8601(6),
           expires_at: hold.expires_at.iso8601(6), lock_version: hold.lock_version }
       end

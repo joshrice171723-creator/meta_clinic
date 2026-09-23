@@ -90,7 +90,8 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     visible_hold = day.fetch("holds").sole
     assert_equal hold.fetch("id"), visible_hold.fetch("id")
     assert_equal hold.fetch("lock_version"), visible_hold.fetch("lock_version")
-    refute visible_hold.key?("patient_id")
+    assert_equal @patient.id, visible_hold.fetch("patient_id")
+    assert_equal @patient.display_name, visible_hold.fetch("patient_name")
 
     block = { capacity: { request_key: "held-capacity-block", site_id: @site.id,
       clinician_id: @clinician.id, kind: "block", starts_at: @start.iso8601,
@@ -113,6 +114,111 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
     end
     assert_response :created
+  end
+
+  test "held slot books once and exact retry survives conversion" do
+    hold_input = { hold: { request_key: "held-booking", patient_id: @patient.id,
+      site_id: @site.id, clinician_id: @clinician.id, starts_at: @start.iso8601,
+      ends_at: (@start + 30.minutes).iso8601,
+      expires_at: (Current.business_time + 10.minutes).iso8601 } }
+    post "/api/clinic/schedule_holds", params: hold_input, headers: csrf_headers, as: :json
+    assert_response :created
+    hold_id = response.parsed_body.dig("hold", "id")
+    get_calendar
+    assert_equal hold_id, day.fetch("holds").sole.fetch("id")
+    assert_equal 1, day.fetch("available")
+
+    booking = { appointment: { patient_id: @patient.id, site_id: @site.id,
+      booked_clinician_id: @clinician.id, visit_type_id: @type.id, schedule_hold_id: hold_id,
+      starts_at: @start.iso8601, ends_at: (@start + 30.minutes).iso8601,
+      request_key: "book-held-slot" } }
+    assert_difference -> { @practice.appointments.count }, 1 do
+      post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    appointment_id = response.parsed_body.dig("appointment", "id")
+    assert_equal hold_id, response.parsed_body.dig("appointment", "schedule_hold_id")
+    assert_equal "converted", Clinic::Scheduling::ScheduleHold.find(hold_id).state
+    post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal appointment_id, response.parsed_body.dig("appointment", "id")
+    assert_equal 1, @practice.appointments.where(schedule_hold_id: hold_id).count
+    get_calendar
+    assert_empty day.fetch("holds")
+    assert_equal 1, day.fetch("scheduled")
+
+    booking[:appointment][:request_key] = "stale-held-booking"
+    post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal 1, @practice.appointments.where(schedule_hold_id: hold_id).count
+  end
+
+  test "expired hold frees capacity and exact hold retry does not create another" do
+    expiry = Current.business_time + 1.minute
+    hold_input = { hold: { request_key: "expiring-held-slot", patient_id: @patient.id,
+      site_id: @site.id, clinician_id: @clinician.id, starts_at: @start.iso8601,
+      ends_at: (@start + 30.minutes).iso8601, expires_at: expiry.iso8601 } }
+    post "/api/clinic/schedule_holds", params: hold_input, headers: csrf_headers, as: :json
+    assert_response :created
+    hold_id = response.parsed_body.dig("hold", "id")
+    travel_to expiry + 1.second do
+      get_calendar
+      assert_empty day.fetch("holds")
+      assert_equal 2, day.fetch("available")
+      booking = { appointment: { patient_id: @patient.id, site_id: @site.id,
+        booked_clinician_id: @clinician.id, visit_type_id: @type.id, schedule_hold_id: hold_id,
+        starts_at: @start.iso8601, ends_at: (@start + 30.minutes).iso8601,
+        request_key: "book-expired-hold" } }
+      post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_empty @practice.appointments.where(schedule_hold_id: hold_id)
+      post "/api/clinic/schedule_holds", params: hold_input, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal hold_id, response.parsed_body.dig("hold", "id")
+      assert_equal 1, Clinic::Scheduling::ScheduleHold.where(practice: @practice, request_key: "expiring-held-slot").count
+    end
+  end
+
+  test "held slots scope patient identity and deny wrong site or missing permission" do
+    input = { hold: { request_key: "scoped-held-slot", patient_id: @patient.id,
+      site_id: @site.id, clinician_id: @clinician.id, starts_at: @start.iso8601,
+      ends_at: (@start + 30.minutes).iso8601,
+      expires_at: (Current.business_time + 10.minutes).iso8601 } }
+    post "/api/clinic/schedule_holds", params: input, headers: csrf_headers, as: :json
+    assert_response :created
+    hold = response.parsed_body.fetch("hold")
+    other_site = @practice.sites.create!(code: "SECOND")
+    other_patient = @practice.patients.create!(display_name: "Different Synthetic Patient", reference: "OTHER-HOLD")
+    booking = { appointment: { patient_id: other_patient.id, site_id: other_site.id,
+      booked_clinician_id: @clinician.id, visit_type_id: @type.id, schedule_hold_id: hold.fetch("id"),
+      starts_at: @start.iso8601, ends_at: (@start + 30.minutes).iso8601,
+      request_key: "wrong-held-context" } }
+    post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_empty @practice.appointments
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "appointments.read")
+    get_calendar
+    assert_nil day.fetch("holds").sole.fetch("patient_id")
+    assert_nil day.fetch("holds").sole.fetch("patient_name")
+    post "/api/clinic/schedule_holds", params: input.deep_merge(hold: { request_key: "unauthorized-hold" }), headers: csrf_headers, as: :json
+    assert_response :forbidden
+    post "/api/clinic/schedule_holds/#{hold.fetch('id')}/release",
+      params: { hold: { request_key: "unauthorized-release", lock_version: hold.fetch("lock_version") } },
+      headers: csrf_headers, as: :json
+    assert_response :forbidden
+    booking[:appointment][:patient_id] = @patient.id
+    booking[:appointment][:site_id] = @site.id
+    post "/api/clinic/appointments", params: booking, headers: csrf_headers, as: :json
+    assert_response :forbidden
+
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "appointments.book", "appointments.read", "patients.read", scope_kind: "site", site: @site)
+    other_site_hold = input.deep_merge(hold: { request_key: "wrong-site-hold", site_id: other_site.id })
+    post "/api/clinic/schedule_holds", params: other_site_hold, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_empty Clinic::Scheduling::ScheduleHold.where(practice: @practice, site: other_site)
   end
 
   test "a capacity block keeps overlapping appointments visible and prevents only new bookings" do
