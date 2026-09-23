@@ -86,6 +86,11 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       headers: csrf_headers, as: :json
     assert_response :created
     hold = response.parsed_body.fetch("hold")
+    get_calendar
+    visible_hold = day.fetch("holds").sole
+    assert_equal hold.fetch("id"), visible_hold.fetch("id")
+    assert_equal hold.fetch("lock_version"), visible_hold.fetch("lock_version")
+    refute visible_hold.key?("patient_id")
 
     block = { capacity: { request_key: "held-capacity-block", site_id: @site.id,
       clinician_id: @clinician.id, kind: "block", starts_at: @start.iso8601,
@@ -101,6 +106,8 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       headers: csrf_headers, as: :json
     assert_response :success
     assert_equal "released", response.parsed_body.fetch("hold").fetch("state")
+    get_calendar
+    assert_empty day.fetch("holds")
 
     assert_difference -> { Clinic::Scheduling::CapacityRule.where(practice: @practice, kind: "block").count }, 1 do
       post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json

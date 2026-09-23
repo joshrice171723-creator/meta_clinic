@@ -21,6 +21,7 @@ import type {
   Appointment,
   Patient,
   CalendarAppointment,
+  CalendarHold,
   CalendarResponse,
 } from "../../api/contracts";
 import { api } from "../../api/client";
@@ -304,7 +305,13 @@ export function ClinicSchedule({
   const [selected, setSelected] = useState<CalendarAppointment>();
   const [notice, setNotice] = useState("");
   const [mutationError, setMutationError] = useState("");
+  const [holdError, setHoldError] = useState("");
   const [busy, setBusy] = useState(false);
+  const releaseAttempt = useRef<{
+    holdId: number;
+    lockVersion: number;
+    requestKey: string;
+  } | null>(null);
   const routeInitialized = useRef(false);
   const patient = useResource<{ patients: Patient[] }>(
     `/api/clinic/patients/lookup?id=${initialPatientId ?? ""}`,
@@ -452,6 +459,49 @@ export function ClinicSchedule({
         error instanceof Error
           ? error.message
           : "Check-in could not be verified. Refresh before trying again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function releaseHold(hold: CalendarHold) {
+    if (busy) return;
+    const prior = releaseAttempt.current;
+    const attempt =
+      prior?.holdId === hold.id && prior.lockVersion === hold.lock_version
+        ? prior
+        : {
+            holdId: hold.id,
+            lockVersion: hold.lock_version,
+            requestKey: crypto.randomUUID(),
+          };
+    releaseAttempt.current = attempt;
+    setBusy(true);
+    setHoldError("");
+    try {
+      const result = await api<{
+        hold: { id: number; state: string; lock_version: number };
+      }>(`/api/clinic/schedule_holds/${hold.id}/release`, {
+        method: "POST",
+        body: {
+          hold: {
+            request_key: attempt.requestKey,
+            lock_version: attempt.lockVersion,
+          },
+        },
+      });
+      if (result.hold.id !== hold.id || result.hold.state !== "released")
+        throw new Error(
+          "The hold release could not be confirmed. Refresh the schedule before retrying.",
+        );
+      releaseAttempt.current = null;
+      setNotice("Slot hold released. Availability has been refreshed.");
+      calendar.refresh();
+    } catch (error) {
+      setHoldError(
+        error instanceof Error
+          ? error.message
+          : "The hold release could not be confirmed. Refresh before retrying.",
       );
     } finally {
       setBusy(false);
@@ -724,7 +774,7 @@ export function ClinicSchedule({
                   <ButtonBase
                     key={item.date}
                     onClick={() => openDay(item.date)}
-                    aria-label={`${dateLabel(item.date)}: ${item.scheduled} scheduled, ${item.confirmed} confirmed, ${item.available ?? "unknown"} available, ${item.conflicts} conflicts`}
+                    aria-label={`${dateLabel(item.date)}: ${item.scheduled} scheduled, ${item.confirmed} confirmed, ${item.available ?? "unknown"} available, ${item.holds.length} active holds, ${item.conflicts} conflicts`}
                     sx={{
                       display: "block",
                       textAlign: "left",
@@ -758,6 +808,11 @@ export function ClinicSchedule({
                     <Typography variant="body2">
                       {item.confirmed} confirmed
                     </Typography>
+                    {item.holds.length > 0 && (
+                      <Typography variant="body2" color="warning.main">
+                        {item.holds.length} held
+                      </Typography>
+                    )}
                     <Typography
                       variant="caption"
                       sx={{ display: "block" }}
@@ -799,6 +854,52 @@ export function ClinicSchedule({
                 open time to book. Capacity counts clinician time, not
                 additional room capacity.
               </Typography>
+              {holdError && (
+                <Alert severity="error">
+                  {holdError} <Button onClick={calendar.refresh}>Refresh</Button>
+                </Alert>
+              )}
+              {selectedDay && selectedDay.holds.length > 0 && (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Stack spacing={1}>
+                    <Typography component="h3" variant="subtitle1">
+                      Active slot holds
+                    </Typography>
+                    {selectedDay.holds.map((hold) => (
+                      <Stack
+                        key={hold.id}
+                        direction={{ xs: "column", sm: "row" }}
+                        sx={{
+                          alignItems: { sm: "center" },
+                          justifyContent: "space-between",
+                          gap: 1,
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {time(hold.starts_at)}–{time(hold.ends_at)} ·{" "}
+                          {data.clinicians.find(
+                            (clinician) => clinician.id === hold.clinician_id,
+                          )?.name ?? "Clinician"}
+                          {hold.room_id
+                            ? ` · ${data.rooms.find((room) => room.id === hold.room_id)?.name ?? "Room"}`
+                            : ""}
+                          {` · Expires ${new Date(hold.expires_at).toLocaleString("en-US", { timeZone: timezone })}`}
+                        </Typography>
+                        {canBook && (
+                          <Button
+                            size="small"
+                            disabled={busy}
+                            aria-label={`Release hold for ${time(hold.starts_at)} with ${data.clinicians.find((clinician) => clinician.id === hold.clinician_id)?.name ?? "clinician"}`}
+                            onClick={() => void releaseHold(hold)}
+                          >
+                            Release hold
+                          </Button>
+                        )}
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Paper>
+              )}
               <Paper
                 variant="outlined"
                 sx={{ overflow: "auto", maxHeight: "70vh" }}

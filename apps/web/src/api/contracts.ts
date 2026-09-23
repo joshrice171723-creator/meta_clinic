@@ -1454,6 +1454,15 @@ export type CalendarSlot = {
   clinician_id: number;
   room_ids: number[];
 };
+export type CalendarHold = {
+  id: number;
+  clinician_id: number;
+  room_id: number | null;
+  starts_at: string;
+  ends_at: string;
+  expires_at: string;
+  lock_version: number;
+};
 export type CalendarAppointment = Appointment & {
   clinician_name: string | null;
   room_name: string | null;
@@ -1468,6 +1477,7 @@ export type CalendarDay = {
   available: number | null;
   conflicts: number;
   slots: CalendarSlot[];
+  holds: CalendarHold[];
   appointments: CalendarAppointment[];
 };
 export type CalendarResponse = {

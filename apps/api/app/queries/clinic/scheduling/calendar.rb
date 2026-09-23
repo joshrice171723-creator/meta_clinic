@@ -34,12 +34,14 @@ module Clinic
         visible = @appointments.select { |a| a.site_id == @site.id }
         days = (@first..@last).map do |date|
           visits = visible.select { |a| a.starts_at.in_time_zone(@zone).to_date == date }
+          holds = @holds.select { |hold| hold.site_id == @site.id && hold.starts_at.in_time_zone(@zone).to_date == date }
           slots = slots_for(date)
           {
             date: date.iso8601, scheduled: visits.count { |a| a.status == "scheduled" },
             confirmed: visits.count { |a| a.status == "confirmed" },
             available: configured? ? slots.length : nil,
             conflicts: visits.count { |a| conflict?(a) }, slots: slots,
+            holds: holds.map { |hold| serialize_hold(hold) },
             appointments: visits.map { |a| serialize(a) }
           }
         end
@@ -133,6 +135,12 @@ module Clinic
           calendar_status: calendar_status(appointment),
           conflict: conflict?(appointment)
         )
+      end
+
+      def serialize_hold(hold)
+        { id: hold.id, clinician_id: hold.clinician_id, room_id: hold.room_id,
+          starts_at: hold.starts_at.iso8601(6), ends_at: hold.ends_at.iso8601(6),
+          expires_at: hold.expires_at.iso8601(6), lock_version: hold.lock_version }
       end
 
       def calendar_status(appointment)
