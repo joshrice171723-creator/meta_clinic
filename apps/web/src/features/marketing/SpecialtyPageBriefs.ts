@@ -269,8 +269,37 @@ function childScenario(slug: string, label: string, specialty: Specialty): strin
   return `A patient’s visit creates a ${label.toLowerCase()} task for the clinic. The team records who owns the next step, routes relevant context for professional review where needed, and follows up on open work.`;
 }
 
+function guideFor(specialty: Specialty, slug: string): { label: string; path: string } | null {
+  if (specialty.name === "Weight loss") {
+    if (/intake|forms|portal/.test(slug)) return { label: "Weight loss patient intake guide", path: "/resources/guides/weight-loss-patient-intake" };
+    if (/glp|medication|prescrib|inventory|lot|replenish|forecast/.test(slug)) return { label: "GLP-1 clinic workflow guide", path: "/resources/guides/glp-1-clinic-workflow" };
+    if (/telehealth|scheduling|booking/.test(slug)) return { label: "Telehealth workflow guide", path: "/resources/guides/telehealth-workflow" };
+    if (/membership|subscription|payment/.test(slug)) return { label: "Clinic membership model guide", path: "/resources/guides/clinic-membership-model" };
+    return { label: "Starting a weight loss clinic guide", path: "/resources/guides/start-a-weight-loss-clinic" };
+  }
+  if (specialty.name === "Behavioral health" && /telehealth|scheduling|appointment/.test(slug)) {
+    return { label: "Telehealth workflow guide", path: "/resources/guides/telehealth-workflow" };
+  }
+  if (specialty.name === "Infusion") {
+    if (/inventory|lot|expiration|recall|purchas|receiv|replenish|forecast/.test(slug)) {
+      return { label: "Infusion inventory guide", path: "/resources/guides/infusion-inventory-management" };
+    }
+    if (/scheduling|chair|resource|nurse|appointment|recurring/.test(slug)) {
+      return { label: "Infusion chair scheduling guide", path: "/resources/guides/infusion-chair-scheduling" };
+    }
+  }
+  if (specialty.name === "Men’s health" && /trt|testosterone|intake/.test(slug)) {
+    return { label: "Starting a TRT clinic guide", path: "/resources/guides/start-a-trt-clinic" };
+  }
+  if (specialty.name === "Direct primary care" && /membership|billing/.test(slug)) {
+    return { label: "Clinic membership model guide", path: "/resources/guides/clinic-membership-model" };
+  }
+  return null;
+}
+
 function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<GrowthPage> {
   const topic = slug ? topicCopy[slug] : undefined;
+  const guide = slug ? guideFor(specialty, slug) : null;
   const pageLabel = topic?.label ?? (slug ? titleCase(slug) : specialty.name);
   const focus = topic?.purpose ?? specialty.journey;
   const headline = slug
@@ -330,8 +359,8 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     questions: objections,
     links: [
       ...(slug ? [{ label: `${specialty.name} overview`, path: Object.keys(specialties).find((candidate) => path.startsWith(`${candidate}/`)) ?? path }] : []),
-      ...(specialty.name === "Weight loss" && slug ? [
-        { label: "Weight loss patient intake guide", path: "/resources/guides/weight-loss-patient-intake" },
+      ...(guide ? [guide] : []),
+      ...(specialty.name === "Weight loss" && slug && /intake|forms|portal/.test(slug) ? [
         { label: "Weight loss intake form template", path: "/resources/templates/weight-loss-intake-form" },
       ] : []),
       ...(slug === "cash-pay" ? [

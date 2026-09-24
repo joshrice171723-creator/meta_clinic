@@ -424,6 +424,11 @@ function pretty(segment: string) {
 
 const entries: Map<string, string> = new Map(marketingPaths.map((entry) => [entry.path, entry.group]));
 const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCaption: string }> = {
+  "/platform/patient-management": {
+    image: "/marketing/primary-care-patients-app.png",
+    imageAlt: "Meta Clinic patient directory showing synthetic demonstration records and search controls.",
+    imageCaption: "Patient directory in the synthetic demo",
+  },
   "/platform/scheduling": {
     image: "/marketing/scheduling-booking-clean.png",
     imageAlt: "Meta Clinic appointment form over a populated synthetic clinic schedule.",
@@ -438,6 +443,16 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     image: "/marketing/inventory-app.png",
     imageAlt: "Meta Clinic inventory catalog showing synthetic clinic supplies and recorded stock.",
     imageCaption: "Inventory catalog in the synthetic demo",
+  },
+  "/platform/telehealth": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic month schedule showing synthetic remote and in-person appointments.",
+    imageCaption: "Remote visits in the synthetic demo schedule",
+  },
+  "/platform/workflows": {
+    image: "/marketing/tracking-board-app.png",
+    imageAlt: "Meta Clinic tracking board showing synthetic visits in different operational states.",
+    imageCaption: "Clinic workflow board in the synthetic demo",
   },
 };
 export const marketingRouteCount = entries.size;
