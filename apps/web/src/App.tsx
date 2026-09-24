@@ -21,6 +21,7 @@ import { Form, LoadState } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
 import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
+import { hasGrowthPage } from "./features/marketing/marketingPaths";
 import { isDemoFrame } from "./features/demo/frame";
 import {
   SessionGuard,
@@ -60,6 +61,10 @@ const WorkInbox = lazyNamed(
 const DemoJourney = lazyNamed(
   () => import("./features/demo/DemoJourney"),
   (m) => m.DemoJourney,
+);
+const GrowthMarketingPage = lazyNamed(
+  () => import("./features/marketing/GrowthMarketingPage"),
+  (m) => m.GrowthMarketingPage,
 );
 const WaitlistWorkspace = lazyNamed(
   () => import("./features/clinic/WaitlistWorkspace"),
@@ -795,6 +800,13 @@ function ClinicApplication({
 }
 
 export function App() {
+  if (window.location.pathname.replace(/\/$/, "") === "/") {
+    return (
+      <RouteBoundary root>
+        <MetaClinicMarketing />
+      </RouteBoundary>
+    );
+  }
   if (window.location.pathname.replace(/\/$/, "") === "/demo") {
     return (
       <RouteBoundary root>
@@ -840,6 +852,7 @@ function Application() {
     path === "/memberships" ||
     (publicMembership !== null && path !== "/memberships/account");
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
+  const growthMarketing = hasGrowthPage(path) && path !== "/" && path !== "/login";
   const marketingClinicType =
     /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|hormone-health|behavioral-health|rehabilitation-pt|aesthetics|infusion)$/.exec(
       path,
@@ -861,7 +874,8 @@ function Application() {
     ].includes(path) ||
     (publicMembership !== null && path !== "/memberships/account") ||
     marketingFeature !== null ||
-    marketingClinicType !== null;
+    marketingClinicType !== null ||
+    growthMarketing;
   const [session, setSession] = useState<SessionBootstrap>({});
   useEffect(() => {
     if (publicMembershipRoute) {
@@ -989,6 +1003,12 @@ function Application() {
     return (
       <RouteBoundary root>
         <FounderDecisionWorkspace />
+      </RouteBoundary>
+    );
+  if (growthMarketing)
+    return (
+      <RouteBoundary root>
+        <GrowthMarketingPage path={path} />
       </RouteBoundary>
     );
   if (path === "/meta-clinic" || marketingFeature || marketingClinicType)

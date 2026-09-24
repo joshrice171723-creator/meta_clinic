@@ -576,6 +576,10 @@ export function MetaClinicMarketing({
           Meta Clinic
         </a>
         <span>Thoughtful software for independent clinics.</span>
+        <a href="/weight-loss">Weight loss</a>
+        <a href="/behavioral-health">Behavioral health</a>
+        <a href="/solutions/cash-pay-clinics">Cash-pay clinics</a>
+        <a href="/site-map">Site map</a>
         <a href="/login">Sign in</a>
       </footer>
     </div>
