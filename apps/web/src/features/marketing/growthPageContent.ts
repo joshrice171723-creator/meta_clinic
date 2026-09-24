@@ -790,6 +790,8 @@ export function getGrowthPage(path: string): GrowthPage | null {
     page.secondaryCta = { label: "Book a demo", path: "/book-demo" };
   } else if (["/resources", "/resources/guides", "/resources/templates", "/solutions"].includes(path)) {
     page.primaryCta = { label: "Browse the pages", path: "#directory" };
+  } else if (path === "/resources/checklists") {
+    page.primaryCta = { label: "Browse workflow templates", path: "/resources/templates" };
   }
   return page;
 }
