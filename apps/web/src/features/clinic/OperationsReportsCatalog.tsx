@@ -141,8 +141,13 @@ export function OperationsReportsCatalog({
 }
 
 function DailyVisitsByState({ siteId }: { siteId: number }) {
-  const [inputDate, setInputDate] = useState("");
-  const [loadedDate, setLoadedDate] = useState("");
+  const requestedDate = new URLSearchParams(window.location.search).get("date");
+  const initialDate =
+    requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      ? requestedDate
+      : "";
+  const [inputDate, setInputDate] = useState(initialDate);
+  const [loadedDate, setLoadedDate] = useState(initialDate);
   const path = `/api/clinic/reports/daily_visits_by_state?date=${encodeURIComponent(loadedDate)}&site_id=${siteId}`;
   const result = useResource<{ report: DailyVisitsReport }>(path, {
     enabled: Boolean(loadedDate),
@@ -151,6 +156,9 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (inputDate) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("date", inputDate);
+      window.history.replaceState(window.history.state, "", url);
       if (inputDate === loadedDate) result.refresh();
       else setLoadedDate(inputDate);
     }
@@ -183,7 +191,9 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
           size="small"
         />
         <Button type="submit" variant="outlined" disabled={!inputDate}>
-          {loadedDate && loadedDate === inputDate ? "Refresh report" : "Show report"}
+          {loadedDate && loadedDate === inputDate
+            ? "Refresh report"
+            : "Show report"}
         </Button>
       </Stack>
       {loadedDate && !report && (
@@ -194,6 +204,13 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
           <Typography>
             {report.date} · {report.total} visits
           </Typography>
+          <Button
+            href={`/clinic/schedule?site_id=${siteId}&month=${report.date.slice(0, 7)}&day=${report.date}&view=day`}
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open source schedule
+          </Button>
           {Object.entries(report.counts).map(([state, count]) => (
             <Typography variant="body2" key={state}>
               {state.replaceAll("_", " ")}: {count}

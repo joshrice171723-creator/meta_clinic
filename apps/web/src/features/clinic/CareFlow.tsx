@@ -4035,6 +4035,12 @@ export function SoapNoteForm({
           Saving protected working note…
         </Typography>
       )}
+      {note?.current_revision?.created_at && !signed && (
+        <Typography variant="body2" color="text.secondary">
+          Draft last saved {new Date(note.current_revision.created_at).toLocaleString()}
+          {dirty ? " · Current edits are unsaved" : ""}
+        </Typography>
+      )}
       {workingDraft.status === "saved" && dirty && (
         <Typography variant="caption" role="status" color="text.secondary">
           Working note saved for refresh recovery.

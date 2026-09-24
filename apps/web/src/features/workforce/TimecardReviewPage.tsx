@@ -309,6 +309,10 @@ export function TimecardReviewPage() {
         <TimecardSummary
           key={card.id}
           card={card}
+          corrections={adjustments.filter(
+            (adjustment) =>
+              adjustment.resulting_timecard_version_id === card.id,
+          )}
           actions={
             canReview || canApprove ? (
               <>

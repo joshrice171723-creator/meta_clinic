@@ -37,6 +37,7 @@ class InventoryActivityTest < ActionDispatch::IntegrationTest
     %w[Clinic::Inventory::SupplierProduct Clinic::Inventory::PurchaseOrder Clinic::Inventory::PharmacyProduct].each { |name| assert_equal 0, classes[name] }
     assert_equal "0.125", first.fetch("movements").first.fetch("quantity_units")
     assert_equal "ACTIVITY-LOT", first.fetch("movements").first.fetch("lot_number")
+    assert_equal @batch.product_id.to_s, first.fetch("movements").first.fetch("product_id")
     assert_equal "Fixture shelf", first.fetch("movements").first.fetch("location_name")
     assert_equal "mL", first.fetch("movements").first.fetch("stock_unit")
 
