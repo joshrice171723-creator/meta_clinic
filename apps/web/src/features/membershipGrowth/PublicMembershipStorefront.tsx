@@ -203,7 +203,6 @@ export function PublicMembershipStorefront({
     setSelections([]);
     setOutreachAcknowledged(false);
     setAccountAcknowledged(false);
-    setAccountAcknowledged(false);
     setError("");
   }
 
@@ -411,8 +410,9 @@ export function PublicMembershipStorefront({
             </Box>
             {paymentOutcome === "return" && returnState === "preparing" && (
               <Alert severity="info">
-                Payment received. We are confirming it and preparing your
-                patient portal password setup now.
+                We are checking the payment result and preparing your patient
+                portal access. Your membership is not active until payment is
+                verified.
               </Alert>
             )}
             {paymentOutcome === "return" && returnState === "prospective" && (
@@ -422,23 +422,32 @@ export function PublicMembershipStorefront({
               </Alert>
             )}
             {paymentOutcome === "return" && returnState === "email" && (
-              <Alert severity="success">
-                Your payment was received. Use the patient portal setup link in
-                your receipt email if this page does not continue automatically.
+              <Alert severity="info">
+                This page could not confirm your payment or finish the portal
+                handoff. Check your membership account for the current status.
               </Alert>
             )}
             {paymentOutcome === "return" && returnState === "error" && (
               <Alert severity="warning">
-                We could not finish the automatic portal handoff. Use the setup
-                link in your receipt email; the clinic still has your request.
+                We could not check the payment result or finish the portal
+                handoff. Your membership account has the current status.
               </Alert>
             )}
             {paymentOutcome === "cancel" && (
               <Alert severity="info">
-                Checkout was not completed. You remain a prospective patient,
-                and the clinic can follow up using the contact permission you
-                provided.
+                Checkout was not completed. If you created a membership account,
+                your choice is saved there and you can try again.
               </Alert>
+            )}
+            {(paymentOutcome === "cancel" ||
+              (paymentOutcome === "return" && returnState !== "preparing")) && (
+              <Button
+                href="/memberships/account"
+                variant="outlined"
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Check membership account
+              </Button>
             )}
             <Alert severity="info">
               This page belongs to {resource.data.practice.name}. You can

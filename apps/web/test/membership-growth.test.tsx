@@ -158,6 +158,48 @@ describe("clinic-specific membership growth", () => {
     expect(html).not.toContain("South Clinic");
   });
 
+  it("does not claim payment is verified while a checkout return is pending", () => {
+    vi.stubGlobal("window", {
+      location: {
+        search: "?payment=return",
+        hash: "",
+        pathname: "/memberships/north-clinic",
+      },
+      history: { replaceState: vi.fn() },
+    });
+    try {
+      const html = renderToStaticMarkup(
+        <PublicMembershipStorefront slug="north-clinic" />,
+      );
+      expect(html).toContain("We are checking the payment result");
+      expect(html).toContain("not active until payment is verified");
+      expect(html).not.toContain("Payment received.");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("gives a cancelled checkout a path back to the saved account", () => {
+    vi.stubGlobal("window", {
+      location: {
+        search: "?payment=cancel",
+        hash: "",
+        pathname: "/memberships/north-clinic",
+      },
+      history: { replaceState: vi.fn() },
+    });
+    try {
+      const html = renderToStaticMarkup(
+        <PublicMembershipStorefront slug="north-clinic" />,
+      );
+      expect(html).toContain("If you created a membership account");
+      expect(html).toContain('href="/memberships/account"');
+      expect(html).toContain("Check membership account");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("lets a future patient choose a clinic before viewing memberships", () => {
     const html = renderToStaticMarkup(<PublicMembershipDirectory />);
 
