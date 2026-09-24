@@ -52,7 +52,7 @@ module Clinic
           policy: { recurrence: "not_configured", overbook: "not_configured", external_sync: "read_only_export" },
           days: days,
           clinicians: @clinicians.map { |c| { id: c.id, name: c.display_name.presence || c.reference.presence || "Clinician ##{c.id}" } },
-          rooms: @rooms.map { |r| { id: r.id, name: r.code } } }
+          rooms: @rooms.map { |r| { id: r.id, name: r.code, kind: r.kind } } }
       end
 
       private
@@ -81,7 +81,7 @@ module Clinic
             next if @offers.any? { |o| o.clinician_id == rule.clinician_id && overlap?(start, finish, o.offer_starts_at, o.offer_ends_at) }
             next if @holds.any? { |h| h.clinician_id == rule.clinician_id && overlap?(start, finish, h.starts_at, h.ends_at) }
 
-            rooms = @rooms.reject do |room|
+            rooms = @rooms.select { |room| room.kind == "physical" }.reject do |room|
               @busy.any? { |a| a.room_id == room.id && overlap?(start, finish, a.starts_at, a.ends_at) } ||
                 @holds.any? { |h| h.room_id == room.id && overlap?(start, finish, h.starts_at, h.ends_at) }
             end

@@ -514,6 +514,7 @@ export function Workspace({
   const trackingBoard =
     path.replace(/\/+$/, "") === "/clinic" && homeView === "tracking";
   const inventoryPage = path.startsWith("/clinic/inventory");
+  const schedulePage = path.startsWith("/clinic/schedule");
   const scribePage = path.startsWith("/clinic/scribe");
   const locationName =
     data?.current_site?.name || data?.current_site?.code || null;
@@ -740,7 +741,7 @@ export function Workspace({
                     <main
                       id="main"
                       tabIndex={-1}
-                      className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}${scribePage ? " scribe-page" : ""}`}
+                      className={`clinic-content${trackingBoard ? " tracking-board-page" : ""}${inventoryPage ? " inventory-page" : ""}${schedulePage ? " schedule-page" : ""}${scribePage ? " scribe-page" : ""}`}
                     >
                       {locationPickerError && (
                         <Typography color="error" role="alert">

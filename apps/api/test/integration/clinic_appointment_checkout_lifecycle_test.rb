@@ -135,6 +135,34 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     assert_equal starts_at, appointment.reload.starts_at
   end
 
+  test "an upcoming appointment can receive a room without changing its time" do
+    appointment = appointment_for(@patient)
+    room = @practice.rooms.create!(site: @site, code: "Room 1")
+    updated = Clinic::Scheduling::RescheduleAppointment.call(
+      appointment: appointment, actor: @actor, starts_at: appointment.starts_at, ends_at: appointment.ends_at,
+      expected_updated_at: appointment.updated_at, request_key: "appointment-room-assignment", room: room
+    )
+
+    assert_equal room.id, updated.reload.room_id
+    assert_equal appointment.starts_at, updated.starts_at
+    telehealth_room = @practice.rooms.create!(site: @site, code: "Telehealth room 1", kind: "telehealth")
+    assert_raises(ArgumentError) do
+      Clinic::Scheduling::RescheduleAppointment.call(
+        appointment: updated, actor: @actor, starts_at: updated.starts_at, ends_at: updated.ends_at,
+        expected_updated_at: updated.updated_at, request_key: "appointment-telehealth-room", room: telehealth_room
+      )
+    end
+    other_site = @practice.sites.create!(code: "OTHER-ROOM")
+    wrong_room = @practice.rooms.create!(site: other_site, code: "Room 2")
+    assert_raises(ArgumentError) do
+      Clinic::Scheduling::RescheduleAppointment.call(
+        appointment: updated, actor: @actor, starts_at: updated.starts_at, ends_at: updated.ends_at,
+        expected_updated_at: updated.updated_at, request_key: "appointment-wrong-room", room: wrong_room
+      )
+    end
+    assert_equal room.id, updated.reload.room_id
+  end
+
   test "completed encounter checkout is unique across retries and legacy invoices remain supported" do
     appointment = appointment_for(@patient)
     encounter = Clinic::Scheduling::CreateEncounter.call(

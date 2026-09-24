@@ -9,6 +9,7 @@ module Clinic
     has_many :encounters, class_name: "Clinic::Encounter", dependent: :restrict_with_error
 
     validates :code, presence: true, length: { maximum: 80 }, uniqueness: { scope: [ :practice_id, :site_id ] }
+    validates :kind, inclusion: { in: %w[physical telehealth] }
     validate :site_belongs_to_practice
 
     private

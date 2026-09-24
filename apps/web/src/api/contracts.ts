@@ -1307,6 +1307,7 @@ export type ClinicSite = {
   contact_email?: string | null;
   operating_hours?: SiteOperatingHour[];
   hour_exceptions?: SiteHourException[];
+  rooms?: FacilityRoom[];
 };
 export type SiteOperatingHour = {
   id: number;
@@ -1448,7 +1449,12 @@ export type Appointment = {
   };
 };
 export type FacilitySite = ClinicSite;
-export type FacilityRoom = { id: number; site_id: number; code: string };
+export type FacilityRoom = {
+  id: number;
+  site_id: number;
+  code: string;
+  kind: "physical" | "telehealth";
+};
 export type CalendarSlot = {
   starts_at: string;
   ends_at: string;
@@ -1499,7 +1505,7 @@ export type CalendarResponse = {
   };
   days: CalendarDay[];
   clinicians: { id: number; name: string }[];
-  rooms: { id: number; name: string }[];
+  rooms: { id: number; name: string; kind: "physical" | "telehealth" }[];
 };
 export type VisitType = { id: number; code: string; retired_at: string | null };
 export type Clinician = {

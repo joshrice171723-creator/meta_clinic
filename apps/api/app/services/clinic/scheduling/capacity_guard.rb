@@ -11,6 +11,7 @@ module Clinic
         site.lock!
         if room
           raise ArgumentError, "The room must belong to the selected site." unless room.practice_id == practice.id && room.site_id == site.id
+          raise ArgumentError, "Choose a physical room for an in-person appointment." unless room.kind == "physical"
 
           room.lock!
         end

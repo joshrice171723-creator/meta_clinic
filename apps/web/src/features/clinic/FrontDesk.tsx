@@ -30,6 +30,7 @@ import type {
   ClinicSite,
   Clinician,
   EncounterDetail,
+  FacilityRoom,
   Patient,
   VisitType,
 } from "../../api/contracts";
@@ -260,6 +261,9 @@ function AppointmentDayQueue({
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
+  const rooms = useResource<{ rooms: FacilityRoom[] }>(
+    "/api/clinic/facilities?type=rooms&per_page=100",
+  );
 
   const unknownMutationFailure = (error: unknown) =>
     !(error instanceof ApiError) ||
@@ -447,6 +451,7 @@ function AppointmentDayQueue({
       startsAt: localDateTimeInput(appointment.starts_at),
       endsAt: localDateTimeInput(appointment.ends_at),
       siteId: appointment.site_id ? String(appointment.site_id) : "",
+      roomId: appointment.room_id ? String(appointment.room_id) : "",
       clinicianId: appointment.booked_clinician_id
         ? String(appointment.booked_clinician_id)
         : "",
@@ -506,6 +511,7 @@ function AppointmentDayQueue({
             starts_at: startsAt.toISOString(),
             ends_at: endsAt.toISOString(),
             site_id: reschedule.siteId,
+            room_id: reschedule.roomId || null,
             booked_clinician_id: reschedule.clinicianId,
             visit_type_id: reschedule.visitTypeId,
             expected_updated_at: reschedule.appointment.updated_at,
@@ -517,7 +523,7 @@ function AppointmentDayQueue({
         reschedule.appointment.patient?.display_name || "The patient";
       setReschedule(undefined);
       setNotice(
-        `${patientName}’s appointment was rescheduled. Review reminders and send an updated message if a custom reminder was cancelled.`,
+        `${patientName}’s appointment was updated. Review reminders and send an updated message if a custom reminder was cancelled.`,
       );
       setNoticeContext({
         patientId: reschedule.appointment.patient_id,
@@ -864,7 +870,8 @@ function AppointmentDayQueue({
         sites={sites}
         clinicians={clinicians.data?.clinicians ?? []}
         visitTypes={visitTypes.data?.visit_types ?? []}
-        setupOptionsError={clinicians.error || visitTypes.error}
+        rooms={rooms.data?.rooms ?? []}
+        setupOptionsError={clinicians.error || visitTypes.error || rooms.error}
         onChange={setReschedule}
         onClose={() => {
           if (!reschedule?.busy) setReschedule(undefined);
@@ -1070,6 +1077,7 @@ type RescheduleDraft = {
   startsAt: string;
   endsAt: string;
   siteId: string;
+  roomId: string;
   clinicianId: string;
   visitTypeId: string;
   requestKey: string;
@@ -1084,6 +1092,7 @@ function RescheduleDialog({
   sites,
   clinicians,
   visitTypes,
+  rooms,
   setupOptionsError,
   onChange,
   onClose,
@@ -1095,6 +1104,7 @@ function RescheduleDialog({
   sites: ClinicSite[];
   clinicians: Clinician[];
   visitTypes: VisitType[];
+  rooms: FacilityRoom[];
   setupOptionsError?: string;
   onChange: (draft: RescheduleDraft | undefined) => void;
   onClose: () => void;
@@ -1185,6 +1195,7 @@ function RescheduleDialog({
               onChange({
                 ...draft,
                 siteId: event.target.value,
+                roomId: "",
                 requestKey: draft.error
                   ? crypto.randomUUID()
                   : draft.requestKey,
@@ -1200,6 +1211,36 @@ function RescheduleDialog({
                 {site.name || site.code}
               </MenuItem>
             ))}
+          </TextField>
+          <TextField
+            select
+            label="Room"
+            value={draft?.roomId || ""}
+            disabled={draft?.busy || draft?.outcomeUnconfirmed}
+            onChange={(event) =>
+              draft &&
+              onChange({
+                ...draft,
+                roomId: event.target.value,
+                requestKey: draft.error
+                  ? crypto.randomUUID()
+                  : draft.requestKey,
+                error: "",
+              })
+            }
+          >
+            <MenuItem value="">No room</MenuItem>
+            {rooms
+              .filter(
+                (room) =>
+                  String(room.site_id) === draft?.siteId &&
+                  room.kind === "physical",
+              )
+              .map((room) => (
+                <MenuItem key={room.id} value={String(room.id)}>
+                  {room.code}
+                </MenuItem>
+              ))}
           </TextField>
           <TextField
             select

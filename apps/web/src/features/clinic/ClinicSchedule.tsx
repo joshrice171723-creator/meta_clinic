@@ -11,6 +11,7 @@ import {
   DialogTitle,
   MenuItem,
   Paper,
+  Slider,
   Stack,
   TextField,
   ToggleButton,
@@ -302,8 +303,11 @@ export function ClinicSchedule({
     routeParams.get("view") === "day" ? "day" : "month",
   );
   const [group, setGroup] = useState<"clinician" | "room">(
-    routeParams.get("group") === "room" ? "room" : "clinician",
+    routeParams.get("group") === "clinician" ? "clinician" : "room",
   );
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+  const [horizontalMax, setHorizontalMax] = useState(0);
+  const [horizontalPosition, setHorizontalPosition] = useState(0);
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
   const [notice, setNotice] = useState("");
@@ -390,7 +394,7 @@ export function ClinicSchedule({
         requestedDay.startsWith(nextMonth) ? requestedDay : `${nextMonth}-01`,
       );
       setView(params.get("view") === "day" ? "day" : "month");
-      setGroup(params.get("group") === "room" ? "room" : "clinician");
+      setGroup(params.get("group") === "clinician" ? "clinician" : "room");
       setSiteId(
         params.get("site_id") ||
           String(context.current_site?.id ?? context.sites[0]?.id ?? ""),
@@ -571,6 +575,19 @@ export function ClinicSchedule({
     (_, index) => startMinute + index * 30,
   );
   const tracks = new Map<number, { track: number; tracks: number }>();
+  useEffect(() => {
+    const panel = gridScrollRef.current;
+    if (!panel) return;
+    const update = () => {
+      setHorizontalMax(Math.max(0, panel.scrollWidth - panel.clientWidth));
+      setHorizontalPosition(panel.scrollLeft);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(panel);
+    if (panel.firstElementChild) observer.observe(panel.firstElementChild);
+    update();
+    return () => observer.disconnect();
+  }, [lanes.length, view, group]);
   for (const lane of lanes) {
     const appointments =
       selectedDay?.appointments.filter(
@@ -952,8 +969,9 @@ export function ClinicSchedule({
               <Paper
                 variant="outlined"
                 sx={{
-                  overflow: "auto",
-                  maxHeight: "70vh",
+                  width: "100%",
+                  minWidth: 0,
+                  overflow: "hidden",
                   borderRadius: 2,
                   boxShadow: "0 16px 36px rgba(32, 53, 47, 0.06)",
                 }}
@@ -974,212 +992,272 @@ export function ClinicSchedule({
                     not additional room capacity.
                   </Typography>
                 </Box>
+                {horizontalMax > 0 && (
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{ px: 3, py: 1, alignItems: "center" }}
+                  >
+                    <Typography variant="body2" sx={{ whiteSpace: "nowrap" }}>
+                      Scroll {group === "room" ? "rooms" : "clinicians"}
+                    </Typography>
+                    <Slider
+                      aria-label={`Scroll ${group === "room" ? "rooms" : "clinicians"} horizontally`}
+                      min={0}
+                      max={horizontalMax}
+                      value={Math.min(horizontalPosition, horizontalMax)}
+                      onChange={(_, value) => {
+                        if (gridScrollRef.current)
+                          gridScrollRef.current.scrollLeft = value as number;
+                      }}
+                      sx={{ maxWidth: 320 }}
+                    />
+                  </Stack>
+                )}
                 <Box
+                  ref={gridScrollRef}
+                  onScroll={(event) =>
+                    setHorizontalPosition(event.currentTarget.scrollLeft)
+                  }
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: `88px repeat(${lanes.length}, minmax(250px, 1fr))`,
-                    gridTemplateRows: `48px repeat(${ticks.length}, 104px)`,
-                    minWidth: 88 + lanes.length * 250,
+                    overflowX: "auto",
+                    overflowY: "auto",
+                    maxHeight: "70vh",
+                    scrollbarGutter: "stable",
+                    minWidth: 0,
                   }}
+                  role="region"
+                  aria-label="Day schedule"
+                  tabIndex={0}
                 >
                   <Box
                     sx={{
-                      gridColumn: 1,
-                      gridRow: 1,
-                      bgcolor: "action.hover",
-                      position: "sticky",
-                      top: 0,
-                      zIndex: 2,
+                      display: "grid",
+                      gridTemplateColumns: `88px repeat(${lanes.length}, minmax(250px, 1fr))`,
+                      gridTemplateRows: `48px repeat(${ticks.length}, 104px)`,
+                      minWidth: 88 + lanes.length * 250,
                     }}
-                  />
-                  {lanes.map((lane, index) => (
-                    <Typography
-                      key={lane.id}
-                      variant="body2"
+                  >
+                    <Box
                       sx={{
-                        fontWeight: 700,
-                        gridColumn: index + 2,
+                        gridColumn: 1,
                         gridRow: 1,
-                        px: 2,
-                        py: 1.5,
                         bgcolor: "action.hover",
-                        borderBottom: 1,
-                        borderColor: "divider",
                         position: "sticky",
                         top: 0,
                         zIndex: 2,
                       }}
-                    >
-                      {lane.name}
-                    </Typography>
-                  ))}
-                  {ticks.map((minute, index) => (
-                    <Typography
-                      key={minute}
-                      variant="caption"
-                      sx={{
-                        gridColumn: 1,
-                        gridRow: index + 2,
-                        p: 1,
-                        borderTop: 1,
-                        borderColor: "divider",
-                        color: "text.secondary",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >{`${Math.floor(minute / 60)
-                      .toString()
-                      .padStart(
-                        2,
-                        "0",
-                      )}:${(minute % 60).toString().padStart(2, "0")}`}</Typography>
-                  ))}
-                  {lanes.flatMap((lane, laneIndex) =>
-                    ticks.map((minute, index) => {
-                      const slots =
-                        selectedDay?.slots.filter(
-                          (s) =>
-                            minuteOfDay(s.starts_at, timezone) === minute &&
-                            (group === "clinician"
-                              ? s.clinician_id === lane.id
-                              : s.room_ids.includes(lane.id)),
-                        ) ?? [];
-                      return (
-                        <Box
-                          key={`${lane.id}-${minute}`}
-                          sx={{
-                            gridColumn: laneIndex + 2,
-                            gridRow: index + 2,
-                            borderTop: 1,
-                            borderLeft: 1,
-                            borderColor: "divider",
-                            p: 0.5,
-                          }}
-                        >
-                          {slots.map((slot) => (
-                            <Button
-                              key={`${slot.starts_at}-${slot.clinician_id}`}
-                              size="small"
-                              disabled={!canBook}
-                              aria-label={slotBookingAriaLabel({
-                                startsAt: slot.starts_at,
-                                date: day,
-                                timezone,
-                                clinicianName:
-                                  data.clinicians.find(
-                                    (clinician) =>
-                                      clinician.id === slot.clinician_id,
-                                  )?.name ?? "Clinician",
-                                roomName:
-                                  group === "room" ? lane.name : undefined,
-                              })}
-                              sx={{ justifyContent: "flex-start" }}
-                              onClick={() =>
-                                setBooking({
-                                  ...slot,
-                                  site_id: Number(siteId),
-                                  room_id:
-                                    group === "room"
-                                      ? lane.id
-                                      : slot.room_ids[0],
-                                })
-                              }
+                    />
+                    {lanes.map((lane, index) => (
+                      <Box
+                        key={lane.id}
+                        sx={{
+                          fontWeight: 700,
+                          gridColumn: index + 2,
+                          gridRow: 1,
+                          px: 2,
+                          py: 1.5,
+                          bgcolor: "action.hover",
+                          borderBottom: 1,
+                          borderColor: "divider",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 2,
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {lane.name}
+                        </Typography>
+                        {group === "room" &&
+                          "kind" in lane &&
+                          lane.kind === "telehealth" && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
                             >
-                              {group === "room"
-                                ? `Open · ${data.clinicians.find((c) => c.id === slot.clinician_id)?.name ?? "Clinician"}`
-                                : "Open · Book"}
-                            </Button>
-                          ))}
-                        </Box>
-                      );
-                    }),
-                  )}
-                  {selectedDay?.appointments
-                    .filter(
-                      (appointment) =>
-                        !["cancelled", "no_show"].includes(appointment.status),
-                    )
-                    .map((appointment) => {
-                      const column = lanes.findIndex(
-                        (lane) =>
-                          lane.id ===
-                          ((group === "clinician"
-                            ? appointment.booked_clinician_id
-                            : appointment.room_id) ?? 0),
-                      );
-                      const start = minuteOfDay(
-                        appointment.starts_at,
-                        timezone,
-                      );
-                      const duration = Math.max(
-                        30,
-                        (new Date(appointment.ends_at).getTime() -
-                          new Date(appointment.starts_at).getTime()) /
-                          60000,
-                      );
-                      return (
-                        <ButtonBase
-                          key={appointment.id}
-                          onClick={() => {
-                            setSelected(appointment);
-                            setMutationError("");
-                          }}
-                          sx={{
-                            gridColumn: column + 2,
-                            gridRow: `${Math.floor((start - startMinute) / 30) + 2} / span ${Math.ceil(duration / 30)}`,
-                            width: `calc((100% - 8px) / ${tracks.get(appointment.id)?.tracks ?? 1})`,
-                            marginLeft: `calc(4px + (100% - 8px) * ${tracks.get(appointment.id)?.track ?? 0} / ${tracks.get(appointment.id)?.tracks ?? 1})`,
-                            alignSelf: "start",
-                            transform: `translateY(${((start % 30) / 30) * 104}px)`,
-                            textAlign: "left",
-                            justifyContent: "flex-start",
-                            display: "block",
-                            mt: 0.5,
-                            mb: 0.5,
-                            mr: 0.5,
-                            p: 1.5,
-                            bgcolor: "action.hover",
-                            border: 1,
-                            borderLeft: 4,
-                            borderColor: "divider",
-                            borderLeftColor: appointment.conflict
-                              ? "error.main"
-                              : "primary.main",
-                            borderRadius: 1,
-                            zIndex: 1,
-                            minHeight: 88,
-                            boxShadow: "0 2px 5px rgba(32, 53, 47, 0.04)",
-                            "&.Mui-focusVisible": { outline: "2px solid" },
-                          }}
-                        >
-                          <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                            {appointment.patient?.display_name ??
-                              "Patient name unavailable"}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{ display: "block", color: "text.secondary" }}
-                          >
-                            {time(appointment.starts_at)}–
-                            {time(appointment.ends_at)} ·{" "}
-                            {workflowStatusLabel(appointment.calendar_status)}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{ display: "block", color: "text.secondary" }}
-                          >
-                            {appointment.visit_type_name ??
-                              "Visit type not set"}{" "}
-                            ·{" "}
-                            {appointment.clinician_name ??
-                              "Clinician not assigned"}{" "}
-                            · {appointment.room_name ?? "No room"}
-                          </Typography>
-                          {appointment.conflict && (
-                            <Chip size="small" color="error" label="Conflict" />
+                              Telehealth · video only
+                            </Typography>
                           )}
-                        </ButtonBase>
-                      );
-                    })}
+                      </Box>
+                    ))}
+                    {ticks.map((minute, index) => (
+                      <Typography
+                        key={minute}
+                        variant="caption"
+                        sx={{
+                          gridColumn: 1,
+                          gridRow: index + 2,
+                          p: 1,
+                          borderTop: 1,
+                          borderColor: "divider",
+                          color: "text.secondary",
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >{`${Math.floor(minute / 60)
+                        .toString()
+                        .padStart(
+                          2,
+                          "0",
+                        )}:${(minute % 60).toString().padStart(2, "0")}`}</Typography>
+                    ))}
+                    {lanes.flatMap((lane, laneIndex) =>
+                      ticks.map((minute, index) => {
+                        const slots =
+                          selectedDay?.slots.filter(
+                            (s) =>
+                              minuteOfDay(s.starts_at, timezone) === minute &&
+                              (group === "clinician"
+                                ? s.clinician_id === lane.id
+                                : s.room_ids.includes(lane.id)),
+                          ) ?? [];
+                        return (
+                          <Box
+                            key={`${lane.id}-${minute}`}
+                            sx={{
+                              gridColumn: laneIndex + 2,
+                              gridRow: index + 2,
+                              borderTop: 1,
+                              borderLeft: 1,
+                              borderColor: "divider",
+                              p: 0.5,
+                            }}
+                          >
+                            {slots.map((slot) => (
+                              <Button
+                                key={`${slot.starts_at}-${slot.clinician_id}`}
+                                size="small"
+                                disabled={!canBook}
+                                aria-label={slotBookingAriaLabel({
+                                  startsAt: slot.starts_at,
+                                  date: day,
+                                  timezone,
+                                  clinicianName:
+                                    data.clinicians.find(
+                                      (clinician) =>
+                                        clinician.id === slot.clinician_id,
+                                    )?.name ?? "Clinician",
+                                  roomName:
+                                    group === "room" ? lane.name : undefined,
+                                })}
+                                sx={{ justifyContent: "flex-start" }}
+                                onClick={() =>
+                                  setBooking({
+                                    ...slot,
+                                    site_id: Number(siteId),
+                                    room_id:
+                                      group === "room"
+                                        ? lane.id
+                                        : slot.room_ids[0],
+                                  })
+                                }
+                              >
+                                {group === "room"
+                                  ? `Open · ${data.clinicians.find((c) => c.id === slot.clinician_id)?.name ?? "Clinician"}`
+                                  : "Open · Book"}
+                              </Button>
+                            ))}
+                          </Box>
+                        );
+                      }),
+                    )}
+                    {selectedDay?.appointments
+                      .filter(
+                        (appointment) =>
+                          !["cancelled", "no_show"].includes(
+                            appointment.status,
+                          ),
+                      )
+                      .map((appointment) => {
+                        const column = lanes.findIndex(
+                          (lane) =>
+                            lane.id ===
+                            ((group === "clinician"
+                              ? appointment.booked_clinician_id
+                              : appointment.room_id) ?? 0),
+                        );
+                        const start = minuteOfDay(
+                          appointment.starts_at,
+                          timezone,
+                        );
+                        const duration = Math.max(
+                          30,
+                          (new Date(appointment.ends_at).getTime() -
+                            new Date(appointment.starts_at).getTime()) /
+                            60000,
+                        );
+                        return (
+                          <ButtonBase
+                            key={appointment.id}
+                            onClick={() => {
+                              setSelected(appointment);
+                              setMutationError("");
+                            }}
+                            sx={{
+                              gridColumn: column + 2,
+                              gridRow: `${Math.floor((start - startMinute) / 30) + 2} / span ${Math.ceil(duration / 30)}`,
+                              width: `calc((100% - 8px) / ${tracks.get(appointment.id)?.tracks ?? 1})`,
+                              marginLeft: `calc(4px + (100% - 8px) * ${tracks.get(appointment.id)?.track ?? 0} / ${tracks.get(appointment.id)?.tracks ?? 1})`,
+                              alignSelf: "start",
+                              transform: `translateY(${((start % 30) / 30) * 104}px)`,
+                              textAlign: "left",
+                              justifyContent: "flex-start",
+                              display: "block",
+                              mt: 0.5,
+                              mb: 0.5,
+                              mr: 0.5,
+                              p: 1.5,
+                              bgcolor: "action.hover",
+                              border: 1,
+                              borderLeft: 4,
+                              borderColor: "divider",
+                              borderLeftColor: appointment.conflict
+                                ? "error.main"
+                                : "primary.main",
+                              borderRadius: 1,
+                              zIndex: 1,
+                              minHeight: 88,
+                              boxShadow: "0 2px 5px rgba(32, 53, 47, 0.04)",
+                              "&.Mui-focusVisible": { outline: "2px solid" },
+                            }}
+                          >
+                            <Typography
+                              variant="body1"
+                              sx={{ fontWeight: 700 }}
+                            >
+                              {appointment.patient?.display_name ??
+                                "Patient name unavailable"}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ display: "block", color: "text.secondary" }}
+                            >
+                              {time(appointment.starts_at)}–
+                              {time(appointment.ends_at)} ·{" "}
+                              {workflowStatusLabel(appointment.calendar_status)}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ display: "block", color: "text.secondary" }}
+                            >
+                              {appointment.visit_type_name ??
+                                "Visit type not set"}{" "}
+                              ·{" "}
+                              {appointment.clinician_name ??
+                                "Clinician not assigned"}
+                              {group === "clinician" &&
+                                ` · ${appointment.room_name ?? "No room"}`}
+                            </Typography>
+                            {appointment.conflict && (
+                              <Chip
+                                size="small"
+                                color="error"
+                                label="Conflict"
+                              />
+                            )}
+                          </ButtonBase>
+                        );
+                      })}
+                  </Box>
                 </Box>
               </Paper>
               {selectedDay?.appointments

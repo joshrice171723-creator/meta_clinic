@@ -41,6 +41,7 @@ module Clinic
       site = current_practice.sites.transaction do
         created_site = current_practice.sites.create!(site_attributes(input))
         save_hours(created_site, input)
+        %w[Room\ 1 Room\ 2].each { |code| created_site.rooms.create!(practice: current_practice, code: code, kind: "physical") }
         created_site
       end
       render json: { id: site.id, site: FacilitySerializer.site(site, detail: true) }, status: :created
@@ -54,6 +55,34 @@ module Clinic
         save_hours(site, input) if input.key?(:operating_hours) || input.key?(:hour_exceptions)
       end
       render json: { site: FacilitySerializer.site(site, detail: true) }
+    end
+
+    def create_room
+      site = current_practice.sites.find(requested_id!(params[:id], :id))
+      require_capability_with_legacy("facilities.write", "appointments.write", site: site)
+      input = parameter_hash!(:room, %i[code kind])
+      room = site.rooms.create!(
+        practice: current_practice,
+        code: required_string!(input[:code], field: :code, maximum: 80),
+        kind: enum_param!(input[:kind].presence || "physical", field: :kind, allowed: %w[physical telehealth])
+      )
+      render json: { room: FacilitySerializer.room(room) }, status: :created
+    end
+
+    def update_room
+      site = current_practice.sites.find(requested_id!(params[:id], :id))
+      require_capability_with_legacy("facilities.write", "appointments.write", site: site)
+      room = site.rooms.find(requested_id!(params[:room_id], :room_id))
+      input = parameter_hash!(:room, %i[code kind])
+      next_kind = input.key?(:kind) ? enum_param!(input[:kind], field: :kind, allowed: %w[physical telehealth]) : room.kind
+      if next_kind != room.kind && room.appointments.exists?
+        raise ArgumentError, "A room with appointments cannot change type. Add another room instead."
+      end
+      room.update!(
+        code: input.key?(:code) ? required_string!(input[:code], field: :code, maximum: 80) : room.code,
+        kind: next_kind
+      )
+      render json: { room: FacilitySerializer.room(room) }
     end
 
     private

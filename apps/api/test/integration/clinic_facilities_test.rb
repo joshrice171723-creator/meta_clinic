@@ -50,6 +50,7 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_response :created
     site = response.parsed_body.fetch("site")
     assert_equal "North clinic", site.fetch("name")
+    assert_equal ["Room 1", "Room 2"], site.fetch("rooms").map { |room| room.fetch("code") }
     assert_equal "75090", site.fetch("postal_code")
     monday = site.fetch("operating_hours").find { |row| row.fetch("day_of_week") == 1 }
     assert_equal "08:00", monday.fetch("open_time")
@@ -62,6 +63,35 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "North clinic updated", response.parsed_body.fetch("site").fetch("name")
     assert_equal "temporarily_closed", response.parsed_body.fetch("site").fetch("status")
+  end
+
+  test "rooms can be added to a site and cannot be added to another practice" do
+    site = @practice.sites.create!(code: "ROOM-SITE", name: "Room site")
+    post "/api/clinic/facilities/#{site.id}/rooms", params: {
+      room: { code: "Telehealth room 1", kind: "telehealth" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_equal "Telehealth room 1", response.parsed_body.fetch("room").fetch("code")
+    assert_equal "telehealth", response.parsed_body.fetch("room").fetch("kind")
+    assert_equal site.id, response.parsed_body.fetch("room").fetch("site_id")
+    assert_equal 1, site.rooms.count
+    room_id = response.parsed_body.fetch("room").fetch("id")
+    patch "/api/clinic/facilities/#{site.id}/rooms/#{room_id}", params: {
+      room: { code: "Telehealth suite", kind: "telehealth" }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "Telehealth suite", site.rooms.find(room_id).code
+
+    other_user = User.create!(email_address: "facility-room-other@example.invalid", password: @password)
+    other_practice = Development::TestClinic.create!(other_user).practice
+    other_site = other_practice.sites.create!(code: "OTHER-ROOM-SITE", name: "Other room site")
+    post "/api/clinic/facilities/#{other_site.id}/rooms", params: {
+      room: { code: "Forbidden room" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :not_found
+    assert_empty other_site.rooms
   end
 
   test "detailed facility list batches profile associations" do

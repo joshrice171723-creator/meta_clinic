@@ -104,7 +104,7 @@ module Clinic
       end
 
       def update
-        input = parameter_hash!(:appointment, %i[starts_at ends_at site_id booked_clinician_id visit_type_id service_offering_id expected_updated_at request_key visit_modality])
+        input = parameter_hash!(:appointment, %i[starts_at ends_at site_id room_id booked_clinician_id visit_type_id service_offering_id expected_updated_at request_key visit_modality])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         updated = Clinic::Scheduling::RescheduleAppointment.call(
@@ -115,6 +115,7 @@ module Clinic
           request_key: request_key,
           visit_modality: input[:visit_modality],
           site: input.key?(:site_id) ? find_optional(current_practice.sites, input[:site_id], :site_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
+          room: input.key?(:room_id) ? find_optional(current_practice.rooms, input[:room_id], :room_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
           booked_clinician: input.key?(:booked_clinician_id) ? find_optional(current_practice.clinician_profiles, input[:booked_clinician_id], :booked_clinician_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
           visit_type: input.key?(:visit_type_id) ? find_optional(current_practice.visit_types, input[:visit_type_id], :visit_type_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
           service_offering: input.key?(:service_offering_id) ? find_optional(current_practice.service_offerings, input[:service_offering_id], :service_offering_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED

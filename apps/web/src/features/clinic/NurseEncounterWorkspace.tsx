@@ -246,7 +246,9 @@ export function NurseEncounterWorkspaceContent({
   const selectedRooms = useMemo(
     () =>
       (roomsResource.data?.rooms ?? []).filter(
-        (room) => String(room.site_id) === String(encounter.site_id),
+        (room) =>
+          String(room.site_id) === String(encounter.site_id) &&
+          room.kind === "physical",
       ),
     [encounter.site_id, roomsResource.data?.rooms],
   );

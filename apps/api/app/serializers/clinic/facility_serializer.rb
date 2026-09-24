@@ -35,7 +35,7 @@ module Clinic
     end
 
     def self.room(room)
-      { id: room.id, site_id: room.site_id, code: room.code }
+      { id: room.id, site_id: room.site_id, code: room.code, kind: room.kind }
     end
 
     def self.ordered_operating_hours(site)

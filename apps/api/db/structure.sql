@@ -8567,7 +8567,9 @@ CREATE TABLE public.clinic_rooms (
     code character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_rooms_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0))
+    kind character varying DEFAULT 'physical'::character varying NOT NULL,
+    CONSTRAINT clinic_rooms_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0)),
+    CONSTRAINT clinic_rooms_kind CHECK (((kind)::text = ANY ((ARRAY['physical'::character varying, 'telehealth'::character varying])::text[])))
 );
 
 
@@ -31057,6 +31059,7 @@ ALTER TABLE ONLY public.clinic_psychotherapy_notes
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260923190000'),
 ('20260923010000'),
 ('20260922110000'),
 ('20260922100000'),

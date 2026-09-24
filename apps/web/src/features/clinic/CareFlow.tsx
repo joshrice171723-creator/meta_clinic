@@ -1062,7 +1062,9 @@ function BookingFormEditor({
     (patient) => String(patient.id) === patientId,
   );
   const availableRooms = siteId
-    ? rooms.data.rooms.filter((room) => room.site_id === Number(siteId))
+    ? rooms.data.rooms.filter(
+        (room) => room.site_id === Number(siteId) && room.kind === "physical",
+      )
     : [];
   const scheduledResourceAppointments =
     scheduledResources.data?.appointments.filter((appointment) => {

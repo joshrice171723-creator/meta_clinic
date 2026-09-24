@@ -99,6 +99,18 @@ function siteForm(site: ClinicSite): EditableSite {
   };
 }
 
+function nextRoomName(site: ClinicSite, kind: "physical" | "telehealth") {
+  const prefix = kind === "telehealth" ? "Telehealth room" : "Room";
+  let number = 1;
+  while (
+    site.rooms?.some(
+      (room) => room.code.toLowerCase() === `${prefix} ${number}`.toLowerCase(),
+    )
+  )
+    number += 1;
+  return `${prefix} ${number}`;
+}
+
 export function Facilities() {
   const { capabilities, current_site: currentSite, practice } = useClinic();
   const { data, error, refresh } = useResource<{ sites: ClinicSite[] }>(
@@ -108,6 +120,12 @@ export function Facilities() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<EditableSite>(emptySite);
   const [saving, setSaving] = useState(false);
+  const [roomCode, setRoomCode] = useState("");
+  const [roomKind, setRoomKind] = useState<"physical" | "telehealth">(
+    "physical",
+  );
+  const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
+  const [savingRoom, setSavingRoom] = useState(false);
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     text: string;
@@ -116,6 +134,12 @@ export function Facilities() {
     () => data?.sites.find((site) => site.id === selectedId),
     [data, selectedId],
   );
+
+  useEffect(() => {
+    setEditingRoomId(null);
+    setRoomCode("");
+    setRoomKind("physical");
+  }, [selectedId]);
 
   useEffect(() => {
     if (!data) return;
@@ -181,6 +205,41 @@ export function Facilities() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+  const saveRoom = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selected) return;
+    setSavingRoom(true);
+    setFeedback(null);
+    try {
+      await api(
+        `/api/clinic/facilities/${selected.id}/rooms${editingRoomId ? `/${editingRoomId}` : ""}`,
+        {
+          method: editingRoomId ? "PATCH" : "POST",
+          body: {
+            room: {
+              code: roomCode.trim() || nextRoomName(selected, roomKind),
+              kind: roomKind,
+            },
+          },
+        },
+      );
+      setRoomCode("");
+      setRoomKind("physical");
+      setEditingRoomId(null);
+      setFeedback({
+        tone: "success",
+        text: editingRoomId ? "Room updated." : "Room added to this site.",
+      });
+      refresh();
+    } catch (reason) {
+      setFeedback({
+        tone: "error",
+        text: reason instanceof Error ? reason.message : "Unable to save room.",
+      });
+    } finally {
+      setSavingRoom(false);
     }
   };
 
@@ -607,6 +666,107 @@ export function Facilities() {
           </Stack>
         </Paper>
       </div>
+      {selected && !creating && (
+        <Paper variant="outlined" sx={{ p: 3, mt: 2 }}>
+          <Stack spacing={2}>
+            <Typography component="h2" variant="h6">
+              Rooms at {selected.name || selected.code}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Rooms appear as columns in the schedule’s Room view. Assign a room
+              when booking or editing an appointment. Telehealth rooms are
+              labeled for video scheduling; configuring one does not enable
+              video visits.
+            </Typography>
+            {selected.rooms?.length ? (
+              selected.rooms.map((room) => (
+                <Stack
+                  key={room.id}
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center" }}
+                >
+                  <Typography variant="body2" sx={{ minWidth: 180 }}>
+                    {room.code} ·{" "}
+                    {room.kind === "telehealth" ? "Telehealth" : "Physical"}
+                  </Typography>
+                  {canWrite && (
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setEditingRoomId(room.id);
+                        setRoomCode(room.code);
+                        setRoomKind(room.kind);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </Stack>
+              ))
+            ) : (
+              <Typography variant="body2">
+                No rooms configured for this site.
+              </Typography>
+            )}
+            {canWrite && (
+              <Stack
+                component="form"
+                onSubmit={(event) => void saveRoom(event)}
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+              >
+                <TextField
+                  label="Room name"
+                  size="small"
+                  value={roomCode || nextRoomName(selected, roomKind)}
+                  onChange={(event) => setRoomCode(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 80 } }}
+                />
+                <TextField
+                  select
+                  label="Room type"
+                  size="small"
+                  value={roomKind}
+                  onChange={(event) => {
+                    setRoomKind(
+                      event.target.value as "physical" | "telehealth",
+                    );
+                    if (!editingRoomId) setRoomCode("");
+                  }}
+                  sx={{ minWidth: 160 }}
+                >
+                  <MenuItem value="physical">Physical</MenuItem>
+                  <MenuItem value="telehealth">Telehealth</MenuItem>
+                </TextField>
+                <Button
+                  type="submit"
+                  variant="outlined"
+                  disabled={savingRoom}
+                  startIcon={<AddIcon />}
+                >
+                  {savingRoom
+                    ? "Saving…"
+                    : editingRoomId
+                      ? "Save room"
+                      : "Add room"}
+                </Button>
+                {editingRoomId && (
+                  <Button
+                    onClick={() => {
+                      setEditingRoomId(null);
+                      setRoomCode("");
+                      setRoomKind("physical");
+                    }}
+                  >
+                    Cancel edit
+                  </Button>
+                )}
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
+      )}
     </div>
   );
 }

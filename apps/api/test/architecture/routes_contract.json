@@ -1682,6 +1682,11 @@
   [
     null,
     "PATCH",
+    "/api/clinic/facilities/:id/rooms/:room_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/handoffs/:id(.:format)"
   ],
   [
@@ -1858,6 +1863,11 @@
     null,
     "POST",
     "/api/clinic/facilities(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/facilities/:id/rooms(.:format)"
   ],
   [
     null,
