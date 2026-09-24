@@ -2,12 +2,19 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { Button } from "@mui/material";
 import "./clinicTypePages.css";
 
-export type ClinicTypeSlug = "primary-care" | "membership-care" | "infusion";
+export type ClinicTypeSlug =
+  | "primary-care"
+  | "membership-care"
+  | "urgent-care"
+  | "weight-management"
+  | "infusion";
 
 export function isClinicTypeSlug(value: string): value is ClinicTypeSlug {
   return (
     value === "primary-care" ||
     value === "membership-care" ||
+    value === "urgent-care" ||
+    value === "weight-management" ||
     value === "infusion"
   );
 }
@@ -270,6 +277,123 @@ function InfusionPage() {
   );
 }
 
+function UrgentCarePage() {
+  return (
+    <main id="main" className="meta-type meta-type--urgent">
+      <section className="meta-type__urgent-hero">
+        <div className="meta-type__wrap meta-type__urgent-hero-grid">
+          <div>
+            <a className="meta-type__crumb" href="/meta-clinic#clinic-types">
+              Clinic types / Urgent care
+            </a>
+            <p className="meta-type__eyebrow">
+              For fast-moving outpatient teams
+            </p>
+            <h1>Make the next patient visible.</h1>
+            <p>
+              A walk-in day changes by the minute. Keep arrival, room, care
+              stage, and provider assignment together so the team can see what
+              needs to happen next.
+            </p>
+            <Button
+              href="#urgent-board"
+              variant="contained"
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              See the patient flow
+            </Button>
+          </div>
+          <figure>
+            <img
+              src="/marketing/urgent-care-visit.png"
+              alt="Fictional urgent care clinician speaking with a patient in a bright exam room."
+            />
+            <figcaption>Care starts with a clear handoff.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section
+        id="urgent-board"
+        className="meta-type__urgent-board meta-type__wrap"
+      >
+        <div className="meta-type__urgent-board-heading">
+          <p className="meta-type__eyebrow">Inside Meta Clinic</p>
+          <h2>Know where the clinic day stands.</h2>
+          <p>
+            The real Tracking Board below shows a populated synthetic clinic
+            day, with visits at different stages, room assignments, providers,
+            care tasks, and timing in one view.
+          </p>
+        </div>
+        <ProductImage
+          src="/marketing/tracking-board-app.png"
+          alt="Actual Meta Clinic Tracking Board with fictional patients across multiple visit stages, room assignments, vitals, care tasks, providers, and timing."
+          caption="Tracking Board · captured from a populated demo clinic"
+        />
+        <div className="meta-type__urgent-moves">
+          <article>
+            <span>01 / Arrive</span>
+            <h3>See the visit enter the day.</h3>
+            <p>
+              Review the patient, room, and visit reason as the team receives
+              them.
+            </p>
+          </article>
+          <article>
+            <span>02 / Move</span>
+            <h3>Follow the care stage.</h3>
+            <p>
+              Keep intake, ready, and assigned work visible during a busy shift.
+            </p>
+          </article>
+          <article>
+            <span>03 / Finish</span>
+            <h3>Carry the next step forward.</h3>
+            <p>
+              Connect the operational handoff to follow-up and checkout work.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section className="meta-type__urgent-close">
+        <div className="meta-type__wrap meta-type__urgent-close-grid">
+          <figure>
+            <img
+              src="/marketing/urgent-care-handoff.png"
+              alt="Fictional urgent care team coordinating at a front desk with patients seated nearby."
+              loading="lazy"
+            />
+          </figure>
+          <div>
+            <p className="meta-type__eyebrow">
+              A handoff the whole team can read
+            </p>
+            <h2>Stay aligned when the pace changes.</h2>
+            <p>
+              Pair the board with scheduling and patient records to give each
+              role the context it needs for the next visit.
+            </p>
+            <div className="meta-type__links">
+              <a href="/meta-clinic/features/tracking-board">
+                Tracking Board <ArrowForwardRoundedIcon aria-hidden="true" />
+              </a>
+              <a href="/meta-clinic/features/scheduling">
+                Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
+              </a>
+              <a href="/meta-clinic/features/intake-forms">
+                Intake &amp; Forms{" "}
+                <ArrowForwardRoundedIcon aria-hidden="true" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function MembershipCarePage() {
   return (
     <main id="main" className="meta-type meta-type--membership">
@@ -391,8 +515,125 @@ function MembershipCarePage() {
   );
 }
 
+function WeightManagementPage() {
+  return (
+    <main id="main" className="meta-type meta-type--weight">
+      <section className="meta-type__weight-hero">
+        <div className="meta-type__wrap meta-type__weight-hero-grid">
+          <div>
+            <a className="meta-type__crumb" href="/meta-clinic#clinic-types">
+              Clinic types / Weight management
+            </a>
+            <p className="meta-type__eyebrow">
+              For ongoing metabolic health care
+            </p>
+            <h1>Make room for steady progress.</h1>
+            <p>
+              Weight management is a continuing conversation. Give the program
+              structure, schedule the next visit, and keep the patient&apos;s
+              goals central to each follow-up.
+            </p>
+            <Button
+              href="#weight-program"
+              variant="contained"
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              See the program view
+            </Button>
+          </div>
+          <figure>
+            <img
+              src="/marketing/weight-management-visit.png"
+              alt="Fictional clinician and adult patient discussing a personal care plan in a bright consultation room."
+            />
+            <figcaption>
+              Start with the person, then plan the next step.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section
+        id="weight-program"
+        className="meta-type__weight-program meta-type__wrap"
+      >
+        <div className="meta-type__weight-program-intro">
+          <div>
+            <p className="meta-type__eyebrow">Inside Meta Clinic</p>
+            <h2>Put the program behind the promise.</h2>
+          </div>
+          <p>
+            The real membership catalog below includes a Metabolic Health
+            program for measurement review, coaching visits, and follow-through.
+            The screenshot shows the clinic&apos;s program setup, not a patient
+            outcome or a dedicated weight chart.
+          </p>
+        </div>
+        <ProductImage
+          src="/marketing/memberships-app.png"
+          alt="Actual Meta Clinic membership catalog from a demo clinic, including a Metabolic Health program with measurement review and coaching visits."
+          caption="Program catalog · captured from the populated demo clinic"
+        />
+        <div className="meta-type__weight-steps">
+          <article>
+            <span>01</span>
+            <h3>Explain the program.</h3>
+            <p>Describe the services and cadence the clinic actually offers.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Keep visits connected.</h3>
+            <p>
+              Use scheduling for follow-ups and the shared workspace for care
+              work.
+            </p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Review the next step.</h3>
+            <p>
+              Make room for patient goals and the next conversation over time.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section className="meta-type__weight-close">
+        <div className="meta-type__wrap meta-type__weight-close-grid">
+          <div>
+            <p className="meta-type__eyebrow">A care model with continuity</p>
+            <h2>Let the team work from the same plan.</h2>
+            <p>
+              Pair a clear program with consistent visit scheduling and a
+              financial record patients can understand.
+            </p>
+            <div className="meta-type__links">
+              <a href="/meta-clinic/features/memberships-packages">
+                Memberships &amp; Packages{" "}
+                <ArrowForwardRoundedIcon aria-hidden="true" />
+              </a>
+              <a href="/meta-clinic/features/scheduling">
+                Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
+              </a>
+            </div>
+          </div>
+          <figure>
+            <img
+              src="/marketing/weight-management-team.png"
+              alt="Fictional clinician and health coach planning an ongoing-care program together."
+              loading="lazy"
+            />
+          </figure>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export function ClinicTypePage({ slug }: { slug: ClinicTypeSlug }) {
   if (slug === "primary-care") return <PrimaryCarePage />;
   if (slug === "membership-care") return <MembershipCarePage />;
+  if (slug === "urgent-care") return <UrgentCarePage />;
+  if (slug === "weight-management") return <WeightManagementPage />;
   return <InfusionPage />;
 }

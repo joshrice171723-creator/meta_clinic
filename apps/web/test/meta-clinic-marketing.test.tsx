@@ -79,26 +79,59 @@ describe("Meta Clinic marketing pages", () => {
     }
   });
 
-  it("offers clinic-specific primary care, membership care, and infusion pages", () => {
+  it("pairs inventory's real app capture with clinic photography", () => {
+    const detail = renderToStaticMarkup(
+      <MetaClinicMarketing featureSlug="inventory" />,
+    );
+    for (const filename of ["inventory-supplies.png", "inventory-review.png"]) {
+      expect(detail).toContain(`/marketing/${filename}`);
+      expect(
+        existsSync(
+          fileURLToPath(
+            new URL(`../public/marketing/${filename}`, import.meta.url),
+          ),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("offers clinic-specific primary care, membership care, urgent care, and infusion pages", () => {
     const home = renderToStaticMarkup(<MetaClinicMarketing />);
-    for (const [slug, heading, appImage, peopleImage] of [
+    for (const [slug, heading, appImage, peopleImage, secondPeopleImage] of [
       [
         "primary-care",
         "Know the person. Keep the day moving.",
         "primary-care-patients-app.png",
         "primary-care-visit.png",
+        "primary-care-front-desk.png",
       ],
       [
         "membership-care",
         "Give ongoing care a clear shape.",
         "memberships-app.png",
         "memberships-team.png",
+        "memberships-front-desk.png",
+      ],
+      [
+        "urgent-care",
+        "Make the next patient visible.",
+        "tracking-board-app.png",
+        "urgent-care-visit.png",
+        "urgent-care-handoff.png",
+      ],
+      [
+        "weight-management",
+        "Make room for steady progress.",
+        "memberships-app.png",
+        "weight-management-visit.png",
+        "weight-management-team.png",
       ],
       [
         "infusion",
         "Give every treatment day room to breathe.",
         "inventory-app.png",
         "infusion-care.png",
+        "infusion-team.png",
       ],
     ]) {
       expect(home).toContain(`href="/meta-clinic/${slug}"`);
@@ -108,13 +141,16 @@ describe("Meta Clinic marketing pages", () => {
       expect(detail).toContain(heading);
       expect(detail).toContain(`/marketing/${appImage}`);
       expect(detail).toContain(`/marketing/${peopleImage}`);
-      expect(
-        existsSync(
-          fileURLToPath(
-            new URL(`../public/marketing/${peopleImage}`, import.meta.url),
+      expect(detail).toContain(`/marketing/${secondPeopleImage}`);
+      for (const image of [appImage, peopleImage, secondPeopleImage]) {
+        expect(
+          existsSync(
+            fileURLToPath(
+              new URL(`../public/marketing/${image}`, import.meta.url),
+            ),
           ),
-        ),
-      ).toBe(true);
+        ).toBe(true);
+      }
     }
   });
 

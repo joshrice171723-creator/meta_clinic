@@ -385,6 +385,195 @@
   color: var(--type-muted);
   font-size: 17px;
 }
+.meta-type--urgent {
+  --type-ink: #203b44;
+  --type-muted: #52666b;
+  background: #fcfbf7;
+}
+.meta-type__urgent-hero {
+  padding-block: 48px 92px;
+  background: #e9eef0;
+}
+.meta-type__urgent-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(35px, 5vw, 90px);
+  align-items: center;
+}
+.meta-type__urgent-hero-grid > div > p:not(.meta-type__eyebrow) {
+  max-width: 570px;
+  margin: 28px 0 30px;
+  color: var(--type-muted);
+  font-size: 19px;
+}
+.meta-type__urgent-hero figure {
+  height: min(57vw, 550px);
+}
+.meta-type__urgent-hero img {
+  border-radius: 8px 8px 150px 8px;
+}
+.meta-type__urgent-hero figcaption {
+  padding-top: 12px;
+  color: #62757b;
+  font-size: 12px;
+}
+.meta-type__urgent-board {
+  padding-block: 110px 120px;
+}
+.meta-type__urgent-board-heading {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px 80px;
+  align-items: end;
+  margin-bottom: 45px;
+}
+.meta-type__urgent-board-heading .meta-type__eyebrow {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.meta-type__urgent-board-heading > p:last-child {
+  max-width: 520px;
+  margin: 0;
+  color: var(--type-muted);
+  font-size: 17px;
+}
+.meta-type__urgent-moves {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 38px;
+  margin-top: 75px;
+}
+.meta-type__urgent-moves article {
+  padding-top: 15px;
+  border-top: 1px solid #b2c5c8;
+}
+.meta-type__urgent-moves span {
+  color: #a66045;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.meta-type__urgent-moves h3 {
+  margin-top: 21px;
+}
+.meta-type__urgent-moves p {
+  color: var(--type-muted);
+}
+.meta-type__urgent-close {
+  padding-block: 100px;
+  background: #e9eee9;
+}
+.meta-type__urgent-close-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(40px, 7vw, 110px);
+  align-items: center;
+}
+.meta-type__urgent-close figure {
+  height: 480px;
+}
+.meta-type__urgent-close figure img {
+  border-radius: 8px;
+}
+.meta-type__urgent-close-grid > div > p:not(.meta-type__eyebrow) {
+  color: var(--type-muted);
+  font-size: 17px;
+}
+.meta-type--weight {
+  --type-ink: #283d34;
+  --type-muted: #5b6b5d;
+  background: #faf8f1;
+}
+.meta-type__weight-hero {
+  padding-block: 48px 100px;
+  background: #ebeee3;
+}
+.meta-type__weight-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(35px, 6vw, 100px);
+  align-items: center;
+}
+.meta-type__weight-hero-grid > div > p:not(.meta-type__eyebrow) {
+  max-width: 560px;
+  margin: 28px 0 30px;
+  color: var(--type-muted);
+  font-size: 19px;
+}
+.meta-type__weight-hero figure {
+  height: min(56vw, 550px);
+}
+.meta-type__weight-hero img {
+  border-radius: 160px 10px 10px 10px;
+}
+.meta-type__weight-hero figcaption {
+  padding-top: 12px;
+  color: #5d7563;
+  font-size: 12px;
+}
+.meta-type__weight-program {
+  padding-block: 110px 130px;
+}
+.meta-type__weight-program-intro {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr;
+  gap: 55px;
+  align-items: end;
+  margin-bottom: 45px;
+}
+.meta-type__weight-program-intro > p {
+  max-width: 490px;
+  margin: 0;
+  color: var(--type-muted);
+  font-size: 17px;
+}
+.meta-type__weight-program .meta-type__product {
+  max-width: 1180px;
+  margin-inline: auto;
+}
+.meta-type__weight-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 45px;
+  margin-top: 74px;
+}
+.meta-type__weight-steps article {
+  padding-top: 15px;
+  border-top: 1px solid #b4c4b4;
+}
+.meta-type__weight-steps span {
+  color: #a66045;
+  font:
+    22px Georgia,
+    serif;
+}
+.meta-type__weight-steps h3 {
+  margin-top: 22px;
+}
+.meta-type__weight-steps p {
+  color: var(--type-muted);
+}
+.meta-type__weight-close {
+  padding-block: 100px;
+  background: #e5e9dc;
+}
+.meta-type__weight-close-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(38px, 7vw, 110px);
+  align-items: center;
+}
+.meta-type__weight-close-grid > div > p:not(.meta-type__eyebrow) {
+  color: var(--type-muted);
+  font-size: 17px;
+}
+.meta-type__weight-close figure {
+  height: 470px;
+}
+.meta-type__weight-close img {
+  border-radius: 10px 150px 10px 10px;
+}
 @media (max-width: 900px) {
   .meta-type__wrap {
     width: min(100% - 56px, 1450px);
@@ -393,6 +582,12 @@
   .meta-type__infusion-hero-grid,
   .meta-type__membership-hero-grid {
     gap: 36px;
+  }
+  .meta-type__urgent-board-heading {
+    grid-template-columns: 1fr;
+  }
+  .meta-type__weight-program-intro {
+    grid-template-columns: 1fr;
   }
   .meta-type__primary-proof,
   .meta-type__infusion-proof {
@@ -413,10 +608,60 @@
   .meta-type__primary-hero,
   .meta-type__infusion-hero-grid,
   .meta-type__membership-hero-grid,
+  .meta-type__urgent-hero-grid,
+  .meta-type__weight-hero-grid,
   .meta-type__primary-close-grid,
   .meta-type__infusion-close-grid,
   .meta-type__membership-close-grid {
     grid-template-columns: 1fr;
+  }
+  .meta-type__urgent-close-grid,
+  .meta-type__urgent-moves {
+    grid-template-columns: 1fr;
+  }
+  .meta-type__weight-close-grid,
+  .meta-type__weight-steps {
+    grid-template-columns: 1fr;
+  }
+  .meta-type__weight-hero {
+    padding-block: 35px 70px;
+  }
+  .meta-type__weight-hero figure {
+    height: 330px;
+  }
+  .meta-type__weight-hero img {
+    border-radius: 100px 8px 8px 8px;
+  }
+  .meta-type__weight-program,
+  .meta-type__weight-close {
+    padding-block: 70px;
+  }
+  .meta-type__weight-steps {
+    gap: 28px;
+    margin-top: 48px;
+  }
+  .meta-type__weight-close figure {
+    height: 320px;
+  }
+  .meta-type__urgent-hero {
+    padding-block: 35px 70px;
+  }
+  .meta-type__urgent-hero figure {
+    height: 330px;
+  }
+  .meta-type__urgent-hero img {
+    border-radius: 8px 8px 100px 8px;
+  }
+  .meta-type__urgent-board,
+  .meta-type__urgent-close {
+    padding-block: 70px;
+  }
+  .meta-type__urgent-moves {
+    gap: 25px;
+    margin-top: 48px;
+  }
+  .meta-type__urgent-close figure {
+    height: 320px;
   }
   .meta-type__primary-hero {
     min-height: 0;
@@ -485,6 +730,12 @@
   .meta-type__primary-photo,
   .meta-type__infusion-hero figure,
   .meta-type__membership-hero figure {
+    height: 260px;
+  }
+  .meta-type__urgent-hero figure {
+    height: 260px;
+  }
+  .meta-type__weight-hero figure {
     height: 260px;
   }
   .meta-type__primary-photo figcaption {

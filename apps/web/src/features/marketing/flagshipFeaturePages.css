@@ -220,6 +220,56 @@
   line-height: 1.65;
 }
 
+.meta-flagship__inventory-people {
+  padding: 94px 0 110px;
+  background: #eaf0e8;
+}
+.meta-flagship__inventory-people-heading {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8vw;
+  align-items: end;
+  margin-bottom: 36px;
+}
+.meta-flagship__inventory-people-heading .meta-flagship__overline {
+  grid-column: 1 / -1;
+  color: #a56548;
+}
+.meta-flagship__inventory-people-heading h2 {
+  max-width: 600px;
+  margin: 0;
+  font-size: clamp(42px, 4.5vw, 70px);
+  line-height: 1.06;
+}
+.meta-flagship__inventory-people-heading > p:last-child {
+  max-width: 520px;
+  margin: 0;
+  color: #51635a;
+  font-size: 18px;
+  line-height: 1.6;
+}
+.meta-flagship__inventory-people-grid {
+  display: grid;
+  grid-template-columns: 1.13fr 0.87fr;
+  gap: 22px;
+}
+.meta-flagship__inventory-people-grid figure {
+  min-width: 0;
+  margin: 0;
+}
+.meta-flagship__inventory-people-grid img {
+  display: block;
+  width: 100%;
+  height: clamp(300px, 34vw, 510px);
+  object-fit: cover;
+  border-radius: 10px;
+}
+.meta-flagship__inventory-people-grid figcaption {
+  padding-top: 13px;
+  color: #53665b;
+  font-size: 13px;
+}
+
 .meta-flagship--scheduling {
   --flagship-ink: #342931;
   background: #fffaf8;
@@ -691,6 +741,8 @@
   }
   .meta-flagship__inventory-grid,
   .meta-flagship__inventory-work,
+  .meta-flagship__inventory-people-heading,
+  .meta-flagship__inventory-people-grid,
   .meta-flagship__schedule-hero-layout,
   .meta-flagship__schedule-product-heading,
   .meta-flagship__schedule-perspective-layout,
@@ -705,6 +757,12 @@
   }
   .meta-flagship__inventory-hero {
     padding-bottom: 45px;
+  }
+  .meta-flagship__inventory-people {
+    padding-block: 70px;
+  }
+  .meta-flagship__inventory-people-heading > p:last-child {
+    margin-top: 20px;
   }
   .meta-flagship__schedule-hero-photo {
     height: 450px;

@@ -53,6 +53,7 @@ const clinicGroups: {
       },
       {
         name: "Urgent care",
+        slug: "urgent-care",
         detail:
           "Walk-in arrival, episodic visits, capacity, and discharge follow-up in one operational flow.",
       },
@@ -63,6 +64,7 @@ const clinicGroups: {
     types: [
       {
         name: "Weight management",
+        slug: "weight-management",
         detail:
           "Intake, visits, measurements, labs, offers, and follow-up composed around a clinic's program.",
       },
@@ -125,7 +127,7 @@ export function MetaClinicMarketing({
     const previousTitle = document.title;
     document.title =
       clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
-        ? `${clinicTypeSlug === "primary-care" ? "Primary Care" : clinicTypeSlug === "membership-care" ? "Membership Care" : "Infusion"} — Meta Clinic`
+        ? `${clinicTypeSlug === "primary-care" ? "Primary Care" : clinicTypeSlug === "membership-care" ? "Membership Care" : clinicTypeSlug === "urgent-care" ? "Urgent Care" : clinicTypeSlug === "weight-management" ? "Weight Management" : "Infusion"} — Meta Clinic`
         : feature
           ? `${feature.label} — Meta Clinic`
           : "Meta Clinic — A more connected clinic day";

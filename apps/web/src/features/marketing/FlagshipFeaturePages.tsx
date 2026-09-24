@@ -100,6 +100,7 @@ function InventoryPage() {
               src="/marketing/inventory-app.png"
               alt="Meta Clinic inventory workspace showing a synthetic product catalog, on-hand quantities, reorder points, and actions."
               label="Inventory overview"
+              caption="Captured from the populated demo clinic"
             />
             <span
               className="meta-flagship__inventory-orbit"
@@ -135,6 +136,43 @@ function InventoryPage() {
               lots, purchase orders, and replenishment work.
             </p>
           </article>
+        </div>
+      </section>
+
+      <section className="meta-flagship__inventory-people">
+        <div className="meta-flagship__container">
+          <div className="meta-flagship__inventory-people-heading">
+            <p className="meta-flagship__overline">
+              The team behind the stockroom
+            </p>
+            <h2>Make supply decisions together.</h2>
+            <p>
+              From checking what is on the shelf to deciding what to order next,
+              give the clinical and operations teams a shared starting point.
+            </p>
+          </div>
+          <div className="meta-flagship__inventory-people-grid">
+            <figure>
+              <img
+                src="/marketing/inventory-supplies.png"
+                alt="Clinic teammates checking organized medical supplies together in a bright stockroom."
+                loading="lazy"
+              />
+              <figcaption>
+                Check the shelf before the next clinic day.
+              </figcaption>
+            </figure>
+            <figure>
+              <img
+                src="/marketing/inventory-review.png"
+                alt="A nurse and operations lead reviewing supply needs at a clinic workroom desk."
+                loading="lazy"
+              />
+              <figcaption>
+                Turn a stock question into a replenishment plan.
+              </figcaption>
+            </figure>
+          </div>
         </div>
       </section>
 
