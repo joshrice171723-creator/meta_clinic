@@ -104,6 +104,11 @@
   .growth-page__proof { gap: 35px; }
   .growth-page__signin { display: none; }
 }
+@media (max-width: 900px) {
+  .growth-page__header { flex-wrap: wrap; padding-block: 14px; }
+  .growth-page__header nav { order: 3; width: 100%; overflow-x: auto; padding-block: 7px; }
+  .growth-page__header .MuiButton-root { margin-left: auto; }
+}
 @media (max-width: 760px) {
   .growth-page__wrap, .growth-page__header, .growth-page__footer { width: min(100% - 36px, 1320px); }
   .growth-page__header { min-height: 74px; flex-wrap: wrap; padding-block: 14px; }
