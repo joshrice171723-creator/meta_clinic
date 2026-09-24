@@ -297,6 +297,37 @@
   background: var(--meta-terracotta);
 }
 
+.meta-marketing__hero-capture {
+  min-width: 0;
+  margin: 0;
+  padding: clamp(14px, 2vw, 28px);
+  border-radius: 22px;
+  background: #e1ece1;
+  box-shadow: 22px 22px 0 #d6b9a6;
+  animation: meta-rise 720ms 100ms ease-out both;
+}
+
+.meta-marketing__hero-capture a,
+.meta-marketing__hero-capture img {
+  display: block;
+}
+
+.meta-marketing__hero-capture img {
+  width: 100%;
+  height: auto;
+  border: 1px solid #c7d8ca;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 24px 48px rgba(27, 60, 42, 0.13);
+}
+
+.meta-marketing__hero-capture figcaption {
+  margin-top: 15px;
+  color: #53685b;
+  font-size: 12px;
+  text-align: right;
+}
+
 .meta-marketing__visual {
   position: relative;
   min-width: 0;
@@ -1312,6 +1343,7 @@
 }
 
 @media (max-width: 650px) {
+  .meta-marketing__hero-capture { box-shadow: 10px 10px 0 #d6b9a6; }
   .meta-marketing__header,
   .meta-marketing__hero,
   .meta-marketing__section,
@@ -1557,6 +1589,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .meta-marketing__hero-copy,
+  .meta-marketing__hero-capture,
   .meta-marketing__visual {
     animation: none;
   }

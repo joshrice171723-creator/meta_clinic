@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, IconButton, Popover } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
-import LocalFloristOutlinedIcon from "@mui/icons-material/LocalFloristOutlined";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
 import { FeatureStoryPage } from "./FeatureStoryPages";
 import {
@@ -344,84 +340,15 @@ export function MetaClinicMarketing({
               </div>
             </div>
 
-            <div
-              className="meta-marketing__visual"
-              aria-label="Illustrative clinic workflow"
-            >
-              <div className="meta-marketing__visual-orbit meta-marketing__visual-orbit--one" />
-              <div className="meta-marketing__visual-orbit meta-marketing__visual-orbit--two" />
-              <div className="meta-marketing__visual-disc" />
-              <div className="meta-marketing__preview">
-                <div className="meta-marketing__preview-top">
-                  <span className="meta-marketing__preview-brand">
-                    Meta Clinic
-                  </span>
-                  <span className="meta-marketing__preview-tag">
-                    Clinic workspace
-                  </span>
-                </div>
-                <div className="meta-marketing__preview-body">
-                  <div
-                    className="meta-marketing__preview-side"
-                    aria-hidden="true"
-                  >
-                    <span className="meta-marketing__preview-side-active" />
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <div className="meta-marketing__preview-main">
-                    <p className="meta-marketing__preview-kicker">
-                      Today&apos;s flow
-                    </p>
-                    <h2>One view of what&apos;s next.</h2>
-                    <div className="meta-marketing__preview-rule" />
-                    <div className="meta-marketing__preview-row">
-                      <span className="meta-marketing__preview-icon">
-                        <CalendarMonthOutlinedIcon />
-                      </span>
-                      <div>
-                        <strong>Welcome</strong>
-                        <small>Scheduling and arrival</small>
-                      </div>
-                      <span className="meta-marketing__preview-arrow">↗</span>
-                    </div>
-                    <div className="meta-marketing__preview-row">
-                      <span className="meta-marketing__preview-icon">
-                        <AssignmentOutlinedIcon />
-                      </span>
-                      <div>
-                        <strong>Care</strong>
-                        <small>Visit context and next steps</small>
-                      </div>
-                      <span className="meta-marketing__preview-arrow">↗</span>
-                    </div>
-                    <div className="meta-marketing__preview-row">
-                      <span className="meta-marketing__preview-icon">
-                        <ForumOutlinedIcon />
-                      </span>
-                      <div>
-                        <strong>Follow-through</strong>
-                        <small>Open work stays visible</small>
-                      </div>
-                      <span className="meta-marketing__preview-arrow">↗</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="meta-marketing__floating-card">
-                <span className="meta-marketing__floating-icon">
-                  <LocalFloristOutlinedIcon />
-                </span>
-                <div>
-                  <strong>Every step, in context.</strong>
-                  <span>A calmer way to keep work moving.</span>
-                </div>
-              </div>
-              <p className="meta-marketing__visual-caption">
-                Illustrative workflow
-              </p>
-            </div>
+            <figure className="meta-marketing__hero-capture">
+              <a href="/demo" aria-label="Open the guided demo after viewing the scheduling screen">
+                <img
+                  src="/marketing/scheduling-booking-clean.png"
+                  alt="Meta Clinic appointment form over a populated synthetic clinic schedule"
+                />
+              </a>
+              <figcaption>Scheduling screen from the synthetic Meta Clinic demo</figcaption>
+            </figure>
           </section>
 
           <div
