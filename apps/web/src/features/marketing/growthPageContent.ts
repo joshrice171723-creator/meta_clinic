@@ -14,6 +14,7 @@ export type GrowthPage = {
   image?: string;
   imageAlt?: string;
   imageCaption?: string;
+  gallery?: readonly { image: string; imageAlt: string; imageCaption: string }[];
   note: string;
   audience: string;
   searchIntent: string;
@@ -550,6 +551,23 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageCaption: "Primary care membership preview in the synthetic demo",
   },
 };
+const verifiedGalleries: Record<string, GrowthPage["gallery"]> = {
+  "/platform": [
+    { image: "/marketing/primary-care-patients-app.png", imageAlt: "Meta Clinic synthetic patient directory with search and registered patients.", imageCaption: "Patient context in a synthetic clinic" },
+    { image: "/marketing/scheduling-month.png", imageAlt: "Meta Clinic synthetic month schedule with remote and in-person appointments.", imageCaption: "Scheduling in a synthetic clinic" },
+    { image: "/marketing/captures/finance-paid-invoice-detail.png", imageAlt: "Meta Clinic synthetic paid invoice with line items, payment, and credit.", imageCaption: "Financial follow-through in a synthetic clinic" },
+  ],
+  "/weight-loss": [
+    { image: "/marketing/primary-care-patients-app.png", imageAlt: "Meta Clinic synthetic patient directory with patient search and record entry points.", imageCaption: "Shared patient context; specialty intake requires review" },
+    { image: "/marketing/scheduling-month.png", imageAlt: "Meta Clinic synthetic month schedule showing remote appointments.", imageCaption: "Remote visit scheduling; weight loss setup requires review" },
+    { image: "/marketing/memberships-app.png", imageAlt: "Meta Clinic synthetic membership catalog containing a metabolic health program.", imageCaption: "Metabolic health program in the demo catalog" },
+  ],
+  "/behavioral-health": [
+    { image: "/marketing/primary-care-patients-app.png", imageAlt: "Meta Clinic synthetic patient directory with patient search and record entry points.", imageCaption: "Shared patient context; practice-specific intake requires review" },
+    { image: "/marketing/scheduling-month.png", imageAlt: "Meta Clinic synthetic month schedule showing remote visits.", imageCaption: "Remote visit scheduling in the shared demo" },
+    { image: "/marketing/tracking-board-app.png", imageAlt: "Meta Clinic synthetic visit tracking board with intake and provider readiness states.", imageCaption: "Shared visit handoffs; behavioral health setup requires review" },
+  ],
+};
 export const marketingRouteCount = entries.size;
 export function getGrowthPage(path: string): GrowthPage | null {
   if (["/ai-intake", "/inventory", "/weight-loss-clinics"].includes(path)) {
@@ -745,6 +763,7 @@ export function getGrowthPage(path: string): GrowthPage | null {
   const familyBrief = getSpecialtyPageBrief(path) ?? getPlatformAiPageBrief(path) ?? getEditorialPageBrief(path);
   const page: GrowthPage = { ...base, ...(curated ? { headline: curated[0], lead: curated[1] } : {}), ...focus[path], ...(familyBrief ?? {}) };
   Object.assign(page, verifiedVisuals[path] ?? {});
+  page.gallery = verifiedGalleries[path];
   page.links = [...(familyBrief?.links ?? page.links), ...base.links]
     .filter((link, index, all) => link.path !== path && all.findIndex((candidate) => candidate.path === link.path) === index)
     .slice(0, 8);

@@ -58,6 +58,13 @@
 .growth-page__hero-diagram span { padding: 16px 22px; border: 1px solid #bbd0bf; border-radius: 6px; background: rgba(255,255,255,.78); font: 600 16px/1.35 "Avenir Next", "Segoe UI", sans-serif; }
 .growth-page__hero-diagram span:nth-child(2) { margin-left: 24px; }
 .growth-page__hero-diagram span:nth-child(3) { margin-left: 48px; }
+.growth-page__gallery { padding-block: 88px 100px; border-top: 1px solid var(--line); background: #fff; }
+.growth-page__gallery h2 { max-width: 760px; }
+.growth-page__gallery p:not(.growth-page__kicker) { max-width: 750px; color: var(--muted); line-height: 1.7; }
+.growth-page__gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 42px; }
+.growth-page__gallery figure { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.growth-page__gallery img { display: block; width: 100%; height: 230px; object-fit: contain; border: 1px solid var(--line); border-radius: 4px; background: white; }
+.growth-page__gallery figcaption { margin-top: 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .growth-page__sequence { padding-block: 100px 110px; background: #e8f0e8; }
 .growth-page__sequence h2 { max-width: 700px; }
 .growth-page__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 54px; }
@@ -124,6 +131,7 @@
   .growth-page__header { flex-wrap: wrap; padding-block: 14px; }
   .growth-page__header nav { order: 3; width: 100%; flex-wrap: wrap; margin-left: 0; padding-block: 7px; }
   .growth-page__header .MuiButton-root { margin-left: auto; }
+  .growth-page__gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .growth-page__wrap, .growth-page__header, .growth-page__footer { width: min(100% - 36px, 1320px); }
@@ -137,6 +145,7 @@
   .growth-page__hero-diagram span:nth-child(2), .growth-page__hero-diagram span:nth-child(3) { margin-left: 0; }
   .growth-page__steps { grid-template-columns: 1fr; margin-top: 35px; }
   .growth-page__editorial-grid, .growth-page__faq-list { grid-template-columns: 1fr; }
+  .growth-page__gallery-grid { grid-template-columns: 1fr; }
   .growth-page__directory ul { grid-template-columns: 1fr; }
   .growth-page__steps article { min-height: 0; }
   .growth-page__sequence, .growth-page__proof, .growth-page__related, .growth-page__close { padding-block: 70px; }

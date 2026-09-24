@@ -223,6 +223,16 @@ function PageBody({ page }: { page: GrowthPage }) {
           {heroImage ? <figure className="growth-page__hero-image"><img src={page.image} alt={page.imageAlt ?? "Meta Clinic demonstration screen"} /><figcaption>{page.imageCaption}</figcaption></figure> : <div className="growth-page__hero-diagram" aria-label="Key steps in this workflow">{page.steps.slice(0, 3).map((step, index) => <span key={step}>0{index + 1} / {step}</span>)}</div>}
         </section>
 
+        {page.gallery?.length ? <section className="growth-page__gallery" aria-labelledby="gallery-title"><div className="growth-page__wrap">
+          <p className="growth-page__kicker">Real product screens</p>
+          <h2 id="gallery-title">See the shared tools behind the journey.</h2>
+          <p>These are separate screens from synthetic demo clinics. The specialty workflow and current feature scope should be confirmed in a walkthrough.</p>
+          <div className="growth-page__gallery-grid">{page.gallery.map((visual) => <figure key={visual.image}>
+            <img src={visual.image} alt={visual.imageAlt} loading="lazy" />
+            <figcaption>{visual.imageCaption}</figcaption>
+          </figure>)}</div>
+        </div></section> : null}
+
         {conversion ? (
           <section id="request" className="growth-page__request growth-page__wrap"><div><p className="growth-page__kicker">A focused conversation</p><h2>Tell us about your clinic.</h2><p>Share the workflow you want to evaluate. We can use the demo to walk through that specific journey and discuss whether a pilot makes sense.</p></div><ContactForm path={page.path} /></section>
         ) : (
