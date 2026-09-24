@@ -51,7 +51,7 @@ const topics: { test: RegExp; title: string; promise: string; steps: [string, st
   { test: /telehealth|video/, title: "Telehealth", promise: "Connect a remote appointment to scheduling, chart context, and follow-through.", steps: ["Schedule the remote visit", "Open the encounter with the relevant patient context", "Record the next action after the call"], image: "/marketing/scheduling-telehealth.png", alt: "Meta Clinic synthetic telehealth scheduling view.", caption: "Remote visit context in the demo" },
   { test: /glp-1|trt|testosterone|peptide|hormone|medication|pharmacy|prescrib/, title: "Medication workflow", promise: "Keep medication decisions, recorded work, and supply context connected for team review.", steps: ["Review the patient and treatment context", "Record the authorized medication step", "Check supply and follow-up work"], image: "/marketing/inventory-app.png", alt: "Meta Clinic inventory view showing synthetic stock records.", caption: "Inventory view from the synthetic demo" },
   { test: /inventory|lot|expir|recall|purchas|receiv|replenish|forecast|stock/, title: "Inventory", promise: "Make stock, lots, and the work around replenishment easier to inspect.", steps: ["Find the item and its recorded stock", "Review lots and pending movement", "Plan the next purchase or treatment need"], image: "/marketing/inventory-app.png", alt: "Meta Clinic inventory view with synthetic items.", caption: "Stock visibility in the demo clinic" },
-  { test: /membership|subscription|package/, title: "Memberships", promise: "Keep program offers, access, and payment context close to the patient journey.", steps: ["Present the program terms", "Record the enrollment choice", "Connect the ongoing service and billing work"], image: "/marketing/memberships-app.png", alt: "Meta Clinic membership configuration screen using synthetic data.", caption: "Membership setup in the demo" },
+  { test: /membership|subscription|package/, title: "Memberships", promise: "Keep program offers, access, and payment context close to the patient journey.", steps: ["Present the program terms", "Record the enrollment choice", "Connect the ongoing service and billing work"], image: "/marketing/captures/membership-catalog-five-programs.png", alt: "Meta Clinic membership catalog showing synthetic clinic programs.", caption: "Membership setup in the demo" },
   { test: /billing|payment|invoice|margin|cash-pay|insurance|benefit|authorization/, title: "Financial workflow", promise: "Make the financial steps of a visit visible without losing clinical context.", steps: ["Clarify the service and payment model", "Review charges, payments, or required checks", "Resolve open work before closing the loop"], image: "/marketing/cash-billing-app.png", alt: "Meta Clinic billing summary from a synthetic demo clinic.", caption: "Billing activity in the synthetic demo" },
   { test: /lab|progress|weight-tracking|reporting/, title: "Progress and results", promise: "Bring recorded results and next review work into one patient context.", steps: ["Collect the recorded measure or result", "Review it against the visit context", "Plan follow-up or additional work"], image: "/marketing/tracking-board-app.png", alt: "Meta Clinic Tracking Board showing synthetic operational work.", caption: "Operational follow-through in the demo" },
   { test: /follow-up|notification|messaging|communication|email|sms|reminder/, title: "Follow-up", promise: "Keep the next patient contact and the team’s open work visible after a visit.", steps: ["Record the next action", "Assign or schedule the follow-through", "Check what was completed and what remains open"], image: "/marketing/tracking-board-app.png", alt: "Meta Clinic Tracking Board showing synthetic clinic tasks.", caption: "Open work in the synthetic demo" },
@@ -436,7 +436,7 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageCaption: "Appointment setup in the synthetic demo",
   },
   "/platform/memberships": {
-    image: "/marketing/memberships-app.png",
+    image: "/marketing/captures/membership-catalog-five-programs.png",
     imageAlt: "Meta Clinic membership catalog showing several synthetic clinic programs.",
     imageCaption: "Membership program catalog in the synthetic demo",
   },
@@ -496,7 +496,7 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageCaption: "Remote visit scheduling in the synthetic demo; behavioral health workflow is evaluated separately",
   },
   "/weight-loss/memberships": {
-    image: "/marketing/memberships-app.png",
+    image: "/marketing/captures/membership-catalog-five-programs.png",
     imageAlt: "Meta Clinic synthetic membership catalog containing a metabolic health program among other clinic programs.",
     imageCaption: "Membership catalog with a synthetic metabolic health program",
   },
@@ -536,7 +536,7 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageCaption: "Primary care invoice review in the synthetic demo",
   },
   "/solutions/manage-memberships": {
-    image: "/marketing/memberships-app.png",
+    image: "/marketing/captures/membership-catalog-five-programs.png",
     imageAlt: "Meta Clinic synthetic membership catalog showing clinic programs and publication states.",
     imageCaption: "Membership programs in the synthetic demo",
   },
@@ -565,7 +565,7 @@ const verifiedGalleries: Record<string, GrowthPage["gallery"]> = {
   "/weight-loss": [
     { image: "/marketing/primary-care-patients-app.png", imageAlt: "Meta Clinic synthetic patient directory with patient search and record entry points.", imageCaption: "Shared patient context; specialty intake requires review" },
     { image: "/marketing/scheduling-month.png", imageAlt: "Meta Clinic synthetic month schedule showing remote appointments.", imageCaption: "Remote visit scheduling; weight loss setup requires review" },
-    { image: "/marketing/memberships-app.png", imageAlt: "Meta Clinic synthetic membership catalog containing a metabolic health program.", imageCaption: "Metabolic health program in the demo catalog" },
+    { image: "/marketing/captures/membership-catalog-five-programs.png", imageAlt: "Meta Clinic synthetic membership catalog containing a metabolic health program with a description.", imageCaption: "Metabolic health program in the demo catalog" },
   ],
   "/behavioral-health": [
     { image: "/marketing/primary-care-patients-app.png", imageAlt: "Meta Clinic synthetic patient directory with patient search and record entry points.", imageCaption: "Shared patient context; practice-specific intake requires review" },
