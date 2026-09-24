@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-24 — Two-scenario membership browser checkpoint
+
+In an isolated local synthetic clinic, staff published weight and behavioral membership tiers, the public page showed each plan, and two account-first requests persisted as unpaid prospects in Growth. A behavioral staff call-in-progress state survived reload. Neither request reached verification, simulated payment, patient creation, portal return or paid Patient Flow; browser control blocked opening the local mailer's verification files. The [dated evidence and 8/16 per-scenario proof score](../../records/progress/2026/09/2026-09-24-two-scenario-membership-browser-proof.md) identify the next connected acceptance step. No clinical or release readiness is claimed.
+
 ## 2026-09-24 — Marketing imagery correction
 
 The founder rejected the 28 generated feature mockups because they resembled invented app screens. Those assets and their generator were removed from the 14 affected marketing stories, along with the repeated “Inside the clinic day” copy. The Optional Insurance story now describes the actual clinic setting and data foundation and identifies the dedicated claim workspace as unfinished. The three earlier flagship pages retain their existing imagery. The 14 stories still need verified, feature-matched captures from populated synthetic app workflows before they meet the original visual brief. An attempt to use the existing bulk development seed in the shared local database failed on immutable role versions and then a seed identity collision; both attempts rolled back. This is a correction to marketing claims, not evidence that app workflows are complete.
