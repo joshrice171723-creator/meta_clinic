@@ -80,7 +80,7 @@ function Footer() {
       <div><strong>Meta Clinic</strong><p>Connected software for independent clinics.</p></div>
       <div><span>Explore</span><a href="/platform">Platform</a><a href="/demo">Demo</a><a href="/resources">Resources</a></div>
       <div><span>Specialties</span>{priority.map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}</div>
-      <div><span>Company</span><a href="/about">About</a><a href="/contact">Contact</a><a href="/site-map">Site map</a><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a></div>
+      <div><span>Company</span><a href="/about">About</a><a href="/contact">Contact</a><a href="/site-map">Site map</a></div>
     </footer>
   );
 }
@@ -99,14 +99,25 @@ function Related({ page }: { page: GrowthPage }) {
 
 function Directory({ page }: { page: GrowthPage }) {
   if (page.path === "/site-map") {
-    const groups = new Map<string, { path: string; label: string }[]>();
+    const groups = new Map<string, { path: string; label: string; phase: string }[]>();
     for (const item of marketingPaths) {
       if (item.path.includes("[")) continue;
       const current = groups.get(item.group) ?? [];
-      current.push({ path: item.path, label: item.path });
+      current.push({ path: item.path, label: item.path, phase: item.phase });
       groups.set(item.group, current);
     }
-    return <section id="directory" className="growth-page__directory growth-page__wrap" aria-label="All marketing topics">{[...groups].map(([group, items]) => <div key={group}><h2>{group}</h2><ul>{items.map((item) => <li key={item.path}><a href={item.path}>{item.label}</a></li>)}</ul></div>)}</section>;
+    return <section id="directory" className="growth-page__directory growth-page__wrap" aria-label="Marketing page directory">
+      <h2>Launch candidate pages</h2>
+      <p>These pages are the first publishing candidates after product, claim, and legal review.</p>
+      <ul>{marketingPaths.filter((item) => item.phase === "launch" && !item.path.includes("[")).map((item) => <li key={item.path}><a href={item.path}>{item.path}</a></li>)}</ul>
+      <details className="growth-page__planned-directory"><summary>Browse all planned page drafts</summary>
+        <p>These routes are available for review. Later, legal, proof, and integration pages should be published only when their content and claims are verified.</p>
+        {[...groups].map(([group, items]) => {
+          const planned = items.filter((item) => item.phase !== "launch");
+          return planned.length ? <div key={group}><h3>{group}</h3><ul>{planned.map((item) => <li key={item.path}><a href={item.path}>{item.label}</a></li>)}</ul></div> : null;
+        })}
+      </details>
+    </section>;
   }
   if (!page.children.length) return null;
   return <section id="directory" className="growth-page__directory growth-page__wrap" aria-labelledby="directory-title"><p className="growth-page__kicker">Explore this area</p><h2 id="directory-title">Find the specific workflow.</h2><ul>{page.children.filter((item) => !item.path.includes("[")).map((item) => <li key={item.path}><a href={item.path}>{item.label}<ArrowForwardRoundedIcon aria-hidden="true" /></a></li>)}</ul></section>;
@@ -114,6 +125,7 @@ function Directory({ page }: { page: GrowthPage }) {
 
 function PageBody({ page }: { page: GrowthPage }) {
   const conversion = conversionPaths.has(page.path);
+  const phase = marketingPaths.find((item) => item.path === page.path)?.phase;
   const legalOrProof = page.group === "Legal" || page.group === "Security / Compliance" || page.group === "Customer proof" || page.group === "Comparison / alternative pages";
   const evidenceTitle = legalOrProof
     ? "Review the evidence before relying on a claim."
@@ -135,15 +147,18 @@ function PageBody({ page }: { page: GrowthPage }) {
             <p className="growth-page__kicker">{page.eyebrow}</p>
             <h1>{page.headline}</h1>
             <p className="growth-page__lead">{page.lead}</p>
-            {page.group === "Legal" && <Alert severity="info">This is a review outline. It is not a published policy or agreement.</Alert>}
-            {page.group === "Customer proof" && <Alert severity="info">Customer stories and results will appear here only with verified evidence and permission.</Alert>}
-            {page.group === "Comparison / alternative pages" && <Alert severity="info">Comparisons will be published only when criteria and sources are verified.</Alert>}
+            {phase === "later" && <Alert severity="info">This page is a planning preview. Confirm the current feature scope during evaluation.</Alert>}
+            {phase === "review" && <Alert severity="info">This content is awaiting legal and security review. Ask for current, approved details before relying on a claim.</Alert>}
+            {phase === "evidence" && <Alert severity="info">This page is reserved until the underlying evidence and publication permission are verified.</Alert>}
+            {page.group === "Legal" && phase !== "review" && <Alert severity="info">This is a review outline. It is not a published policy or agreement.</Alert>}
+            {page.group === "Customer proof" && phase !== "evidence" && <Alert severity="info">Customer stories and results will appear here only with verified evidence and permission.</Alert>}
+            {page.group === "Comparison / alternative pages" && phase !== "evidence" && <Alert severity="info">Comparisons will be published only when criteria and sources are verified.</Alert>}
             <div className="growth-page__actions">
               <Button href={page.primaryCta.path} variant="contained" endIcon={<ArrowForwardRoundedIcon />}>{page.primaryCta.label}</Button>
               <Button href={page.secondaryCta.path} variant="outlined">{page.secondaryCta.label}</Button>
             </div>
           </div>
-          {heroImage ? <figure className="growth-page__hero-image"><img src={page.image} alt={page.imageAlt ?? "Meta Clinic demonstration screen"} /><figcaption>{page.imageCaption}</figcaption></figure> : <div className="growth-page__hero-diagram" aria-label="Key steps in this workflow">{page.steps.map((step, index) => <span key={step}>0{index + 1} / {step}</span>)}</div>}
+          {heroImage ? <figure className="growth-page__hero-image"><img src={page.image} alt={page.imageAlt ?? "Meta Clinic demonstration screen"} /><figcaption>{page.imageCaption}</figcaption></figure> : <div className="growth-page__hero-diagram" aria-label="Key steps in this workflow">{page.steps.slice(0, 3).map((step, index) => <span key={step}>0{index + 1} / {step}</span>)}</div>}
         </section>
 
         {conversion ? (

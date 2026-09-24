@@ -75,6 +75,10 @@
 .growth-page__directory li a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 11px; border-bottom: 1px solid var(--line); text-decoration: none; overflow-wrap: anywhere; }
 .growth-page__directory li a:hover { text-decoration: underline; }
 .growth-page__directory li svg { flex: none; width: 18px; }
+.growth-page__planned-directory { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); }
+.growth-page__planned-directory summary { width: fit-content; cursor: pointer; font-weight: 700; }
+.growth-page__planned-directory > p { max-width: 780px; color: var(--muted); line-height: 1.7; }
+.growth-page__planned-directory > div { margin-top: 45px; }
 .growth-page__faq { padding-block: 90px; background: #f0f4ee; }
 .growth-page__faq-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 45px; }
 .growth-page__faq-list article { padding: 25px; background: white; }

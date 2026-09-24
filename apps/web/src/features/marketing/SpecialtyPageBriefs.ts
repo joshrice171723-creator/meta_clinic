@@ -133,6 +133,7 @@ const topicCopy: Record<string, { label: string; purpose: string; section: strin
   "glp-1-workflows": { label: "GLP-1 care workflow", purpose: "Intake, clinician review, documented decisions, and planned follow-up form the operational path around GLP-1 care.", section: "Review, documentation, and follow-through" },
   labs: { label: "Lab coordination", purpose: "Lab coordination spans ordering, collection, result receipt, and review, with each handoff shaped by the clinic’s systems and responsibilities.", section: "Lab handoffs to verify" },
   "medication-management": { label: "Medication workflow", purpose: "Medication-related work connects review and documentation with the clinic’s follow-up process and the responsibilities of its care team.", section: "Medication responsibilities" },
+  medications: { label: "Medication coordination", purpose: "Medication coordination connects the patient’s questions and visit context with professional review, documentation, and any clinic-defined follow-up.", section: "Review and next steps" },
   memberships: { label: "Membership administration", purpose: "Membership care combines clear program terms with enrollment and the administrative work that continues throughout the relationship.", section: "Terms and member operations" },
   "online-booking": { label: "Online booking", purpose: "A booking journey moves from appointment request to clinic review, confirmation, and preparation for the visit.", section: "From request to confirmed visit" },
   "patient-intake": { label: "Patient intake", purpose: "A well-organized intake connects the clinic’s questions and review process to a patient’s first appointment.", section: "Before the first visit" },
@@ -207,6 +208,67 @@ const childrenBySpecialty: Record<string, readonly string[]> = {
 
 const titleCase = (value: string) => value.split("-").map((part) => part.toUpperCase() === "AI" || part.toUpperCase() === "IV" || part.toUpperCase() === "GLP" || part.toUpperCase() === "TRT" ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 
+const overviewSteps: Record<string, readonly string[]> = {
+  "Weight loss": ["Receive a program inquiry", "Collect and review intake information", "Schedule a clinician-led evaluation", "Document the clinic’s program decision", "Coordinate payment or membership steps", "Plan the next check-in"],
+  "Behavioral health": ["Receive an inquiry for care", "Complete and review intake", "Schedule the first session", "Prepare the clinician’s visit context", "Document the session through clinician review", "Coordinate the agreed next contact"],
+  "Primary care": ["Receive an appointment request", "Collect and review patient information", "Confirm the visit", "Prepare the care team’s context", "Document the visit and next action", "Coordinate follow-up"],
+  "Direct primary care": ["Explain the clinic’s membership terms", "Respond to enrollment questions", "Record the clinic’s enrollment steps", "Coordinate a member visit", "Route member questions to the right team", "Plan administrative follow-through"],
+  "Men’s health": ["Receive a private service inquiry", "Collect and review intake information", "Arrange clinician evaluation", "Document the clinic’s next step", "Coordinate program administration", "Plan follow-up with the care team"],
+  "Hormone therapy": ["Receive a service inquiry", "Collect clinic-defined intake information", "Arrange clinician evaluation", "Document the professional review", "Coordinate clinic-defined monitoring tasks", "Plan the next follow-up"],
+  Infusion: ["Receive a referral or appointment request", "Review clinic preparation requirements", "Coordinate appointment resources", "Confirm the visit with the patient", "Record the clinic’s visit workflow", "Route follow-up work to its owner"],
+  Psychiatry: ["Receive a request for care", "Complete and review intake", "Schedule a clinician appointment", "Prepare relevant visit context", "Document the appointment through clinician review", "Coordinate the next agreed contact"],
+  "Medical spa": ["Share service information", "Receive a booking request", "Complete clinic-required pre-visit steps", "Arrange clinician review where applicable", "Coordinate the appointment and payment steps", "Plan follow-up or a return visit"],
+  "IV therapy": ["Receive a service inquiry", "Review clinic-defined preparation steps", "Coordinate appointment resources", "Confirm the visit", "Complete the clinic’s review and documentation steps", "Assign follow-up work"],
+  Longevity: ["Receive a service inquiry", "Collect and review intake information", "Arrange professional evaluation", "Document the clinic-defined plan", "Coordinate appointments and related tasks", "Plan follow-up with the team"],
+  "Physical therapy": ["Receive a referral or appointment request", "Complete and review intake", "Schedule a therapist-led evaluation", "Plan recurring visits with the patient", "Document the clinic’s next steps", "Coordinate progress review and follow-up"],
+};
+
+function childScenario(slug: string, label: string, specialty: Specialty): string {
+  if (slug === "cash-pay") {
+    return "A patient asks what a primary care visit costs and how to book. Front-desk staff share the clinic’s published service and payment terms, route payment-specific questions to the responsible administrator, and coordinate scheduling. The clinician receives the visit context; clinical questions stay with the care team. If a service or fee is unclear, staff confirm it with the clinic before setting expectations."
+  }
+  if (specialty.name === "Weight loss" && /inventory|purchasing|receiving|replenishment|lot|expiration|recall|forecasting|margin/.test(slug)) {
+    return `A program coordinator preparing for a ${label.toLowerCase()} task spots a stock or supply question. The coordinator checks the clinic’s recorded information, routes discrepancies to the operations owner, and keeps any patient-specific treatment question with the authorized clinician.`;
+  }
+  if (specialty.name === "Weight loss" && /booking|scheduling|telehealth|appointment/.test(slug)) {
+    return `A patient requests a ${label.toLowerCase()} appointment as part of a weight management program. The program coordinator checks the clinic’s scheduling requirements, confirms the appointment details with the patient, and routes care questions or incomplete intake to the appropriate reviewer before the next step.`;
+  }
+  if (specialty.name === "Weight loss" && /intake|portal|messaging|forms/.test(slug)) {
+    return `A prospective patient shares information through the clinic’s ${label.toLowerCase()} process. The intake coordinator checks for missing items, routes care-related context to an authorized clinician, and follows up with the patient on incomplete administrative steps.`;
+  }
+  if (specialty.name === "Weight loss") {
+    return `A prospective patient asks about ${label.toLowerCase()}. The intake coordinator records the request and shares the clinic’s published program information; an authorized clinician reviews care-related details; then the coordinator tracks scheduling, administrative questions, and the agreed next contact. Missing information returns to the patient or the staff member who can resolve it.`;
+  }
+  if (specialty.name === "Behavioral health" && /clinical-notes|clinical-documentation|ai-scribe|treatment-plans/.test(slug)) {
+    return `After a behavioral health session, the treating professional reviews the visit context and documentation, corrects anything that needs attention, and determines the clinical next step. Practice staff coordinate an agreed follow-up; missing details return to the responsible author, and urgent concerns follow practice procedures.`;
+  }
+  if (specialty.name === "Behavioral health" && /scheduling|appointment|telehealth/.test(slug)) {
+    return `A person requests a ${label.toLowerCase()} appointment. The scheduling coordinator checks the practice’s process, confirms the details with the person, and routes appointment changes or missing intake information to the right owner. The treating professional handles clinical review.`;
+  }
+  if (specialty.name === "Behavioral health" && /intake|forms|portal|messaging|communication/.test(slug)) {
+    return `A person contacts the practice about ${label.toLowerCase()}. The intake or scheduling coordinator records the request, routes forms and relevant context to the assigned clinician for review, and follows up on missing information or appointment changes. Clinical assessment stays with the treating professional; urgent concerns follow the practice’s own procedures.`;
+  }
+  if (/inventory|purchasing|receiving|replenishment|lot|expiration|recall|forecasting|margin/.test(slug)) {
+    return `A clinic manager notices a ${label.toLowerCase()} question during routine operations. The responsible staff member checks the clinic’s records, identifies who should review it, and routes any unresolved item for follow-up.`;
+  }
+  if (/scheduling|appointment|booking|telehealth|chair|resource/.test(slug)) {
+    return `A patient requests a ${label.toLowerCase()} appointment. Front-desk staff review the request and clinic requirements, then coordinate confirmation with the patient and the relevant care or operations team.`;
+  }
+  if (/intake|forms|portal|messaging|communication/.test(slug)) {
+    return `A patient submits information or a question through the clinic’s ${label.toLowerCase()} process. Staff review what arrived, identify missing details, and route the next step to the appropriate team member.`;
+  }
+  if (/lab|monitoring|progress/.test(slug)) {
+    return `A result or progress item reaches the clinic for review. Staff route it to the designated professional, who determines any clinical interpretation or follow-up; operations staff coordinate the administrative next step.`;
+  }
+  if (/medication|glp|hormone|testosterone|trt|treatment-plan|ed-treatment|peptide/.test(slug)) {
+    return `A patient asks about ${label.toLowerCase()} during an ongoing care journey. Clinic staff route the request and relevant context to an authorized clinician, who determines the clinical next step.`;
+  }
+  if (/billing|payment|subscription|membership|package|benefit|insurance|authorization/.test(slug)) {
+    return `A patient or member has a ${label.toLowerCase()} question. Front-desk or billing staff review the clinic’s terms and available information, then route unresolved items to the responsible person.`;
+  }
+  return `A patient’s visit creates a ${label.toLowerCase()} task for the clinic. The team records who owns the next step, routes relevant context for professional review where needed, and follows up on open work.`;
+}
+
 function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<GrowthPage> {
   const topic = slug ? topicCopy[slug] : undefined;
   const pageLabel = topic?.label ?? (slug ? titleCase(slug) : specialty.name);
@@ -218,13 +280,29 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     ? `${focus} See how this step fits the wider ${specialty.name.toLowerCase()} workflow, then confirm current product availability with the team.`
     : specialty.journey;
   const sections = slug ? [
-    { heading: topic?.section ?? `The ${pageLabel.toLowerCase()} handoff`, body: focus },
-    { heading: "What the team needs to see", body: `The ${specialty.name.toLowerCase()} team needs the relevant information, role, and recorded status at this step. Review ownership, exceptions, and the next action together during a product walkthrough.` },
-    { heading: "Fit with the wider clinic workflow", body: `${specialty.operations} Use the walkthrough to confirm how this page’s workflow connects with intake, scheduling, the visit, and follow-up for this clinic.` },
+    { heading: `The ${pageLabel.toLowerCase()} challenge`, body: `${pageLabel} can involve several clinic handoffs. ${focus}` },
+    { heading: "A starting scenario", body: childScenario(slug, pageLabel, specialty) },
+    { heading: "What the staff team needs to see", body: slug === "cash-pay"
+      ? "Front-desk staff need the clinic’s current service and payment terms, appointment request, and owner for any open question. Scheduling staff coordinate the visit; billing or administrative staff handle payment questions; the clinician sees relevant visit context. A product walkthrough can show which of these details are currently available."
+      : specialty.name === "Weight loss"
+        ? `The intake coordinator needs the patient’s request, completion status, next appointment, and owner of each open administrative task. The care team needs relevant context for professional review; supply questions belong with the operations owner. A product walkthrough can show the current screen and available fields.`
+        : specialty.name === "Behavioral health"
+          ? `The intake or scheduling coordinator needs request status, form completion, appointment details, and the owner of each follow-up. The treating professional receives the context needed for review, with sensitive or urgent concerns handled under the practice’s procedures. A product walkthrough can show the current screen and available fields.`
+          : `For this ${specialty.name.toLowerCase()} workflow, staff need a clear view of the request or task, its owner, current status, and the next action. The exact screen and available fields should be confirmed in a product walkthrough.` },
+    { heading: "Handoffs and professional review", body: slug === "cash-pay"
+      ? "Front-desk staff explain published terms and coordinate booking; payment or fee exceptions go to the clinic’s designated administrator; care questions go to the clinician. The clinic defines its service, fee, and payment policies, and the clinician retains clinical decision-making."
+      : specialty.name === "Weight loss"
+        ? "The intake coordinator owns request completeness and scheduling follow-through. Payment or membership questions go to the clinic’s designated administrator; care-related questions and eligibility decisions go to an authorized clinician. Missing details return to the person who can resolve them."
+        : specialty.name === "Behavioral health"
+          ? "The intake coordinator owns form and request follow-through; scheduling changes go to the scheduling owner; clinical context goes to the treating professional. Incomplete information returns to the patient or intake staff, while urgent concerns follow the practice’s established procedures."
+          : `Front-desk or operations staff coordinate the administrative handoff; the care team handles professional review where appropriate. Clinical interpretation and care decisions remain with authorized clinicians, and unresolved exceptions return to the clinic’s chosen owner.` },
+    { heading: "Evaluation and current limits", body: `The clinic can compare this workflow with its roles, exceptions, and existing systems. Product availability, integrations, and deployment-specific details need confirmation during evaluation.` },
   ] : [
-    { heading: "Start with the patient journey", body: specialty.journey },
-    { heading: "Coordinate the clinic’s work", body: specialty.operations },
-    { heading: "Evaluate fit and current scope", body: specialty.evaluation },
+    { heading: "Operating model", body: `${specialty.audience} Each clinic defines its own services, staff roles, policies, and operating terms.` },
+    { heading: "Patient journey", body: specialty.journey },
+    { heading: "Team handoffs", body: `Patient-facing staff, the care team, and clinic operations each have a role in the ${specialty.name.toLowerCase()} journey. Clear ownership helps requests, visit preparation, and follow-up move to the right person while preserving professional responsibilities.` },
+    { heading: "Key workflows", body: specialty.operations },
+    { heading: "Evaluation and limits", body: specialty.evaluation },
   ];
   const objections = slug ? [
     { question: `How does ${pageLabel.toLowerCase()} fit our ${specialty.name.toLowerCase()} process?`, answer: `Start with your current steps, staff roles, and exceptions. ${focus} The walkthrough should confirm fit against your process rather than assume one standard workflow.` },
@@ -240,6 +318,7 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     eyebrow: slug ? `Workflow for ${specialty.name.toLowerCase()} clinics` : `For ${specialty.name.toLowerCase()} practices`,
     headline,
     lead,
+    ...(slug ? {} : { steps: overviewSteps[specialty.name] }),
     audience: specialty.audience,
     note: "The guided demo uses synthetic records. Confirm current product availability and the workflow details that matter to your clinic before making a decision.",
     searchIntent: slug ? `${pageLabel.toLowerCase()} software evaluation for ${specialty.name.toLowerCase()} clinics` : `${specialty.name.toLowerCase()} clinic software and workflow evaluation`,
@@ -251,6 +330,17 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     questions: objections,
     links: [
       ...(slug ? [{ label: `${specialty.name} overview`, path: Object.keys(specialties).find((candidate) => path.startsWith(`${candidate}/`)) ?? path }] : []),
+      ...(specialty.name === "Weight loss" && slug ? [
+        { label: "Weight loss patient intake guide", path: "/resources/guides/weight-loss-patient-intake" },
+        { label: "Weight loss intake form template", path: "/resources/templates/weight-loss-intake-form" },
+      ] : []),
+      ...(slug === "cash-pay" ? [
+        { label: "Cash-pay clinic solution", path: "/solutions/cash-pay-clinics" },
+        { label: "Starting a cash-pay clinic guide", path: "/resources/guides/start-a-cash-pay-clinic" },
+        { label: "Direct primary care workflows", path: "/direct-primary-care" },
+        { label: "Direct primary care billing", path: "/direct-primary-care/billing" },
+        { label: "Direct primary care memberships", path: "/direct-primary-care/memberships" },
+      ] : []),
       { label: "Platform overview", path: "/platform" },
       { label: "Book a demo", path: "/book-demo" },
       { label: "Related workflow resources", path: "/resources" },

@@ -355,6 +355,47 @@ const briefs: Record<string, Brief> = {
   },
 };
 
+const teamSections: Record<string, readonly [string, string]> = {
+  "/platform": ["A shared clinic view should help front-desk, care, and administrative staff understand the recorded state of a journey. In a walkthrough, compare the information each role needs and any details that remain unavailable.", "Each transition still has an owner: patient access to staff preparation, staff to the clinician, and the visit to follow-up. Human review remains necessary for professional decisions and unresolved exceptions."],
+  "/platform/audit-history": ["A reviewer needs the record, relevant event details, and enough context to distinguish a correction from a new action. The exact events and fields visible depend on the current product configuration.", "An event history can support investigation, while a person still determines what it means and whether action is needed. Corrections and events outside the captured history require separate handling."],
+  "/platform/billing": ["Front-desk and billing staff need to see the service context, amount, payment state, and any unresolved balance without confusing those details with care decisions.", "Payment status should move between staff and any processor as a distinct recorded outcome. A staff member reviews exceptions such as partial, failed, refunded, or disputed transactions."],
+  "/platform/clinical-documentation": ["Clinicians and authorized staff need encounter context, authorship, and a clear distinction between unfinished and reviewed documentation. The fields and note types require environment-specific confirmation.", "Documentation may pass from preparer to clinician reviewer and then to the next authorized role. The clinician remains responsible for interpretation, correction, and any final approval."],
+  "/platform/e-signatures": ["Staff need to identify the document version, intended signer, and request state. The signer should be able to review the document before recording a response.", "A signature request moves between document preparer, signer, and staff follow-up. Staff must resolve incomplete or declined requests; a status alone does not establish legal sufficiency."],
+  "/platform/forms": ["Staff need to distinguish patient-entered responses, unanswered questions, and their own review notes. A reviewer should see enough context to decide whether clarification is needed.", "Responses pass from the patient to an assigned reviewer and may return for clarification. Patient statements are not automatically verified or converted into a clinical assessment."],
+  "/platform/inventory": ["Operations staff need item identity, recorded quantity, location, and movement context to investigate a discrepancy. Physical counts and the reasons behind adjustments remain important context.", "Receiving, use, adjustment, and reconciliation may involve different staff responsibilities. A person reviews discrepancies and any lot, expiration, or recall-related next action."],
+  "/platform/invoices": ["Billing staff need itemized charges, invoice state, delivery outcome, and payment state presented as separate facts. The source of each state should be understandable.", "Invoice preparation can pass from staff review to patient delivery and later reconciliation. Exceptions such as correction, failed delivery, or payment mismatch need a responsible staff member."],
+  "/platform/labs": ["The care team needs to distinguish an order or request from a received result and a reviewed result. Source, units, and missing information remain visible context for a qualified reviewer.", "Lab information may arrive from staff entry or an external source, depending on confirmed setup. Qualified clinicians retain interpretation and care decisions; staff can track unresolved receipt or follow-up work."],
+  "/platform/medications": ["Authorized clinicians need medication context and documentation, while operations staff may need related inventory or pharmacy status. These views should not imply that a prescription was transmitted when only a local record exists.", "The workflow can cross clinician review, staff follow-up, inventory, and an external pharmacy. Clinicians own prescribing decisions, and staff confirm any external response separately."],
+  "/platform/memberships": ["Staff need the member’s stated terms, effective dates, access context, and billing state to respond to enrollment changes. Payment status should have a visible source.", "Enrollment, service access, recurring billing, and cancellation can involve separate owners. Staff review exceptions and clinic-defined eligibility rather than treating membership status as a clinical decision."],
+  "/platform/messaging": ["The team needs message content, intended channel, responsible staff member, and a delivery state that distinguishes queued, sent, failed, or unknown outcomes.", "A staff member prepares or reviews communication, a channel may return a delivery result, and the team handles replies or failures. Sending and clinical advice require the appropriate human oversight."],
+  "/platform/multi-location": ["Managers and location teams need to see assignment and location context without losing the boundary between shared oversight and local responsibility. Access depends on verified configuration.", "Work transferred between sites needs a receiving owner and enough context to continue safely. Local staff still review site-specific exceptions and decisions."],
+  "/platform/notifications": ["A notification is useful when its recipient, event, and related open task are clear. Staff need to distinguish the alert itself from the underlying work state.", "An alert can lead to acknowledgment, assignment, or escalation, but it does not complete the task automatically. A person follows up when delivery is missed or unavailable."],
+  "/platform/packages": ["Staff need package terms, recorded purchase status, included service count, and redemption history to answer patient questions. These administrative details do not establish clinical appropriateness.", "Package setup, payment, redemption, and adjustments may have separate owners. Staff review refunds, remaining balance, and disputes against the clinic’s stated terms."],
+  "/platform/patient-intake": ["The patient provides information; staff need the original responses, completion state, and items needing clarification before a visit. Review ownership should be visible.", "Intake moves from patient completion to staff review and, where needed, a clarification request. A clinician separately determines what the information means for care."],
+  "/platform/patient-management": ["Staff need relevant patient identity and activity context, with record source, unknown details, and correction history easy to distinguish.", "Record changes may pass between staff who enter information and authorized reviewers who correct or reconcile it. Access and identity questions require the configured permission process."],
+  "/platform/patient-portal": ["Patients need a clear next step and an understandable request state; staff need to see submissions, missing information, and ownership in their work queue.", "A patient submission passes to staff review before a response or action. Portal access does not itself approve a request or determine what information a user may access."],
+  "/platform/payments": ["Staff need the amount due, attempted payment, processor response, and reconciliation status presented distinctly. Pending or unknown states should not appear settled.", "A payment attempt crosses the clinic interface and payment processor, then returns to staff for reconciliation. Staff handle failures, refunds, or disputes using the confirmed source state."],
+  "/platform/procedures": ["The team needs the procedure’s operational context, assigned roles, preparation status, and documentation state. Clinical details and protocols are set by the clinic’s qualified professionals.", "Preparation, procedure documentation, and follow-up pass between designated staff and clinicians. A qualified professional reviews decisions and any exception; software status is not clinical approval."],
+  "/platform/reporting": ["Managers need the report’s metric definitions, time window, filters, and source context to understand what a number includes or omits.", "A report can prompt a question for an operations owner to investigate against source records. Human review is needed for incomplete data and before using results to make operational decisions."],
+  "/platform/roles-permissions": ["Administrators need a clear view of role assignments and the actions each role may take. Staff should understand when a task requires another authorized person.", "Access requests and role changes pass through the clinic’s designated administrator. The server’s authorization controls, rather than visible navigation, determine whether an action is permitted."],
+  "/platform/scheduling": ["Schedulers need visit type, availability, assigned staff or resources, and appointment state together. Patients and staff may have different next steps when a visit changes.", "Booking and confirmation pass to staff preparation and the patient’s appointment experience. Staff handle conflicts and cancellations; a calendar state alone does not establish successful patient notification."],
+  "/platform/tasks": ["Team members need an owner, due context, related record, and a distinct open, blocked, or completed state to know what action remains.", "Tasks pass from creator to assignee and may be reassigned or escalated. A person verifies the underlying work before relying on a completion state."],
+  "/platform/telehealth": ["Staff and patients need appointment preparation and session access details, while the team needs a clear view of the visit and post-visit work. External video availability requires confirmation.", "The clinic prepares the appointment, the patient joins through the confirmed channel, and staff handle connection trouble or follow-up. Clinicians remain responsible for the visit and its decisions."],
+  "/platform/workflows": ["Each role needs the context and open work relevant to its step, along with clear ownership when a process crosses a system or team boundary.", "Handoffs can move from patient access to scheduling, clinician work, billing, and follow-up. A person owns exceptions and reviews any external or clinical action before it is treated as complete."],
+  "/ai": ["A team evaluating AI needs to see the input, proposed output, reviewer, and action boundary together. Each feature’s data flow and availability require separate confirmation.", "AI output remains a proposal until an appropriate person reviews it. The human owner handles corrections, incomplete context, and the decision to proceed or discard."],
+  "/ai/avatar": ["Patients and staff need to know whether an avatar is a concept or available feature, what task it serves, and how to use an accessible alternative.", "A user should be able to correct or leave the interaction and reach staff when needed. The avatar does not act as a clinician or replace human support."],
+  "/ai/clinical-summaries": ["A reviewer needs the source context beside the proposed summary, with omissions, uncertainty, and unsupported statements easy to identify.", "A walkthrough should trace how a draft would reach a qualified reviewer for correction, rejection, or appropriate use. No summary replaces review of the source or professional judgment."],
+  "/ai/documentation": ["The responsible clinician needs to distinguish source material, generated draft text, and their own edits before approving documentation.", "If available, a draft should reach the clinician for correction and explicit review before any permitted record action. Generated content is not inherently complete, accurate, or final."],
+  "/ai/follow-up": ["Staff need the source context behind a proposed follow-up and a clear distinction between a suggestion, an assigned task, and a patient communication.", "A staff member reviews the proposal, edits or dismisses it, and owns any approved next action. Care decisions and patient contact require the relevant human authorization."],
+  "/ai/intake": ["Staff need original patient answers alongside any organized draft, including missing or conflicting responses and their source.", "Patient-provided information passes to staff for clarification or review. AI organization does not verify a response or determine care eligibility."],
+  "/ai/lab-review": ["Qualified reviewers need source values, units, reference ranges, and any proposed administrative summary presented without unsupported interpretation.", "A clinician reviews result information and decides whether further action is appropriate. AI assistance must not substitute for interpretation or diagnosis."],
+  "/ai/patient-communication": ["Staff need approved source information, proposed wording, channel preference, and the person responsible for reviewing a draft before sending.", "A human reviews and approves any communication; delivery is a separate channel outcome. AI does not independently provide clinical advice or establish patient receipt."],
+  "/ai/patient-interviews": ["Patients need clear notice about the interview’s purpose, what is collected, and how to reach staff; staff need the response and any transcript or summary for review.", "Patient responses pass to staff for review and clarification. The interview does not assess or triage, and any urgent concern needs the clinic’s human support process."],
+  "/ai/scribe": ["The clinician and patient need clear recording notice and control, while the clinician needs to distinguish captured source material from generated draft notes.", "If available, capture and draft preparation pass to clinician review, correction, and a deliberate record action. Consent, retention, and discard behavior must be verified for the specific feature."],
+  "/ai/voice": ["The user needs a visible microphone state and transcript they can review, correct, or discard; another input method should remain available.", "Spoken input becomes a transcript or draft for human correction before any later action. A misheard value should not be treated as confirmed information."],
+  "/ai/workflow-automation": ["Staff need to distinguish a configured rule, an AI suggestion, a required approval, and an external action in the same workflow view.", "A trigger or proposal should pass through required human approval before any consequential action. The team needs a correction and recovery path for failures or unintended outcomes."],
+};
+
 const faqAnswers: Record<string, readonly [string, string, string]> = {
   "/platform/audit-history": ["The exact event coverage must be confirmed for the environment and record type being evaluated.", "No. A history view is one input to review and does not establish compliance by itself.", "Confirm role access and review controls in the current product walkthrough."],
   "/platform": ["No. Each module and workflow needs current, environment-specific availability confirmation.", "Yes. Bring a representative journey and the roles involved to a guided walkthrough.", "No. Confirm which existing tools remain involved and how each handoff is represented."],
@@ -407,17 +448,43 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
     "Verify configuration, external dependencies, and the responsible reviewer before relying on this workflow.",
   ];
   const parent = isAi ? "/ai" : "/platform";
-  const links = root
-    ? [{ label: isAi ? "Explore platform workflows" : "Explore AI evaluation topics", path: isAi ? "/platform/workflows" : "/ai" }, { label: "Book a demo", path: "/book-demo" }]
-    : [{ label: `${isAi ? "AI" : "Platform"} overview`, path: parent }, { label: "Related clinic workflows", path: isAi ? "/platform/workflows" : "/platform" }, { label: "Book a demo", path: "/book-demo" }];
+  const links = path === "/platform"
+    ? [
+      { label: "Home", path: "/" },
+      { label: "Explore clinic workflows", path: "/platform/workflows" },
+      { label: "Browse clinic resources", path: "/resources/guides" },
+      { label: "Explore the demo", path: "/demo" },
+      { label: "Book a demo", path: "/book-demo" },
+    ]
+    : path === "/ai"
+      ? [
+        { label: "Home", path: "/" },
+        { label: "Platform overview", path: "/platform" },
+        { label: "Explore AI documentation", path: "/ai/documentation" },
+        { label: "Browse clinic resources", path: "/resources/guides" },
+        { label: "Explore the demo", path: "/demo" },
+        { label: "Book a demo", path: "/book-demo" },
+      ]
+      : [
+        { label: `${isAi ? "AI" : "Platform"} overview`, path: parent },
+        { label: "Home", path: "/" },
+        { label: isAi ? "Related AI workflow" : "Related specialty workflow", path: isAi ? "/ai/intake" : "/weight-loss" },
+        { label: "Browse clinic resources", path: "/resources/guides" },
+        { label: "Explore the demo", path: "/demo" },
+        { label: "Book a demo", path: "/book-demo" },
+      ];
 
   return {
     group: isAi ? "AI" : "Platform",
     title: brief.title,
     eyebrow: isAi ? "AI evaluation" : "Clinic platform",
-    headline: path === "/platform" ? "A connected view of the clinic’s work." : path === "/ai" ? "Evaluate AI assistance with review in view." : brief.title,
+    headline: path === "/platform" ? "Explore platform with Meta Clinic." : path === "/ai" ? "Explore AI with Meta Clinic." : brief.title,
     lead: brief.lead,
-    steps: ["Map the task and owner", "Follow the handoff and review", "Confirm scope and availability"],
+    steps: root
+      ? isAi
+        ? ["Choose a bounded task", "Identify its input and data path", "Review the proposed output", "Define the human approval point", "Confirm availability and limits"]
+        : ["Map the patient journey", "Identify each role and handoff", "Review the team’s shared work", "Locate open and exception states", "Confirm scope and availability"]
+      : ["Identify the task and owner", "Follow the handoff and review", "Confirm scope and availability"],
     note: isAi
       ? "AI features and data handling require feature-specific confirmation. Treat generated content as a proposal for appropriate human review; this page does not represent availability or autonomous clinical action."
       : "Screens and workflows require current product confirmation. Demonstrations should use synthetic data and distinguish supported behavior from configuration, manual steps, and planned work.",
@@ -427,11 +494,22 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
     visualBrief: brief.visual,
     primaryCta: { label: "Book a demo", path: "/book-demo" },
     secondaryCta: { label: "Explore the sandbox", path: "/sandbox" },
-    sections: [
-      { heading: "Start with the operating question", body: brief.problem },
-      { heading: "Follow the work and its handoffs", body: brief.workflow },
-      { heading: "Evaluate current scope", body: brief.evaluation },
-    ],
+    sections: root
+      ? [
+        { heading: "Who it serves and the buyer problem", body: `${audience}. ${brief.problem}` },
+        { heading: "Top outcomes", body: isAi ? "A bounded assistance task can make a draft or organized information easier to review, while leaving decisions and external actions with the responsible person." : "A connected workflow can help teams see ownership, the next step, and unresolved work across the patient journey. Evaluate the specific screens and states before relying on them." },
+        { heading: "Connected journey", body: brief.workflow },
+        { heading: "Capability areas and team view", body: `${teamSections[path][0]} These capability topics are evaluation areas; their presence here does not establish current availability.` },
+        { heading: "Objections, handoffs, and human review", body: teamSections[path][1] },
+        { heading: "Evaluate scope, limits, and next step", body: brief.evaluation },
+      ]
+      : [
+        { heading: "The buyer problem", body: brief.problem },
+        { heading: "A scenario to follow", body: brief.workflow },
+        { heading: "What the team needs to see", body: teamSections[path][0] },
+        { heading: "Handoffs and human review", body: teamSections[path][1] },
+        { heading: "Evaluate current scope and limits", body: brief.evaluation },
+      ],
     questions: [0, 1, 2].map((index) => ({ question: brief.faq[index], answer: answers[index] })),
     links,
   };

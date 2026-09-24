@@ -10,7 +10,7 @@ export type GrowthPage = {
   eyebrow: string;
   headline: string;
   lead: string;
-  steps: readonly [string, string, string];
+  steps: readonly string[];
   image?: string;
   imageAlt?: string;
   imageCaption?: string;
@@ -90,6 +90,8 @@ const focus: Record<string, Partial<GrowthPage>> = {
     sections: [
       { heading: "Describe the clinic", body: "Share your specialty, locations, team size, patient access model, and the systems currently in use. These details set the context for a useful scope discussion." },
       { heading: "Choose the workflows", body: "Name the first patient and staff journeys you need to evaluate, such as intake, scheduling, visits, payment, inventory, or follow-up. Confirm which capabilities are available for the proposed environment." },
+      { heading: "Include implementation work", body: "Ask which setup, data preparation, training, and clinic-side decisions would be needed before a pilot or launch. Identify which work belongs to each party." },
+      { heading: "Account for connected services", body: "List payment, messaging, telehealth, prescribing, or other external services your clinic expects to use. Verify each current connection, agreement, and separate cost before treating it as included." },
       { heading: "Review the full proposal", body: "Ask for the proposed product scope, implementation work, support, dependencies, agreement terms, and total commercial commitment in writing before deciding." },
     ],
     questions: [
