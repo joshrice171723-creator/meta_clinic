@@ -444,6 +444,15 @@
   border-radius: 10px;
   box-shadow: 0 30px 75px rgba(57, 67, 90, 0.12);
 }
+.meta-flagship__schedule-day-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 22px;
+}
+.meta-flagship__schedule-day-gallery .meta-flagship__schedule-screen {
+  min-width: 0;
+}
 .meta-flagship__schedule-screen .meta-flagship__screen-top,
 .meta-flagship__schedule-screen figcaption {
   background: #edf2fa;
@@ -745,6 +754,7 @@
   .meta-flagship__inventory-people-grid,
   .meta-flagship__schedule-hero-layout,
   .meta-flagship__schedule-product-heading,
+  .meta-flagship__schedule-day-gallery,
   .meta-flagship__schedule-perspective-layout,
   .meta-flagship__schedule-booking-layout,
   .meta-flagship__schedule-telehealth-layout,

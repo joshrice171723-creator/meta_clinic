@@ -853,6 +853,10 @@ function Application() {
     (publicMembership !== null && path !== "/memberships/account");
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
   const growthMarketing = hasGrowthPage(path) && path !== "/" && path !== "/login";
+  const marketingClinicFeature =
+    /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|hormone-health|behavioral-health|rehabilitation-pt|aesthetics|infusion)\/features\/([a-z0-9-]+)$/.exec(
+      path,
+    );
   const marketingClinicType =
     /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|hormone-health|behavioral-health|rehabilitation-pt|aesthetics|infusion)$/.exec(
       path,
@@ -874,6 +878,7 @@ function Application() {
     ].includes(path) ||
     (publicMembership !== null && path !== "/memberships/account") ||
     marketingFeature !== null ||
+    marketingClinicFeature !== null ||
     marketingClinicType !== null ||
     growthMarketing;
   const [session, setSession] = useState<SessionBootstrap>({});
@@ -1011,12 +1016,19 @@ function Application() {
         <GrowthMarketingPage path={path} />
       </RouteBoundary>
     );
-  if (path === "/meta-clinic" || marketingFeature || marketingClinicType)
+  if (
+    path === "/meta-clinic" ||
+    marketingFeature ||
+    marketingClinicType ||
+    marketingClinicFeature
+  )
     return (
       <RouteBoundary root>
         <MetaClinicMarketing
-          featureSlug={marketingFeature?.[1]}
-          clinicTypeSlug={marketingClinicType?.[1]}
+          featureSlug={marketingClinicFeature?.[2] ?? marketingFeature?.[1]}
+          clinicTypeSlug={
+            marketingClinicFeature?.[1] ?? marketingClinicType?.[1]
+          }
         />
       </RouteBoundary>
     );

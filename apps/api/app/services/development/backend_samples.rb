@@ -44,8 +44,35 @@ module Development
       "Robin Flores", "Charlie Sanders", "Micah Bryant", "Shawn Russell", "Terry Griffin"
     ].freeze
     HISTORICAL_PATIENT_COUNT = 12
-    UPCOMING_PATIENT_COUNT = 4
-    SCENARIO_START = Time.utc(2026, 1, 12, 15)
+    UPCOMING_PATIENT_COUNT = 12
+    UPCOMING_APPOINTMENT_STARTS = [
+      Time.utc(2026, 9, 3, 14, 0), Time.utc(2026, 9, 8, 13, 0),
+      Time.utc(2026, 9, 10, 15, 0), Time.utc(2026, 9, 15, 14, 30),
+      Time.utc(2026, 9, 17, 16, 0), Time.utc(2026, 9, 22, 13, 30),
+      Time.utc(2026, 9, 24, 14, 0), Time.utc(2026, 9, 24, 15, 0),
+      Time.utc(2026, 9, 25, 14, 30), Time.utc(2026, 9, 28, 13, 0),
+      Time.utc(2026, 9, 29, 15, 30), Time.utc(2026, 9, 30, 16, 0)
+    ].freeze
+    MARKETING_MONTH_APPOINTMENT_STARTS = (Date.new(2026, 10, 1)..Date.new(2026, 10, 31)).select do |day|
+      (1..5).cover?(day.wday)
+    end.flat_map do |day|
+      [Time.utc(day.year, day.month, day.day, 14), Time.utc(day.year, day.month, day.day, 16)]
+    end.freeze
+    MARKETING_BUSY_DAY_VISITS = [
+      { starts_at: Time.utc(2026, 10, 1, 9), room: "MAIN-1", clinician: 2, minutes: 45,
+        visit_type: "Results review" },
+      { starts_at: Time.utc(2026, 10, 1, 10, 30), room: "MAIN-2", clinician: 0, minutes: 60,
+        visit_type: "New patient evaluation" },
+      { starts_at: Time.utc(2026, 10, 1, 12), room: "MAIN-1", clinician: 1, minutes: 45,
+        visit_type: "Medication review" },
+      { starts_at: Time.utc(2026, 10, 1, 13, 30), room: "MAIN-2", clinician: 2, minutes: 90,
+        visit_type: "Comprehensive evaluation" },
+      { starts_at: Time.utc(2026, 10, 1, 15, 30), room: "MAIN-1", clinician: 2, minutes: 60,
+        visit_type: "Care plan review" }
+    ].map(&:freeze).freeze
+    # Keep the longest synthetic appointment inside the 08:00–17:00 fixture
+    # hours enforced by CapacityGuard.
+    SCENARIO_START = Time.utc(2026, 1, 12, 14)
     BOARD_SCENARIO_ELAPSED_MINUTES = [ 300, 250, 200, 150, 100, 50 ].freeze
     BOARD_REPLACEMENT_SPACING_MINUTES = 35
     BOARD_SCENARIOS = [
@@ -208,6 +235,13 @@ module Development
       }
       rooms_by_site.map do |code, room_codes|
         site = practice.sites.find_or_create_by!(code: code)
+        7.times do |day_of_week|
+          site.operating_hours.find_or_create_by!(practice:, day_of_week:) do |hours|
+            hours.closed = [0, 6].include?(day_of_week)
+            hours.open_time = "08:00" unless hours.closed?
+            hours.close_time = "17:00" unless hours.closed?
+          end
+        end
         room_codes.each { |room_code| site.rooms.find_or_create_by!(practice: practice, code: room_code) }
         site
       end
@@ -236,10 +270,12 @@ module Development
         reference = "SYN-#{label}-#{format('%03d', index + 1)}"
         old_name = "Synthetic Patient #{label} #{index + 1}"
         first_name, last_name = name.split(" ", 2)
-        display_name = "SYN_#{last_name}, #{first_name}"
+        # Keep the synthetic marker in the stable reference while presenting
+        # natural names in clinic-facing screens and marketing captures.
+        display_name = "#{last_name}, #{first_name}"
         previous_display_name = "#{name} [Synthetic]"
         patient = practice.patients.find_or_create_by!(reference: reference) { |row| row.display_name = display_name }
-        if [ old_name, previous_display_name ].include?(patient.display_name)
+        if [ old_name, previous_display_name ].include?(patient.display_name) || patient.display_name == "SYN_#{last_name}, #{first_name}"
           patient.update!(display_name: display_name)
         end
         seed_registration(patient, actor, label, index)
@@ -422,7 +458,7 @@ module Development
     private_class_method :seed_condition_alert
 
     def self.seed_chart_history(practice, patients, sites, clinicians, users)
-      visit_type = practice.visit_types.find_or_create_by!(code: "SYNTHETIC-FOLLOW-UP")
+      visit_type = practice.visit_types.find_or_create_by!(code: "Follow-up visit")
       actor = users.fetch("admin").first
       staff_actor = users.fetch("staff")[1]
       clinician_actor = users.fetch("clinician").first
@@ -449,11 +485,29 @@ module Development
         end
       end
 
+      main_site = sites.find { |site| site.code == "MAIN" }
       patients.drop(HISTORICAL_PATIENT_COUNT).first(UPCOMING_PATIENT_COUNT).each_with_index do |patient, index|
-        site = sites[index % sites.length]
+        site = main_site
         clinician = clinicians[index % clinicians.length]
-        starts_at = Time.utc(2026, 9, 8, 14) + index.hours
+        starts_at = UPCOMING_APPOINTMENT_STARTS.fetch(index)
         find_or_book_appointment(practice, actor, patient, site, clinician, visit_type, starts_at)
+      end
+
+      MARKETING_MONTH_APPOINTMENT_STARTS.each_with_index do |starts_at, index|
+        patient = patients[index % patients.length]
+        clinician = clinicians[index % clinicians.length]
+        find_or_book_appointment(practice, actor, patient, main_site, clinician, visit_type, starts_at)
+      end
+
+      site_timezone = ActiveSupport::TimeZone[main_site.timezone_override.presence || practice.timezone] || Time.zone
+      MARKETING_BUSY_DAY_VISITS.each_with_index do |visit, index|
+        scenario_visit_type = practice.visit_types.find_or_create_by!(code: visit.fetch(:visit_type))
+        local_clock = visit.fetch(:starts_at)
+        starts_at = site_timezone.local(local_clock.year, local_clock.month, local_clock.day,
+          local_clock.hour, local_clock.min)
+        find_or_book_appointment(practice, actor, patients[index + 12], main_site,
+          clinicians.fetch(visit.fetch(:clinician)), scenario_visit_type, starts_at,
+          room: main_site.rooms.find_by!(code: visit.fetch(:room)), duration_minutes: visit.fetch(:minutes))
       end
     end
     private_class_method :seed_chart_history
@@ -497,10 +551,13 @@ module Development
       end
 
       generation = patient.appointments.where(visit_type: visit_type).count
-      elapsed_minutes = BOARD_SCENARIO_ELAPSED_MINUTES.fetch(index) +
-        (generation * BOARD_REPLACEMENT_SPACING_MINUTES)
-      starts_at = Time.current - elapsed_minutes.minutes
-      timezone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone]
+      elapsed_minutes = [
+        BOARD_SCENARIO_ELAPSED_MINUTES.fetch(index) +
+          (generation * BOARD_REPLACEMENT_SPACING_MINUTES),
+        330
+      ].min
+      timezone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone] || Time.zone
+      starts_at = board_seed_anchor(timezone:, now: Time.current) - elapsed_minutes.minutes
       if timezone && starts_at.in_time_zone(timezone).to_date != (starts_at + 30.minutes).in_time_zone(timezone).to_date
         starts_at -= 30.minutes
       end
@@ -529,6 +586,16 @@ module Development
       )
     end
     private_class_method :current_or_replacement_board_encounter
+
+    # Keep every synthetic board visit inside the site's configured weekday
+    # hours while retaining a past timestamp for the waiting-room story.
+    def self.board_seed_anchor(timezone:, now:)
+      local_now = now.in_time_zone(timezone)
+      date = local_now.to_date - 1.day
+      date -= 1.day while [0, 6].include?(date.wday)
+      timezone.local(date.year, date.month, date.day, 14, 0, 0)
+    end
+    private_class_method :board_seed_anchor
 
     def self.normalize_board_encounter_timing!(encounter, scenario:, index:, now:)
       return unless managed_board_encounter?(encounter, scenario, index)
@@ -722,13 +789,14 @@ module Development
     end
     private_class_method :seed_encounter_care_summary
 
-    def self.find_or_book_appointment(practice, actor, patient, site, clinician, visit_type, starts_at)
+    def self.find_or_book_appointment(practice, actor, patient, site, clinician, visit_type, starts_at,
+      room: site.rooms.order(:code).first, duration_minutes: 30)
       practice.appointments.find_by(patient: patient, starts_at: starts_at) ||
         begin
           ensure_synthetic_capacity!(practice:, site:, clinician:)
           Clinic::Scheduling::BookAppointment.call(practice: practice, actor: actor, patient: patient, site: site,
-            room: site.rooms.order(:code).first, booked_clinician: clinician, visit_type: visit_type,
-            starts_at: starts_at, ends_at: starts_at + 30.minutes)
+            room: room, booked_clinician: clinician, visit_type: visit_type,
+            starts_at: starts_at, ends_at: starts_at + duration_minutes.minutes)
         end
     end
     private_class_method :find_or_book_appointment
@@ -806,10 +874,10 @@ module Development
     def self.soap_payload(index, revision:)
       Clinic::Care::SoapNotePayload.dump(template_id: "adult-physical-exam-detailed", template_version: 1,
         sections: {
-          subjective: "Visit scenario #{index + 1}; reported history reviewed.",
-          objective: "Vital-sign observations recorded separately; examination details are not recorded.",
-          assessment: revision == 1 ? "Draft assessment pending review." : "Revised assessment for history review.",
-          plan: revision == 1 ? "Draft plan pending review." : "Revised plan for follow-up."
+          subjective: "Routine follow-up for preventive care. Patient reports stable symptoms and no new concerns. Medication history and home care goals reviewed.",
+          objective: "Vital signs reviewed. Heart rate #{64 + index}/min, blood pressure #{112 + (index % 8) * 2}/#{68 + (index % 6) * 2} mmHg, weight #{58 + (index * 3)} kg. Exam findings are stable for this visit.",
+          assessment: revision == 1 ? "Preventive care follow-up; continue current plan." : "Preventive care follow-up with stable findings and goals reviewed.",
+          plan: revision == 1 ? "Continue current medications and home plan. Return for the next scheduled follow-up." : "Continue current plan, review updated results with the care team, and return at the next scheduled follow-up."
         })
     end
     private_class_method :soap_payload
@@ -855,6 +923,7 @@ module Development
 
         if invoice.status == "draft" && scenario.fetch(:status) != "draft"
           Clinic::Billing::PostInvoice.call(invoice: invoice, actor: actor)
+          invoice.reload
         end
         invoice.transition_to!("void") if invoice.status == "posted" && scenario.fetch(:status) == "void"
         next unless scenario[:allocated] && invoice.status == "posted"

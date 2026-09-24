@@ -97,10 +97,10 @@ function InventoryPage() {
           <div className="meta-flagship__inventory-photo">
             <span className="meta-flagship__photo-index">THE PRODUCT / 01</span>
             <Screen
-              src="/marketing/inventory-app.png"
-              alt="Meta Clinic inventory workspace showing a synthetic product catalog, on-hand quantities, reorder points, and actions."
+              src="/marketing/captures/inventory-catalog-100-products.png"
+              alt="Actual Meta Clinic inventory catalog showing fictional products, on-hand quantities, reorder points, and actions."
               label="Inventory overview"
-              caption="Captured from the populated demo clinic"
+              caption="Direct synthetic app capture"
             />
             <span
               className="meta-flagship__inventory-orbit"
@@ -247,8 +247,8 @@ function SchedulingPage() {
               <h2>A calendar with the whole clinic in view.</h2>
             </div>
             <p>
-              See how appointments occupy a room and a time. Virtual visits have
-              their own place beside on-site care.
+              See how appointments occupy a room and a time. Scan visit types
+              and providers before opening the detail.
             </p>
           </div>
           <div
@@ -272,26 +272,35 @@ function SchedulingPage() {
             </button>
           </div>
           {calendarView === "day" ? (
-            <Screen
-              src="/marketing/scheduling-showcase-telehealth.png"
-              alt="Illustrative Meta Clinic day calendar with fictional appointments of different lengths across clinic and telehealth rooms, including video room actions."
-              label="Day view · room and telehealth calendar"
-              caption="Illustrative preview with fictional appointments"
-              className="meta-flagship__schedule-screen"
-            />
+            <div className="meta-flagship__schedule-day-gallery">
+              <Screen
+                src="/marketing/captures/schedule-day-omni-morning.png"
+                alt="Actual Meta Clinic day schedule showing three fictional morning visits across rooms, providers, and appointment times."
+                label="Day view · morning"
+                caption="Adapted direct app capture"
+                className="meta-flagship__schedule-screen"
+              />
+              <Screen
+                src="/marketing/captures/schedule-day-omni-afternoon.png"
+                alt="Actual Meta Clinic day schedule showing four fictional afternoon visits with different appointment lengths."
+                label="Day view · afternoon"
+                caption="Adapted direct app capture"
+                className="meta-flagship__schedule-screen"
+              />
+            </div>
           ) : (
             <Screen
-              src="/marketing/scheduling-month.png"
-              alt="Illustrative September 2026 month calendar with fictional clinic and telehealth appointments."
+              src="/marketing/captures/schedule-month-omni-october.png"
+              alt="Meta Clinic October month calendar showing synthetic scheduled appointments across weekdays."
               label="Month view · clinic calendar"
-              caption="Illustrative preview with fictional appointments"
+              caption="Direct synthetic app capture"
               className="meta-flagship__schedule-screen"
             />
           )}
           <div className="meta-flagship__schedule-product-points">
             <span>Room-based planning</span>
             <span>Different visit lengths</span>
-            <span>Virtual visit entry</span>
+            <span>Provider visibility</span>
           </div>
         </div>
       </section>
@@ -303,8 +312,7 @@ function SchedulingPage() {
             <h2>Zoom out without losing the details.</h2>
             <p>
               Use the month view to scan what is coming, then return to the day
-              view to see room assignments, visit lengths, and virtual
-              appointments.
+              view to see room assignments, visit lengths, and visit types.
             </p>
             <button
               type="button"
@@ -466,10 +474,10 @@ function ClinicalNotesPage() {
             </a>
           </div>
           <Screen
-            src="/marketing/clinical-notes-concept.png"
-            alt="Illustrative Meta Clinic clinical notes workspace for a fictional encounter, with structured note sections and a save draft action."
-            label="Encounter workspace"
-            caption="Illustrative concept with fictional details"
+            src="/marketing/captures/patient-directory-21-natural-records.png"
+            alt="Related Meta Clinic patient directory with fictional records; this image does not show clinical notes."
+            label="Related patient workspace"
+            caption="Related patient directory · not a clinical notes capture"
             className="meta-flagship__notes-screen"
           />
         </div>
