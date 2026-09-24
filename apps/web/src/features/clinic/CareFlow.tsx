@@ -775,6 +775,7 @@ function BookingFormEditor({
     restoredDraft.visitModality ?? initialVisitModality,
   );
   const [busy, setBusy] = useState(false);
+  const [draftSaving, setDraftSaving] = useState(false);
   const [bookingAttempt, setBookingAttempt] = useState<BookingAttempt | null>(
     boundBooking.attempt,
   );
@@ -1159,6 +1160,7 @@ function BookingFormEditor({
       outcomeUnconfirmed: false,
     };
     inFlight.current = true;
+    setDraftSaving(true);
     setBusy(true);
     setSubmitError("");
     try {
@@ -1171,8 +1173,13 @@ function BookingFormEditor({
       lastWorkingDraft.current = snapshot;
       setHasWorkingDraft(true);
       onClose();
+    } catch {
+      setSubmitError(
+        "The draft could not be saved. Keep this form open and retry.",
+      );
     } finally {
       inFlight.current = false;
+      setDraftSaving(false);
       setBusy(false);
     }
   };
@@ -2112,7 +2119,7 @@ function BookingFormEditor({
                       Boolean(holdAttempt)
                     }
                   >
-                    Save as draft
+                    {draftSaving ? "Saving draft…" : "Save as draft"}
                   </Button>
                 )}
                 <Button
@@ -2127,12 +2134,12 @@ function BookingFormEditor({
                       (!selectedPatient || changingPatient))
                   }
                   startIcon={
-                    busy ? (
+                    busy && !draftSaving ? (
                       <CircularProgress size={18} color="inherit" />
                     ) : undefined
                   }
                 >
-                  {busy
+                  {busy && !draftSaving
                     ? "Scheduling…"
                     : outcomeUnconfirmed
                       ? "Retry same request"
