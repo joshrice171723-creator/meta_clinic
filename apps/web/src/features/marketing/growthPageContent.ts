@@ -567,6 +567,16 @@ const verifiedGalleries: Record<string, GrowthPage["gallery"]> = {
     { image: "/marketing/scheduling-month.png", imageAlt: "Meta Clinic synthetic month schedule showing remote visits.", imageCaption: "Remote visit scheduling in the shared demo" },
     { image: "/marketing/tracking-board-app.png", imageAlt: "Meta Clinic synthetic visit tracking board with intake and provider readiness states.", imageCaption: "Shared visit handoffs; behavioral health setup requires review" },
   ],
+  "/primary-care/cash-pay": [
+    { image: "/marketing/captures/schedule-booking-omni-adapted.png", imageAlt: "Meta Clinic synthetic appointment form with visit time, site, room, clinician, and visit reason.", imageCaption: "Booking details in a synthetic clinic" },
+    { image: "/marketing/captures/finance-open-invoice-detail.png", imageAlt: "Meta Clinic synthetic invoice with itemized charges and an open balance.", imageCaption: "Itemized charges and open balance" },
+    { image: "/marketing/captures/finance-paid-invoice-detail.png", imageAlt: "The same synthetic invoice after a payment and credit, with zero remaining balance.", imageCaption: "Payment and credit recorded against the invoice" },
+  ],
+  "/solutions/cash-pay-clinics": [
+    { image: "/marketing/captures/schedule-booking-omni-adapted.png", imageAlt: "Meta Clinic synthetic appointment form with visit time, site, room, clinician, and visit reason.", imageCaption: "Booking details in a synthetic clinic" },
+    { image: "/marketing/captures/finance-open-invoice-detail.png", imageAlt: "Meta Clinic synthetic invoice with itemized charges and an open balance.", imageCaption: "Itemized charges and open balance" },
+    { image: "/marketing/captures/finance-paid-invoice-detail.png", imageAlt: "The same synthetic invoice after a payment and credit, with zero remaining balance.", imageCaption: "Payment and credit recorded against the invoice" },
+  ],
 };
 export const marketingRouteCount = entries.size;
 export function getGrowthPage(path: string): GrowthPage | null {
