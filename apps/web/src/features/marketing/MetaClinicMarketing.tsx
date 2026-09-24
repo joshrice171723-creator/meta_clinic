@@ -7,11 +7,17 @@ import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import LocalFloristOutlinedIcon from "@mui/icons-material/LocalFloristOutlined";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
 import { FeatureStoryPage } from "./FeatureStoryPages";
+import { ClinicTypeFeaturePage } from "./ClinicTypeFeaturePage";
 import {
   ClinicTypePage,
   clinicTypeLabels,
   isClinicTypeSlug,
 } from "./ClinicTypePages";
+import {
+  canonicalClinicFeatureSlug,
+  clinicTypeFeatureHref,
+  clinicTypeToolkits,
+} from "./clinicTypeFeatures";
 import { featureGroups, featureHref, marketingFeatures } from "./features";
 import "./metaClinicMarketing.css";
 
@@ -120,7 +126,28 @@ export function MetaClinicMarketing({
   featureSlug?: string;
   clinicTypeSlug?: string;
 }) {
-  const feature = marketingFeatures.find((item) => item.slug === featureSlug);
+  const activeClinicType =
+    clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
+      ? clinicTypeSlug
+      : undefined;
+  const canonicalFeatureSlug = featureSlug
+    ? canonicalClinicFeatureSlug(featureSlug)
+    : undefined;
+  const feature = marketingFeatures.find(
+    (item) => item.slug === canonicalFeatureSlug,
+  );
+  const visibleFeatureGroups = activeClinicType
+    ? featureGroups
+        .map((group) => ({
+          ...group,
+          features: group.features.filter((item) =>
+            clinicTypeToolkits[activeClinicType].features.some(
+              (selected) => selected.slug === item.slug,
+            ),
+          ),
+        }))
+        .filter((group) => group.features.length > 0)
+    : featureGroups;
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [selectedClinic, setSelectedClinic] = useState(clinicTypes[0]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
@@ -134,15 +161,17 @@ export function MetaClinicMarketing({
   useEffect(() => {
     const previousTitle = document.title;
     document.title =
-      clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
-        ? `${clinicTypeLabels[clinicTypeSlug]} — Meta Clinic`
-        : feature
-          ? `${feature.label} — Meta Clinic`
-          : "Meta Clinic — A more connected clinic day";
+      activeClinicType && feature
+        ? `${feature.label} for ${clinicTypeLabels[activeClinicType]} — Meta Clinic`
+        : activeClinicType
+          ? `${clinicTypeLabels[activeClinicType]} — Meta Clinic`
+          : feature
+            ? `${feature.label} — Meta Clinic`
+            : "Meta Clinic — A more connected clinic day";
     return () => {
       document.title = previousTitle;
     };
-  }, [feature, clinicTypeSlug]);
+  }, [feature, activeClinicType]);
 
   return (
     <div className="meta-marketing">
@@ -195,13 +224,17 @@ export function MetaClinicMarketing({
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <nav className="meta-marketing__mega" aria-label="Features">
-          {featureGroups.map((group) => (
+          {visibleFeatureGroups.map((group) => (
             <div key={group.heading}>
               <h2>{group.heading}</h2>
               {group.features.map((item) => (
                 <a
                   key={item.slug}
-                  href={featureHref(item)}
+                  href={
+                    activeClinicType
+                      ? clinicTypeFeatureHref(activeClinicType, item.slug)
+                      : featureHref(item)
+                  }
                   onClick={() => setMenuAnchor(null)}
                 >
                   <span
@@ -218,8 +251,13 @@ export function MetaClinicMarketing({
         </nav>
       </Popover>
 
-      {clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug) ? (
-        <ClinicTypePage slug={clinicTypeSlug} />
+      {activeClinicType && featureSlug ? (
+        <ClinicTypeFeaturePage
+          clinicType={activeClinicType}
+          requestedSlug={featureSlug}
+        />
+      ) : activeClinicType ? (
+        <ClinicTypePage slug={activeClinicType} />
       ) : featureSlug ? (
         isFlagshipSlug(featureSlug) ? (
           <FlagshipFeaturePage slug={featureSlug} />

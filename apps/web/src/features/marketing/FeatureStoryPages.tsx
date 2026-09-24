@@ -25,7 +25,7 @@ type Story = {
   layout: "split" | "folio" | "wide" | "offset";
 };
 
-const stories: Record<string, Story> = {
+export const stories: Record<string, Story> = {
   "tracking-board": {
     eyebrow: "The live clinic floor",
     title: "Know where every visit stands.",
@@ -48,9 +48,9 @@ const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/tracking-board-app.png",
-      alt: "Actual Meta Clinic Tracking Board with five fictional visits across waiting, intake, ready for provider, and provider assigned stages, plus rooms, vitals, care indicators, providers, and timing.",
-      caption: "Tracking Board · captured from the populated synthetic clinic",
+      src: "/marketing/captures/tracking-board-varied-stages-omni.png",
+      alt: "Actual Meta Clinic Tracking Board with fictional visits across waiting, intake, ready for provider, and provider assigned stages, with room, vitals, care, provider, and timing columns.",
+      caption: "Tracking Board · direct synthetic app capture",
     },
     photos: [
       {
@@ -216,15 +216,14 @@ const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/cash-billing-app.png",
-      alt: "Meta Clinic billing overview showing a paid synthetic visit, its USD collections, and a zero remaining balance.",
-      caption: "Billing overview · captured from the populated demo clinic",
+      src: "/marketing/captures/finance-open-invoice-queue.png",
+      alt: "Meta Clinic invoice ledger with synthetic patient balances, dates, and payment states.",
+      caption: "Invoice ledger · direct synthetic app capture",
     },
     secondaryImage: {
-      src: "/marketing/cash-billing-collections.png",
-      alt: "Meta Clinic collections panel showing the fictional patient's paid invoice, payment amount, and receipt action.",
-      caption:
-        "Collections and reconciliation · captured from the same demo clinic",
+      src: "/marketing/captures/finance-paid-invoice-detail.png",
+      alt: "Meta Clinic paid invoice detail showing synthetic line items, settled balance, and payment history.",
+      caption: "Paid invoice detail · direct synthetic app capture",
     },
     photos: [
       {
@@ -264,9 +263,9 @@ const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/memberships-app.png",
-      alt: "Actual Meta Clinic membership catalog with five fictional published programs, six available services, four tiers, and program descriptions.",
-      caption: "Membership catalog · captured from the populated demo clinic",
+      src: "/marketing/captures/membership-catalog-five-programs.png",
+      alt: "Actual Meta Clinic membership catalog with five fictional published programs and program descriptions.",
+      caption: "Membership catalog · five programs · direct synthetic app capture",
     },
     photos: [
       {
@@ -306,9 +305,14 @@ const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/invoices-app.png",
-      alt: "Meta Clinic invoice ledger showing fictional patients, open and paid states, dates, USD totals, and balances.",
-      caption: "Invoice ledger · captured from the synthetic clinic workspace",
+      src: "/marketing/captures/finance-open-invoice-detail.png",
+      alt: "Meta Clinic open invoice showing five synthetic service lines, recorded charges, and its remaining balance.",
+      caption: "Invoice detail · direct synthetic app capture",
+    },
+    secondaryImage: {
+      src: "/marketing/captures/finance-credit-dialog.png",
+      alt: "Meta Clinic invoice credit dialog with a fictional adjustment amount and reason.",
+      caption: "Credit adjustment · direct synthetic app capture",
     },
     photos: [
       {

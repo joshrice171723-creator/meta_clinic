@@ -1,5 +1,10 @@
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { Button } from "@mui/material";
+import {
+  clinicTypeFeatureHref,
+  clinicTypeToolkits,
+} from "./clinicTypeFeatures";
+import { marketingFeatures } from "./features";
 import "./clinicTypePages.css";
 
 export type ClinicTypeSlug =
@@ -58,6 +63,39 @@ function ProductImage({
         </a>
       </figcaption>
     </figure>
+  );
+}
+
+function ClinicTypeFeatureCatalog({ slug }: { slug: ClinicTypeSlug }) {
+  const toolkit = clinicTypeToolkits[slug];
+  return (
+    <section className="meta-type__catalog meta-type__wrap" id="features">
+      <div className="meta-type__catalog-heading">
+        <p className="meta-type__eyebrow">Explore the tools</p>
+        <h2>{toolkit.heading}</h2>
+        <p>{toolkit.introduction}</p>
+      </div>
+      <div className="meta-type__catalog-grid">
+        {toolkit.features.map((item, index) => {
+          const feature = marketingFeatures.find(
+            (entry) => entry.slug === item.slug,
+          );
+          if (!feature) return null;
+          return (
+            <a key={item.slug} href={clinicTypeFeatureHref(slug, item.slug)}>
+              <span className="meta-type__catalog-number">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span>
+                <strong>{feature.label}</strong>
+                <small>{item.headline}</small>
+              </span>
+              <ArrowForwardRoundedIcon aria-hidden="true" />
+            </a>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -137,15 +175,15 @@ function PrimaryCarePage() {
             Search and open patient records from the clinic workspace. This view
             shows the populated patient directory in the default app theme.
           </p>
-          <a href="/meta-clinic/features/tracking-board">
+          <a href="/meta-clinic/primary-care/features/tracking-board">
             Explore the Tracking Board{" "}
             <ArrowForwardRoundedIcon aria-hidden="true" />
           </a>
         </div>
         <ProductImage
-          src="/marketing/primary-care-patients-app.png"
-          alt="Actual Meta Clinic patient directory in the demo sandbox with eight fictional patient records and open-record actions."
-          caption="Patient directory · captured from the populated demo clinic"
+          src="/marketing/captures/patient-directory-21-natural-records.png"
+          alt="Meta Clinic patient directory with fictional records and open-record actions."
+          caption="Patient directory · direct synthetic app capture"
         />
       </section>
 
@@ -165,19 +203,20 @@ function PrimaryCarePage() {
               primary care day.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/primary-care/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/clinical-notes">
+              <a href="/meta-clinic/primary-care/features/clinical-notes">
                 Clinical Notes <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/invoices">
+              <a href="/meta-clinic/primary-care/features/invoices">
                 Invoices <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
           </div>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="primary-care" />
     </main>
   );
 }
@@ -233,9 +272,9 @@ function InfusionPage() {
         </div>
         <div className="meta-type__infusion-proof">
           <ProductImage
-            src="/marketing/inventory-app.png"
-            alt="Actual Meta Clinic inventory catalog with five fictional clinical supply products, quantities, reorder points, and lot actions."
-            caption="Inventory catalog · captured from the populated demo clinic"
+            src="/marketing/captures/inventory-catalog-100-products.png"
+            alt="Meta Clinic inventory catalog with fictional clinical supply products, quantities, reorder points, and lot actions."
+            caption="Inventory catalog · direct synthetic app capture"
           />
           <div className="meta-type__infusion-points">
             <article>
@@ -274,13 +313,13 @@ function InfusionPage() {
               conversations.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/infusion/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/inventory">
+              <a href="/meta-clinic/infusion/features/inventory">
                 Inventory <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/invoices">
+              <a href="/meta-clinic/infusion/features/invoices">
                 Invoices <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
@@ -293,6 +332,7 @@ function InfusionPage() {
           </figure>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="infusion" />
     </main>
   );
 }
@@ -347,9 +387,9 @@ function UrgentCarePage() {
           </p>
         </div>
         <ProductImage
-          src="/marketing/tracking-board-app.png"
-          alt="Actual Meta Clinic Tracking Board with fictional patients across multiple visit stages, room assignments, vitals, care tasks, providers, and timing."
-          caption="Tracking Board · captured from a populated demo clinic"
+          src="/marketing/captures/front-desk-five-visit-queue.png"
+          alt="Related Meta Clinic front desk queue with fictional appointments; this image does not show the Tracking Board."
+          caption="Related front desk queue · not a Tracking Board capture"
         />
         <div className="meta-type__urgent-moves">
           <article>
@@ -396,13 +436,13 @@ function UrgentCarePage() {
               role the context it needs for the next visit.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/tracking-board">
+              <a href="/meta-clinic/urgent-care/features/tracking-board">
                 Tracking Board <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/urgent-care/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/intake-forms">
+              <a href="/meta-clinic/urgent-care/features/intake-forms">
                 Intake &amp; Forms{" "}
                 <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
@@ -410,6 +450,7 @@ function UrgentCarePage() {
           </div>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="urgent-care" />
     </main>
   );
 }
@@ -466,9 +507,9 @@ function MembershipCarePage() {
           </p>
         </div>
         <ProductImage
-          src="/marketing/memberships-app.png"
-          alt="Actual Meta Clinic membership catalog showing five fictional published programs, six reusable services, and four tiers."
-          caption="Membership catalog · captured from the populated demo clinic"
+          src="/marketing/captures/membership-catalog-five-programs.png"
+          alt="Meta Clinic membership catalog with five synthetic programs and reusable service records."
+          caption="Membership catalog · five programs · direct synthetic app capture"
         />
         <div className="meta-type__membership-details">
           <article>
@@ -516,21 +557,22 @@ function MembershipCarePage() {
               financial record, with clear next steps for the team.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/memberships-packages">
+              <a href="/meta-clinic/membership-care/features/memberships-packages">
                 Explore Memberships{" "}
                 <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/membership-care/features/scheduling">
                 Explore Scheduling{" "}
                 <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/invoices">
+              <a href="/meta-clinic/membership-care/features/invoices">
                 Explore Invoices <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
           </div>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="membership-care" />
     </main>
   );
 }
@@ -590,9 +632,9 @@ function WeightManagementPage() {
           </p>
         </div>
         <ProductImage
-          src="/marketing/memberships-app.png"
-          alt="Actual Meta Clinic membership catalog from a demo clinic, including a Metabolic Health program with measurement review and coaching visits."
-          caption="Program catalog · captured from the populated demo clinic"
+          src="/marketing/captures/membership-catalog-five-programs.png"
+          alt="Related Meta Clinic membership catalog with five synthetic programs; this image is not weight-management-specific."
+          caption="Related membership catalog · not weight-management-specific"
         />
         <div className="meta-type__weight-steps">
           <article>
@@ -628,11 +670,11 @@ function WeightManagementPage() {
               financial record patients can understand.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/memberships-packages">
+              <a href="/meta-clinic/weight-management/features/memberships-packages">
                 Memberships &amp; Packages{" "}
                 <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/weight-management/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
@@ -646,6 +688,7 @@ function WeightManagementPage() {
           </figure>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="weight-management" />
     </main>
   );
 }
@@ -716,9 +759,9 @@ function RehabilitationPage() {
             </article>
           </div>
           <ProductImage
-            src="/marketing/memberships-app.png"
-            alt="Actual Meta Clinic program catalog from a demo clinic showing a Recovery and Mobility program for movement goals and progress reviews."
-            caption="Program catalog · Recovery & Mobility in the populated demo clinic"
+            src="/marketing/captures/membership-catalog-five-programs.png"
+            alt="Related Meta Clinic membership catalog with five synthetic programs; this image is not rehabilitation-specific."
+            caption="Related membership catalog · not rehabilitation-specific"
           />
         </div>
         <p className="meta-type__rehab-proof-note">
@@ -744,17 +787,18 @@ function RehabilitationPage() {
               clinic relationship.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/memberships-packages">
+              <a href="/meta-clinic/rehabilitation-pt/features/memberships-packages">
                 Memberships &amp; Packages{" "}
                 <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/rehabilitation-pt/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
           </div>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="rehabilitation-pt" />
     </main>
   );
 }
@@ -803,9 +847,9 @@ function AestheticsPage() {
         </div>
         <div className="meta-type__aesthetics-work-grid">
           <ProductImage
-            src="/marketing/inventory-app.png"
-            alt="Actual Meta Clinic inventory catalog from a demo clinic showing general clinical supplies such as prep pads, exam gloves, and syringes with quantities and reorder points."
-            caption="General supply catalog · captured from the populated demo clinic"
+            src="/marketing/captures/inventory-catalog-100-products.png"
+            alt="Meta Clinic inventory catalog showing general synthetic clinical supplies, quantities, and reorder points."
+            caption="General supply catalog · direct synthetic app capture"
           />
           <div className="meta-type__aesthetics-actions">
             <article>
@@ -846,13 +890,13 @@ function AestheticsPage() {
               treatment day.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/aesthetics/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/inventory">
+              <a href="/meta-clinic/aesthetics/features/inventory">
                 Inventory <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/invoices">
+              <a href="/meta-clinic/aesthetics/features/invoices">
                 Invoices <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
@@ -866,6 +910,7 @@ function AestheticsPage() {
           </figure>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="aesthetics" />
     </main>
   );
 }
@@ -917,9 +962,9 @@ function HormoneHealthPage() {
           </p>
         </div>
         <ProductImage
-          src="/marketing/scheduling-month.png"
-          alt="Actual Meta Clinic month calendar with synthetic consultations, evaluations, follow-ups, and telehealth appointments."
-          caption="Month calendar · captured from the populated demo clinic"
+          src="/marketing/captures/schedule-day-omni-morning.png"
+          alt="Meta Clinic day schedule with fictional appointments distributed across rooms and times."
+          caption="Day schedule · direct synthetic app capture"
         />
         <div className="meta-type__hormone-points">
           <article>
@@ -962,10 +1007,10 @@ function HormoneHealthPage() {
               the specialist review steps your clinic needs.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/hormone-health/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/labs-results">
+              <a href="/meta-clinic/hormone-health/features/lab-results">
                 Labs &amp; Results{" "}
                 <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
@@ -973,6 +1018,7 @@ function HormoneHealthPage() {
           </div>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="hormone-health" />
     </main>
   );
 }
@@ -1034,7 +1080,7 @@ function BehavioralHealthPage() {
               </article>
               <article>
                 <strong>02</strong>
-                <span>See remote visits on the same day.</span>
+                <span>Keep the next visit visible in the schedule.</span>
               </article>
               <article>
                 <strong>03</strong>
@@ -1043,9 +1089,9 @@ function BehavioralHealthPage() {
             </div>
           </div>
           <ProductImage
-            src="/marketing/scheduling-showcase-telehealth.png"
-            alt="Actual Meta Clinic day calendar with synthetic in-person and telehealth appointments across rooms and times."
-            caption="Day calendar · captured from the populated demo clinic"
+            src="/marketing/captures/schedule-booking-omni-adapted.png"
+            alt="Adapted direct Meta Clinic booking dialog capture with a fictional patient, clinician, room, and follow-up visit."
+            caption="Visit booking · adapted direct synthetic app capture"
           />
         </div>
       </section>
@@ -1069,16 +1115,17 @@ function BehavioralHealthPage() {
               practice&apos;s model of care.
             </p>
             <div className="meta-type__links">
-              <a href="/meta-clinic/features/scheduling">
+              <a href="/meta-clinic/behavioral-health/features/scheduling">
                 Scheduling <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
-              <a href="/meta-clinic/features/telehealth">
+              <a href="/meta-clinic/behavioral-health/features/telehealth">
                 Telehealth <ArrowForwardRoundedIcon aria-hidden="true" />
               </a>
             </div>
           </div>
         </div>
       </section>
+      <ClinicTypeFeatureCatalog slug="behavioral-health" />
     </main>
   );
 }

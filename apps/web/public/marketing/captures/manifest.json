@@ -1,0 +1,805 @@
+{
+  "version": 1,
+  "purpose": "Curated authentic Meta Clinic synthetic demo captures for marketing pages",
+  "generatedAt": "2026-09-24",
+  "assets": [
+    {
+      "file": "apps/web/public/marketing/captures/care-front-desk-october-afternoon-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "front desk day queue",
+      "sourceRoute": "/clinic/front-desk",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 947,
+        "height": 775
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Adapted from the same authentic full-page app screenshot as the seven-visit queue; the original header and afternoon rows are joined without synthesized UI."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/care-front-desk-october-morning-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "front desk day queue",
+      "sourceRoute": "/clinic/front-desk",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 947,
+        "height": 640
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/care-front-desk-october-seven-visits.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "front desk day queue",
+      "sourceRoute": "/clinic/front-desk",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 947,
+        "height": 1315
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/care-front-desk.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "front desk day queue",
+      "sourceRoute": "/clinic/front-desk",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1490,
+        "height": 705
+      },
+      "provenanceNote": "Authentic app capture visually reviewed during offline QA; clinic is not encoded in the filename.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/care-northside-patient-directory.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "patient directory",
+      "sourceRoute": "/clinic/patients",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1180,
+        "height": 840
+      },
+      "provenanceNote": "Authentic app capture visually reviewed during offline QA.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/crop-draft-invoice-history.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "draft invoice history",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1285,
+        "height": 975
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/crop-front-desk-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "front desk queue",
+      "sourceRoute": "/clinic/front-desk",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1445,
+        "height": 555
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/crop-membership-services.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "membership services",
+      "sourceRoute": "/clinic/subscriptions",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 835,
+        "height": 518
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-billing-checkout-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing checkout queue",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1080,
+        "height": 1010
+      },
+      "provenanceNote": "Adapted by cropping an authentic Meta Clinic screenshot to keep populated app data in view; original pixels are unchanged and no UI was synthesized.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-credit-dialog.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "invoice credit adjustment dialog",
+      "sourceRoute": "/clinic/billing",
+      "clinic": "Dev Seed Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 601,
+        "height": 525
+      },
+      "sourceQuality": "direct app capture; cropped dialog only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-credited-invoice-detail.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "credited invoice detail",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 945,
+        "height": 760
+      },
+      "provenanceNote": "Authentic app capture visually reviewed during offline QA; clinic is not encoded in the filename.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-credited-invoice-lines.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 905,
+        "height": 470
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-draft-invoice-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "draft invoice queue",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1281,
+        "height": 945
+      },
+      "provenanceNote": "Adapted by cropping an authentic Meta Clinic screenshot to keep populated app data in view; original pixels are unchanged and no UI was synthesized.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-omni-billing-kpis.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1449,
+        "height": 315
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Adapted by cropping an authentic Meta Clinic screenshot to keep populated app data in view; original pixels are unchanged and no UI was synthesized."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-omni-billing-ledger.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1480,
+        "height": 833
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-omni-invoice-ledger.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1480,
+        "height": 430
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-omni-payments-table.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1160,
+        "height": 430
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-omni-reconciliation.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1449,
+        "height": 408
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Adapted by cropping an authentic Meta Clinic screenshot to keep populated app data in view; original pixels are unchanged and no UI was synthesized."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-open-invoice-detail.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "open invoice detail",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 945,
+        "height": 760
+      },
+      "provenanceNote": "Authentic app capture visually reviewed during offline QA; clinic is not encoded in the filename.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-open-invoice-lines.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 905,
+        "height": 485
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-open-invoice-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "open invoice queue",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1281,
+        "height": 945
+      },
+      "provenanceNote": "Adapted by cropping an authentic Meta Clinic screenshot to keep populated app data in view; original pixels are unchanged and no UI was synthesized.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-paid-invoice-detail.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "paid invoice detail",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 945,
+        "height": 740
+      },
+      "provenanceNote": "Authentic app capture visually reviewed during offline QA; clinic is not encoded in the filename.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/finance-paid-invoice-lines.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "billing and invoices",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 905,
+        "height": 465
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/front-desk-five-visit-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "front desk day queue",
+      "sourceRoute": "/clinic/front-desk",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1520,
+        "height": 925
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app in an earlier review session; curated using original app pixels only.",
+      "sourceCapture": "apps/web/outputs/real-app-review/front-desk-product-review.png"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-activity-ledger.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 935,
+        "height": 728
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory activity",
+      "sourceRoute": "/clinic/inventory?tab=activity",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-catalog-100-products.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1520,
+        "height": 1500
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app in an earlier review session; curated using original app pixels only.",
+      "sourceCapture": "apps/web/outputs/real-app-review/inventory-product-review.png"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-omni-activity.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 2140,
+        "height": 761
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-omni-overview.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 2140,
+        "height": 761
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-omni-purchasing.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1165,
+        "height": 663
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-omni-stock-detail-lot-table.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 2140,
+        "height": 370
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-orders-batches.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 935,
+        "height": 728
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-orders-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory orders and delivery",
+      "sourceRoute": "/clinic/inventory?tab=orders",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-overview-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory catalog overview",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-supplier-catalog.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "inventory",
+      "sourceRoute": "/clinic/inventory",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 935,
+        "height": 728
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/inventory-suppliers-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "supplier catalog and pricing",
+      "sourceRoute": "/clinic/inventory?tab=suppliers",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/invoice-ledger-220-records.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "invoice ledger",
+      "sourceRoute": "/clinic/billing",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1440,
+        "height": 555
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app in an earlier review session; curated using original app pixels only.",
+      "sourceCapture": "apps/web/outputs/real-app-review/invoices-product.png"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/membership-catalog-five-programs.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "membership catalog",
+      "sourceRoute": "/clinic/subscriptions",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1162,
+        "height": 1117
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app in an earlier review session; curated using original app pixels only.",
+      "sourceCapture": "apps/web/outputs/real-app-review/membership-catalog-live.png"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/membership-programs-populated-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "membership programs",
+      "sourceRoute": "/clinic/subscriptions?tab=programs",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/membership-programs-three-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "membership programs expanded",
+      "sourceRoute": "/clinic/subscriptions?tab=programs",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/membership-services-list-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "reusable membership services",
+      "sourceRoute": "/clinic/subscriptions?tab=services",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/membership-tiers-populated-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "membership tiers",
+      "sourceRoute": "/clinic/subscriptions?tab=tiers",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/operations-patient-directory-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "patient directory",
+      "sourceRoute": "/clinic/patients",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/operations-reminders-northside-clinic-2026-09-24-synthetic-direct.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "appointment reminders",
+      "sourceRoute": "/clinic/reminders",
+      "clinic": "Northside Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1129,
+        "height": 728
+      },
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/patient-directory-21-natural-records.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "patient directory",
+      "sourceRoute": "/clinic/patients",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 670,
+        "height": 1325
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the authenticated synthetic Omni clinic. The real app screenshot was cropped and joined to show 21 complete patient rows, omitting the incomplete top rows and the clinic-reference column. No UI pixels were synthesized.",
+      "sourceCapture": "apps/web/outputs/capture-raw/care-omni-patient-directory-current-full.png"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/schedule-appointment-detail.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "appointment detail",
+      "sourceRoute": "/clinic/schedule",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 710,
+        "height": 360
+      },
+      "provenanceNote": "Authentic app capture visually reviewed during offline QA; clinic is not encoded in the filename.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/schedule-appointment-results-detail.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "scheduling",
+      "sourceRoute": "/clinic/schedule",
+      "clinic": null,
+      "data": "synthetic",
+      "dimensions": {
+        "width": 620,
+        "height": 310
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/schedule-booking-omni-adapted.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "schedule appointment dialog",
+      "sourceRoute": "/clinic/schedule",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 838,
+        "height": 799
+      },
+      "provenanceNote": "Adapted from an authentic booking modal screenshot by cropping and joining real pixels of the same dialog; no UI elements synthesized.",
+      "sourceQuality": "adapted direct app capture; cropped and joined real UI pixels only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/schedule-day-omni-afternoon.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "schedule day afternoon",
+      "sourceRoute": "/clinic/schedule",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 963,
+        "height": 867
+      },
+      "provenanceNote": "Visually reviewed October 1 afternoon grid. Adjacent scroll sections from one live light-theme schedule were joined; the same static day heading was repeated above the grid. Four fictional appointments with varied visit types and lengths are visible. The scheduling-policy alert remains outside the crop.",
+      "sourceQuality": "adapted direct app capture; cropped and joined real UI pixels only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/schedule-day-omni-morning.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "schedule day morning",
+      "sourceRoute": "/clinic/schedule",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 963,
+        "height": 1227
+      },
+      "provenanceNote": "Visually reviewed October 1 morning grid. Adjacent scroll sections from one live light-theme schedule were joined; three fictional appointments are visible with varied visit types, lengths, and providers. The scheduling-policy alert remains outside the crop.",
+      "sourceQuality": "adapted direct app capture; cropped and joined real UI pixels only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/schedule-month-omni-october.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "schedule month",
+      "sourceRoute": "/clinic/schedule",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 990,
+        "height": 680
+      },
+      "provenanceNote": "Direct October 2026 light-theme capture from Omni MAIN with 49 synthetic appointments, including seven varied visits on October 1; cropped to the calendar grid so the scheduling-policy alert stays outside the marketing image.",
+      "sourceQuality": "direct app capture; cropped viewport only; not synthesized"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tracking-board-varied-stages-omni.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "Tracking Board",
+      "sourceRoute": "/clinic",
+      "clinic": "Omni Test Clinic",
+      "data": "synthetic",
+      "dimensions": {
+        "width": 1550,
+        "height": 643
+      },
+      "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
+      "provenanceNote": "Captured from the running synthetic Meta Clinic app in an earlier review session; curated using original app pixels only.",
+      "sourceCapture": "apps/web/outputs/real-app-review/backend-tracking-board-table.png"
+    }
+  ],
+  "rawMovedTo": "apps/web/outputs/capture-raw/",
+  "notes": [
+    "Only assets listed here were visually inspected during this QA pass.",
+    "Routes are recorded from the sandbox UI and filename context; no live customer data was used.",
+    "Raw full viewport captures were moved out of public marketing assets; finance-* files were intentionally not changed.",
+    "Care, scheduling, and finance candidates were visually reviewed during offline QA. Warning-heavy tracking-board variants and the black historical-basis image were excluded.",
+    "No approved asset is a generated app mockup. Feature pages must label related captures when a direct feature screen is unavailable.",
+    "Removed sparse or generic-seed invoice detail, ledger, and payment-history candidates during final QA; use the richer open invoice detail and paid invoice detail instead.",
+    "Ten sparse, clipped, warning-bearing, or weak candidates were moved to non-public capture-raw after visual review."
+  ],
+  "sourceQuality": "Approved app visuals originate in the synthetic Meta Clinic sandbox. Some are cropped to omit warnings or workspace chrome; the booking visual joins crops from the same real dialog. No app controls, records, or screenshots were generated from scratch.",
+  "capturePolicy": "Actual Meta Clinic app pixels only. Crops and joins of the same source screenshot are permitted and noted; fully generated app screens are excluded."
+}

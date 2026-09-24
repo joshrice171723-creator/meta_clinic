@@ -22,7 +22,7 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
       assert_equal 1, practice.invoices.where(status: "draft").count
       assert_equal 1, practice.invoices.where(status: "void").count
       assert_equal BigDecimal("305.00"), Clinic::PaymentAllocation.where(practice: practice).sum(:amount)
-      assert_equal 22, practice.appointments.count
+      assert_equal 79, practice.appointments.count
       assert_equal 18, practice.encounters.count
       assert_equal 6, practice.encounters.open.count
       assert_equal 105, practice.observations.count
@@ -31,7 +31,8 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
       assert_equal 10, Clinic::EncounterNoteSignature.where(practice: practice).count
       assert practice.model_versions.exists?
       patient = practice.patients.order(:reference).first
-      assert_match(/\ASYN_[^,]+, .+\z/, patient.display_name)
+      assert_match(/\A[^,]+, .+\z/, patient.display_name)
+      assert_no_match(/\ASYN_/, patient.display_name)
       assert_match(/\ASYN-[A-Z]+-\d{3}\z/, patient.reference)
       assert patient.demographics
       assert_equal 2, patient.contacts.count
