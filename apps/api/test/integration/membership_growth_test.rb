@@ -655,6 +655,17 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_equal "email_sent", response.parsed_body.dig("account", "status")
     assert_nil response.parsed_body.dig("account", "setup_path")
     assert_equal 1, ActionMailer::Base.deliveries.length
+
+    ENV["APP_DEVELOPMENT_LOGIN"] = "1"
+    post "/api/public/membership_storefronts/local-setup/accounts", params: { account: {
+      version_id:, selections: [], display_name: "Synthetic Remote Member",
+      email_address: "remote-setup-member@example.invalid", date_of_birth: "1992-04-16",
+      source: "membership_storefront", outreach_consent: true, request_key: "remote-setup-request"
+    } }, headers: csrf_headers.merge("REMOTE_ADDR" => "203.0.113.10"), as: :json
+    assert_response :created
+    assert_equal "email_sent", response.parsed_body.dig("account", "status")
+    assert_nil response.parsed_body.dig("account", "setup_path")
+    assert_equal 2, ActionMailer::Base.deliveries.length
   end
 
   test "purchase opens checkout without a patient and verified payment creates onboarding receipt email and portal" do
