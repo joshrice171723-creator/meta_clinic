@@ -444,6 +444,21 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageAlt: "Meta Clinic inventory catalog showing synthetic clinic supplies and recorded stock.",
     imageCaption: "Inventory catalog in the synthetic demo",
   },
+  "/platform/billing": {
+    image: "/marketing/captures/finance-paid-invoice-detail.png",
+    imageAlt: "Meta Clinic synthetic invoice detail showing recorded charges, a payment, a credit, and a zero balance.",
+    imageCaption: "Billing detail from the synthetic demo",
+  },
+  "/platform/payments": {
+    image: "/marketing/captures/finance-paid-invoice-detail.png",
+    imageAlt: "Meta Clinic synthetic invoice showing an allocated payment and the resulting balance.",
+    imageCaption: "Recorded payment in the synthetic demo",
+  },
+  "/platform/invoices": {
+    image: "/marketing/captures/finance-open-invoice-detail.png",
+    imageAlt: "Meta Clinic synthetic open invoice with line items and an unpaid balance.",
+    imageCaption: "Open invoice detail from the synthetic demo",
+  },
   "/platform/telehealth": {
     image: "/marketing/scheduling-month.png",
     imageAlt: "Meta Clinic month schedule showing synthetic remote and in-person appointments.",
@@ -453,6 +468,21 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     image: "/marketing/tracking-board-app.png",
     imageAlt: "Meta Clinic tracking board showing synthetic visits in different operational states.",
     imageCaption: "Clinic workflow board in the synthetic demo",
+  },
+  "/primary-care/cash-pay": {
+    image: "/marketing/captures/finance-paid-invoice-detail.png",
+    imageAlt: "Meta Clinic synthetic clinic invoice showing care-related line items, a payment, a credit, and a remaining balance of zero.",
+    imageCaption: "Cash-pay invoice workflow example in the synthetic demo",
+  },
+  "/solutions/cash-pay-clinics": {
+    image: "/marketing/captures/finance-open-invoice-detail.png",
+    imageAlt: "Meta Clinic synthetic clinic invoice showing service charges and an open balance for staff review.",
+    imageCaption: "Invoice review in the synthetic demo",
+  },
+  "/direct-primary-care/memberships": {
+    image: "/marketing/captures/membership-tier-preview-northside-clinic-2026-09-24-synthetic-direct.png",
+    imageAlt: "Meta Clinic synthetic patient-facing primary care membership card preview with price and included service.",
+    imageCaption: "Primary care membership preview in the synthetic demo",
   },
 };
 export const marketingRouteCount = entries.size;
