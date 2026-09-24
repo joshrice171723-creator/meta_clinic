@@ -574,12 +574,12 @@ const verifiedGalleries: Record<string, GrowthPage["gallery"]> = {
   ],
   "/primary-care/cash-pay": [
     { image: "/marketing/captures/schedule-booking-omni-adapted.png", imageAlt: "Meta Clinic synthetic appointment form with visit time, site, room, clinician, and visit reason.", imageCaption: "Booking details in a synthetic clinic" },
+    { image: "/marketing/captures/crop-front-desk-queue.png", imageAlt: "Meta Clinic synthetic front desk day queue with visit status and chart and billing actions.", imageCaption: "Front desk handoff from visit to billing" },
     { image: "/marketing/captures/finance-open-invoice-detail.png", imageAlt: "Meta Clinic synthetic invoice with itemized charges and an open balance.", imageCaption: "Itemized charges and open balance" },
-    { image: "/marketing/captures/finance-paid-invoice-detail.png", imageAlt: "The same synthetic invoice after a payment and credit, with zero remaining balance.", imageCaption: "Payment and credit recorded against the invoice" },
   ],
   "/solutions/cash-pay-clinics": [
     { image: "/marketing/captures/schedule-booking-omni-adapted.png", imageAlt: "Meta Clinic synthetic appointment form with visit time, site, room, clinician, and visit reason.", imageCaption: "Booking details in a synthetic clinic" },
-    { image: "/marketing/captures/finance-open-invoice-detail.png", imageAlt: "Meta Clinic synthetic invoice with itemized charges and an open balance.", imageCaption: "Itemized charges and open balance" },
+    { image: "/marketing/captures/crop-front-desk-queue.png", imageAlt: "Meta Clinic synthetic front desk day queue with visit status and chart and billing actions.", imageCaption: "Front desk handoff from visit to billing" },
     { image: "/marketing/captures/finance-paid-invoice-detail.png", imageAlt: "The same synthetic invoice after a payment and credit, with zero remaining balance.", imageCaption: "Payment and credit recorded against the invoice" },
   ],
 };
