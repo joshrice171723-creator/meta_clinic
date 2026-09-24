@@ -437,6 +437,20 @@ const faqAnswers: Record<string, readonly [string, string, string]> = {
   "/ai/workflow-automation": ["No. AI does not assume clinical authority; confirm each specific action boundary.", "Map required approvals and permissions for the evaluated workflow.", "Ask to see the correction, retry, and audit path before enabling any action."],
 };
 
+function specialtyExampleFor(path: string) {
+  if (/inventory|lot/.test(path)) return "/infusion/medication-inventory";
+  if (/medication/.test(path)) return "/weight-loss/medication-management";
+  if (/billing|payments|invoices/.test(path)) return "/primary-care/cash-pay";
+  if (/telehealth|scheduling/.test(path)) return "/weight-loss/telehealth";
+  if (/membership|packages/.test(path)) return "/weight-loss/memberships";
+  if (/scribe|documentation|clinical-summaries/.test(path)) return "/behavioral-health/clinical-notes";
+  if (/intake|forms|interviews/.test(path)) return "/weight-loss/patient-intake";
+  if (/labs|lab-review/.test(path)) return "/weight-loss/labs";
+  if (/portal|messaging|patient-communication/.test(path)) return "/behavioral-health/patient-portal";
+  if (/follow-up|notifications|tasks|workflow/.test(path)) return "/weight-loss/follow-ups";
+  return "/weight-loss";
+}
+
 export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null {
   const brief = briefs[path];
   if (!brief) return null;
@@ -452,6 +466,9 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
     ? [
       { label: "Home", path: "/" },
       { label: "Explore clinic workflows", path: "/platform/workflows" },
+      { label: "Weight loss clinics", path: "/weight-loss" },
+      { label: "Behavioral health practices", path: "/behavioral-health" },
+      { label: "Cash-pay primary care", path: "/primary-care/cash-pay" },
       { label: "Browse clinic resources", path: "/resources/guides" },
       { label: "Explore the demo", path: "/demo" },
       { label: "Book a demo", path: "/book-demo" },
@@ -461,6 +478,8 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         { label: "Home", path: "/" },
         { label: "Platform overview", path: "/platform" },
         { label: "Explore AI documentation", path: "/ai/documentation" },
+        { label: "Weight loss intake example", path: "/weight-loss/ai-intake" },
+        { label: "Behavioral health documentation example", path: "/behavioral-health/ai-scribe" },
         { label: "Browse clinic resources", path: "/resources/guides" },
         { label: "Explore the demo", path: "/demo" },
         { label: "Book a demo", path: "/book-demo" },
@@ -468,7 +487,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
       : [
         { label: `${isAi ? "AI" : "Platform"} overview`, path: parent },
         { label: "Home", path: "/" },
-        { label: isAi ? "Related AI workflow" : "Related specialty workflow", path: isAi ? "/ai/intake" : "/weight-loss" },
+        { label: "Related specialty example", path: specialtyExampleFor(path) },
         { label: "Browse clinic resources", path: "/resources/guides" },
         { label: "Explore the demo", path: "/demo" },
         { label: "Book a demo", path: "/book-demo" },
@@ -508,6 +527,9 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         { heading: "A scenario to follow", body: brief.workflow },
         { heading: "What the team needs to see", body: teamSections[path][0] },
         { heading: "Handoffs and human review", body: teamSections[path][1] },
+        { heading: isAi ? "Draft output, approval, and correction" : "Recorded state and staff action", body: isAi
+          ? "Trace the source information, proposed output, correction path, approving person, and any separate action that would send or save it. Confirm which steps the current feature actually performs; clinical decisions and communication approval remain with the authorized team."
+          : "Separate what the current product records or updates from actions owned by staff, external services, or clinic policy. Inspect an incomplete or failed case as well as the normal path before treating a visible status as finished work." },
         { heading: "Evaluate current scope and limits", body: brief.evaluation },
       ],
     questions: [0, 1, 2].map((index) => ({ question: brief.faq[index], answer: answers[index] })),

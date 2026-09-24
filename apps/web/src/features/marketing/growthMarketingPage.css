@@ -37,8 +37,11 @@
 .growth-page .MuiButton-contained:hover { background: #315b4b; box-shadow: none; }
 .growth-page .MuiButton-outlined { border-color: #82988a; color: var(--ink); }
 .growth-page__hero { min-height: 600px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .94fr); align-items: center; gap: clamp(36px, 5vw, 90px); padding-block: clamp(70px, 8vw, 126px); }
-.growth-page__breadcrumb { display: inline-block; margin-bottom: 32px; color: var(--muted) !important; font-size: 12px; font-weight: 700; text-decoration: none; }
-.growth-page__breadcrumb span { padding-inline: 7px; }
+.growth-page__breadcrumb { margin-bottom: 32px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.growth-page__breadcrumb ol { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 0; list-style: none; }
+.growth-page__breadcrumb li + li::before { content: "/"; margin-right: 8px; color: #9aab9c; }
+.growth-page__breadcrumb a { text-decoration: none; }
+.growth-page__breadcrumb a:hover { text-decoration: underline; }
 .growth-page__kicker { color: #96644f; font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .growth-page h1, .growth-page h2, .growth-page h3 { margin: 0; font-family: "Iowan Old Style", "Baskerville", Georgia, serif; font-weight: 500; letter-spacing: -.045em; line-height: 1.08; }
 .growth-page h1 { max-width: 800px; font-size: clamp(46px, 5.5vw, 78px); }

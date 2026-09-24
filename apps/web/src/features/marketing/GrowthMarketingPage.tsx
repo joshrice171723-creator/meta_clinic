@@ -97,6 +97,18 @@ function Footer() {
   );
 }
 
+function Breadcrumbs({ page }: { page: GrowthPage }) {
+  const segments = page.path.split("/").filter(Boolean);
+  const crumbs = segments.map((_, index) => {
+    const path = `/${segments.slice(0, index + 1).join("/")}`;
+    return { path, label: index === segments.length - 1 ? page.title : getGrowthPage(path)?.title };
+  }).filter((item) => item.label);
+  return <nav className="growth-page__breadcrumb" aria-label="Breadcrumb"><ol>
+    <li><a href="/">Meta Clinic</a></li>
+    {crumbs.map((item, index) => <li key={item.path}>{index === crumbs.length - 1 ? <span aria-current="page">{item.label}</span> : <a href={item.path}>{item.label}</a>}</li>)}
+  </ol></nav>;
+}
+
 function Related({ page }: { page: GrowthPage }) {
   return (
     <section className="growth-page__related" aria-labelledby="related-title">
@@ -192,7 +204,7 @@ function PageBody({ page }: { page: GrowthPage }) {
       <main id="main">
         <section className="growth-page__hero growth-page__wrap">
           <div className="growth-page__hero-copy">
-            <a className="growth-page__breadcrumb" href="/">Meta Clinic <span aria-hidden="true">/</span> {page.title}</a>
+            <Breadcrumbs page={page} />
             <p className="growth-page__kicker">{page.eyebrow}</p>
             <h1>{page.headline}</h1>
             <p className="growth-page__lead">{page.lead}</p>

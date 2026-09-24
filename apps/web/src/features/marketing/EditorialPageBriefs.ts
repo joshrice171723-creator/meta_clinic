@@ -564,8 +564,39 @@ function answers(family: Family, title: string): readonly [string, string, strin
   return ["Share clinic type, roles, operating context, and workflow to see; keep the request focused on business information.", "No. Do not submit patient information in a marketing request.", "The team can discuss a suitable walkthrough or evaluation. Timing, access, and any pilot are confirmed separately."];
 }
 
-function relatedLinks(family: Family): GrowthPage["links"] {
-  if (family === "resource") return [{ label: "All guides", path: "/resources/guides" }, { label: "Templates", path: "/resources/templates" }, { label: "Explore sandbox", path: "/sandbox" }];
+const resourceDestinations: Record<string, readonly [string, string]> = {
+  "/resources/guides/ai-in-healthcare-workflows": ["/ai/workflow-automation", "/weight-loss"],
+  "/resources/guides/automate-patient-intake": ["/weight-loss/patient-intake", "/weight-loss"],
+  "/resources/guides/clinic-membership-model": ["/direct-primary-care/memberships", "/direct-primary-care"],
+  "/resources/guides/glp-1-clinic-workflow": ["/weight-loss/glp-1-workflows", "/weight-loss"],
+  "/resources/guides/infusion-chair-scheduling": ["/infusion/chair-scheduling", "/infusion"],
+  "/resources/guides/infusion-inventory-management": ["/infusion/medication-inventory", "/infusion"],
+  "/resources/guides/medical-inventory-lot-tracking": ["/infusion/lot-tracking", "/infusion"],
+  "/resources/guides/start-a-cash-pay-clinic": ["/primary-care/cash-pay", "/primary-care"],
+  "/resources/guides/start-a-trt-clinic": ["/mens-health/trt", "/mens-health"],
+  "/resources/guides/start-a-weight-loss-clinic": ["/weight-loss/ai-intake", "/weight-loss"],
+  "/resources/guides/telehealth-workflow": ["/weight-loss/telehealth", "/weight-loss"],
+  "/resources/guides/trt-patient-intake": ["/mens-health/ai-intake", "/mens-health"],
+  "/resources/guides/weight-loss-patient-intake": ["/weight-loss/patient-intake", "/weight-loss"],
+  "/resources/templates/clinic-intake-form": ["/weight-loss/patient-intake", "/weight-loss"],
+  "/resources/templates/clinic-launch-checklist": ["/solutions/launch-a-clinic", "/primary-care"],
+  "/resources/templates/infusion-treatment-schedule": ["/infusion/chair-scheduling", "/infusion"],
+  "/resources/templates/medication-inventory-template": ["/infusion/medication-inventory", "/infusion"],
+  "/resources/templates/telehealth-consent": ["/behavioral-health/telehealth", "/behavioral-health"],
+  "/resources/templates/trt-intake-form": ["/mens-health/ai-intake", "/mens-health"],
+  "/resources/templates/weight-loss-intake-form": ["/weight-loss/patient-intake", "/weight-loss"],
+};
+
+function relatedLinks(family: Family, path: string): GrowthPage["links"] {
+  if (family === "resource") {
+    const targets = resourceDestinations[path];
+    return [
+      ...(targets ? [{ label: "Related workflow", path: targets[0] }, { label: "Specialty overview", path: targets[1] }] : []),
+      { label: "All guides", path: "/resources/guides" },
+      { label: "Templates", path: "/resources/templates" },
+      { label: "Explore sandbox", path: "/sandbox" },
+    ];
+  }
   if (family === "solution") return [{ label: "All solutions", path: "/solutions" }, { label: "Platform", path: "/platform" }, { label: "Book a demo", path: "/book-demo" }];
   if (family === "security") return [{ label: "Security overview", path: "/security" }, { label: "Privacy policy", path: "/legal/privacy" }, { label: "Ask a question", path: "/contact" }];
   if (family === "integration") return [{ label: "Integrations", path: "/integrations" }, { label: "Platform", path: "/platform" }, { label: "Confirm availability", path: "/contact" }];
@@ -613,6 +644,6 @@ export function getEditorialPageBrief(path: string): Partial<GrowthPage> | null 
           : spec.family === "comparison" || spec.family === "proof" || spec.family === "company" || spec.family === "legal" ? remainingFamilySections(spec)
             : content.headings.map((heading, index) => ({ heading, body: paragraphs[index as 0 | 1 | 2] })),
     questions: content.questions.map((question, index) => ({ question, answer: faqAnswers[index as 0 | 1 | 2] })),
-    links: relatedLinks(spec.family),
+    links: relatedLinks(spec.family, normalized),
   };
 }

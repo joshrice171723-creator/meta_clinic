@@ -294,7 +294,38 @@ function guideFor(specialty: Specialty, slug: string): { label: string; path: st
   if (specialty.name === "Direct primary care" && /membership|billing/.test(slug)) {
     return { label: "Clinic membership model guide", path: "/resources/guides/clinic-membership-model" };
   }
-  return null;
+  if (/intake|forms|consent/.test(slug)) return { label: "Patient intake workflow guide", path: "/resources/guides/automate-patient-intake" };
+  if (/telehealth|video/.test(slug)) return { label: "Telehealth workflow guide", path: "/resources/guides/telehealth-workflow" };
+  if (/inventory|lot|expiration|recall|purchas|receiv|replenish|forecast/.test(slug)) return { label: "Medical inventory guide", path: "/resources/guides/medical-inventory-lot-tracking" };
+  if (/membership|subscription|package/.test(slug)) return { label: "Clinic membership model guide", path: "/resources/guides/clinic-membership-model" };
+  if (slug === "cash-pay") return { label: "Starting a cash-pay clinic guide", path: "/resources/guides/start-a-cash-pay-clinic" };
+  return { label: "Clinic operations guides", path: "/resources/guides" };
+}
+
+function platformCapabilityFor(slug: string) {
+  if (/ai-intake/.test(slug)) return "/ai/intake";
+  if (/ai-scribe/.test(slug)) return "/ai/scribe";
+  if (/telehealth|video/.test(slug)) return "/platform/telehealth";
+  if (/scheduling|booking|appointment|chair|resource|nurse/.test(slug)) return "/platform/scheduling";
+  if (/intake|forms|consent/.test(slug)) return "/platform/patient-intake";
+  if (/inventory|lot|expiration|recall|purchas|receiv|replenish|stock|forecast/.test(slug)) return "/platform/inventory";
+  if (/membership|subscription|package/.test(slug)) return "/platform/memberships";
+  if (/billing|payment|invoice|margin|cash-pay|insurance|benefit|authorization/.test(slug)) return "/platform/billing";
+  if (/lab/.test(slug)) return "/platform/labs";
+  if (/progress|weight-tracking|report/.test(slug)) return "/platform/reporting";
+  if (/medication|prescrib|glp-1|trt|testosterone|hormone/.test(slug)) return "/platform/medications";
+  if (/documentation|note|treatment-plan/.test(slug)) return "/platform/clinical-documentation";
+  if (/messaging|communication|follow-up/.test(slug)) return "/platform/messaging";
+  if (/portal/.test(slug)) return "/platform/patient-portal";
+  return "/platform/workflows";
+}
+
+function reviewBoundaryFor(slug: string) {
+  if (/^ai-|scribe|avatar|voice/.test(slug)) return "Ask which information the current feature can organize or draft, where the original source remains visible, and who corrects or approves an output. No generated text should be treated as a clinical decision or sent communication without the required human review.";
+  if (/scheduling|booking|appointment|chair|resource|nurse|telehealth/.test(slug)) return "Inspect which availability and appointment states the current product displays, which confirmation steps still belong to staff, and how conflicts or failed remote visits return to a named owner. Clinic scheduling and care policies remain with the practice.";
+  if (/inventory|lot|expiration|recall|purchas|receiv|replenish|stock|forecast/.test(slug)) return "Separate recorded stock and planning views from physical counts, supplier confirmations, and clinical treatment decisions. Ask who reconciles discrepancies, approves a purchase, and responds when an item is unavailable or recalled.";
+  if (/billing|payment|invoice|membership|subscription|package|margin|cash-pay/.test(slug)) return "Distinguish a displayed price, invoice, or payment state from the clinic’s approved terms and any external processor result. Staff resolve exceptions and confirm financial commitments; care eligibility remains a clinical decision where applicable.";
+  return "Use the walkthrough to identify which information the product records or prepares, which step requires a staff member to act, and how an exception is corrected. Professional interpretation, policy choices, and clinical decisions remain with the clinic’s authorized team.";
 }
 
 function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<GrowthPage> {
@@ -325,6 +356,7 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
         : specialty.name === "Behavioral health"
           ? "The intake coordinator owns form and request follow-through; scheduling changes go to the scheduling owner; clinical context goes to the treating professional. Incomplete information returns to the patient or intake staff, while urgent concerns follow the practice’s established procedures."
           : `Front-desk or operations staff coordinate the administrative handoff; the care team handles professional review where appropriate. Clinical interpretation and care decisions remain with authorized clinicians, and unresolved exceptions return to the clinic’s chosen owner.` },
+    { heading: "Assisted steps and staff decisions", body: reviewBoundaryFor(slug) },
     { heading: "Evaluation and current limits", body: `The clinic can compare this workflow with its roles, exceptions, and existing systems. Product availability, integrations, and deployment-specific details need confirmation during evaluation.` },
   ] : [
     { heading: "Operating model", body: `${specialty.audience} Each clinic defines its own services, staff roles, policies, and operating terms.` },
@@ -359,7 +391,10 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     questions: objections,
     links: [
       ...(slug ? [{ label: `${specialty.name} overview`, path: Object.keys(specialties).find((candidate) => path.startsWith(`${candidate}/`)) ?? path }] : []),
+      ...(slug ? [{ label: "Shared platform capability", path: platformCapabilityFor(slug) }] : []),
       ...(guide ? [guide] : []),
+      { label: "Explore the demo", path: "/demo" },
+      { label: "Book a demo", path: "/book-demo" },
       ...(specialty.name === "Weight loss" && slug && /intake|forms|portal/.test(slug) ? [
         { label: "Weight loss intake form template", path: "/resources/templates/weight-loss-intake-form" },
       ] : []),
@@ -371,8 +406,7 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
         { label: "Direct primary care memberships", path: "/direct-primary-care/memberships" },
       ] : []),
       { label: "Platform overview", path: "/platform" },
-      { label: "Book a demo", path: "/book-demo" },
-      { label: "Related workflow resources", path: "/resources" },
+      { label: "Related workflow resources", path: "/resources/guides" },
     ],
   };
 }
