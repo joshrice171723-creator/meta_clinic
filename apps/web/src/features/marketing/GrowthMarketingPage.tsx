@@ -228,7 +228,10 @@ function PageBody({ page }: { page: GrowthPage }) {
           <h2 id="gallery-title">See the shared tools behind the journey.</h2>
           <p>These are separate screens from synthetic demo clinics. The specialty workflow and current feature scope should be confirmed in a walkthrough.</p>
           <div className="growth-page__gallery-grid">{page.gallery.map((visual) => <figure key={visual.image}>
-            <img src={visual.image} alt={visual.imageAlt} loading="lazy" />
+            <a href={visual.image} target="_blank" rel="noopener noreferrer" aria-label={`Open full-size product screen: ${visual.imageCaption}`}>
+              <img src={visual.image} alt={visual.imageAlt} loading="lazy" />
+              <span className="growth-page__gallery-open">View full screen ↗</span>
+            </a>
             <figcaption>{visual.imageCaption}</figcaption>
           </figure>)}</div>
         </div></section> : null}

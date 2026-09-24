@@ -63,7 +63,10 @@
 .growth-page__gallery p:not(.growth-page__kicker) { max-width: 750px; color: var(--muted); line-height: 1.7; }
 .growth-page__gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 42px; }
 .growth-page__gallery figure { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.growth-page__gallery figure > a { display: block; text-decoration: none; }
 .growth-page__gallery img { display: block; width: 100%; height: 230px; object-fit: contain; border: 1px solid var(--line); border-radius: 4px; background: white; }
+.growth-page__gallery-open { display: inline-block; margin-top: 10px; color: var(--ink); font-size: 12px; font-weight: 800; }
+.growth-page__gallery figure > a:hover .growth-page__gallery-open { text-decoration: underline; }
 .growth-page__gallery figcaption { margin-top: 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .growth-page__sequence { padding-block: 100px 110px; background: #e8f0e8; }
 .growth-page__sequence h2 { max-width: 700px; }
