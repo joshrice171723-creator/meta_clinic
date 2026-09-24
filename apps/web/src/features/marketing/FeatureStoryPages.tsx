@@ -14,6 +14,12 @@ type Story = {
     { title: string; copy: string },
     { title: string; copy: string },
   ];
+  image?: { src: string; alt: string; caption: string };
+  secondaryImage?: { src: string; alt: string; caption: string };
+  photos?: [
+    { src: string; alt: string; caption: string },
+    { src: string; alt: string; caption: string },
+  ];
   related: string;
   relatedCopy: string;
   layout: "split" | "folio" | "wide" | "offset";
@@ -39,6 +45,23 @@ const stories: Record<string, Story> = {
       {
         title: "Move the day forward",
         copy: "Use timing and stage to identify the next operational handoff, from intake through checkout.",
+      },
+    ],
+    image: {
+      src: "/marketing/tracking-board-app.png",
+      alt: "Actual Meta Clinic Tracking Board with five fictional visits across waiting, intake, ready for provider, and provider assigned stages, plus rooms, vitals, care indicators, providers, and timing.",
+      caption: "Tracking Board · captured from the populated synthetic clinic",
+    },
+    photos: [
+      {
+        src: "/marketing/tracking-board-team.png",
+        alt: "Three fictional clinic staff coordinating at a bright reception workspace.",
+        caption: "The team can see where the day stands.",
+      },
+      {
+        src: "/marketing/tracking-board-handoff.png",
+        alt: "A fictional clinic nurse guiding a patient from reception toward an exam room.",
+        caption: "A clear handoff helps the visit move forward.",
       },
     ],
     related: "scheduling",
@@ -192,29 +215,69 @@ const stories: Record<string, Story> = {
         copy: "Show the reason and record behind a changed charge or refund.",
       },
     ],
+    image: {
+      src: "/marketing/cash-billing-app.png",
+      alt: "Meta Clinic billing overview showing a paid synthetic visit, its USD collections, and a zero remaining balance.",
+      caption: "Billing overview · captured from the populated demo clinic",
+    },
+    secondaryImage: {
+      src: "/marketing/cash-billing-collections.png",
+      alt: "Meta Clinic collections panel showing the fictional patient's paid invoice, payment amount, and receipt action.",
+      caption:
+        "Collections and reconciliation · captured from the same demo clinic",
+    },
+    photos: [
+      {
+        src: "/marketing/cash-billing-team.png",
+        alt: "Two fictional clinic staff reviewing checkout work at a bright front desk.",
+        caption: "A shared view when the visit reaches checkout.",
+      },
+      {
+        src: "/marketing/cash-billing-checkout.png",
+        alt: "A fictional patient and clinic staff member talking at a reception counter.",
+        caption: "A clear conversation at the end of the visit.",
+      },
+    ],
     related: "invoices",
     relatedCopy: "Follow the billed service into its invoice history.",
     layout: "split",
   },
   "memberships-packages": {
     eyebrow: "Care models with choice",
-    title: "Give recurring care clear terms.",
-    lead: "Show the services, access period, included use, and renewal state that make a membership understandable.",
-    chapter: "The offer and the patient record should agree.",
+    title: "Shape an ongoing-care offer with clarity.",
+    lead: "Build programs, collect reusable services, and define the terms a patient will see before an offer goes live.",
+    chapter: "From a care idea to a published program.",
     chapterLead:
-      "Keep what a patient purchased beside what has been used, without hiding changes in a billing log.",
+      "The catalog lets a clinic organize distinct programs and tiers without burying their differences in a long billing list.",
     workflows: [
       {
-        title: "Define the offer",
-        copy: "Describe included services, cycle, and price before enrollment.",
+        title: "Create the program",
+        copy: "Give each care model a name, description, and place in the patient-facing catalog.",
       },
       {
-        title: "Track what is used",
-        copy: "See remaining visits or benefits beside the patient membership.",
+        title: "Reuse the right services",
+        copy: "Define visits and sessions once, then add the relevant services to each tier.",
       },
       {
-        title: "Handle change visibly",
-        copy: "Make renewal, pause, and end dates easy to understand.",
+        title: "Publish clear terms",
+        copy: "Preview the patient card and publish a version of the tier when its terms are ready.",
+      },
+    ],
+    image: {
+      src: "/marketing/memberships-app.png",
+      alt: "Actual Meta Clinic membership catalog with five fictional published programs, six available services, four tiers, and program descriptions.",
+      caption: "Membership catalog · captured from the populated demo clinic",
+    },
+    photos: [
+      {
+        src: "/marketing/memberships-team.png",
+        alt: "Fictional clinician and care coordinator discussing a program at a laptop in a bright clinic office.",
+        caption: "A care model starts with a team conversation.",
+      },
+      {
+        src: "/marketing/memberships-front-desk.png",
+        alt: "Fictional clinic coordinator discussing program options with a patient at reception.",
+        caption: "Clear terms make the next conversation easier.",
       },
     ],
     related: "cash-billing",
@@ -240,6 +303,23 @@ const stories: Record<string, Story> = {
       {
         title: "Follow the history",
         copy: "Show payments and adjustments in the same financial story.",
+      },
+    ],
+    image: {
+      src: "/marketing/invoices-app.png",
+      alt: "Meta Clinic invoice ledger showing fictional patients, open and paid states, dates, USD totals, and balances.",
+      caption: "Invoice ledger · captured from the synthetic clinic workspace",
+    },
+    photos: [
+      {
+        src: "/marketing/invoices-team.png",
+        alt: "Two fictional clinic staff reviewing financial paperwork together at a desk.",
+        caption: "The record should help the team answer the question.",
+      },
+      {
+        src: "/marketing/invoices-patient.png",
+        alt: "A fictional clinic coordinator giving a visit document to a patient at reception.",
+        caption: "An understandable record is easier to share.",
       },
     ],
     related: "cash-billing",
@@ -399,6 +479,18 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </div>
       </section>
 
+      {story.image && (
+        <figure className="meta-story__product meta-story__wrap">
+          <img src={story.image.src} alt={story.image.alt} loading="eager" />
+          <figcaption>
+            <span>{story.image.caption}</span>
+            <a href={story.image.src} target="_blank" rel="noreferrer">
+              Open full-size image
+            </a>
+          </figcaption>
+        </figure>
+      )}
+
       <section
         className="meta-story__work meta-story__wrap"
         id="feature-workflows"
@@ -418,6 +510,36 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
           ))}
         </div>
       </section>
+
+      {story.secondaryImage && (
+        <figure className="meta-story__product meta-story__product--secondary meta-story__wrap">
+          <img
+            src={story.secondaryImage.src}
+            alt={story.secondaryImage.alt}
+            loading="lazy"
+          />
+          <figcaption>
+            <span>{story.secondaryImage.caption}</span>
+            <a href={story.secondaryImage.src} target="_blank" rel="noreferrer">
+              Open full-size image
+            </a>
+          </figcaption>
+        </figure>
+      )}
+
+      {story.photos && (
+        <section
+          className="meta-story__people meta-story__wrap"
+          aria-label={`${feature.label} in the clinic`}
+        >
+          {story.photos.map((photo) => (
+            <figure key={photo.src}>
+              <img src={photo.src} alt={photo.alt} loading="lazy" />
+              <figcaption>{photo.caption}</figcaption>
+            </figure>
+          ))}
+        </section>
+      )}
 
       {related && (
         <aside className="meta-story__next meta-story__wrap">

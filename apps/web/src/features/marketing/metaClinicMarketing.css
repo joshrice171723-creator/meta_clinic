@@ -653,6 +653,13 @@
   font-size: 18px;
   line-height: 1.6;
 }
+.meta-marketing__clinic-detail-copy .MuiButton-root {
+  margin-top: 18px;
+  padding-left: 0;
+  color: #25523d;
+  font-weight: 700;
+  text-transform: none;
+}
 
 .meta-marketing__clinic-note,
 .meta-marketing__tool-note {

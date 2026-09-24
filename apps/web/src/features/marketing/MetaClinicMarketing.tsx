@@ -7,6 +7,7 @@ import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import LocalFloristOutlinedIcon from "@mui/icons-material/LocalFloristOutlined";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
 import { FeatureStoryPage } from "./FeatureStoryPages";
+import { ClinicTypePage, isClinicTypeSlug } from "./ClinicTypePages";
 import { featureGroups, featureHref, marketingFeatures } from "./features";
 import "./metaClinicMarketing.css";
 
@@ -31,17 +32,22 @@ const workflow = [
   },
 ];
 
-const clinicGroups = [
+const clinicGroups: {
+  heading: string;
+  types: { name: string; detail: string; slug?: string }[];
+}[] = [
   {
     heading: "Everyday & access care",
     types: [
       {
         name: "Primary care",
+        slug: "primary-care",
         detail:
           "Visits, chart context, results, billing, and follow-up shaped around the services a practice offers.",
       },
       {
         name: "Membership care",
+        slug: "membership-care",
         detail:
           "A primary-care workflow with a configured membership and access model alongside visits and follow-up.",
       },
@@ -82,8 +88,9 @@ const clinicGroups = [
     types: [
       {
         name: "Infusion",
+        slug: "infusion",
         detail:
-          "Treatment plans, session schedules, chairs and staff, medication and inventory needs, and follow-through.",
+          "Scheduling, supply visibility, and financial follow-through today, with infusion-specific workflows to shape around your clinic.",
       },
       {
         name: "Aesthetics",
@@ -96,7 +103,13 @@ const clinicGroups = [
 
 const clinicTypes = clinicGroups.flatMap((group) => group.types);
 
-export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
+export function MetaClinicMarketing({
+  featureSlug,
+  clinicTypeSlug,
+}: {
+  featureSlug?: string;
+  clinicTypeSlug?: string;
+}) {
   const feature = marketingFeatures.find((item) => item.slug === featureSlug);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [selectedClinic, setSelectedClinic] = useState(clinicTypes[0]);
@@ -110,13 +123,16 @@ export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
   };
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = feature
-      ? `${feature.label} — Meta Clinic`
-      : "Meta Clinic — A more connected clinic day";
+    document.title =
+      clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
+        ? `${clinicTypeSlug === "primary-care" ? "Primary Care" : clinicTypeSlug === "membership-care" ? "Membership Care" : "Infusion"} — Meta Clinic`
+        : feature
+          ? `${feature.label} — Meta Clinic`
+          : "Meta Clinic — A more connected clinic day";
     return () => {
       document.title = previousTitle;
     };
-  }, [feature]);
+  }, [feature, clinicTypeSlug]);
 
   return (
     <div className="meta-marketing">
@@ -192,7 +208,9 @@ export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
         </nav>
       </Popover>
 
-      {featureSlug ? (
+      {clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug) ? (
+        <ClinicTypePage slug={clinicTypeSlug} />
+      ) : featureSlug ? (
         isFlagshipSlug(featureSlug) ? (
           <FlagshipFeaturePage slug={featureSlug} />
         ) : feature ? (
@@ -369,8 +387,21 @@ export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
                       <Button
                         key={clinic.name}
                         className="meta-marketing__clinic-button"
-                        onClick={() => setSelectedClinic(clinic)}
-                        aria-pressed={selectedClinic.name === clinic.name}
+                        href={
+                          clinic.slug
+                            ? `/meta-clinic/${clinic.slug}`
+                            : undefined
+                        }
+                        onClick={
+                          clinic.slug
+                            ? undefined
+                            : () => setSelectedClinic(clinic)
+                        }
+                        aria-pressed={
+                          clinic.slug
+                            ? undefined
+                            : selectedClinic.name === clinic.name
+                        }
                         endIcon={<ArrowForwardRoundedIcon />}
                       >
                         {clinic.name}
@@ -385,7 +416,17 @@ export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
                 <span>Explore a care model</span>
                 <h3>{selectedClinic.name}</h3>
               </div>
-              <p>{selectedClinic.detail}</p>
+              <div className="meta-marketing__clinic-detail-copy">
+                <p>{selectedClinic.detail}</p>
+                {selectedClinic.slug && (
+                  <Button
+                    href={`/meta-clinic/${selectedClinic.slug}`}
+                    endIcon={<ArrowForwardRoundedIcon />}
+                  >
+                    Explore {selectedClinic.name}
+                  </Button>
+                )}
+              </div>
             </div>
             <p className="meta-marketing__clinic-note">
               Telehealth can be part of a compatible clinic model without

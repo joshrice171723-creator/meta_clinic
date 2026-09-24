@@ -840,6 +840,8 @@ function Application() {
     path === "/memberships" ||
     (publicMembership !== null && path !== "/memberships/account");
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
+  const marketingClinicType =
+    /^\/meta-clinic\/(primary-care|membership-care|infusion)$/.exec(path);
   const publicPage =
     [
       "/",
@@ -856,7 +858,8 @@ function Application() {
       "/founder-decisions",
     ].includes(path) ||
     (publicMembership !== null && path !== "/memberships/account") ||
-    marketingFeature !== null;
+    marketingFeature !== null ||
+    marketingClinicType !== null;
   const [session, setSession] = useState<SessionBootstrap>({});
   useEffect(() => {
     if (publicMembershipRoute) {
@@ -986,10 +989,13 @@ function Application() {
         <FounderDecisionWorkspace />
       </RouteBoundary>
     );
-  if (path === "/meta-clinic" || marketingFeature)
+  if (path === "/meta-clinic" || marketingFeature || marketingClinicType)
     return (
       <RouteBoundary root>
-        <MetaClinicMarketing featureSlug={marketingFeature?.[1]} />
+        <MetaClinicMarketing
+          featureSlug={marketingFeature?.[1]}
+          clinicTypeSlug={marketingClinicType?.[1]}
+        />
       </RouteBoundary>
     );
   if (path === "/memberships")

@@ -1,4 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { MetaClinicMarketing } from "../src/features/marketing/MetaClinicMarketing";
 import {
@@ -33,14 +35,87 @@ describe("Meta Clinic marketing pages", () => {
     }
   });
 
-  it("links the Tracking Board from the catalog without fabricated screenshots", () => {
+  it("links the Tracking Board to a page with a real populated board capture", () => {
     const home = renderToStaticMarkup(<MetaClinicMarketing />);
     const detail = renderToStaticMarkup(
       <MetaClinicMarketing featureSlug="tracking-board" />,
     );
     expect(home).toContain('href="/meta-clinic/features/tracking-board"');
     expect(detail).toContain("Know where every visit stands.");
+    expect(detail).toContain("/marketing/tracking-board-app.png");
+    expect(detail).toContain("/marketing/tracking-board-team.png");
+    expect(
+      existsSync(
+        fileURLToPath(
+          new URL(
+            "../public/marketing/tracking-board-app.png",
+            import.meta.url,
+          ),
+        ),
+      ),
+    ).toBe(true);
     expect(detail).not.toContain("tracking-board-overview.svg");
+  });
+
+  it("uses captured app views for inventory, billing, memberships, and invoices", () => {
+    for (const [slug, filename] of [
+      ["inventory", "inventory-app.png"],
+      ["cash-billing", "cash-billing-app.png"],
+      ["cash-billing", "cash-billing-collections.png"],
+      ["memberships-packages", "memberships-app.png"],
+      ["invoices", "invoices-app.png"],
+    ]) {
+      const detail = renderToStaticMarkup(
+        <MetaClinicMarketing featureSlug={slug} />,
+      );
+      expect(detail).toContain(`/marketing/${filename}`);
+      expect(
+        existsSync(
+          fileURLToPath(
+            new URL(`../public/marketing/${filename}`, import.meta.url),
+          ),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("offers clinic-specific primary care, membership care, and infusion pages", () => {
+    const home = renderToStaticMarkup(<MetaClinicMarketing />);
+    for (const [slug, heading, appImage, peopleImage] of [
+      [
+        "primary-care",
+        "Know the person. Keep the day moving.",
+        "primary-care-patients-app.png",
+        "primary-care-visit.png",
+      ],
+      [
+        "membership-care",
+        "Give ongoing care a clear shape.",
+        "memberships-app.png",
+        "memberships-team.png",
+      ],
+      [
+        "infusion",
+        "Give every treatment day room to breathe.",
+        "inventory-app.png",
+        "infusion-care.png",
+      ],
+    ]) {
+      expect(home).toContain(`href="/meta-clinic/${slug}"`);
+      const detail = renderToStaticMarkup(
+        <MetaClinicMarketing clinicTypeSlug={slug} />,
+      );
+      expect(detail).toContain(heading);
+      expect(detail).toContain(`/marketing/${appImage}`);
+      expect(detail).toContain(`/marketing/${peopleImage}`);
+      expect(
+        existsSync(
+          fileURLToPath(
+            new URL(`../public/marketing/${peopleImage}`, import.meta.url),
+          ),
+        ),
+      ).toBe(true);
+    }
   });
 
   it("presents scheduling day, month, booking, and clinic team imagery", () => {
