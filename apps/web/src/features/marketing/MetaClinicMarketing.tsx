@@ -57,32 +57,32 @@ const workflow = [
 ];
 
 const priorityClinics = [
-  { name: "Weight loss", href: "/weight-loss", detail: "Connect program intake, remote visits, clinician review, membership administration, and follow-up." },
-  { name: "Behavioral health", href: "/behavioral-health", detail: "Coordinate recurring sessions, documentation, patient communication, and the next agreed step." },
-  { name: "Cash-pay care", href: "/primary-care/cash-pay", detail: "Make service terms, booking, the visit, payment questions, and follow-through easier to follow." },
+  { name: "Weight loss", href: "/meta-clinic/weight-loss", detail: "Connect program intake, remote visits, clinician review, membership administration, and follow-up." },
+  { name: "Behavioral health", href: "/meta-clinic/behavioral-health", detail: "Coordinate recurring sessions, documentation, patient communication, and the next agreed step." },
+  { name: "Cash-pay care", href: "/meta-clinic/primary-care/cash-pay", detail: "Make service terms, booking, the visit, payment questions, and follow-through easier to follow." },
 ];
 
 const productTour = [
-  { name: "Clinic dashboard", detail: "Start with today's work and the items that need an owner.", href: "/platform/tasks" },
-  { name: "Schedule", detail: "Trace a booking into the people and resources required for the visit.", href: "/platform/scheduling" },
-  { name: "Patient chart", detail: "Inspect the visit context and the documentation the care team reviews.", href: "/platform/clinical-documentation" },
-  { name: "Intake", detail: "See what a patient submits and what staff still need to check.", href: "/platform/patient-intake" },
-  { name: "Inventory", detail: "Follow a supply question into the relevant clinic workflow.", href: "/platform/inventory" },
-  { name: "Billing", detail: "Review how a charge, invoice, or payment question reaches the right team.", href: "/platform/billing" },
+  { name: "Clinic dashboard", detail: "Start with today's work and the items that need an owner.", href: "/meta-clinic/platform/tasks" },
+  { name: "Schedule", detail: "Trace a booking into the people and resources required for the visit.", href: "/meta-clinic/platform/scheduling" },
+  { name: "Patient chart", detail: "Inspect the visit context and the documentation the care team reviews.", href: "/meta-clinic/platform/clinical-documentation" },
+  { name: "Intake", detail: "See what a patient submits and what staff still need to check.", href: "/meta-clinic/platform/patient-intake" },
+  { name: "Inventory", detail: "Follow a supply question into the relevant clinic workflow.", href: "/meta-clinic/platform/inventory" },
+  { name: "Billing", detail: "Review how a charge, invoice, or payment question reaches the right team.", href: "/meta-clinic/platform/billing" },
 ];
 
 const benefits = [
-  { title: "A connected patient journey", detail: "See how access, intake, scheduling, the visit, and follow-up pass between patients and staff.", href: "/platform" },
-  { title: "A clearer clinic day", detail: "Give front desk, clinical, and operations teams context for the work each role owns.", href: "/platform/workflows" },
-  { title: "Assistance with human review", detail: "Evaluate AI-assisted work with its source information, reviewer, and limits made explicit.", href: "/ai" },
-  { title: "Fit for your care model", detail: "Start with a specialty workflow and review what is available for your clinic's setting.", href: "/site-map" },
+  { title: "A connected patient journey", detail: "See how access, intake, scheduling, the visit, and follow-up pass between patients and staff.", href: "/meta-clinic/platform" },
+  { title: "A clearer clinic day", detail: "Give front desk, clinical, and operations teams context for the work each role owns.", href: "/meta-clinic/platform/workflows" },
+  { title: "Assistance with human review", detail: "Evaluate AI-assisted work with its source information, reviewer, and limits made explicit.", href: "/meta-clinic/ai" },
+  { title: "Fit for your care model", detail: "Start with a specialty workflow and review what is available for your clinic's setting.", href: "/meta-clinic/site-map" },
 ];
 
 const buyerQuestions = [
-  { title: "Security and data", detail: "Request current, scoped evidence for access, privacy, and the agreements that apply.", href: "/security" },
-  { title: "Integrations and migration", detail: "Confirm each data flow, existing system handoff, and current vendor connection before planning a change.", href: "/integrations" },
-  { title: "Implementation and support", detail: "Use a walkthrough to define roles, setup work, training needs, and the help path for your team.", href: "/book-demo" },
-  { title: "Pricing and scope", detail: "Discuss the clinic model and proposed capabilities before reviewing a written commercial offer.", href: "/pricing" },
+  { title: "Security and data", detail: "Request current, scoped evidence for access, privacy, and the agreements that apply.", href: "/meta-clinic/security" },
+  { title: "Integrations and migration", detail: "Confirm each data flow, existing system handoff, and current vendor connection before planning a change.", href: "/meta-clinic/integrations" },
+  { title: "Implementation and support", detail: "Use a walkthrough to define roles, setup work, training needs, and the help path for your team.", href: "/meta-clinic/book-demo" },
+  { title: "Pricing and scope", detail: "Discuss the clinic model and proposed capabilities before reviewing a written commercial offer.", href: "/meta-clinic/pricing" },
 ];
 
 const homeQuestions = [

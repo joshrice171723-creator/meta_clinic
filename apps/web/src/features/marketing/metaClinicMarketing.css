@@ -1,10 +1,10 @@
 .meta-marketing {
-  --meta-ink: #17372d;
-  --meta-muted: #52635a;
-  --meta-line: #d8ded5;
-  --meta-paper: #faf8f2;
-  --meta-sage: #e7eee4;
-  --meta-terracotta: #c98d73;
+  --meta-ink: #342931;
+  --meta-muted: #625960;
+  --meta-line: #e9dedb;
+  --meta-paper: #fffaf8;
+  --meta-sage: #fff4f0;
+  --meta-terracotta: #c64852;
   min-width: 0;
   overflow: clip;
   background: var(--meta-paper);
@@ -83,7 +83,7 @@
 .meta-marketing__brand-mark span {
   width: 13px;
   height: 26px;
-  background: var(--meta-ink);
+  background: #17372d;
   border-radius: 95% 5% 95% 5%;
   transform: rotate(-25deg);
 }
@@ -1616,5 +1616,78 @@
   .meta-marketing__hero-capture,
   .meta-marketing__visual {
     animation: none;
+  }
+}
+
+/* The scheduling story sets the palette for the shared marketing journey. */
+.meta-marketing__hero {
+  background: #fff4f0;
+}
+
+.meta-marketing__hero h1,
+.meta-marketing__section h2 {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-weight: 750;
+  letter-spacing: -0.055em;
+}
+
+.meta-marketing__eyebrow {
+  color: #b53e49;
+  letter-spacing: 0.16em;
+}
+
+.meta-marketing__lead,
+.meta-marketing__hero-note {
+  color: #625960;
+}
+
+.meta-marketing .meta-marketing__button-primary {
+  background: #c64852;
+  color: #fff;
+}
+
+.meta-marketing .meta-marketing__button-primary:hover {
+  background: #a9323d;
+}
+
+.meta-marketing .meta-marketing__button-secondary {
+  border-color: #b9a9aa;
+  color: #342931;
+}
+
+.meta-marketing__hero-capture {
+  background: #f5e2dc;
+  box-shadow: 22px 22px 0 #e2d4c8;
+}
+
+.meta-marketing__hero-capture img {
+  border-color: #e8d8d3;
+}
+
+.meta-marketing__hero-capture figcaption {
+  color: #655b60;
+}
+
+.meta-marketing .meta-marketing__book-demo {
+  background: #17372d;
+}
+
+.meta-marketing .meta-marketing__book-demo:hover {
+  background: #315b4b;
+}
+
+.meta-marketing__growth-grid article,
+.meta-marketing__comparison article {
+  border-color: #e9dedb;
+  background: #fff;
+}
+
+.meta-marketing__footer nav strong {
+  color: #a63844;
+}
+
+@media (max-width: 760px) {
+  .meta-marketing__hero-capture {
+    box-shadow: 10px 10px 0 #e2d4c8;
   }
 }

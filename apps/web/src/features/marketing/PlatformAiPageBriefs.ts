@@ -456,6 +456,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
   if (!brief) return null;
   const isAi = path.startsWith("/ai");
   const root = path === "/platform" || path === "/ai";
+  const audience = isAi ? "Clinic owners, practice managers, and clinical reviewers evaluating AI-assisted work" : "Clinic owners, practice managers, and teams evaluating clinic operations";
   const answers = faqAnswers[path] ?? [
     "Confirm the exact behavior in a current product walkthrough; page descriptions do not establish availability.",
     "Map the clinic’s roles, data, and exception paths, then inspect those details in a synthetic demonstration.",
@@ -507,7 +508,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
     note: isAi
       ? "AI features and data handling require feature-specific confirmation. Treat generated content as a proposal for appropriate human review; this page does not represent availability or autonomous clinical action."
       : "Screens and workflows require current product confirmation. Demonstrations should use synthetic data and distinguish supported behavior from configuration, manual steps, and planned work.",
-    audience: isAi ? "Clinic owners, practice managers, and clinical reviewers evaluating AI-assisted work" : "Clinic owners, practice managers, and teams evaluating clinic operations",
+    audience,
     searchIntent: isAi ? `${brief.title.toLowerCase()} evaluation for clinics` : `${brief.title.toLowerCase()} for independent clinics`,
     funnel: "Evaluate workflow → confirm product scope → book a demo",
     visualBrief: brief.visual,

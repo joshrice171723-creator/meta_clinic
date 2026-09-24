@@ -226,7 +226,7 @@ function SchedulingPage() {
           <figure className="meta-flagship__schedule-hero-photo">
             <img
               src="/marketing/scheduling-team.png"
-              alt="Illustration of two clinic staff members reviewing a scheduling app together at a front desk."
+              alt="Two clinic staff members reviewing a scheduling app together at a front desk."
               loading="eager"
             />
             <figcaption>Front desk, in sync.</figcaption>
@@ -329,7 +329,7 @@ function SchedulingPage() {
           <figure>
             <img
               src="/marketing/scheduling-front-desk.png"
-              alt="Illustration of a front desk coordinator working with a clinic calendar in a bright reception area."
+              alt="A front desk coordinator working with a clinic calendar in a bright reception area."
               loading="lazy"
             />
             <figcaption>
@@ -364,8 +364,8 @@ function SchedulingPage() {
             />
             <figure>
               <img
-                src="/marketing/scheduling-planning-team.png"
-                alt="Illustration of a clinician and coordinator reviewing the clinic calendar together at a desk."
+                src="/marketing/scheduling-team.png"
+                alt="A clinician and coordinator reviewing the clinic calendar together at a desk."
                 loading="lazy"
               />
               <figcaption>Planning together, in the same workspace.</figcaption>
@@ -382,7 +382,7 @@ function SchedulingPage() {
           <figure>
             <img
               src="/marketing/scheduling-telehealth.png"
-              alt="Illustration of a clinician and team member at a clinic desk preparing a virtual appointment using scheduling software."
+              alt="A clinician and team member at a clinic desk preparing a virtual appointment using scheduling software."
               loading="lazy"
             />
             <figcaption>Care can begin from the same schedule.</figcaption>
@@ -475,9 +475,9 @@ function ClinicalNotesPage() {
           </div>
           <Screen
             src="/marketing/captures/patient-directory-21-natural-records.png"
-            alt="Related Meta Clinic patient directory with fictional records; this image does not show clinical notes."
-            label="Related patient workspace"
-            caption="Related patient directory · not a clinical notes capture"
+            alt="Meta Clinic patient directory with sample records."
+            label="Patient workspace"
+            caption="Patient directory"
             className="meta-flagship__notes-screen"
           />
         </div>

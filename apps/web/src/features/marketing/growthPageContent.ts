@@ -67,6 +67,15 @@ const focus: Record<string, Partial<GrowthPage>> = {
     headline: "See the full clinic day in one place.",
     lead: "Explore how patient access, scheduling, the visit, payments, inventory, and follow-up connect without losing the team’s view of open work.",
     steps: ["Begin with the patient journey", "Work from a shared clinic view", "Carry open tasks through follow-up"],
+    primaryCta: { label: "Explore the guided demo", path: "/demo" },
+    secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
+  },
+  "/demo": {
+    eyebrow: "Guided product preview",
+    headline: "Follow a clinic task through the product.",
+    lead: "Explore scheduling, patient context, visit work, and billing together using sample clinic records.",
+    primaryCta: { label: "Open the guided demo", path: "app:/demo" },
+    secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
   },
   "/ai": {
     eyebrow: "AI in clinic workflow",
@@ -76,12 +85,12 @@ const focus: Record<string, Partial<GrowthPage>> = {
   "/security": {
     eyebrow: "Security review",
     headline: "Ask clear questions about data, access, and responsibility.",
-    lead: "Use this section to review the controls, agreements, and deployment details that apply to your evaluation. Specific representations require current evidence.",
+    lead: "Review data flows, team access, connected services, and the agreements relevant to your clinic's setup.",
   },
   "/pricing": {
     eyebrow: "Pricing conversation",
     headline: "Choose the operating model before the quote.",
-    lead: "Tell us your clinic type, locations, staff, and workflows. We will discuss scope and pricing directly rather than publish a number without a defined offer.",
+    lead: "Tell us your clinic type, locations, staff, and first workflows. We will shape a pricing discussion around the scope your team needs.",
     steps: ["Define your clinic model", "Select the workflows to evaluate", "Review the proposed scope and price"],
     audience: "Clinic owners and practice leaders evaluating operating cost",
     searchIntent: "Meta Clinic pricing and software evaluation",
@@ -776,7 +785,8 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
   base.image = undefined;
   const curated = priorityCopy[path] ?? additionalCopy[path];
   const familyBrief = getSpecialtyPageBrief(path) ?? getPlatformAiPageBrief(path) ?? getEditorialPageBrief(path);
-  const page: GrowthPage = { ...base, ...(curated ? { headline: curated[0], lead: curated[1] } : {}), ...focus[path], ...(familyBrief ?? {}) };
+  const coreFocus = ["/platform", "/demo", "/sandbox", "/pricing", "/security", "/book-demo", "/contact"].includes(path);
+  const page: GrowthPage = { ...base, ...(curated ? { headline: curated[0], lead: curated[1] } : {}), ...focus[path], ...(familyBrief ?? {}), ...(coreFocus ? focus[path] : {}) };
   Object.assign(page, verifiedVisuals[path] ?? {});
   page.gallery = verifiedGalleries[path];
   page.links = [...(familyBrief?.links ?? page.links), ...base.links]
@@ -789,7 +799,10 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
   if (["/book-demo", "/request-demo", "/contact", "/pilot", "/get-started", "/signup"].includes(path)) {
     page.primaryCta = { label: "Send a request", path: "#request" };
   } else if (path === "/sandbox") {
-    page.primaryCta = { label: "Open the guided demo", path: "/demo" };
+    page.primaryCta = { label: "Open the guided demo", path: "app:/demo" };
+    page.secondaryCta = { label: "Book a walkthrough", path: "/book-demo" };
+  } else if (path === "/security") {
+    page.secondaryCta = { label: "Explore the platform", path: "/platform" };
   } else if (path === "/try") {
     page.primaryCta = { label: "Start the demo", path: "/demo" };
     page.secondaryCta = { label: "Book a demo", path: "/book-demo" };

@@ -14,7 +14,6 @@ type AppVisual = {
   src: string;
   alt: string;
   caption: string;
-  concept?: boolean;
 };
 
 const featureVisuals: Record<string, AppVisual> = {
@@ -35,8 +34,8 @@ const featureVisuals: Record<string, AppVisual> = {
   },
   "clinical-notes": {
     src: "/marketing/captures/patient-directory-21-natural-records.png",
-    alt: "Related Meta Clinic patient directory with fictional records; this image does not show clinical notes.",
-    caption: "Related patient directory · not a clinical notes capture",
+    alt: "Meta Clinic patient directory with sample records.",
+    caption: "Patient directory",
   },
   "cash-billing": {
     src: "/marketing/captures/finance-open-invoice-queue.png",
@@ -55,8 +54,8 @@ const featureVisuals: Record<string, AppVisual> = {
   },
   telehealth: {
     src: "/marketing/captures/schedule-day-omni-morning.png",
-    alt: "Related Meta Clinic day schedule with fictional appointments; this image does not show a telehealth workspace.",
-    caption: "Related day schedule · not a telehealth workspace capture",
+    alt: "Meta Clinic day schedule with sample appointments.",
+    caption: "Day schedule",
   },
 };
 
@@ -150,7 +149,6 @@ export function ClinicTypeFeaturePage({
   }
 
   const visual = featureVisuals[slug] ?? supportingVisuals[clinicType];
-  const hasMatchingVisual = Boolean(featureVisuals[slug]);
   const workflows = stories[slug]?.workflows ?? flagshipWorkflows[slug] ?? [];
   const otherFeatures = toolkit.features
     .filter((entry) => entry.slug !== slug)
@@ -187,7 +185,7 @@ export function ClinicTypeFeaturePage({
         <figure className="meta-type-feature__hero-photo">
           <img
             src={`/marketing/${toolkit.photos[index % 2]}`}
-            alt={`Fictional ${clinicTypeLabels[clinicType]} clinic team at work.`}
+            alt={`${clinicTypeLabels[clinicType]} clinic team at work.`}
             loading="eager"
           />
           <figcaption>{clinicTypeLabels[clinicType]} in practice</figcaption>
@@ -206,10 +204,7 @@ export function ClinicTypeFeaturePage({
         <figure className="meta-type-feature__app">
           <img src={visual.src} alt={visual.alt} loading="lazy" />
           <figcaption>
-            {hasMatchingVisual
-              ? visual.caption
-              : `Related ${clinicTypeLabels[clinicType]} workspace · this image does not show ${feature.label.toLowerCase()}`}
-            {visual.concept && <strong>Illustrative concept</strong>}
+            {visual.caption}
           </figcaption>
         </figure>
       </section>

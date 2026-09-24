@@ -4,6 +4,7 @@ import { Alert, Button, TextField } from "@mui/material";
 import { api } from "../../api/client";
 import { getGrowthPage, type GrowthPage } from "./growthPageContent";
 import { marketingInternalPath, marketingPaths, marketingUrl } from "./marketingPaths";
+import { CoreEvaluationPage, isCoreEvaluationPath } from "./CoreEvaluationPage";
 import "./growthMarketingPage.css";
 
 const priority = [
@@ -44,9 +45,9 @@ function ContactForm({ path }: { path: string }) {
   if (success) return <Alert severity="success">Your request was received. We will use the contact details you provided to follow up.</Alert>;
   return (
     <form className="growth-page__form" onSubmit={submit}>
-      <TextField label="Your name" value={name} onChange={(event) => setName(event.target.value)} required inputProps={{ maxLength: 120 }} />
-      <TextField label="Work email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required inputProps={{ maxLength: 254 }} />
-      <TextField label="Your clinic and what you would like to see" value={message} onChange={(event) => setMessage(event.target.value)} required multiline minRows={4} inputProps={{ maxLength: 3000 }} />
+      <TextField label="Your name" value={name} onChange={(event) => setName(event.target.value)} required slotProps={{ htmlInput: { maxLength: 120 } }} />
+      <TextField label="Work email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required slotProps={{ htmlInput: { maxLength: 254 } }} />
+      <TextField label="Your clinic and what you would like to see" value={message} onChange={(event) => setMessage(event.target.value)} required multiline minRows={4} slotProps={{ htmlInput: { maxLength: 3000 } }} />
       <div className="growth-page__honeypot" aria-hidden="true"><label htmlFor="growth-website">Website</label><input id="growth-website" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></div>
       <p>Business inquiries only. Do not include patient information.</p>
       {error && <Alert severity="error">{error}</Alert>}
@@ -58,7 +59,7 @@ function ContactForm({ path }: { path: string }) {
 function Header() {
   return (
     <header className="growth-page__header">
-      <a className="growth-page__brand" href="/meta-clinic" aria-label="Meta Clinic home"><span className="growth-page__mark" aria-hidden="true">✳</span> Meta Clinic</a>
+      <a className="growth-page__brand" href="/meta-clinic" aria-label="Meta Clinic home"><span className="growth-page__mark" aria-hidden="true"><span /><span /></span> Meta Clinic</a>
       <nav aria-label="Marketing navigation">
         <details className="growth-page__nav-menu"><summary>Platform</summary><div>
           <a href="/meta-clinic/platform">Platform overview</a>
@@ -72,6 +73,11 @@ function Header() {
         <details className="growth-page__nav-menu"><summary>Specialties</summary><div>
           {priority.map((item) => <a href={marketingUrl(item.path)} key={item.path}>{item.label}</a>)}
           <a href="/meta-clinic/infusion">Infusion</a>
+        </div></details>
+        <details className="growth-page__nav-menu"><summary>Features</summary><div>
+          <a href="/meta-clinic/features/scheduling">Scheduling</a>
+          <a href="/meta-clinic/features/clinical-notes">Clinical notes</a>
+          <a href="/meta-clinic/features/inventory">Inventory</a>
         </div></details>
         <a href="/meta-clinic/ai">AI</a>
         <a href="/meta-clinic/security">Security</a>
@@ -283,5 +289,8 @@ export function GrowthMarketingPage({ path }: { path: string }) {
     return () => { document.title = previousTitle; if (previousDescription === null) description.remove(); else description.setAttribute("content", previousDescription); if (previousRobots === null) robots.remove(); else robots.setAttribute("content", previousRobots); if (previousCanonical === null) canonical.remove(); else canonical.setAttribute("href", previousCanonical); };
   }, [page]);
   if (!page) return null;
-  return <div className="growth-page"><a className="growth-page__skip" href="#main">Skip to content</a><Header /><PageBody page={page} /></div>;
+  const internalPath = marketingInternalPath(path);
+  return <div className="growth-page"><a className="growth-page__skip" href="#main">Skip to content</a><Header />
+    {internalPath && isCoreEvaluationPath(internalPath) ? <><CoreEvaluationPage page={page} path={internalPath} form={internalPath === "/book-demo" || internalPath === "/contact" ? <ContactForm path={page.path} /> : undefined} /><Footer /></> : <PageBody page={page} />}
+  </div>;
 }
