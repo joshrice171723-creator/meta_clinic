@@ -464,6 +464,26 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageAlt: "Meta Clinic month schedule showing synthetic remote and in-person appointments.",
     imageCaption: "Remote visits in the synthetic demo schedule",
   },
+  "/weight-loss/telehealth": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic month schedule showing remote visits alongside other appointments.",
+    imageCaption: "Remote visit scheduling in the synthetic demo; confirm weight loss clinic configuration during evaluation",
+  },
+  "/weight-loss/telehealth-scheduling": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic month schedule with remote appointment entries and visit times.",
+    imageCaption: "Remote appointments in the synthetic demo; specialty setup is evaluated separately",
+  },
+  "/behavioral-health/telehealth": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic month schedule showing remote appointment entries.",
+    imageCaption: "Remote visit scheduling in the synthetic demo; behavioral health workflow is evaluated separately",
+  },
+  "/weight-loss/memberships": {
+    image: "/marketing/memberships-app.png",
+    imageAlt: "Meta Clinic synthetic membership catalog containing a metabolic health program among other clinic programs.",
+    imageCaption: "Membership catalog with a synthetic metabolic health program",
+  },
   "/platform/workflows": {
     image: "/marketing/tracking-board-app.png",
     imageAlt: "Meta Clinic tracking board showing synthetic visits in different operational states.",
