@@ -1,0 +1,794 @@
+.meta-flagship {
+  --flagship-ink: #17372d;
+  overflow: clip;
+  background: #faf8f2;
+  color: var(--flagship-ink);
+}
+
+.meta-flagship__container {
+  width: min(100% - 96px, 1390px);
+  margin-inline: auto;
+}
+
+.meta-flagship__crumb {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 62px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.meta-flagship__crumb span {
+  opacity: 0.45;
+}
+.meta-flagship__crumb:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.meta-flagship__overline,
+.meta-flagship__section-intro > span,
+.meta-flagship__notes-statement > span {
+  margin: 0 0 20px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.meta-flagship h1,
+.meta-flagship h2 {
+  font-family: "Iowan Old Style", "Baskerville", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+}
+
+.meta-flagship h1 {
+  margin: 0;
+  font-size: clamp(54px, 5.8vw, 94px);
+  line-height: 1.02;
+}
+.meta-flagship__lead {
+  max-width: 600px;
+  margin: 28px 0 32px;
+  font-size: clamp(18px, 1.5vw, 22px);
+  line-height: 1.6;
+}
+
+.meta-flagship__screen {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: #222;
+  box-shadow: 0 40px 90px rgba(13, 32, 28, 0.23);
+}
+
+.meta-flagship__screen-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 17px;
+  background: #222725;
+  color: #a8b3ac;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meta-flagship__screen-lights {
+  display: inline-flex;
+  gap: 5px;
+}
+.meta-flagship__screen-lights i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a9b6ac;
+}
+.meta-flagship__screen-lights i:first-child {
+  background: #d38974;
+}
+.meta-flagship__screen-lights i:nth-child(2) {
+  background: #d9b96a;
+}
+.meta-flagship__screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.meta-flagship__screen figcaption {
+  padding: 11px 18px;
+  background: #242927;
+  color: #bfcbc2;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.meta-flagship__schedule-screen .meta-flagship__screen-top,
+.meta-flagship__schedule-screen figcaption {
+  background: #eaf0fa;
+  color: #31466d;
+}
+.meta-flagship__schedule-screen .meta-flagship__screen-lights i {
+  background: #8fa6cd;
+}
+
+.meta-flagship__inventory-hero {
+  min-height: 690px;
+  padding: 64px 0 94px;
+  background: #193b30;
+  color: #f8f5e9;
+}
+.meta-flagship__inventory-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 3vw;
+  align-items: center;
+}
+.meta-flagship__inventory-copy {
+  position: relative;
+  z-index: 2;
+  padding: 0 0 35px;
+}
+.meta-flagship__inventory-copy h1 {
+  max-width: 670px;
+}
+.meta-flagship__inventory-copy .meta-flagship__lead {
+  color: #d8e4da;
+}
+.meta-flagship__inventory-copy .meta-flagship__overline {
+  color: #e5b080;
+}
+.meta-flagship .meta-flagship__hero-link {
+  padding: 12px 0;
+  color: #f8f5e9;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 7px;
+}
+.meta-flagship__inventory-photo {
+  position: relative;
+  min-width: 0;
+  padding: 52px 0 32px 26px;
+}
+.meta-flagship__photo-index {
+  position: absolute;
+  top: 12px;
+  right: 0;
+  color: #bed3c0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+.meta-flagship__inventory-photo .meta-flagship__screen {
+  transform: rotate(-2deg);
+}
+.meta-flagship__inventory-orbit {
+  position: absolute;
+  right: -18%;
+  bottom: -100px;
+  width: 55%;
+  aspect-ratio: 1;
+  border: 1px solid #d79a74;
+  border-radius: 50%;
+}
+.meta-flagship__inventory-work {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 7vw;
+  padding-block: 114px 120px;
+}
+.meta-flagship__section-intro h2 {
+  max-width: 550px;
+  margin: 0;
+  font-size: clamp(44px, 4.4vw, 70px);
+  line-height: 1.09;
+}
+.meta-flagship__section-intro > span {
+  color: #a56548;
+}
+.meta-flagship__inventory-cards {
+  border-top: 1px solid #c9d1c8;
+}
+.meta-flagship__inventory-cards article {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  column-gap: 24px;
+  padding: 28px 0;
+  border-bottom: 1px solid #c9d1c8;
+}
+.meta-flagship__inventory-cards article strong {
+  grid-row: span 2;
+  color: #a56548;
+  font-size: 13px;
+}
+.meta-flagship__inventory-cards h3 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.meta-flagship__inventory-cards p {
+  margin: 0;
+  color: #596a61;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.meta-flagship--scheduling {
+  --flagship-ink: #342931;
+  background: #fffaf8;
+}
+.meta-flagship--scheduling h1,
+.meta-flagship--scheduling h2 {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-weight: 750;
+  letter-spacing: -0.055em;
+}
+.meta-flagship--scheduling h2 {
+  font-size: clamp(38px, 4.3vw, 68px);
+  line-height: 1.08;
+}
+.meta-flagship--scheduling .meta-flagship__overline {
+  color: #c54852;
+}
+.meta-flagship__schedule-hero-v2 {
+  padding-block: 52px 78px;
+  background: #fff4f0;
+}
+.meta-flagship__schedule-hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.87fr) minmax(0, 1.13fr);
+  align-items: center;
+  gap: 5%;
+}
+.meta-flagship__schedule-hero-copy {
+  padding-block: 30px;
+}
+.meta-flagship__schedule-hero-copy .meta-flagship__crumb {
+  margin-bottom: 70px;
+}
+.meta-flagship__schedule-hero-copy h1 {
+  max-width: 740px;
+  font-size: clamp(56px, 5.9vw, 94px);
+  line-height: 1.01;
+}
+.meta-flagship__schedule-hero-copy .meta-flagship__lead {
+  max-width: 590px;
+  color: #625960;
+}
+.meta-flagship__schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 26px;
+  margin-top: 35px;
+}
+.meta-flagship__schedule-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 21px;
+  border-radius: 8px;
+  background: #c64852;
+  color: white;
+  font-size: 15px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.meta-flagship__schedule-primary:hover {
+  background: #a9323d;
+}
+.meta-flagship__schedule-primary svg {
+  font-size: 19px;
+}
+.meta-flagship__schedule-text-link {
+  color: #8e3540;
+  font-size: 14px;
+  font-weight: 700;
+  text-underline-offset: 5px;
+}
+.meta-flagship__schedule-hero-footnote {
+  margin: 40px 0 0;
+  color: #7d7377;
+  font-size: 13px;
+}
+.meta-flagship__schedule-hero-photo,
+.meta-flagship__schedule-perspective figure,
+.meta-flagship__schedule-booking figure,
+.meta-flagship__schedule-telehealth figure {
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+  border-radius: 16px;
+}
+.meta-flagship__schedule-hero-photo {
+  height: min(43vw, 650px);
+  min-height: 450px;
+  border-radius: 200px 16px 16px 16px;
+  box-shadow: 0 24px 70px rgba(99, 52, 55, 0.12);
+}
+.meta-flagship__schedule-hero-photo img,
+.meta-flagship__schedule-perspective img,
+.meta-flagship__schedule-booking figure img,
+.meta-flagship__schedule-telehealth figure img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.meta-flagship__schedule-hero-photo figcaption,
+.meta-flagship__schedule-perspective figcaption,
+.meta-flagship__schedule-booking figure figcaption,
+.meta-flagship__schedule-telehealth figure figcaption {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  padding: 8px 11px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #584a4d;
+  font-size: 11px;
+  font-weight: 700;
+}
+.meta-flagship__schedule-product {
+  padding-block: 112px 100px;
+  background: #fff;
+}
+.meta-flagship__schedule-product-heading {
+  display: grid;
+  grid-template-columns: 1.1fr 0.55fr;
+  align-items: end;
+  gap: 8%;
+  margin-bottom: 36px;
+}
+.meta-flagship__schedule-product-heading h2 {
+  max-width: 850px;
+  margin: 0;
+}
+.meta-flagship__schedule-product-heading > p {
+  max-width: 385px;
+  margin: 0 0 8px;
+  color: #655b60;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.meta-flagship__calendar-switch {
+  display: inline-flex;
+  gap: 5px;
+  margin-bottom: 16px;
+  padding: 5px;
+  border: 1px solid #ead8d7;
+  border-radius: 9px;
+  background: #fff8f6;
+}
+.meta-flagship__calendar-switch button {
+  min-width: 110px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #684a4f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+.meta-flagship__calendar-switch button[aria-pressed="true"] {
+  background: #c64852;
+  color: white;
+  box-shadow: 0 3px 10px rgba(198, 72, 82, 0.2);
+}
+.meta-flagship__calendar-switch button:focus-visible,
+.meta-flagship__schedule-perspective-copy button:focus-visible {
+  outline: 3px solid #3c71da;
+  outline-offset: 3px;
+}
+.meta-flagship__schedule-screen {
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  box-shadow: 0 30px 75px rgba(57, 67, 90, 0.12);
+}
+.meta-flagship__schedule-screen .meta-flagship__screen-top,
+.meta-flagship__schedule-screen figcaption {
+  background: #edf2fa;
+  color: #31466d;
+}
+.meta-flagship__schedule-product-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 23px;
+}
+.meta-flagship__schedule-product-points span {
+  padding: 9px 14px;
+  border: 1px solid #e6d1cf;
+  border-radius: 100px;
+  color: #8e3f48;
+  font-size: 13px;
+  font-weight: 700;
+}
+.meta-flagship__schedule-perspective {
+  padding-block: 110px;
+  background: #fff4f0;
+}
+.meta-flagship__schedule-perspective-layout {
+  display: grid;
+  grid-template-columns: 0.75fr 1.25fr;
+  align-items: center;
+  gap: 9%;
+}
+.meta-flagship__schedule-perspective-copy h2 {
+  max-width: 590px;
+  margin: 0;
+}
+.meta-flagship__schedule-perspective-copy > p:not(.meta-flagship__overline) {
+  max-width: 490px;
+  color: #655b60;
+  font-size: 17px;
+  line-height: 1.7;
+}
+.meta-flagship__schedule-perspective-copy button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 15px;
+  padding: 0 0 7px;
+  border: 0;
+  border-bottom: 1px solid #9f3742;
+  background: transparent;
+  color: #9f3742;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+}
+.meta-flagship__schedule-perspective figure {
+  height: 520px;
+}
+.meta-flagship__schedule-booking {
+  padding-block: 105px 115px;
+  background: #fff;
+}
+.meta-flagship__schedule-booking-heading {
+  max-width: 900px;
+  margin-bottom: 40px;
+}
+.meta-flagship__schedule-booking-heading h2 {
+  margin: 0;
+}
+.meta-flagship__schedule-booking-heading > p:last-child {
+  max-width: 650px;
+  color: #655b60;
+  font-size: 17px;
+  line-height: 1.6;
+}
+.meta-flagship__schedule-booking-layout {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  align-items: stretch;
+  gap: 24px;
+}
+.meta-flagship__schedule-booking-layout .meta-flagship__screen {
+  align-self: center;
+}
+.meta-flagship__schedule-booking figure {
+  min-height: 390px;
+}
+.meta-flagship__schedule-telehealth {
+  padding-block: 100px;
+  background: #f8e8e5;
+}
+.meta-flagship__schedule-telehealth-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: 8%;
+}
+.meta-flagship__schedule-telehealth figure {
+  height: 580px;
+}
+.meta-flagship__schedule-telehealth-copy h2 {
+  max-width: 590px;
+  margin: 0;
+}
+.meta-flagship__schedule-telehealth-copy > p:not(.meta-flagship__overline) {
+  max-width: 510px;
+  color: #655b60;
+  font-size: 17px;
+  line-height: 1.7;
+}
+.meta-flagship__schedule-telehealth-detail {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+  max-width: 440px;
+  margin-top: 35px;
+  padding-top: 25px;
+  border-top: 1px solid #dbbdbd;
+}
+.meta-flagship__schedule-telehealth-detail > svg {
+  flex: 0 0 auto;
+  color: #c64852;
+  font-size: 26px;
+}
+.meta-flagship__schedule-telehealth-detail strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+.meta-flagship__schedule-telehealth-detail small {
+  color: #655b60;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.meta-flagship__schedule-flow {
+  padding-block: 105px;
+  background: #fffaf8;
+}
+.meta-flagship__schedule-flow-heading {
+  max-width: 760px;
+  margin-bottom: 40px;
+}
+.meta-flagship__schedule-flow-heading h2 {
+  margin: 0;
+}
+.meta-flagship__schedule-flow-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.meta-flagship__schedule-flow-cards article {
+  min-height: 250px;
+  padding: 28px;
+  border: 1px solid #ead8d7;
+  border-radius: 10px;
+  background: white;
+}
+.meta-flagship__schedule-flow-cards span {
+  color: #c64852;
+  font-size: 13px;
+  font-weight: 800;
+}
+.meta-flagship__schedule-flow-cards h3 {
+  margin: 35px 0 12px;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+.meta-flagship__schedule-flow-cards p {
+  max-width: 360px;
+  margin: 0;
+  color: #655b60;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.meta-flagship__notes-hero {
+  padding: 64px 0 120px;
+  background: #e9e5dd;
+}
+.meta-flagship__notes-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.76fr) minmax(0, 1.24fr);
+  align-items: center;
+  gap: 5%;
+}
+.meta-flagship__notes-copy {
+  align-self: start;
+}
+.meta-flagship__notes-copy h1 {
+  max-width: 630px;
+}
+.meta-flagship__notes-copy .meta-flagship__overline {
+  color: #9d5d49;
+}
+.meta-flagship__notes-copy .meta-flagship__lead {
+  color: #485851;
+}
+.meta-flagship__notes-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #294c40;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.meta-flagship__notes-link svg {
+  font-size: 19px;
+}
+.meta-flagship__notes-screen {
+  margin-top: 80px;
+  border: 7px solid #f8f7f0;
+  box-shadow:
+    24px 24px 0 #c7cec4,
+    0 35px 90px rgba(49, 56, 52, 0.17);
+}
+.meta-flagship__notes-work {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10%;
+  padding-block: 110px 120px;
+}
+.meta-flagship__notes-statement > span {
+  color: #a56548;
+}
+.meta-flagship__notes-statement h2 {
+  max-width: 600px;
+  margin: 0;
+  font-size: clamp(44px, 4.5vw, 72px);
+  line-height: 1.1;
+}
+.meta-flagship__notes-details {
+  display: grid;
+  gap: 25px;
+}
+.meta-flagship__notes-details article {
+  padding: 24px 0;
+  border-top: 1px solid #bdc7bd;
+}
+.meta-flagship__notes-details article span {
+  color: #9d5d49;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.meta-flagship__notes-details h3 {
+  margin: 20px 0 12px;
+  font-size: 25px;
+}
+.meta-flagship__notes-details p {
+  max-width: 460px;
+  margin: 0;
+  color: #596a61;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.meta-flagship__next {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 46px 0 76px;
+  border-top: 1px solid #bdc7bd;
+}
+.meta-flagship__next span {
+  color: #94603c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.meta-flagship__next h2 {
+  max-width: 650px;
+  margin: 14px 0 0;
+  font-size: clamp(35px, 3.5vw, 56px);
+  line-height: 1.12;
+}
+.meta-flagship__next a {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid currentColor;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .meta-flagship__container {
+    width: min(100% - 44px, 1390px);
+  }
+  .meta-flagship__inventory-grid,
+  .meta-flagship__inventory-work,
+  .meta-flagship__schedule-hero-layout,
+  .meta-flagship__schedule-product-heading,
+  .meta-flagship__schedule-perspective-layout,
+  .meta-flagship__schedule-booking-layout,
+  .meta-flagship__schedule-telehealth-layout,
+  .meta-flagship__notes-layout,
+  .meta-flagship__notes-work {
+    grid-template-columns: 1fr;
+  }
+  .meta-flagship__inventory-photo {
+    padding-left: 0;
+  }
+  .meta-flagship__inventory-hero {
+    padding-bottom: 45px;
+  }
+  .meta-flagship__schedule-hero-photo {
+    height: 450px;
+    min-height: 0;
+  }
+  .meta-flagship__schedule-flow-cards {
+    grid-template-columns: 1fr;
+  }
+  .meta-flagship__schedule-flow-cards article {
+    min-height: 0;
+  }
+  .meta-flagship__notes-screen {
+    margin: 20px 24px 0 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .meta-flagship__container {
+    width: min(100% - 32px, 1390px);
+  }
+  .meta-flagship__crumb {
+    margin-bottom: 42px;
+  }
+  .meta-flagship h1 {
+    font-size: clamp(48px, 13vw, 70px);
+  }
+  .meta-flagship__inventory-hero,
+  .meta-flagship__notes-hero {
+    padding-top: 35px;
+  }
+  .meta-flagship__inventory-work,
+  .meta-flagship__schedule-product,
+  .meta-flagship__schedule-perspective,
+  .meta-flagship__schedule-booking,
+  .meta-flagship__schedule-telehealth,
+  .meta-flagship__schedule-flow,
+  .meta-flagship__notes-work {
+    padding-block: 70px;
+  }
+  .meta-flagship__schedule-hero-v2 {
+    padding-block: 28px 55px;
+  }
+  .meta-flagship__schedule-hero-copy .meta-flagship__crumb {
+    margin-bottom: 45px;
+  }
+  .meta-flagship__schedule-hero-copy h1 {
+    font-size: clamp(47px, 12vw, 70px);
+  }
+  .meta-flagship__schedule-hero-photo {
+    height: 320px;
+    border-radius: 100px 12px 12px 12px;
+  }
+  .meta-flagship__schedule-perspective figure,
+  .meta-flagship__schedule-telehealth figure {
+    height: 310px;
+  }
+  .meta-flagship__schedule-booking figure {
+    min-height: 300px;
+  }
+  .meta-flagship__schedule-product-heading,
+  .meta-flagship__schedule-booking-heading {
+    margin-bottom: 25px;
+  }
+  .meta-flagship__inventory-photo .meta-flagship__screen {
+    transform: none;
+  }
+  .meta-flagship__screen-top {
+    height: 30px;
+  }
+  .meta-flagship__screen figcaption {
+    font-size: 8px;
+  }
+  .meta-flagship__next {
+    display: block;
+  }
+  .meta-flagship__next a {
+    margin-top: 25px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meta-flagship *,
+  .meta-flagship *::before,
+  .meta-flagship *::after {
+    scroll-behavior: auto !important;
+  }
+}

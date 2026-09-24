@@ -98,6 +98,10 @@ const Portal = lazyNamed(
   () => import("./features/launch/Portal"),
   (m) => m.Portal,
 );
+const MetaClinicMarketing = lazyNamed(
+  () => import("./features/marketing/MetaClinicMarketing"),
+  (m) => m.MetaClinicMarketing,
+);
 const Inquiries = lazyNamed(
   () => import("./features/launch/Inquiries"),
   (m) => m.Inquiries,
@@ -835,10 +839,12 @@ function Application() {
   const publicMembershipRoute =
     path === "/memberships" ||
     (publicMembership !== null && path !== "/memberships/account");
+  const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
   const publicPage =
     [
       "/",
       "/login",
+      "/meta-clinic",
       "/patient-portal/activate",
       "/patient-portal/recovery",
       "/memberships/account/activate",
@@ -849,7 +855,8 @@ function Application() {
       "/memberships",
       "/founder-decisions",
     ].includes(path) ||
-    (publicMembership !== null && path !== "/memberships/account");
+    (publicMembership !== null && path !== "/memberships/account") ||
+    marketingFeature !== null;
   const [session, setSession] = useState<SessionBootstrap>({});
   useEffect(() => {
     if (publicMembershipRoute) {
@@ -977,6 +984,12 @@ function Application() {
     return (
       <RouteBoundary root>
         <FounderDecisionWorkspace />
+      </RouteBoundary>
+    );
+  if (path === "/meta-clinic" || marketingFeature)
+    return (
+      <RouteBoundary root>
+        <MetaClinicMarketing featureSlug={marketingFeature?.[1]} />
       </RouteBoundary>
     );
   if (path === "/memberships")
