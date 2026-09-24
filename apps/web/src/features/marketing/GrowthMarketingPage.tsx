@@ -126,17 +126,54 @@ function Directory({ page }: { page: GrowthPage }) {
 function PageBody({ page }: { page: GrowthPage }) {
   const conversion = conversionPaths.has(page.path);
   const phase = marketingPaths.find((item) => item.path === page.path)?.phase;
-  const legalOrProof = page.group === "Legal" || page.group === "Security / Compliance" || page.group === "Customer proof" || page.group === "Comparison / alternative pages";
+  const resource = page.path.startsWith("/resources");
+  const company = page.group === "Company";
+  const legal = page.group === "Legal" || page.group === "Security / Compliance";
+  const integration = page.group === "Integrations";
+  const proofOrComparison = page.group === "Customer proof" || page.group === "Comparison / alternative pages";
+  const legalOrProof = legal || proofOrComparison;
   const evidenceTitle = legalOrProof
     ? "Review the evidence before relying on a claim."
-    : page.group === "Integrations"
+    : integration
       ? "Confirm the exact connection."
-      : page.path.startsWith("/resources")
+      : resource
         ? "Put the guide into a working context."
-        : "Inspect the current product workflow.";
-  const evidenceAction = legalOrProof || page.group === "Integrations"
+        : company
+          ? (page.path === "/careers" ? "Confirm current opportunities and application details." : "Understand the current product and company scope.")
+          : "Inspect the current product workflow.";
+  const evidenceAction = legalOrProof || integration || company
     ? { label: "Ask for details", path: "/contact" }
     : { label: "Open the guided demo", path: "/demo" };
+  const detailsTitle = legal ? "Details to review with the responsible owner."
+    : proofOrComparison ? "Evidence and criteria for a fair evaluation."
+      : resource ? "Use this guide with your clinic team."
+        : company ? "What to know about Meta Clinic."
+          : "What to examine in this workflow.";
+  const faqTitle = legal ? "Questions to resolve before relying on a claim."
+    : proofOrComparison ? "Questions to ask about the evidence."
+      : company ? "Questions about the organization and product."
+        : "Evaluate with your own clinic in mind.";
+  const proofPanelText = legal ? "Ask for the current approved scope, owner, date, and source before relying on a representation."
+    : proofOrComparison ? "Request dated sources, permission, and comparable criteria before relying on a story or comparison."
+      : integration ? "Bring the systems, data flow, responsible owners, and failure path your clinic needs to verify."
+        : company ? "Ask about current company details, opportunities, or program status relevant to your inquiry."
+          : "Bring your clinic’s requirements, staff roles, and exception cases to a focused conversation.";
+  let close = { title: "See how this could work for your clinic.", body: "Explore the synthetic demo, then talk through your real requirements with the team.", primary: { label: "Explore the demo", path: "/demo" }, secondary: { label: "Book a demo", path: "/book-demo" } };
+  if (legal) {
+    close = { title: "Request current, approved details.", body: "Ask which reviewed policy, control, or agreement applies to your clinic and the service you are evaluating.", primary: { label: "Contact the team", path: "/contact" }, secondary: { label: "Explore the platform", path: "/platform" } };
+  } else if (integration) {
+    close = { title: "Confirm the connection in your environment.", body: "Bring the systems, data flows, and exception cases your clinic needs to a focused conversation.", primary: { label: "Ask about integrations", path: "/contact" }, secondary: { label: "Explore the platform", path: "/platform" } };
+  } else if (proofOrComparison) {
+    close = { title: "Evaluate fit with current evidence.", body: "Use your clinic's workflow and dated sources to compare options, then inspect the current product in the synthetic demo.", primary: { label: "Explore the demo", path: "/demo" }, secondary: { label: "Ask a question", path: "/contact" } };
+  } else if (["/resources/videos", "/resources/webinars", "/resources/api-docs", "/resources/help"].includes(page.path)) {
+    close = { title: "Ask what is available now.", body: "Request current access details, documentation, or support information before relying on this planned resource.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "Explore the platform", path: "/platform" } };
+  } else if (page.path === "/careers") {
+    close = { title: "Ask about current opportunities.", body: "Confirm whether a role is open and request the approved application path before sharing candidate information.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "About the company", path: "/about" } };
+  } else if (["/partners", "/partner-program", "/affiliate-program"].includes(page.path)) {
+    close = { title: "Confirm program status and terms.", body: "Ask whether a relationship or program is active and request current written details from the responsible owner.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "About the company", path: "/about" } };
+  } else if (company) {
+    close = { title: "Talk about your clinic's workflow.", body: "Share the operating question you want to explore and ask for current product and company details.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "Explore the demo", path: "/demo" } };
+  }
   const heroImage = page.image && !conversion && !legalOrProof;
   return (
     <>
@@ -166,20 +203,20 @@ function PageBody({ page }: { page: GrowthPage }) {
         ) : (
           <>
             <section className="growth-page__sequence" aria-labelledby="sequence-title"><div className="growth-page__wrap"><p className="growth-page__kicker">The working sequence</p><h2 id="sequence-title">See the steps in context.</h2><div className="growth-page__steps">{page.steps.map((step, index) => <article key={step}><span>0{index + 1}</span><h3>{step}</h3></article>)}</div></div></section>
-            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">Evaluation detail</p><h2>{evidenceTitle}</h2><p>{page.note}</p><Button href={evidenceAction.path} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div><div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>Bring your clinic’s requirements, staff roles, and exception cases to a focused conversation.</p><a href="/book-demo">Discuss your clinic <ArrowForwardRoundedIcon aria-hidden="true" /></a></div></section>
+            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">Evaluation detail</p><h2>{evidenceTitle}</h2><p>{page.note}</p><Button href={evidenceAction.path} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div><div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={legalOrProof || integration || company ? "/contact" : "/book-demo"}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div></section>
             <Related page={page} />
           </>
         )}
         <section id="details" className="growth-page__editorial growth-page__wrap" aria-labelledby="details-title">
           <p className="growth-page__kicker">A closer look</p>
-          <h2 id="details-title">What to examine in this workflow.</h2>
+          <h2 id="details-title">{detailsTitle}</h2>
           <div className="growth-page__editorial-grid">
             {page.sections.map((section) => <article key={section.heading}><h3>{section.heading}</h3><p>{section.body}</p></article>)}
           </div>
         </section>
         <Directory page={page} />
-        <section className="growth-page__faq" aria-labelledby="faq-title"><div className="growth-page__wrap"><p className="growth-page__kicker">Questions to ask</p><h2 id="faq-title">Evaluate with your own clinic in mind.</h2><div className="growth-page__faq-list">{page.questions.map((item) => <article key={item.question}><h3>{item.question}</h3><p>{item.answer}</p></article>)}</div></div></section>
-        <section className="growth-page__close"><div className="growth-page__wrap"><p className="growth-page__kicker">The next step</p><h2>See how this could work for your clinic.</h2><p>Explore the synthetic demo, then talk through your real requirements with the team.</p><div className="growth-page__actions"><Button href="/demo" variant="contained">Explore the demo</Button><Button href="/book-demo" variant="outlined">Book a demo</Button></div></div></section>
+        <section className="growth-page__faq" aria-labelledby="faq-title"><div className="growth-page__wrap"><p className="growth-page__kicker">Questions to ask</p><h2 id="faq-title">{faqTitle}</h2><div className="growth-page__faq-list">{page.questions.map((item) => <article key={item.question}><h3>{item.question}</h3><p>{item.answer}</p></article>)}</div></div></section>
+        <section className="growth-page__close"><div className="growth-page__wrap"><p className="growth-page__kicker">The next step</p><h2>{close.title}</h2><p>{close.body}</p><div className="growth-page__actions"><Button href={close.primary.path} variant="contained">{close.primary.label}</Button><Button href={close.secondary.path} variant="outlined">{close.secondary.label}</Button></div></div></section>
       </main>
       <Footer />
     </>
