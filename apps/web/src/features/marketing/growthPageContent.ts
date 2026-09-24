@@ -505,6 +505,11 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageAlt: "Meta Clinic tracking board showing synthetic visits in different operational states.",
     imageCaption: "Clinic workflow board in the synthetic demo",
   },
+  "/solutions/reduce-front-desk-work": {
+    image: "/marketing/captures/crop-front-desk-queue.png",
+    imageAlt: "Meta Clinic synthetic front desk day queue with appointment times, rooms, visit states, and chart and billing actions.",
+    imageCaption: "Front desk day queue with patient and billing handoffs in the synthetic demo",
+  },
   "/behavioral-health/scheduling": {
     image: "/marketing/scheduling-month.png",
     imageAlt: "Meta Clinic synthetic month schedule with appointment times and remote visit indicators.",
