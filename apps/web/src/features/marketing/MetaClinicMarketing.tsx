@@ -7,7 +7,11 @@ import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import LocalFloristOutlinedIcon from "@mui/icons-material/LocalFloristOutlined";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
 import { FeatureStoryPage } from "./FeatureStoryPages";
-import { ClinicTypePage, isClinicTypeSlug } from "./ClinicTypePages";
+import {
+  ClinicTypePage,
+  clinicTypeLabels,
+  isClinicTypeSlug,
+} from "./ClinicTypePages";
 import { featureGroups, featureHref, marketingFeatures } from "./features";
 import "./metaClinicMarketing.css";
 
@@ -70,16 +74,19 @@ const clinicGroups: {
       },
       {
         name: "Hormone health",
+        slug: "hormone-health",
         detail:
           "Clinic-selected intake, longitudinal monitoring, labs, medication workflows, and follow-up.",
       },
       {
         name: "Behavioral health",
+        slug: "behavioral-health",
         detail:
           "Sessions, documentation, communication, and goals organized for the practice's model of care.",
       },
       {
         name: "Rehabilitation & PT",
+        slug: "rehabilitation-pt",
         detail:
           "Planned visit series, progress, scheduling, and care tasks with the resources the practice uses.",
       },
@@ -96,6 +103,7 @@ const clinicGroups: {
       },
       {
         name: "Aesthetics",
+        slug: "aesthetics",
         detail:
           "Appointments, procedure documentation, rooms or equipment, inventory, and packages where selected.",
       },
@@ -127,7 +135,7 @@ export function MetaClinicMarketing({
     const previousTitle = document.title;
     document.title =
       clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
-        ? `${clinicTypeSlug === "primary-care" ? "Primary Care" : clinicTypeSlug === "membership-care" ? "Membership Care" : clinicTypeSlug === "urgent-care" ? "Urgent Care" : clinicTypeSlug === "weight-management" ? "Weight Management" : "Infusion"} — Meta Clinic`
+        ? `${clinicTypeLabels[clinicTypeSlug]} — Meta Clinic`
         : feature
           ? `${feature.label} — Meta Clinic`
           : "Meta Clinic — A more connected clinic day";

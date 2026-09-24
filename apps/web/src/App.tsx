@@ -841,7 +841,7 @@ function Application() {
     (publicMembership !== null && path !== "/memberships/account");
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
   const marketingClinicType =
-    /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|infusion)$/.exec(
+    /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|hormone-health|behavioral-health|rehabilitation-pt|aesthetics|infusion)$/.exec(
       path,
     );
   const publicPage =
