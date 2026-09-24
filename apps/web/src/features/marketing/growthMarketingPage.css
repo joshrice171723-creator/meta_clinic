@@ -117,6 +117,7 @@
   .growth-page__hero, .growth-page__proof, .growth-page__request { grid-template-columns: 1fr; }
   .growth-page__hero { min-height: 0; gap: 35px; padding-block: 50px 80px; }
   .growth-page__hero-image, .growth-page__hero-diagram { min-height: 0; }
+  .growth-page__hero-diagram span:nth-child(2), .growth-page__hero-diagram span:nth-child(3) { margin-left: 0; }
   .growth-page__steps { grid-template-columns: 1fr; margin-top: 35px; }
   .growth-page__editorial-grid, .growth-page__faq-list { grid-template-columns: 1fr; }
   .growth-page__directory ul { grid-template-columns: 1fr; }
