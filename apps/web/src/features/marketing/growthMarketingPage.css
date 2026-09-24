@@ -21,6 +21,15 @@
 .growth-page__mark { color: #9a6149; font: 26px/1 Georgia, serif; margin-right: 5px; }
 .growth-page__header nav { display: flex; align-items: center; gap: clamp(14px, 2.1vw, 30px); margin-left: auto; }
 .growth-page__header nav a { font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.growth-page__nav-menu { position: relative; }
+.growth-page__nav-menu summary { cursor: pointer; font-size: 13px; font-weight: 700; list-style: none; white-space: nowrap; }
+.growth-page__nav-menu summary::-webkit-details-marker { display: none; }
+.growth-page__nav-menu summary::after { content: "⌄"; margin-left: 5px; color: #7b5140; }
+.growth-page__nav-menu[open] summary::after { content: "⌃"; }
+.growth-page__nav-menu > div { position: absolute; z-index: 20; top: calc(100% + 18px); left: -18px; display: grid; gap: 4px; min-width: 240px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 20px 35px rgba(25, 59, 49, .13); }
+.growth-page__nav-menu > div a { display: block; padding: 9px 10px; border-radius: 4px; }
+.growth-page__nav-menu > div a:hover { background: var(--sage); text-decoration: none; }
+.growth-page__header nav .growth-page__mobile-signin { display: none; }
 .growth-page__header nav a:hover, .growth-page__footer a:hover { text-decoration: underline; }
 .growth-page__signin { color: var(--ink); font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .growth-page .MuiButton-root { text-transform: none; font-weight: 700; border-radius: 6px; padding: 10px 22px; box-shadow: none; }
@@ -91,7 +100,7 @@
 .growth-page__close .growth-page__wrap { max-width: 900px; text-align: center; }
 .growth-page__close p:not(.growth-page__kicker) { font-size: 18px; }
 .growth-page__close .growth-page__actions { justify-content: center; margin-top: 25px; }
-.growth-page__footer { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 42px; padding-block: 70px; }
+.growth-page__footer { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 42px; padding-block: 70px; }
 .growth-page__footer strong { font: 600 27px/1.2 "Iowan Old Style", Georgia, serif; }
 .growth-page__footer p { color: var(--muted); font-size: 13px; }
 .growth-page__footer div:not(:first-child) { display: grid; align-content: start; gap: 10px; }
@@ -100,19 +109,22 @@
 @media (max-width: 1000px) {
   .growth-page__header nav { gap: 12px; }
   .growth-page__header nav a { font-size: 11px; }
+  .growth-page__nav-menu summary { font-size: 11px; }
   .growth-page__header { gap: 15px; }
   .growth-page__proof { gap: 35px; }
   .growth-page__signin { display: none; }
+  .growth-page__header nav .growth-page__mobile-signin { display: inline; }
 }
 @media (max-width: 900px) {
   .growth-page__header { flex-wrap: wrap; padding-block: 14px; }
-  .growth-page__header nav { order: 3; width: 100%; overflow-x: auto; padding-block: 7px; }
+  .growth-page__header nav { order: 3; width: 100%; flex-wrap: wrap; margin-left: 0; padding-block: 7px; }
   .growth-page__header .MuiButton-root { margin-left: auto; }
 }
 @media (max-width: 760px) {
   .growth-page__wrap, .growth-page__header, .growth-page__footer { width: min(100% - 36px, 1320px); }
   .growth-page__header { min-height: 74px; flex-wrap: wrap; padding-block: 14px; }
-  .growth-page__header nav { order: 3; width: 100%; overflow-x: auto; padding-block: 7px; }
+  .growth-page__header nav { order: 3; width: 100%; flex-wrap: wrap; padding-block: 7px; }
+  .growth-page__nav-menu > div { position: static; min-width: 0; margin-top: 8px; box-shadow: none; }
   .growth-page__header .MuiButton-root { margin-left: auto; }
   .growth-page__hero, .growth-page__proof, .growth-page__request { grid-template-columns: 1fr; }
   .growth-page__hero { min-height: 0; gap: 35px; padding-block: 50px 80px; }
@@ -125,6 +137,9 @@
   .growth-page__sequence, .growth-page__proof, .growth-page__related, .growth-page__close { padding-block: 70px; }
   .growth-page__related-grid { grid-template-columns: 1fr; }
   .growth-page__footer { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+}
+@media (max-width: 420px) {
+  .growth-page__footer { grid-template-columns: 1fr; }
 }
 @media (max-width: 360px) {
   .growth-page h1 { font-size: 42px; }

@@ -60,13 +60,24 @@ function Header() {
     <header className="growth-page__header">
       <a className="growth-page__brand" href="/" aria-label="Meta Clinic home"><span className="growth-page__mark" aria-hidden="true">✳</span> Meta Clinic</a>
       <nav aria-label="Marketing navigation">
-        <a href="/platform">Platform</a>
-        <a href="/weight-loss">Weight loss</a>
-        <a href="/behavioral-health">Behavioral health</a>
-        <a href="/primary-care/cash-pay">Cash-pay care</a>
+        <details className="growth-page__nav-menu"><summary>Platform</summary><div>
+          <a href="/platform">Platform overview</a>
+          <a href="/platform/scheduling">Scheduling</a>
+          <a href="/platform/patient-intake">Patient intake</a>
+          <a href="/platform/memberships">Memberships</a>
+          <a href="/platform/inventory">Inventory</a>
+          <a href="/platform/billing">Billing</a>
+          <a href="/platform/workflows">Workflows</a>
+        </div></details>
+        <details className="growth-page__nav-menu"><summary>Specialties</summary><div>
+          {priority.map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}
+          <a href="/infusion">Infusion</a>
+        </div></details>
         <a href="/ai">AI</a>
         <a href="/security">Security</a>
         <a href="/pricing">Pricing</a>
+        <a href="/resources">Resources</a>
+        <a className="growth-page__mobile-signin" href="/login">Sign in</a>
       </nav>
       <a className="growth-page__signin" href="/login">Sign in</a>
       <Button href="/book-demo" variant="contained" size="small">Book a demo</Button>
@@ -78,9 +89,10 @@ function Footer() {
   return (
     <footer className="growth-page__footer">
       <div><strong>Meta Clinic</strong><p>Connected software for independent clinics.</p></div>
-      <div><span>Explore</span><a href="/platform">Platform</a><a href="/demo">Demo</a><a href="/resources">Resources</a></div>
-      <div><span>Specialties</span>{priority.map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}</div>
-      <div><span>Company</span><a href="/about">About</a><a href="/contact">Contact</a><a href="/site-map">Site map</a></div>
+      <div><span>Product</span><a href="/platform">Platform</a><a href="/ai">AI</a><a href="/demo">Demo</a><a href="/pricing">Pricing</a></div>
+      <div><span>Specialties</span>{priority.map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}<a href="/infusion">Infusion</a></div>
+      <div><span>Resources</span><a href="/resources">Guides and templates</a><a href="/sandbox">Sandbox</a><a href="/site-map">Site map</a></div>
+      <div><span>Company</span><a href="/about">About</a><a href="/security">Security</a><a href="/contact">Contact</a><a href="/login">Sign in</a></div>
     </footer>
   );
 }
