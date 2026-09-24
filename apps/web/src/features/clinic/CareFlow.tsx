@@ -2043,13 +2043,25 @@ function BookingFormEditor({
                 {workingDraft.error}
               </Alert>
             )}
-            <Divider />
+            {!onClose && <Divider />}
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               sx={{
                 justifyContent: "space-between",
                 alignItems: { sm: "center" },
+                ...(onClose && {
+                  position: "sticky",
+                  bottom: 0,
+                  zIndex: 2,
+                  bgcolor: "background.paper",
+                  borderTop: 1,
+                  borderColor: "divider",
+                  px: 2,
+                  py: 1.5,
+                  mx: -2,
+                  mb: -2,
+                }),
               }}
             >
               {onClose ? (
