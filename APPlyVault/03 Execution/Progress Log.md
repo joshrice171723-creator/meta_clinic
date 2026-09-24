@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-23
+updated: 2026-09-24
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-24 — Marketing imagery correction
+
+The founder rejected the 28 generated feature mockups because they resembled invented app screens. Those assets and their generator were removed from the 14 affected marketing stories, along with the repeated “Inside the clinic day” copy. The Optional Insurance story now describes the actual clinic setting and data foundation and identifies the dedicated claim workspace as unfinished. The three earlier flagship pages retain their existing imagery. The 14 stories still need verified, feature-matched captures from populated synthetic app workflows before they meet the original visual brief. An attempt to use the existing bulk development seed in the shared local database failed on immutable role versions and then a seed identity collision; both attempts rolled back. This is a correction to marketing claims, not evidence that app workflows are complete.
 
 ## 2026-09-23 — Meta Clinic feature marketing pages
 
