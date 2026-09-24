@@ -156,7 +156,6 @@ function Directory({ page }: { page: GrowthPage }) {
 function PageBody({ page }: { page: GrowthPage }) {
   const internalPath = marketingInternalPath(page.path) ?? page.path;
   const conversion = conversionPaths.has(internalPath);
-  const phase = marketingPaths.find((item) => item.path === internalPath)?.phase;
   const resource = internalPath.startsWith("/resources");
   const company = page.group === "Company";
   const legal = page.group === "Legal" || page.group === "Security / Compliance";
@@ -179,7 +178,7 @@ function PageBody({ page }: { page: GrowthPage }) {
     : proofOrComparison ? "Evidence and criteria for a fair evaluation."
       : resource ? "Use this guide with your clinic team."
         : company ? "What to know about Meta Clinic."
-          : "What to examine in this workflow.";
+          : `${page.title} in practice.`;
   const faqTitle = legal ? "Questions to resolve before relying on a claim."
     : proofOrComparison ? "Questions to ask about the evidence."
       : company ? "Questions about the organization and product."
@@ -205,29 +204,22 @@ function PageBody({ page }: { page: GrowthPage }) {
   } else if (company) {
     close = { title: "Talk about your clinic's workflow.", body: "Share the operating question you want to explore and ask for current product and company details.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "Explore the demo", path: "/demo" } };
   }
-  const heroImage = page.image && !conversion && !legalOrProof;
+  const heroImage = Boolean(page.image);
+  const inlineProduct = page.gallery?.length ? undefined : page.productVisual;
   return (
     <>
       <main id="main">
         <section className="growth-page__hero growth-page__wrap">
           <div className="growth-page__hero-copy">
             <Breadcrumbs page={page} />
-            <p className="growth-page__kicker">{page.eyebrow}</p>
             <h1>{page.headline}</h1>
             <p className="growth-page__lead">{page.lead}</p>
-            <p className="growth-page__audience"><span>For</span> {page.audience}</p>
-            {phase === "later" && <Alert severity="info">This page is a planning preview. Confirm the current feature scope during evaluation.</Alert>}
-            {phase === "review" && <Alert severity="info">This content is awaiting legal and security review. Ask for current, approved details before relying on a claim.</Alert>}
-            {phase === "evidence" && <Alert severity="info">This page is reserved until the underlying evidence and publication permission are verified.</Alert>}
-            {page.group === "Legal" && phase !== "review" && <Alert severity="info">This is a review outline. It is not a published policy or agreement.</Alert>}
-            {page.group === "Customer proof" && phase !== "evidence" && <Alert severity="info">Customer stories and results will appear here only with verified evidence and permission.</Alert>}
-            {page.group === "Comparison / alternative pages" && phase !== "evidence" && <Alert severity="info">Comparisons will be published only when criteria and sources are verified.</Alert>}
             <div className="growth-page__actions">
               <Button href={page.primaryCta.path} variant="contained" endIcon={<ArrowForwardRoundedIcon />}>{page.primaryCta.label}</Button>
               <Button href={page.secondaryCta.path} variant="outlined">{page.secondaryCta.label}</Button>
             </div>
           </div>
-          {heroImage ? <figure className="growth-page__hero-image"><img src={page.image} alt={page.imageAlt ?? "Meta Clinic demonstration screen"} /><figcaption>{page.imageCaption}</figcaption></figure> : <div className="growth-page__hero-diagram" aria-label="Key steps in this workflow">{page.steps.slice(0, 3).map((step, index) => <span key={step}>0{index + 1} / {step}</span>)}</div>}
+          {heroImage ? <figure className={`growth-page__hero-image growth-page__hero-image--${page.imageKind ?? "product"}`}><img src={page.image} alt={page.imageAlt ?? "Meta Clinic clinic workspace"} />{page.imageCaption && <figcaption>{page.imageCaption}</figcaption>}</figure> : null}
         </section>
 
         {page.gallery?.length ? <section className="growth-page__gallery" aria-labelledby="gallery-title"><div className="growth-page__wrap">
@@ -248,8 +240,7 @@ function PageBody({ page }: { page: GrowthPage }) {
         ) : (
           <>
             <section className="growth-page__sequence" aria-labelledby="sequence-title"><div className="growth-page__wrap"><p className="growth-page__kicker">The working sequence</p><h2 id="sequence-title">See the steps in context.</h2><div className="growth-page__steps">{page.steps.map((step, index) => <article key={step}><span>0{index + 1}</span><h3>{step}</h3></article>)}</div></div></section>
-            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">Evaluation detail</p><h2>{evidenceTitle}</h2><p>{page.note}</p><Button href={marketingUrl(evidenceAction.path)} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div><div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={marketingUrl(legalOrProof || integration || company ? "/contact" : "/book-demo")}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div></section>
-            <Related page={page} />
+            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">{inlineProduct ? "Inside Meta Clinic" : "A closer look"}</p><h2>{page.visualHeadline ?? evidenceTitle}</h2>{page.note && <p>{page.note}</p>}<Button href={marketingUrl(evidenceAction.path)} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div>{inlineProduct ? <figure className="growth-page__product-visual"><img src={inlineProduct.image} alt={inlineProduct.alt} loading="lazy" /><figcaption>{inlineProduct.caption}</figcaption></figure> : <div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={marketingUrl(legalOrProof || integration || company ? "/contact" : "/book-demo")}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div>}</section>
           </>
         )}
         <section id="details" className="growth-page__editorial growth-page__wrap" aria-labelledby="details-title">
@@ -261,6 +252,7 @@ function PageBody({ page }: { page: GrowthPage }) {
         </section>
         <Directory page={page} />
         <section className="growth-page__faq" aria-labelledby="faq-title"><div className="growth-page__wrap"><p className="growth-page__kicker">Questions to ask</p><h2 id="faq-title">{faqTitle}</h2><div className="growth-page__faq-list">{page.questions.map((item) => <article key={item.question}><h3>{item.question}</h3><p>{item.answer}</p></article>)}</div></div></section>
+        <Related page={page} />
         <section className="growth-page__close"><div className="growth-page__wrap"><p className="growth-page__kicker">The next step</p><h2>{close.title}</h2><p>{close.body}</p><div className="growth-page__actions"><Button href={marketingUrl(close.primary.path)} variant="contained">{close.primary.label}</Button><Button href={marketingUrl(close.secondary.path)} variant="outlined">{close.secondary.label}</Button></div></div></section>
       </main>
       <Footer />

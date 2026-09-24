@@ -14,6 +14,7 @@ type CoreContent = {
   image?: string;
   imageAlt?: string;
   imageCaption?: string;
+  imageKind?: "photo" | "product";
   scene?: { image: string; alt: string; heading: string; body: string };
   asideBody?: string;
 };
@@ -77,6 +78,9 @@ const coreContent = {
     decision: "Compare the proposed scope, implementation work, support, external services, and total commitment in one written proposal.",
     next: "Bring your first use case to a pricing conversation.",
     asideBody: "Share your specialty, team size, locations, and first priority. Those details make the quote useful for a real clinic decision.",
+    image: "/marketing/captures/finance-open-invoice-detail.png",
+    imageAlt: "Meta Clinic invoice detail with sample clinic charges and an open balance.",
+    imageCaption: "Invoice detail",
   },
   "/security": {
     chapter: "Ask for the evidence that applies",
@@ -90,6 +94,9 @@ const coreContent = {
     decision: "Share your intended data flows, user roles, and required agreements so the team can answer with the documents and controls relevant to your setup.",
     next: "Send the security questions and environment details that matter to your clinic.",
     asideBody: "Start with the systems you expect to connect, the team members who need access, and the information they handle.",
+    image: "/marketing/scheduling-team.png",
+    imageAlt: "Two clinic staff members reviewing work together at a computer.",
+    imageKind: "photo",
   },
   "/book-demo": {
     chapter: "Make the walkthrough useful",
@@ -102,6 +109,9 @@ const coreContent = {
     decisionHeading: "Show us the workflow you care about.",
     decision: "Tell us where the process starts, who touches it, and where it slows down. We can use that path to guide the product walkthrough.",
     next: "Tell us what your clinic needs to see.",
+    image: "/marketing/weight-management-team.png",
+    imageAlt: "Clinic staff reviewing a patient program together at a desk.",
+    imageKind: "photo",
     scene: { image: "/marketing/primary-care-front-desk.png", alt: "A patient speaking with a clinic front desk coordinator.", heading: "Bring the people behind the process.", body: "A focused conversation is easier when the people who schedule, deliver, and follow through on care can describe the same journey together." },
   },
   "/contact": {
@@ -116,6 +126,9 @@ const coreContent = {
     decision: "Tell us your clinic type, the workflow in question, and the best way to reach you. For patient matters, use your clinic's care channel.",
     next: "Send the business question and a way to reach you.",
     asideBody: "Ask about product fit, a workflow, pricing scope, or security review. Include the best way for us to reach you.",
+    image: "/marketing/primary-care-front-desk.png",
+    imageAlt: "A patient speaking with a clinic front desk coordinator.",
+    imageKind: "photo",
   },
 } satisfies Record<string, CoreContent>;
 
@@ -141,7 +154,7 @@ export function CoreEvaluationPage({ page, path, form }: { page: GrowthPage; pat
           </div>
           {(path === "/demo" || path === "/sandbox" || path === "/platform") && <p className="growth-core__hero-note">Product demo with sample clinic records</p>}
         </div>
-        {content.image ? <figure className="growth-core__visual"><span>Meta Clinic / clinic workspace</span><img src={content.image} alt={content.imageAlt} /><figcaption>{content.imageCaption}</figcaption></figure>
+        {content.image ? <figure className={`growth-core__visual${content.imageKind === "photo" ? " growth-core__visual--photo" : ""}`}>{content.imageKind !== "photo" && <span>Meta Clinic / clinic workspace</span>}<img src={content.image} alt={content.imageAlt} />{content.imageCaption && <figcaption>{content.imageCaption}</figcaption>}</figure>
           : <aside className="growth-core__question"><span>For your evaluation</span><strong>{path === "/pricing" ? "What does your clinic need first?" : path === "/security" ? "Which evidence applies to your environment?" : "What would make this conversation useful?"}</strong><p>{content.asideBody ?? content.introduction}</p></aside>}
       </div>
     </section>

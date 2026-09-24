@@ -2,6 +2,7 @@ import { marketingInternalPath, marketingPaths, marketingUrl } from "./marketing
 import { getEditorialPageBrief } from "./EditorialPageBriefs";
 import { getPlatformAiPageBrief } from "./PlatformAiPageBriefs";
 import { getSpecialtyPageBrief } from "./SpecialtyPageBriefs";
+import { getGrowthVisuals, type MarketingVisual } from "./growthVisuals";
 
 export type GrowthPage = {
   path: string;
@@ -14,6 +15,9 @@ export type GrowthPage = {
   image?: string;
   imageAlt?: string;
   imageCaption?: string;
+  imageKind?: MarketingVisual["kind"];
+  productVisual?: MarketingVisual;
+  visualHeadline?: string;
   gallery?: readonly { image: string; imageAlt: string; imageCaption: string }[];
   note: string;
   audience: string;
@@ -172,8 +176,10 @@ const focus: Record<string, Partial<GrowthPage>> = {
     lead: "A telehealth appointment is one step in ongoing weight care. Show the booking, patient context, visit, and next check-in together.",
   },
   "/weight-loss/glp-1-workflows": {
-    headline: "See the work around GLP-1 care, not just the prescription.",
+    headline: "GLP‑1 care from intake to follow-up.",
     lead: "Connect intake, clinician review, documented decisions, inventory context, and planned follow-up. Medication decisions remain with authorized clinicians.",
+    visualHeadline: "Keep supply context in the clinic workflow.",
+    note: "Review recorded stock before planned treatments and keep replenishment work visible to the operations team.",
   },
   "/behavioral-health": {
     eyebrow: "For behavioral health practices",
@@ -600,14 +606,16 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
     return canonicalPage ? { ...canonicalPage, path, canonicalPath } : null;
   }
   if (path === "/site-map") {
+    const hero = getGrowthVisuals(path, "Site map").hero;
     return {
       path, group: "Site map", title: "Site map", eyebrow: "Browse Meta Clinic",
       headline: "Find the clinic workflow you want to explore.",
       lead: "Browse the complete planning catalog by specialty, platform capability, operating problem, and resource. Pages remain subject to product and claim review before public search indexing.",
       steps: ["Choose a clinic type", "Open a specific workflow", "Use the demo to inspect the product"],
+      image: hero.image, imageAlt: hero.alt, imageKind: hero.kind,
       note: "Availability and claims are confirmed during evaluation.",
       audience: "Clinic owners and operators", searchIntent: "Meta Clinic site map", canonicalPath: path, funnel: "Navigate → evaluate → demo",
-      visualBrief: "No image required; a structured topic directory is the main content.",
+      visualBrief: "A clinic work scene beside the structured topic directory.",
       primaryCta: { label: "Explore the demo", path: "/demo" }, secondaryCta: { label: "Book a demo", path: "/book-demo" },
       sections: [{ heading: "Choose a topic", body: "Use the full directory below to find a specialty or operating problem." }],
       questions: [{ question: "Where should I start?", answer: "Start with your clinic type, then choose the specific workflow you want to evaluate." }],
@@ -699,9 +707,9 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
       ? "Detailed security and legal representations require current review before publication. Ask about the specific controls and agreements that apply to your evaluation."
       : isProof
         ? "Customer evidence and comparisons will be added only when the underlying facts and permissions are verified."
-        : isResource
+      : isResource
           ? "Use this as a practical evaluation outline. Confirm clinical, legal, and operational requirements for your own setting."
-          : "Screens show synthetic demonstration data. Confirm the exact workflow and available integrations during evaluation.",
+          : "",
     audience,
     searchIntent,
     canonicalPath: canonicalAliases[path] ?? path,
@@ -781,14 +789,19 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
       { heading: "Questions for your clinic", body: "Confirm your own data, workforce, vendor, retention, and incident obligations before relying on a specific representation." },
     ];
   }
-  // Visual assets are attached in a separate pass after every route has content.
-  base.image = undefined;
+  const visuals = getGrowthVisuals(path, group);
   const curated = priorityCopy[path] ?? additionalCopy[path];
   const familyBrief = getSpecialtyPageBrief(path) ?? getPlatformAiPageBrief(path) ?? getEditorialPageBrief(path);
-  const coreFocus = ["/platform", "/demo", "/sandbox", "/pricing", "/security", "/book-demo", "/contact"].includes(path);
-  const page: GrowthPage = { ...base, ...(curated ? { headline: curated[0], lead: curated[1] } : {}), ...focus[path], ...(familyBrief ?? {}), ...(coreFocus ? focus[path] : {}) };
-  Object.assign(page, verifiedVisuals[path] ?? {});
-  page.gallery = verifiedGalleries[path];
+  const page: GrowthPage = { ...base, ...(curated ? { headline: curated[0], lead: curated[1] } : {}), ...(familyBrief ?? {}), ...focus[path] };
+  page.image = visuals.hero.image;
+  page.imageAlt = visuals.hero.alt;
+  page.imageCaption = visuals.hero.caption;
+  page.imageKind = visuals.hero.kind;
+  const verified = verifiedVisuals[path];
+  page.productVisual = verified
+    ? { image: verified.image, alt: verified.imageAlt, caption: verified.imageCaption.split(";")[0], kind: "product" }
+    : visuals.product;
+  page.gallery = verifiedGalleries[path]?.map((visual) => ({ ...visual, imageCaption: visual.imageCaption.split(";")[0] }));
   page.links = [...(familyBrief?.links ?? page.links), ...base.links]
     .filter((link, index, all) => link.path !== path && all.findIndex((candidate) => candidate.path === link.path) === index)
     .slice(0, 8);

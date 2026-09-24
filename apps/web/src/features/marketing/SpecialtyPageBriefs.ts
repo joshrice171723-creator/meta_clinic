@@ -336,7 +336,7 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     ? `${pageLabel} for ${specialty.name.toLowerCase()} clinics.`
     : `${specialty.name} clinic workflows, connected around the patient journey.`;
   const lead = slug
-    ? `${focus} See how this step fits the wider ${specialty.name.toLowerCase()} workflow, then confirm current product availability with the team.`
+    ? focus
     : specialty.journey;
   const sections = slug ? [
     { heading: `The ${pageLabel.toLowerCase()} challenge`, body: `${pageLabel} can involve several clinic handoffs. ${focus}` },
@@ -356,17 +356,15 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
           ? "The intake coordinator owns form and request follow-through; scheduling changes go to the scheduling owner; clinical context goes to the treating professional. Incomplete information returns to the patient or intake staff, while urgent concerns follow the practice’s established procedures."
           : `Front-desk or operations staff coordinate the administrative handoff; the care team handles professional review where appropriate. Clinical interpretation and care decisions remain with authorized clinicians, and unresolved exceptions return to the clinic’s chosen owner.` },
     { heading: "Assisted steps and staff decisions", body: reviewBoundaryFor(slug) },
-    { heading: "Evaluation and current limits", body: `The clinic can compare this workflow with its roles, exceptions, and existing systems. Product availability, integrations, and deployment-specific details need confirmation during evaluation.` },
   ] : [
     { heading: "Operating model", body: `${specialty.audience} Each clinic defines its own services, staff roles, policies, and operating terms.` },
     { heading: "Patient journey", body: specialty.journey },
     { heading: "Team handoffs", body: `Patient-facing staff, the care team, and clinic operations each have a role in the ${specialty.name.toLowerCase()} journey. Clear ownership helps requests, visit preparation, and follow-up move to the right person while preserving professional responsibilities.` },
     { heading: "Key workflows", body: specialty.operations },
-    { heading: "Evaluation and limits", body: specialty.evaluation },
   ];
   const objections = slug ? [
     { question: `How does ${pageLabel.toLowerCase()} fit our ${specialty.name.toLowerCase()} process?`, answer: `Start with your current steps, staff roles, and exceptions. ${focus} The walkthrough should confirm fit against your process rather than assume one standard workflow.` },
-    { question: "Is this function available today?", answer: "Availability can depend on the specific workflow and deployment. Confirm the current product scope and any dependencies during evaluation." },
+    { question: "What should our team bring to a walkthrough?", answer: "Bring a real clinic scenario, the people who own each step, and an exception that changes the usual path." },
     { question: "Does this replace professional review or our existing system?", answer: "No. The clinic retains responsibility for professional review and operating decisions. Compare each required function with your existing systems and confirm migration or integration scope before making a change." },
   ] : [
     { question: `Who is this ${specialty.name.toLowerCase()} workflow for?`, answer: `It is intended for ${specialty.buyer}. The page is a starting point for discussing fit; each clinic should map its own roles and process.` },
@@ -380,7 +378,7 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     lead,
     ...(slug ? {} : { steps: overviewSteps[specialty.name] }),
     audience: specialty.audience,
-    note: "The guided demo uses synthetic records. Confirm current product availability and the workflow details that matter to your clinic before making a decision.",
+    note: "",
     searchIntent: slug ? `${pageLabel.toLowerCase()} software evaluation for ${specialty.name.toLowerCase()} clinics` : `${specialty.name.toLowerCase()} clinic software and workflow evaluation`,
     funnel: slug ? "Evaluation: explain one clinic workflow, then invite a product walkthrough." : "Awareness to evaluation: understand specialty fit, then request a workflow walkthrough.",
     visualBrief: `Future visual: a real, approved product screen or clearly labeled schematic showing the ${pageLabel.toLowerCase()} workflow for a ${specialty.name.toLowerCase()} clinic. Annotate the relevant handoff, staff role, and next action. Use synthetic records in demo imagery; do not imply unavailable features.`,
