@@ -26,6 +26,18 @@ export const featureGroups: {
         ],
       },
       {
+        slug: "tracking-board",
+        label: "Tracking Board",
+        headline: "See how the clinic day is moving.",
+        summary:
+          "Follow arrivals, rooms, care tasks, and checkout from one operational view.",
+        points: [
+          "See each visit's current stage",
+          "Keep room and provider context together",
+          "Make the next handoff visible",
+        ],
+      },
+      {
         slug: "intake-forms",
         label: "Intake & forms",
         headline: "A better beginning for every visit.",

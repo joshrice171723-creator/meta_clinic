@@ -6,12 +6,8 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import LocalFloristOutlinedIcon from "@mui/icons-material/LocalFloristOutlined";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
-import {
-  featureGroups,
-  featureHref,
-  marketingFeatures,
-  type MarketingFeature,
-} from "./features";
+import { FeatureStoryPage } from "./FeatureStoryPages";
+import { featureGroups, featureHref, marketingFeatures } from "./features";
 import "./metaClinicMarketing.css";
 
 const workflow = [
@@ -199,8 +195,22 @@ export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
       {featureSlug ? (
         isFlagshipSlug(featureSlug) ? (
           <FlagshipFeaturePage slug={featureSlug} />
+        ) : feature ? (
+          <FeatureStoryPage slug={featureSlug} />
         ) : (
-          <FeatureMarketingPage feature={feature} />
+          <main
+            id="main"
+            className="meta-marketing__feature-missing meta-marketing__section"
+          >
+            <p className="meta-marketing__eyebrow">Feature not found</p>
+            <h1>That feature page is not here.</h1>
+            <Button
+              href="/meta-clinic#tools"
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              Browse features
+            </Button>
+          </main>
         )
       ) : (
         <main id="main">
@@ -518,117 +528,5 @@ export function MetaClinicMarketing({ featureSlug }: { featureSlug?: string }) {
         <a href="/login">Sign in</a>
       </footer>
     </div>
-  );
-}
-
-function FeatureMarketingPage({ feature }: { feature?: MarketingFeature }) {
-  if (!feature) {
-    return (
-      <main
-        id="main"
-        className="meta-marketing__feature-missing meta-marketing__section"
-      >
-        <p className="meta-marketing__eyebrow">Feature not found</p>
-        <h1>That feature page is not here.</h1>
-        <Button href="/meta-clinic#tools" endIcon={<ArrowForwardRoundedIcon />}>
-          Browse features
-        </Button>
-      </main>
-    );
-  }
-
-  const related = (
-    featureGroups.find((group) =>
-      group.features.some((item) => item.slug === feature.slug),
-    )?.features ?? marketingFeatures
-  )
-    .filter((item) => item.slug !== feature.slug)
-    .slice(0, 3);
-
-  return (
-    <main id="main" className="meta-marketing__feature-page">
-      <section className="meta-marketing__feature-hero meta-marketing__section">
-        <div>
-          <a className="meta-marketing__breadcrumb" href="/meta-clinic#tools">
-            All features <span aria-hidden="true">/</span> {feature.label}
-          </a>
-          <p className="meta-marketing__eyebrow">
-            Meta Clinic / {feature.label}
-          </p>
-          <h1>{feature.headline}</h1>
-          <p>{feature.summary}</p>
-          <Button
-            className="meta-marketing__button-primary"
-            href="/meta-clinic#tools"
-            variant="contained"
-            endIcon={<ArrowForwardRoundedIcon />}
-          >
-            Explore all tools
-          </Button>
-        </div>
-        <div
-          className="meta-marketing__feature-art"
-          aria-label={`Illustration of ${feature.label} workflow`}
-        >
-          <div className="meta-marketing__feature-art-top">
-            <span>Meta Clinic</span>
-            <span>{feature.label}</span>
-          </div>
-          <div className="meta-marketing__feature-art-main">
-            <span className="meta-marketing__feature-art-index">01 / 03</span>
-            <strong>{feature.points[0]}</strong>
-            <div className="meta-marketing__feature-art-line" />
-            <span className="meta-marketing__feature-art-index">02 / 03</span>
-            <strong>{feature.points[1]}</strong>
-            <div className="meta-marketing__feature-art-line" />
-            <span className="meta-marketing__feature-art-index">03 / 03</span>
-            <strong>{feature.points[2]}</strong>
-          </div>
-          <span className="meta-marketing__feature-art-caption">
-            Illustrative workflow
-          </span>
-        </div>
-      </section>
-
-      <section className="meta-marketing__feature-benefits meta-marketing__section">
-        <p className="meta-marketing__eyebrow">What it brings together</p>
-        <h2>Built around the work, not another disconnected screen.</h2>
-        <div className="meta-marketing__feature-benefit-grid">
-          {feature.points.map((point, index) => (
-            <article key={point}>
-              <span>0{index + 1}</span>
-              <h3>{point}</h3>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="meta-marketing__feature-related meta-marketing__section">
-        <div>
-          <p className="meta-marketing__eyebrow">Keep exploring</p>
-          <h2>Tools work better together.</h2>
-          <p>
-            Choose the capabilities that fit your clinic&apos;s specialty,
-            services, delivery model, and payment approach.
-          </p>
-        </div>
-        <div className="meta-marketing__feature-related-links">
-          {related.map((item) => (
-            <a href={featureHref(item)} key={item.slug}>
-              {item.label}
-              <ArrowForwardRoundedIcon aria-hidden="true" />
-            </a>
-          ))}
-          <a href="/meta-clinic#clinic-types">
-            Explore clinic types
-            <ArrowForwardRoundedIcon aria-hidden="true" />
-          </a>
-        </div>
-      </section>
-      <p className="meta-marketing__feature-note">
-        Meta Clinic is in development. Described capabilities are product
-        direction; availability depends on the configured clinic workflow.
-      </p>
-    </main>
   );
 }

@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-23 — Meta Clinic feature marketing pages
+
+The local marketing catalog and Features menu now cover 17 dedicated feature routes, including a new Tracking Board entry. Fourteen newly authored feature stories have two synthetic, default-theme application concept images each; the three earlier Scheduling, Inventory, and Clinical Notes pages remain distinct. The Tracking Board visuals show seven fictional visits across expected, intake, ready-for-provider, provider-assigned, checkout, and waiting-room states, with room, reason, vitals, care task, provider, and timing context. Concept imagery is labeled as illustrative; it is not evidence that every pictured workflow is implemented. A focused frontend test passed 5 cases, the repository component gate passed, a production build passed, and a local browser sweep loaded all 17 routes at 1440, 390, and 320 pixels with images and no document-width overflow. Keyboard operation of the Features menu, including navigation and Escape, passed separately. These are local marketing and rendering checks, not clinical workflow acceptance or publication.
+
 ## 2026-09-23 — MC-04 recurrence and overbooking implementation checkpoint
 
 The local MC-04 branch adds selected-site scheduling policy, bounded weekly appointment series with preview and future change/cancel history, and permissioned same-clinician overbooking with an explicit reason and database allocation limit. The Schedule, booking modal and Clinic Setup expose these controls. Focused Rails evidence passed 36 runs/354 assertions; frontend typecheck and 17 existing schedule/booking tests passed before the last small UI edit. In an isolated synthetic site, a policy save persisted and enabled controls rendered. Browser submission/reload of a series or overbook exception and an actual concurrent allocation race remain unverified. The founder stopped further test creation and runs. Site defaults remain off and no live-clinic activation or PR-10 work is claimed. See [[Meta Clinic Implementation Tracker]].
