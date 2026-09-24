@@ -238,6 +238,7 @@ describe("clinic-specific membership growth", () => {
 
     expect(html).toContain("Membership pipeline");
     expect(html).toContain("Prospective patients");
+    expect(html).toContain("Patients (0)");
     expect(html).toContain("/memberships/north-clinic");
     expect(html).toContain("Future Patient");
     expect(html).toContain("North Clinic membership");
