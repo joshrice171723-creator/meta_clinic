@@ -584,7 +584,7 @@ export function ClinicSchedule({
       tracks.set(id, position);
   }
   return (
-    <Stack spacing={2}>
+    <Stack spacing={1}>
       <Stack
         direction="row"
         sx={{
@@ -595,10 +595,10 @@ export function ClinicSchedule({
         }}
       >
         <Box>
-          <Typography component="h1" variant="h4">
+          <Typography component="h1" variant="h5">
             Schedule
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="caption" color="text.secondary">
             Appointments and availability · {timezone}
           </Typography>
         </Box>
@@ -707,6 +707,21 @@ export function ClinicSchedule({
         </ToggleButtonGroup>
         {view === "day" && (
           <TextField
+            type="date"
+            size="small"
+            label="Day"
+            value={day}
+            slotProps={{ inputLabel: { shrink: true } }}
+            onChange={(event) => {
+              if (event.target.value) {
+                setDay(event.target.value);
+                setMonth(event.target.value.slice(0, 7));
+              }
+            }}
+          />
+        )}
+        {view === "day" && (
+          <TextField
             select
             size="small"
             label="Group by"
@@ -731,12 +746,10 @@ export function ClinicSchedule({
       </Stack>
       {data && (
         <Typography variant="caption" color="text.secondary">
-          Read-only export from the selected server calendar. Cancelled and
-          no-show appointments are omitted
+          Export omits cancelled and no-show appointments
           {data.as_of
-            ? ` · snapshot ${new Date(data.as_of).toLocaleString()}`
+            ? ` · Updated ${new Date(data.as_of).toLocaleString()}`
             : ""}
-          .
         </Typography>
       )}
       {calendar.error && (
@@ -762,7 +775,7 @@ export function ClinicSchedule({
           {(!data.policy ||
             data.policy.recurrence === "not_configured" ||
             data.policy.overbook === "not_configured") && (
-            <Alert severity="warning">
+            <Alert severity="warning" sx={{ py: 0, alignItems: "center" }}>
               Recurrence and overbook behavior are not configured for this
               location. The calendar will only offer explicit free slots from
               the current capacity rules; external calendar sync is limited to
@@ -859,21 +872,6 @@ export function ClinicSchedule({
             </Paper>
           ) : (
             <>
-              <Stack direction="row" sx={{ alignItems: "center", gap: 2 }}>
-                <TextField
-                  type="date"
-                  size="small"
-                  label="Day"
-                  value={day}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  onChange={(event) => {
-                    if (event.target.value) {
-                      setDay(event.target.value);
-                      setMonth(event.target.value.slice(0, 7));
-                    }
-                  }}
-                />
-              </Stack>
               {holdError && (
                 <Alert severity="error">
                   {holdError}{" "}
@@ -961,16 +959,16 @@ export function ClinicSchedule({
                 }}
               >
                 <Box
-                  sx={{ px: 3, py: 2, borderBottom: 1, borderColor: "divider" }}
+                  sx={{ px: 2, py: 1, borderBottom: 1, borderColor: "divider" }}
                 >
                   <Typography
                     component="h2"
-                    variant="h6"
+                    variant="subtitle1"
                     sx={{ fontWeight: 700 }}
                   >
                     {dateLabel(day)}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary">
                     {selectedDay?.appointments.length ?? 0} appointments ·
                     Select an open time to book. Capacity counts clinician time,
                     not additional room capacity.
@@ -1068,6 +1066,7 @@ export function ClinicSchedule({
                                 ? s.clinician_id === lane.id
                                 : s.room_ids.includes(lane.id)),
                           ) ?? [];
+                        const slot = slots[0];
                         return (
                           <Box
                             key={`${lane.id}-${minute}`}
@@ -1077,46 +1076,50 @@ export function ClinicSchedule({
                               borderTop: 1,
                               borderLeft: 1,
                               borderColor: "divider",
-                              p: 0.5,
+                              p: 0,
                             }}
                           >
-                            {(group === "room" ? slots.slice(0, 1) : slots).map(
-                              (slot) => (
-                                <Button
-                                  key={`${slot.starts_at}-${slot.clinician_id}`}
-                                  size="small"
-                                  disabled={!canBook}
-                                  aria-label={slotBookingAriaLabel({
-                                    startsAt: slot.starts_at,
-                                    date: day,
-                                    timezone,
-                                    clinicianName:
-                                      data.clinicians.find(
-                                        (clinician) =>
-                                          clinician.id === slot.clinician_id,
-                                      )?.name ?? "Clinician",
-                                    roomName:
-                                      group === "room" ? lane.name : undefined,
-                                  })}
-                                  sx={{ justifyContent: "flex-start" }}
-                                  onClick={() =>
-                                    setBooking({
-                                      ...slot,
-                                      site_id: Number(siteId),
-                                      clinician_id:
-                                        group === "room"
-                                          ? undefined
-                                          : slot.clinician_id,
-                                      room_id:
-                                        group === "room"
-                                          ? lane.id
-                                          : slot.room_ids[0],
-                                    })
-                                  }
-                                >
-                                  Open · Book
-                                </Button>
-                              ),
+                            {slot && (
+                              <ButtonBase
+                                disabled={!canBook}
+                                aria-label={slotBookingAriaLabel({
+                                  startsAt: slot.starts_at,
+                                  date: day,
+                                  timezone,
+                                  clinicianName:
+                                    data.clinicians.find(
+                                      (clinician) =>
+                                        clinician.id === slot.clinician_id,
+                                    )?.name ?? "Clinician",
+                                  roomName:
+                                    group === "room" ? lane.name : undefined,
+                                })}
+                                sx={{
+                                  display: "block",
+                                  width: "100%",
+                                  height: "100%",
+                                  "&:hover": { bgcolor: "action.hover" },
+                                  "&.Mui-focusVisible": {
+                                    outline: "2px solid",
+                                    outlineColor: "primary.main",
+                                    outlineOffset: -2,
+                                  },
+                                }}
+                                onClick={() =>
+                                  setBooking({
+                                    ...slot,
+                                    site_id: Number(siteId),
+                                    clinician_id:
+                                      group === "room"
+                                        ? undefined
+                                        : slot.clinician_id,
+                                    room_id:
+                                      group === "room"
+                                        ? lane.id
+                                        : slot.room_ids[0],
+                                  })
+                                }
+                              />
                             )}
                           </Box>
                         );
