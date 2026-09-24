@@ -85,7 +85,7 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
       "2026-12-16T15:00:00.000Z",
     );
   });
-  it("gives each bookable slot a clinic-local date, time, and resource name", () => {
+  it("gives a room slot one resource label and leaves clinician choice to booking", () => {
     expect(
       slotBookingAriaLabel({
         startsAt: "2026-09-16T14:00:00Z",
@@ -94,9 +94,7 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
         clinicianName: "Alex Rowan, NP",
         roomName: "Infusion room 2",
       }),
-    ).toBe(
-      "Book 9:00 AM on Wednesday, September 16 with Alex Rowan, NP in Infusion room 2",
-    );
+    ).toBe("Book 9:00 AM on Wednesday, September 16 in Infusion room 2");
   });
   it("exports a reconciliable read-only calendar and omits cancelled visits", () => {
     const ics = buildCalendarIcs(

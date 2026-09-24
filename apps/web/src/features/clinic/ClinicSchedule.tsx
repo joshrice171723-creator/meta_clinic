@@ -11,7 +11,6 @@ import {
   DialogTitle,
   MenuItem,
   Paper,
-  Slider,
   Stack,
   TextField,
   ToggleButton,
@@ -256,9 +255,9 @@ export function slotBookingAriaLabel({
     hour: "numeric",
     minute: "2-digit",
   });
-  return `Book ${time} on ${dateLabel(date)} with ${clinicianName}${
-    roomName ? ` in ${roomName}` : ""
-  }`;
+  return roomName
+    ? `Book ${time} on ${dateLabel(date)} in ${roomName}`
+    : `Book ${time} on ${dateLabel(date)} with ${clinicianName}`;
 }
 
 export function ClinicSchedule({
@@ -273,6 +272,7 @@ export function ClinicSchedule({
     onCreated: (appointment: Appointment) => void,
     onHoldChanged: () => void,
     onChooseNewSlot: () => void,
+    onClose?: () => void,
   ) => ReactNode;
 }) {
   const context = useClinic();
@@ -305,9 +305,6 @@ export function ClinicSchedule({
   const [group, setGroup] = useState<"clinician" | "room">(
     routeParams.get("group") === "clinician" ? "clinician" : "room",
   );
-  const gridScrollRef = useRef<HTMLDivElement>(null);
-  const [horizontalMax, setHorizontalMax] = useState(0);
-  const [horizontalPosition, setHorizontalPosition] = useState(0);
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
   const [notice, setNotice] = useState("");
@@ -575,19 +572,6 @@ export function ClinicSchedule({
     (_, index) => startMinute + index * 30,
   );
   const tracks = new Map<number, { track: number; tracks: number }>();
-  useEffect(() => {
-    const panel = gridScrollRef.current;
-    if (!panel) return;
-    const update = () => {
-      setHorizontalMax(Math.max(0, panel.scrollWidth - panel.clientWidth));
-      setHorizontalPosition(panel.scrollLeft);
-    };
-    const observer = new ResizeObserver(update);
-    observer.observe(panel);
-    if (panel.firstElementChild) observer.observe(panel.firstElementChild);
-    update();
-    return () => observer.disconnect();
-  }, [lanes.length, view, group]);
   for (const lane of lanes) {
     const appointments =
       selectedDay?.appointments.filter(
@@ -992,33 +976,7 @@ export function ClinicSchedule({
                     not additional room capacity.
                   </Typography>
                 </Box>
-                {horizontalMax > 0 && (
-                  <Stack
-                    direction="row"
-                    spacing={2}
-                    sx={{ px: 3, py: 1, alignItems: "center" }}
-                  >
-                    <Typography variant="body2" sx={{ whiteSpace: "nowrap" }}>
-                      Scroll {group === "room" ? "rooms" : "clinicians"}
-                    </Typography>
-                    <Slider
-                      aria-label={`Scroll ${group === "room" ? "rooms" : "clinicians"} horizontally`}
-                      min={0}
-                      max={horizontalMax}
-                      value={Math.min(horizontalPosition, horizontalMax)}
-                      onChange={(_, value) => {
-                        if (gridScrollRef.current)
-                          gridScrollRef.current.scrollLeft = value as number;
-                      }}
-                      sx={{ maxWidth: 320 }}
-                    />
-                  </Stack>
-                )}
                 <Box
-                  ref={gridScrollRef}
-                  onScroll={(event) =>
-                    setHorizontalPosition(event.currentTarget.scrollLeft)
-                  }
                   sx={{
                     overflowX: "auto",
                     overflowY: "auto",
@@ -1042,7 +1000,7 @@ export function ClinicSchedule({
                       sx={{
                         gridColumn: 1,
                         gridRow: 1,
-                        bgcolor: "action.hover",
+                        bgcolor: "background.paper",
                         position: "sticky",
                         top: 0,
                         zIndex: 2,
@@ -1057,7 +1015,7 @@ export function ClinicSchedule({
                           gridRow: 1,
                           px: 2,
                           py: 1.5,
-                          bgcolor: "action.hover",
+                          bgcolor: "background.paper",
                           borderBottom: 1,
                           borderColor: "divider",
                           position: "sticky",
@@ -1122,40 +1080,44 @@ export function ClinicSchedule({
                               p: 0.5,
                             }}
                           >
-                            {slots.map((slot) => (
-                              <Button
-                                key={`${slot.starts_at}-${slot.clinician_id}`}
-                                size="small"
-                                disabled={!canBook}
-                                aria-label={slotBookingAriaLabel({
-                                  startsAt: slot.starts_at,
-                                  date: day,
-                                  timezone,
-                                  clinicianName:
-                                    data.clinicians.find(
-                                      (clinician) =>
-                                        clinician.id === slot.clinician_id,
-                                    )?.name ?? "Clinician",
-                                  roomName:
-                                    group === "room" ? lane.name : undefined,
-                                })}
-                                sx={{ justifyContent: "flex-start" }}
-                                onClick={() =>
-                                  setBooking({
-                                    ...slot,
-                                    site_id: Number(siteId),
-                                    room_id:
-                                      group === "room"
-                                        ? lane.id
-                                        : slot.room_ids[0],
-                                  })
-                                }
-                              >
-                                {group === "room"
-                                  ? `Open · ${data.clinicians.find((c) => c.id === slot.clinician_id)?.name ?? "Clinician"}`
-                                  : "Open · Book"}
-                              </Button>
-                            ))}
+                            {(group === "room" ? slots.slice(0, 1) : slots).map(
+                              (slot) => (
+                                <Button
+                                  key={`${slot.starts_at}-${slot.clinician_id}`}
+                                  size="small"
+                                  disabled={!canBook}
+                                  aria-label={slotBookingAriaLabel({
+                                    startsAt: slot.starts_at,
+                                    date: day,
+                                    timezone,
+                                    clinicianName:
+                                      data.clinicians.find(
+                                        (clinician) =>
+                                          clinician.id === slot.clinician_id,
+                                      )?.name ?? "Clinician",
+                                    roomName:
+                                      group === "room" ? lane.name : undefined,
+                                  })}
+                                  sx={{ justifyContent: "flex-start" }}
+                                  onClick={() =>
+                                    setBooking({
+                                      ...slot,
+                                      site_id: Number(siteId),
+                                      clinician_id:
+                                        group === "room"
+                                          ? undefined
+                                          : slot.clinician_id,
+                                      room_id:
+                                        group === "room"
+                                          ? lane.id
+                                          : slot.room_ids[0],
+                                    })
+                                  }
+                                >
+                                  Open · Book
+                                </Button>
+                              ),
+                            )}
                           </Box>
                         );
                       }),
@@ -1287,11 +1249,11 @@ export function ClinicSchedule({
         open={Boolean(booking)}
         maxWidth="md"
         fullWidth
+        aria-labelledby="schedule-appointment-title"
         onClose={() => {
           /* Explicit close preserves the server-owned working draft. */
         }}
       >
-        <DialogTitle>{actionLabel}</DialogTitle>
         <DialogContent>
           {booking &&
             renderBooking(
@@ -1302,13 +1264,9 @@ export function ClinicSchedule({
                 setBooking(undefined);
                 refreshCalendar.current();
               },
+              () => setBooking(undefined),
             )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBooking(undefined)}>
-            Close · keep draft
-          </Button>
-        </DialogActions>
       </Dialog>
       <Dialog
         open={Boolean(selected)}

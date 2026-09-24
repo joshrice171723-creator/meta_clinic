@@ -27,6 +27,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import CloseIcon from "@mui/icons-material/Close";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
@@ -49,6 +50,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   Link,
   MenuItem,
@@ -624,6 +626,7 @@ function BookingForm({
   initialSlot,
   onHoldChanged,
   onChooseNewSlot,
+  onClose,
 }: {
   timezone: string;
   onCreated?: (appointment: Appointment) => void;
@@ -633,6 +636,7 @@ function BookingForm({
   initialSlot?: CalendarBooking;
   onHoldChanged?: () => void;
   onChooseNewSlot?: () => void;
+  onClose?: () => void;
 }) {
   const workingDraft = useWorkingDraft<AppointmentWorkingDraft>({
     kind: "appointment",
@@ -661,6 +665,7 @@ function BookingForm({
         initialSlot={initialSlot}
         onHoldChanged={onHoldChanged}
         onChooseNewSlot={onChooseNewSlot}
+        onClose={onClose}
         initialDraft={
           preserved.current ??
           (workingDraft.ready ? workingDraft.restored : null)
@@ -683,6 +688,7 @@ function BookingFormEditor({
   initialSlot,
   onHoldChanged,
   onChooseNewSlot,
+  onClose,
   initialDraft,
   workingDraft,
   onReloadDraft,
@@ -694,6 +700,7 @@ function BookingFormEditor({
   initialSlot?: CalendarBooking;
   onHoldChanged?: () => void;
   onChooseNewSlot?: () => void;
+  onClose?: () => void;
   initialDraft: AppointmentWorkingDraft | null;
   workingDraft: ReturnType<typeof useWorkingDraft<AppointmentWorkingDraft>>;
   onReloadDraft: (snapshot: AppointmentWorkingDraft) => void;
@@ -1127,6 +1134,48 @@ function BookingFormEditor({
     }
     reset();
   };
+  const saveAndClose = async (saveBlankDraft = false) => {
+    if (
+      !onClose ||
+      inFlight.current ||
+      busy ||
+      outcomeUnconfirmed ||
+      holdOutcomeUnconfirmed ||
+      bookingAttempt ||
+      holdAttempt
+    )
+      return;
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    if (!dirty && !saveBlankDraft) {
+      onClose();
+      return;
+    }
+    const snapshot: AppointmentWorkingDraft = {
+      draft: currentDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+    };
+    inFlight.current = true;
+    setBusy(true);
+    setSubmitError("");
+    try {
+      if (!(await workingDraft.save(snapshot))) {
+        setSubmitError(
+          "The draft could not be saved. Keep this form open and retry.",
+        );
+        return;
+      }
+      lastWorkingDraft.current = snapshot;
+      setHasWorkingDraft(true);
+      onClose();
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
   const createHold = async () => {
     if (
       inFlight.current ||
@@ -1295,11 +1344,33 @@ function BookingFormEditor({
           sx={{ justifyContent: "space-between", gap: 1, mb: 3 }}
         >
           <Box>
-            <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+            <Typography
+              id={onClose ? "schedule-appointment-title" : undefined}
+              component="h2"
+              variant="h5"
+              sx={{ fontWeight: 700 }}
+            >
               Schedule an appointment
             </Typography>
           </Box>
-          <Chip label="Schedule only" size="small" variant="outlined" />
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Chip label="Schedule only" size="small" variant="outlined" />
+            {onClose && (
+              <IconButton
+                aria-label="Close booking dialog"
+                onClick={() => void saveAndClose()}
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  Boolean(bookingAttempt) ||
+                  Boolean(holdAttempt)
+                }
+              >
+                <CloseIcon fontSize="small" aria-hidden="true" />
+              </IconButton>
+            )}
+          </Stack>
         </Stack>
         {clinicians.data.clinicians.length === 0 && (
           <Alert severity="warning" sx={{ mb: 2 }}>
@@ -1350,7 +1421,17 @@ function BookingFormEditor({
           </Alert>
         )}
         {holdOutcomeUnconfirmed && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <Alert
+            severity="warning"
+            sx={{ mb: 2 }}
+            action={
+              holdAttempt ? (
+                <Button color="inherit" onClick={() => void createHold()}>
+                  Retry same hold request
+                </Button>
+              ) : undefined
+            }
+          >
             The hold outcome is unknown. Retry the same request before editing
             or booking.
           </Alert>
@@ -1964,66 +2045,88 @@ function BookingFormEditor({
             )}
             <Divider />
             <Stack
-              direction={{ xs: "column-reverse", sm: "row" }}
+              direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
-              sx={{ justifyContent: "flex-end" }}
+              sx={{
+                justifyContent: "space-between",
+                alignItems: { sm: "center" },
+              }}
             >
-              <Button
-                type="button"
-                color="inherit"
-                onClick={() => void discard()}
-                disabled={
-                  busy ||
-                  outcomeUnconfirmed ||
-                  holdOutcomeUnconfirmed ||
-                  Boolean(heldSlot)
-                }
-              >
-                {draftRecoveryMessage ? "Clear recovered draft" : "Clear"}
-              </Button>
-              {onHoldChanged && (
+              {onClose ? (
                 <Button
                   type="button"
-                  variant="outlined"
+                  color="inherit"
+                  onClick={() => void saveAndClose()}
                   disabled={
                     busy ||
                     Boolean(bookingAttempt) ||
-                    (Boolean(heldSlot) && !holdAttempt) ||
-                    (!holdAttempt && visitModality !== "in_person") ||
-                    (!holdAttempt &&
-                      (!selectedPatient ||
-                        changingPatient ||
-                        Boolean(intervalError)))
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    Boolean(holdAttempt)
                   }
-                  onClick={() => void createHold()}
                 >
-                  {holdAttempt
-                    ? "Retry same hold request"
-                    : "Hold slot for up to 10 minutes"}
+                  Close
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  color="inherit"
+                  onClick={() => void discard()}
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    Boolean(heldSlot)
+                  }
+                >
+                  {draftRecoveryMessage ? "Clear recovered draft" : "Clear"}
                 </Button>
               )}
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={
-                  busy ||
-                  (Boolean(holdAttempt) && !bookingAttempt) ||
-                  (holdOutcomeUnconfirmed && !bookingAttempt) ||
-                  (holdExpired && !bookingAttempt) ||
-                  (!outcomeUnconfirmed && (!selectedPatient || changingPatient))
-                }
-                startIcon={
-                  busy ? (
-                    <CircularProgress size={18} color="inherit" />
-                  ) : undefined
-                }
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                sx={{ ml: { sm: "auto" } }}
               >
-                {busy
-                  ? "Scheduling…"
-                  : outcomeUnconfirmed
-                    ? "Retry same request"
-                    : "Schedule appointment"}
-              </Button>
+                {onClose && (
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    onClick={() => void saveAndClose(true)}
+                    disabled={
+                      busy ||
+                      outcomeUnconfirmed ||
+                      holdOutcomeUnconfirmed ||
+                      Boolean(bookingAttempt) ||
+                      Boolean(holdAttempt)
+                    }
+                  >
+                    Save as draft
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={
+                    busy ||
+                    (Boolean(holdAttempt) && !bookingAttempt) ||
+                    (holdOutcomeUnconfirmed && !bookingAttempt) ||
+                    (holdExpired && !bookingAttempt) ||
+                    (!outcomeUnconfirmed &&
+                      (!selectedPatient || changingPatient))
+                  }
+                  startIcon={
+                    busy ? (
+                      <CircularProgress size={18} color="inherit" />
+                    ) : undefined
+                  }
+                >
+                  {busy
+                    ? "Scheduling…"
+                    : outcomeUnconfirmed
+                      ? "Retry same request"
+                      : "Schedule appointment"}
+                </Button>
+              </Stack>
             </Stack>
           </Stack>
         </Box>
@@ -2256,13 +2359,20 @@ export function Schedule({
       key={initialPatientId ?? "schedule"}
       initialPatientId={initialPatientId}
       canBook={bookingAvailability(context.capabilities).visible}
-      renderBooking={(slot, onCreated, onHoldChanged, onChooseNewSlot) => (
+      renderBooking={(
+        slot,
+        onCreated,
+        onHoldChanged,
+        onChooseNewSlot,
+        onClose,
+      ) => (
         <BookingForm
           timezone={context.practice.timezone}
           initialPatientId={slot?.hold?.patient_id ?? initialPatientId}
           initialSlot={slot}
           onHoldChanged={onHoldChanged}
           onChooseNewSlot={onChooseNewSlot}
+          onClose={onClose}
           initialVisitModality={
             !slot?.hold &&
             new URLSearchParams(search).get("visit_modality") === "video"
