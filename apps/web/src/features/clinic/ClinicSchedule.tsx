@@ -990,7 +990,7 @@ export function ClinicSchedule({
                     sx={{
                       display: "grid",
                       gridTemplateColumns: `88px repeat(${lanes.length}, minmax(250px, 1fr))`,
-                      gridTemplateRows: `48px repeat(${ticks.length}, 104px)`,
+                      gridTemplateRows: `80px repeat(${ticks.length}, 104px)`,
                       minWidth: 88 + lanes.length * 250,
                     }}
                   >
@@ -1009,10 +1009,11 @@ export function ClinicSchedule({
                         key={lane.id}
                         sx={{
                           fontWeight: 700,
+                          minWidth: 0,
                           gridColumn: index + 2,
                           gridRow: 1,
                           px: 2,
-                          py: 1.5,
+                          py: 1,
                           bgcolor: "background.paper",
                           borderBottom: 1,
                           borderColor: "divider",
@@ -1021,7 +1022,10 @@ export function ClinicSchedule({
                           zIndex: 2,
                         }}
                       >
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: 700, overflowWrap: "anywhere" }}
+                        >
                           {lane.name}
                         </Typography>
                         {group === "room" &&
