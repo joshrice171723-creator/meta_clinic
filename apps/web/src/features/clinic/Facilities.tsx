@@ -27,6 +27,7 @@ import { ServiceOfferingSettings } from "./ServiceOfferingSettings";
 import { useClinic } from "./Workspace";
 import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
 import { ClinicianSetup } from "./ClinicianSetup";
+import { SiteSchedulingPolicySettings } from "./SiteSchedulingPolicy";
 import { isDemoFrame } from "../demo/frame";
 
 const days = [
@@ -766,6 +767,9 @@ export function Facilities() {
             )}
           </Stack>
         </Paper>
+      )}
+      {selected && !creating && (
+        <SiteSchedulingPolicySettings key={selected.id} siteId={selected.id} />
       )}
     </div>
   );

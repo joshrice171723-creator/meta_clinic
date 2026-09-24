@@ -120,6 +120,52 @@ type BookingDraft = {
   visitTypeId: string;
   serviceOfferingId?: string;
   reason?: string;
+  overbookReason?: string;
+  overbookRequested?: boolean;
+  repeat?: "none" | "weekly";
+  repeatIntervalWeeks?: number;
+  repeatCount?: number;
+  seriesResolutions?: SeriesResolution[];
+};
+
+type SeriesResolution = {
+  sequence: number;
+  starts_at?: string;
+  room_id?: number;
+  change_reason?: string;
+  skip_reason?: string;
+};
+
+type SeriesPreviewRow = {
+  sequence: number;
+  original_date: string;
+  state: "booked" | "skipped";
+  starts_at: string | null;
+  ends_at: string | null;
+  conflict: string | null;
+  skip_reason: string | null;
+};
+
+type SeriesAttempt = {
+  body: {
+    series: {
+      patient_id: string;
+      site_id: string;
+      room_id: string;
+      booked_clinician_id: string;
+      visit_type_id: string;
+      service_offering_id?: string;
+      starts_at: string;
+      ends_at: string;
+      visit_modality: VisitModality;
+      interval_weeks: number;
+      occurrence_count: number;
+      expected_policy_revision: number;
+      resolutions: SeriesResolution[];
+      reason: string;
+      request_key: string;
+    };
+  };
 };
 
 type BookingClinician = Clinician & {
@@ -184,6 +230,8 @@ type BookingAttempt = {
       service_offering_id?: string;
       schedule_hold_id?: number;
       reason?: string;
+      overbook_reason?: string;
+      expected_policy_revision?: number;
       request_key: string;
       visit_modality?: VisitModality;
     };
@@ -211,6 +259,8 @@ type AppointmentWorkingDraft = {
   outcomeUnconfirmed: boolean;
   holdAttempt?: HoldAttempt | null;
   holdOutcomeUnconfirmed?: boolean;
+  seriesAttempt?: SeriesAttempt | null;
+  seriesOutcomeUnconfirmed?: boolean;
 };
 
 export function appointmentDraftRecoveryMessage(
@@ -221,7 +271,9 @@ export function appointmentDraftRecoveryMessage(
     draft.attempt ||
     draft.outcomeUnconfirmed ||
     draft.holdAttempt ||
-    draft.holdOutcomeUnconfirmed
+    draft.holdOutcomeUnconfirmed ||
+    draft.seriesAttempt ||
+    draft.seriesOutcomeUnconfirmed
   )
     return null;
   return "Recovered appointment draft: its patient, time, and scheduling details are from your earlier work. Review them before scheduling, or start a new appointment to clear this saved draft.";
@@ -259,8 +311,11 @@ export function bookingDraftHasChanges(
   draft: BookingDraft,
   baseline: BookingDraft,
 ) {
-  return (Object.keys(baseline) as Array<keyof BookingDraft>).some(
-    (field) => draft[field] !== baseline[field],
+  return (Object.keys(baseline) as Array<keyof BookingDraft>).some((field) =>
+    field === "seriesResolutions"
+      ? JSON.stringify(draft.seriesResolutions ?? []) !==
+        JSON.stringify(baseline.seriesResolutions ?? [])
+      : draft[field] !== baseline[field],
   );
 }
 
@@ -725,6 +780,11 @@ function BookingFormEditor({
       visitTypeId: "",
       serviceOfferingId: "",
       reason: "",
+      overbookReason: "",
+      repeat: "none",
+      repeatIntervalWeeks: 1,
+      repeatCount: 2,
+      seriesResolutions: [],
       visitModality: initialVisitModality,
     };
   }, [initialPatientId, initialVisitModality, initialSlot]);
@@ -771,6 +831,40 @@ function BookingFormEditor({
     restoredDraft.serviceOfferingId ?? "",
   );
   const [reason, setReason] = useState(restoredDraft.reason ?? "");
+  const [overbookReason, setOverbookReason] = useState(
+    restoredDraft.overbookReason ?? "",
+  );
+  const [overbookRequested, setOverbookRequested] = useState(
+    Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+  );
+  const [repeat, setRepeat] = useState<"none" | "weekly">(
+    restoredDraft.repeat ?? "none",
+  );
+  const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(
+    restoredDraft.repeatIntervalWeeks ?? 1,
+  );
+  const [repeatCount, setRepeatCount] = useState(
+    restoredDraft.repeatCount ?? 2,
+  );
+  const [seriesResolutions, setSeriesResolutions] = useState<SeriesResolution[]>(
+    restoredDraft.seriesResolutions ?? [],
+  );
+  const [seriesPreview, setSeriesPreview] = useState<SeriesPreviewRow[] | null>(null);
+  const [seriesPreviewPayload, setSeriesPreviewPayload] = useState<string | null>(null);
+  const [seriesAttempt, setSeriesAttempt] = useState<SeriesAttempt | null>(
+    initialPatientId &&
+      initialDraft?.seriesAttempt?.body.series.patient_id !== String(initialPatientId)
+      ? null
+      : (initialDraft?.seriesAttempt ?? null),
+  );
+  const [seriesOutcomeUnconfirmed, setSeriesOutcomeUnconfirmed] = useState(
+    Boolean(
+      initialDraft?.seriesAttempt &&
+        (!initialPatientId ||
+          initialDraft.seriesAttempt.body.series.patient_id ===
+            String(initialPatientId)),
+    ),
+  );
   const [visitModality, setVisitModality] = useState<VisitModality>(
     restoredDraft.visitModality ?? initialVisitModality,
   );
@@ -817,6 +911,13 @@ function BookingFormEditor({
           draft: effectiveDraft,
           attempt: boundBooking.attempt,
           outcomeUnconfirmed: boundBooking.outcomeUnconfirmed,
+          seriesAttempt:
+            initialPatientId &&
+            initialDraft.seriesAttempt?.body.series.patient_id !==
+              String(initialPatientId)
+              ? null
+              : (initialDraft.seriesAttempt ?? null),
+          seriesOutcomeUnconfirmed: Boolean(initialDraft.seriesAttempt),
         }
       : {
           draft: effectiveDraft,
@@ -870,6 +971,12 @@ function BookingFormEditor({
       visitTypeId,
       serviceOfferingId,
       reason,
+      overbookReason,
+      overbookRequested,
+      repeat,
+      repeatIntervalWeeks,
+      repeatCount,
+      seriesResolutions,
       visitModality,
     }),
     [
@@ -882,6 +989,12 @@ function BookingFormEditor({
       visitTypeId,
       serviceOfferingId,
       reason,
+    overbookReason,
+    overbookRequested,
+      repeat,
+      repeatIntervalWeeks,
+      repeatCount,
+      seriesResolutions,
       visitModality,
     ],
   );
@@ -908,6 +1021,12 @@ function BookingFormEditor({
   const serviceOfferings = useResource<{
     service_offerings: BookingServiceOffering[];
   }>("/api/clinic/service_offerings?status=published");
+  const schedulingPolicy = useResource<{
+    policy: import("../../api/contracts").SiteSchedulingPolicy;
+    can_overbook: boolean;
+  }>(`/api/clinic/facilities/${siteId}/scheduling_policy`, {
+    enabled: Boolean(siteId),
+  });
   const selectedOffering = serviceOfferings.data?.service_offerings.find(
     (offering) => String(offering.id) === serviceOfferingId,
   );
@@ -980,6 +1099,8 @@ function BookingFormEditor({
     if (
       !dirty ||
       bookingAttempt ||
+      seriesAttempt ||
+      seriesOutcomeUnconfirmed ||
       outcomeUnconfirmed ||
       holdAttempt ||
       holdOutcomeUnconfirmed ||
@@ -1005,6 +1126,8 @@ function BookingFormEditor({
     };
   }, [
     bookingAttempt,
+    seriesAttempt,
+    seriesOutcomeUnconfirmed,
     holdAttempt,
     holdOutcomeUnconfirmed,
     busy,
@@ -1015,18 +1138,18 @@ function BookingFormEditor({
   ]);
   useEffect(() => {
     if (
-      (!dirty && !outcomeUnconfirmed && !holdOutcomeUnconfirmed) ||
+      (!dirty && !outcomeUnconfirmed && !holdOutcomeUnconfirmed && !seriesOutcomeUnconfirmed) ||
       typeof window === "undefined"
     )
       return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed]);
+  }, [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, seriesOutcomeUnconfirmed]);
   useEffect(
     () =>
       registerBlocker(
-        outcomeUnconfirmed || holdOutcomeUnconfirmed
+        outcomeUnconfirmed || holdOutcomeUnconfirmed || seriesOutcomeUnconfirmed
           ? () =>
               "A scheduling request outcome is unknown. Retry the exact request before leaving scheduling."
           : dirty
@@ -1034,7 +1157,7 @@ function BookingFormEditor({
                 "This appointment draft has unsaved changes. Leave scheduling and discard them?"
             : null,
       ),
-    [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, registerBlocker],
+    [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, seriesOutcomeUnconfirmed, registerBlocker],
   );
   const resourceError =
     facilities.error || rooms.error || clinicians.error || visitTypes.error;
@@ -1106,6 +1229,16 @@ function BookingFormEditor({
     setVisitTypeId("");
     setServiceOfferingId("");
     setReason("");
+    setOverbookReason("");
+    setOverbookRequested(Boolean(initialSlot?.overbook));
+    setRepeat("none");
+    setRepeatIntervalWeeks(1);
+    setRepeatCount(2);
+    setSeriesResolutions([]);
+    setSeriesPreview(null);
+    setSeriesPreviewPayload(null);
+    setSeriesAttempt(null);
+    setSeriesOutcomeUnconfirmed(false);
     setVisitModality(defaultDraft.visitModality ?? "in_person");
     setBookingAttempt(null);
     setOutcomeUnconfirmed(false);
@@ -1142,7 +1275,9 @@ function BookingFormEditor({
       busy ||
       outcomeUnconfirmed ||
       holdOutcomeUnconfirmed ||
+      seriesOutcomeUnconfirmed ||
       bookingAttempt ||
+      seriesAttempt ||
       holdAttempt
     )
       return;
@@ -1341,6 +1476,124 @@ function BookingFormEditor({
       setBusy(false);
     }
   };
+  const seriesBody = (requestKey: string): SeriesAttempt => ({
+    body: {
+      series: {
+        patient_id: patientId,
+        site_id: siteId,
+        room_id: visitModality === "video" ? "" : roomId,
+        booked_clinician_id: clinicianId,
+        visit_type_id: visitTypeId,
+        ...(serviceOfferingId ? { service_offering_id: serviceOfferingId } : {}),
+        starts_at: new Date(startsAt).toISOString(),
+        ends_at: new Date(endsAt).toISOString(),
+        visit_modality: visitModality,
+        interval_weeks: repeatIntervalWeeks,
+        occurrence_count: repeatCount,
+        expected_policy_revision: schedulingPolicy.data?.policy.revision ?? 0,
+        resolutions: seriesResolutions,
+        reason,
+        request_key: requestKey,
+      },
+    },
+  });
+  const seriesPreviewKey = () => JSON.stringify(seriesBody("preview").body.series);
+  const previewSeries = async () => {
+    if (!patientId || !siteId || !clinicianId || !visitTypeId || intervalError || offeringIssue) {
+      setSubmitError("Complete the patient, site, clinician, visit type, and valid time before previewing visits.");
+      return;
+    }
+    if (!schedulingPolicy.data?.policy.recurrence_enabled) {
+      setSubmitError("Recurring appointments are unavailable at this site.");
+      return;
+    }
+    setBusy(true);
+    setSubmitError("");
+    try {
+      const attempt = seriesBody("preview");
+      const result = await api<{ occurrences: SeriesPreviewRow[] }>(
+        "/api/clinic/appointment_series/preview",
+        { method: "POST", body: attempt.body },
+      );
+      setSeriesPreview(result.occurrences);
+      setSeriesPreviewPayload(JSON.stringify(attempt.body.series));
+    } catch (error) {
+      setSeriesPreview(null);
+      setSeriesPreviewPayload(null);
+      setSubmitError(error instanceof Error ? error.message : "Unable to preview recurring visits.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const updateSeriesResolution = (sequence: number, changes: Partial<SeriesResolution>) => {
+    setSeriesResolutions((current) => {
+      const previous = current.find((row) => row.sequence === sequence);
+      return [...current.filter((row) => row.sequence !== sequence),
+        { sequence, ...previous, ...changes }].sort((left, right) => left.sequence - right.sequence);
+    });
+  };
+  const scheduleSeries = async () => {
+    if (inFlight.current || busy) return;
+    if (!seriesAttempt &&
+        (!seriesPreview || seriesPreview.some((row) => row.conflict) ||
+          seriesPreviewPayload !== seriesPreviewKey())) {
+      setSubmitError("Preview and resolve every occurrence before scheduling the series.");
+      return;
+    }
+    const attempt = seriesAttempt ?? seriesBody(crypto.randomUUID());
+    const pending: AppointmentWorkingDraft = {
+      draft: currentDraft,
+      attempt: null,
+      outcomeUnconfirmed: false,
+      seriesAttempt: attempt,
+      seriesOutcomeUnconfirmed: false,
+    };
+    inFlight.current = true;
+    if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+    if (!(await workingDraft.save(pending))) {
+      inFlight.current = false;
+      setSubmitError("The working copy could not be saved. Retry before scheduling this series.");
+      return;
+    }
+    lastWorkingDraft.current = pending;
+    setSeriesAttempt(attempt);
+    setBusy(true);
+    setSubmitError("");
+    try {
+      const result = await api<{
+        series: { id: number; site_id: number; patient_id: number; occurrences: unknown[] };
+      }>("/api/clinic/appointment_series", { method: "POST", body: attempt.body });
+      if (result.series.patient_id !== Number(attempt.body.series.patient_id) ||
+          result.series.site_id !== Number(attempt.body.series.site_id) ||
+          result.series.occurrences.length !== attempt.body.series.occurrence_count)
+        throw new Error("The saved series did not match this request. Retry the exact request to reconcile it.");
+      if (!(await workingDraft.clear())) {
+        setSeriesOutcomeUnconfirmed(true);
+        setSubmitError("The series was saved, but its working copy could not be cleared. Retry the same request to reconcile it.");
+        return;
+      }
+      setSeriesAttempt(null);
+      setSeriesOutcomeUnconfirmed(false);
+      setSeriesPreview(null);
+      onHoldChanged?.();
+      onClose?.();
+    } catch (error) {
+      const unknown = !(error instanceof ApiError) || error.status === 408 ||
+        error.status >= 500 || error.code === "outcome_unconfirmed";
+      const snapshot = { ...pending, seriesAttempt: unknown ? attempt : null,
+        seriesOutcomeUnconfirmed: unknown };
+      lastWorkingDraft.current = snapshot;
+      await workingDraft.save(snapshot);
+      setSeriesAttempt(unknown ? attempt : null);
+      setSeriesOutcomeUnconfirmed(unknown);
+      setSubmitError(unknown
+        ? "The series outcome is unknown. Retry the same request before editing or leaving."
+        : error instanceof Error ? error.message : "Unable to schedule this series.");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
   return (
     <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
       <CardContent
@@ -1370,7 +1623,9 @@ function BookingFormEditor({
                   busy ||
                   outcomeUnconfirmed ||
                   holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
                   Boolean(bookingAttempt) ||
+                  Boolean(seriesAttempt) ||
                   Boolean(holdAttempt)
                 }
               >
@@ -1475,6 +1730,10 @@ function BookingFormEditor({
             event.preventDefault();
             if (inFlight.current) return;
             setSubmitError("");
+            if (repeat === "weekly" || seriesAttempt) {
+              void scheduleSeries();
+              return;
+            }
             if (!bookingAttempt && (holdAttempt || holdOutcomeUnconfirmed))
               return setSubmitError(
                 "Resolve the pending hold request before booking.",
@@ -1504,6 +1763,15 @@ function BookingFormEditor({
               );
             if (!bookingAttempt && offeringIssue)
               return setSubmitError(offeringIssue);
+            if (!bookingAttempt && overbookRequested) {
+              if (!schedulingPolicy.data?.policy.overbook_enabled ||
+                  !schedulingPolicy.data.can_overbook)
+                return setSubmitError("Overbooking is unavailable to this account at this site.");
+              if (!schedulingPolicy.data.policy.eligible_visit_type_ids.includes(Number(visitTypeId)))
+                return setSubmitError("Choose a visit type eligible for overbooking.");
+              if (!overbookReason.trim())
+                return setSubmitError("Enter a reason for this clinician exception.");
+            }
             inFlight.current = true;
             if (autosaveTimer.current) {
               window.clearTimeout(autosaveTimer.current);
@@ -1526,6 +1794,10 @@ function BookingFormEditor({
                       : {}),
                     ...(heldSlot ? { schedule_hold_id: heldSlot.id } : {}),
                     reason,
+                    ...(overbookRequested ? {
+                      overbook_reason: overbookReason.trim(),
+                      expected_policy_revision: schedulingPolicy.data?.policy.revision,
+                    } : {}),
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
                   },
@@ -1730,7 +2002,7 @@ function BookingFormEditor({
             <Alert severity="info" variant="outlined">
               Enter times using this device’s timezone (
               {Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"}
-              ). Confirm the clinic time shown on the schedule in {timezone}
+              ). Confirm the clinic time shown on the schedule in {timezone}{" "}
               before finishing.
             </Alert>
             <TelehealthBookingFormat
@@ -1951,6 +2223,164 @@ function BookingFormEditor({
                 helperText="Optional scheduler-facing reason. It is saved with the appointment."
                 sx={{ gridColumn: { md: "1 / -1" } }}
               />
+              {schedulingPolicy.data?.policy.overbook_enabled && schedulingPolicy.data.can_overbook && (
+                <FormControlLabel sx={{ gridColumn: { md: "1 / -1" } }}
+                  control={<Checkbox checked={overbookRequested}
+                    disabled={busy || Boolean(bookingAttempt)}
+                    onChange={(event) => {
+                      setOverbookRequested(event.target.checked);
+                      if (!event.target.checked) setOverbookReason("");
+                      if (event.target.checked) {
+                        setRepeat("none");
+                        setSeriesPreview(null);
+                      }
+                    }} />}
+                  label="Request a clinician overbook exception" />
+              )}
+              {overbookRequested && (
+                <Stack spacing={1} sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <Alert severity="warning">
+                    This clinician already has a visit at this time. Review
+                    another free time before requesting an exception. A second
+                    patient needs a separate free physical room.
+                  </Alert>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Overbook reason"
+                    value={overbookReason}
+                    onChange={(event) => setOverbookReason(event.target.value)}
+                    disabled={busy || outcomeUnconfirmed}
+                    slotProps={{ htmlInput: { maxLength: 500 } }}
+                    helperText="An authorized staff exception applies to this one appointment."
+                  />
+                </Stack>
+              )}
+              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
+                <TextField
+                  select
+                  label="Repeat"
+                  value={repeat}
+                  onChange={(event) => {
+                    setRepeat(event.target.value as "none" | "weekly");
+                    if (event.target.value === "weekly") {
+                      setOverbookRequested(false);
+                      setOverbookReason("");
+                    }
+                    setSeriesPreview(null);
+                    setSeriesPreviewPayload(null);
+                  }}
+                  disabled={busy || Boolean(seriesAttempt)}
+                >
+                  <MenuItem value="none">Does not repeat</MenuItem>
+                  <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
+                    Weekly
+                  </MenuItem>
+                </TextField>
+                {repeat === "weekly" && (
+                  <>
+                    {!schedulingPolicy.data?.policy.recurrence_enabled && (
+                      <Alert severity="warning">Recurring visits are off for this site. Ask an authorized clinic setup staff member to enable them.</Alert>
+                    )}
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                      <TextField
+                        type="number"
+                        label="Every (weeks)"
+                        value={repeatIntervalWeeks}
+                        onChange={(event) => setRepeatIntervalWeeks(Number(event.target.value))}
+                        slotProps={{ htmlInput: { min: 1, max: 4, step: 1 } }}
+                        disabled={busy || Boolean(seriesAttempt)}
+                      />
+                      <TextField
+                        type="number"
+                        label="Number of visits"
+                        value={repeatCount}
+                        onChange={(event) => setRepeatCount(Number(event.target.value))}
+                        slotProps={{ htmlInput: { min: 2, max: 12, step: 1 } }}
+                        disabled={busy || Boolean(seriesAttempt)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        onClick={() => void previewSeries()}
+                        disabled={busy || Boolean(seriesAttempt) || !schedulingPolicy.data?.policy.recurrence_enabled}
+                      >
+                        Preview visits
+                      </Button>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Each visit is booked separately. Review every date before scheduling; conflicts require a new time or a skip reason.
+                    </Typography>
+                    {seriesPreview && (
+                      <Stack spacing={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {seriesPreview.filter((row) => row.state === "booked").length} to book ·{" "}
+                          {seriesPreview.filter((row) => row.state === "skipped").length} skipped
+                        </Typography>
+                        {seriesPreview.map((row) => {
+                          const resolution = seriesResolutions.find((item) => item.sequence === row.sequence);
+                          return (
+                            <Paper key={row.sequence} variant="outlined" sx={{ p: 1.5 }}>
+                              <Stack spacing={1}>
+                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                                  Visit {row.sequence} · {row.original_date} · {row.state === "skipped" ? "Skipped" : row.starts_at ? clinicDateTime(row.starts_at, timezone) : "Time needs review"}
+                                </Typography>
+                                {row.conflict && <Alert severity="warning">{row.conflict}</Alert>}
+                                <TextField
+                                  type="datetime-local"
+                                  label="Change this visit start"
+                                  value={resolution?.starts_at ? localDateTimeValue(new Date(resolution.starts_at)) : ""}
+                                  onChange={(event) => updateSeriesResolution(row.sequence, {
+                                    starts_at: event.target.value ? new Date(event.target.value).toISOString() : "",
+                                  })}
+                                  disabled={busy || Boolean(seriesAttempt)}
+                                  slotProps={{ inputLabel: { shrink: true } }}
+                                  helperText={`Uses this device's timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Leave blank to keep the weekly time.`}
+                                />
+                                <TextField
+                                  select
+                                  label="Room for this visit"
+                                  value={resolution?.room_id ?? ""}
+                                  onChange={(event) => updateSeriesResolution(row.sequence, {
+                                    room_id: event.target.value ? Number(event.target.value) : undefined,
+                                  })}
+                                  disabled={busy || Boolean(seriesAttempt) || visitModality === "video"}
+                                >
+                                  <MenuItem value="">Use series room</MenuItem>
+                                  {availableRooms.map((room) => <MenuItem key={room.id} value={room.id}>
+                                    {room.code}
+                                  </MenuItem>)}
+                                </TextField>
+                                <TextField
+                                  label="Reason for changing this visit"
+                                  value={resolution?.change_reason ?? ""}
+                                  onChange={(event) => updateSeriesResolution(row.sequence, { change_reason: event.target.value })}
+                                  disabled={busy || Boolean(seriesAttempt) ||
+                                    !(resolution?.starts_at || resolution?.room_id)}
+                                  slotProps={{ htmlInput: { maxLength: 500 } }}
+                                />
+                                <TextField
+                                  label="Skip this visit (reason required)"
+                                  value={resolution?.skip_reason ?? ""}
+                                  onChange={(event) => updateSeriesResolution(row.sequence, { skip_reason: event.target.value })}
+                                  disabled={busy || Boolean(seriesAttempt)}
+                                  slotProps={{ htmlInput: { maxLength: 500 } }}
+                                />
+                              </Stack>
+                            </Paper>
+                          );
+                        })}
+                        {seriesPreviewPayload !== seriesPreviewKey() && (
+                          <Alert severity="info">Visit choices changed. Preview again before scheduling.</Alert>
+                        )}
+                      </Stack>
+                    )}
+                    {seriesOutcomeUnconfirmed && (
+                      <Alert severity="warning">The series result is uncertain. Retry the exact request below.</Alert>
+                    )}
+                  </>
+                )}
+              </Stack>
               {(roomId || clinicianId) && (
                 <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                   {scheduledResources.error ? (
@@ -2079,8 +2509,10 @@ function BookingFormEditor({
                   disabled={
                     busy ||
                     Boolean(bookingAttempt) ||
+                    Boolean(seriesAttempt) ||
                     outcomeUnconfirmed ||
                     holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
                     Boolean(holdAttempt)
                   }
                 >
@@ -2095,6 +2527,8 @@ function BookingFormEditor({
                     busy ||
                     outcomeUnconfirmed ||
                     holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
+                    Boolean(seriesAttempt) ||
                     Boolean(heldSlot)
                   }
                 >
@@ -2115,7 +2549,9 @@ function BookingFormEditor({
                       busy ||
                       outcomeUnconfirmed ||
                       holdOutcomeUnconfirmed ||
+                      seriesOutcomeUnconfirmed ||
                       Boolean(bookingAttempt) ||
+                      Boolean(seriesAttempt) ||
                       Boolean(holdAttempt)
                     }
                   >
@@ -2123,10 +2559,14 @@ function BookingFormEditor({
                   </Button>
                 )}
                 <Button
-                  type="submit"
+                  type={repeat === "weekly" ? "button" : "submit"}
+                  onClick={repeat === "weekly" ? () => void scheduleSeries() : undefined}
                   variant="contained"
                   disabled={
                     busy ||
+                    (repeat === "weekly" && !seriesAttempt &&
+                      (!seriesPreview || seriesPreview.some((row) => Boolean(row.conflict)) ||
+                        seriesPreviewPayload !== seriesPreviewKey())) ||
                     (Boolean(holdAttempt) && !bookingAttempt) ||
                     (holdOutcomeUnconfirmed && !bookingAttempt) ||
                     (holdExpired && !bookingAttempt) ||
@@ -2141,9 +2581,10 @@ function BookingFormEditor({
                 >
                   {busy && !draftSaving
                     ? "Scheduling…"
-                    : outcomeUnconfirmed
+                    : outcomeUnconfirmed || seriesOutcomeUnconfirmed
                       ? "Retry same request"
-                      : "Schedule appointment"}
+                      : repeat === "weekly" ? "Schedule series" :
+                        overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
                 </Button>
               </Stack>
             </Stack>

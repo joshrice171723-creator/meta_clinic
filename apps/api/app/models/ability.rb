@@ -66,6 +66,7 @@ class Ability
     "appointments.write" => { action: :create, subjects: [ Clinic::Appointment ], actions: %i[create update], scope: :site_or_practice },
     "appointments.read" => { action: :read, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
     "appointments.book" => { action: :create, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
+    "appointments.overbook" => { action: :overbook, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
     "appointments.status_transition" => { action: :transition, subjects: [ Clinic::Appointment ], scope: :site_or_practice },
     "encounters.read" => { action: :read, subjects: [ Clinic::Encounter ], scope: :site_or_practice },
     "encounters.write" => { action: :create, subjects: [ Clinic::Encounter ], actions: %i[create update], scope: :site_or_practice },

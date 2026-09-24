@@ -30,6 +30,7 @@ import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { workflowStatusLabel } from "./workflowStatus";
 import { patientReferenceLabel } from "./patientReference";
+import { SeriesManagement } from "./SeriesManagement";
 
 export type CalendarBooking = {
   site_id: number;
@@ -38,6 +39,7 @@ export type CalendarBooking = {
   starts_at?: string;
   ends_at?: string;
   hold?: CalendarHold;
+  overbook?: boolean;
 };
 
 export function calendarTimezone(
@@ -307,6 +309,7 @@ export function ClinicSchedule({
   );
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
+  const [seriesId, setSeriesId] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [mutationError, setMutationError] = useState("");
   const [holdError, setHoldError] = useState("");
@@ -772,14 +775,12 @@ export function ClinicSchedule({
               <Button href="/clinic/waitlist">Set clinician capacity</Button>
             </Alert>
           )}
-          {(!data.policy ||
-            data.policy.recurrence === "not_configured" ||
-            data.policy.overbook === "not_configured") && (
+          {(data.policy?.recurrence === "not_configured" ||
+            data.policy?.overbook === "not_configured") && (
             <Alert severity="warning" sx={{ py: 0, alignItems: "center" }}>
-              Recurrence and overbook behavior are not configured for this
-              location. The calendar will only offer explicit free slots from
-              the current capacity rules; external calendar sync is limited to
-              the read-only export above.
+              {data.policy.recurrence === "not_configured" && "Recurring appointments are off. "}
+              {data.policy.overbook === "not_configured" && "Overbook exceptions are off. "}
+              An authorized staff member can change this site's scheduling policy in Clinic setup.
             </Alert>
           )}
           {view === "month" ? (
@@ -1219,6 +1220,12 @@ export function ClinicSchedule({
                                 label="Conflict"
                               />
                             )}
+                            {appointment.overbooked && (
+                              <Chip size="small" label="Overbooked" />
+                            )}
+                            {appointment.series_id && (
+                              <Chip size="small" label="Repeats weekly" />
+                            )}
                           </ButtonBase>
                         );
                       })}
@@ -1299,6 +1306,19 @@ export function ClinicSchedule({
                   sx={{ alignSelf: "start" }}
                   label={workflowStatusLabel(selected.calendar_status)}
                 />
+                {selected.overbooked && (
+                  <Typography variant="body2">
+                    Overbooked · {selected.overbook_reason}
+                  </Typography>
+                )}
+                {selected.series_id && (
+                  <Button sx={{ alignSelf: "start" }} onClick={() => {
+                    setSeriesId(selected.series_id ?? null);
+                    setSelected(undefined);
+                  }}>
+                    Recurring visit {selected.series_sequence} · View series
+                  </Button>
+                )}
                 <Typography variant="body2">
                   Check in only after the patient arrives. This opens their
                   encounter and places the visit on the Tracking Board.
@@ -1313,6 +1333,25 @@ export function ClinicSchedule({
             Close
           </Button>
           <Button href="/clinic/front-desk">Manage appointment</Button>
+          {selected &&
+            data?.policy?.overbook === "configured" &&
+            context.capabilities.appointments_overbook &&
+            ["scheduled", "confirmed"].includes(selected.status) && (
+              <Button
+                onClick={() => {
+                  setBooking({
+                    site_id: Number(siteId),
+                    clinician_id: selected.booked_clinician_id ?? undefined,
+                    starts_at: selected.starts_at,
+                    ends_at: selected.ends_at,
+                    overbook: true,
+                  });
+                  setSelected(undefined);
+                }}
+              >
+                Schedule another at this time
+              </Button>
+            )}
           {selected &&
             !selected.encounter_id &&
             ["scheduled", "confirmed"].includes(selected.status) &&
@@ -1332,6 +1371,10 @@ export function ClinicSchedule({
           )}
         </DialogActions>
       </Dialog>
+      <SeriesManagement seriesId={seriesId} canChange={canBook}
+        canCancel={Boolean(context.capabilities.appointments_status_transition)}
+        onClose={() => setSeriesId(null)}
+        onChanged={() => refreshCalendar.current()} />
     </Stack>
   );
 }

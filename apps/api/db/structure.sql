@@ -2012,6 +2012,172 @@ ALTER SEQUENCE public.clinic_allergies_id_seq OWNED BY public.clinic_allergies.i
 
 
 --
+-- Name: clinic_appointment_overbook_exceptions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_appointment_overbook_exceptions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    appointment_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    written_by_membership_id bigint CONSTRAINT clinic_appointment_overbook_e_written_by_membership_id_not_null NOT NULL,
+    policy_revision integer NOT NULL,
+    conflicting_appointment_ids bigint[] DEFAULT '{}'::bigint[] CONSTRAINT clinic_appointment_overbook_conflicting_appointment_id_not_null NOT NULL,
+    reason text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_appointment_overbook_exception_required_fields CHECK (((policy_revision > 0) AND (length(TRIM(BOTH FROM reason)) > 0)))
+);
+
+
+--
+-- Name: clinic_appointment_overbook_exceptions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_appointment_overbook_exceptions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_appointment_overbook_exceptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_appointment_overbook_exceptions_id_seq OWNED BY public.clinic_appointment_overbook_exceptions.id;
+
+
+--
+-- Name: clinic_appointment_series; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_appointment_series (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    booked_clinician_id bigint NOT NULL,
+    visit_type_id bigint NOT NULL,
+    room_id bigint,
+    service_offering_id bigint,
+    visit_modality character varying NOT NULL,
+    timezone character varying NOT NULL,
+    starts_on date NOT NULL,
+    local_start_time character varying NOT NULL,
+    duration_minutes integer NOT NULL,
+    interval_weeks integer NOT NULL,
+    occurrence_count integer NOT NULL,
+    policy_revision bigint NOT NULL,
+    created_by_membership_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_appointment_series_bounds CHECK (((interval_weeks >= 1) AND (interval_weeks <= 4) AND ((occurrence_count >= 2) AND (occurrence_count <= 12)) AND (duration_minutes > 0))),
+    CONSTRAINT clinic_appointment_series_modality CHECK (((visit_modality)::text = ANY (ARRAY[('in_person'::character varying)::text, ('video'::character varying)::text])))
+);
+
+
+--
+-- Name: clinic_appointment_series_changes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_appointment_series_changes (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    series_id bigint NOT NULL,
+    written_by_membership_id bigint CONSTRAINT clinic_appointment_series_cha_written_by_membership_id_not_null NOT NULL,
+    action character varying NOT NULL,
+    from_sequence integer NOT NULL,
+    reason text NOT NULL,
+    before_visits jsonb DEFAULT '[]'::jsonb NOT NULL,
+    after_visits jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_appointment_series_change_required_fields CHECK ((((action)::text = ANY ((ARRAY['change_future'::character varying, 'cancel_future'::character varying])::text[])) AND ((from_sequence >= 1) AND (from_sequence <= 12)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500))))
+);
+
+
+--
+-- Name: clinic_appointment_series_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_appointment_series_changes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_appointment_series_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_appointment_series_changes_id_seq OWNED BY public.clinic_appointment_series_changes.id;
+
+
+--
+-- Name: clinic_appointment_series_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_appointment_series_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_appointment_series_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_appointment_series_id_seq OWNED BY public.clinic_appointment_series.id;
+
+
+--
+-- Name: clinic_appointment_series_occurrences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_appointment_series_occurrences (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    series_id bigint NOT NULL,
+    sequence integer NOT NULL,
+    original_date date NOT NULL,
+    appointment_id bigint,
+    state character varying NOT NULL,
+    skip_reason text,
+    resolved_by_membership_id bigint CONSTRAINT clinic_appointment_series_oc_resolved_by_membership_id_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    change_reason text,
+    CONSTRAINT clinic_appointment_series_occurrence_change_reason CHECK (((change_reason IS NULL) OR ((length(TRIM(BOTH FROM change_reason)) >= 1) AND (length(TRIM(BOTH FROM change_reason)) <= 500)))),
+    CONSTRAINT clinic_appointment_series_occurrence_resolution CHECK (((((state)::text = 'booked'::text) AND (appointment_id IS NOT NULL) AND (skip_reason IS NULL)) OR (((state)::text = 'skipped'::text) AND (appointment_id IS NULL) AND (length(TRIM(BOTH FROM skip_reason)) > 0))))
+);
+
+
+--
+-- Name: clinic_appointment_series_occurrences_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_appointment_series_occurrences_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_appointment_series_occurrences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_appointment_series_occurrences_id_seq OWNED BY public.clinic_appointment_series_occurrences.id;
+
+
+--
 -- Name: clinic_appointments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2033,6 +2199,8 @@ CREATE TABLE public.clinic_appointments (
     schedule_hold_id bigint,
     service_offering_id bigint,
     service_offering_snapshot jsonb,
+    clinician_allocation integer DEFAULT 1 NOT NULL,
+    CONSTRAINT clinic_appointments_clinician_allocation_bound CHECK (((clinician_allocation >= 1) AND (clinician_allocation <= 2))),
     CONSTRAINT clinic_appointments_offering_snapshot_pair CHECK (((service_offering_id IS NULL) = (service_offering_snapshot IS NULL))),
     CONSTRAINT clinic_appointments_room_requires_site CHECK (((room_id IS NULL) OR (site_id IS NOT NULL))),
     CONSTRAINT clinic_appointments_status_present CHECK ((length(TRIM(BOTH FROM status)) > 0)),
@@ -2095,10 +2263,10 @@ CREATE TABLE public.clinic_assessment_revisions (
     item_responses jsonb DEFAULT '[]'::jsonb NOT NULL,
     reviewer_membership_id bigint,
     reviewed_at timestamp with time zone,
-    CONSTRAINT clinic_assessments_item_contract CHECK ((((assessment_state)::text = ANY ((ARRAY['not_assessed'::character varying, 'unknown'::character varying, 'assessed'::character varying])::text[])) AND (jsonb_typeof(item_responses) = 'array'::text))),
+    CONSTRAINT clinic_assessments_item_contract CHECK ((((assessment_state)::text = ANY (ARRAY[('not_assessed'::character varying)::text, ('unknown'::character varying)::text, ('assessed'::character varying)::text])) AND (jsonb_typeof(item_responses) = 'array'::text))),
     CONSTRAINT clinic_assessments_response_source CHECK (((response_source IS NULL) OR ((response_source)::text = ANY (ARRAY[('patient_reported'::character varying)::text, ('clinician_observed'::character varying)::text, ('proxy_reported'::character varying)::text, ('imported'::character varying)::text, ('unknown'::character varying)::text])))),
     CONSTRAINT clinic_assessments_score_provenance CHECK ((((score_source IS NULL) AND (score_recorded_at IS NULL)) OR (((score_source)::text = ANY (ARRAY[('calculated'::character varying)::text, ('clinician_entered'::character varying)::text, ('imported'::character varying)::text, ('unknown'::character varying)::text])) AND (score_recorded_at IS NOT NULL)))),
-    CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY ((ARRAY['in_progress'::character varying, 'completed'::character varying, 'entered_in_error'::character varying])::text[])) AND (version_number > 0) AND ((category)::text = ANY ((ARRAY['depression'::character varying, 'anxiety'::character varying, 'alcohol_use'::character varying, 'tobacco_use'::character varying, 'social_needs'::character varying, 'fall_risk'::character varying, 'functional_status'::character varying, 'cognitive_status'::character varying, 'psychiatry_assessment'::character varying])::text[])) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
+    CONSTRAINT clinic_assessments_state CHECK ((((status)::text = ANY (ARRAY[('in_progress'::character varying)::text, ('completed'::character varying)::text, ('entered_in_error'::character varying)::text])) AND (version_number > 0) AND ((category)::text = ANY (ARRAY[('depression'::character varying)::text, ('anxiety'::character varying)::text, ('alcohol_use'::character varying)::text, ('tobacco_use'::character varying)::text, ('social_needs'::character varying)::text, ('fall_risk'::character varying)::text, ('functional_status'::character varying)::text, ('cognitive_status'::character varying)::text, ('psychiatry_assessment'::character varying)::text])) AND (((status)::text <> 'completed'::text) OR (assessed_at IS NOT NULL))))
 );
 
 
@@ -2596,7 +2764,7 @@ CREATE TABLE public.clinic_cash_tenders (
     recorded_by_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    request_key character varying DEFAULT ''::character varying NOT NULL,
+    request_key character varying NOT NULL,
     CONSTRAINT cash_tender_amounts CHECK (((tendered_amount > (0)::numeric) AND (tendered_amount = round(tendered_amount, 2)) AND (change_amount >= (0)::numeric) AND (change_amount = round(change_amount, 2)) AND (change_amount < tendered_amount))),
     CONSTRAINT cash_tender_request_key_present CHECK (((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 100)))
 );
@@ -2766,7 +2934,7 @@ CREATE TABLE public.clinic_clinical_tasks (
     source_kind character varying(40),
     pending_assignee_membership_id bigint,
     CONSTRAINT clinic_tasks_source_kind CHECK (((source_kind IS NULL) OR ((source_kind)::text = ANY (ARRAY[('medication_request'::character varying)::text, ('service_request'::character varying)::text])))),
-    CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY ((ARRAY['intake'::character varying, 'handoff'::character varying, 'result_follow_up'::character varying, 'patient_call'::character varying, 'order_execution'::character varying, 'record_request'::character varying, 'staff_request'::character varying, 'safety_follow_up'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['open'::character varying, 'claimed'::character varying, 'in_progress'::character varying, 'on_hold'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])) AND ((pool_code)::text = ANY ((ARRAY['clinical'::character varying, 'front_desk'::character varying, 'records'::character varying])::text[])) AND ((source_type)::text = ANY ((ARRAY['manual'::character varying, 'encounter'::character varying, 'handoff'::character varying, 'lab_follow_up'::character varying, 'message'::character varying, 'reminder'::character varying, 'order'::character varying])::text[])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
+    CONSTRAINT clinic_tasks_state_evidence CHECK ((((task_kind)::text = ANY (ARRAY[('intake'::character varying)::text, ('handoff'::character varying)::text, ('result_follow_up'::character varying)::text, ('patient_call'::character varying)::text, ('order_execution'::character varying)::text, ('record_request'::character varying)::text, ('staff_request'::character varying)::text, ('safety_follow_up'::character varying)::text])) AND ((state)::text = ANY (ARRAY[('open'::character varying)::text, ('claimed'::character varying)::text, ('in_progress'::character varying)::text, ('on_hold'::character varying)::text, ('completed'::character varying)::text, ('cancelled'::character varying)::text])) AND ((pool_code)::text = ANY (ARRAY[('clinical'::character varying)::text, ('front_desk'::character varying)::text, ('records'::character varying)::text])) AND ((source_type)::text = ANY (ARRAY[('manual'::character varying)::text, ('encounter'::character varying)::text, ('handoff'::character varying)::text, ('lab_follow_up'::character varying)::text, ('message'::character varying)::text, ('reminder'::character varying)::text, ('order'::character varying)::text])) AND ((((state)::text = 'completed'::text) AND (resolution_code IS NOT NULL) AND (completed_by_membership_id IS NOT NULL) AND (completed_at IS NOT NULL)) OR (((state)::text <> 'completed'::text) AND (resolution_code IS NULL) AND (completed_by_membership_id IS NULL) AND (completed_at IS NULL)))))
 );
 
 
@@ -5765,211 +5933,6 @@ ALTER SEQUENCE public.clinic_lab_specimens_id_seq OWNED BY public.clinic_lab_spe
 
 
 --
--- Name: clinic_learning_export_batches; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_learning_export_batches (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    clinician_membership_id bigint NOT NULL,
-    clinician_profile_id bigint NOT NULL,
-    supersedes_learning_export_id bigint,
-    starts_on date,
-    ends_on date,
-    record_count integer NOT NULL,
-    documented_seconds integer NOT NULL,
-    source_version_digest character varying NOT NULL,
-    payload_digest character varying NOT NULL,
-    csv_content text NOT NULL,
-    state character varying DEFAULT 'created'::character varying NOT NULL,
-    request_key character varying NOT NULL,
-    correction_reason text,
-    generated_at timestamp(6) without time zone NOT NULL,
-    downloaded_at timestamp(6) without time zone,
-    schema_version character varying DEFAULT 'clinic-learning-export-v1'::character varying NOT NULL,
-    lock_version integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT learning_exports_values CHECK ((((state)::text = 'created'::text) AND ((schema_version)::text = 'clinic-learning-export-v1'::text) AND ((record_count >= 1) AND (record_count <= 1000)) AND ((documented_seconds >= 60) AND (documented_seconds <= 28800000)) AND (length(TRIM(BOTH FROM source_version_digest)) = 64) AND (length(TRIM(BOTH FROM payload_digest)) = 64) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND ((starts_on IS NULL) OR (ends_on IS NULL) OR (starts_on <= ends_on))))
-);
-
-
---
--- Name: clinic_learning_export_batches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_learning_export_batches_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_learning_export_batches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_learning_export_batches_id_seq OWNED BY public.clinic_learning_export_batches.id;
-
-
---
--- Name: clinic_learning_inquiries; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_learning_inquiries (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    clinician_profile_id bigint NOT NULL,
-    question text NOT NULL,
-    general_only boolean DEFAULT true NOT NULL,
-    status character varying DEFAULT 'gathering'::character varying NOT NULL,
-    bottom_line text,
-    evidence_summary text,
-    limitations text,
-    uncertainty text,
-    summary_unavailable_reason text,
-    evidence_provider character varying DEFAULT 'pubmed'::character varying NOT NULL,
-    summary_provider character varying,
-    summary_model character varying,
-    prompt_version character varying,
-    prompt_digest character varying,
-    provider_request_id character varying,
-    source_snapshot_digest character varying,
-    schema_version character varying DEFAULT 'clinic-learning-v1'::character varying NOT NULL,
-    completed_at timestamp(6) without time zone,
-    lock_version integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT learning_inquiries_values CHECK (((general_only = true) AND ((status)::text = ANY (ARRAY[('gathering'::character varying)::text, ('sources_ready'::character varying)::text, ('summarized'::character varying)::text, ('failed'::character varying)::text])) AND ((evidence_provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'clinic-learning-v1'::text) AND ((prompt_digest IS NULL) OR (length(TRIM(BOTH FROM prompt_digest)) = 64)) AND ((source_snapshot_digest IS NULL) OR (length(TRIM(BOTH FROM source_snapshot_digest)) = 64))))
-);
-
-
---
--- Name: clinic_learning_inquiries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_learning_inquiries_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_learning_inquiries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_learning_inquiries_id_seq OWNED BY public.clinic_learning_inquiries.id;
-
-
---
--- Name: clinic_learning_moments; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_learning_moments (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    clinician_membership_id bigint NOT NULL,
-    clinician_profile_id bigint NOT NULL,
-    inquiry_id bigint NOT NULL,
-    supersedes_learning_moment_id bigint,
-    activity_date date NOT NULL,
-    deidentified_topic text NOT NULL,
-    specialty character varying,
-    learning_objective text NOT NULL,
-    learning_summary text NOT NULL,
-    reflection text,
-    practice_impact character varying,
-    documented_seconds integer DEFAULT 0 NOT NULL,
-    measured_active_seconds integer DEFAULT 0 NOT NULL,
-    learning_status character varying DEFAULT 'awaiting_reflection'::character varying NOT NULL,
-    record_classification character varying DEFAULT 'non_accredited_professional_learning'::character varying NOT NULL,
-    source_set_digest character varying NOT NULL,
-    attestation_version character varying,
-    attested_at timestamp(6) without time zone,
-    privacy_review_state character varying DEFAULT 'pending'::character varying NOT NULL,
-    contains_patient_identifiers boolean DEFAULT false NOT NULL,
-    confirmed_at timestamp(6) without time zone,
-    voided_at timestamp(6) without time zone,
-    void_reason text,
-    lock_version integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT learning_moments_documented_shape CHECK ((((learning_status)::text <> 'documented'::text) OR ((attestation_version IS NOT NULL) AND (attested_at IS NOT NULL) AND (confirmed_at IS NOT NULL) AND ((privacy_review_state)::text = 'clear'::text) AND (contains_patient_identifiers = false) AND (practice_impact IS NOT NULL) AND ((documented_seconds >= 60) AND (documented_seconds <= 28800))))),
-    CONSTRAINT learning_moments_values CHECK ((((learning_status)::text = ANY (ARRAY[('awaiting_reflection'::character varying)::text, ('documented'::character varying)::text, ('voided'::character varying)::text])) AND ((record_classification)::text = 'non_accredited_professional_learning'::text) AND ((privacy_review_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('clear'::character varying)::text, ('needs_edit'::character varying)::text])) AND ((practice_impact IS NULL) OR ((practice_impact)::text = ANY (ARRAY[('confirmed_approach'::character varying)::text, ('changed_approach'::character varying)::text, ('follow_up_needed'::character varying)::text, ('not_useful'::character varying)::text, ('other'::character varying)::text]))) AND ((documented_seconds >= 0) AND (documented_seconds <= 28800)) AND (mod(documented_seconds, 60) = 0) AND ((measured_active_seconds >= 0) AND (measured_active_seconds <= 28800)) AND (length(TRIM(BOTH FROM source_set_digest)) = 64))),
-    CONSTRAINT learning_moments_voided_shape CHECK ((((learning_status)::text <> 'voided'::text) OR ((voided_at IS NOT NULL) AND (length(TRIM(BOTH FROM void_reason)) > 0))))
-);
-
-
---
--- Name: clinic_learning_moments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_learning_moments_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_learning_moments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_learning_moments_id_seq OWNED BY public.clinic_learning_moments.id;
-
-
---
--- Name: clinic_learning_sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_learning_sources (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    inquiry_id bigint NOT NULL,
-    ordinal integer NOT NULL,
-    provider character varying DEFAULT 'pubmed'::character varying NOT NULL,
-    pmid character varying NOT NULL,
-    title text NOT NULL,
-    authors jsonb DEFAULT '[]'::jsonb NOT NULL,
-    citation text NOT NULL,
-    journal character varying,
-    publisher character varying,
-    publication_date character varying,
-    publication_types jsonb DEFAULT '[]'::jsonb NOT NULL,
-    canonical_url text NOT NULL,
-    accessed_at timestamp(6) without time zone NOT NULL,
-    abstract_digest character varying NOT NULL,
-    schema_version character varying DEFAULT 'pubmed-eutils-v1'::character varying NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT learning_sources_values CHECK (((ordinal >= 1) AND (ordinal <= 5) AND ((provider)::text = 'pubmed'::text) AND ((schema_version)::text = 'pubmed-eutils-v1'::text) AND (length(TRIM(BOTH FROM pmid)) > 0) AND (length(TRIM(BOTH FROM abstract_digest)) = 64) AND (length(TRIM(BOTH FROM canonical_url)) > 0)))
-);
-
-
---
--- Name: clinic_learning_sources_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_learning_sources_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_learning_sources_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_learning_sources_id_seq OWNED BY public.clinic_learning_sources.id;
-
-
---
 -- Name: clinic_medication_administration_movements; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7652,15 +7615,8 @@ CREATE TABLE public.clinic_patients (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     primary_address_version_id bigint,
-    date_of_birth date,
-    sex character varying(40),
-    height_cm numeric(5,2),
-    weight_kg numeric(6,2),
     name_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
-    identity_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
-    CONSTRAINT clinic_patients_birth_date_not_future CHECK (((date_of_birth IS NULL) OR (date_of_birth <= CURRENT_DATE))),
-    CONSTRAINT clinic_patients_height_range CHECK (((height_cm IS NULL) OR ((height_cm >= (30)::numeric) AND (height_cm <= (300)::numeric)))),
-    CONSTRAINT clinic_patients_weight_range CHECK (((weight_kg IS NULL) OR ((weight_kg >= 0.1) AND (weight_kg <= (500)::numeric))))
+    identity_search_tokens text[] DEFAULT '{}'::text[] NOT NULL
 );
 
 
@@ -8149,7 +8105,7 @@ CREATE TABLE public.clinic_prescription_events (
     request_key character varying NOT NULL,
     note text,
     recorded_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT prescription_event_kind CHECK (((kind)::text = ANY ((ARRAY['review'::character varying, 'failure_before_send'::character varying, 'rejected'::character varying, 'acknowledged'::character varying, 'unknown'::character varying, 'accepted'::character varying, 'unavailable'::character varying, 'revoked'::character varying, 'duplicate'::character varying, 'outcome_unknown'::character varying, 'cancelled'::character varying, 'confirmed_not_sent'::character varying])::text[]))),
+    CONSTRAINT prescription_event_kind CHECK (((kind)::text = ANY (ARRAY[('review'::character varying)::text, ('failure_before_send'::character varying)::text, ('rejected'::character varying)::text, ('acknowledged'::character varying)::text, ('unknown'::character varying)::text, ('accepted'::character varying)::text, ('unavailable'::character varying)::text, ('revoked'::character varying)::text, ('duplicate'::character varying)::text, ('outcome_unknown'::character varying)::text, ('cancelled'::character varying)::text, ('confirmed_not_sent'::character varying)::text]))),
     CONSTRAINT prescription_event_source CHECK (((source)::text = ANY (ARRAY[('manual'::character varying)::text, ('simulation'::character varying)::text])))
 );
 
@@ -8193,7 +8149,7 @@ CREATE TABLE public.clinic_prescription_transmission_attempts (
     mode character varying(32) DEFAULT 'standard'::character varying NOT NULL,
     signer_snapshot jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_prescription_transmission_attem_signer_snapshot_not_null NOT NULL,
     reviewer_snapshot jsonb DEFAULT '{}'::jsonb CONSTRAINT clinic_prescription_transmission_att_reviewer_snapshot_not_null NOT NULL,
-    CONSTRAINT prescription_transmission_attempt_values CHECK ((((adapter)::text = 'simulated_pharmacy_network'::text) AND ((mode)::text = ANY ((ARRAY['standard'::character varying, 'controlled_test'::character varying])::text[])) AND ((outcome)::text = ANY ((ARRAY['failure_before_send'::character varying, 'rejected'::character varying, 'acknowledged'::character varying, 'unknown'::character varying, 'accepted'::character varying, 'unavailable'::character varying, 'revoked'::character varying, 'duplicate'::character varying, 'outcome_unknown'::character varying])::text[])) AND (jsonb_typeof(destination_snapshot) = 'object'::text) AND (jsonb_typeof(signer_snapshot) = 'object'::text) AND (jsonb_typeof(reviewer_snapshot) = 'object'::text)))
+    CONSTRAINT prescription_transmission_attempt_values CHECK ((((adapter)::text = 'simulated_pharmacy_network'::text) AND ((mode)::text = ANY (ARRAY[('standard'::character varying)::text, ('controlled_test'::character varying)::text])) AND ((outcome)::text = ANY (ARRAY[('failure_before_send'::character varying)::text, ('rejected'::character varying)::text, ('acknowledged'::character varying)::text, ('unknown'::character varying)::text, ('accepted'::character varying)::text, ('unavailable'::character varying)::text, ('revoked'::character varying)::text, ('duplicate'::character varying)::text, ('outcome_unknown'::character varying)::text])) AND (jsonb_typeof(destination_snapshot) = 'object'::text) AND (jsonb_typeof(signer_snapshot) = 'object'::text) AND (jsonb_typeof(reviewer_snapshot) = 'object'::text)))
 );
 
 
@@ -8305,6 +8261,47 @@ CREATE SEQUENCE public.clinic_procedure_revisions_id_seq
 --
 
 ALTER SEQUENCE public.clinic_procedure_revisions_id_seq OWNED BY public.clinic_procedure_revisions.id;
+
+
+--
+-- Name: clinic_psychotherapy_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_psychotherapy_notes (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint NOT NULL,
+    originator_membership_id bigint NOT NULL,
+    previous_revision_id bigint,
+    version_number integer NOT NULL,
+    request_key character varying(160) NOT NULL,
+    body text NOT NULL,
+    revision_reason text,
+    recorded_at timestamp(6) with time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT psychotherapy_notes_revision_contract CHECK (((version_number > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(TRIM(BOTH FROM body)) > 0) AND (((version_number = 1) AND (previous_revision_id IS NULL) AND (revision_reason IS NULL)) OR ((version_number > 1) AND (previous_revision_id IS NOT NULL) AND (length(TRIM(BOTH FROM revision_reason)) > 0)))))
+);
+
+
+--
+-- Name: clinic_psychotherapy_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_psychotherapy_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_psychotherapy_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_psychotherapy_notes_id_seq OWNED BY public.clinic_psychotherapy_notes.id;
 
 
 --
@@ -8569,7 +8566,7 @@ CREATE TABLE public.clinic_rooms (
     updated_at timestamp(6) without time zone NOT NULL,
     kind character varying DEFAULT 'physical'::character varying NOT NULL,
     CONSTRAINT clinic_rooms_code_present CHECK ((length(TRIM(BOTH FROM code)) > 0)),
-    CONSTRAINT clinic_rooms_kind CHECK (((kind)::text = ANY ((ARRAY['physical'::character varying, 'telehealth'::character varying])::text[])))
+    CONSTRAINT clinic_rooms_kind CHECK (((kind)::text = ANY (ARRAY[('physical'::character varying)::text, ('telehealth'::character varying)::text])))
 );
 
 
@@ -9434,6 +9431,45 @@ CREATE SEQUENCE public.clinic_site_operating_hours_id_seq
 --
 
 ALTER SEQUENCE public.clinic_site_operating_hours_id_seq OWNED BY public.clinic_site_operating_hours.id;
+
+
+--
+-- Name: clinic_site_scheduling_policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_site_scheduling_policies (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    revision integer NOT NULL,
+    recurrence_enabled boolean DEFAULT false NOT NULL,
+    overbook_enabled boolean DEFAULT false NOT NULL,
+    eligible_visit_type_ids bigint[] DEFAULT '{}'::bigint[] CONSTRAINT clinic_site_scheduling_policie_eligible_visit_type_ids_not_null NOT NULL,
+    written_by_membership_id bigint CONSTRAINT clinic_site_scheduling_polici_written_by_membership_id_not_null NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_site_scheduling_policy_revision_positive CHECK ((revision > 0))
+);
+
+
+--
+-- Name: clinic_site_scheduling_policies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_site_scheduling_policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_site_scheduling_policies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_site_scheduling_policies_id_seq OWNED BY public.clinic_site_scheduling_policies.id;
 
 
 --
@@ -12637,6 +12673,34 @@ ALTER TABLE ONLY public.clinic_allergies ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: clinic_appointment_overbook_exceptions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions ALTER COLUMN id SET DEFAULT nextval('public.clinic_appointment_overbook_exceptions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_appointment_series id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series ALTER COLUMN id SET DEFAULT nextval('public.clinic_appointment_series_id_seq'::regclass);
+
+
+--
+-- Name: clinic_appointment_series_changes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_changes ALTER COLUMN id SET DEFAULT nextval('public.clinic_appointment_series_changes_id_seq'::regclass);
+
+
+--
+-- Name: clinic_appointment_series_occurrences id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_occurrences ALTER COLUMN id SET DEFAULT nextval('public.clinic_appointment_series_occurrences_id_seq'::regclass);
+
+
+--
 -- Name: clinic_appointments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -13267,34 +13331,6 @@ ALTER TABLE ONLY public.clinic_lab_specimens ALTER COLUMN id SET DEFAULT nextval
 
 
 --
--- Name: clinic_learning_export_batches id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_export_batches ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_export_batches_id_seq'::regclass);
-
-
---
--- Name: clinic_learning_inquiries id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_inquiries ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_inquiries_id_seq'::regclass);
-
-
---
--- Name: clinic_learning_moments id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_moments_id_seq'::regclass);
-
-
---
--- Name: clinic_learning_sources id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_sources ALTER COLUMN id SET DEFAULT nextval('public.clinic_learning_sources_id_seq'::regclass);
-
-
---
 -- Name: clinic_medication_administration_movements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -13666,6 +13702,13 @@ ALTER TABLE ONLY public.clinic_procedure_revisions ALTER COLUMN id SET DEFAULT n
 
 
 --
+-- Name: clinic_psychotherapy_notes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes ALTER COLUMN id SET DEFAULT nextval('public.clinic_psychotherapy_notes_id_seq'::regclass);
+
+
+--
 -- Name: clinic_recall_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -13852,6 +13895,13 @@ ALTER TABLE ONLY public.clinic_site_hour_exceptions ALTER COLUMN id SET DEFAULT 
 --
 
 ALTER TABLE ONLY public.clinic_site_operating_hours ALTER COLUMN id SET DEFAULT nextval('public.clinic_site_operating_hours_id_seq'::regclass);
+
+
+--
+-- Name: clinic_site_scheduling_policies id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_scheduling_policies ALTER COLUMN id SET DEFAULT nextval('public.clinic_site_scheduling_policies_id_seq'::regclass);
 
 
 --
@@ -14417,11 +14467,43 @@ ALTER TABLE ONLY public.clinic_allergies
 
 
 --
+-- Name: clinic_appointment_overbook_exceptions clinic_appointment_overbook_exceptions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions
+    ADD CONSTRAINT clinic_appointment_overbook_exceptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_appointment_series_changes clinic_appointment_series_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_changes
+    ADD CONSTRAINT clinic_appointment_series_changes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_appointment_series_occurrences clinic_appointment_series_occurrences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_occurrences
+    ADD CONSTRAINT clinic_appointment_series_occurrences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_appointment_series clinic_appointment_series_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series
+    ADD CONSTRAINT clinic_appointment_series_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_appointments clinic_appointments_no_provider_overlap; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_appointments
-    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
+    ADD CONSTRAINT clinic_appointments_no_provider_overlap EXCLUDE USING gist (practice_id WITH =, booked_clinician_id WITH =, clinician_allocation WITH =, tstzrange(starts_at, ends_at, '[)'::text) WITH &&) WHERE (((booked_clinician_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('scheduled'::character varying)::text, ('confirmed'::character varying)::text]))));
 
 
 --
@@ -15169,38 +15251,6 @@ ALTER TABLE ONLY public.clinic_lab_specimens
 
 
 --
--- Name: clinic_learning_export_batches clinic_learning_export_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_export_batches
-    ADD CONSTRAINT clinic_learning_export_batches_pkey PRIMARY KEY (id);
-
-
---
--- Name: clinic_learning_inquiries clinic_learning_inquiries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_inquiries
-    ADD CONSTRAINT clinic_learning_inquiries_pkey PRIMARY KEY (id);
-
-
---
--- Name: clinic_learning_moments clinic_learning_moments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments
-    ADD CONSTRAINT clinic_learning_moments_pkey PRIMARY KEY (id);
-
-
---
--- Name: clinic_learning_sources clinic_learning_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_sources
-    ADD CONSTRAINT clinic_learning_sources_pkey PRIMARY KEY (id);
-
-
---
 -- Name: clinic_medication_administration_movements clinic_medication_administration_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15633,6 +15683,14 @@ ALTER TABLE ONLY public.clinic_procedure_revisions
 
 
 --
+-- Name: clinic_psychotherapy_notes clinic_psychotherapy_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_psychotherapy_notes
+    ADD CONSTRAINT clinic_psychotherapy_notes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_recall_events clinic_recall_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15854,6 +15912,14 @@ ALTER TABLE ONLY public.clinic_site_hour_exceptions
 
 ALTER TABLE ONLY public.clinic_site_operating_hours
     ADD CONSTRAINT clinic_site_operating_hours_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_site_scheduling_policies clinic_site_scheduling_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_scheduling_policies
+    ADD CONSTRAINT clinic_site_scheduling_policies_pkey PRIMARY KEY (id);
 
 
 --
@@ -16600,6 +16666,27 @@ CREATE INDEX clinic_allergies_recorded_by_membership_id_fk ON public.clinic_alle
 --
 
 CREATE INDEX clinic_allergies_reviewed_by_membership_id_fk ON public.clinic_allergies USING btree (practice_id, reviewed_by_membership_id);
+
+
+--
+-- Name: clinic_appointment_overbook_exception_appointment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointment_overbook_exception_appointment ON public.clinic_appointment_overbook_exceptions USING btree (practice_id, appointment_id);
+
+
+--
+-- Name: clinic_appointment_series_occurrence_appointment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointment_series_occurrence_appointment ON public.clinic_appointment_series_occurrences USING btree (practice_id, appointment_id) WHERE (appointment_id IS NOT NULL);
+
+
+--
+-- Name: clinic_appointment_series_occurrence_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointment_series_occurrence_sequence ON public.clinic_appointment_series_occurrences USING btree (practice_id, series_id, sequence);
 
 
 --
@@ -18367,6 +18454,13 @@ CREATE UNIQUE INDEX clinic_site_hours_identity ON public.clinic_site_operating_h
 
 
 --
+-- Name: clinic_site_scheduling_policy_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_site_scheduling_policy_revision ON public.clinic_site_scheduling_policies USING btree (practice_id, site_id, revision);
+
+
+--
 -- Name: clinic_sites_practice_code; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -19165,6 +19259,13 @@ CREATE INDEX idx_on_practice_id_room_id_starts_at_a9d2f79b4f ON public.clinic_ap
 
 
 --
+-- Name: idx_on_practice_id_series_id_id_6044d53a77; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_practice_id_series_id_id_6044d53a77 ON public.clinic_appointment_series_changes USING btree (practice_id, series_id, id);
+
+
+--
 -- Name: idx_on_practice_id_site_id_effective_from_9a85bf6413; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -19428,6 +19529,13 @@ CREATE UNIQUE INDEX immunization_request_key ON public.clinic_immunization_revis
 --
 
 CREATE UNIQUE INDEX immunization_series_version ON public.clinic_immunization_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
+-- Name: index_clinic_appointment_series_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_appointment_series_on_practice_id_and_id ON public.clinic_appointment_series USING btree (practice_id, id);
 
 
 --
@@ -20212,6 +20320,13 @@ CREATE INDEX index_clinic_scribe_encounters_on_practice_id_and_status ON public.
 --
 
 CREATE UNIQUE INDEX index_clinic_service_options_on_practice_id_and_id ON public.clinic_service_options USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_site_scheduling_policies_on_practice_id_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_site_scheduling_policies_on_practice_id_and_id ON public.clinic_site_scheduling_policies USING btree (practice_id, id);
 
 
 --
@@ -21237,83 +21352,6 @@ CREATE UNIQUE INDEX lab_specimens_practice_id ON public.clinic_lab_specimens USI
 
 
 --
--- Name: learning_exports_owner_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX learning_exports_owner_created ON public.clinic_learning_export_batches USING btree (practice_id, clinician_profile_id, created_at);
-
-
---
--- Name: learning_exports_owner_request; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_exports_owner_request ON public.clinic_learning_export_batches USING btree (practice_id, clinician_profile_id, request_key);
-
-
---
--- Name: learning_exports_practice_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_exports_practice_id ON public.clinic_learning_export_batches USING btree (practice_id, id);
-
-
---
--- Name: learning_inquiries_owner_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX learning_inquiries_owner_created ON public.clinic_learning_inquiries USING btree (practice_id, clinician_profile_id, created_at);
-
-
---
--- Name: learning_inquiries_practice_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_inquiries_practice_id ON public.clinic_learning_inquiries USING btree (practice_id, id);
-
-
---
--- Name: learning_moments_inquiry; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX learning_moments_inquiry ON public.clinic_learning_moments USING btree (practice_id, inquiry_id);
-
-
---
--- Name: learning_moments_owner_activity; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX learning_moments_owner_activity ON public.clinic_learning_moments USING btree (practice_id, clinician_membership_id, activity_date);
-
-
---
--- Name: learning_moments_practice_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_moments_practice_id ON public.clinic_learning_moments USING btree (practice_id, id);
-
-
---
--- Name: learning_sources_inquiry_ordinal; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_sources_inquiry_ordinal ON public.clinic_learning_sources USING btree (practice_id, inquiry_id, ordinal);
-
-
---
--- Name: learning_sources_inquiry_pmid; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_sources_inquiry_pmid ON public.clinic_learning_sources USING btree (practice_id, inquiry_id, pmid);
-
-
---
--- Name: learning_sources_practice_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX learning_sources_practice_id ON public.clinic_learning_sources USING btree (practice_id, id);
-
-
---
 -- Name: med_request_context_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -21577,6 +21615,34 @@ CREATE UNIQUE INDEX procedure_request_key ON public.clinic_procedure_revisions U
 --
 
 CREATE UNIQUE INDEX procedure_series_version ON public.clinic_procedure_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
+-- Name: psychotherapy_notes_exact_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_exact_request ON public.clinic_psychotherapy_notes USING btree (practice_id, originator_membership_id, request_key);
+
+
+--
+-- Name: psychotherapy_notes_originator_revision_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_originator_revision_id ON public.clinic_psychotherapy_notes USING btree (practice_id, encounter_id, originator_membership_id, id);
+
+
+--
+-- Name: psychotherapy_notes_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_practice_id ON public.clinic_psychotherapy_notes USING btree (practice_id, id);
+
+
+--
+-- Name: psychotherapy_notes_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX psychotherapy_notes_version ON public.clinic_psychotherapy_notes USING btree (practice_id, encounter_id, originator_membership_id, version_number);
 
 
 --
@@ -22182,6 +22248,27 @@ CREATE TRIGGER clinic_allergies_preserve_identity BEFORE UPDATE ON public.clinic
 
 
 --
+-- Name: clinic_appointment_overbook_exceptions clinic_appointment_overbook_exceptions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_appointment_overbook_exceptions_immutable BEFORE DELETE OR UPDATE ON public.clinic_appointment_overbook_exceptions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_appointment_series_changes clinic_appointment_series_changes_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_appointment_series_changes_immutable BEFORE DELETE OR UPDATE ON public.clinic_appointment_series_changes FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_appointment_series_occurrences clinic_appointment_series_occurrences_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_appointment_series_occurrences_immutable BEFORE DELETE OR UPDATE ON public.clinic_appointment_series_occurrences FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_appointments clinic_appointments_preserve_identity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -22679,6 +22766,13 @@ CREATE TRIGGER clinic_procedure_revisions_protect BEFORE DELETE OR UPDATE ON pub
 
 
 --
+-- Name: clinic_psychotherapy_notes clinic_psychotherapy_notes_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_psychotherapy_notes_immutable BEFORE DELETE OR UPDATE ON public.clinic_psychotherapy_notes FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_recall_events clinic_recall_events_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -22725,6 +22819,13 @@ CREATE TRIGGER clinic_rooms_preserve_identity BEFORE UPDATE ON public.clinic_roo
 --
 
 CREATE TRIGGER clinic_service_request_revisions_protect BEFORE DELETE OR UPDATE ON public.clinic_service_request_revisions FOR EACH ROW EXECUTE FUNCTION public.clinic_clinical_revision_protect();
+
+
+--
+-- Name: clinic_site_scheduling_policies clinic_site_scheduling_policies_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_site_scheduling_policies_immutable BEFORE DELETE OR UPDATE ON public.clinic_site_scheduling_policies FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -25474,78 +25575,6 @@ ALTER TABLE ONLY public.clinic_lab_report_versions
 
 
 --
--- Name: clinic_learning_export_batches fk_learning_exports_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_export_batches
-    ADD CONSTRAINT fk_learning_exports_membership FOREIGN KEY (practice_id, clinician_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
-
-
---
--- Name: clinic_learning_export_batches fk_learning_exports_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_export_batches
-    ADD CONSTRAINT fk_learning_exports_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
-
-
---
--- Name: clinic_learning_export_batches fk_learning_exports_supersedes; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_export_batches
-    ADD CONSTRAINT fk_learning_exports_supersedes FOREIGN KEY (practice_id, supersedes_learning_export_id) REFERENCES public.clinic_learning_export_batches(practice_id, id);
-
-
---
--- Name: clinic_learning_inquiries fk_learning_inquiries_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_inquiries
-    ADD CONSTRAINT fk_learning_inquiries_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
-
-
---
--- Name: clinic_learning_moments fk_learning_moments_inquiry; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments
-    ADD CONSTRAINT fk_learning_moments_inquiry FOREIGN KEY (practice_id, inquiry_id) REFERENCES public.clinic_learning_inquiries(practice_id, id);
-
-
---
--- Name: clinic_learning_moments fk_learning_moments_membership; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments
-    ADD CONSTRAINT fk_learning_moments_membership FOREIGN KEY (practice_id, clinician_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
-
-
---
--- Name: clinic_learning_moments fk_learning_moments_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments
-    ADD CONSTRAINT fk_learning_moments_profile FOREIGN KEY (practice_id, clinician_profile_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
-
-
---
--- Name: clinic_learning_moments fk_learning_moments_supersedes; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments
-    ADD CONSTRAINT fk_learning_moments_supersedes FOREIGN KEY (practice_id, supersedes_learning_moment_id) REFERENCES public.clinic_learning_moments(practice_id, id);
-
-
---
--- Name: clinic_learning_sources fk_learning_sources_inquiry; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_sources
-    ADD CONSTRAINT fk_learning_sources_inquiry FOREIGN KEY (practice_id, inquiry_id) REFERENCES public.clinic_learning_inquiries(practice_id, id);
-
-
---
 -- Name: clinic_medication_administrations fk_med_admin_request; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -26626,6 +26655,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_carts
 
 
 --
+-- Name: clinic_appointment_series_occurrences fk_rails_0500edb4a7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_occurrences
+    ADD CONSTRAINT fk_rails_0500edb4a7 FOREIGN KEY (practice_id, series_id) REFERENCES public.clinic_appointment_series(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_entries fk_rails_0595133f54; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -27218,6 +27255,14 @@ ALTER TABLE ONLY public.clinic_cash_tenders
 
 
 --
+-- Name: clinic_appointment_overbook_exceptions fk_rails_33ccfa7468; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions
+    ADD CONSTRAINT fk_rails_33ccfa7468 FOREIGN KEY (practice_id, written_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_export_batches fk_rails_346f4cde3f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -27367,6 +27412,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_carts
 
 ALTER TABLE ONLY public.clinic_inventory_recall_lots
     ADD CONSTRAINT fk_rails_3b3b32f39b FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_appointment_overbook_exceptions fk_rails_3b6c849389; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions
+    ADD CONSTRAINT fk_rails_3b6c849389 FOREIGN KEY (practice_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, id);
 
 
 --
@@ -27554,6 +27607,14 @@ ALTER TABLE ONLY public.clinic_medication_dispenses
 
 
 --
+-- Name: clinic_appointment_series fk_rails_4625a134b1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series
+    ADD CONSTRAINT fk_rails_4625a134b1 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_badge_credentials fk_rails_468431674b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -27615,14 +27676,6 @@ ALTER TABLE ONLY public.clinic_workforce_timecard_versions
 
 ALTER TABLE ONLY public.clinic_inventory_profiles
     ADD CONSTRAINT fk_rails_4a6252adbd FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
-
-
---
--- Name: clinic_learning_sources fk_rails_4b5e71e17d; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_sources
-    ADD CONSTRAINT fk_rails_4b5e71e17d FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -27730,11 +27783,27 @@ ALTER TABLE ONLY public.clinic_telehealth_settings
 
 
 --
+-- Name: clinic_appointment_series fk_rails_5655b75f42; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series
+    ADD CONSTRAINT fk_rails_5655b75f42 FOREIGN KEY (practice_id, booked_clinician_id) REFERENCES public.clinic_clinician_profiles(practice_id, id);
+
+
+--
 -- Name: clinic_telehealth_policy_versions fk_rails_56ff0bb49c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_telehealth_policy_versions
     ADD CONSTRAINT fk_rails_56ff0bb49c FOREIGN KEY (practice_id, published_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_appointment_series fk_rails_57142cea9e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series
+    ADD CONSTRAINT fk_rails_57142cea9e FOREIGN KEY (practice_id, visit_type_id) REFERENCES public.clinic_visit_types(practice_id, id);
 
 
 --
@@ -28226,6 +28295,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_products
 
 
 --
+-- Name: clinic_appointment_series_occurrences fk_rails_801e5572cc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_occurrences
+    ADD CONSTRAINT fk_rails_801e5572cc FOREIGN KEY (practice_id, resolved_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_lab_report_actions fk_rails_806fe82767; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28439,14 +28516,6 @@ ALTER TABLE ONLY public.clinic_inventory_receiving_sessions
 
 ALTER TABLE ONLY public.clinic_workforce_punches
     ADD CONSTRAINT fk_rails_8d6810b0d1 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-
-
---
--- Name: clinic_learning_export_batches fk_rails_8e5357e9f5; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_export_batches
-    ADD CONSTRAINT fk_rails_8e5357e9f5 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -28842,6 +28911,14 @@ ALTER TABLE ONLY public.clinic_inventory_suppliers
 
 
 --
+-- Name: clinic_appointment_series fk_rails_ab8fed4feb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series
+    ADD CONSTRAINT fk_rails_ab8fed4feb FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_punch_challenges fk_rails_ac6ecccd3e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -28922,11 +28999,27 @@ ALTER TABLE ONLY public.clinic_telehealth_patient_receipts
 
 
 --
+-- Name: clinic_appointment_series_occurrences fk_rails_b2c4c758ad; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_occurrences
+    ADD CONSTRAINT fk_rails_b2c4c758ad FOREIGN KEY (practice_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, id);
+
+
+--
 -- Name: clinic_telehealth_consents fk_rails_b3a71c5a3b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_telehealth_consents
     ADD CONSTRAINT fk_rails_b3a71c5a3b FOREIGN KEY (practice_id, supersedes_consent_id) REFERENCES public.clinic_telehealth_consents(practice_id, id);
+
+
+--
+-- Name: clinic_appointment_series fk_rails_b3b8a4efce; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series
+    ADD CONSTRAINT fk_rails_b3b8a4efce FOREIGN KEY (practice_id, created_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -28991,6 +29084,14 @@ ALTER TABLE ONLY public.development_demo_runs
 
 ALTER TABLE ONLY public.clinic_workforce_schedule_templates
     ADD CONSTRAINT fk_rails_b7fa0c013b FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_site_scheduling_policies fk_rails_b88a10e42a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_scheduling_policies
+    ADD CONSTRAINT fk_rails_b88a10e42a FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -29074,14 +29175,6 @@ ALTER TABLE ONLY public.clinic_medication_dispenses
 
 
 --
--- Name: clinic_learning_moments fk_rails_bcbea02648; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_moments
-    ADD CONSTRAINT fk_rails_bcbea02648 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-
-
---
 -- Name: clinic_stock_movements fk_rails_bcd06826f5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29154,11 +29247,27 @@ ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
 
 
 --
+-- Name: clinic_appointment_series_changes fk_rails_c513475b5f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_changes
+    ADD CONSTRAINT fk_rails_c513475b5f FOREIGN KEY (practice_id, series_id) REFERENCES public.clinic_appointment_series(practice_id, id);
+
+
+--
 -- Name: clinic_scribe_drafts fk_rails_c5c7302aaf; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_scribe_drafts
     ADD CONSTRAINT fk_rails_c5c7302aaf FOREIGN KEY (approved_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: clinic_appointment_series_changes fk_rails_c5d02a5e19; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_series_changes
+    ADD CONSTRAINT fk_rails_c5d02a5e19 FOREIGN KEY (practice_id, written_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --
@@ -29666,6 +29775,14 @@ ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
 
 
 --
+-- Name: clinic_site_scheduling_policies fk_rails_ea013087bd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_site_scheduling_policies
+    ADD CONSTRAINT fk_rails_ea013087bd FOREIGN KEY (practice_id, written_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_prescription_transmission_attempts fk_rails_eabea87e3c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29906,14 +30023,6 @@ ALTER TABLE ONLY public.clinic_inventory_recall_lots
 
 
 --
--- Name: clinic_learning_inquiries fk_rails_fd3f74c424; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_learning_inquiries
-    ADD CONSTRAINT fk_rails_fd3f74c424 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-
-
---
 -- Name: clinic_inventory_recall_dispositions fk_rails_fd5e2da0db; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29927,6 +30036,14 @@ ALTER TABLE ONLY public.clinic_inventory_recall_dispositions
 
 ALTER TABLE ONLY public.clinic_workforce_time_off_requests
     ADD CONSTRAINT fk_rails_fd9725aff5 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_appointment_overbook_exceptions fk_rails_ff7c01f332; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions
+    ADD CONSTRAINT fk_rails_ff7c01f332 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -30914,114 +31031,6 @@ ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
 
 
 --
--- Name: clinic_subscription_agreements subscription_agreement_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_subscription_agreements
-    ADD CONSTRAINT subscription_agreement_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
-
-
---
--- Name: clinic_subscription_packages subscription_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_subscription_packages
-    ADD CONSTRAINT subscription_current_version FOREIGN KEY (practice_id, id, published_version_id) REFERENCES public.clinic_subscription_versions(practice_id, package_id, id);
-
-
---
---
--- Name: clinic_psychotherapy_notes; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.clinic_psychotherapy_notes (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    patient_id bigint NOT NULL,
-    encounter_id bigint NOT NULL,
-    originator_membership_id bigint NOT NULL,
-    previous_revision_id bigint,
-    version_number integer NOT NULL,
-    request_key character varying(160) NOT NULL,
-    body text NOT NULL,
-    revision_reason text,
-    recorded_at timestamp(6) with time zone NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT psychotherapy_notes_revision_contract CHECK (((version_number > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND (length(TRIM(BOTH FROM body)) > 0) AND (((version_number = 1) AND (previous_revision_id IS NULL) AND (revision_reason IS NULL)) OR ((version_number > 1) AND (previous_revision_id IS NOT NULL) AND (length(TRIM(BOTH FROM revision_reason)) > 0)))))
-);
-
-
---
--- Name: clinic_psychotherapy_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.clinic_psychotherapy_notes_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: clinic_psychotherapy_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.clinic_psychotherapy_notes_id_seq OWNED BY public.clinic_psychotherapy_notes.id;
-
-
---
--- Name: clinic_psychotherapy_notes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_psychotherapy_notes ALTER COLUMN id SET DEFAULT nextval('public.clinic_psychotherapy_notes_id_seq'::regclass);
-
-
---
--- Name: clinic_psychotherapy_notes clinic_psychotherapy_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.clinic_psychotherapy_notes
-    ADD CONSTRAINT clinic_psychotherapy_notes_pkey PRIMARY KEY (id);
-
-
---
--- Name: psychotherapy_notes_exact_request; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX psychotherapy_notes_exact_request ON public.clinic_psychotherapy_notes USING btree (practice_id, originator_membership_id, request_key);
-
-
---
--- Name: psychotherapy_notes_originator_revision_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX psychotherapy_notes_originator_revision_id ON public.clinic_psychotherapy_notes USING btree (practice_id, encounter_id, originator_membership_id, id);
-
-
---
--- Name: psychotherapy_notes_practice_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX psychotherapy_notes_practice_id ON public.clinic_psychotherapy_notes USING btree (practice_id, id);
-
-
---
--- Name: psychotherapy_notes_version; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX psychotherapy_notes_version ON public.clinic_psychotherapy_notes USING btree (practice_id, encounter_id, originator_membership_id, version_number);
-
-
---
--- Name: clinic_psychotherapy_notes clinic_psychotherapy_notes_immutable; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER clinic_psychotherapy_notes_immutable BEFORE DELETE OR UPDATE ON public.clinic_psychotherapy_notes FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
-
-
---
 -- Name: clinic_psychotherapy_notes psychotherapy_notes_encounter; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31053,12 +31062,32 @@ ALTER TABLE ONLY public.clinic_psychotherapy_notes
     ADD CONSTRAINT psychotherapy_notes_predecessor FOREIGN KEY (practice_id, encounter_id, originator_membership_id, previous_revision_id) REFERENCES public.clinic_psychotherapy_notes(practice_id, encounter_id, originator_membership_id, id);
 
 
+--
+-- Name: clinic_subscription_agreements subscription_agreement_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_agreements
+    ADD CONSTRAINT subscription_agreement_invoice FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_subscription_packages subscription_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_packages
+    ADD CONSTRAINT subscription_current_version FOREIGN KEY (practice_id, id, published_version_id) REFERENCES public.clinic_subscription_versions(practice_id, package_id, id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260924030000'),
+('20260924020000'),
+('20260924010000'),
 ('20260923190000'),
 ('20260923010000'),
 ('20260922110000'),
@@ -31155,9 +31184,6 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260907000300'),
 ('20260907000200'),
 ('20260907000100'),
-('20260906002020'),
-('20260906002010'),
-('20260906002000'),
 ('20260906001900'),
 ('20260906001800'),
 ('20260906001720'),

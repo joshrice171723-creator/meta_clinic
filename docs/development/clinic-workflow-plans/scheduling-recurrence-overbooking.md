@@ -2,23 +2,23 @@
 
 ## Assignment and authority
 
-- **Status:** proposed plan for founder review, 2026-09-23 (America/Chicago); inspected `main` at `4095c61d`. This does not enable either capability, approve a clinic policy, or authorize deployment.
+- **Status:** original 2026-09-23 planning baseline inspected `main` at `4095c61d`; MC-04 implementation checkpoint below supersedes its source-status claims. This brief does not authorize live deployment.
 - **Outcome:** define selected-site settings, staff booking flows, recurrence lifecycle, intentional overbook exception, conflict handling, permissions and recovery in the existing Schedule. Shared ambulatory core; in-person and video visits; the local ten-room clinic is a synthetic example.
 - **Distinctions:** existing weekly capacity rules repeat availability, not appointments. Different clinicians and free rooms at one time are ordinary bookings. Overbooking means intentionally overlapping one clinician. Patients and physical rooms remain exclusive in this proposal.
 - **Exclusions:** external calendar write/sync, patient self-service recurrence or overbooking, clinical treatment-frequency policy, group visits, room sharing, bypassing closed hours/blocks/holds, automatic patient messages and live-clinic activation.
-- **Proposals awaiting decision:** whether each site enables recurrence; which visit types allow exceptions; which roles receive a new overbook capability; and whether the bounded maximum of two simultaneous visits per clinician is appropriate. Both settings remain off until implemented and verified.
+- **Implementation choices:** selected-site switches default off; clinic administrators receive the overbook capability; eligible visit types are configured per site; at most two simultaneous visits per clinician. A site's actual enablement and eligible types remain explicit settings choices.
 - **Continuity:** a building agent reads this brief and linked canonical records before starting, after context reset or handoff; compares this baseline with newer source and user direction; reconciles drift before dependent edits; updates the checkpoint at completed slices, blockers and handoff. This brief is planning guidance, not implementation authority or proof.
 
 ## Current sources and decisions
 
 | Source / authority | Finding or planning use |
 | --- | --- |
-| [Tracker MC-04 and PR-10](../../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) | Recurrence/overbook are explicitly unconfigured and conditional; MC-04 owns scheduling. |
+| [Tracker MC-04 and PR-10](../../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) | MC-04 owns the implemented local scheduling slice; PR-10 remains separate conditional scope. |
 | [Dependency matrix SC-01–04](../meta-clinic-build-and-acceptance.md) | Atomic conflicts, cancellation/no-show, independent work and resource ownership already have stable IDs. |
 | [Decisions D-073/D-078](../../../APPlyVault/03%20Execution/Decisions.md) and [capability architecture](../../architecture/clinic-capability-architecture.md) | Block the affected action only; policy editing and exception execution need distinct scoped authority and revision history. |
 | `apps/web/src/features/clinic/Facilities.tsx`, `WaitlistWorkspace.tsx`, `ClinicSchedule.tsx`, `CareFlow.tsx` | Clinic Setup already selects site, hours and rooms; Capacity and waitlist owns operational availability; Schedule/booking modal own booking. Reuse them. |
-| `apps/api/app/queries/clinic/scheduling/calendar.rb:52` and `apps/api/test/queries/clinic/scheduling/calendar_test.rb:23` | Calendar hardcodes both policies `not_configured`; the test expects that result. No switch is waiting to be activated. |
-| `apps/api/app/services/clinic/scheduling/capacity_guard.rb`, `book_appointment.rb`, `reschedule_appointment.rb`, `apps/api/db/structure.sql` | Booking checks resources transactionally; PostgreSQL exclusion constraints forbid active clinician/room overlap. A UI toggle cannot safely enable overbooking. |
+| `apps/api/app/queries/clinic/scheduling/calendar.rb` and `apps/api/app/models/clinic/scheduling/site_policy.rb` | Calendar reads selected-site policy; defaults remain off until saved. |
+| `apps/api/app/services/clinic/scheduling/capacity_guard.rb`, `book_appointment.rb`, `reschedule_appointment.rb`, `apps/api/db/structure.sql` | Booking checks resources transactionally; allocation positions allow one permissioned clinician overlap while patient and physical-room exclusions remain. |
 
 **Official-source review (accessed 2026-09-23):** [HL7 FHIR R4 4.0.1 Appointment §12.10.1](https://hl7.org/fhir/R4/appointment.html) describes one visit per Appointment; repeating visits require distinct instances, and apparent availability never guarantees booking. [HL7 FHIR R4 4.0.1 Slot §12.13.1](https://hl7.org/fhir/R4/slot.html) separates offered time from reservations, allows system-defined multiple allocations and describes `overbooked` status. Map to one real appointment per occurrence, explicit occupancy and server revalidation. These global R4 foundations apply to this U.S. internal workflow through [reference map R05–R07](../us-healthcare-reference-map.md), without mandating a FHIR-native schema. [Published HL7 FHIR R5 5.0.0 Appointment recurrence elements](https://hl7.org/fhir/R5/appointment.html) inform series/occurrence terminology only; R5 is separate trial-use material, not an R4/US Core conformance requirement. No reviewed U.S. guide sets a universal overbook count, cadence, UI location or clinical frequency; those are product/clinic decisions.
 
@@ -75,11 +75,12 @@ When recurrence is later switched off, existing series and appointments stay vis
 
 **Stop conditions:** no mutation with missing/stale policy revision, unbounded series, unresolved conflict, uncertain prior outcome, unauthorized role, site mismatch or absent independent database collision protection. Passing source checks alone does not authorize live activation.
 
-## Checkpoint
+## Implementation checkpoint — 2026-09-23
 
-- **Completed:** current source/tracker/matrix and official HL7 R4/R5 inspection; proposed placement, workflow, fields, backend and acceptance plan. App still reports both `not_configured`.
-- **Unverified:** clinic policy choices and all new implementation/runtime/browser behavior. No feature setting changed in this planning run.
-- **Next:** founder reviews bounds, authority and placement; a separate scoped implementation starts with policy/off-state and collision protection. Reconcile plan with newer source/decisions first.
+- **Implemented in MC-04 branch:** versioned selected-site policy with off defaults and eligible visit types; weekly 1–4 interval, 2–12 visit, 180-day series preview and atomic idempotent booking; per-date move/skip and future change/cancel history; reasoned permissioned overbook exception with two clinician allocations; Schedule, booking and Clinic Setup controls. Patient and physical-room exclusion remains.
+- **Evidence already collected:** 36 focused Rails runs/354 assertions, frontend typecheck, and 17 existing schedule/booking tests. An isolated synthetic site's policy saved as revision 1 and the enabled Schedule/booking controls appeared in the browser. The user stopped further test creation and runs.
+- **Unverified:** browser submission/reload of a series and overbook exception, actual concurrent allocation race and rollback, and older MC-04 hold/waitlist recovery. Local site policy defaults off; no live-clinic activation. PR-10 remains separate.
+- **Next:** connected mutation/recovery evidence when verification resumes. Reconcile any clinic-specific policy and role choices before use outside the synthetic development environment. Reconcile plan with newer source/decisions first.
 
 ## Last run
 

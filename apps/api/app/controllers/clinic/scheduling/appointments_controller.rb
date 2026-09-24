@@ -57,7 +57,7 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id service_offering_id schedule_hold_id reason request_key visit_modality])
+        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id visit_type_id service_offering_id schedule_hold_id reason request_key visit_modality overbook_reason expected_policy_revision])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = find_optional(current_practice.sites, input[:site_id], :site_id)
         room = find_optional(current_practice.rooms, input[:room_id], :room_id)
@@ -78,7 +78,9 @@ module Clinic
           starts_at: time_param!(input[:starts_at], field: :starts_at),
           ends_at: time_param!(input[:ends_at], field: :ends_at),
           request_key: request_key,
-          visit_modality: input[:visit_modality].presence || "in_person"
+          visit_modality: input[:visit_modality].presence || "in_person",
+          overbook_reason: optional_string(input[:overbook_reason], field: :overbook_reason, maximum: 500),
+          expected_policy_revision: input[:expected_policy_revision].present? ? Integer(input[:expected_policy_revision].to_s, 10) : nil
         )
         render json: { appointment: AppointmentSerializer.call(appointment, actor: current_user), request_key: request_key }, status: :created
       end

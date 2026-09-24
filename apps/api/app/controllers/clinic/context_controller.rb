@@ -51,6 +51,7 @@ module Clinic
           appointments: allowed?("appointments.write"),
           appointments_read: allowed?("appointments.read"),
           appointments_book: allowed?("appointments.book"),
+          appointments_overbook: allowed?("appointments.overbook"),
           appointments_status_transition: allowed?("appointments.status_transition"),
           encounters: allowed?("encounters.write"),
           encounters_assign_provider: allowed?("encounters.assign_provider"),

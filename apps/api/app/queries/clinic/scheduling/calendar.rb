@@ -49,7 +49,9 @@ module Clinic
         end
         { month: @first.strftime("%Y-%m"), as_of: Current.business_time.iso8601(6), timezone: @timezone_name, site_id: @site.id,
           slot_minutes: SLOT_MINUTES, capacity_configured: configured?,
-          policy: { recurrence: "not_configured", overbook: "not_configured", external_sync: "read_only_export" },
+          policy: { recurrence: (SitePolicy.current(practice: @practice, site: @site)&.recurrence_enabled? ? "configured" : "not_configured"),
+            overbook: (SitePolicy.current(practice: @practice, site: @site)&.overbook_enabled? ? "configured" : "not_configured"),
+            external_sync: "read_only_export" },
           days: days,
           clinicians: @clinicians.map { |c| { id: c.id, name: c.display_name.presence || c.reference.presence || "Clinician ##{c.id}" } },
           rooms: @rooms.map { |r| { id: r.id, name: r.code, kind: r.kind } } }
@@ -125,9 +127,15 @@ module Clinic
         @busy.any? do |other|
           other.id != appointment.id && overlap?(appointment.starts_at, appointment.ends_at, other.starts_at, other.ends_at) &&
             (other.patient_id == appointment.patient_id ||
-              (appointment.booked_clinician_id && other.booked_clinician_id == appointment.booked_clinician_id) ||
+              (appointment.booked_clinician_id && other.booked_clinician_id == appointment.booked_clinician_id &&
+                !approved_overbook_pair?(appointment, other)) ||
               (appointment.room_id && other.room_id == appointment.room_id))
         end
+      end
+
+      def approved_overbook_pair?(appointment, other)
+        appointment.overbook_exception&.conflicting_appointment_ids&.include?(other.id) ||
+          other.overbook_exception&.conflicting_appointment_ids&.include?(appointment.id)
       end
 
       def serialize(appointment)

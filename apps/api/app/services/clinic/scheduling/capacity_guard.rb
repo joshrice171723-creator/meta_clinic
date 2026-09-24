@@ -5,7 +5,7 @@ module Clinic
 
       # Call inside the booking transaction. The shared clinician row serializes
       # offers, bookings and changes to capacity for this provider across sites.
-      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, room: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil)
+      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, room: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil, overbook: false)
         return unless clinician && site
         clinician.lock!
         site.lock!
@@ -37,8 +37,13 @@ module Clinic
         raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits
         appointments = practice.appointments.where(booked_clinician_id: clinician.id, status: %w[scheduled confirmed])
         appointments = appointments.where.not(id: appointment_id) if appointment_id
-        if appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
-          raise ArgumentError, "This clinician is already booked for that time."
+        overlapping = appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).to_a
+        if overbook
+          raise ArgumentError, "Overbooking requires exactly one existing clinician appointment." unless overlapping.one?
+          allocation = overlapping.first.clinician_allocation == 1 ? 2 : 1
+        else
+          raise ArgumentError, "This clinician is already booked for that time." if overlapping.any?
+          allocation = 1
         end
         if patient
           patient.lock!
@@ -69,6 +74,7 @@ module Clinic
           room_holds = room_holds.where.not(id: schedule_hold_id) if schedule_hold_id
           raise ArgumentError, "This room is held pending booking. Choose another room or release that hold." if room_holds.exists?
         end
+        allocation
       end
 
       def check_site_hours!(practice:, site:, starts_at:, ends_at:)

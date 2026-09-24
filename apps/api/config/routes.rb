@@ -84,6 +84,8 @@ Rails.application.routes.draw do
     post "facilities/:id/rooms", to: "facilities#create_room"
     patch "facilities/:id/rooms/:room_id", to: "facilities#update_room"
     patch "facilities/:id", to: "facilities#update"
+    get "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#show"
+    patch "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#update"
     resource :practice_features, only: %i[show update]
     resources :visit_types, only: %i[create update]
     resources :clinicians, controller: "clinicians", only: %i[index create]
@@ -91,6 +93,11 @@ Rails.application.routes.draw do
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do
       post :transition, on: :member
     end
+    post "appointment_series/preview", to: "scheduling/appointment_series#preview"
+    resources :appointment_series, controller: "scheduling/appointment_series", only: %i[create show]
+    post "appointment_series/:id/preview_change", to: "scheduling/appointment_series#preview_change"
+    post "appointment_series/:id/change_future", to: "scheduling/appointment_series#change_future"
+    post "appointment_series/:id/cancel_future", to: "scheduling/appointment_series#cancel_future"
     resources :appointment_requests, controller: "operations/appointment_requests", only: :index do
       post :approve, on: :member
       post :decline, on: :member

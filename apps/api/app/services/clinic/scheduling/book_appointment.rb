@@ -2,12 +2,16 @@ module Clinic
   module Scheduling
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
-        reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil, service_offering: nil)
+        reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil, service_offering: nil,
+        overbook_reason: nil, expected_policy_revision: nil)
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
         }
         authorize.call
+        if overbook_reason.present?
+          Authorization.authorize!(actor: actor, practice: practice, action: "appointments.overbook", site: site)
+        end
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
         raise ArgumentError, "Choose a site before scheduling this appointment." unless site
         raise ArgumentError, "Choose a clinician before scheduling this appointment." unless booked_clinician
@@ -36,7 +40,9 @@ module Clinic
           visit_modality: visit_modality,
           schedule_hold: schedule_hold,
           service_offering: service_offering,
-          actor: actor
+          actor: actor,
+          overbook_reason: overbook_reason,
+          expected_policy_revision: expected_policy_revision
         }
         return create_appointment(practice: practice, **attributes) if request_key.nil?
 
@@ -58,7 +64,9 @@ module Clinic
             reason: reason.to_s.strip.presence,
             starts_at: starts_at.utc.iso8601(6),
             ends_at: ends_at.utc.iso8601(6),
-            visit_modality: visit_modality
+            visit_modality: visit_modality,
+            overbook_reason: overbook_reason.to_s.strip.presence,
+            expected_policy_revision: expected_policy_revision
           }
         ) do
           create_appointment(practice: practice, **attributes)
@@ -71,7 +79,7 @@ module Clinic
       end
 
       def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:, reason:,
-        visit_modality:, actor:, schedule_hold: nil, service_offering: nil)
+        visit_modality:, actor:, schedule_hold: nil, service_offering: nil, overbook_reason: nil, expected_policy_revision: nil)
         ApplicationRecord.transaction do
           practice.lock!
           if schedule_hold
@@ -87,12 +95,35 @@ module Clinic
             site: site, clinician: booked_clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
             starts_at: starts_at, ends_at: ends_at)
           Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
-          CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
-            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id)
+          overbook = overbook_reason.present?
+          policy = nil
+          if overbook
+            membership = Authorization.authorize!(actor: actor, practice: practice, action: "appointments.overbook", site: site)
+            raise ArgumentError, "An overbooked appointment cannot use a slot hold." if schedule_hold
+            if visit_modality == "in_person" && room&.kind != "physical"
+              raise ArgumentError, "Choose a separate physical room for an in-person overbook exception."
+            end
+            raise ArgumentError, "Enter an overbook reason of 1–500 characters." unless overbook_reason.to_s.strip.length.between?(1, 500)
+            policy = SitePolicy.current(practice: practice, site: site)
+            unless policy&.overbook_enabled? && policy.revision == expected_policy_revision &&
+                policy.eligible_visit_type_ids.include?(visit_type.id) && visit_type.retired_at.nil?
+              raise ArgumentError, "Overbooking is unavailable for this site, visit type, or policy revision."
+            end
+          end
+          allocation = CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
+            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id, overbook: overbook)
+          conflicts = overbook ? practice.appointments.where(booked_clinician: booked_clinician, status: %w[scheduled confirmed])
+            .where("starts_at < ? AND ends_at > ?", ends_at, starts_at).pluck(:id) : []
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
             booked_clinician: booked_clinician, visit_type: visit_type, reason: reason, starts_at: starts_at, ends_at: ends_at,
             status: "scheduled", visit_modality: visit_modality, schedule_hold: schedule_hold,
+            clinician_allocation: allocation,
             service_offering: service_offering, service_offering_snapshot: snapshot)
+          if overbook
+            OverbookException.create!(practice: practice, appointment: appointment, site: site,
+              written_by_membership: membership, policy_revision: policy.revision,
+              conflicting_appointment_ids: conflicts, reason: overbook_reason.to_s.strip)
+          end
           schedule_hold.update!(state: "converted") if schedule_hold
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor) if visit_modality == "video"
           appointment

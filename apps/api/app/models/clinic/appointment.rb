@@ -13,6 +13,8 @@ module Clinic
     belongs_to :schedule_hold, class_name: "Clinic::Scheduling::ScheduleHold", optional: true
     has_one :encounter, class_name: "Clinic::Encounter", dependent: :restrict_with_error
     has_one :telehealth_visit, class_name: "Clinic::Telehealth::Visit", dependent: :restrict_with_error
+    has_one :overbook_exception, class_name: "Clinic::Scheduling::OverbookException", dependent: :restrict_with_error
+    has_one :series_occurrence, class_name: "Clinic::Scheduling::AppointmentSeriesOccurrence", dependent: :restrict_with_error
     has_many :previsit_notes, class_name: "Clinic::Care::PrevisitNote", dependent: :restrict_with_error
 
     encrypts :reason

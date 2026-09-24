@@ -75,6 +75,7 @@ module Clinic
               patient: appointment.patient, starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id)
             appointment.update!(starts_at: starts_at, ends_at: ends_at, visit_modality: modality,
               site: next_site, booked_clinician: next_clinician, visit_type: next_visit_type, room: next_room,
+              clinician_allocation: 1,
               service_offering: next_offering, service_offering_snapshot: snapshot)
             Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor, event: :rescheduled)
             Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)

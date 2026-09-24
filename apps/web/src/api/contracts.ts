@@ -979,6 +979,7 @@ export type ClinicCapabilities = {
   patient_portal_invite?: boolean;
   appointments_read?: boolean;
   appointments_book?: boolean;
+  appointments_overbook?: boolean;
   appointments_status_transition?: boolean;
   staff_write?: boolean;
   billing_read?: boolean;
@@ -1309,6 +1310,14 @@ export type ClinicSite = {
   hour_exceptions?: SiteHourException[];
   rooms?: FacilityRoom[];
 };
+export type SiteSchedulingPolicy = {
+  revision: number;
+  recurrence_enabled: boolean;
+  overbook_enabled: boolean;
+  eligible_visit_type_ids: number[];
+  effective_from: string | null;
+  written_by_membership_id: number | null;
+};
 export type SiteOperatingHour = {
   id: number;
   day_of_week: number;
@@ -1443,6 +1452,10 @@ export type Appointment = {
   readiness?: "ready" | "needs_setup";
   setup_missing?: ("site" | "clinician" | "visit_type")[];
   visit_modality?: "in_person" | "video";
+  overbooked?: boolean;
+  overbook_reason?: string | null;
+  series_id?: number | null;
+  series_sequence?: number | null;
   telehealth?: TelehealthSummary | null;
   patient?: Pick<Patient, "id" | "display_name" | "reference"> & {
     phone?: string | null;
