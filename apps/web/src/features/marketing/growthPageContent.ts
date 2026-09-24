@@ -504,11 +504,6 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageAlt: "Meta Clinic tracking board showing synthetic visits in different operational states.",
     imageCaption: "Clinic workflow board in the synthetic demo",
   },
-  "/platform/tasks": {
-    image: "/marketing/tracking-board-app.png",
-    imageAlt: "Meta Clinic synthetic tracking board showing visit states and open team actions.",
-    imageCaption: "Open clinic work in the synthetic tracking board",
-  },
   "/behavioral-health/scheduling": {
     image: "/marketing/scheduling-month.png",
     imageAlt: "Meta Clinic synthetic month schedule with appointment times and remote visit indicators.",
@@ -533,11 +528,6 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     image: "/marketing/captures/finance-open-invoice-detail.png",
     imageAlt: "Meta Clinic synthetic primary care invoice showing service charges and an open balance.",
     imageCaption: "Primary care invoice review in the synthetic demo",
-  },
-  "/solutions/automate-scheduling": {
-    image: "/marketing/scheduling-month.png",
-    imageAlt: "Meta Clinic synthetic month schedule showing appointment timing and visit formats.",
-    imageCaption: "Populated schedule from the synthetic demo; automation scope requires confirmation",
   },
   "/solutions/manage-memberships": {
     image: "/marketing/memberships-app.png",
