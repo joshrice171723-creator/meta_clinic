@@ -351,13 +351,13 @@ export function MetaClinicMarketing({
             </div>
 
             <figure className="meta-marketing__hero-capture">
-              <a href="/demo" aria-label="Open the guided demo after viewing the scheduling screen">
+              <a href="/demo" aria-label="Open the guided demo after viewing the clinic schedule">
                 <img
-                  src="/marketing/scheduling-booking-clean.png"
-                  alt="Meta Clinic appointment form over a populated synthetic clinic schedule"
+                  src="/marketing/scheduling-month.png"
+                  alt="Meta Clinic month schedule showing remote and in-person synthetic appointments"
                 />
               </a>
-              <figcaption>Scheduling screen from the synthetic Meta Clinic demo</figcaption>
+              <figcaption>Clinic schedule from the synthetic Meta Clinic demo</figcaption>
             </figure>
           </section>
 

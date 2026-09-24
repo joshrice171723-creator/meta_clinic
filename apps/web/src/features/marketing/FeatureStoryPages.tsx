@@ -298,7 +298,7 @@ const stories: Record<string, Story> = {
       },
       {
         title: "Track the state",
-        copy: "Distinguish draft, sent, partial, and paid records with words and amounts.",
+        copy: "Distinguish the invoice total, allocated payment, credit, and remaining balance.",
       },
       {
         title: "Follow the history",
@@ -306,9 +306,9 @@ const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/invoices-app.png",
-      alt: "Meta Clinic invoice ledger showing fictional patients, open and paid states, dates, USD totals, and balances.",
-      caption: "Invoice ledger · captured from the synthetic clinic workspace",
+      src: "/marketing/captures/finance-paid-invoice-detail.png",
+      alt: "Meta Clinic synthetic paid invoice showing line items, allocated payment, credit, and zero balance.",
+      caption: "Paid invoice detail · captured from the synthetic clinic workspace",
     },
     photos: [
       {

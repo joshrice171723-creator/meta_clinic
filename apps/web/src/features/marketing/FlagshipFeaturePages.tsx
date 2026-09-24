@@ -342,16 +342,16 @@ function SchedulingPage() {
             </p>
             <h2>Schedule the visit in context.</h2>
             <p>
-              Set the patient, time, visit format, room, clinician, and visit
-              type in one appointment flow.
+              The synthetic appointment form shows the patient, time, room,
+              clinician, visit type, and visit reason together.
             </p>
           </div>
           <div className="meta-flagship__schedule-booking-layout">
             <Screen
-              src="/marketing/scheduling-booking-clean.png"
-              alt="Illustrative clean Schedule an appointment window with fictional patient, visit time, room, clinician, and active booking action."
+              src="/marketing/captures/schedule-booking-omni-adapted.png"
+              alt="Meta Clinic synthetic appointment form with patient, time, room, clinician, visit type, and visit reason."
               label="Schedule an appointment"
-              caption="Illustrative preview with fictional details"
+              caption="Real app view with synthetic appointment details"
               className="meta-flagship__schedule-screen"
             />
             <figure>

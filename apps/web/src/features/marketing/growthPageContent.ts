@@ -45,7 +45,7 @@ const specialtyNames: Record<string, string> = {
 };
 
 const topics: { test: RegExp; title: string; promise: string; steps: [string, string, string]; image?: string; alt?: string; caption?: string }[] = [
-  { test: /chair|resource|nurse|appointment|scheduling|booking/, title: "Scheduling", promise: "Plan appointments, people, and the resources a visit needs in one operational sequence.", steps: ["Set the visit type and availability", "Review the calendar with staff and resource context", "Carry changes into the day-of-visit view"], image: "/marketing/scheduling-booking-clean.png", alt: "Meta Clinic scheduling interface in a synthetic demo clinic.", caption: "Scheduling view from the synthetic demo" },
+  { test: /chair|resource|nurse|appointment|scheduling|booking/, title: "Scheduling", promise: "Plan appointments, people, and the resources a visit needs in one operational sequence.", steps: ["Set the visit type and availability", "Review the calendar with staff and resource context", "Carry changes into the day-of-visit view"], image: "/marketing/scheduling-month.png", alt: "Meta Clinic month schedule in a synthetic demo clinic.", caption: "Scheduling view from the synthetic demo" },
   { test: /intake|interview|forms|consent/, title: "Intake", promise: "Give the team the right information to review before a visit begins.", steps: ["Invite the patient to complete the relevant questions", "Review submitted answers and missing items", "Bring that context into the visit"], image: "/marketing/primary-care-patients-app.png", alt: "Meta Clinic patient directory containing synthetic demonstration records.", caption: "Patient context in the demo clinic" },
   { test: /telehealth|video/, title: "Telehealth", promise: "Connect a remote appointment to scheduling, chart context, and follow-through.", steps: ["Schedule the remote visit", "Open the encounter with the relevant patient context", "Record the next action after the call"], image: "/marketing/scheduling-telehealth.png", alt: "Meta Clinic synthetic telehealth scheduling view.", caption: "Remote visit context in the demo" },
   { test: /glp-1|trt|testosterone|peptide|hormone|medication|pharmacy|prescrib/, title: "Medication workflow", promise: "Keep medication decisions, recorded work, and supply context connected for team review.", steps: ["Review the patient and treatment context", "Record the authorized medication step", "Check supply and follow-up work"], image: "/marketing/inventory-app.png", alt: "Meta Clinic inventory view showing synthetic stock records.", caption: "Inventory view from the synthetic demo" },
@@ -430,8 +430,8 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageCaption: "Patient directory in the synthetic demo",
   },
   "/platform/scheduling": {
-    image: "/marketing/scheduling-booking-clean.png",
-    imageAlt: "Meta Clinic appointment form over a populated synthetic clinic schedule.",
+    image: "/marketing/captures/schedule-booking-omni-adapted.png",
+    imageAlt: "Meta Clinic synthetic appointment form showing patient, visit time, room, clinician, visit type, and visit reason.",
     imageCaption: "Appointment setup in the synthetic demo",
   },
   "/platform/memberships": {
@@ -488,6 +488,46 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     image: "/marketing/tracking-board-app.png",
     imageAlt: "Meta Clinic tracking board showing synthetic visits in different operational states.",
     imageCaption: "Clinic workflow board in the synthetic demo",
+  },
+  "/platform/tasks": {
+    image: "/marketing/tracking-board-app.png",
+    imageAlt: "Meta Clinic synthetic tracking board showing visit states and open team actions.",
+    imageCaption: "Open clinic work in the synthetic tracking board",
+  },
+  "/behavioral-health/scheduling": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic month schedule with appointment times and remote visit indicators.",
+    imageCaption: "General appointment scheduling in the demo; practice-specific setup requires review",
+  },
+  "/primary-care/scheduling": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic month schedule showing appointments and visit times.",
+    imageCaption: "Clinic calendar in the synthetic demo",
+  },
+  "/primary-care/telehealth": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic schedule showing remote appointments alongside in-person visits.",
+    imageCaption: "Remote appointment scheduling in the synthetic demo",
+  },
+  "/primary-care/memberships": {
+    image: "/marketing/captures/membership-tier-preview-northside-clinic-2026-09-24-synthetic-direct.png",
+    imageAlt: "Meta Clinic synthetic primary care membership preview showing price and included service.",
+    imageCaption: "Primary care membership preview in the synthetic demo",
+  },
+  "/direct-primary-care/billing": {
+    image: "/marketing/captures/finance-open-invoice-detail.png",
+    imageAlt: "Meta Clinic synthetic primary care invoice showing service charges and an open balance.",
+    imageCaption: "Primary care invoice review in the synthetic demo",
+  },
+  "/solutions/automate-scheduling": {
+    image: "/marketing/scheduling-month.png",
+    imageAlt: "Meta Clinic synthetic month schedule showing appointment timing and visit formats.",
+    imageCaption: "Populated schedule from the synthetic demo; automation scope requires confirmation",
+  },
+  "/solutions/manage-memberships": {
+    image: "/marketing/memberships-app.png",
+    imageAlt: "Meta Clinic synthetic membership catalog showing clinic programs and publication states.",
+    imageCaption: "Membership programs in the synthetic demo",
   },
   "/primary-care/cash-pay": {
     image: "/marketing/captures/finance-paid-invoice-detail.png",
