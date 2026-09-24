@@ -446,17 +446,17 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageCaption: "Inventory catalog in the synthetic demo",
   },
   "/infusion/lot-tracking": {
-    image: "/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+    image: "/marketing/captures/inventory-activity-ledger.png",
     imageAlt: "Meta Clinic synthetic inventory movement ledger showing lot identifiers, locations, quantities, and recorded receipts.",
     imageCaption: "Lot movement example in the synthetic demo; infusion-specific scope requires review",
   },
   "/infusion/receiving": {
-    image: "/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+    image: "/marketing/captures/inventory-activity-ledger.png",
     imageAlt: "Meta Clinic synthetic inventory activity ledger showing stock receipts with lot and location context.",
     imageCaption: "Recorded stock receipts in the synthetic demo; infusion-specific scope requires review",
   },
   "/resources/guides/medical-inventory-lot-tracking": {
-    image: "/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+    image: "/marketing/captures/inventory-activity-ledger.png",
     imageAlt: "Meta Clinic synthetic inventory movement ledger showing stock receipt entries by lot and location.",
     imageCaption: "Inventory movement example for the lot-tracking guide",
   },
