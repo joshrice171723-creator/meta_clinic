@@ -45,6 +45,8 @@
 .growth-page h2 { font-size: clamp(36px, 3.8vw, 58px); }
 .growth-page h3 { font-size: 27px; }
 .growth-page__lead { max-width: 610px; margin-block: 26px 30px; color: var(--muted); font-size: clamp(17px, 1.5vw, 21px); line-height: 1.65; }
+.growth-page__audience { max-width: 610px; margin: -12px 0 30px; color: var(--muted); font-size: 14px; }
+.growth-page__audience span { color: var(--ink); font-weight: 800; }
 .growth-page__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .growth-page__hero-image { position: relative; margin: 0; padding: 30px; border-radius: 110px 8px 8px 8px; background: var(--sage); }
 .growth-page__hero-image img { display: block; width: 100%; max-height: 470px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: white; box-shadow: 0 28px 62px rgba(25, 59, 49, .13); }

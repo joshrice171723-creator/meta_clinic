@@ -196,6 +196,7 @@ function PageBody({ page }: { page: GrowthPage }) {
             <p className="growth-page__kicker">{page.eyebrow}</p>
             <h1>{page.headline}</h1>
             <p className="growth-page__lead">{page.lead}</p>
+            <p className="growth-page__audience"><span>For</span> {page.audience}</p>
             {phase === "later" && <Alert severity="info">This page is a planning preview. Confirm the current feature scope during evaluation.</Alert>}
             {phase === "review" && <Alert severity="info">This content is awaiting legal and security review. Ask for current, approved details before relying on a claim.</Alert>}
             {phase === "evidence" && <Alert severity="info">This page is reserved until the underlying evidence and publication permission are verified.</Alert>}
