@@ -212,7 +212,13 @@ export function MetaClinicMarketing({
         </a>
         <nav className="meta-marketing__nav" aria-label="Main navigation">
           <a href="/platform">Platform</a>
-          <a href="/#clinic-types">Clinic types</a>
+          <details className="meta-marketing__nav-menu"><summary>Specialties</summary><div>
+            <a href="/#clinic-types">Explore clinic types</a>
+            <a href="/weight-loss">Weight loss</a>
+            <a href="/behavioral-health">Behavioral health</a>
+            <a href="/primary-care/cash-pay">Cash-pay care</a>
+            <a href="/infusion">Infusion</a>
+          </div></details>
           <Button
             className="meta-marketing__nav-button"
             aria-controls={
@@ -224,7 +230,11 @@ export function MetaClinicMarketing({
           >
             Features <span aria-hidden="true">⌄</span>
           </Button>
+          <a href="/ai">AI</a>
+          <a href="/security">Security</a>
+          <a href="/pricing">Pricing</a>
           <a href="/resources">Resources</a>
+          <a className="meta-marketing__mobile-sign-in" href="/login">Sign in</a>
         </nav>
         <Button
           className="meta-marketing__sign-in"
