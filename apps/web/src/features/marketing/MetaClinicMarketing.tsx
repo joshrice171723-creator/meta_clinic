@@ -230,7 +230,7 @@ export function MetaClinicMarketing({
       <header className="meta-marketing__header">
         <a
           className="meta-marketing__brand"
-          href="/"
+          href="/meta-clinic"
           aria-label="Meta Clinic home"
         >
           <span className="meta-marketing__brand-mark" aria-hidden="true">
@@ -240,13 +240,13 @@ export function MetaClinicMarketing({
           Meta Clinic
         </a>
         <nav className="meta-marketing__nav" aria-label="Main navigation">
-          <a href="/platform">Platform</a>
+          <a href="/meta-clinic/platform">Platform</a>
           <details className="meta-marketing__nav-menu"><summary>Specialties</summary><div>
-            <a href="/#clinic-types">Explore clinic types</a>
-            <a href="/weight-loss">Weight loss</a>
-            <a href="/behavioral-health">Behavioral health</a>
-            <a href="/primary-care/cash-pay">Cash-pay care</a>
-            <a href="/infusion">Infusion</a>
+            <a href="/meta-clinic#clinic-types">Explore clinic types</a>
+            <a href="/meta-clinic/weight-loss">Weight loss</a>
+            <a href="/meta-clinic/behavioral-health">Behavioral health</a>
+            <a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a>
+            <a href="/meta-clinic/infusion">Infusion</a>
           </div></details>
           <Button
             className="meta-marketing__nav-button"
@@ -259,10 +259,10 @@ export function MetaClinicMarketing({
           >
             Features <span aria-hidden="true">⌄</span>
           </Button>
-          <a href="/ai">AI</a>
-          <a href="/security">Security</a>
-          <a href="/pricing">Pricing</a>
-          <a href="/resources">Resources</a>
+          <a href="/meta-clinic/ai">AI</a>
+          <a href="/meta-clinic/security">Security</a>
+          <a href="/meta-clinic/pricing">Pricing</a>
+          <a href="/meta-clinic/resources">Resources</a>
           <a className="meta-marketing__mobile-sign-in" href="/login">Sign in</a>
         </nav>
         <Button
@@ -274,7 +274,7 @@ export function MetaClinicMarketing({
         </Button>
         <Button
           className="meta-marketing__book-demo"
-          href="/book-demo"
+          href="/meta-clinic/book-demo"
           variant="contained"
         >
           Book a demo
@@ -365,7 +365,7 @@ export function MetaClinicMarketing({
               <div className="meta-marketing__actions">
                 <Button
                   className="meta-marketing__button-primary"
-                  href="/demo"
+                  href="/meta-clinic/demo"
                   variant="contained"
                   endIcon={<ArrowForwardRoundedIcon />}
                 >
@@ -373,7 +373,7 @@ export function MetaClinicMarketing({
                 </Button>
                 <Button
                   className="meta-marketing__button-secondary"
-                  href="/book-demo"
+                  href="/meta-clinic/book-demo"
                   variant="outlined"
                 >
                   Book a demo
@@ -389,7 +389,7 @@ export function MetaClinicMarketing({
             </div>
 
             <figure className="meta-marketing__hero-capture">
-              <a href="/demo" aria-label="Open the guided demo after viewing the clinic schedule">
+              <a href="/meta-clinic/demo" aria-label="Open the guided demo after viewing the clinic schedule">
                 <img
                   src="/marketing/scheduling-month.png"
                   alt="Meta Clinic month schedule showing remote and in-person synthetic appointments"
@@ -421,7 +421,7 @@ export function MetaClinicMarketing({
                 </article>
               ))}
             </div>
-            <Button href="/demo" endIcon={<ArrowForwardRoundedIcon />}>Open the guided demo</Button>
+            <Button href="/meta-clinic/demo" endIcon={<ArrowForwardRoundedIcon />}>Open the guided demo</Button>
           </section>
 
           <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-priority-title">
@@ -636,7 +636,7 @@ export function MetaClinicMarketing({
                 <p>Confirm each available screen and handoff against your clinic’s actual process before planning a change.</p>
               </article>
             </div>
-            <Button href="/demo" endIcon={<ArrowForwardRoundedIcon />}>Open the guided demo</Button>
+            <Button href="/meta-clinic/demo" endIcon={<ArrowForwardRoundedIcon />}>Open the guided demo</Button>
           </section>
 
           <section
@@ -673,12 +673,12 @@ export function MetaClinicMarketing({
               <article>
                 <h3>Walk through the interface</h3>
                 <p>The guided demo uses synthetic records so your team can inspect screens and handoffs without patient data.</p>
-                <a href="/demo">Explore the guided demo <ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                <a href="/meta-clinic/demo">Explore the guided demo <ArrowForwardRoundedIcon aria-hidden="true" /></a>
               </article>
               <article>
                 <h3>Review the people and scope</h3>
                 <p>Learn about the team, then confirm feature availability, setup, and support for your care model in a live conversation.</p>
-                <a href="/about">About Meta Clinic <ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                <a href="/meta-clinic/about">About Meta Clinic <ArrowForwardRoundedIcon aria-hidden="true" /></a>
               </article>
             </div>
           </section>
@@ -715,8 +715,8 @@ export function MetaClinicMarketing({
             <h2 id="meta-close-title">See the workflow for your clinic.</h2>
             <p>Explore the synthetic demo, then bring one patient journey and your team’s questions to a focused walkthrough.</p>
             <div className="meta-marketing__actions">
-              <Button className="meta-marketing__button-primary" href="/demo" variant="contained">Explore the demo</Button>
-              <Button className="meta-marketing__button-secondary" href="/book-demo" variant="outlined">Book a demo</Button>
+              <Button className="meta-marketing__button-primary" href="/meta-clinic/demo" variant="contained">Explore the demo</Button>
+              <Button className="meta-marketing__button-secondary" href="/meta-clinic/book-demo" variant="outlined">Book a demo</Button>
             </div>
           </section>
         </main>
@@ -724,13 +724,13 @@ export function MetaClinicMarketing({
 
       <footer className="meta-marketing__footer">
         <div className="meta-marketing__footer-intro">
-          <a className="meta-marketing__brand" href="/">Meta Clinic</a>
+          <a className="meta-marketing__brand" href="/meta-clinic">Meta Clinic</a>
           <p>Connected software for independent clinics.</p>
         </div>
-        <nav aria-label="Product links"><strong>Product</strong><a href="/platform">Platform</a><a href="/ai">AI</a><a href="/demo">Demo</a><a href="/pricing">Pricing</a></nav>
-        <nav aria-label="Specialty links"><strong>Specialties</strong><a href="/weight-loss">Weight loss</a><a href="/behavioral-health">Behavioral health</a><a href="/primary-care/cash-pay">Cash-pay care</a><a href="/infusion">Infusion</a></nav>
-        <nav aria-label="Resource links"><strong>Explore</strong><a href="/resources">Resources</a><a href="/sandbox">Sandbox</a><a href="/site-map">Site map</a></nav>
-        <nav aria-label="Company links"><strong>Company</strong><a href="/about">About</a><a href="/security">Security</a><a href="/contact">Contact</a><a href="/login">Sign in</a></nav>
+        <nav aria-label="Product links"><strong>Product</strong><a href="/meta-clinic/platform">Platform</a><a href="/meta-clinic/ai">AI</a><a href="/meta-clinic/demo">Demo</a><a href="/meta-clinic/pricing">Pricing</a></nav>
+        <nav aria-label="Specialty links"><strong>Specialties</strong><a href="/meta-clinic/weight-loss">Weight loss</a><a href="/meta-clinic/behavioral-health">Behavioral health</a><a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a><a href="/meta-clinic/infusion">Infusion</a></nav>
+        <nav aria-label="Resource links"><strong>Explore</strong><a href="/meta-clinic/resources">Resources</a><a href="/meta-clinic/sandbox">Sandbox</a><a href="/meta-clinic/site-map">Site map</a></nav>
+        <nav aria-label="Company links"><strong>Company</strong><a href="/meta-clinic/about">About</a><a href="/meta-clinic/security">Security</a><a href="/meta-clinic/contact">Contact</a><a href="/login">Sign in</a></nav>
       </footer>
     </div>
   );

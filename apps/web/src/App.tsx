@@ -852,7 +852,7 @@ function Application() {
     path === "/memberships" ||
     (publicMembership !== null && path !== "/memberships/account");
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
-  const growthMarketing = hasGrowthPage(path) && path !== "/" && path !== "/login";
+  const growthMarketing = hasGrowthPage(path) && path !== "/meta-clinic";
   const marketingClinicFeature =
     /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|hormone-health|behavioral-health|rehabilitation-pt|aesthetics|infusion)\/features\/([a-z0-9-]+)$/.exec(
       path,

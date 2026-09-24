@@ -3,7 +3,7 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { Alert, Button, TextField } from "@mui/material";
 import { api } from "../../api/client";
 import { getGrowthPage, type GrowthPage } from "./growthPageContent";
-import { marketingPaths } from "./marketingPaths";
+import { marketingInternalPath, marketingPaths, marketingUrl } from "./marketingPaths";
 import "./growthMarketingPage.css";
 
 const priority = [
@@ -58,29 +58,29 @@ function ContactForm({ path }: { path: string }) {
 function Header() {
   return (
     <header className="growth-page__header">
-      <a className="growth-page__brand" href="/" aria-label="Meta Clinic home"><span className="growth-page__mark" aria-hidden="true">✳</span> Meta Clinic</a>
+      <a className="growth-page__brand" href="/meta-clinic" aria-label="Meta Clinic home"><span className="growth-page__mark" aria-hidden="true">✳</span> Meta Clinic</a>
       <nav aria-label="Marketing navigation">
         <details className="growth-page__nav-menu"><summary>Platform</summary><div>
-          <a href="/platform">Platform overview</a>
-          <a href="/platform/scheduling">Scheduling</a>
-          <a href="/platform/patient-intake">Patient intake</a>
-          <a href="/platform/memberships">Memberships</a>
-          <a href="/platform/inventory">Inventory</a>
-          <a href="/platform/billing">Billing</a>
-          <a href="/platform/workflows">Workflows</a>
+          <a href="/meta-clinic/platform">Platform overview</a>
+          <a href="/meta-clinic/platform/scheduling">Scheduling</a>
+          <a href="/meta-clinic/platform/patient-intake">Patient intake</a>
+          <a href="/meta-clinic/platform/memberships">Memberships</a>
+          <a href="/meta-clinic/platform/inventory">Inventory</a>
+          <a href="/meta-clinic/platform/billing">Billing</a>
+          <a href="/meta-clinic/platform/workflows">Workflows</a>
         </div></details>
         <details className="growth-page__nav-menu"><summary>Specialties</summary><div>
-          {priority.map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}
-          <a href="/infusion">Infusion</a>
+          {priority.map((item) => <a href={marketingUrl(item.path)} key={item.path}>{item.label}</a>)}
+          <a href="/meta-clinic/infusion">Infusion</a>
         </div></details>
-        <a href="/ai">AI</a>
-        <a href="/security">Security</a>
-        <a href="/pricing">Pricing</a>
-        <a href="/resources">Resources</a>
+        <a href="/meta-clinic/ai">AI</a>
+        <a href="/meta-clinic/security">Security</a>
+        <a href="/meta-clinic/pricing">Pricing</a>
+        <a href="/meta-clinic/resources">Resources</a>
         <a className="growth-page__mobile-signin" href="/login">Sign in</a>
       </nav>
       <a className="growth-page__signin" href="/login">Sign in</a>
-      <Button href="/book-demo" variant="contained" size="small">Book a demo</Button>
+      <Button href="/meta-clinic/book-demo" variant="contained" size="small">Book a demo</Button>
     </header>
   );
 }
@@ -89,23 +89,23 @@ function Footer() {
   return (
     <footer className="growth-page__footer">
       <div><strong>Meta Clinic</strong><p>Connected software for independent clinics.</p></div>
-      <div><span>Product</span><a href="/platform">Platform</a><a href="/ai">AI</a><a href="/demo">Demo</a><a href="/pricing">Pricing</a></div>
-      <div><span>Specialties</span>{priority.map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}<a href="/infusion">Infusion</a></div>
-      <div><span>Resources</span><a href="/resources">Guides and templates</a><a href="/sandbox">Sandbox</a><a href="/site-map">Site map</a></div>
-      <div><span>Company</span><a href="/about">About</a><a href="/security">Security</a><a href="/contact">Contact</a><a href="/login">Sign in</a></div>
+      <div><span>Product</span><a href="/meta-clinic/platform">Platform</a><a href="/meta-clinic/ai">AI</a><a href="/meta-clinic/demo">Demo</a><a href="/meta-clinic/pricing">Pricing</a></div>
+      <div><span>Specialties</span>{priority.map((item) => <a href={marketingUrl(item.path)} key={item.path}>{item.label}</a>)}<a href="/meta-clinic/infusion">Infusion</a></div>
+      <div><span>Resources</span><a href="/meta-clinic/resources">Guides and templates</a><a href="/meta-clinic/sandbox">Sandbox</a><a href="/meta-clinic/site-map">Site map</a></div>
+      <div><span>Company</span><a href="/meta-clinic/about">About</a><a href="/meta-clinic/security">Security</a><a href="/meta-clinic/contact">Contact</a><a href="/login">Sign in</a></div>
     </footer>
   );
 }
 
 function Breadcrumbs({ page }: { page: GrowthPage }) {
-  const segments = page.path.split("/").filter(Boolean);
+  const segments = (marketingInternalPath(page.path) ?? page.path).split("/").filter(Boolean);
   const crumbs = segments.map((_, index) => {
-    const path = `/${segments.slice(0, index + 1).join("/")}`;
+    const path = marketingUrl(`/${segments.slice(0, index + 1).join("/")}`);
     return { path, label: index === segments.length - 1 ? page.title : getGrowthPage(path)?.title };
   }).filter((item) => item.label);
   return <nav className="growth-page__breadcrumb" aria-label="Breadcrumb"><ol>
-    <li><a href="/">Meta Clinic</a></li>
-    {crumbs.map((item, index) => <li key={item.path}>{index === crumbs.length - 1 ? <span aria-current="page">{item.label}</span> : <a href={item.path}>{item.label}</a>}</li>)}
+    <li><a href="/meta-clinic">Meta Clinic</a></li>
+    {crumbs.map((item, index) => <li key={item.path}>{index === crumbs.length - 1 ? <span aria-current="page">{item.label}</span> : <a href={marketingUrl(item.path)}>{item.label}</a>}</li>)}
   </ol></nav>;
 }
 
@@ -122,35 +122,36 @@ function Related({ page }: { page: GrowthPage }) {
 }
 
 function Directory({ page }: { page: GrowthPage }) {
-  if (page.path === "/site-map") {
+  if (page.path === marketingUrl("/site-map")) {
     const groups = new Map<string, { path: string; label: string; phase: string }[]>();
     for (const item of marketingPaths) {
       if (item.path.includes("[")) continue;
       const current = groups.get(item.group) ?? [];
-      current.push({ path: item.path, label: item.path, phase: item.phase });
+      current.push({ path: marketingUrl(item.path), label: marketingUrl(item.path), phase: item.phase });
       groups.set(item.group, current);
     }
     return <section id="directory" className="growth-page__directory growth-page__wrap" aria-label="Marketing page directory">
       <h2>Launch candidate pages</h2>
       <p>These pages are the first publishing candidates after product, claim, and legal review.</p>
-      <ul>{marketingPaths.filter((item) => item.phase === "launch" && !item.path.includes("[")).map((item) => <li key={item.path}><a href={item.path}>{item.path}</a></li>)}</ul>
+      <ul>{marketingPaths.filter((item) => item.phase === "launch" && !item.path.includes("[")).map((item) => <li key={item.path}><a href={marketingUrl(item.path)}>{marketingUrl(item.path)}</a></li>)}</ul>
       <details className="growth-page__planned-directory"><summary>Browse all planned page drafts</summary>
         <p>These routes are available for review. Later, legal, proof, and integration pages should be published only when their content and claims are verified.</p>
         {[...groups].map(([group, items]) => {
           const planned = items.filter((item) => item.phase !== "launch");
-          return planned.length ? <div key={group}><h3>{group}</h3><ul>{planned.map((item) => <li key={item.path}><a href={item.path}>{item.label}</a></li>)}</ul></div> : null;
+          return planned.length ? <div key={group}><h3>{group}</h3><ul>{planned.map((item) => <li key={item.path}><a href={marketingUrl(item.path)}>{item.label}</a></li>)}</ul></div> : null;
         })}
       </details>
     </section>;
   }
   if (!page.children.length) return null;
-  return <section id="directory" className="growth-page__directory growth-page__wrap" aria-labelledby="directory-title"><p className="growth-page__kicker">Explore this area</p><h2 id="directory-title">Find the specific workflow.</h2><ul>{page.children.filter((item) => !item.path.includes("[")).map((item) => <li key={item.path}><a href={item.path}>{item.label}<ArrowForwardRoundedIcon aria-hidden="true" /></a></li>)}</ul></section>;
+  return <section id="directory" className="growth-page__directory growth-page__wrap" aria-labelledby="directory-title"><p className="growth-page__kicker">Explore this area</p><h2 id="directory-title">Find the specific workflow.</h2><ul>{page.children.filter((item) => !item.path.includes("[")).map((item) => <li key={item.path}><a href={marketingUrl(item.path)}>{item.label}<ArrowForwardRoundedIcon aria-hidden="true" /></a></li>)}</ul></section>;
 }
 
 function PageBody({ page }: { page: GrowthPage }) {
-  const conversion = conversionPaths.has(page.path);
-  const phase = marketingPaths.find((item) => item.path === page.path)?.phase;
-  const resource = page.path.startsWith("/resources");
+  const internalPath = marketingInternalPath(page.path) ?? page.path;
+  const conversion = conversionPaths.has(internalPath);
+  const phase = marketingPaths.find((item) => item.path === internalPath)?.phase;
+  const resource = internalPath.startsWith("/resources");
   const company = page.group === "Company";
   const legal = page.group === "Legal" || page.group === "Security / Compliance";
   const integration = page.group === "Integrations";
@@ -163,7 +164,7 @@ function PageBody({ page }: { page: GrowthPage }) {
       : resource
         ? "Put the guide into a working context."
         : company
-          ? (page.path === "/careers" ? "Confirm current opportunities and application details." : "Understand the current product and company scope.")
+          ? (internalPath === "/careers" ? "Confirm current opportunities and application details." : "Understand the current product and company scope.")
           : "Inspect the current product workflow.";
   const evidenceAction = legalOrProof || integration || company
     ? { label: "Ask for details", path: "/contact" }
@@ -189,11 +190,11 @@ function PageBody({ page }: { page: GrowthPage }) {
     close = { title: "Confirm the connection in your environment.", body: "Bring the systems, data flows, and exception cases your clinic needs to a focused conversation.", primary: { label: "Ask about integrations", path: "/contact" }, secondary: { label: "Explore the platform", path: "/platform" } };
   } else if (proofOrComparison) {
     close = { title: "Evaluate fit with current evidence.", body: "Use your clinic's workflow and dated sources to compare options, then inspect the current product in the synthetic demo.", primary: { label: "Explore the demo", path: "/demo" }, secondary: { label: "Ask a question", path: "/contact" } };
-  } else if (["/resources/videos", "/resources/webinars", "/resources/api-docs", "/resources/help"].includes(page.path)) {
+  } else if (["/resources/videos", "/resources/webinars", "/resources/api-docs", "/resources/help"].includes(internalPath)) {
     close = { title: "Ask what is available now.", body: "Request current access details, documentation, or support information before relying on this planned resource.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "Explore the platform", path: "/platform" } };
-  } else if (page.path === "/careers") {
+  } else if (internalPath === "/careers") {
     close = { title: "Ask about current opportunities.", body: "Confirm whether a role is open and request the approved application path before sharing candidate information.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "About the company", path: "/about" } };
-  } else if (["/partners", "/partner-program", "/affiliate-program"].includes(page.path)) {
+  } else if (["/partners", "/partner-program", "/affiliate-program"].includes(internalPath)) {
     close = { title: "Confirm program status and terms.", body: "Ask whether a relationship or program is active and request current written details from the responsible owner.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "About the company", path: "/about" } };
   } else if (company) {
     close = { title: "Talk about your clinic's workflow.", body: "Share the operating question you want to explore and ask for current product and company details.", primary: { label: "Contact Meta Clinic", path: "/contact" }, secondary: { label: "Explore the demo", path: "/demo" } };
@@ -241,7 +242,7 @@ function PageBody({ page }: { page: GrowthPage }) {
         ) : (
           <>
             <section className="growth-page__sequence" aria-labelledby="sequence-title"><div className="growth-page__wrap"><p className="growth-page__kicker">The working sequence</p><h2 id="sequence-title">See the steps in context.</h2><div className="growth-page__steps">{page.steps.map((step, index) => <article key={step}><span>0{index + 1}</span><h3>{step}</h3></article>)}</div></div></section>
-            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">Evaluation detail</p><h2>{evidenceTitle}</h2><p>{page.note}</p><Button href={evidenceAction.path} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div><div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={legalOrProof || integration || company ? "/contact" : "/book-demo"}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div></section>
+            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">Evaluation detail</p><h2>{evidenceTitle}</h2><p>{page.note}</p><Button href={marketingUrl(evidenceAction.path)} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div><div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={marketingUrl(legalOrProof || integration || company ? "/contact" : "/book-demo")}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div></section>
             <Related page={page} />
           </>
         )}
@@ -254,7 +255,7 @@ function PageBody({ page }: { page: GrowthPage }) {
         </section>
         <Directory page={page} />
         <section className="growth-page__faq" aria-labelledby="faq-title"><div className="growth-page__wrap"><p className="growth-page__kicker">Questions to ask</p><h2 id="faq-title">{faqTitle}</h2><div className="growth-page__faq-list">{page.questions.map((item) => <article key={item.question}><h3>{item.question}</h3><p>{item.answer}</p></article>)}</div></div></section>
-        <section className="growth-page__close"><div className="growth-page__wrap"><p className="growth-page__kicker">The next step</p><h2>{close.title}</h2><p>{close.body}</p><div className="growth-page__actions"><Button href={close.primary.path} variant="contained">{close.primary.label}</Button><Button href={close.secondary.path} variant="outlined">{close.secondary.label}</Button></div></div></section>
+        <section className="growth-page__close"><div className="growth-page__wrap"><p className="growth-page__kicker">The next step</p><h2>{close.title}</h2><p>{close.body}</p><div className="growth-page__actions"><Button href={marketingUrl(close.primary.path)} variant="contained">{close.primary.label}</Button><Button href={marketingUrl(close.secondary.path)} variant="outlined">{close.secondary.label}</Button></div></div></section>
       </main>
       <Footer />
     </>

@@ -1,4 +1,4 @@
-import { marketingPaths } from "./marketingPaths";
+import { marketingInternalPath, marketingPaths, marketingUrl } from "./marketingPaths";
 import { getEditorialPageBrief } from "./EditorialPageBriefs";
 import { getPlatformAiPageBrief } from "./PlatformAiPageBriefs";
 import { getSpecialtyPageBrief } from "./SpecialtyPageBriefs";
@@ -584,10 +584,10 @@ const verifiedGalleries: Record<string, GrowthPage["gallery"]> = {
   ],
 };
 export const marketingRouteCount = entries.size;
-export function getGrowthPage(path: string): GrowthPage | null {
+function getGrowthPageInternal(path: string): GrowthPage | null {
   if (["/ai-intake", "/inventory", "/weight-loss-clinics"].includes(path)) {
     const canonicalPath = canonicalAliases[path];
-    const canonicalPage = getGrowthPage(canonicalPath);
+    const canonicalPage = getGrowthPageInternal(canonicalPath);
     return canonicalPage ? { ...canonicalPage, path, canonicalPath } : null;
   }
   if (path === "/site-map") {
@@ -793,10 +793,30 @@ export function getGrowthPage(path: string): GrowthPage | null {
   } else if (path === "/try") {
     page.primaryCta = { label: "Start the demo", path: "/demo" };
     page.secondaryCta = { label: "Book a demo", path: "/book-demo" };
+  } else if (path === "/demo") {
+    page.primaryCta = { label: "Open the guided demo", path: "app:/demo" };
+  } else if (path === "/login") {
+    page.primaryCta = { label: "Open sign in", path: "app:/login" };
   } else if (["/resources", "/resources/guides", "/resources/templates", "/solutions"].includes(path)) {
     page.primaryCta = { label: "Browse the pages", path: "#directory" };
   } else if (path === "/resources/checklists") {
     page.primaryCta = { label: "Browse workflow templates", path: "/resources/templates" };
   }
   return page;
+}
+
+export function getGrowthPage(path: string): GrowthPage | null {
+  const internalPath = marketingInternalPath(path);
+  if (internalPath === null) return null;
+  const page = getGrowthPageInternal(internalPath);
+  if (!page) return null;
+  return {
+    ...page,
+    path: marketingUrl(page.path),
+    canonicalPath: marketingUrl(page.canonicalPath),
+    primaryCta: { ...page.primaryCta, path: marketingUrl(page.primaryCta.path) },
+    secondaryCta: { ...page.secondaryCta, path: marketingUrl(page.secondaryCta.path) },
+    links: page.links.map((link) => ({ ...link, path: marketingUrl(link.path) })),
+    children: page.children.map((child) => ({ ...child, path: marketingUrl(child.path) })),
+  };
 }
