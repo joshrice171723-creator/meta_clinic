@@ -5,6 +5,7 @@ import {
   clinicTypeToolkits,
 } from "./clinicTypeFeatures";
 import { marketingFeatures } from "./features";
+import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import "./clinicTypePages.css";
 
 export type ClinicTypeSlug =
@@ -473,11 +474,11 @@ function MembershipCarePage() {
               terms behind that relationship.
             </p>
             <Button
-              href="#membership-program"
+              href="#build-a-membership"
               variant="contained"
               endIcon={<ArrowForwardRoundedIcon />}
             >
-              See the program workspace
+              See how to build a membership
             </Button>
           </div>
           <figure>
@@ -492,51 +493,7 @@ function MembershipCarePage() {
         </div>
       </section>
 
-      <section
-        id="membership-program"
-        className="meta-type__membership-program meta-type__wrap"
-      >
-        <div className="meta-type__section-heading">
-          <p className="meta-type__eyebrow">Inside Meta Clinic</p>
-          <h2>Programs, services, and tiers in one place.</h2>
-          <p>
-            The actual Meta Clinic catalog below shows several synthetic
-            programs with their own descriptions. Build reusable services,
-            assemble tiers, then preview and publish the terms patients can see.
-          </p>
-        </div>
-        <ProductImage
-          src="/marketing/captures/membership-catalog-five-programs.png"
-          alt="Meta Clinic membership catalog with five synthetic programs and reusable service records."
-          caption="Membership catalog · five programs · direct synthetic app capture"
-        />
-        <div className="meta-type__membership-details">
-          <article>
-            <span>01</span>
-            <h3>Describe the promise.</h3>
-            <p>
-              Name the program and explain which kind of ongoing care it
-              supports.
-            </p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>Build the tier.</h3>
-            <p>
-              Reuse services and set clear terms before a patient sees the
-              offer.
-            </p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>Publish deliberately.</h3>
-            <p>
-              Preview the patient card and keep the published version tied to
-              its terms.
-            </p>
-          </article>
-        </div>
-      </section>
+      <MembershipWalkthrough />
 
       <section className="meta-type__membership-close">
         <div className="meta-type__wrap meta-type__membership-close-grid">

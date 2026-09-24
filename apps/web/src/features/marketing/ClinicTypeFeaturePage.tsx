@@ -8,6 +8,7 @@ import {
 } from "./clinicTypeFeatures";
 import { marketingFeatures } from "./features";
 import { stories } from "./FeatureStoryPages";
+import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import "./clinicTypeFeaturePage.css";
 
 type AppVisual = {
@@ -176,7 +177,7 @@ export function ClinicTypeFeaturePage({
           <p className="meta-type-feature__lead">{item.useCase}</p>
           <Button
             variant="contained"
-            href="#see-the-workflow"
+            href={slug === "memberships-packages" ? "#build-a-membership" : "#see-the-workflow"}
             endIcon={<ArrowForwardRoundedIcon />}
           >
             See the workflow
@@ -192,7 +193,9 @@ export function ClinicTypeFeaturePage({
         </figure>
       </section>
 
-      <section
+      {slug === "memberships-packages" && <MembershipWalkthrough />}
+
+      {slug !== "memberships-packages" && <><section
         className="meta-type-feature__story meta-type-feature__wrap"
         id="see-the-workflow"
       >
@@ -250,7 +253,7 @@ export function ClinicTypeFeaturePage({
             <ArrowForwardRoundedIcon aria-hidden="true" />
           </a>
         </div>
-      </section>
+      </section></>}
 
       <aside className="meta-type-feature__related meta-type-feature__wrap">
         <p className="meta-type-feature__eyebrow">Explore next</p>

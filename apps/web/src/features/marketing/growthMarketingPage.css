@@ -847,3 +847,11 @@
   .growth-core__visual--photo { border-radius: 12px; }
   .growth-core__visual--photo img { height: auto; max-height: 410px; }
 }
+.growth-page__membership-path { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-block: 42px; padding: 25px 32px; border-left: 4px solid #ba7659; background: #e9eee8; }
+.growth-page__membership-path div { display: grid; gap: 7px; }
+.growth-page__membership-path span { color: #a25543; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.growth-page__membership-path strong { color: #1b3b2d; font: 500 clamp(20px, 2vw, 30px) Georgia, serif; }
+.growth-page__membership-path a { display: inline-flex; align-items: center; gap: 8px; flex: none; color: #21533a; font-size: 14px; font-weight: 750; text-decoration: none; }
+.growth-page__membership-path a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.growth-page__membership-path svg { width: 18px; }
+@media (max-width: 700px) { .growth-page__membership-path { flex-direction: column; align-items: flex-start; padding: 23px; } }

@@ -66,6 +66,10 @@ const GrowthMarketingPage = lazyNamed(
   () => import("./features/marketing/GrowthMarketingPage"),
   (m) => m.GrowthMarketingPage,
 );
+const MembershipPatientView = lazyNamed(
+  () => import("./features/marketing/MembershipPatientView"),
+  (m) => m.MembershipPatientView,
+);
 const WaitlistWorkspace = lazyNamed(
   () => import("./features/clinic/WaitlistWorkspace"),
   (m) => m.WaitlistWorkspace,
@@ -866,6 +870,7 @@ function Application() {
       "/",
       "/login",
       "/meta-clinic",
+      "/meta-clinic/membership-care/patient-view",
       "/patient-portal/activate",
       "/patient-portal/recovery",
       "/memberships/account/activate",
@@ -1008,6 +1013,12 @@ function Application() {
     return (
       <RouteBoundary root>
         <FounderDecisionWorkspace />
+      </RouteBoundary>
+    );
+  if (path === "/meta-clinic/membership-care/patient-view")
+    return (
+      <RouteBoundary root>
+        <MembershipPatientView capture={new URLSearchParams(window.location.search).has("capture")} />
       </RouteBoundary>
     );
   if (growthMarketing)

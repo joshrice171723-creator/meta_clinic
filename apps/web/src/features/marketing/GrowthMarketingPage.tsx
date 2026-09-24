@@ -5,6 +5,7 @@ import { api } from "../../api/client";
 import { getGrowthPage, type GrowthPage } from "./growthPageContent";
 import { marketingInternalPath, marketingPaths, marketingUrl } from "./marketingPaths";
 import { CoreEvaluationPage, isCoreEvaluationPath } from "./CoreEvaluationPage";
+import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import "./growthMarketingPage.css";
 
 const priority = [
@@ -235,12 +236,15 @@ function PageBody({ page }: { page: GrowthPage }) {
           </figure>)}</div>
         </div></section> : null}
 
+        {internalPath !== "/platform/memberships" && /\/(memberships|subscriptions)$/.test(internalPath) && <aside className="growth-page__membership-path growth-page__wrap"><div><span>See the complete membership journey</span><strong>From program setup to the patient purchase view.</strong></div><a href="/meta-clinic/platform/memberships#build-a-membership">Follow the five steps <ArrowForwardRoundedIcon aria-hidden="true" /></a></aside>}
+
+        {internalPath === "/platform/memberships" && <MembershipWalkthrough />}
         {conversion ? (
           <section id="request" className="growth-page__request growth-page__wrap"><div><p className="growth-page__kicker">A focused conversation</p><h2>Tell us about your clinic.</h2><p>Share the workflow you want to evaluate. We can use the demo to walk through that specific journey and discuss whether a pilot makes sense.</p></div><ContactForm path={page.path} /></section>
         ) : (
           <>
-            <section className="growth-page__sequence" aria-labelledby="sequence-title"><div className="growth-page__wrap"><p className="growth-page__kicker">The working sequence</p><h2 id="sequence-title">See the steps in context.</h2><div className="growth-page__steps">{page.steps.map((step, index) => <article key={step}><span>0{index + 1}</span><h3>{step}</h3></article>)}</div></div></section>
-            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">{inlineProduct ? "Inside Meta Clinic" : "A closer look"}</p><h2>{page.visualHeadline ?? evidenceTitle}</h2>{page.note && <p>{page.note}</p>}<Button href={marketingUrl(evidenceAction.path)} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div>{inlineProduct ? <figure className="growth-page__product-visual"><img src={inlineProduct.image} alt={inlineProduct.alt} loading="lazy" /><figcaption>{inlineProduct.caption}</figcaption></figure> : <div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={marketingUrl(legalOrProof || integration || company ? "/contact" : "/book-demo")}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div>}</section>
+            {internalPath !== "/platform/memberships" && <><section className="growth-page__sequence" aria-labelledby="sequence-title"><div className="growth-page__wrap"><p className="growth-page__kicker">The working sequence</p><h2 id="sequence-title">See the steps in context.</h2><div className="growth-page__steps">{page.steps.map((step, index) => <article key={step}><span>0{index + 1}</span><h3>{step}</h3></article>)}</div></div></section>
+            <section className="growth-page__proof growth-page__wrap"><div><p className="growth-page__kicker">{inlineProduct ? "Inside Meta Clinic" : "A closer look"}</p><h2>{page.visualHeadline ?? evidenceTitle}</h2>{page.note && <p>{page.note}</p>}<Button href={marketingUrl(evidenceAction.path)} endIcon={<ArrowForwardRoundedIcon />}>{evidenceAction.label}</Button></div>{inlineProduct ? <figure className="growth-page__product-visual"><img src={inlineProduct.image} alt={inlineProduct.alt} loading="lazy" /><figcaption>{inlineProduct.caption}</figcaption></figure> : <div className="growth-page__proof-panel"><span>Explore this topic</span><strong>{page.title}</strong><p>{proofPanelText}</p><a href={marketingUrl(legalOrProof || integration || company ? "/contact" : "/book-demo")}>{legalOrProof || integration || company ? "Ask for current details" : "Discuss your clinic"} <ArrowForwardRoundedIcon aria-hidden="true" /></a></div>}</section></>}
           </>
         )}
         <section id="details" className="growth-page__editorial growth-page__wrap" aria-labelledby="details-title">

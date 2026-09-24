@@ -74,6 +74,24 @@ const focus: Record<string, Partial<GrowthPage>> = {
     primaryCta: { label: "Explore the guided demo", path: "/demo" },
     secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
   },
+  "/platform/memberships": {
+    eyebrow: "Memberships from both sides",
+    headline: "Build the membership your clinic wants to offer.",
+    lead: "Create a care program, define reusable services, set the price and terms in a tier, then see the exact offer a patient can choose.",
+    primaryCta: { label: "See the five steps", path: "#build-a-membership" },
+    secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
+    sections: [
+      { heading: "Give each care model its own home", body: "A program groups the tiers patients browse. Its name and description explain the type of care before price enters the conversation." },
+      { heading: "Make inclusions explicit", body: "Reusable services describe the actual visits or care activities. Add them to a tier with a quantity and frequency that patients and staff can understand." },
+      { heading: "Review the offer before publication", body: "The tier carries the price, term, renewal choice, included services, and written terms. The patient card preview shows how those details read together." },
+      { heading: "Follow the patient's next step", body: "On the patient view, a published offer can be selected. Account creation and email verification come before checkout; a patient can also ask the clinic to contact them." },
+    ],
+    questions: [
+      { question: "What is the difference between a program, service, and tier?", answer: "The program describes the care model, services define what can be included, and a tier turns selected services into a priced offer with terms." },
+      { question: "What does a patient see before choosing?", answer: "The published program and tier card show the price, term, included services, and access to full membership terms." },
+      { question: "Does choosing a tier complete a purchase?", answer: "No. The patient reviews their selection, creates an account, verifies email, and continues to checkout in separate steps." },
+    ],
+  },
   "/demo": {
     eyebrow: "Guided product preview",
     headline: "Follow a clinic task through the product.",

@@ -1,0 +1,232 @@
+.membership-patient {
+  min-height: 100vh;
+  background: #f8faf6;
+  color: #1c342b;
+}
+.membership-patient__topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px max(32px, calc((100vw - 1260px) / 2));
+  border-bottom: 1px solid #dce7dd;
+  background: #fff;
+  font-size: 13px;
+  color: #5a6c61;
+}
+.membership-patient__topbar a {
+  color: #183b2e;
+  font-weight: 800;
+  font-size: 19px;
+  text-decoration: none;
+  letter-spacing: -0.04em;
+}
+.membership-patient__topbar a span {
+  color: #bd5a51;
+}
+.membership-patient__wrap {
+  width: min(100% - 64px, 1260px);
+  margin: 0 auto;
+  padding: 34px 0 90px;
+}
+.membership-patient__back {
+  display: inline-block;
+  margin-bottom: 45px;
+  color: #315a46;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.membership-patient__back:hover {
+  text-decoration: underline;
+}
+.membership-patient__intro {
+  display: grid;
+  grid-template-columns: 1fr 0.72fr;
+  gap: 80px;
+  align-items: end;
+  padding: 44px 56px;
+  border-radius: 24px;
+  background: #1c3d30;
+  color: #fff;
+}
+.membership-patient__eyebrow {
+  margin: 0 0 19px;
+  color: #cce3bc;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.membership-patient__intro h1 {
+  max-width: 680px;
+  margin: 0;
+  font:
+    500 clamp(38px, 4vw, 62px)/1.08 Georgia,
+    serif;
+  letter-spacing: -0.05em;
+}
+.membership-patient__intro > p {
+  margin: 0;
+  color: #e6f1e7;
+  font-size: 16px;
+  line-height: 1.65;
+}
+.membership-patient__clinic-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 35px 0 0;
+}
+.membership-patient__clinic-bar strong {
+  font-size: 18px;
+}
+.membership-patient__clinic-bar span {
+  color: #5e7065;
+  font-size: 13px;
+}
+.membership-patient__offer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+  gap: 46px;
+  align-items: start;
+}
+.membership-patient #memberships {
+  max-width: 950px;
+}
+.membership-patient #memberships [role="tabpanel"] {
+  grid-template-columns: minmax(0, 450px);
+}
+.membership-patient__path {
+  align-self: start;
+  margin-top: 110px;
+  padding: 32px;
+  border: 1px solid #d6e2d5;
+  border-radius: 12px;
+  background: #eaf0e7;
+}
+.membership-patient__path > span {
+  color: #a55f48;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.membership-patient__path h2 {
+  margin: 13px 0 27px;
+  font:
+    500 30px/1.14 Georgia,
+    serif;
+  letter-spacing: -0.04em;
+}
+.membership-patient__path ol {
+  margin: 0;
+  padding: 0 0 0 19px;
+}
+.membership-patient__path li {
+  padding: 0 0 20px 10px;
+}
+.membership-patient__path li:last-child {
+  padding-bottom: 0;
+}
+.membership-patient__path li::marker {
+  color: #aa654e;
+  font-family: Georgia, serif;
+}
+.membership-patient__path strong {
+  font-size: 14px;
+}
+.membership-patient__path p {
+  margin: 6px 0 0;
+  color: #5d7062;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.membership-patient__next {
+  max-width: 950px;
+  margin-top: 42px;
+  padding: 22px 26px;
+  border-left: 3px solid #be6b52;
+  background: #eef3ec;
+}
+.membership-patient__next span {
+  color: #9d523e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.membership-patient__next p {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+.membership-patient__dialog-copy {
+  line-height: 1.7;
+}
+.membership-patient__dialog-note {
+  color: #526c5c;
+  font-size: 13px;
+}
+.membership-patient--capture .membership-patient__wrap {
+  padding-top: 18px;
+}
+.membership-patient--capture .membership-patient__topbar {
+  padding-block: 10px;
+}
+.membership-patient--capture .membership-patient__intro,
+.membership-patient--capture .membership-patient__next {
+  display: none;
+}
+.membership-patient--capture .membership-patient__clinic-bar {
+  padding-top: 0;
+}
+.membership-patient--capture #memberships {
+  margin-top: 8px;
+  padding-top: 10px;
+}
+.membership-patient--capture #memberships > .MuiStack-root {
+  margin-bottom: 8px;
+}
+.membership-patient--capture #memberships .MuiTabs-root {
+  min-height: 38px;
+  margin-bottom: 10px;
+}
+.membership-patient--capture #memberships .MuiTab-root {
+  min-height: 38px;
+}
+.membership-patient--capture #memberships > .MuiTypography-root {
+  margin-bottom: 10px;
+}
+.membership-patient--capture
+  #memberships
+  [role="tabpanel"]
+  > article
+  > div:first-child {
+  min-height: 0;
+  padding-block: 17px;
+}
+.membership-patient--capture .membership-patient__path {
+  margin-top: 130px;
+}
+@media (max-width: 760px) {
+  .membership-patient__wrap {
+    width: min(100% - 36px, 1260px);
+  }
+  .membership-patient__intro {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 35px 28px;
+  }
+  .membership-patient__intro h1 {
+    font-size: clamp(37px, 9vw, 54px);
+  }
+  .membership-patient__topbar {
+    padding-inline: 18px;
+  }
+  .membership-patient__offer-grid {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+  .membership-patient__path {
+    margin-top: 0;
+  }
+}
