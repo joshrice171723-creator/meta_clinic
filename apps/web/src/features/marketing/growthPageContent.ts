@@ -423,6 +423,23 @@ function pretty(segment: string) {
 }
 
 const entries: Map<string, string> = new Map(marketingPaths.map((entry) => [entry.path, entry.group]));
+const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCaption: string }> = {
+  "/platform/scheduling": {
+    image: "/marketing/scheduling-booking-clean.png",
+    imageAlt: "Meta Clinic appointment form over a populated synthetic clinic schedule.",
+    imageCaption: "Appointment setup in the synthetic demo",
+  },
+  "/platform/memberships": {
+    image: "/marketing/memberships-app.png",
+    imageAlt: "Meta Clinic membership catalog showing several synthetic clinic programs.",
+    imageCaption: "Membership program catalog in the synthetic demo",
+  },
+  "/platform/inventory": {
+    image: "/marketing/inventory-app.png",
+    imageAlt: "Meta Clinic inventory catalog showing synthetic clinic supplies and recorded stock.",
+    imageCaption: "Inventory catalog in the synthetic demo",
+  },
+};
 export const marketingRouteCount = entries.size;
 export function getGrowthPage(path: string): GrowthPage | null {
   if (["/ai-intake", "/inventory", "/weight-loss-clinics"].includes(path)) {
@@ -617,6 +634,7 @@ export function getGrowthPage(path: string): GrowthPage | null {
   const curated = priorityCopy[path] ?? additionalCopy[path];
   const familyBrief = getSpecialtyPageBrief(path) ?? getPlatformAiPageBrief(path) ?? getEditorialPageBrief(path);
   const page: GrowthPage = { ...base, ...(curated ? { headline: curated[0], lead: curated[1] } : {}), ...focus[path], ...(familyBrief ?? {}) };
+  Object.assign(page, verifiedVisuals[path] ?? {});
   page.links = [...(familyBrief?.links ?? page.links), ...base.links]
     .filter((link, index, all) => link.path !== path && all.findIndex((candidate) => candidate.path === link.path) === index)
     .slice(0, 8);
