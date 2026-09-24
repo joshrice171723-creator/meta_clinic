@@ -53,7 +53,7 @@ module Clinic
             raise ArgumentError, "This account is already active. Sign in to continue your membership enrollment."
           end
 
-          if prospect.account_setup_token_digest.blank? || prospect.account_setup_expires_at.blank? ||
+          if !deliver || prospect.account_setup_token_digest.blank? || prospect.account_setup_expires_at.blank? ||
               prospect.account_setup_expires_at <= now || prospect.account_setup_sent_at.nil?
             token = SecureRandom.urlsafe_base64(48)
             prospect.update!(account_setup_token_digest: digest(token), account_setup_expires_at: now + 30.minutes,

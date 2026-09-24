@@ -479,10 +479,9 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       assert_nil prospect.patient_id
       assert_nil prospect.agreement_id
 
-      setup_mail = ActionMailer::Base.deliveries.sole
-      setup_url = setup_mail.text_part.body.decoded.lines.map(&:strip)
-        .find { |line| line.include?("/memberships/account/activate#") }
-      token = URI.decode_www_form(URI.parse(setup_url).fragment).to_h.fetch("token")
+      assert_empty ActionMailer::Base.deliveries
+      assert_equal "local_setup", response.parsed_body.dig("account", "status")
+      token = response.parsed_body.dig("account", "setup_path").split("#token=").last
       post "/api/public/membership_accounts/checkout", headers: csrf_headers, as: :json
       assert_response :unauthorized
 
@@ -606,6 +605,56 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       assert_equal 1, practice.patients.where(id: prospect.patient_id).count
       assert_equal 1, Clinic::BillingReceipt.where(practice:, id: prospect.receipt_id).count
     end
+  end
+
+  test "loopback synthetic signup offers a one-time account setup path only with development access" do
+    version_id = publish_catalog(@admin, "LocalSetup")
+    configure_storefront(@admin, "local-setup", enabled: true)
+    ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = @practice.id.to_s
+    delete "/api/session", headers: csrf_headers
+
+    post "/api/public/membership_storefronts/local-setup/accounts", params: { account: {
+      version_id:, selections: [], display_name: "Synthetic Setup Member",
+      email_address: "local-setup-member@example.invalid", date_of_birth: "1990-02-28",
+      source: "membership_storefront", outreach_consent: true, request_key: "local-setup-request"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    account = response.parsed_body.fetch("account")
+    assert_equal "local_setup", account.fetch("status")
+    assert_match %r{\A/memberships/account/activate#token=[A-Za-z0-9_-]+\z}, account.fetch("setup_path")
+    assert_empty ActionMailer::Base.deliveries
+
+    first_token = account.fetch("setup_path").split("#token=").last
+    post "/api/public/membership_storefronts/local-setup/accounts", params: { account: {
+      version_id:, selections: [], display_name: "Synthetic Setup Member",
+      email_address: "local-setup-member@example.invalid", date_of_birth: "1990-02-28",
+      source: "membership_storefront", outreach_consent: true, request_key: "local-setup-request"
+    } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.dig("account", "replayed")
+    refute_equal first_token, response.parsed_body.dig("account", "setup_path").split("#token=").last
+    assert_empty ActionMailer::Base.deliveries
+
+    token = response.parsed_body.dig("account", "setup_path").split("#token=").last
+    password = "Synthetic-local-setup-password-2026!"
+    post "/api/public/membership_accounts/activate", params: { membership_account: {
+      token:, password:, password_confirmation: password,
+      accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert @practice.membership_prospects.find_by!(request_key: "local-setup-request").account_user.active?
+
+    delete "/api/session", headers: csrf_headers
+    ENV.delete("APP_DEVELOPMENT_LOGIN")
+    post "/api/public/membership_storefronts/local-setup/accounts", params: { account: {
+      version_id:, selections: [], display_name: "Synthetic Email Member",
+      email_address: "email-setup-member@example.invalid", date_of_birth: "1991-03-15",
+      source: "membership_storefront", outreach_consent: true, request_key: "email-setup-request"
+    } }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "email_sent", response.parsed_body.dig("account", "status")
+    assert_nil response.parsed_body.dig("account", "setup_path")
+    assert_equal 1, ActionMailer::Base.deliveries.length
   end
 
   test "purchase opens checkout without a patient and verified payment creates onboarding receipt email and portal" do

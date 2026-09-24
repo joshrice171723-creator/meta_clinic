@@ -100,15 +100,18 @@ module Public
 
     def create_account
       practice = storefront_practice
+      local_setup = DevelopmentAccess.allowed?(request) && local_simulator_available?(practice)
       input = parameter_hash!(:account,
         %i[version_id display_name email_address phone_number date_of_birth source outreach_consent request_key], arrays: %i[selections])
       result = Clinic::MembershipGrowth::PrepareAccount.call(
         practice: practice, version_id: input[:version_id], selections: input[:selections] || [],
         display_name: input[:display_name], email_address: input[:email_address], phone_number: input[:phone_number],
         source: input[:source], outreach_consent: boolean_param(input[:outreach_consent], field: :outreach_consent),
-        request_key: input[:request_key], date_of_birth: input[:date_of_birth]
+        request_key: input[:request_key], date_of_birth: input[:date_of_birth], deliver: !local_setup
       )
-      render json: { account: { status: "email_sent", replayed: result.replayed } },
+      account = { status: local_setup ? "local_setup" : "email_sent", replayed: result.replayed }
+      account[:setup_path] = "/memberships/account/activate#token=#{result.token}" if local_setup && result.token.present?
+      render json: { account: account },
         status: result.replayed ? :ok : :created
     end
 

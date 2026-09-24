@@ -102,7 +102,7 @@ export function MembershipAccountActivation() {
             Create your password
           </Typography>
           <Typography color="text.secondary">
-            This email link verifies your address when you finish creating your
+            This setup link verifies your account when you finish creating your
             password. You’ll use this same account for payment and your patient
             portal.
           </Typography>
@@ -184,7 +184,7 @@ export function MembershipAccountActivation() {
               >
                 {saving
                   ? "Verifying your account…"
-                  : "Continue to secure payment"}
+                  : "Continue to membership payment"}
               </Button>
             </Stack>
           )}
