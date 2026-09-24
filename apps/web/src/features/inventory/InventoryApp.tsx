@@ -3498,10 +3498,10 @@ export function CatalogScreen({
                     {number(item.available_units)} {item.base_unit}
                   </td>
                   <td data-label="On hand" className="numeric">
-                    {number(item.on_hand_units)}
+                    {number(item.on_hand_units)} {item.base_unit}
                   </td>
                   <td data-label="Reorder point" className="numeric">
-                    {number(item.reorder_point_units)}
+                    {number(item.reorder_point_units)} {item.base_unit}
                   </td>
                   <td data-label="Status">
                     <Badge tone={item.low_stock ? "warning" : "success"}>
@@ -6599,7 +6599,7 @@ function LotsScreen({
             key={total.stock_unit}
             label={`${total.stock_unit} available`}
             value={number(total.available_units)}
-            detail={`${number(total.on_hand_units)} on hand · ${number(total.unavailable_units)} unavailable across all matching positions`}
+            detail={`${number(total.on_hand_units)} ${total.stock_unit} on hand · ${number(total.unavailable_units)} ${total.stock_unit} unavailable across all matching positions`}
           />
         ))}
       </div>
@@ -6658,9 +6658,11 @@ function LotsScreen({
                       {loc.name}
                       <small>{loc.areas[0]}</small>
                     </td>
-                    <td className="numeric">{number(balance.on_hand_units)}</td>
                     <td className="numeric">
-                      {number(balance.available_units)}
+                      {number(balance.on_hand_units)} {item.base_unit}
+                    </td>
+                    <td className="numeric">
+                      {number(balance.available_units)} {item.base_unit}
                     </td>
                     <td>
                       <Badge
@@ -7494,7 +7496,13 @@ export function ActivityScreen({
                       </Badge>
                     </td>
                     <td>
-                      <strong>Lot {item.lot_number}</strong>
+                      <strong>
+                        <a
+                          href={`/clinic/inventory/lots?product_id=${encodeURIComponent(item.product_id)}`}
+                        >
+                          Lot {item.lot_number}
+                        </a>
+                      </strong>
                       <small>{item.location_name}</small>
                     </td>
                     <td className="numeric">

@@ -1942,8 +1942,8 @@ export function WorkInbox() {
           owner: "Unassigned",
           nextAction: item.next_action,
           sourceLabel: "Payment collection",
-          href: item.source.href,
-          action: "Open billing",
+          href: `/clinic/billing?invoice_id=${item.invoice_id}`,
+          action: "Open invoice",
           icon: "payment",
           priority: item.priority,
         });

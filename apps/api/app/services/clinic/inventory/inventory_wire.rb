@@ -91,7 +91,8 @@ module Clinic
           activity_page: { query: result.query, total_count: result.total_count, filtered_count: result.filtered_count,
             before_cursor: result.before_cursor, next_cursor: result.next_cursor, page_size: ActivityQuery::PAGE_SIZE, lot_id: result.lot&.id&.to_s, lot_number: result.lot&.number },
           movements: result.movements.map do |movement|
-            movement_wire(movement).merge(lot_number: movement.batch.lot.number,
+            movement_wire(movement).merge(product_id: movement.batch.lot.product_id.to_s,
+              lot_number: movement.batch.lot.number,
               location_name: movement.batch.location_record.name, stock_unit: movement.stock_unit,
               can_reverse: read_context[:capabilities]["inventory.adjust"] && movement.kind == "adjustment_out" &&
                 movement.transfer_id.nil? && movement.recall_disposition_id.nil? &&

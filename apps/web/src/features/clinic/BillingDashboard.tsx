@@ -329,19 +329,24 @@ export function BillingDashboard() {
       ? "subscriptions"
       : "invoices",
   );
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(
+    Boolean(new URLSearchParams(window.location.search).get("invoice_id")),
+  );
   const [currency, setCurrency] = useState("");
   const [invoicePage, setInvoicePage] = useState(1);
   const [filter, setFilter] = useState<BillingInvoiceFilter>("all");
-  const [query, setQuery] = useState("");
-  const [searchText, setSearchText] = useState("");
+  const [query, setQuery] = useState(() => {
+    const id = new URLSearchParams(window.location.search).get("invoice_id");
+    return id && /^\d+$/.test(id) ? id : "";
+  });
+  const [searchText, setSearchText] = useState(query);
   const [sort, setSort] = useState<BillingInvoiceSort>("recent");
   const { data, error, refresh } =
     useResource<BillingWorkspaceDataWithPatients>(
       `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
     );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
-    null,
+    () => (query ? Number(query) : null),
   );
   const [confirmAction, setConfirmAction] = useState<"post" | "payment" | null>(
     null,
@@ -366,12 +371,11 @@ export function BillingDashboard() {
   const visibleInvoices = data?.recent_invoices ?? [];
   const supportsPatientIdentity =
     context.capabilities.patient_identity_read === true;
-  const selectedInvoice =
-    visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId) ??
-    visibleInvoices.find(
-      (invoice) => invoicePaymentState(invoice) !== "void",
-    ) ??
-    visibleInvoices[0];
+  const selectedInvoice = selectedInvoiceId
+    ? visibleInvoices.find((invoice) => invoice.id === selectedInvoiceId)
+    : (visibleInvoices.find(
+        (invoice) => invoicePaymentState(invoice) !== "void",
+      ) ?? visibleInvoices[0]);
   const detailResource = useResource<{ invoice: AuditedBillingInvoiceDetail }>(
     selectedInvoice
       ? `/api/clinic/invoices/${selectedInvoice.id}`

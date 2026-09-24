@@ -13,14 +13,16 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import type { Timecard } from "./clockTypes";
+import type { Adjustment, Timecard } from "./clockTypes";
 import { formatMinutes } from "./clockTypes";
 
 export function TimecardSummary({
   card,
+  corrections = [],
   actions,
 }: {
   card: Timecard;
+  corrections?: Adjustment[];
   actions?: React.ReactNode;
 }) {
   const totals = card.snapshot.totals;
@@ -57,6 +59,14 @@ export function TimecardSummary({
             {card.unresolved_exceptions.map(humanize).join(", ")}.
           </Alert>
         )}
+        {corrections.map((correction) => (
+          <Typography variant="body2" key={correction.id}>
+            Correction #{correction.id}: {correction.reason}
+            {correction.decision_reason
+              ? ` · Review: ${correction.decision_reason}`
+              : ""}
+          </Typography>
+        ))}
         <Stack direction="row" sx={{ flexWrap: "wrap", gap: 3 }}>
           <Metric label="Paid" value={formatMinutes(totals.paid_minutes)} />
           <Metric
