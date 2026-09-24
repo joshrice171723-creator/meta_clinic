@@ -444,6 +444,21 @@ const verifiedVisuals: Record<string, { image: string; imageAlt: string; imageCa
     imageAlt: "Meta Clinic inventory catalog showing synthetic clinic supplies and recorded stock.",
     imageCaption: "Inventory catalog in the synthetic demo",
   },
+  "/infusion/lot-tracking": {
+    image: "/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+    imageAlt: "Meta Clinic synthetic inventory movement ledger showing lot identifiers, locations, quantities, and recorded receipts.",
+    imageCaption: "Lot movement example in the synthetic demo; infusion-specific scope requires review",
+  },
+  "/infusion/receiving": {
+    image: "/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+    imageAlt: "Meta Clinic synthetic inventory activity ledger showing stock receipts with lot and location context.",
+    imageCaption: "Recorded stock receipts in the synthetic demo; infusion-specific scope requires review",
+  },
+  "/resources/guides/medical-inventory-lot-tracking": {
+    image: "/marketing/captures/inventory-activity-northside-clinic-2026-09-24-synthetic-direct.png",
+    imageAlt: "Meta Clinic synthetic inventory movement ledger showing stock receipt entries by lot and location.",
+    imageCaption: "Inventory movement example for the lot-tracking guide",
+  },
   "/platform/billing": {
     image: "/marketing/captures/finance-paid-invoice-detail.png",
     imageAlt: "Meta Clinic synthetic invoice detail showing recorded charges, a payment, a credit, and a zero balance.",
