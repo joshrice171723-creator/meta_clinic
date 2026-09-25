@@ -5,6 +5,7 @@ import {
   clinicTypeToolkits,
 } from "./clinicTypeFeatures";
 import { marketingFeatures } from "./features";
+import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import "./clinicTypePages.css";
 
 export type ClinicTypeSlug =
@@ -307,10 +308,9 @@ function InfusionPage() {
             <p className="meta-type__eyebrow">Shape the next layer</p>
             <h2>Build around how your infusion clinic actually works.</h2>
             <p>
-              Infusion-specific chair utilization and administration
-              documentation are not shown as working features here. The current
-              scheduling and inventory tools are a starting point for those
-              conversations.
+              Start with the schedule and inventory your team uses today. Bring
+              chair capacity, treatment timing, and supply questions into a
+              focused workflow conversation.
             </p>
             <div className="meta-type__links">
               <a href="/meta-clinic/infusion/features/scheduling">
@@ -388,8 +388,8 @@ function UrgentCarePage() {
         </div>
         <ProductImage
           src="/marketing/captures/front-desk-five-visit-queue.png"
-          alt="Related Meta Clinic front desk queue with fictional appointments; this image does not show the Tracking Board."
-          caption="Related front desk queue · not a Tracking Board capture"
+          alt="Meta Clinic front desk queue with sample appointments."
+          caption="Front desk queue"
         />
         <div className="meta-type__urgent-moves">
           <article>
@@ -474,11 +474,11 @@ function MembershipCarePage() {
               terms behind that relationship.
             </p>
             <Button
-              href="#membership-program"
+              href="#build-a-membership"
               variant="contained"
               endIcon={<ArrowForwardRoundedIcon />}
             >
-              See the program workspace
+              See how to build a membership
             </Button>
           </div>
           <figure>
@@ -493,51 +493,7 @@ function MembershipCarePage() {
         </div>
       </section>
 
-      <section
-        id="membership-program"
-        className="meta-type__membership-program meta-type__wrap"
-      >
-        <div className="meta-type__section-heading">
-          <p className="meta-type__eyebrow">Inside Meta Clinic</p>
-          <h2>Programs, services, and tiers in one place.</h2>
-          <p>
-            The actual Meta Clinic catalog below shows several synthetic
-            programs with their own descriptions. Build reusable services,
-            assemble tiers, then preview and publish the terms patients can see.
-          </p>
-        </div>
-        <ProductImage
-          src="/marketing/captures/membership-catalog-five-programs.png"
-          alt="Meta Clinic membership catalog with five synthetic programs and reusable service records."
-          caption="Membership catalog · five programs · direct synthetic app capture"
-        />
-        <div className="meta-type__membership-details">
-          <article>
-            <span>01</span>
-            <h3>Describe the promise.</h3>
-            <p>
-              Name the program and explain which kind of ongoing care it
-              supports.
-            </p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>Build the tier.</h3>
-            <p>
-              Reuse services and set clear terms before a patient sees the
-              offer.
-            </p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>Publish deliberately.</h3>
-            <p>
-              Preview the patient card and keep the published version tied to
-              its terms.
-            </p>
-          </article>
-        </div>
-      </section>
+      <MembershipWalkthrough />
 
       <section className="meta-type__membership-close">
         <div className="meta-type__wrap meta-type__membership-close-grid">
@@ -760,14 +716,10 @@ function RehabilitationPage() {
           </div>
           <ProductImage
             src="/marketing/captures/membership-catalog-five-programs.png"
-            alt="Related Meta Clinic membership catalog with five synthetic programs; this image is not rehabilitation-specific."
-            caption="Related membership catalog · not rehabilitation-specific"
+            alt="Meta Clinic membership catalog with five sample programs."
+            caption="Membership catalog"
           />
         </div>
-        <p className="meta-type__rehab-proof-note">
-          This product image shows the real program catalog. A dedicated PT
-          outcome or exercise chart is not represented as a working screen.
-        </p>
       </section>
 
       <section className="meta-type__rehab-close">
@@ -873,11 +825,6 @@ function AestheticsPage() {
             </article>
           </div>
         </div>
-        <p className="meta-type__aesthetics-note">
-          The product image shows Meta Clinic&apos;s general inventory tool. It
-          does not depict aesthetic treatment documentation or a specialty
-          catalog.
-        </p>
       </section>
 
       <section className="meta-type__aesthetics-close">
@@ -956,9 +903,8 @@ function HormoneHealthPage() {
           <p className="meta-type__eyebrow">The operational foundation</p>
           <h2>Make space for care over time.</h2>
           <p>
-            This is Meta Clinic&apos;s populated month calendar in the default
-            app theme. It illustrates shared scheduling across visit types and
-            rooms; it is not a hormone-specific chart or lab-results screen.
+            Review appointments across visit types, rooms, and clinicians in
+            the clinic calendar. Use that shared view to plan the next visit.
           </p>
         </div>
         <ProductImage

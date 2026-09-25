@@ -1,6 +1,7 @@
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { Button } from "@mui/material";
 import { marketingFeatures } from "./features";
+import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import "./featureStoryPages.css";
 
 type Story = {
@@ -297,7 +298,7 @@ export const stories: Record<string, Story> = {
       },
       {
         title: "Track the state",
-        copy: "Distinguish draft, sent, partial, and paid records with words and amounts.",
+        copy: "Distinguish the invoice total, allocated payment, credit, and remaining balance.",
       },
       {
         title: "Follow the history",
@@ -305,14 +306,9 @@ export const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/captures/finance-open-invoice-detail.png",
-      alt: "Meta Clinic open invoice showing five synthetic service lines, recorded charges, and its remaining balance.",
-      caption: "Invoice detail · direct synthetic app capture",
-    },
-    secondaryImage: {
-      src: "/marketing/captures/finance-credit-dialog.png",
-      alt: "Meta Clinic invoice credit dialog with a fictional adjustment amount and reason.",
-      caption: "Credit adjustment · direct synthetic app capture",
+      src: "/marketing/captures/finance-paid-invoice-detail.png",
+      alt: "Meta Clinic synthetic paid invoice showing line items, allocated payment, credit, and zero balance.",
+      caption: "Paid invoice detail · captured from the synthetic clinic workspace",
     },
     photos: [
       {
@@ -474,7 +470,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
           <h1>{story.title}</h1>
           <p className="meta-story__lead">{story.lead}</p>
           <Button
-            href="#feature-workflows"
+            href={slug === "memberships-packages" ? "#build-a-membership" : "#feature-workflows"}
             endIcon={<ArrowForwardRoundedIcon />}
             variant="contained"
           >
@@ -483,7 +479,9 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </div>
       </section>
 
-      {story.image && (
+      {slug === "memberships-packages" && <MembershipWalkthrough />}
+
+      {slug !== "memberships-packages" && story.image && (
         <figure className="meta-story__product meta-story__wrap">
           <img src={story.image.src} alt={story.image.alt} loading="eager" />
           <figcaption>
@@ -495,7 +493,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </figure>
       )}
 
-      <section
+      {slug !== "memberships-packages" && <section
         className="meta-story__work meta-story__wrap"
         id="feature-workflows"
       >
@@ -513,9 +511,9 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
             </article>
           ))}
         </div>
-      </section>
+      </section>}
 
-      {story.secondaryImage && (
+      {slug !== "memberships-packages" && story.secondaryImage && (
         <figure className="meta-story__product meta-story__product--secondary meta-story__wrap">
           <img
             src={story.secondaryImage.src}
@@ -531,7 +529,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </figure>
       )}
 
-      {story.photos && (
+      {slug !== "memberships-packages" && story.photos && (
         <section
           className="meta-story__people meta-story__wrap"
           aria-label={`${feature.label} in the clinic`}

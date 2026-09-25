@@ -1,10 +1,10 @@
 .meta-marketing {
-  --meta-ink: #17372d;
-  --meta-muted: #52635a;
-  --meta-line: #d8ded5;
-  --meta-paper: #faf8f2;
-  --meta-sage: #e7eee4;
-  --meta-terracotta: #c98d73;
+  --meta-ink: #342931;
+  --meta-muted: #625960;
+  --meta-line: #e9dedb;
+  --meta-paper: #fffaf8;
+  --meta-sage: #fff4f0;
+  --meta-terracotta: #c64852;
   min-width: 0;
   overflow: clip;
   background: var(--meta-paper);
@@ -83,7 +83,7 @@
 .meta-marketing__brand-mark span {
   width: 13px;
   height: 26px;
-  background: var(--meta-ink);
+  background: #17372d;
   border-radius: 95% 5% 95% 5%;
   transform: rotate(-25deg);
 }
@@ -299,6 +299,37 @@
   width: 30px;
   height: 1px;
   background: var(--meta-terracotta);
+}
+
+.meta-marketing__hero-capture {
+  min-width: 0;
+  margin: 0;
+  padding: clamp(14px, 2vw, 28px);
+  border-radius: 22px;
+  background: #e1ece1;
+  box-shadow: 22px 22px 0 #d6b9a6;
+  animation: meta-rise 720ms 100ms ease-out both;
+}
+
+.meta-marketing__hero-capture a,
+.meta-marketing__hero-capture img {
+  display: block;
+}
+
+.meta-marketing__hero-capture img {
+  width: 100%;
+  height: auto;
+  border: 1px solid #c7d8ca;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 24px 48px rgba(27, 60, 42, 0.13);
+}
+
+.meta-marketing__hero-capture figcaption {
+  margin-top: 15px;
+  color: #53685b;
+  font-size: 12px;
+  text-align: right;
 }
 
 .meta-marketing__visual {
@@ -559,6 +590,149 @@
   margin: 0;
   font-size: clamp(42px, 4.2vw, 66px);
   line-height: 1.12;
+}
+
+.meta-marketing .meta-marketing__book-demo {
+  flex: none;
+  border-radius: 5px;
+  background: var(--meta-ink);
+  color: white;
+  text-transform: none;
+  white-space: nowrap;
+}
+.meta-marketing__nav-menu { position: relative; }
+.meta-marketing__nav-menu summary { cursor: pointer; font-size: 13px; font-weight: 600; list-style: none; white-space: nowrap; }
+.meta-marketing__nav-menu summary::-webkit-details-marker { display: none; }
+.meta-marketing__nav-menu summary::after { content: "⌄"; margin-left: 5px; color: #9b6950; }
+.meta-marketing__nav-menu[open] summary::after { content: "⌃"; }
+.meta-marketing__nav-menu > div { position: absolute; z-index: 30; top: calc(100% + 18px); left: -18px; display: grid; gap: 4px; min-width: 235px; padding: 14px; border: 1px solid rgba(23, 55, 45, .18); border-radius: 8px; background: #fff; box-shadow: 0 20px 35px rgba(23, 55, 45, .13); }
+.meta-marketing__nav-menu > div a { display: block; padding: 9px 10px; border-radius: 4px; }
+.meta-marketing__nav-menu > div a:hover { background: #e9f0e8; text-decoration: none; }
+.meta-marketing__nav .meta-marketing__mobile-sign-in { display: none; }
+
+.meta-marketing .meta-marketing__book-demo:hover {
+  background: #315747;
+}
+
+.meta-marketing__growth-section {
+  border-top: 1px solid var(--meta-line);
+}
+
+.meta-marketing__growth-section > .meta-marketing__eyebrow,
+.meta-marketing__growth-close > .meta-marketing__eyebrow {
+  margin-bottom: 16px;
+}
+
+.meta-marketing__growth-intro {
+  max-width: 750px;
+  color: var(--meta-muted);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.meta-marketing__growth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 44px;
+}
+
+.meta-marketing__growth-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.meta-marketing__growth-grid article,
+.meta-marketing__comparison article {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(24px, 3vw, 42px);
+  border: 1px solid var(--meta-line);
+  background: #fff;
+}
+
+.meta-marketing__growth-grid h3,
+.meta-marketing__comparison h3,
+.meta-marketing__home-faq h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Baskerville", Georgia, serif;
+  font-size: clamp(25px, 2.2vw, 34px);
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+}
+
+.meta-marketing__growth-grid p,
+.meta-marketing__comparison p,
+.meta-marketing__home-faq p,
+.meta-marketing__growth-close > p:not(.meta-marketing__eyebrow) {
+  color: var(--meta-muted);
+  line-height: 1.7;
+}
+
+.meta-marketing__growth-grid article > a,
+.meta-marketing__comparison article > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.meta-marketing__growth-grid article > a:hover,
+.meta-marketing__comparison article > a:hover {
+  text-decoration: underline;
+}
+
+.meta-marketing__growth-grid article > a svg,
+.meta-marketing__comparison article > a svg {
+  width: 18px;
+}
+
+.meta-marketing__growth-section > .MuiButton-root {
+  margin-top: 22px;
+  padding-left: 0;
+  color: var(--meta-ink);
+  font-weight: 700;
+  text-transform: none;
+}
+
+.meta-marketing__comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 44px 0 24px;
+}
+
+.meta-marketing__home-faq {
+  margin-top: 42px;
+  border-top: 1px solid var(--meta-line);
+}
+
+.meta-marketing__home-faq article {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 35px;
+  padding-block: 25px;
+  border-bottom: 1px solid var(--meta-line);
+}
+
+.meta-marketing__home-faq p {
+  margin: 0;
+}
+
+.meta-marketing__growth-close {
+  margin-bottom: 80px;
+  padding-inline: clamp(28px, 5vw, 80px);
+  border-radius: 16px;
+  background: var(--meta-sage);
+}
+
+.meta-marketing__growth-close > p:not(.meta-marketing__eyebrow) {
+  max-width: 650px;
+  font-size: 18px;
 }
 
 .meta-marketing__section-heading > p:last-child,
@@ -835,10 +1009,12 @@
 }
 
 .meta-marketing__footer {
-  display: flex;
-  align-items: center;
-  gap: 35px;
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: clamp(20px, 3vw, 48px);
   min-height: 115px;
+  padding-block: 58px;
   border-top: 1px solid var(--meta-line);
 }
 
@@ -846,10 +1022,32 @@
   font-size: 25px;
 }
 
-.meta-marketing__footer > span {
-  margin-right: auto;
+.meta-marketing__footer-intro p {
   color: var(--meta-muted);
-  font-size: 12px;
+  font-size: 13px;
+}
+
+.meta-marketing__footer nav {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.meta-marketing__footer nav strong {
+  margin-bottom: 7px;
+  color: #91624d;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.meta-marketing__footer nav a {
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.meta-marketing__footer nav a:hover {
+  text-decoration: underline;
 }
 
 .meta-marketing__feature-hero {
@@ -1075,12 +1273,19 @@
   .meta-marketing__header {
     gap: 28px;
   }
+  .meta-marketing__footer {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .meta-marketing__footer-intro {
+    grid-column: 1 / -1;
+  }
   .meta-marketing__nav {
     gap: 16px;
   }
   .meta-marketing__nav a {
     font-size: 12px;
   }
+  .meta-marketing__nav-menu summary { font-size: 12px; }
   .meta-marketing__hero {
     min-height: 620px;
   }
@@ -1103,7 +1308,7 @@
   }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 1000px) {
   .meta-marketing__header {
     flex-wrap: wrap;
     padding-block: 19px;
@@ -1111,10 +1316,16 @@
   .meta-marketing__nav {
     order: 3;
     width: 100%;
-    overflow-x: auto;
+    flex-wrap: wrap;
   }
   .meta-marketing__sign-in {
     margin-left: auto;
+  }
+}
+
+@media (max-width: 850px) {
+  .meta-marketing__growth-grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .meta-marketing__hero {
     grid-template-columns: 1fr;
@@ -1149,6 +1360,7 @@
 }
 
 @media (max-width: 650px) {
+  .meta-marketing__hero-capture { box-shadow: 10px 10px 0 #d6b9a6; }
   .meta-marketing__header,
   .meta-marketing__hero,
   .meta-marketing__section,
@@ -1166,6 +1378,23 @@
   .meta-marketing__header {
     min-height: 0;
     gap: 16px;
+  }
+  .meta-marketing__sign-in {
+    display: none;
+  }
+  .meta-marketing__nav .meta-marketing__mobile-sign-in { display: inline; }
+  .meta-marketing__nav-menu > div { position: static; min-width: 0; margin-top: 8px; box-shadow: none; }
+  .meta-marketing__book-demo {
+    margin-left: auto;
+  }
+  .meta-marketing__growth-grid,
+  .meta-marketing__growth-grid--three,
+  .meta-marketing__comparison,
+  .meta-marketing__home-faq article {
+    grid-template-columns: 1fr;
+  }
+  .meta-marketing__home-faq article {
+    gap: 12px;
   }
   .meta-marketing__nav {
     gap: 21px;
@@ -1318,14 +1547,11 @@
     margin-bottom: 45px;
   }
   .meta-marketing__footer {
-    flex-wrap: wrap;
-    gap: 13px 25px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
     padding-block: 25px;
   }
-  .meta-marketing__footer > span {
-    order: 3;
-    width: 100%;
-  }
+  .meta-marketing__footer-intro { grid-column: 1 / -1; }
   .meta-marketing__mega {
     grid-template-columns: 1fr;
     gap: 22px;
@@ -1387,7 +1613,81 @@
 
 @media (prefers-reduced-motion: reduce) {
   .meta-marketing__hero-copy,
+  .meta-marketing__hero-capture,
   .meta-marketing__visual {
     animation: none;
+  }
+}
+
+/* The scheduling story sets the palette for the shared marketing journey. */
+.meta-marketing__hero {
+  background: #fff4f0;
+}
+
+.meta-marketing__hero h1,
+.meta-marketing__section h2 {
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-weight: 750;
+  letter-spacing: -0.055em;
+}
+
+.meta-marketing__eyebrow {
+  color: #b53e49;
+  letter-spacing: 0.16em;
+}
+
+.meta-marketing__lead,
+.meta-marketing__hero-note {
+  color: #625960;
+}
+
+.meta-marketing .meta-marketing__button-primary {
+  background: #c64852;
+  color: #fff;
+}
+
+.meta-marketing .meta-marketing__button-primary:hover {
+  background: #a9323d;
+}
+
+.meta-marketing .meta-marketing__button-secondary {
+  border-color: #b9a9aa;
+  color: #342931;
+}
+
+.meta-marketing__hero-capture {
+  background: #f5e2dc;
+  box-shadow: 22px 22px 0 #e2d4c8;
+}
+
+.meta-marketing__hero-capture img {
+  border-color: #e8d8d3;
+}
+
+.meta-marketing__hero-capture figcaption {
+  color: #655b60;
+}
+
+.meta-marketing .meta-marketing__book-demo {
+  background: #17372d;
+}
+
+.meta-marketing .meta-marketing__book-demo:hover {
+  background: #315b4b;
+}
+
+.meta-marketing__growth-grid article,
+.meta-marketing__comparison article {
+  border-color: #e9dedb;
+  background: #fff;
+}
+
+.meta-marketing__footer nav strong {
+  color: #a63844;
+}
+
+@media (max-width: 760px) {
+  .meta-marketing__hero-capture {
+    box-shadow: 10px 10px 0 #e2d4c8;
   }
 }
