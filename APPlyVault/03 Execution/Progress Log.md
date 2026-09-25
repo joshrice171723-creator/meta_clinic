@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-24
+updated: 2026-09-25
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-25 — i2E investor page published on aimetaclinic.com
+
+All local feature branches and fetched remote branches were checked against `main`; none held unmerged commits. Main was pushed at `553b7b80` after adding `/i2e` to the web container's public route allowlist. The manual Lightsail release used matched API and web images from that commit, restore-tested both hosted databases and saved an encrypted off-host recovery archive. Hosted authentication, access-denial, Omni and isolated Sandbox checks passed. A direct HTTPS request to `/i2e` returned 200, and a browser load rendered the investor dashboard with the revised vendor-cost model. GitHub CI jobs for the preceding commit failed before runner steps began; this does not establish a passing CI run. This is publication of a synthetic investor demo, not clinical or production acceptance.
 
 ## 2026-09-24 — Investor demo login and Omni organization setup
 
