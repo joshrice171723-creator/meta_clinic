@@ -668,6 +668,18 @@
   border-left: 4px solid #b97816;
   padding: 14px 16px;
 }
+.i2e-difference-summary > div:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+.i2e-difference-summary .i2e-handoff-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #654b17;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .i2e-difference-summary strong {
   color: #654b17;
 }

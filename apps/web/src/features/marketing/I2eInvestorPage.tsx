@@ -439,8 +439,9 @@ export function I2eInvestorPage() {
               prices; Meta Clinic costs are internal models or marked unknown
               · USD / month
             </p>
-            <div className="i2e-difference-summary" aria-label="Key workflow differences">
+            <div className="i2e-difference-summary" aria-label="Where Jane hands work to another system">
               <div>
+                <span className="i2e-handoff-label">Separate prescribing service</span>
                 <strong>Electronic prescriptions</strong>
                 <p>
                   Jane records and faxes prescriptions, but its standard U.S.
@@ -458,6 +459,7 @@ export function I2eInvestorPage() {
                 </a>
               </div>
               <div>
+                <span className="i2e-handoff-label">Supplier ordering process</span>
                 <strong>Medication and product procurement</strong>
                 <p>
                   Jane tracks stock, supplier names and stored costs. Its
@@ -473,6 +475,23 @@ export function I2eInvestorPage() {
                   rel="noopener noreferrer"
                 >
                   Jane inventory guide ↗
+                </a>
+              </div>
+              <div>
+                <span className="i2e-handoff-label">Opens Fullscript in a new tab</span>
+                <strong>Patient supplement plans</strong>
+                <p>
+                  Jane launches Fullscript from the patient profile to build and
+                  send a supplement plan. A chart draft returns to Jane. This is
+                  a partner handoff, not a claim that Jane lacks supplement
+                  ordering or that Meta Clinic replaces Fullscript's dispensary.
+                </p>
+                <a
+                  href="https://jane.app/guide/fullscript-integration"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Jane Fullscript guide ↗
                 </a>
               </div>
             </div>
@@ -549,7 +568,7 @@ export function I2eInvestorPage() {
                     ],
                     [
                       "Quest/Labcorp order/result tracking",
-                      "Jane connects to Fullscript for supplement plans and U.S. lab orders/results in supported states; Fullscript is separate and test charges vary.",
+                      "Jane opens Fullscript in a new tab for patient supplement plans and creates a chart draft back in Jane. Its Fullscript integration also supports U.S. lab orders/results in supported states; test charges vary.",
                       "Fullscript platform is marketed as free; lab panels/tests are charged separately. Lab ordering excludes patients in NY, NJ, RI, HI and offshore U.S. territories.",
                       "Lab orders and results connect to the patient chart through supported partner catalogs and state coverage.",
                       "Lab partner fees are unquoted and excluded from the total. Comparator only: Healthie E-Labs lists $10/ordering provider/month ($30 for 3) + $5/non-NPI user, before Enterprise subscription, setup and tests; this is not a Meta quote.",
