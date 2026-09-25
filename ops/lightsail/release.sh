@@ -55,6 +55,7 @@ if [[ $phase == prepare ]]; then
   image_source=$3
   [[ $image_source == local || $image_source == registry ]] || usage
   [[ -f $release_file && -f $secrets/guided-demo.env ]] || { echo "Existing release or guided-demo credentials are missing." >&2; exit 1; }
+  python3 -c 'import requests' || { echo "Python 3 requests is required for hosted verification." >&2; exit 1; }
   [[ ! -e $state ]] || { echo "A preparation for this commit already exists: $state" >&2; exit 1; }
   if [[ $image_source == registry ]]; then
     api_tag=$repo/meta-clinic-api:sha-$revision
@@ -160,7 +161,7 @@ for path in /login /up /api/demo-workspace/csrf /demo /clinic; do
 done
 status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 https://aimetaclinic.com/api/clinic/context)
 [[ $status == 401 || $status == 403 || $status == 404 ]] || { echo "Anonymous clinic access returned $status." >&2; false; }
-/opt/certbot/bin/python "/tmp/meta-clinic-verify-$revision.py"
+python3 "/tmp/meta-clinic-verify-$revision.py"
 printf '%s\n' "$revision" > /opt/meta-clinic/deploy/current-revision
 echo "RELEASED=$revision"
 echo "API_IMAGE=$(sed -n 's/^API_IMAGE=//p' "$release_file")"

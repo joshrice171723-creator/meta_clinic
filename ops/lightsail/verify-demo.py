@@ -1,4 +1,4 @@
-"""Run with /opt/certbot/bin/python as root after HTTPS is enabled."""
+"""Run with Python 3 and requests as root after HTTPS is enabled."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import time
