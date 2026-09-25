@@ -282,12 +282,12 @@ export function SubscriptionCatalog() {
                     <div>
                       <Typography component="h3" variant="h6">
                         {data.clinic_type === "weight_loss"
-                          ? "Weight management starter"
+                          ? "Weight management demo plans"
                           : "Clinic specific starter"}
                       </Typography>
                       <Typography>
                         {data.clinic_type === "weight_loss"
-                          ? "Adds a draft program, initial and follow-up visit services, and a $149 monthly demo tier. Review the pricing and terms before publishing."
+                          ? "Creates two editable draft programs with three tiers each, reusable services, and demo pricing. Review anything you want before publishing."
                           : data.clinic_type
                             ? `Selected clinic type: ${clinicTypeLabel}. A matching starter is not available yet.`
                             : "Select a clinic type in Clinic setup to see a matching membership starter."}
@@ -308,14 +308,14 @@ export function SubscriptionCatalog() {
                               });
                               setNotice(
                                 result.created_count
-                                  ? "Weight management program, services, and tier added as unpublished drafts."
-                                  : "Weight management starter is already in this catalog.",
+                                  ? "Two programs and six editable tiers were added as unpublished demo plans."
+                                  : "The demo plans are already in this catalog.",
                               );
                               setCatalogSection("package");
                             })
                           }
                         >
-                          Add starter
+                          Add demo plans
                         </Button>
                       )}
                   </Paper>
