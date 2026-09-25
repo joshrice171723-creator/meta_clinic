@@ -1,8 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Button,
-  MenuItem,
-  TextField,
   Table,
   TableBody,
   TableCell,
@@ -13,7 +11,7 @@ import {
 import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
-import { I2eClinicMarkets } from "./I2eMarketComparison";
+import { clinicMarkets, janeProfiles } from "./i2eMarketData";
 
 export const investorCosts = [
   {
@@ -200,13 +198,6 @@ export function clinicEconomics(
   };
 }
 const salesDeckUrl = "https://meta-clinic-market-deck.trt53.chatgpt.site/";
-const deckPrices = [
-  ["Solo / micro", 600, 3000],
-  ["Small clinic", 1200, 6000],
-  ["Established group", 3500, 15000],
-  ["Midsize group", 8000, 35000],
-  ["Large regional", 15000, 75000],
-] as const;
 function Grid({
   label,
   headers,
@@ -251,31 +242,23 @@ export const clinicServiceProfiles = [
 export function incrementalForServices(insurance: boolean, erx: boolean) {
   return 125 + 120 + (insurance ? 60 : 0) + (erx ? 195 : 0);
 }
+export const conversionTarget = {
+  baseline: 1354,
+  price: 1100,
+  variable: 500,
+  namedAddons: 870 + 150 + 120 + 45,
+  orders: 30,
+};
 export function I2eInvestorPage() {
-  const [serviceProfile, setServiceProfile] = useState(3);
-  const services = clinicServiceProfiles[serviceProfile];
-  const [subscriptionInput, setSubscriptionInput] = useState("1200");
-  const [allowanceInput, setAllowanceInput] = useState("0");
   const [showDeck, setShowDeck] = useState(false);
-  const valid = (value: string) =>
-    value.trim() !== "" &&
-    Number.isFinite(Number(value)) &&
-    Number(value) >= 0 &&
-    Number(value) <= 100000;
-  const validInputs = valid(subscriptionInput) && valid(allowanceInput);
-  const subscription = Number(subscriptionInput),
-    allowance = Number(allowanceInput);
-  const incremental = incrementalForServices(services.insurance, services.erx);
-  const selectedCosts = incrementalCosts.filter(
-    (row) =>
-      (row.name !== "eRx prescriber seats" || services.erx) &&
-      (row.name !== "Clearinghouse / entity mapping" || services.insurance),
-  );
-  const software = stackCosts.reduce((sum, row) => sum + row.cost, 0);
+  const t = conversionTarget;
+  const savings = t.baseline - t.price;
+  const contribution = t.price - t.variable;
+  const network = clinicEconomics(10, t.price);
   const spread = investorBudget.retail - investorBudget.wholesale;
   useEffect(() => {
     const title = document.title;
-    document.title = "Meta Clinic × i2E | Platform economics";
+    document.title = "Meta Clinic × i2E | Customer conversion workspace";
     const robots = document.createElement("meta");
     robots.name = "robots";
     robots.content = "noindex,nofollow";
@@ -285,19 +268,32 @@ export function I2eInvestorPage() {
       robots.remove();
     };
   }, []);
+  const ledger = (label: string, rows: [string, ReactNode, string?][]) => (
+    <TableContainer className="i2e-ledger">
+      <Table size="small" aria-label={label}>
+        <TableBody>
+          {rows.map(([name, value, tone]) => (
+            <TableRow key={name} className={tone || ""}>
+              <TableCell component="th" scope="row">
+                {name}
+              </TableCell>
+              <TableCell align="right">{value}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
   return (
-    <div className="i2e-page">
-      <a className="i2e-skip" href="#i2e-main">
-        Skip to dashboard
-      </a>
+    <div className="i2e-page i2e-console">
       <header className="i2e-header">
         <a href="/meta-clinic" className="i2e-brand">
           m. <span>Meta Clinic</span>
         </a>
-        <span>PLATFORM ECONOMICS / i2E</span>
+        <span>i2E / CUSTOMER CONVERSION WORKSPACE</span>
         <div>
           <Button href="/demo" endIcon={<ArrowOutwardRounded />}>
-            Product demo
+            Demo
           </Button>
           <Button onClick={() => window.print()} startIcon={<PrintOutlined />}>
             Print
@@ -306,325 +302,235 @@ export function I2eInvestorPage() {
       </header>
       <div className="i2e-workspace">
         <nav className="i2e-nav" aria-label="Dashboard sections">
-          <a href="#overview">Overview</a>
-          <a href="#clinic-markets">10 clinic types</a>
-          <a href="#switching">Why switch?</a>
-          <a href="#scaling">Per-clinic costs</a>
-          <a href="#positioning">Stack value</a>
-          <a href="#capital">Execution budget</a>
-          <a href="#breakeven">Break-even</a>
+          <a href="#switching">01 / Conversion target</a>
+          <a href="#scaling">02 / Ten owners</a>
+          <a href="#clinic-markets">03 / Clinic markets</a>
+          <a href="#capital">04 / Vendor budget</a>
           <a href="#sales-deck">Sales deck</a>
-          <a href="#roadmap">Engineering notes</a>
         </nav>
         <main id="i2e-main">
-          <section id="overview">
-            <div className="i2e-heading">
+          <section id="switching">
+            <h1>01 / Medical weight loss + hormone optimization</h1>
+            <p className="i2e-note">
+              Conversion target: one independent practice · 3 providers · Jane
+              customer with a separate clinical software stack · USD / month
+            </p>
+            <div className="i2e-conversion-grid">
               <div>
-                <h1>⚙️ Platform economics</h1>
+                <h2>Current software stack</h2>
+                {ledger("Current Jane customer software stack", [
+                  ["Jane Practice + 2 seats · assumption", "$149"],
+                  ["Hint membership billing", "$870", "i2e-warning"],
+                  ["HubSpot CRM", "$150", "i2e-warning"],
+                  ["DoseSpot eRx seats", "$120", "i2e-warning"],
+                  ["Jane AI Scribe · 3 seats", "$45", "i2e-warning"],
+                  [
+                    "Named add-ons subtotal",
+                    money(t.namedAddons),
+                    "i2e-warning",
+                  ],
+                  ["Unreconciled baseline allowance", "$20", "i2e-warning"],
+                  [
+                    "Working total software bill",
+                    money(t.baseline),
+                    "i2e-total",
+                  ],
+                ])}
                 <p>
-                  Independent clinic businesses · Three providers per modeled
-                  clinic · USD
+                  <strong>Conversion pain:</strong> Separate prescribing, lab,
+                  membership and pharmacy handoffs. Target practices still
+                  re-entering orders or faxing their compounding partner.
+                </p>
+                <p className="i2e-note">
+                  Illustrative stack, not verified customer invoices. Named
+                  items total $1,334; the supplied $1,354 baseline includes $20
+                  not yet attributed. Jane Scribe is an add-on within Jane, not
+                  a separate login.
                 </p>
               </div>
-              <span className="i2e-status">Planning model / 25 Sep 2026</span>
+              <div>
+                <h2>Meta Clinic target offer</h2>
+                {ledger("Meta Clinic target offer", [
+                  ["Flat monthly platform fee", money(t.price), "i2e-total"],
+                  ["Monthly software saving", money(savings)],
+                  [
+                    "Saving on working baseline",
+                    `${((savings / t.baseline) * 100).toFixed(1)}%`,
+                  ],
+                  ["Annual recurring saving", money(savings * 12)],
+                  ["Saving on named items only", "$234 / 17.5%"],
+                  ["Price for exactly 20% off $1,354", "$1,083.20"],
+                ])}
+                <p>
+                  <strong>Why switch:</strong> One clinical workspace connecting
+                  charting, membership billing, prescribing, labs and
+                  partner-order status. Replace verified workflows and their
+                  invoices together.
+                </p>
+                <p>
+                  <strong>Target bundle:</strong> Embedded 503A partner
+                  webhooks, bidirectional Quest/Labcorp order/result tracking
+                  and Twilio video. Integration scope, contracts and required
+                  BAAs must be verified before these are sold as live
+                  capabilities.
+                </p>
+                <p className="i2e-note">
+                  Implementation, migration, overlap charges and usage limits
+                  are quoted separately. Savings exclude labor. Jane already
+                  offers charting, telehealth and membership options; compare
+                  the clinic's actual stack, not missing features by assumption.{" "}
+                  <a href="https://jane.app/pricing">Jane pricing</a>.
+                </p>
+              </div>
+              <div>
+                <h2>Account contribution ledger</h2>
+                {ledger("Account contribution ledger", [
+                  ...incrementalCosts.map(
+                    (row) =>
+                      [row.name, money(row.monthly)] as [string, ReactNode],
+                  ),
+                  [
+                    "Incremental vendor estimate",
+                    money(t.variable),
+                    "i2e-total",
+                  ],
+                  [
+                    "Software contribution",
+                    `+${money(contribution)} / mo`,
+                    "i2e-profit",
+                  ],
+                  [
+                    "Contribution / subscription",
+                    `${((contribution / t.price) * 100).toFixed(1)}%`,
+                    "i2e-profit",
+                  ],
+                  [
+                    "Illustrative spread / order",
+                    `$120 − $45 = ${money(spread)}`,
+                  ],
+                  [
+                    "30 orders × $75 gross spread",
+                    `+${money(t.orders * spread)}`,
+                    "i2e-profit",
+                  ],
+                ])}
+                <p className="i2e-note">
+                  $600 is incremental contribution before shared platform
+                  expense, not net profit. This snapshot includes insurance
+                  mapping; a cash-pay clinic with eRx models $440 vendor expense
+                  and $660 contribution. No eRx: $245 cash-pay or $305
+                  insurance, with video and scribe retained.
+                </p>
+                <p className="i2e-note">
+                  The $2,250 transaction scenario is gross spread before
+                  fulfillment, processing, refunds, tax and other costs. Order
+                  volume and partner economics are unverified. It is separate
+                  from the software-only network result.
+                </p>
+              </div>
             </div>
-            <dl className="i2e-metrics">
-              <div>
-                <dt>Initial platform execution</dt>
-                <dd>{money(investorBudget.upfront)}</dd>
-              </div>
-              <div>
-                <dt>First clinic + shared platform / mo</dt>
-                <dd>{money(investorBudget.monthly)}</dd>
-              </div>
-              <div>
-                <dt>Each additional clinic / mo</dt>
-                <dd>~{money(incremental)}</dd>
-              </div>
-              <div>
-                <dt>Funding ask</dt>
-                <dd>{money(investorBudget.capital)}</dd>
-              </div>
-            </dl>
-            <p className="i2e-answer">
-              <strong>
-                Additional vendor expense depends on the services each clinic
-                uses: approximately $245–$500/month in this three-provider
-                model.
-              </strong>{" "}
-              This is the supplied wholesale scenario, not a contracted all-in
-              price. Add onboarding, support, payment fees, hosting growth and
-              any entity-specific vendor minimums. Separate owners require
-              separate tenant access, agreements and enrollment; a new clinic is
-              not merely an extra location.
-            </p>
           </section>
-          <section aria-label="Clinic service assumptions">
-            <TextField
-              select
-              label="Services used by modeled clinics"
-              size="small"
-              value={serviceProfile}
-              onChange={(event) =>
-                setServiceProfile(Number(event.target.value))
-              }
-            >
-              {clinicServiceProfiles.map((profile, index) => (
-                <MenuItem key={profile.name} value={index}>
-                  {profile.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <p>
-              Cash-pay without eRx: $245/mo · Insurance without eRx: $305/mo ·
-              Cash-pay with eRx: $440/mo · Insurance with eRx: $500/mo.
-            </p>
-            <p className="i2e-note">
-              All scenarios retain $125 video and $120 scribe usage allowances.
-              Insurance adds $60 clearinghouse/entity mapping; eRx adds $195
-              prescriber seats. These are planning assumptions, not vendor
-              quotes. A clinic can prescribe to outside pharmacies without
-              owning a pharmacy. Dispensing, compounding, medication purchases
-              and pharmacy fulfillment are separately uncosted; no pharmacy
-              margin is included in subscription contribution. All modeled
-              clinics use the selected bundle. The shared $3,200 platform budget
-              remains committed here; switching off a clinic service does not
-              automatically cancel platform vendor minimums.
-            </p>
-          </section>
-          <I2eClinicMarkets
-            incremental={incremental}
-            serviceName={services.name}
-          />
           <section id="scaling">
-            <div className="i2e-heading">
-              <h2>📦 Multi-tenant cost grid</h2>
-              <span>
-                Shared $3,200 + ({money(incremental)} × additional clinics)
-              </span>
-            </div>
-            <div className="i2e-split">
-              <Grid
-                label="Incremental vendor costs"
-                headers={[
-                  "Per new 3-provider clinic",
-                  "Monthly estimate",
-                  "Cost driver",
-                ]}
-              >
-                {selectedCosts.map((row) => (
-                  <TableRow key={row.name}>
-                    <TableCell component="th" scope="row">
-                      {row.name}
-                    </TableCell>
-                    <TableCell align="right">{money(row.monthly)}</TableCell>
-                    <TableCell>{row.basis}</TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="i2e-total">
-                  <TableCell>Total incremental vendor estimate</TableCell>
-                  <TableCell align="right">{money(incremental)}</TableCell>
-                  <TableCell>
-                    Per additional independently owned clinic
-                  </TableCell>
-                </TableRow>
-              </Grid>
-              <div className="i2e-assumptions">
-                <h3>Revenue & additional cost assumptions</h3>
-                <TextField
-                  label="Monthly subscription per clinic ($)"
-                  type="number"
-                  size="small"
-                  value={subscriptionInput}
-                  onChange={(e) => setSubscriptionInput(e.target.value)}
-                  error={!valid(subscriptionInput)}
-                  helperText={
-                    valid(subscriptionInput)
-                      ? "Default $1,200 from the published small-clinic sales scenario."
-                      : "Enter a value from $0 to $100,000."
-                  }
-                  slotProps={{ htmlInput: { min: 0, max: 100000, step: 50 } }}
-                />
-                <TextField
-                  label="Additional monthly costs per clinic ($)"
-                  type="number"
-                  size="small"
-                  value={allowanceInput}
-                  onChange={(e) => setAllowanceInput(e.target.value)}
-                  error={!valid(allowanceInput)}
-                  helperText={
-                    valid(allowanceInput)
-                      ? "$0 means unbudgeted, not zero real costs. Add support, hosting and other fees."
-                      : "Enter a value from $0 to $100,000."
-                  }
-                  slotProps={{ htmlInput: { min: 0, max: 100000, step: 25 } }}
-                />
-              </div>
-            </div>
-            {validInputs ? (
-              <Grid
-                label="Independent clinic network costs"
-                headers={[
-                  "Independent clinics",
-                  "Providers",
-                  "Vendor base / mo",
-                  "Added allowance / mo",
-                  "Total cost / mo",
-                  "Cost / clinic / mo",
-                  "Subscriptions / mo",
-                  "Contribution / mo",
-                ]}
-              >
-                {[1, 2, 3, 4, 10].map((count) => {
-                  const e = clinicEconomics(
-                    count,
-                    subscription,
-                    allowance,
-                    incremental,
-                  );
-                  return (
-                    <TableRow key={count}>
-                      <TableCell component="th" scope="row">
-                        {count}
-                      </TableCell>
-                      <TableCell align="right">{count * 3}</TableCell>
-                      <TableCell align="right">
-                        {money(
-                          clinicEconomics(count, 0, 0, incremental).monthly,
-                        )}
-                      </TableCell>
-                      <TableCell align="right">
-                        {money(count * allowance)}
-                      </TableCell>
-                      <TableCell align="right">{money(e.monthly)}</TableCell>
-                      <TableCell align="right">{money(e.average)}</TableCell>
-                      <TableCell align="right">{money(e.revenue)}</TableCell>
-                      <TableCell
-                        align="right"
-                        className={e.contribution < 0 ? "i2e-negative" : ""}
-                      >
-                        {money(e.contribution)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </Grid>
-            ) : (
-              <p role="alert">
-                Correct the assumptions to calculate network economics.
-              </p>
-            )}
-            <p className="i2e-note">
-              Contribution = modeled subscriptions minus listed costs, before
-              tax, founder compensation, unbudgeted support and acquisition
-              costs. The selected incremental expense is added after the first
-              clinic to avoid counting its baseline services twice. No
-              assumption of permanently flat engineering headcount or server
-              capacity is made.
-            </p>
+            <h2>02 / Ten independent owners · ten separate clinics</h2>
             <Grid
-              label="New clinic setup expense gaps"
-              headers={[
-                "One-time onboarding cost",
-                "Current budget treatment",
-                "Next evidence",
-              ]}
+              label="Ten independent owners scale ledger"
+              headers={["Network metric", "Monthly amount / basis"]}
             >
               {[
                 [
-                  "Tenant setup, migration & training",
-                  "Not yet costed",
-                  "Measure delivery hours × loaded hourly rate.",
+                  "Fixed upfront capital pool",
+                  "$10,500 one-time · workstation, legal templates, certification and audit budgets",
+                ],
+                ["Central platform + first clinic", "$3,200 / mo"],
+                ["Nine additional independent sites", "9 × $500 = $4,500 / mo"],
+                ["Total network software costs", money(network.monthly)],
+                [
+                  "Total network software revenue",
+                  "10 × $1,100 = $11,000 / mo",
                 ],
                 [
-                  "Provider identity / EPCS onboarding",
-                  "Not yet quoted",
-                  "Confirm per-prescriber verification, enrollment and token fees.",
+                  "Network software contribution",
+                  `+${money(network.contribution)} / mo · ${((network.contribution / network.revenue) * 100).toFixed(0)}%`,
                 ],
+                ["Allocated expense / account", money(network.average)],
                 [
-                  "Independent entity / payer enrollment",
-                  "Not yet quoted",
-                  "Confirm TIN/NPI enrollment, clearinghouse minimums and setup charges.",
+                  "Allocated contribution / account",
+                  `+${money(network.contribution / 10)}`,
                 ],
-                [
-                  "Clinic legal & certification scope",
-                  "Case-specific",
-                  "Confirm new entity/domain obligations; shared platform scope does not establish blanket coverage.",
-                ],
-              ].map((row) => (
-                <TableRow key={row[0]}>
-                  {row.map((cell, i) => (
-                    <TableCell
-                      key={cell}
-                      component={i === 0 ? "th" : "td"}
-                      scope={i === 0 ? "row" : undefined}
-                    >
-                      {cell}
-                    </TableCell>
-                  ))}
+              ].map(([name, value]) => (
+                <TableRow
+                  key={name}
+                  className={name.includes("contribution") ? "i2e-profit" : ""}
+                >
+                  <TableCell component="th" scope="row">
+                    {name}
+                  </TableCell>
+                  <TableCell>{value}</TableCell>
                 </TableRow>
               ))}
             </Grid>
+            <p className="i2e-note">
+              The first clinic's vendor usage is included in the $3,200 base;
+              only nine incremental bundles are added. Ten separate owners
+              require separate tenant access, agreements and enrollment. +$3,300
+              is modeled software contribution before unbudgeted expenses, not
+              net cash flow or guaranteed profit. No compounding orders or labor
+              savings are required for this result.
+            </p>
           </section>
-          <section id="positioning">
-            <div className="i2e-heading">
-              <h2>↔️ Total stack value matrix</h2>
-              <span>Illustrative three-provider buying scenario</span>
-            </div>
+          <section id="clinic-markets">
+            <h2>03 / Ten clinic markets · conversion priorities</h2>
             <Grid
-              label="Total stack value matrix"
+              label="Ten clinic market scenarios"
               headers={[
-                "Capability",
-                "External stack / mo",
-                "Scenario basis",
-                "Meta Clinic strategy",
+                "Clinic specialty",
+                "Model",
+                "Small-clinic deck range / mo",
+                "Reason to switch",
+                "Required proof",
               ]}
             >
-              {stackCosts.map((row) => (
+              {clinicMarkets.map((row) => (
                 <TableRow key={row.name}>
                   <TableCell component="th" scope="row">
                     {row.name}
                   </TableCell>
-                  <TableCell align="right">{money(row.cost)}</TableCell>
-                  <TableCell>{row.basis}</TableCell>
-                  <TableCell>{row.meta}</TableCell>
+                  <TableCell>{row.payment}</TableCell>
+                  <TableCell>${row.prices[1]}</TableCell>
+                  <TableCell>{row.switchReason}</TableCell>
+                  <TableCell>{row.proof}</TableCell>
                 </TableRow>
               ))}
-              <TableRow className="i2e-total">
-                <TableCell>Software subtotal</TableCell>
-                <TableCell align="right">{money(software)}</TableCell>
-                <TableCell colSpan={2}>
-                  Sum of the five supplied software scenarios; not a Jane quote
-                  or guaranteed saving.
-                </TableCell>
-              </TableRow>
+            </Grid>
+            <Grid
+              label="Two Jane clinic profiles"
+              headers={[
+                "Jane profile",
+                "Current bill to compare",
+                "Conversion offer",
+              ]}
+            >
+              {janeProfiles.map((row) => (
+                <TableRow key={row.name}>
+                  <TableCell component="th" scope="row">
+                    {row.name}
+                  </TableCell>
+                  <TableCell>{row.current}</TableCell>
+                  <TableCell>{row.offer}</TableCell>
+                </TableRow>
+              ))}
             </Grid>
             <p className="i2e-note">
-              Jane already offers charting, memberships, insurance integrations
-              and Fullscript lab workflows. External products shown here are
-              optional scenario choices, not mandatory purchases for every Jane
-              customer. <a href="https://jane.app/pricing">Jane pricing</a> ·{" "}
-              <a href="https://jane.app/guide/medical-wellness-hub">
-                Jane medical workflows
-              </a>{" "}
-              · <a href="https://get.hint.com/hint-core">Hint Core</a>. Proposed
-              Meta Clinic integrations are not represented as live or as
-              feature-for-feature replacements.
+              The $1,100 target is for the featured three-provider practice.
+              Published specialty ranges are proposals, not universal quotes or
+              proof of delivery readiness.
             </p>
           </section>
           <section id="capital">
-            <div className="i2e-heading">
-              <h2>⚖️ Execution budget</h2>
-              <span>$10,500 upfront / $3,200 monthly baseline</span>
-            </div>
+            <h2>04 / Shared execution and vendor budget</h2>
             <Grid
-              label="Fixed cost estimates"
-              headers={[
-                "Investment",
-                "Upfront",
-                "Monthly",
-                "Execution purpose",
-              ]}
+              label="Fixed cost matrix"
+              headers={["Category", "Upfront", "Monthly"]}
             >
               {investorCosts.map((row) => (
                 <TableRow key={row.category}>
@@ -633,188 +539,45 @@ export function I2eInvestorPage() {
                   </TableCell>
                   <TableCell align="right">{money(row.upfront)}</TableCell>
                   <TableCell align="right">{money(row.monthly)}</TableCell>
-                  <TableCell>
-                    {row.purpose}
-                    <small>{row.value}</small>
-                  </TableCell>
                 </TableRow>
               ))}
               <TableRow className="i2e-total">
-                <TableCell>Total baseline</TableCell>
+                <TableCell>Total shared budget</TableCell>
                 <TableCell align="right">
                   {money(investorBudget.upfront)}
                 </TableCell>
                 <TableCell align="right">
                   {money(investorBudget.monthly)}
                 </TableCell>
-                <TableCell>
-                  Initial one-clinic model; additional clinics use the
-                  incremental grid.
-                </TableCell>
               </TableRow>
             </Grid>
             <p className="i2e-note">
-              The $10,500 is a shared initial execution pool in this model.
-              Platform assurance is not automatically repeated for every signup,
-              but entity, domain, provider and material system changes may add
-              review or certification costs. $30,000 − $10,500 = $19,500 for
-              operations: 6.09 months at the initial $3,200 baseline. Growth
-              reduces this runway unless revenue offsets added expense.
-            </p>
-          </section>
-          <section id="breakeven">
-            <div className="i2e-heading">
-              <h2>📊 Break-even clarity</h2>
-              <span>$120 retail − $45 supplier = $75 gross spread</span>
-            </div>
-            <p>
-              <strong>
-                43 orders/month cover the initial $3,200 stack only.
-              </strong>{" "}
-              At that volume, modeled gross spread is $3,225. Each additional
-              clinic adds vendor costs; the network targets below include those
-              costs.
-            </p>
-            {validInputs && (
-              <Grid
-                label="Network order targets"
-                headers={[
-                  "Independent clinics",
-                  "Total cost / mo",
-                  "Orders: no subscriptions",
-                  "Orders / clinic (rounded up)",
-                  "Orders after subscriptions",
-                ]}
-              >
-                {[1, 3, 4, 10].map((count) => {
-                  const e = clinicEconomics(
-                    count,
-                    subscription,
-                    allowance,
-                    incremental,
-                  );
-                  return (
-                    <TableRow key={count}>
-                      <TableCell component="th" scope="row">
-                        {count}
-                      </TableCell>
-                      <TableCell align="right">{money(e.monthly)}</TableCell>
-                      <TableCell align="right">{e.orders}</TableCell>
-                      <TableCell align="right">
-                        {Math.ceil(e.orders / count)}
-                      </TableCell>
-                      <TableCell align="right">{e.remainingOrders}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </Grid>
-            )}
-            <p className="i2e-note">
-              Orders after subscriptions = ceiling(max($0, monthly cost −
-              subscriptions) ÷ $75). Whole-order rounding can create surplus
-              coverage. The $75 excludes shipping, card fees, refunds and
-              service costs; retaining it requires a lawful contracted
-              pharmacy/payment structure. It is not net profit or a blanket
-              authorization for compounded products.
+              Planning allowances; vendor minimums, account fees, renewals and
+              entity-specific charges require quotes. No funding ask or labor
+              estimate is included.
             </p>
           </section>
           <section id="sales-deck">
-            <div className="i2e-heading">
-              <h2>📈 Sales deck / revenue potential</h2>
-              <Button
-                href={salesDeckUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                endIcon={<ArrowOutwardRounded />}
-              >
-                Open published deck
-              </Button>
-            </div>
-            <p>
-              The published deck models 2027–2031 subscription and
-              implementation revenue across ten clinic markets. These are
-              customer price scenarios, separate from Meta Clinic's delivery
-              expenses above.
-            </p>
-            <Grid
-              label="Published sales deck price scenarios"
-              headers={[
-                "Organization size",
-                "Subscription / mo",
-                "One-time implementation",
-              ]}
-            >
-              {deckPrices.map(([name, monthly, upfront]) => (
-                <TableRow key={name}>
-                  <TableCell component="th" scope="row">
-                    {name}
-                  </TableCell>
-                  <TableCell align="right">{money(monthly)}</TableCell>
-                  <TableCell align="right">{money(upfront)}</TableCell>
-                </TableRow>
-              ))}
-            </Grid>
-            <p className="i2e-note">
-              Published baseline verified September 25, 2026. Prices are per
-              organization, not per provider. The selected service cost model
-              applies only to the proposed three-provider clinic; it does not
-              establish delivery costs for larger organizations. Implementation
-              charges are revenue, not an estimate of onboarding expense.
-              Embedded deck inputs are independent of this dashboard.
-            </p>
+            <h2>Sales deck / detailed market scenarios</h2>
             <Button
-              variant="outlined"
-              onClick={() => setShowDeck(!showDeck)}
-              aria-expanded={showDeck}
-              aria-controls="i2e-live-deck"
+              href={salesDeckUrl}
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {showDeck ? "Hide embedded deck" : "Show embedded sales deck"}
+              Open published deck
+            </Button>
+            <Button onClick={() => setShowDeck(!showDeck)}>
+              {showDeck ? "Hide deck" : "Show deck"}
             </Button>
             {showDeck && (
-              <div id="i2e-live-deck">
-                <p className="i2e-note">
-                  If the embed is blocked by your browser or hosting policy, use
-                  “Open published deck” above.
-                </p>
-                <iframe
-                  title="Meta Clinic published sales revenue deck"
-                  src={salesDeckUrl}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                />
-              </div>
+              <iframe
+                title="Meta Clinic sales revenue deck"
+                src={salesDeckUrl}
+                className="i2e-deck-frame"
+                loading="lazy"
+              />
             )}
           </section>
-          <section id="roadmap">
-            <h2>⚙️ Engineering parameters & cost boundaries</h2>
-            <pre className="i2e-technical">{`MODEL_STATUS = planning assumptions; vendor contracts not verified\nTENANCY = independent owners; separate authorization, agreements and enrollment\nUPFRONT_POOL = $10,500 shared initial execution; scope-dependent exceptions\nBASE_MONTHLY = $3,200 including first pilot clinic\nADDITIONAL_CLINIC = ${money(incremental)}/month for ${services.name}; 3 providers, before unbudgeted costs\nTELEMETRY = compute capacity, transcription speed and engineering velocity require pilot measurement\nVIDEO = Twilio usage $0.004/participant-minute; HIPAA account/BAA terms and extras separate\nCLINICAL_AI = draft notes require clinician review; time savings are design targets`}</pre>
-            <p className="i2e-note">
-              <a href="https://www.twilio.com/en-us/video/pricing">
-                Twilio pricing
-              </a>{" "}
-              ·{" "}
-              <a href="https://www.twilio.com/docs/iam/twilio-editions/hippa">
-                Twilio HIPAA terms
-              </a>{" "}
-              ·{" "}
-              <a href="https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/business-associates/factsheet/index.html">
-                HHS obligations
-              </a>{" "}
-              ·{" "}
-              <a href="https://www.deadiversion.usdoj.gov/faq/epcs-faq.html">
-                DEA EPCS
-              </a>{" "}
-              ·{" "}
-              <a href="https://www.legitscript.com/certification/healthcare-certification/faq/">
-                LegitScript scope
-              </a>
-            </p>
-          </section>
-          <footer>
-            Meta Clinic / i2E discussion workspace · Proposed economics, not
-            committed funding or realized results.
-          </footer>
         </main>
       </div>
     </div>

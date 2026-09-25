@@ -113,3 +113,18 @@ it("prices each optional service once and propagates the bundle to both models",
     );
   }
 });
+
+import { conversionTarget } from "../src/features/marketing/I2eInvestorPage";
+it("reconciles the fixed conversion offer and ten-owner ledger", () => {
+  const t = conversionTarget;
+  expect(t.baseline - t.price).toBe(254);
+  expect(((t.baseline - t.price) / t.baseline) * 100).toBeCloseTo(18.759, 2);
+  expect(t.price - t.variable).toBe(600);
+  expect(((t.price - t.variable) / t.price) * 100).toBeCloseTo(54.545, 2);
+  expect(t.namedAddons).toBe(1185);
+  expect(t.baseline - 149 - t.namedAddons).toBe(20);
+  expect(t.orders * (investorBudget.retail - investorBudget.wholesale)).toBe(
+    2250,
+  );
+  expect(clinicEconomics(10, t.price).contribution).toBe(3300);
+});

@@ -514,3 +514,108 @@
     color: #152c3c;
   }
 }
+
+/* Compact conversion console. */
+.i2e-console {
+  font-size: 12px;
+}
+.i2e-console .i2e-header {
+  padding: 8px 18px;
+}
+.i2e-console .i2e-workspace {
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  padding: 0 18px;
+}
+.i2e-console main {
+  padding: 0 16px;
+  border-radius: 0;
+}
+.i2e-console section {
+  padding: 16px 0;
+}
+.i2e-console h1 {
+  font-size: 21px;
+}
+.i2e-console h2 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.i2e-console p {
+  margin: 8px 0;
+  line-height: 1.45;
+}
+.i2e-conversion-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+.i2e-conversion-grid > div {
+  min-width: 0;
+}
+.i2e-console .i2e-grid .MuiTableCell-root,
+.i2e-ledger .MuiTableCell-root {
+  padding: 6px 8px;
+  border: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+  vertical-align: top;
+}
+.i2e-ledger .MuiTableCell-root:first-child {
+  width: 65%;
+}
+.i2e-ledger .MuiTableCell-root:last-child {
+  font-family: Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.i2e-console .i2e-warning .MuiTableCell-root {
+  background: #fff2d6;
+  color: #654b17;
+}
+.i2e-console .i2e-profit .MuiTableCell-root {
+  color: #17643d;
+  font-weight: 700;
+}
+.i2e-console .i2e-total .MuiTableCell-root {
+  font-weight: 700;
+}
+.i2e-console .i2e-deck-frame {
+  width: 100%;
+  height: 720px;
+  border: 0;
+}
+@media (max-width: 1000px) {
+  .i2e-console .i2e-workspace {
+    grid-template-columns: 1fr;
+  }
+  .i2e-console .i2e-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 4px 0;
+  }
+}
+@media (max-width: 760px) {
+  .i2e-conversion-grid {
+    grid-template-columns: 1fr;
+  }
+  .i2e-console .i2e-workspace {
+    padding: 0 8px;
+  }
+  .i2e-console main {
+    padding: 0 10px;
+  }
+}
+@media print {
+  .i2e-console .i2e-workspace {
+    display: block;
+  }
+  .i2e-console .i2e-nav {
+    display: none;
+  }
+  .i2e-conversion-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
