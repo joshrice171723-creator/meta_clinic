@@ -208,6 +208,7 @@ export function ClinicTypeFeaturePage({
           <img src={visual.src} alt={visual.alt} loading="lazy" />
           <figcaption>
             {visual.caption}
+            {slug === "labs-results" && " — this image does not show labs & results"}
           </figcaption>
         </figure>
       </section>
