@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-24 — Investor demo login and Omni organization setup
+
+The founder requested account tools as the default investor-demo login, preserving “Streamline your practice. Scale your organization.” The implementation adds New organization with organization, clinic and location names and automatic Omni access. A local browser creation survived reload; 19 focused backend tests (205 assertions), 370 frontend tests, TypeScript, bundle, eager loading and changed-file Ruby lint passed. The [dated demo-entry and release record](../../records/progress/2026/09/2026-09-24-investor-demo-login.md) preserves the broader-test limit, legacy CSS formatting warning and deployment attempts. Hosted release `9158ca22` completed with matched images, restore-checked backups and encrypted off-host recovery. The hosted verifier passed ordinary authentication protections and isolated-demo Omni creation; a live browser creation retained its organization, clinic and location after reload. This is synthetic demo-entry evidence, not production acceptance.
+
 ## 2026-09-24 — Recent work integrated; hosted release blocked locally
 
 The recent membership journey, clinic navigation, and marketing branches were integrated into `main` and pushed at `5a2aa693`. No local branch remains ahead of `main`; unrelated uncommitted screenshots and launch styling were preserved. The merged frontend production build and 21 focused tests passed. The focused membership Rails test did not start because local PostgreSQL credentials mismatched; an isolated database startup then stalled. The [integration and release attempt record](../../records/progress/2026/09/2026-09-24-main-integration-release-attempt.md) lists the evidence and limits.
