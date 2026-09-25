@@ -35,7 +35,7 @@ describe("i2E added-clinic financial model", () => {
 
   it("keeps the conversion comparison tied to its listed subscriptions", () => {
     expect(conversionTarget.baseline).toBe(1334);
-    expect(conversionTarget.baseline - conversionTarget.price).toBe(234);
+    expect(conversionTarget.baseline! - conversionTarget.price).toBe(234);
     expect(conversionTarget.namedAddons).toBe(1185);
   });
 
