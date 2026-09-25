@@ -473,12 +473,14 @@ function PortalSettings({
   environment,
   businessDate,
   returnHref,
+  ownerPinRequired = false,
 }: {
   user: User;
   accounts: DevelopmentAccount[];
   environment: RuntimeEnvironment;
   businessDate: string;
   returnHref: string;
+  ownerPinRequired?: boolean;
 }) {
   return (
     <Stack spacing={3}>
@@ -492,6 +494,7 @@ function PortalSettings({
           activeId={user.development_account_id}
           environment={environment}
           businessDate={businessDate}
+          ownerPinRequired={ownerPinRequired}
         />
       )}
       <Form
@@ -639,11 +642,13 @@ function ClinicApplication({
   developmentAccounts,
   environment,
   businessDate,
+  ownerPinRequired,
 }: {
   user: User;
   developmentAccounts: DevelopmentAccount[];
   environment: RuntimeEnvironment;
   businessDate: string;
+  ownerPinRequired: boolean;
 }) {
   const [route, setRoute] = useState(() =>
     clinicRoute(
@@ -791,6 +796,7 @@ function ClinicApplication({
             developmentAccounts={developmentAccounts}
             environment={environment}
             businessDate={businessDate}
+            ownerPinRequired={ownerPinRequired}
           >
             <div hidden={!home}>
               <ClinicHome
@@ -833,12 +839,14 @@ function Application() {
   const [configurationError, setConfigurationError] = useState(false);
   const [configuration, setConfiguration] = useState<{
     development_login: boolean;
+    public_demo_owner_pin_required: boolean;
     clinic_available: boolean;
     environment: RuntimeEnvironment;
     development_accounts: DevelopmentAccount[];
     business_date: string;
   }>({
     development_login: false,
+    public_demo_owner_pin_required: false,
     clinic_available: false,
     environment: "unknown",
     development_accounts: [],
@@ -1087,6 +1095,7 @@ function Application() {
           developmentAccounts={configuration.development_accounts}
           environment={configuration.environment}
           businessDate={configuration.business_date}
+          ownerPinRequired={configuration.public_demo_owner_pin_required}
         />
       </SessionGuard>
     );
@@ -1106,6 +1115,7 @@ function Application() {
                 activeId={user.development_account_id}
                 environment={configuration.environment}
                 businessDate={configuration.business_date}
+                ownerPinRequired={configuration.public_demo_owner_pin_required}
               />
             )}
             <RouteBoundary>
@@ -1146,6 +1156,7 @@ function Application() {
         developmentAccounts={configuration.development_accounts}
         environment={configuration.environment}
         businessDate={configuration.business_date}
+        ownerPinRequired={configuration.public_demo_owner_pin_required}
       />
     ) : path === "/portal/settings" && user ? (
       <PortalSettings
@@ -1153,6 +1164,7 @@ function Application() {
         accounts={configuration.development_accounts}
         environment={configuration.environment}
         businessDate={configuration.business_date}
+        ownerPinRequired={configuration.public_demo_owner_pin_required}
         returnHref="/portal"
       />
     ) : path === "/portal" ? (

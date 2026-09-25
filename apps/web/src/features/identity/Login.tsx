@@ -23,16 +23,23 @@ export function Login({
   environment = "unknown",
   businessDate = "",
   configurationError = false,
+  ownerPinRequired = false,
 }: {
   developmentLogin: boolean;
   developmentAccounts?: DevelopmentAccount[];
   environment?: RuntimeEnvironment;
   businessDate?: string;
   configurationError?: boolean;
+  ownerPinRequired?: boolean;
 }) {
   const returnTo = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("next");
+  const credentialMode =
+    ownerPinRequired &&
+    new URLSearchParams(
+      typeof window === "undefined" ? "" : window.location.search,
+    ).get("credentials") === "1";
   const ownerPortal = returnTo?.startsWith("/owner");
   const employeePortal = returnTo?.startsWith("/clinic");
   const membershipAccount = returnTo === "/memberships/account";
@@ -56,7 +63,7 @@ export function Login({
   return (
     <main
       id="main"
-      className={`wrap inner-page login-layout${developmentLogin ? " development-login-layout" : ""}`}
+      className={`wrap inner-page login-layout${developmentLogin && !credentialMode ? " development-login-layout" : ""}`}
     >
       <div className="inner-page-copy">
         <h1>
@@ -80,7 +87,7 @@ export function Login({
             Unable to load login options. Check the server connection and retry.
           </Alert>
         )}
-        {developmentLogin ? (
+        {developmentLogin && !credentialMode ? (
           <div className="login-development-tools">
             <h2>Development tools</h2>
             <Typography color="text.secondary" variant="body2">
@@ -90,7 +97,15 @@ export function Login({
               accounts={developmentAccounts}
               businessDate={businessDate}
               initialPortal={developmentPortalFor(returnTo)}
+              ownerPinRequired={ownerPinRequired}
             />
+            {ownerPinRequired && (
+              <p className="page-fine-print">
+                <a href="/login?credentials=1&next=%2Fowner">
+                  Owner account sign in
+                </a>
+              </p>
+            )}
           </div>
         ) : (
           <>

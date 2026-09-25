@@ -14,6 +14,7 @@ module Identity
       def csrf
         render json: { csrf_token: form_authenticity_token,
           development_login: DevelopmentAccess.allowed?(request),
+          public_demo_owner_pin_required: DevelopmentAccess.public_staging_demo?,
           environment: runtime_environment,
           development_accounts: development_accounts,
           business_date: Current.business_date.iso8601,
@@ -44,6 +45,15 @@ module Identity
 
       def development
         return head :not_found unless DevelopmentAccess.allowed?(request)
+
+        if DevelopmentAccess.public_staging_demo? && params[:portal] == "owner"
+          expected_pin = ENV["APP_PUBLIC_DEMO_OWNER_PIN"].to_s
+          submitted_pin = params[:owner_pin].to_s
+          unless expected_pin.match?(/\A\d{4}\z/) &&
+              ActiveSupport::SecurityUtils.secure_compare(submitted_pin, expected_pin)
+            return render json: { error: "Enter the owner demo PIN." }, status: :forbidden
+          end
+        end
 
         workspace_owner = Current.workspace_tools_owner_session
         business_date = session[:development_business_date]
@@ -78,6 +88,7 @@ module Identity
         end
 
         establish_session(user, workspace_owner: workspace_owner)
+        session[:public_demo_owner_pin_verified] = (params[:portal] == "owner") if DevelopmentAccess.public_staging_demo?
         Identity::SessionAudit.record!(action: "workspace.switch_to.#{user.id}", user_id: workspace_owner.user_id) if workspace_owner
         apply_development_clinic_scope(user, preview, practice_id: params[:practice_id].presence, site_id:) if portal == "clinic"
         session[:development_business_date] = business_date if business_date.present?

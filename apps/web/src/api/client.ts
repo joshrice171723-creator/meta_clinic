@@ -28,6 +28,7 @@ let csrfToken: string | undefined;
 type Configuration = {
   csrf_token: string;
   development_login: boolean;
+  public_demo_owner_pin_required: boolean;
   clinic_available: boolean;
   environment: RuntimeEnvironment;
   development_accounts: DevelopmentAccount[];

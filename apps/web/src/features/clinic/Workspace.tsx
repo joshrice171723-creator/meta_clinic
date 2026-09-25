@@ -416,6 +416,7 @@ export function Workspace({
   developmentAccounts = [],
   environment = "unknown",
   businessDate = "",
+  ownerPinRequired = false,
 }: {
   children: ReactNode;
   user: User;
@@ -425,6 +426,7 @@ export function Workspace({
   developmentAccounts?: DevelopmentAccount[];
   environment?: RuntimeEnvironment;
   businessDate?: string;
+  ownerPinRequired?: boolean;
 }) {
   const { navigate, confirmNavigation } = useClinicNavigation();
   const {
@@ -705,6 +707,7 @@ export function Workspace({
                           activeId={user.development_account_id}
                           businessDate={businessDate}
                           environment={environment}
+                          ownerPinRequired={ownerPinRequired}
                         />
                       )}
                     {!scribePage && !isDemoFrame() && (

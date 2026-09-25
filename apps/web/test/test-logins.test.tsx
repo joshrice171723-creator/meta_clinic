@@ -57,6 +57,7 @@ describe("login environment before the server responds", () => {
 });
 
 describe("development account preview", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("shows distinct backend-owned account groups and a business date", () => {
     const html = renderToStaticMarkup(
       <Login
@@ -108,6 +109,44 @@ describe("development account preview", () => {
     expect(html).not.toContain(">Sign in<");
     expect(html).not.toContain('href="/workforce/activate"');
     expect(html).not.toContain("clinician1@test.com");
+  });
+
+  it("asks for a PIN only on the public demo Owner choice", () => {
+    vi.stubGlobal("window", {
+      location: { hostname: "aimetaclinic.com", search: "?next=%2Fowner" },
+    });
+    const html = renderToStaticMarkup(
+      <Login
+        developmentLogin
+        ownerPinRequired
+        environment="test"
+        developmentAccounts={[]}
+      />,
+    );
+    expect(html).toContain("Development tools");
+    expect(html).toContain("Owner demo PIN");
+    expect(html).not.toContain("Email address");
+    expect(html).not.toContain("Password");
+  });
+
+  it("keeps the existing owner credential form available separately", () => {
+    vi.stubGlobal("window", {
+      location: {
+        hostname: "aimetaclinic.com",
+        search: "?credentials=1&next=%2Fowner",
+      },
+    });
+    const html = renderToStaticMarkup(
+      <Login
+        developmentLogin
+        ownerPinRequired
+        environment="test"
+        developmentAccounts={[]}
+      />,
+    );
+    expect(html).toContain("Email address");
+    expect(html).toContain("Password");
+    expect(html).not.toContain("Development tools");
   });
 
   it("gates unique clinic scope choices and includes their row IDs", () => {

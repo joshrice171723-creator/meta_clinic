@@ -1,7 +1,12 @@
 class DevelopmentAccess
   def self.enabled?
     (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1") || GuidedDemoAccess.hosted? ||
-      Current.workspace_tools_owner_session.present?
+      public_staging_demo? || Current.workspace_tools_owner_session.present?
+  end
+
+  def self.public_staging_demo?
+    Rails.env.production? && ENV["APP_DEPLOYMENT_ENV"] == "staging" &&
+      ENV["APP_GUIDED_DEMO"] != "1" && ENV["APP_PUBLIC_DEVELOPMENT_LOGIN"] == "1"
   end
 
   def self.hosted_owner_session(request)
@@ -19,6 +24,11 @@ class DevelopmentAccess
   # Host/Origin checks are not a substitute for binding Rails to loopback.
   def self.allowed?(request)
     return true if hosted_owner_session(request)
+
+    if public_staging_demo?
+      return request.host == "aimetaclinic.com" &&
+        (request.origin == request.base_url || ((request.get? || request.head?) && request.origin.nil?))
+    end
 
     if GuidedDemoAccess.hosted?
       return request.origin == request.base_url || ((request.get? || request.head?) && request.origin.nil?)

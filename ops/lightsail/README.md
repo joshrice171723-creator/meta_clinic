@@ -5,10 +5,18 @@
 On `aimetaclinic.com`, `/login` and ordinary workspace pages use `/api/` with
 credential authentication. Signed-in active owners/admins receive the collapsible
 Workspace tools section in the owner workspace, clinic workspace and portal settings.
-Omni switching retains and revalidates the initiating privileged session; anonymous
-visitors and ordinary accounts cannot use these tools. The first authorized Omni
+Omni switching retains and revalidates the initiating privileged session; the
+in-workspace controls remain tied to an authorized session. The first authorized Omni
 switch prepares its identity if needed. Hosted use does not require a development
 environment or `APP_DEVELOPMENT_LOGIN`.
+
+For the expressly public synthetic demo, set `APP_PUBLIC_DEVELOPMENT_LOGIN=1`
+and `APP_PUBLIC_DEMO_OWNER_PIN` in the root-only runtime environment file. This
+shows the test-account selector on the hosted login page. The Owner choice
+requires the configured four-digit PIN; ordinary owner credential login remains
+separate. The opt-in is limited to staging on `aimetaclinic.com` and does not
+enable a production deployment or another host. Do not store the PIN in Git,
+the vault, or release notes.
 The release prepares Omni's immutable role definitions through the migration
 account before runtime startup; runtime database privileges remain unchanged.
 

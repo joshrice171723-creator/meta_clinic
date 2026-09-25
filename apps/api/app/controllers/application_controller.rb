@@ -97,7 +97,9 @@ class ApplicationController < ActionController::Base
   def require_admin
     require_member
     return if performed?
-    return if current_user.platform_owner? || development_omni?
+    return if current_user.platform_owner?
+    return if development_omni? &&
+      (!DevelopmentAccess.public_staging_demo? || session[:public_demo_owner_pin_verified])
 
     render json: { error: "This page is for Meta Clinic platform owners." }, status: :forbidden
   end

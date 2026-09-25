@@ -111,6 +111,54 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public staging demo exposes test accounts but requires a PIN for owner access" do
+    previous = ENV.to_h.slice("APP_DEPLOYMENT_ENV", "APP_GUIDED_DEMO", "APP_PUBLIC_DEVELOPMENT_LOGIN", "APP_PUBLIC_DEMO_OWNER_PIN")
+    previous_environment = Rails.env
+    Rails.env = "production"
+    ENV["APP_DEPLOYMENT_ENV"] = "staging"
+    ENV["APP_GUIDED_DEMO"] = nil
+    ENV["APP_PUBLIC_DEVELOPMENT_LOGIN"] = "1"
+    pin = SecureRandom.random_number(9000).then { |number| (number + 1000).to_s }
+    ENV["APP_PUBLIC_DEMO_OWNER_PIN"] = pin
+    host! "aimetaclinic.com"
+    @origin = "http://aimetaclinic.com"
+    Development::TestAccounts.prepare_omni!
+
+    get "/api/csrf", headers: headers
+    assert_equal true, response.parsed_body.fetch("development_login")
+    assert_equal true, response.parsed_body.fetch("public_demo_owner_pin_required")
+    assert response.parsed_body.fetch("development_accounts").any? { |account| account.fetch("id") == "omni" }
+
+    post "/api/development_session", params: { profile: "omni", portal: "owner" }, headers: csrf, as: :json
+    assert_response :forbidden
+    post "/api/development_session", params: { profile: "omni", portal: "clinic" }, headers: csrf, as: :json
+    assert_response :created
+    get "/api/owner/command_center", headers: headers
+    assert_response :forbidden
+
+    post "/api/development_session", params: { profile: "omni", portal: "owner", owner_pin: "0000" }, headers: csrf, as: :json
+    assert_response :forbidden
+    post "/api/development_session", params: { profile: "omni", portal: "owner", owner_pin: pin }, headers: csrf, as: :json
+    assert_response :created
+    get "/api/owner/command_center", headers: headers
+    assert_response :success
+
+    host! "other.example"
+    @origin = "http://other.example"
+    get "/api/csrf", headers: headers
+    assert_equal false, response.parsed_body.fetch("development_login")
+
+    host! "aimetaclinic.com"
+    @origin = "http://aimetaclinic.com"
+    ENV["APP_DEPLOYMENT_ENV"] = "production"
+    get "/api/csrf", headers: headers
+    assert_equal false, response.parsed_body.fetch("development_login")
+  ensure
+    Rails.env = previous_environment if previous_environment
+    previous&.each { |name, value| ENV[name] = value }
+    (%w[APP_DEPLOYMENT_ENV APP_GUIDED_DEMO APP_PUBLIC_DEVELOPMENT_LOGIN APP_PUBLIC_DEMO_OWNER_PIN] - previous.to_h.keys).each { |name| ENV[name] = nil }
+  end
+
   test "hosted switches retain owner authorization and stop after owner revocation" do
     owner = User.create!(email_address: "hosted-switch-owner@example.invalid", active: true,
       platform_owner: true, password: "Synthetic-password-123!")

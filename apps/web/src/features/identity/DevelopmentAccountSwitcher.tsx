@@ -436,11 +436,13 @@ export function DevelopmentControls({
   activeId,
   businessDate,
   initialPortal = "clinic",
+  ownerPinRequired = false,
 }: {
   accounts: DevelopmentAccount[];
   activeId?: string | null;
   businessDate: string;
   initialPortal?: DevelopmentPortal;
+  ownerPinRequired?: boolean;
 }) {
   const activeAccount = accounts.find((account) => account.id === activeId);
   const [portal, setPortal] = useState<DevelopmentPortal>(initialPortal);
@@ -453,6 +455,7 @@ export function DevelopmentControls({
     portal === "clinic" && accounts.some((account) => account.clinic);
   const [error, setError] = useState("");
   const [entryDestination, setEntryDestination] = useState("");
+  const [ownerPin, setOwnerPin] = useState("");
   const navigationTimer = useRef<number | null>(null);
 
   useEffect(
@@ -497,6 +500,7 @@ export function DevelopmentControls({
     setPortal(nextPortal);
     setSelectedId("");
     setEntryDestination("");
+    setOwnerPin("");
     setError("");
   };
 
@@ -519,6 +523,9 @@ export function DevelopmentControls({
             practice_id: scope.practiceId,
             site_id: scope.siteId,
             ...(newOrganization ? { new_organization: newOrganization } : {}),
+            ...(ownerPinRequired && portal === "owner"
+              ? { owner_pin: ownerPin }
+              : {}),
           },
         },
       );
@@ -575,6 +582,19 @@ export function DevelopmentControls({
           onNewOrganization={setNewOrganization}
           disabled={switching || Boolean(entryDestination)}
         />
+        {ownerPinRequired && portal === "owner" && (
+          <TextField
+            label="Owner demo PIN"
+            type="password"
+            size="small"
+            value={ownerPin}
+            onChange={(event) =>
+              setOwnerPin(event.target.value.replace(/\D/g, "").slice(0, 4))
+            }
+            disabled={switching || Boolean(entryDestination)}
+            slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 4 } }}
+          />
+        )}
         <DevelopmentDatePicker businessDate={businessDate} />
         <Button href="/memberships" size="small" variant="outlined">
           Future patient
@@ -587,6 +607,9 @@ export function DevelopmentControls({
             switching ||
             (!entryDestination &&
               (!selectedId ||
+                (ownerPinRequired &&
+                  portal === "owner" &&
+                  ownerPin.length !== 4) ||
                 (newOrganization
                   ? Object.values(newOrganization).some((name) => !name.trim())
                   : requiresClinicScope && !scope.practiceId)))
@@ -632,12 +655,14 @@ export function DevelopmentToolbar({
   businessDate,
   environment,
   className = "",
+  ownerPinRequired = false,
 }: {
   accounts: DevelopmentAccount[];
   activeId?: string | null;
   businessDate: string;
   environment: RuntimeEnvironment;
   className?: string;
+  ownerPinRequired?: boolean;
 }) {
   const id = useId();
   return (
@@ -678,6 +703,7 @@ export function DevelopmentToolbar({
             activeId={activeId}
             businessDate={businessDate}
             initialPortal="clinic"
+            ownerPinRequired={ownerPinRequired}
           />
         </AccordionDetails>
       </Accordion>
