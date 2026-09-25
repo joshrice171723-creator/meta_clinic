@@ -24,6 +24,32 @@ afterEach(() => {
 });
 
 describe("same-origin API boundary", () => {
+  it.each(["/login", "/clinic", "/owner", "/portal"])(
+    "routes hosted demo %s to the isolated database",
+    async (pathname) => {
+      vi.stubGlobal("window", {
+        location: { hostname: "aimetaclinic.com", pathname },
+        parent: null,
+      });
+      const fetch = vi.fn().mockResolvedValue(json({ csrf_token: "demo" }));
+      vi.stubGlobal("fetch", fetch);
+      await csrf();
+      expect(fetch.mock.calls[0][0]).toBe("/api/demo-workspace/csrf");
+    },
+  );
+  it.each(["aimetaclinic.com.example.org", "localhost"])(
+    "keeps %s on its ordinary API",
+    async (hostname) => {
+      vi.stubGlobal("window", {
+        location: { hostname, pathname: "/login" },
+        parent: null,
+      });
+      const fetch = vi.fn().mockResolvedValue(json({ csrf_token: "ordinary" }));
+      vi.stubGlobal("fetch", fetch);
+      await csrf();
+      expect(fetch.mock.calls[0][0]).toBe("/api/csrf");
+    },
+  );
   it("shares bootstrap and holds parallel reads until the CSRF cookie is initialized", async () => {
     let release!: (response: Response) => void;
     const fetch = vi.fn().mockImplementation((path: string) =>

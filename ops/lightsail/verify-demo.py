@@ -45,6 +45,22 @@ check(session.get(origin + '/api/clinic/context', timeout=20).status_code in (40
 sandbox = requests.Session()
 sandbox.headers['Origin'] = origin
 base = origin + '/api/demo-workspace'
+demo_configuration = sandbox.get(base + '/csrf', timeout=20).json()
+check(demo_configuration.get('development_login') is True, 'isolated demo login enabled')
+check(any(account['id'] == 'omni' for account in demo_configuration['development_accounts']),
+      'Omni available in isolated demo')
+sandbox.headers['X-CSRF-Token'] = demo_configuration['csrf_token']
+demo_entry = sandbox.post(base + '/development_session', json={
+    'profile': 'omni', 'portal': 'clinic', 'new_organization': {
+        'organization_name': 'Demo Walkthrough Organization',
+        'clinic_name': 'Demo Walkthrough Clinic', 'location_name': 'Main location'}}, timeout=30)
+check(demo_entry.status_code == 201, 'create organization and enter as Omni')
+demo_context = sandbox.get(base + '/clinic/context', timeout=20)
+check(demo_context.status_code == 200 and demo_context.json()['current_site']['name'] == 'Main location',
+      'new organization location persists in clinic context')
+csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
+sandbox.headers['X-CSRF-Token'] = csrf
+check(sandbox.delete(base + '/session', timeout=20).status_code == 204, 'Omni logout')
 csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
 sandbox.headers['X-CSRF-Token'] = csrf
 visitor = {'name': 'Release Check', 'email': 'release-check@example.test', 'company': 'Synthetic demo'}

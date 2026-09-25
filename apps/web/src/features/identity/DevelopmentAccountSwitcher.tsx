@@ -18,6 +18,11 @@ import type {
 import { api, loginDestination } from "../../api/client";
 
 type DevelopmentPortal = "owner" | "launch" | "patient" | "clinic";
+type NewOrganization = {
+  organization_name: string;
+  clinic_name: string;
+  location_name: string;
+};
 
 const LOGIN_NAVIGATION_DEADLINE_MS = 30_000;
 
@@ -78,6 +83,8 @@ export function DevelopmentAccountSwitcher({
   selectedId,
   onSelect,
   onScopeChange,
+  newOrganization,
+  onNewOrganization,
   disabled,
 }: {
   accounts: DevelopmentAccount[];
@@ -85,6 +92,8 @@ export function DevelopmentAccountSwitcher({
   selectedId: string;
   onSelect: (id: string) => void;
   onScopeChange?: (scope: { practiceId: string; siteId: string }) => void;
+  newOrganization?: NewOrganization | null;
+  onNewOrganization?: (value: NewOrganization | null) => void;
   disabled: boolean;
 }) {
   const portalDefinition = DEVELOPMENT_PORTALS[portal];
@@ -143,6 +152,7 @@ export function DevelopmentAccountSwitcher({
     setSiteId("");
     onSelect("");
     onScopeChange?.({ practiceId: "", siteId: "" });
+    onNewOrganization?.(null);
   }, [portal]);
 
   return (
@@ -161,115 +171,173 @@ export function DevelopmentAccountSwitcher({
               setSiteId("");
               onSelect("");
               onScopeChange?.({ practiceId: "", siteId: "" });
+              const creating = event.target.value === "new";
+              onNewOrganization?.(
+                creating
+                  ? {
+                      organization_name: "",
+                      clinic_name: "",
+                      location_name: "",
+                    }
+                  : null,
+              );
+              if (creating) onSelect("omni");
             }}
           >
             <MenuItem value="" disabled>
               Select organization
             </MenuItem>
+            {onNewOrganization &&
+              accounts.some((account) => account.account_type === "omni") && (
+                <MenuItem value="new">New organization</MenuItem>
+              )}
             {organizations.map(([id, name]) => (
               <MenuItem key={id} value={id}>
                 {name} · ID {id}
               </MenuItem>
             ))}
           </TextField>
-          <TextField
-            select
-            size="small"
-            label="Clinic"
-            value={clinicId}
-            disabled={disabled || !organizationId}
-            onChange={(event) => {
-              const nextClinicId = String(event.target.value);
-              setClinicId(nextClinicId);
-              setSiteId("");
-              onSelect("");
-              onScopeChange?.({ practiceId: nextClinicId, siteId: "" });
-            }}
-          >
-            <MenuItem value="" disabled>
-              Select clinic
-            </MenuItem>
-            {clinicOptions.map((clinic) => (
-              <MenuItem key={clinic.id} value={String(clinic.id)}>
-                {clinic.name} · ID {clinic.id}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Location"
-            value={siteId}
-            disabled={disabled || !clinicId || noLocations}
-            onChange={(event) => {
-              const nextSiteId = String(event.target.value);
-              setSiteId(nextSiteId);
-              onSelect("");
-              onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId });
-            }}
-          >
-            <MenuItem value="" disabled>
-              {noLocations ? "No accessible locations" : "Select location"}
-            </MenuItem>
-            {locations.map((site) => (
-              <MenuItem key={site.id} value={String(site.id)}>
-                {site.name || site.code} · ID {site.id}
-              </MenuItem>
-            ))}
-          </TextField>
+          {newOrganization ? (
+            <>
+              {(
+                [
+                  ["organization_name", "Organization name"],
+                  ["clinic_name", "Clinic name"],
+                  ["location_name", "Location name"],
+                ] as const
+              ).map(([name, label]) => (
+                <TextField
+                  key={name}
+                  label={label}
+                  size="small"
+                  required
+                  value={newOrganization[name]}
+                  disabled={disabled}
+                  slotProps={{ htmlInput: { maxLength: 120 } }}
+                  onChange={(event) =>
+                    onNewOrganization?.({
+                      ...newOrganization,
+                      [name]: event.target.value,
+                    })
+                  }
+                />
+              ))}
+              <TextField
+                label="Clinic team account"
+                value="Omni — all roles and access"
+                size="small"
+                slotProps={{ input: { readOnly: true } }}
+              />
+            </>
+          ) : (
+            <>
+              <TextField
+                select
+                size="small"
+                label="Clinic"
+                value={clinicId}
+                disabled={disabled || !organizationId}
+                onChange={(event) => {
+                  const nextClinicId = String(event.target.value);
+                  setClinicId(nextClinicId);
+                  setSiteId("");
+                  onSelect("");
+                  onScopeChange?.({ practiceId: nextClinicId, siteId: "" });
+                }}
+              >
+                <MenuItem value="" disabled>
+                  Select clinic
+                </MenuItem>
+                {clinicOptions.map((clinic) => (
+                  <MenuItem key={clinic.id} value={String(clinic.id)}>
+                    {clinic.name} · ID {clinic.id}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label="Location"
+                value={siteId}
+                disabled={disabled || !clinicId || noLocations}
+                onChange={(event) => {
+                  const nextSiteId = String(event.target.value);
+                  setSiteId(nextSiteId);
+                  onSelect("");
+                  onScopeChange?.({ practiceId: clinicId, siteId: nextSiteId });
+                }}
+              >
+                <MenuItem value="" disabled>
+                  {noLocations ? "No accessible locations" : "Select location"}
+                </MenuItem>
+                {locations.map((site) => (
+                  <MenuItem key={site.id} value={String(site.id)}>
+                    {site.name || site.code} · ID {site.id}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </>
+          )}
         </>
       )}
-      <FormControl
-        size="small"
-        disabled={
-          disabled ||
-          visibleAccounts.length === 0 ||
-          (hierarchyAvailable && !siteId && !noLocations)
-        }
-      >
-        <Select
-          className="development-account-select"
-          value={selectedAccount?.id || ""}
-          onChange={(event) => onSelect(event.target.value)}
-          displayEmpty
-          renderValue={() =>
-            selectedAccount?.label ||
-            `Select ${portalDefinition.accountLabel} account`
+      {!newOrganization && (
+        <FormControl
+          size="small"
+          disabled={
+            disabled ||
+            visibleAccounts.length === 0 ||
+            (hierarchyAvailable && !siteId && !noLocations)
           }
-          inputProps={{
-            "aria-label": `Select ${portalDefinition.accountLabel} account`,
-          }}
-          sx={{ minWidth: 0, bgcolor: "background.paper" }}
         >
-          <MenuItem value="" disabled>
-            Select {portalDefinition.accountLabel} account
-          </MenuItem>
-          {(hierarchyAvailable
-            ? [
-                ...clinics.filter(
-                  (account) =>
-                    noLocations ||
-                    account.locations?.some(
-                      (site) => String(site.id) === siteId,
-                    ),
-                ),
-                ...visibleAccounts.filter(
-                  (account) => account.account_type === "omni",
-                ),
-              ].filter(
-                (account, index, accountsForLocation) =>
-                  accountsForLocation.findIndex(
-                    (candidate) => candidate.id === account.id,
-                  ) === index,
-              )
-            : visibleAccounts
-          ).map((account) => (
-            <MenuItem key={account.id} value={account.id}>
-              {account.label}
+          <Select
+            className="development-account-select"
+            value={selectedAccount?.id || ""}
+            onChange={(event) => onSelect(event.target.value)}
+            displayEmpty
+            renderValue={() =>
+              selectedAccount?.label ||
+              `Select ${portalDefinition.accountLabel} account`
+            }
+            inputProps={{
+              "aria-label": `Select ${portalDefinition.accountLabel} account`,
+            }}
+            sx={{ minWidth: 0, bgcolor: "background.paper" }}
+          >
+            <MenuItem value="" disabled>
+              Select {portalDefinition.accountLabel} account
             </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+            {(hierarchyAvailable
+              ? [
+                  ...clinics.filter(
+                    (account) =>
+                      noLocations ||
+                      account.locations?.some(
+                        (site) => String(site.id) === siteId,
+                      ),
+                  ),
+                  ...visibleAccounts.filter(
+                    (account) => account.account_type === "omni",
+                  ),
+                ].filter(
+                  (account, index, accountsForLocation) =>
+                    accountsForLocation.findIndex(
+                      (candidate) => candidate.id === account.id,
+                    ) === index,
+                )
+              : visibleAccounts.filter(
+                  (account, index) =>
+                    visibleAccounts.findIndex(
+                      (candidate) => candidate.id === account.id,
+                    ) === index,
+                )
+            ).map((account) => (
+              <MenuItem key={account.id} value={account.id}>
+                {account.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
       {visibleAccounts.length === 0 && (
         <Typography variant="caption">
           No {portalDefinition.accountLabel} accounts are available.
@@ -368,6 +436,8 @@ export function DevelopmentControls({
   const [selectedId, setSelectedId] = useState(activeAccount?.id || "");
   const [switching, setSwitching] = useState(false);
   const [scope, setScope] = useState({ practiceId: "", siteId: "" });
+  const [newOrganization, setNewOrganization] =
+    useState<NewOrganization | null>(null);
   const requiresClinicScope =
     portal === "clinic" && accounts.some((account) => account.clinic);
   const [error, setError] = useState("");
@@ -437,6 +507,7 @@ export function DevelopmentControls({
             portal,
             practice_id: scope.practiceId,
             site_id: scope.siteId,
+            ...(newOrganization ? { new_organization: newOrganization } : {}),
           },
         },
       );
@@ -485,6 +556,8 @@ export function DevelopmentControls({
           selectedId={selectedId}
           onSelect={setSelectedId}
           onScopeChange={setScope}
+          newOrganization={newOrganization}
+          onNewOrganization={setNewOrganization}
           disabled={switching || Boolean(entryDestination)}
         />
         <DevelopmentDatePicker businessDate={businessDate} />
@@ -498,7 +571,10 @@ export function DevelopmentControls({
           disabled={
             switching ||
             (!entryDestination &&
-              (!selectedId || (requiresClinicScope && !scope.practiceId)))
+              (!selectedId ||
+                (newOrganization
+                  ? Object.values(newOrganization).some((name) => !name.trim())
+                  : requiresClinicScope && !scope.practiceId)))
           }
           onClick={() => void logIn()}
         >
@@ -508,7 +584,9 @@ export function DevelopmentControls({
               : "Entering…"
             : entryDestination
               ? "Open workspace"
-              : "Log in"}
+              : newOrganization
+                ? "Create organization and enter"
+                : "Log in"}
         </Button>
       </Stack>
       {error && (

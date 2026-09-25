@@ -1,5 +1,19 @@
 # Meta Clinic Lightsail synthetic demo
 
+## Investor demo entry
+
+On `aimetaclinic.com`, `/login` and workspace pages use `/api/demo-workspace/`
+and the isolated `apply_guided_demo` database. Login defaults to the account
+tools; the credential form is hidden when the backend enables those tools.
+The headline remains “Streamline your practice. Scale your organization.”
+Choose **Clinic → Organization → New organization**, enter the organization,
+clinic and location names, then **Create organization and enter**. Omni has
+all demo roles. Repeating the same names reopens the saved workspace.
+
+The release seeds Omni in the isolated database and verifies this creation
+flow. The ordinary `/api/` backend retains credential authentication and denies
+development shortcuts. Other hosts retain their existing login policy.
+
 ## Current connection (verified 2026-09-20)
 
 The public site is `https://aimetaclinic.com`, with guided lessons at `/demo`.

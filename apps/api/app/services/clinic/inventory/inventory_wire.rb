@@ -163,7 +163,7 @@ module Clinic
       end
 
       def development_omni_access?
-        Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
+        Rails.env.test? || DevelopmentAccess.enabled?
       end
 
       def count_session_wire(session, paths)

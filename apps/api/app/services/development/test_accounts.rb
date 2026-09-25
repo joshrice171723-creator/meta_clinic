@@ -44,13 +44,13 @@ module Development
       return false unless user.is_a?(User) &&
         user.email_address == PROFILES.fetch("omni")[:email]
 
-      Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
+      Rails.env.test? || DevelopmentAccess.enabled?
     end
 
     def self.patient?(user)
       return false unless user.is_a?(User) && user.email_address == PROFILES.fetch("patient")[:email]
 
-      Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
+      Rails.env.test? || DevelopmentAccess.enabled?
     end
 
     def self.matches?(user, profile)
@@ -146,8 +146,7 @@ module Development
       User.transaction do
         user = User.lock.find_by(email_address: settings.fetch(:email))
         if user
-          identity_matches = user.email_address == settings.fetch(:email) &&
-            user.admin? == settings.fetch(:admin)
+          identity_matches = matches?(user, "omni")
           unless identity_matches && user.authenticate(password_for("omni"))
             raise Unavailable, "A test identity conflicts with an existing account. No accounts were changed."
           end
@@ -188,7 +187,7 @@ module Development
     end
 
     def self.ensure_local!
-      return if Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
+      return if Rails.env.test? || DevelopmentAccess.enabled?
       raise Unavailable, "Named test accounts require explicitly enabled local development."
     end
     private_class_method :ensure_local!
@@ -276,11 +275,14 @@ module Development
 
       membership = user.clinic_membership
       return [] unless membership
-      practice = membership.practice
-      [ { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic",
+      Clinic::Practice.includes(:organization, :sites).sort_by do |practice|
+        [ practice.id == membership.practice_id ? 0 : 1, practice.name, practice.id ]
+      end.map do |practice|
+        { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic",
           organization: practice.organization && { id: practice.organization.id, name: practice.organization.name },
           clinic: { id: practice.id, name: practice.name },
-          locations: practice.sites.order(:name, :id).map { |site| { id: site.id, name: site.name, code: site.code } } } ]
+          locations: practice.sites.sort_by { |site| [ site.name, site.id ] }.map { |site| { id: site.id, name: site.name, code: site.code } } }
+      end
     end
     private_class_method :omni_account
 

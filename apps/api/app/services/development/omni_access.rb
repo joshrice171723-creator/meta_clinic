@@ -70,7 +70,7 @@ module Development
       else
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
-      BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI")
+      BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI") unless GuidedDemoAccess.hosted?
       seed_purchase_supplier_mix!(membership.practice)
       SubscriptionExamples.seed!(practice: membership.practice, actor: user)
       retire_legacy_workflow!(membership)
@@ -239,8 +239,8 @@ module Development
     private_class_method :retire_legacy_workflow!
 
     def self.ensure_local!
-      return if Rails.env.test? || (Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1")
-      raise TestAccounts::Unavailable, "OmniLogin requires explicitly enabled local development."
+      return if Rails.env.test? || DevelopmentAccess.enabled?
+      raise TestAccounts::Unavailable, "OmniLogin requires local development or the isolated hosted demo."
     end
     private_class_method :ensure_local!
   end

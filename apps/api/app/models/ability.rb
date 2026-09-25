@@ -166,7 +166,7 @@ class Ability
     return unless @membership
 
     # Omni is a deliberately unrestricted synthetic operator for the explicitly
-    # enabled local development database. Its selected profile still toggles
+    # enabled local or isolated hosted demo database. Its selected profile still toggles
     # the admin flag for UI/workflow rehearsal, but never limits clinic actions.
     if Development::TestAccounts.omni?(user)
       @omni_override = true
@@ -223,6 +223,7 @@ class Ability
 
   def role_code_allowed?(role_codes)
     return false unless membership
+    return true if omni_override?
 
     membership.role_grants.active(@at).joins(:role_version)
       .where(role_versions: { role_code: Array(role_codes) }).exists?

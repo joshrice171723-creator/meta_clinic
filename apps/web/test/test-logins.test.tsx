@@ -84,7 +84,9 @@ describe("development account preview", () => {
     );
     expect(html).toContain("Omni");
     expect(html).toContain("Omni");
-    expect(html).toContain("Select launch account");
+    expect(html).toContain("Select clinic team account");
+    expect(html).toContain("Streamline your practice.");
+    expect(html).toContain("Scale your organization.");
     expect(html).toContain(">Owner<");
     expect(html).toContain(">Launch<");
     expect(html).toContain(">Patient<");
@@ -94,7 +96,7 @@ describe("development account preview", () => {
     expect(html).toContain("Log in");
     expect(html).toContain("Development tools");
     expect(html).toContain(
-      "Choose a local account and its permitted destination for this environment.",
+      "Choose an organization and account, or create a new organization.",
     );
     expect(html).toContain("2032-04-15");
     expect(html).toContain("Apply date");

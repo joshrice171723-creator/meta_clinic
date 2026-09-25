@@ -52,6 +52,16 @@ module Identity
         user = profile.is_a?(String) && Development::TestAccounts.sign_in_account(profile)
         return render json: { error: "This account is unavailable. It may be disabled or need local setup." }, status: :unauthorized unless user
 
+        if params[:new_organization].present?
+          unless profile == "omni" && params[:portal] == "clinic"
+            return render json: { error: "Choose Clinic and Omni to create an organization." }, status: :unprocessable_entity
+          end
+          details = params.require(:new_organization).permit(:organization_name, :clinic_name, :location_name)
+          practice, site = Development::CreateOrganization.call(**details.to_h.symbolize_keys, actor: user)
+          params[:practice_id] = practice.id.to_s
+          params[:site_id] = site.id.to_s
+        end
+
         preview = Development::TestAccounts.preview_account_for(user, profile: profile)
         portal = params[:portal].presence
         portal_definition = DEVELOPMENT_PORTALS[portal] if portal
@@ -73,6 +83,8 @@ module Identity
           user: session_user(user),
           destination: portal_definition&.fetch(:destination) || preview&.fetch(:destination, nil) || "/portal"
         }, status: :created
+      rescue ArgumentError, ActiveRecord::RecordInvalid => error
+        render json: { error: error.message }, status: :unprocessable_entity
       end
 
       def destroy

@@ -14,7 +14,7 @@ function developmentPortalFor(returnTo: string | null) {
   if (returnTo?.startsWith("/owner")) return "owner" as const;
   if (returnTo?.startsWith("/clinic")) return "clinic" as const;
   if (returnTo?.startsWith("/patient-portal")) return "patient" as const;
-  return "launch" as const;
+  return "clinic" as const;
 }
 
 export function Login({
@@ -36,7 +36,8 @@ export function Login({
   const ownerPortal = returnTo?.startsWith("/owner");
   const employeePortal = returnTo?.startsWith("/clinic");
   const membershipAccount = returnTo === "/memberships/account";
-  const patientPortal = returnTo?.startsWith("/patient-portal") || membershipAccount;
+  const patientPortal =
+    returnTo?.startsWith("/patient-portal") || membershipAccount;
   const portalName = ownerPortal
     ? "Owner Command Center"
     : employeePortal
@@ -57,44 +58,14 @@ export function Login({
       id="main"
       className={`wrap inner-page login-layout${developmentLogin ? " development-login-layout" : ""}`}
     >
-      {!developmentLogin && (
-        <div className="inner-page-copy">
-          <h1>
-            {ownerPortal
-              ? "Streamline your practice."
-              : employeePortal
-                ? "Your workday."
-                : patientPortal
-                  ? "Your care."
-                  : "Your launch."}
-            <br />
-            <em>
-              {ownerPortal
-                ? "Scale your organization."
-                : employeePortal
-                  ? "One place to work."
-                  : patientPortal
-                    ? "One secure place."
-                    : "One place to start."}
-            </em>
-          </h1>
-          <p>
-            {ownerPortal
-              ? "Establish clinics and invite their first owners."
-              : employeePortal
-                ? "Sign in to work in your clinic and access the tools assigned to your team account."
-                : patientPortal
-                  ? "Sign in to view the patient portal access assigned by your clinic."
-                  : "Sign in to review your paperwork and work through onboarding and training."}
-          </p>
-          {!developmentLogin && (
-            <p className="page-fine-print">
-              Clinic staff accounts are issued by the clinic. Membership
-              customers can create an account from their clinic’s membership page.
-            </p>
-          )}
-        </div>
-      )}
+      <div className="inner-page-copy">
+        <h1>
+          Streamline your practice.
+          <br />
+          <em>Scale your organization.</em>
+        </h1>
+        <p>Your clinics, your team, and your workflows in one place.</p>
+      </div>
       <section className="form-card login-card">
         <EnvironmentLabel environment={environment} />
         {configurationError && (
@@ -113,8 +84,7 @@ export function Login({
           <div className="login-development-tools">
             <h2>Development tools</h2>
             <Typography color="text.secondary" variant="body2">
-              Choose a local account and its permitted destination for this
-              environment.
+              Choose an organization and account, or create a new organization.
             </Typography>
             <DevelopmentControls
               accounts={developmentAccounts}

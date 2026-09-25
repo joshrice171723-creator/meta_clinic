@@ -122,8 +122,14 @@ body:has(.login-layout) .footer-bottom { border-color:rgba(255,255,255,.3); }
 .login-layout .MuiToggleButton-root.Mui-selected { background:#dce8ff; color:#18233c; }
 .login-layout .MuiToggleButton-root.Mui-selected:hover { background:#cbdcff; }
 .login-layout .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline { border-color:#1764ad; }
-.development-login-layout { display:flex; justify-content:center; }
-.development-login-layout .login-card { width:min(100%,720px); }
+.development-login-layout { align-items:center; }
+.development-login-layout .login-card { width:100%; min-width:0; }
+.development-login-layout .development-control-row { flex-direction:column; align-items:stretch; }
+.development-login-layout .development-control-row > * { width:100%; margin-left:0; }
+.development-login-layout .development-account-switcher { min-width:0; }
+.development-login-layout .development-portal-toggle { flex-wrap:wrap; }
+.development-login-layout .development-date-row { flex-wrap:wrap; gap:6px; }
+.development-login-layout .development-date-input { flex:1 0 145px; }
 @media(max-width:760px) { .login-layout { padding-block:48px 60px; } .login-layout .login-card { padding:26px; } }
 .portal-type-links { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:18px 0 28px; }
 .portal-type-links a { padding:11px 12px; border:1px solid #b8c3b2; border-radius:5px; background:#fffefa; font-size:12px; font-weight:600; text-align:center; }
