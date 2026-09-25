@@ -94,6 +94,55 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_empty other_site.rooms
   end
 
+  test "departments can be added safely and stay scoped to the practice" do
+    post "/api/clinic/facilities/departments", params: {
+      department: { code: "Weight Management" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_equal "Weight Management", response.parsed_body.dig("department", "code")
+    assert_equal 1, @practice.departments.where(code: "Weight Management").count
+    assert @practice.audit_events.exists?(action_code: "facilities.department.configure")
+
+    post "/api/clinic/facilities/departments", params: {
+      department: { code: "Weight Management" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :created
+    assert_equal 1, @practice.departments.where(code: "Weight Management").count
+
+    other_user = User.create!(email_address: "facility-department-other@example.invalid", password: @password)
+    other_practice = Development::TestClinic.create!(other_user).practice
+    other_department = other_practice.departments.create!(code: "Other department")
+    get "/api/clinic/facilities", params: { type: "departments" }, headers: @headers
+
+    assert_response :success
+    ids = response.parsed_body.fetch("departments").map { |row| row.fetch("id") }
+    assert_includes ids, @practice.departments.find_by!(code: "Weight Management").id
+    assert_not_includes ids, other_department.id
+  end
+
+  test "department creation requires a name and clinic write permission" do
+    post "/api/clinic/facilities/departments", params: {
+      department: { code: " " }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :bad_request
+    assert_not @practice.departments.exists?(code: " ")
+
+    limited = User.create!(email_address: "facility-department-limited@example.invalid", password: @password)
+    @practice.memberships.create!(user: limited)
+    post "/api/session", params: { email_address: limited.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+
+    post "/api/clinic/facilities/departments", params: {
+      department: { code: "Unauthorized department" }
+    }, headers: csrf_headers, as: :json
+
+    assert_response :forbidden
+    assert_not @practice.departments.exists?(code: "Unauthorized department")
+  end
+
   test "detailed facility list batches profile associations" do
     2.times do |index|
       site = @practice.sites.create!(code: "BATCH-#{index}", name: "Batch facility #{index}", status: "draft")

@@ -1,7 +1,7 @@
 module Clinic
   class FacilitiesController < ApiController
     before_action -> { require_capability_with_legacy("facilities.read", "appointments.book", any_site: true) }, only: :index
-    before_action -> { require_capability_with_legacy("facilities.write", "appointments.write") }, only: %i[create update]
+    before_action -> { require_capability_with_legacy("facilities.write", "appointments.write") }, only: %i[create update create_department]
 
     def index
       type = enum_param!(params[:type].presence || "sites", field: :type, allowed: %w[sites rooms departments visit_types])
@@ -45,6 +45,19 @@ module Clinic
         created_site
       end
       render json: { id: site.id, site: FacilitySerializer.site(site, detail: true) }, status: :created
+    end
+
+    def create_department
+      input = parameter_hash!(:department, %i[code])
+      code = required_string!(input[:code], field: :code, maximum: 80)
+      department = current_practice.transaction do
+        record = current_practice.departments.find_or_create_by!(code: code)
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+          action_code: "facilities.department.configure", outcome: :committed,
+          resource_version_ref: "clinic-department:#{record.id}")
+        record
+      end
+      render json: { department: FacilitySerializer.department(department) }, status: :created
     end
 
     def update

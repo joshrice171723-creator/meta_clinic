@@ -30,6 +30,21 @@
     "/api/clinic/appointment_requests(.:format)"
   ],
   [
+    "api_clinic_appointment_series",
+    "GET",
+    "/api/clinic/appointment_series/:id(.:format)"
+  ],
+  [
+    "api_clinic_appointment_series_index",
+    "POST",
+    "/api/clinic/appointment_series(.:format)"
+  ],
+  [
+    "api_clinic_appointment_series_preview",
+    "POST",
+    "/api/clinic/appointment_series/preview(.:format)"
+  ],
+  [
     "api_clinic_appointments",
     "GET",
     "/api/clinic/appointments(.:format)"
@@ -38,6 +53,11 @@
     "api_clinic_billing",
     "GET",
     "/api/clinic/billing(.:format)"
+  ],
+  [
+    "api_clinic_billing_income_outlook",
+    "GET",
+    "/api/clinic/billing/income_outlook(.:format)"
   ],
   [
     "api_clinic_billing_service",
@@ -68,6 +88,16 @@
     "api_clinic_cash_drawers",
     "GET",
     "/api/clinic/cash_drawers(.:format)"
+  ],
+  [
+    "api_clinic_cash_pay_estimate",
+    "GET",
+    "/api/clinic/cash_pay_estimates/:id(.:format)"
+  ],
+  [
+    "api_clinic_cash_pay_estimates",
+    "GET",
+    "/api/clinic/cash_pay_estimates(.:format)"
   ],
   [
     "api_clinic_clinicians",
@@ -115,6 +145,11 @@
     "/api/clinic/encounters/:encounter_id/notes(.:format)"
   ],
   [
+    "api_clinic_encounter_psychotherapy_note",
+    "GET",
+    "/api/clinic/encounters/:encounter_id/psychotherapy_note(.:format)"
+  ],
+  [
     "api_clinic_encounters",
     "GET",
     "/api/clinic/encounters(.:format)"
@@ -123,6 +158,11 @@
     "api_clinic_facilities",
     "GET",
     "/api/clinic/facilities(.:format)"
+  ],
+  [
+    "api_clinic_facilities_departments",
+    "POST",
+    "/api/clinic/facilities/departments(.:format)"
   ],
   [
     "api_clinic_inventory_configuration",
@@ -470,6 +510,11 @@
     "/api/clinic/practice_features(.:format)"
   ],
   [
+    "api_clinic_realtime_events",
+    "GET",
+    "/api/clinic/realtime/events(.:format)"
+  ],
+  [
     "api_clinic_recall",
     "GET",
     "/api/clinic/recalls/:id(.:format)"
@@ -495,6 +540,11 @@
     "/api/clinic/reminders(.:format)"
   ],
   [
+    "api_clinic_reports_daily_visits_by_state",
+    "GET",
+    "/api/clinic/reports/daily_visits_by_state(.:format)"
+  ],
+  [
     "api_clinic_role_grants",
     "GET",
     "/api/clinic/role_grants(.:format)"
@@ -513,6 +563,11 @@
     "api_clinic_schedule_calendar",
     "GET",
     "/api/clinic/schedule_calendar(.:format)"
+  ],
+  [
+    "api_clinic_schedule_holds",
+    "POST",
+    "/api/clinic/schedule_holds(.:format)"
   ],
   [
     "api_clinic_scribe_encounter",
@@ -538,6 +593,16 @@
     "api_clinic_scribe_templates",
     "GET",
     "/api/clinic/scribe/templates(.:format)"
+  ],
+  [
+    "api_clinic_service_offering",
+    "PATCH",
+    "/api/clinic/service_offerings/:id(.:format)"
+  ],
+  [
+    "api_clinic_service_offerings",
+    "GET",
+    "/api/clinic/service_offerings(.:format)"
   ],
   [
     "api_clinic_staff",
@@ -885,6 +950,16 @@
     "/api/owner/command_center(.:format)"
   ],
   [
+    "api_owner_password_reset",
+    "POST",
+    "/api/owner_password_reset(.:format)"
+  ],
+  [
+    "api_owner_password_reset_requests",
+    "POST",
+    "/api/owner_password_reset_requests(.:format)"
+  ],
+  [
     "api_paperwork",
     "GET",
     "/api/paperworks/:id(.:format)"
@@ -1155,6 +1230,11 @@
     "/api/clinic/scribe/encounters/:id/context(.:format)"
   ],
   [
+    "correct_api_clinic_cash_pay_estimate",
+    "POST",
+    "/api/clinic/cash_pay_estimates/:id/correct(.:format)"
+  ],
+  [
     "corrections_api_clinic_note",
     "POST",
     "/api/clinic/notes/:id/corrections(.:format)"
@@ -1183,6 +1263,11 @@
     "decline_api_clinic_appointment_request",
     "POST",
     "/api/clinic/appointment_requests/:id/decline(.:format)"
+  ],
+  [
+    "deliver_api_clinic_cash_pay_estimate",
+    "POST",
+    "/api/clinic/cash_pay_estimates/:id/deliver(.:format)"
   ],
   [
     "delivery_events_api_clinic_message_intent",
@@ -1253,6 +1338,11 @@
     "interrupt_api_clinic_scribe_recording",
     "POST",
     "/api/clinic/scribe/recordings/:id/interrupt(.:format)"
+  ],
+  [
+    "issue_api_clinic_cash_pay_estimate",
+    "POST",
+    "/api/clinic/cash_pay_estimates/:id/issue(.:format)"
   ],
   [
     "lab_selections_api_clinic_scribe_encounter",
@@ -1345,6 +1435,11 @@
     "/api/clinic/encounters/:id/provider_assignment(.:format)"
   ],
   [
+    "publish_api_clinic_service_offering",
+    "POST",
+    "/api/clinic/service_offerings/:id/publish(.:format)"
+  ],
+  [
     "punches",
     "POST",
     "/api/workforce/kiosk/punches(.:format)"
@@ -1435,6 +1530,11 @@
     "/api/clinic/subscriptions/:id/refund(.:format)"
   ],
   [
+    "release_api_clinic_schedule_hold",
+    "POST",
+    "/api/clinic/schedule_holds/:id/release(.:format)"
+  ],
+  [
     "restore_api_clinic_scribe_draft",
     "POST",
     "/api/clinic/scribe/drafts/:id/restore(.:format)"
@@ -1443,6 +1543,11 @@
     "result_history_api_clinic_patient_lab_report",
     "GET",
     "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/results/:result_index/history(.:format)"
+  ],
+  [
+    "retire_api_clinic_service_offering",
+    "POST",
+    "/api/clinic/service_offerings/:id/retire(.:format)"
   ],
   [
     "retry_api_clinic_reminder",
@@ -1592,6 +1697,11 @@
   [
     null,
     "GET",
+    "/api/clinic/facilities/:site_id/scheduling_policy(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/inventory/purchase-orders/:id(.:format)"
   ],
   [
@@ -1677,12 +1787,22 @@
   [
     null,
     "PATCH",
+    "/api/clinic/encounters/:encounter_id/psychotherapy_note(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/facilities/:id(.:format)"
   ],
   [
     null,
     "PATCH",
     "/api/clinic/facilities/:id/rooms/:room_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/facilities/:site_id/scheduling_policy(.:format)"
   ],
   [
     null,
@@ -1822,6 +1942,21 @@
   [
     null,
     "POST",
+    "/api/clinic/appointment_series/:id/cancel_future(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/appointment_series/:id/change_future(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/appointment_series/:id/preview_change(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/appointments(.:format)"
   ],
   [
@@ -1843,6 +1978,11 @@
     null,
     "POST",
     "/api/clinic/cash_drawers(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/cash_pay_estimates(.:format)"
   ],
   [
     null,
@@ -2192,6 +2332,11 @@
   [
     null,
     "POST",
+    "/api/clinic/service_offerings(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/staff(.:format)"
   ],
   [
@@ -2517,6 +2662,11 @@
   [
     null,
     "PUT",
+    "/api/clinic/encounters/:encounter_id/psychotherapy_note(.:format)"
+  ],
+  [
+    null,
+    "PUT",
     "/api/clinic/membership_prospects/:id(.:format)"
   ],
   [
@@ -2538,6 +2688,11 @@
     null,
     "PUT",
     "/api/clinic/practice_features(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/service_offerings/:id(.:format)"
   ],
   [
     null,

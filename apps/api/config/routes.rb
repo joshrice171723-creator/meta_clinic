@@ -81,6 +81,7 @@ Rails.application.routes.draw do
     end
     get "facilities", to: "facilities#index"
     post "facilities", to: "facilities#create"
+    post "facilities/departments", to: "facilities#create_department"
     post "facilities/:id/rooms", to: "facilities#create_room"
     patch "facilities/:id/rooms/:room_id", to: "facilities#update_room"
     patch "facilities/:id", to: "facilities#update"

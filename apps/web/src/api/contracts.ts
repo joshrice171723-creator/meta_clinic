@@ -1468,6 +1468,7 @@ export type FacilityRoom = {
   code: string;
   kind: "physical" | "telehealth";
 };
+export type ClinicDepartment = { id: number; code: string };
 export type CalendarSlot = {
   starts_at: string;
   ends_at: string;
