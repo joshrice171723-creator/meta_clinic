@@ -100,7 +100,15 @@ const explanations: Record<string, string> = {
   "503A partner webhooks":
     "Connections that send order or status updates between the platform and a partner compounding pharmacy. Compounding prepares medication for an individual patient's prescription.",
   "Quest/Labcorp order/result tracking":
-    "Connections for sending diagnostic lab orders and receiving their status and results back into the clinic workspace.",
+    "Planned connections for placing Quest or Labcorp orders and receiving results in the clinic workspace. The middleware account, interface setup and per-order test costs are not contracted or included in the shown $500 clinic estimate.",
+  "Lab middleware · proposed":
+    "Healthie publishes $10 per ordering provider monthly for Enterprise customers connecting existing Quest/Labcorp accounts, plus $5 per non-NPI ordering user. A three-provider example is $30 monthly before Enterprise subscription, interface setup and test costs. This is a market comparator, not Meta Clinic pricing.",
+  "Diagnostic lab connectivity (Quest / Labcorp)":
+    "Healthie's Enterprise E-Labs option supports orders and results for existing Quest/Labcorp accounts. Its published per-provider fee is only part of the cost; onboarding and enterprise terms require a quote, and Healthie says these interfaces typically take five months or longer.",
+  "Wholesale clinical lab orders":
+    "A prospective cash-pay lab catalog charges for each ordered test. Rupa publishes wholesale catalog prices plus a 7% processing fee passed to patients, with no practitioner subscription. Meta Clinic has not contracted a catalog or a markup.",
+  "503A pharmacy partner workflows":
+    "Planned electronic order and status exchange with licensed compounding pharmacies. Partner terms and transaction costs have not been contracted.",
   "Cash-pay / membership":
     "Patients pay the clinic directly, either for individual services or through recurring memberships.",
   "Insurance-enabled":

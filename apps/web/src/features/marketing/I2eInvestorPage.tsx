@@ -96,13 +96,31 @@ export const investorCosts = [
       "Hosting eligibility supports the architecture; BAAs, safeguards and operating controls remain essential.",
   },
   {
-    category: "B2B Compounding Labs & Diagnostics",
+    category: "503A pharmacy partner workflows",
     upfront: 0,
     monthly: 0,
     purpose:
-      "Build partner-order and result pipelines for diagnostic networks and licensed 503A pharmacies, with transaction-based economics.",
+      "Build partner-order and status pipelines for licensed 503A pharmacies, with transaction-based economics.",
     value:
-      "Quest/Labcorp and pharmacy partners are integration targets. No fixed platform fee is modeled; variable costs and terms require contracts.",
+      "Pharmacy partners are integration targets. No fixed platform fee is modeled; variable costs and terms require contracts.",
+  },
+  {
+    category: "Diagnostic lab connectivity (Quest / Labcorp)",
+    upfront: 0,
+    monthly: 0,
+    purpose:
+      "Planned bidirectional lab ordering and result tracking through a contracted middleware partner. Interface enrollment, implementation and any platform subscription require a quote.",
+    value:
+      "Healthie publishes $10/month per ordering provider and $5/month per non-NPI ordering user for Enterprise customers linking existing lab accounts; its Quest/Labcorp connections typically take at least five months. This is a comparator, not a Meta Clinic contract or included budget.",
+  },
+  {
+    category: "Wholesale clinical lab orders",
+    upfront: 0,
+    monthly: 0,
+    purpose:
+      "Patient-specific cash-pay lab orders through a prospective partner catalog, with test prices and processing charges assessed per order.",
+    value:
+      "Rupa publishes no practitioner subscription and a 7% processing fee on wholesale catalog prices passed to patients. Meta Clinic has no agreed catalog, resale rights or transaction margin.",
   },
 ];
 const money = (value: number) =>
@@ -232,12 +250,25 @@ const vendorSources: Record<
     basis:
       "OpenRouter route exists in development; $350/mo is a planning allowance for a future OpenAI GPT model.",
   },
+  "Diagnostic lab connectivity (Quest / Labcorp)": {
+    url: "https://help.gethealthie.com/article/1260-direct-labs-by-healthie",
+    label: "Healthie E-Labs terms",
+    basis:
+      "Healthie Enterprise comparator: $10/mo per ordering provider; $5/mo per non-NPI ordering user. Enterprise and interface costs require a quote.",
+  },
+  "Wholesale clinical lab orders": {
+    url: "https://help.rupahealth.com/en/articles/6131530-how-does-rupa-health-s-pricing-work",
+    label: "Rupa pricing model",
+    basis:
+      "Rupa comparator: no practitioner subscription; wholesale test price plus 7% processing to patients. Meta Clinic terms unquoted.",
+  },
 };
 const conversionVendorSources: Record<string, string> = {
   "Photon Health · proposed": "Prescription Network API (eRx)",
   "Twilio Programmable Video": "HIPAA Telehealth Video API",
   "Candid Health · proposed": "Insurance billing engine",
   "OpenRouter · OpenAI GPT planned": "AI Clinical Scribe Engine",
+  "Lab middleware · proposed": "Diagnostic lab connectivity (Quest / Labcorp)",
 };
 function Grid({
   label,
@@ -428,8 +459,8 @@ export function I2eInvestorPage() {
                       "Quest/Labcorp order/result tracking",
                       "Via Fullscript · outside subtotal",
                       "Direct lab tracking · planned",
-                      "Partner terms / usage",
-                      "Quest / Labcorp · proposed",
+                      "Connectivity quote + test costs",
+                      "Lab middleware · proposed",
                     ],
                     [
                       "503A partner webhooks",
@@ -502,8 +533,8 @@ export function I2eInvestorPage() {
               depend on partner agreements and activation. Current-stack
               subtotal excludes insurance and clearinghouse fees. Our $500
               vendor cost estimate includes insurance mapping; shared platform
-              costs, lab tests, medication purchases and payment processing are
-              separate.
+              costs, lab connectivity, lab tests, medication purchases and
+              payment processing are separate.
             </p>
             <div className="i2e-summary-ledgers">
               {ledger("Meta Clinic target offer", [
@@ -616,8 +647,19 @@ export function I2eInvestorPage() {
                   <TableCell component="th" scope="row">
                     <I2eHelp label={row.category} />
                   </TableCell>
-                  <TableCell align="right">{money(row.upfront)}</TableCell>
-                  <TableCell align="right">{money(row.monthly)}</TableCell>
+                  <TableCell align="right">
+                    {row.category.startsWith("Diagnostic lab") ||
+                    row.category === "Wholesale clinical lab orders"
+                      ? "Unquoted"
+                      : money(row.upfront)}
+                  </TableCell>
+                  <TableCell align="right">
+                    {row.category.startsWith("Diagnostic lab")
+                      ? "Unquoted"
+                      : row.category === "Wholesale clinical lab orders"
+                        ? "Per order"
+                        : money(row.monthly)}
+                  </TableCell>
                   <TableCell align="right">
                     {vendorSources[row.category] ? (
                       <>
@@ -661,8 +703,9 @@ export function I2eInvestorPage() {
             </Grid>
             <p className="i2e-note">
               Estimated vendor budget; final pricing depends on usage and
-              account terms. LegitScript's published $2,150 annual fee is
-              additional if certification is approved.
+              account terms. Lab middleware and per-order test costs are not
+              included in the totals. LegitScript's published $2,150 annual fee
+              is additional if certification is approved.
             </p>
           </section>
           <section id="sales-deck">

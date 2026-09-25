@@ -9,7 +9,7 @@ import {
 
 describe("i2E financial model", () => {
   it("reconciles the cost rows with the revised six-month plan", () => {
-    expect(investorCosts).toHaveLength(10);
+    expect(investorCosts).toHaveLength(12);
     expect(investorBudget.upfront).toBe(10500);
     expect(investorBudget.monthly).toBe(3200);
     const operatingCapital = investorBudget.capital - investorBudget.upfront;
