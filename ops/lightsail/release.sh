@@ -145,9 +145,18 @@ docker run --rm --entrypoint cat "$(sed -n 's/^API_IMAGE=//p' "$state/candidate.
 activated=1
 install -m 600 "$state/candidate.env" "$release_file"
 compose "$release_file" up -d --pull never --wait --wait-timeout 120 api worker guided-demo web
-for path in /login /up /demo /clinic; do
-  status=$(curl --silent --show-error --max-time 15 --output /dev/null --write-out '%{http_code}' "https://aimetaclinic.com$path")
-  [[ $status == 200 ]] || { echo "$path returned $status." >&2; false; }
+for path in /login /up /api/demo-workspace/csrf /demo /clinic; do
+  # Compose reports running containers before Rails finishes booting.
+  deadline=$((SECONDS + 90))
+  while :; do
+    status=$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' "https://aimetaclinic.com$path") || status=000
+    [[ $status == 200 ]] && break
+    if (( SECONDS >= deadline )); then
+      echo "$path did not become ready (last status $status)." >&2
+      false
+    fi
+    sleep 2
+  done
 done
 status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 https://aimetaclinic.com/api/clinic/context)
 [[ $status == 401 || $status == 403 || $status == 404 ]] || { echo "Anonymous clinic access returned $status." >&2; false; }
