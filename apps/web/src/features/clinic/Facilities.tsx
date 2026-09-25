@@ -116,6 +116,7 @@ export function Facilities() {
   const { capabilities, current_site: currentSite, practice } = useClinic();
   const { data, error, refresh } = useResource<{ sites: ClinicSite[] }>(
     "/api/clinic/facilities?type=sites&detail=true&per_page=100",
+    { retainDataOnRefresh: true },
   );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
@@ -146,14 +147,13 @@ export function Facilities() {
   useEffect(() => {
     if (!data) return;
     if (creating) return;
-    if (selectedId === null) {
-      const first = data.sites[0];
-      if (first) {
-        setSelectedId(first.id);
-        setDraft(siteForm(first));
-      }
-    } else if (selected) setDraft(siteForm(selected));
-  }, [creating, data, selected, selectedId]);
+    if (selectedId !== null) return;
+    const first = data.sites[0];
+    if (first) {
+      setSelectedId(first.id);
+      setDraft(siteForm(first));
+    }
+  }, [creating, data, selectedId]);
 
   if (!data) return <LoadState error={error} />;
 
@@ -324,6 +324,7 @@ export function Facilities() {
                   onClick={() => {
                     setCreating(false);
                     setSelectedId(site.id);
+                    setDraft(siteForm(site));
                   }}
                   sx={{
                     justifyContent: "flex-start",
