@@ -6,6 +6,7 @@ import type {
   Patient,
 } from "../src/api/contracts";
 import {
+  clinicalPlanTaskTarget,
   clinicalPlanResourceMeta,
   ClinicalPlanWorkspace,
 } from "../src/features/clinic/ClinicalPlanWorkspace";
@@ -87,6 +88,23 @@ vi.mock("../src/features/clinic/PrescriptionFulfillmentPanel", () => ({
 }));
 
 describe("ClinicalPlanWorkspace", () => {
+  it("parses an exact Patient Flow order target", () => {
+    expect(
+      clinicalPlanTaskTarget(
+        "?focus=clinical-plan-workspace&order_kind=medication_request&order_series_id=series-7&task_id=42",
+      ),
+    ).toEqual({
+      kind: "medication_requests",
+      seriesId: "series-7",
+      taskId: 42,
+    });
+    expect(
+      clinicalPlanTaskTarget(
+        "?focus=clinical-plan-workspace&order_kind=diagnosis&order_series_id=series-7&task_id=42",
+      ),
+    ).toBeNull();
+  });
+
   it("keeps care-goal outcome provenance controls explicit and source-bounded", () => {
     const fields = clinicalPlanResourceMeta.care_goals.fields;
 

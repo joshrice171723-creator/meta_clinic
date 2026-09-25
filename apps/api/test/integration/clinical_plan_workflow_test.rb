@@ -64,7 +64,8 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal service.fetch("prior_revision_id"), service_task.source_id
     service_work_item = Clinic::Operations::FollowUpWorklist.call(practice: @practice, actor: @user)
       .fetch(:clinical_tasks).find { |task| task.fetch(:id) == service_task.id }
-    assert_equal "/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}?focus=clinical-plan-workspace",
+    assert_equal "/clinic/patients/#{@patient.id}/encounters/#{@encounter.id}?focus=clinical-plan-workspace" \
+      "&order_kind=service_request&order_series_id=#{service.fetch('series_id')}&task_id=#{service_task.id}",
       service_work_item.fetch(:encounter_href)
 
     diagnosis = create_record("diagnoses", "diagnosis", {

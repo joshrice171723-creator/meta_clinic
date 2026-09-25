@@ -70,6 +70,30 @@ type PendingAttempt = {
   expectedVersion: number | null;
 };
 
+export type ClinicalPlanTaskTarget = {
+  kind: "medication_requests" | "service_requests";
+  seriesId: string;
+  taskId: number;
+};
+
+export function clinicalPlanTaskTarget(
+  search = typeof window === "undefined" ? "" : window.location.search,
+): ClinicalPlanTaskTarget | null {
+  const params = new URLSearchParams(search);
+  const sourceKind = params.get("order_kind");
+  const seriesId = params.get("order_series_id")?.trim();
+  const taskId = Number(params.get("task_id"));
+  const kind =
+    sourceKind === "medication_request"
+      ? "medication_requests"
+      : sourceKind === "service_request"
+        ? "service_requests"
+        : null;
+  if (!kind || !seriesId || !Number.isSafeInteger(taskId) || taskId <= 0)
+    return null;
+  return { kind, seriesId, taskId };
+}
+
 const RESOURCE_META: Record<
   ResourceKind,
   {
@@ -642,6 +666,11 @@ export function ClinicalPlanWorkspace({
   const dirty = dialogOpen && JSON.stringify(form) !== JSON.stringify(baseline);
   const meta = RESOURCE_META[kind];
   const records = workspace.data?.records[kind] ?? [];
+  const taskTarget = clinicalPlanTaskTarget();
+  const taskRecord =
+    taskTarget?.kind === kind
+      ? records.find((record) => record.series_id === taskTarget.seriesId)
+      : undefined;
   const carePlans = workspace.data?.records.care_plans ?? [];
   const serviceRequests = workspace.data?.records.service_requests ?? [];
   const immunizationAdminEvidenceRequired =
@@ -662,6 +691,22 @@ export function ClinicalPlanWorkspace({
       }),
     [dirty, pendingAttempt, registerBlocker],
   );
+
+  useEffect(() => {
+    if (!workspace.data || !taskTarget) return;
+    if (kind !== taskTarget.kind) {
+      setKind(taskTarget.kind);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(
+        `clinical-plan-record-${taskTarget.seriesId}`,
+      );
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [kind, taskTarget?.kind, taskTarget?.seriesId, workspace.data]);
 
   const statusCounts = useMemo(
     () =>
@@ -971,6 +1016,19 @@ export function ClinicalPlanWorkspace({
         {error && (
           <Alert severity={pendingAttempt ? "warning" : "error"}>{error}</Alert>
         )}
+        {taskTarget?.kind === kind &&
+          (taskRecord ? (
+            <Alert severity="info">
+              Opened from Patient Flow. Continue the highlighted{" "}
+              {RESOURCE_META[taskTarget.kind].singular} and record its final
+              outcome here.
+            </Alert>
+          ) : (
+            <Alert severity="warning">
+              The order linked from Patient Flow is unavailable in the current
+              workspace. Refresh the record before taking action.
+            </Alert>
+          ))}
         {pendingAttempt && (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <Button
@@ -1150,89 +1208,114 @@ export function ClinicalPlanWorkspace({
           </Typography>
         ) : (
           <Stack spacing={1}>
-            {records.map((record) => (
-              <Paper key={record.series_id} variant="outlined" sx={{ p: 1.5 }}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1.5}
-                  sx={{ justifyContent: "space-between" }}
+            {records.map((record) => {
+              const isTaskRecord =
+                taskTarget?.kind === kind &&
+                taskTarget.seriesId === record.series_id;
+              return (
+                <Paper
+                  key={record.series_id}
+                  id={`clinical-plan-record-${record.series_id}`}
+                  tabIndex={isTaskRecord ? -1 : undefined}
+                  aria-label={
+                    isTaskRecord
+                      ? `Patient Flow order: ${recordTitle(kind, record)}`
+                      : undefined
+                  }
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    ...(isTaskRecord
+                      ? {
+                          borderColor: "primary.main",
+                          bgcolor: "action.selected",
+                        }
+                      : {}),
+                  }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ alignItems: "center", flexWrap: "wrap" }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {recordTitle(kind, record)}
-                      </Typography>
-                      <Chip size="small" label={humanize(record.status)} />
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        label={`Revision ${record.version_number}`}
-                      />
-                    </Stack>
-                    <Typography
-                      color="text.secondary"
-                      variant="body2"
-                      sx={{ mt: 0.5 }}
-                    >
-                      {recordDetails(kind, record) ||
-                        "No additional details recorded"}
-                    </Typography>
-                    <Typography color="text.secondary" variant="caption">
-                      Recorded{" "}
-                      {new Intl.DateTimeFormat(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: clinic.practice.timezone,
-                      }).format(new Date(record.recorded_at))}
-                    </Typography>
-                  </Box>
                   <Stack
-                    spacing={1}
-                    sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                    sx={{ justifyContent: "space-between" }}
                   >
-                    {record.completion_reconciliation_required && (
-                      <>
-                        <Typography variant="caption">
-                          Updated fulfillment needs completion review.
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: "center", flexWrap: "wrap" }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {recordTitle(kind, record)}
                         </Typography>
-                        <Button
+                        <Chip size="small" label={humanize(record.status)} />
+                        <Chip
                           size="small"
-                          disabled={
-                            !data.capabilities[kind] ||
-                            busy ||
-                            pendingAttempt !== null
-                          }
-                          onClick={() => reconcileCompletion(record)}
-                        >
-                          Reconcile completion
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={
-                        !data.capabilities[kind] ||
-                        busy ||
-                        pendingAttempt !== null ||
-                        (encounter.status !== "open" &&
-                          !["medication_requests", "service_requests"].includes(
-                            kind,
-                          ))
-                      }
-                      onClick={() => openEdit(record)}
+                          variant="outlined"
+                          label={`Revision ${record.version_number}`}
+                        />
+                      </Stack>
+                      <Typography
+                        color="text.secondary"
+                        variant="body2"
+                        sx={{ mt: 0.5 }}
+                      >
+                        {recordDetails(kind, record) ||
+                          "No additional details recorded"}
+                      </Typography>
+                      <Typography color="text.secondary" variant="caption">
+                        Recorded{" "}
+                        {new Intl.DateTimeFormat(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: clinic.practice.timezone,
+                        }).format(new Date(record.recorded_at))}
+                      </Typography>
+                    </Box>
+                    <Stack
+                      spacing={1}
                       sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
                     >
-                      Revise
-                    </Button>
+                      {record.completion_reconciliation_required && (
+                        <>
+                          <Typography variant="caption">
+                            Updated fulfillment needs completion review.
+                          </Typography>
+                          <Button
+                            size="small"
+                            disabled={
+                              !data.capabilities[kind] ||
+                              busy ||
+                              pendingAttempt !== null
+                            }
+                            onClick={() => reconcileCompletion(record)}
+                          >
+                            Reconcile completion
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={
+                          !data.capabilities[kind] ||
+                          busy ||
+                          pendingAttempt !== null ||
+                          (encounter.status !== "open" &&
+                            ![
+                              "medication_requests",
+                              "service_requests",
+                            ].includes(kind))
+                        }
+                        onClick={() => openEdit(record)}
+                        sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
+                      >
+                        Revise
+                      </Button>
+                    </Stack>
                   </Stack>
-                </Stack>
-              </Paper>
-            ))}
+                </Paper>
+              );
+            })}
           </Stack>
         )}
         <ClinicalPlanClosurePanel

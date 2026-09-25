@@ -399,6 +399,12 @@ function taskDetail(task: ClinicalTaskItem) {
   return `${task.pool_code.replaceAll("_", " ")} work queue`;
 }
 
+function taskAction(task: ClinicalTaskItem) {
+  return task.source_managed && task.task_kind === "order_execution"
+    ? "Open order follow-up"
+    : "Open work item";
+}
+
 function sortItems(items: InboxItem[]) {
   return items.sort((left, right) => {
     if (left.overdue !== right.overdue) return left.overdue ? -1 : 1;
@@ -1753,7 +1759,7 @@ export function WorkInbox() {
         patientFlowHidden:
           initialContactTask && Boolean(task.has_recorded_appointment),
         href: task.encounter_href || task.patient_href,
-        action: "Open work item",
+        action: taskAction(task),
         icon: "assignment",
         priority: "routine",
         mutation: { kind: "task", task },

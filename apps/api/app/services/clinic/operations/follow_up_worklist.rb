@@ -267,7 +267,7 @@ module Clinic
       def serialize_clinical_task(task, member, has_recorded_appointment: false)
         encounter_href = if task.encounter_id
           if task.source_type == "order"
-            "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}?focus=clinical-plan-workspace"
+            order_task_href(task)
           else
             "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}#nurse-workspace"
           end
@@ -293,6 +293,25 @@ module Clinic
           patient_href: "/clinic/patients/#{task.patient_id}",
           has_recorded_appointment:
         )
+      end
+
+      def order_task_href(task)
+        base = "/clinic/patients/#{task.patient_id}/encounters/#{task.encounter_id}"
+        source = case task.source_kind
+        when "medication_request"
+          Clinic::Care::MedicationRequestRevision
+        when "service_request"
+          Clinic::Care::ServiceRequestRevision
+        end&.find_by(practice_id: task.practice_id, patient_id: task.patient_id, id: task.source_id)
+        return "#{base}?focus=clinical-plan-workspace" unless source
+
+        query = Rack::Utils.build_query(
+          focus: "clinical-plan-workspace",
+          order_kind: task.source_kind,
+          order_series_id: source.series_id,
+          task_id: task.id
+        )
+        "#{base}?#{query}"
       end
 
       def eligible_assignees_for_task(task)
