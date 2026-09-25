@@ -15,8 +15,14 @@ def check(condition, label):
 check(session.get(origin + '/login', timeout=20).status_code == 200, 'HTTPS login page')
 check(session.get(origin + '/up', timeout=20).status_code == 200, 'API health')
 configuration = session.get(origin + '/api/csrf', timeout=20).json()
-check(configuration.get('development_login') is False, 'development login disabled')
-check(not configuration.get('development_accounts'), 'no public development account shortcuts')
+public_demo_enabled = 'APP_PUBLIC_DEVELOPMENT_LOGIN=1' in Path(
+    '/opt/meta-clinic/secrets/runtime.env').read_text().splitlines()
+check(configuration.get('development_login') is public_demo_enabled,
+      'public development login matches staging configuration')
+check(configuration.get('public_demo_owner_pin_required') is public_demo_enabled,
+      'owner demo PIN matches staging configuration')
+if not public_demo_enabled:
+    check(not configuration.get('development_accounts'), 'no public development account shortcuts')
 csrf = configuration['csrf_token']
 check(session.get(origin + '/api/clinic/context', timeout=20).status_code in (401, 403, 404), 'anonymous clinic access denied')
 password = Path('/opt/meta-clinic/secrets/demo-password').read_text().strip()
@@ -28,7 +34,13 @@ configuration = session.get(origin + '/api/csrf', timeout=20).json()
 session.headers['X-CSRF-Token'] = configuration['csrf_token']
 check(configuration.get('clinic_available') is True, 'managed synthetic clinic available')
 check(session.get(origin + '/api/clinic/context', timeout=20).status_code == 200, 'authenticated clinic context')
-check(session.post(origin + '/api/development_session', json={}, timeout=20).status_code == 404, 'development endpoint unavailable')
+if public_demo_enabled:
+    check(session.post(origin + '/api/development_session', json={
+        'profile': 'omni', 'portal': 'owner'}, timeout=20).status_code == 403,
+        'owner demo entry requires PIN')
+else:
+    check(session.post(origin + '/api/development_session', json={}, timeout=20).status_code == 404,
+          'development endpoint unavailable')
 cookies = session.cookies.get_dict()
 def request_context(_):
     start = time.monotonic()
