@@ -46,9 +46,9 @@ export const investorCosts = [
     upfront: 1500,
     monthly: 0,
     purpose:
-      "Pursue healthcare merchant certification where required to support payment and advertising access.",
+      "Pursue healthcare merchant certification where required. The $1,500 setup allowance exceeds the published $975 application fee; a $2,150 annual fee is due upon approval and is not in the monthly budget.",
     value:
-      "Confirm application and annual fees; certification does not guarantee Stripe or other processor acceptance.",
+      "Certification eligibility depends on the platform's role and services; approval does not guarantee processor acceptance.",
   },
   {
     category: "Prescription Network API (eRx)",
@@ -57,7 +57,7 @@ export const investorCosts = [
     purpose:
       "Embed prescription routing through the proposed Photon Health integration, with medication-history and benefit-data scope confirmed in contracting.",
     value:
-      "Retention: connected prescribing and external fulfillment. The assumed 2,000-order allowance, Surescripts access and real-time benefit checks require provider confirmation.",
+      "Photon publishes $800 monthly for 2,000 orders on Launch, plus $0.80 per additional order. Network and benefit-data scope require provider confirmation.",
   },
   {
     category: "Insurance billing engine",
@@ -66,7 +66,7 @@ export const investorCosts = [
     purpose:
       "Integrate ANSI X12 837 claim workflows and clearinghouse submission through the proposed Candid Health API layer.",
     value:
-      "Expand into hybrid clinics while keeping insurance optional for cash-pay practices.",
+      "Expand into hybrid clinics while keeping insurance optional for cash-pay practices. The $1,500 monthly figure is a planning allowance, not a published Candid quote.",
   },
   {
     category: "HIPAA Telehealth Video API",
@@ -84,7 +84,7 @@ export const investorCosts = [
     purpose:
       "Audio streaming pipelines and medical LLM token processing, targeting 450–500 automated multi-system SOAP note drafts per month. Design targets will be verified during the pilot; clinicians review generated notes.",
     value:
-      "The Admin Killer: designed to reduce charting labor by up to three hours per day and strengthen adoption and retention. Time savings and adoption impact are pilot validation targets, not measured outcomes.",
+      "The development scribe already routes through OpenRouter. An OpenAI GPT audio-capable model is planned for the pilot; model selection and usage costs remain to be validated.",
   },
   {
     category: "Security & HIPAA hosting",
@@ -198,6 +198,47 @@ export function clinicEconomics(
   };
 }
 const salesDeckUrl = "https://meta-clinic-market-deck.trt53.chatgpt.site/";
+const vendorSources: Record<
+  string,
+  { url: string; label: string; basis: string }
+> = {
+  "Prescription Network API (eRx)": {
+    url: "https://photonhealth.com/blog/introducing-photon-self-serve",
+    label: "Photon plans",
+    basis:
+      "Published Launch plan: $800/mo includes 2,000 orders; $0.80 per extra order.",
+  },
+  "Insurance billing engine": {
+    url: "https://get.candidhealth.com/medical-billing-software",
+    label: "Candid product",
+    basis:
+      "$1,500/mo planning allowance; linked product page does not publish that price.",
+  },
+  "HIPAA Telehealth Video API": {
+    url: "https://www.twilio.com/en-us/video/pricing",
+    label: "Twilio pricing",
+    basis:
+      "$150 usage budget at published $0.004/participant-minute; account edition and other charges are separate.",
+  },
+  "LegitScript certification": {
+    url: "https://www.legitscript.com/certification/healthcare-certification/faq/",
+    label: "LegitScript fees",
+    basis:
+      "Published $975 application fee and $2,150 annual fee upon approval. $1,500 shown is a setup allowance.",
+  },
+  "AI Clinical Scribe Engine": {
+    url: "https://openrouter.ai/docs/quickstart",
+    label: "OpenRouter API",
+    basis:
+      "OpenRouter route exists in development; $350/mo is a planning allowance for a future OpenAI GPT model.",
+  },
+};
+const conversionVendorSources: Record<string, string> = {
+  "Photon Health · proposed": "Prescription Network API (eRx)",
+  "Twilio Programmable Video": "HIPAA Telehealth Video API",
+  "Candid Health · proposed": "Insurance billing engine",
+  "OpenRouter · OpenAI GPT planned": "AI Clinical Scribe Engine",
+};
 function Grid({
   label,
   headers,
@@ -367,7 +408,7 @@ export function I2eInvestorPage() {
                       "$45",
                       "AI note drafts + review",
                       "$120",
-                      "AI provider · to be selected",
+                      "OpenRouter · OpenAI GPT planned",
                     ],
                     [
                       "1:1 telehealth",
@@ -419,7 +460,24 @@ export function I2eInvestorPage() {
                       <TableCell>{scope}</TableCell>
                       <TableCell>
                         {cost}
-                        <small className="i2e-vendor-label">{vendor}</small>
+                        <small className="i2e-vendor-label">
+                          <I2eHelp label={vendor} />
+                          {vendorSources[conversionVendorSources[vendor]] && (
+                            <>
+                              {" · "}
+                              <a
+                                href={
+                                  vendorSources[conversionVendorSources[vendor]]
+                                    .url
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Source
+                              </a>
+                            </>
+                          )}
+                        </small>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -433,7 +491,7 @@ export function I2eInvestorPage() {
                     <TableCell>{money(t.price)} bundled</TableCell>
                     <TableCell>3-provider practice</TableCell>
                     <TableCell>
-                      {money(t.variable)} incremental estimate
+                      {money(t.variable)} vendor cost estimate
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -443,7 +501,7 @@ export function I2eInvestorPage() {
               Proposed bundle within agreed usage limits; planned integrations
               depend on partner agreements and activation. Current-stack
               subtotal excludes insurance and clearinghouse fees. Our $500
-              incremental estimate includes insurance mapping; shared platform
+              vendor cost estimate includes insurance mapping; shared platform
               costs, lab tests, medication purchases and payment processing are
               separate.
             </p>
@@ -457,24 +515,24 @@ export function I2eInvestorPage() {
                 ],
                 ["Annual recurring saving", money(savings * 12)],
               ])}
-              {ledger("Account contribution ledger", [
-                ["Incremental vendor estimate", money(t.variable)],
+              {ledger("Account cost and profit", [
+                ["Vendor cost / clinic", money(t.variable)],
                 [
-                  "Software contribution",
+                  "Gross software profit / clinic",
                   `+${money(contribution)} / mo`,
                   "i2e-profit",
                 ],
                 [
-                  "Contribution / subscription",
+                  "Gross software profit margin",
                   `${((contribution / t.price) * 100).toFixed(1)}%`,
                   "i2e-profit",
                 ],
               ])}
             </div>
             <p className="i2e-note">
-              Contribution before shared platform costs. Cash-pay with eRx: $440
-              vendor expense / $660 contribution. Subscription savings exclude
-              implementation and usage overages.{" "}
+              Gross software profit before shared platform costs. Cash-pay with
+              eRx: $440 vendor cost / $660 gross software profit. Subscription
+              savings exclude implementation and usage overages.{" "}
               <a href="https://jane.app/pricing">Jane pricing</a>.
             </p>
           </section>
@@ -551,7 +609,7 @@ export function I2eInvestorPage() {
             <h2>02 / Shared execution and vendor budget</h2>
             <Grid
               label="Fixed cost matrix"
-              headers={["Category", "Upfront", "Monthly"]}
+              headers={["Category", "Upfront", "Monthly", "Published basis"]}
             >
               {investorCosts.map((row) => (
                 <TableRow key={row.category}>
@@ -560,6 +618,34 @@ export function I2eInvestorPage() {
                   </TableCell>
                   <TableCell align="right">{money(row.upfront)}</TableCell>
                   <TableCell align="right">{money(row.monthly)}</TableCell>
+                  <TableCell align="right">
+                    {vendorSources[row.category] ? (
+                      <>
+                        {vendorSources[row.category].basis}{" "}
+                        <a
+                          href={vendorSources[row.category].url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {vendorSources[row.category].label}
+                        </a>
+                        {row.category === "AI Clinical Scribe Engine" && (
+                          <>
+                            {" · "}
+                            <a
+                              href="https://openrouter.ai/openai/gpt-4o-audio-preview"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              OpenAI audio model option
+                            </a>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      "Planning allowance"
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               <TableRow className="i2e-total">
@@ -570,11 +656,13 @@ export function I2eInvestorPage() {
                 <TableCell align="right">
                   {money(investorBudget.monthly)}
                 </TableCell>
+                <TableCell />
               </TableRow>
             </Grid>
             <p className="i2e-note">
-              Estimated vendor budget; final pricing depends on usage, account
-              terms and renewals.
+              Estimated vendor budget; final pricing depends on usage and
+              account terms. LegitScript's published $2,150 annual fee is
+              additional if certification is approved.
             </p>
           </section>
           <section id="sales-deck">

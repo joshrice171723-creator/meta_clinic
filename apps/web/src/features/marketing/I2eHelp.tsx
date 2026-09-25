@@ -39,12 +39,12 @@ const explanations: Record<string, string> = {
     "The cost of processing consultation audio and generating draft clinical notes. Clinicians review the drafts.",
   "Clearinghouse / entity mapping":
     "A clearinghouse routes insurance claims between a clinic and payers. Entity mapping connects submissions to the correct independently owned clinic.",
-  "Incremental vendor estimate":
-    "The additional monthly vendor expense for one more clinic, separate from the shared platform base.",
-  "Software contribution":
-    "Subscription revenue minus this clinic's incremental vendor expense. Shared platform costs and other operating expenses are deducted separately.",
-  "Contribution / subscription":
-    "The percentage of subscription revenue remaining after incremental vendor expense: $600 divided by $1,100.",
+  "Vendor cost / clinic":
+    "Estimated monthly vendor expense for this three-provider clinic, including eRx, video, scribe processing and insurance mapping. Shared platform costs are separate.",
+  "Gross software profit / clinic":
+    "The proposed $1,100 monthly subscription minus $500 in clinic-specific vendor costs. Shared platform and other operating costs are still deducted separately.",
+  "Gross software profit margin":
+    "The $600 gross software profit divided by the $1,100 subscription: 54.5%. This is before shared platform and other operating costs.",
   "Illustrative spread / order":
     "An example patient price of $120 minus a $45 pharmacy charge leaves $75 before other transaction costs. These are scenario assumptions.",
   "30 orders × $75 gross spread":
@@ -72,15 +72,23 @@ const explanations: Record<string, string> = {
   "DEA EPCS Compliance Audit":
     "EPCS means electronic prescribing of controlled substances. This allowance covers the relevant application audit or certification work, depending on vendor scope.",
   "LegitScript certification":
-    "A healthcare merchant review program used by some payment and advertising partners. This is a certification budget, not a payment approval guarantee.",
+    "A healthcare merchant review program used by some payment and advertising partners. LegitScript publishes a $975 application fee and $2,150 annual fee after approval. The page's $1,500 setup allowance is not its published price.",
   "Prescription Network API (eRx)":
-    "An API is a software connection. This connection would route prescription information between Meta Clinic and the prescribing network.",
+    "Photon's published Launch plan costs $800 per month for 2,000 orders, with $0.80 per additional order. An API connects prescribing workflows to the vendor; production terms and supported data remain to be confirmed.",
   "Insurance billing engine":
-    "Software that prepares insurance claims and manages submission and response workflows.",
+    "Software that prepares insurance claims and manages submission and response workflows. The $1,500 monthly budget is an estimate, not a verified Candid price.",
   "HIPAA Telehealth Video API":
-    "Video-call infrastructure for clinical consultations. Health-data use requires the appropriate vendor agreement and security configuration.",
+    "Twilio lists video at $0.004 per participant-minute. A two-person 30-minute visit uses 60 participant-minutes, or $0.24 before extras. Health-data use requires the appropriate account edition and BAA.",
+  "Photon Health · proposed":
+    "Photon's published Launch plan is $800 per month for 2,000 orders. The $195 per-clinic figure is a separate allocation estimate, not a Photon quote. Integration and terms are proposed.",
+  "Twilio Programmable Video":
+    "Twilio publishes $0.004 per participant-minute. The $125 per-clinic figure is a usage allocation estimate; HIPAA account edition and BAA terms add requirements.",
+  "Candid Health · proposed":
+    "Candid offers claims and revenue-cycle software. The $60 per-clinic and $1,500 central figures are planning allowances; a vendor quote is needed.",
+  "OpenRouter · OpenAI GPT planned":
+    "The development scribe already uses OpenRouter to route audio and SOAP draft requests. Its current default is not an OpenAI model; OpenAI GPT is planned for a future configuration. The $120 per-clinic cost is a usage estimate, not a vendor quote.",
   "AI Clinical Scribe Engine":
-    "Audio and AI processing that creates draft clinical documentation for a clinician to review.",
+    "The development scribe uses OpenRouter for audio and draft notes that a clinician reviews. An OpenAI GPT audio model is planned; the $350 central budget is an estimate pending model selection and usage measurement.",
   "Security & HIPAA hosting":
     "Infrastructure for storing and processing health information with access controls, isolation and audit logging.",
   "B2B Compounding Labs & Diagnostics":
