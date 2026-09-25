@@ -225,7 +225,8 @@ type BookingAttempt = {
       ends_at: string;
       site_id: string;
       room_id: string;
-      booked_clinician_id: string;
+      booked_clinician_id: string | null;
+      first_available?: boolean;
       visit_type_id: string;
       service_offering_id?: string;
       schedule_hold_id?: number;
@@ -252,6 +253,8 @@ type HoldAttempt = {
     };
   };
 };
+
+const FIRST_AVAILABLE_CLINICIAN = "first_available";
 
 type AppointmentWorkingDraft = {
   draft: BookingDraft;
@@ -826,6 +829,7 @@ function BookingFormEditor({
   const [siteId, setSiteId] = useState(restoredDraft.siteId);
   const [roomId, setRoomId] = useState(restoredDraft.roomId);
   const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
+  const firstAvailable = clinicianId === FIRST_AVAILABLE_CLINICIAN;
   const [visitTypeId, setVisitTypeId] = useState(restoredDraft.visitTypeId);
   const [serviceOfferingId, setServiceOfferingId] = useState(
     restoredDraft.serviceOfferingId ?? "",
@@ -958,7 +962,7 @@ function BookingFormEditor({
     per_page: "100",
   });
   if (siteId) scheduledResourceParams.set("site_id", siteId);
-  if (clinicianId)
+  if (clinicianId && !firstAvailable)
     scheduledResourceParams.set("booked_clinician_id", clinicianId);
   const currentDraft = useMemo<BookingDraft>(
     () => ({
@@ -1015,6 +1019,14 @@ function BookingFormEditor({
   const clinicians = useResource<{ clinicians: BookingClinician[] }>(
     "/api/clinic/clinicians?per_page=100",
   );
+  const noClinicians = clinicians.data?.clinicians.length === 0;
+  useEffect(() => {
+    if (noClinicians && !clinicianId) {
+      setClinicianId(FIRST_AVAILABLE_CLINICIAN);
+    } else if (!noClinicians && firstAvailable) {
+      setClinicianId("");
+    }
+  }, [clinicianId, firstAvailable, noClinicians]);
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
@@ -1035,7 +1047,7 @@ function BookingFormEditor({
       ? offeringEligibilityIssue(
           selectedOffering,
           siteId,
-          clinicianId,
+          firstAvailable ? "" : clinicianId,
           visitTypeId,
           visitModality,
           roomId,
@@ -1634,11 +1646,11 @@ function BookingFormEditor({
             )}
           </Stack>
         </Stack>
-        {clinicians.data.clinicians.length === 0 && (
+        {noClinicians && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            No clinicians are configured for this clinic. Add a clinician in
-            clinic setup before booking. Your selected patient and draft are
-            preserved.
+            No clinicians are configured for this clinic. First available will
+            save this appointment without an assigned clinician. Add and assign
+            a clinician before confirming the appointment.
           </Alert>
         )}
         {draftRecoveryMessage && (
@@ -1731,6 +1743,12 @@ function BookingFormEditor({
             if (inFlight.current) return;
             setSubmitError("");
             if (repeat === "weekly" || seriesAttempt) {
+              if (firstAvailable) {
+                setSubmitError(
+                  "First available can schedule one appointment only. Add a clinician before creating a recurring series.",
+                );
+                return;
+              }
               void scheduleSeries();
               return;
             }
@@ -1787,7 +1805,8 @@ function BookingFormEditor({
                     ends_at: new Date(endsAt).toISOString(),
                     site_id: siteId,
                     room_id: roomId,
-                    booked_clinician_id: clinicianId,
+                    booked_clinician_id: firstAvailable ? null : clinicianId,
+                    ...(firstAvailable ? { first_available: true } : {}),
                     visit_type_id: visitTypeId,
                     ...(serviceOfferingId
                       ? { service_offering_id: serviceOfferingId }
@@ -2104,6 +2123,11 @@ function BookingFormEditor({
                   <MenuItem value="" disabled>
                     Select a clinician
                   </MenuItem>
+                  {noClinicians && (
+                    <MenuItem value={FIRST_AVAILABLE_CLINICIAN}>
+                      First available
+                    </MenuItem>
+                  )}
                   {clinicians.data.clinicians.map((clinician) => (
                     <MenuItem
                       key={clinician.id}

@@ -3,7 +3,7 @@ module Clinic
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
         reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil, service_offering: nil,
-        overbook_reason: nil, expected_policy_revision: nil)
+        overbook_reason: nil, expected_policy_revision: nil, first_available: false)
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
@@ -14,10 +14,18 @@ module Clinic
         end
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
         raise ArgumentError, "Choose a site before scheduling this appointment." unless site
-        raise ArgumentError, "Choose a clinician before scheduling this appointment." unless booked_clinician
+        if first_available
+          raise ArgumentError, "Choose a clinician because providers are now available." if practice.clinician_profiles.exists?
+          raise ArgumentError, "First available cannot use a held slot, video visit, or overbook exception." if
+            schedule_hold || visit_modality.to_s == "video" || overbook_reason.present?
+        elsif !booked_clinician
+          raise ArgumentError, "Choose a clinician before scheduling this appointment."
+        end
         raise ArgumentError, "Choose a visit type before scheduling this appointment." unless visit_type
         raise ArgumentError, "The site must belong to the selected practice." unless site.practice_id == practice.id
-        raise ArgumentError, "The clinician must belong to the selected practice." unless booked_clinician.practice_id == practice.id
+        if booked_clinician && booked_clinician.practice_id != practice.id
+          raise ArgumentError, "The clinician must belong to the selected practice."
+        end
         raise ArgumentError, "The visit type must belong to the selected practice." unless visit_type.practice_id == practice.id
         if room && (room.practice_id != practice.id || room.site_id != site.id)
           raise ArgumentError, "The selected room must belong to the appointment site."
@@ -58,6 +66,7 @@ module Clinic
             site_id: site&.id,
             room_id: room&.id,
             booked_clinician_id: booked_clinician&.id,
+            first_available: first_available,
             visit_type_id: visit_type&.id,
             service_offering_id: service_offering&.id,
             schedule_hold_id: schedule_hold&.id,
@@ -111,7 +120,7 @@ module Clinic
             end
           end
           allocation = CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
-            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id, overbook: overbook)
+            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id, overbook: overbook) || 1
           conflicts = overbook ? practice.appointments.where(booked_clinician: booked_clinician, status: %w[scheduled confirmed])
             .where("starts_at < ? AND ends_at > ?", ends_at, starts_at).pluck(:id) : []
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
