@@ -3,6 +3,7 @@ import type { ClinicWorkspaceContext } from "../../api/contracts";
 
 const neutralSelectSx = {
   "& .MuiInputLabel-root": { color: "#374151" },
+  "& .MuiInputLabel-root.Mui-disabled": { color: "rgb(0 0 0 / 95%)" },
   "& .MuiInputLabel-root.Mui-focused": { color: "#111827" },
   "& .MuiOutlinedInput-root": {
     backgroundColor: "#f3f4f6",
@@ -74,9 +75,9 @@ export function ClinicScopeSelector({
         mt: 1,
         p: 1.25,
         borderRadius: 1,
-        bgcolor: "#e5e7eb",
+        bgcolor: "#ffffff",
         color: "#111827",
-        border: "1px solid #9ca3af",
+        border: "1px solid #000000",
       }}
     >
       <TextField
