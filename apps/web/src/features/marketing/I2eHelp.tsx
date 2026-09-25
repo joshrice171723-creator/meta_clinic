@@ -40,11 +40,11 @@ const explanations: Record<string, string> = {
   "Clearinghouse / entity mapping":
     "A clearinghouse routes insurance claims between a clinic and payers. Entity mapping connects submissions to the correct independently owned clinic.",
   "Added clinic vendor cost / month":
-    "After the central vendor stack is already funded, one added cash-pay clinic is modeled to add $30 in video use and $120 in scribe use monthly. Entity, lab, pharmacy, payment and overage costs remain unquoted.",
+    "After the central vendor stack is funded, one added cash-pay clinic is modeled to add $30 in video use and $30 for 125 scribe notes monthly. Entity, lab, pharmacy, payment and overage costs remain unquoted.",
   "Profit after modeled added costs / month":
-    "The proposed $1,100 subscription minus $150 in modeled additional vendor usage leaves $950 before unquoted added-clinic expenses. This does not subtract the already-funded $3,200 central stack.",
+    "The proposed $1,100 subscription minus $60 in modeled additional vendor usage leaves $1,040 before unquoted added-clinic expenses. This does not subtract the already-funded $2,960 central stack.",
   "Profit margin after modeled added costs":
-    "$950 divided by the $1,100 subscription is 86.4% after the two modeled added-clinic usage lines, before unquoted fees and other operating expenses.",
+    "$1,040 divided by the $1,100 subscription is 94.5% after the two modeled added-clinic usage lines, before unquoted fees and other operating expenses.",
   "Illustrative spread / order":
     "An example patient price of $120 minus a $45 pharmacy charge leaves $75 before other transaction costs. These are scenario assumptions.",
   "30 orders × $75 gross spread":
@@ -62,7 +62,7 @@ const explanations: Record<string, string> = {
   "Prescription Network API (eRx)":
     "Photon's published Launch plan costs $800 per month for 2,000 orders, with $0.80 per additional order. An API connects prescribing workflows to the vendor; production terms and supported data remain to be confirmed.",
   "Insurance billing engine":
-    "Software that prepares insurance claims and manages submission and response workflows. The $1,500 monthly budget is an estimate, not a verified Candid price.",
+    "Software that prepares insurance claims and manages submission and response workflows. $1,500/month is one planning allowance, not a verified Candid price or a confirmed multi-owner contract. Separately owned clinics may require individual enrollment or fees.",
   "HIPAA Telehealth Video API":
     "Twilio lists video at $0.004 per participant-minute. A two-person 30-minute visit uses 60 participant-minutes, or $0.24 before extras. Health-data use requires the appropriate account edition and BAA.",
   "Photon Health · proposed":
@@ -70,11 +70,11 @@ const explanations: Record<string, string> = {
   "Twilio Programmable Video":
     "Twilio publishes $0.004 per participant-minute. The central budget includes $150/month of existing usage; 125 two-person, 30-minute visits at the added clinic would add $30 before extras. HIPAA account edition and BAA terms need confirmation.",
   "Candid Health · proposed":
-    "Candid offers claims and revenue-cycle software. The $1,500 is one central monthly planning allowance, not a fee per added clinic or a published quote. Entity enrollment and claims charges need a contract.",
-  "OpenRouter · OpenAI GPT planned":
-    "The development scribe uses OpenRouter to route audio and SOAP draft requests. Its current default is not an OpenAI model; OpenAI GPT is planned. $350 is a central monthly reserve; $120 more for one clinic is an unverified usage estimate, not a vendor quote.",
+    "Candid offers claims and revenue-cycle software. $1,500 is a central planning allowance, not a published price. Its API supports organization-scoped records, but one contract covering separately owned clinics has not been confirmed; entity enrollment and claim fees need a quote.",
+  "OpenRouter · Whisper + GPT-5.6 Luna planned":
+    "Proposed two-stage workload: Whisper-1 transcribes 30 audio minutes per note at $0.006/min; GPT-5.6 Luna processes 6,000 input and 2,000 output tokens at $0.20/M and $1.20/M. For 125 notes this is $22.95 in model usage, about $24.21 with OpenRouter's standard 5.5% credit-purchase fee, budgeted at $30 after a 10% reserve and rounding. The current development scribe route differs.",
   "AI Clinical Scribe Engine":
-    "The central monthly reserve is $350. The separate $120 estimate is additional audio and model use when one clinic joins; neither is a vendor quote or verified note capacity.",
+    "At 500 notes of 30 audio minutes each, Whisper-1 plus GPT-5.6 Luna costs about $96.85 including an effective 5.5% OpenRouter credit-purchase fee; with a 10% reserve rounded up, the central allowance is $110. One added clinic's 125 notes costs about $24.21, budgeted at $30. This is a workload model, not a vendor quote or guaranteed note capacity.",
   "Security & HIPAA hosting":
     "Infrastructure for storing and processing health information with access controls, isolation and audit logging.",
   "B2B Compounding Labs & Diagnostics":
@@ -86,7 +86,7 @@ const explanations: Record<string, string> = {
   "503A partner webhooks":
     "Connections that send order or status updates between the platform and a partner compounding pharmacy. Compounding prepares medication for an individual patient's prescription.",
   "Quest/Labcorp order/result tracking":
-    "Planned connections for placing Quest or Labcorp orders and receiving results in the clinic workspace. Middleware, interface setup and per-order tests are not contracted or included in the $150 modeled added-clinic cost.",
+    "Planned connections for placing Quest or Labcorp orders and receiving results in the clinic workspace. Middleware, interface setup and per-order tests are not contracted or included in the $60 modeled added-clinic cost.",
   "Lab middleware · proposed":
     "Healthie publishes $10 per ordering provider monthly for Enterprise customers connecting existing Quest/Labcorp accounts, plus $5 per non-NPI ordering user. A three-provider example is $30 monthly before Enterprise subscription, interface setup and test costs. This is a market comparator, not Meta Clinic pricing.",
   "Diagnostic lab connectivity (Quest / Labcorp)":

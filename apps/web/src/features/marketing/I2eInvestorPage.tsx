@@ -13,6 +13,27 @@ import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
 import { I2eHelp } from "./I2eHelp";
 
+// Proposed two-stage scribe workload; the current development route is different.
+export const scribeCostModel = {
+  minutesPerNote: 30,
+  inputTokensPerNote: 6000,
+  outputTokensPerNote: 2000,
+  whisperPerMinute: 0.006,
+  lunaInputPerMillion: 0.2,
+  lunaOutputPerMillion: 1.2,
+  creditPurchaseFee: 0.055,
+};
+export const scribeCostForNotes = (notes: number) =>
+  notes *
+  (scribeCostModel.minutesPerNote * scribeCostModel.whisperPerMinute +
+    (scribeCostModel.inputTokensPerNote / 1_000_000) *
+      scribeCostModel.lunaInputPerMillion +
+    (scribeCostModel.outputTokensPerNote / 1_000_000) *
+      scribeCostModel.lunaOutputPerMillion) *
+  (1 + scribeCostModel.creditPurchaseFee);
+export const scribeAllowance = (notes: number) =>
+  Math.ceil((scribeCostForNotes(notes) * 1.1) / 10) * 10;
+
 export const investorCosts = [
   {
     category: "AI Infrastructure & Workstation Hardware",
@@ -73,7 +94,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 1500,
     clinicBasis:
-      "Central monthly platform allowance, paid before a clinic joins. Incremental entity enrollment or claim fees remain unquoted; cash-pay clinics do not need claims routing.",
+      "One $1,500/month planning allowance for the platform, not a per-clinic price. Coverage for separately owned clinics, entity enrollment and claim fees are unquoted; cash-pay clinics do not need claims routing.",
     purpose:
       "Integrate ANSI X12 837 claim workflows and clearinghouse submission through the proposed Candid Health API layer.",
     value:
@@ -93,13 +114,13 @@ export const investorCosts = [
   {
     category: "AI Clinical Scribe Engine",
     upfront: 0,
-    monthly: 350,
+    monthly: scribeAllowance(500),
     clinicBasis:
-      "Central $350 planning reserve; $120 of additional audio/model usage is estimated for one added clinic. Actual usage remains unverified.",
+      "Central $110/month allowance models 500 notes; one added clinic models 125 more notes for $30/month. Each note assumes 30 audio minutes, 6,000 GPT-5.6 Luna input tokens and 2,000 output tokens, with 5.5% credit fee, 10% reserve and rounding. Pilot usage will determine actual cost.",
     purpose:
-      "Central reserve for audio and medical LLM processing. No note count is guaranteed at this price; clinicians review generated drafts.",
+      "Model a two-stage OpenRouter workflow: Whisper-1 transcribes audio, then GPT-5.6 Luna drafts a note for clinician review. This is a pricing scenario, not the current development route or a guaranteed note capacity.",
     value:
-      "The development scribe already routes through OpenRouter. An OpenAI GPT audio-capable model is planned for the pilot; model selection and usage costs remain to be validated.",
+      "The development scribe already routes through OpenRouter. Whisper-to-Luna routing and real consultation usage require implementation and pilot validation.",
   },
   {
     category: "Security & HIPAA hosting",
@@ -157,7 +178,7 @@ export const investorBudget = {
   upfront: investorCosts.reduce((sum, row) => sum + row.upfront, 0),
   monthly: investorCosts.reduce((sum, row) => sum + row.monthly, 0),
 };
-export const addedClinicUsage = { video: 30, scribe: 120 };
+export const addedClinicUsage = { video: 30, scribe: scribeAllowance(125) };
 export const stackCosts = [
   {
     name: "Base EMR & calendar",
@@ -206,7 +227,7 @@ const vendorSources: Record<
     url: "https://get.candidhealth.com/medical-billing-software",
     label: "Candid product",
     basis:
-      "$1,500/mo planning allowance; linked product page does not publish that price.",
+      "$1,500/mo planning allowance; linked product page does not publish that price or multi-owner contract terms.",
   },
   "HIPAA Telehealth Video API": {
     url: "https://www.twilio.com/en-us/video/pricing",
@@ -221,10 +242,10 @@ const vendorSources: Record<
       "Published $975 application fee and $2,150 annual fee upon approval. $1,500 shown is a setup allowance.",
   },
   "AI Clinical Scribe Engine": {
-    url: "https://openrouter.ai/docs/quickstart",
-    label: "OpenRouter API",
+    url: "https://openrouter.ai/openai/whisper-1",
+    label: "Whisper pricing",
     basis:
-      "OpenRouter documents API access, not pricing for this workload. $350 is the central monthly reserve; $120 is estimated additional usage for one new clinic, pending measurement.",
+      "Whisper $0.006/audio minute; GPT-5.6 Luna $0.20/M input and $1.20/M output tokens. Standard OpenRouter credit purchases carry a 5.5% fee. Modeled 500 notes cost about $96.85, budgeted at $110; 125 notes cost about $24.21, budgeted at $30.",
   },
   "Diagnostic lab connectivity (Quest / Labcorp)": {
     url: "https://help.gethealthie.com/article/1260-direct-labs-by-healthie",
@@ -243,7 +264,7 @@ const conversionVendorSources: Record<string, string> = {
   "Photon Health · proposed": "Prescription Network API (eRx)",
   "Twilio Programmable Video": "HIPAA Telehealth Video API",
   "Candid Health · proposed": "Insurance billing engine",
-  "OpenRouter · OpenAI GPT planned": "AI Clinical Scribe Engine",
+  "OpenRouter · Whisper + GPT-5.6 Luna planned": "AI Clinical Scribe Engine",
   "Lab middleware · proposed": "Diagnostic lab connectivity (Quest / Labcorp)",
 };
 function Grid({
@@ -404,8 +425,8 @@ export function I2eInvestorPage() {
                       "Jane AI Scribe · 3 seats",
                       "$45",
                       "AI note drafts + review",
-                      "$120 added usage estimate",
-                      "OpenRouter · OpenAI GPT planned",
+                      "$30 / 125 notes modeled",
+                      "OpenRouter · Whisper + GPT-5.6 Luna planned",
                     ],
                     [
                       "1:1 telehealth",
@@ -499,13 +520,15 @@ export function I2eInvestorPage() {
             <p className="i2e-note">
               Proposed bundle within agreed usage limits; planned integrations
               depend on partner agreements and activation. Current-stack
-              subtotal excludes insurance and clearinghouse fees. The $3,200
+              subtotal excludes insurance and clearinghouse fees. The{" "}
+              {money(investorBudget.monthly)}
               central monthly stack in Section 02 is already paid before this
               clinic joins. Adding this clinic is modeled at $30 video usage
-              plus a $120 scribe allowance. No second Photon, Candid or hosting
-              subscription is added within contracted capacity. Entity
-              enrollment, vendor overages, lab connectivity, lab tests,
-              medication purchases and payment processing are separate.
+              plus a $30 scribe allowance. No second Photon or hosting base
+              subscription is modeled within capacity. Candid coverage for
+              separately owned clinics is not yet priced. Entity enrollment,
+              vendor overages, lab connectivity, lab tests, medication purchases
+              and payment processing are separate.
             </p>
             <div className="i2e-summary-ledgers">
               {ledger("Meta Clinic target offer", [
@@ -532,11 +555,13 @@ export function I2eInvestorPage() {
               ])}
             </div>
             <p className="i2e-note">
-              The $950 is the new clinic's subscription minus its modeled $150
-              added usage, after the $3,200 central monthly stack has already
-              been funded. It is not whole-platform net profit; unquoted
-              enrollment, overages and other transaction costs can reduce it.
-              Subscription savings exclude implementation and usage overages.{" "}
+              The {money(contribution)} is the new clinic's subscription minus
+              its modeled {money(t.vendorCost)}
+              added usage, after the {money(investorBudget.monthly)} central
+              monthly stack has already been funded. It is not whole-platform
+              net profit; unquoted enrollment, overages and other transaction
+              costs can reduce it. Subscription savings exclude implementation
+              and usage overages.{" "}
               <a href="https://jane.app/pricing">Jane pricing</a>.
             </p>
           </section>
@@ -614,8 +639,8 @@ export function I2eInvestorPage() {
             <p className="i2e-budget-intro">
               What Meta Clinic budgets once to launch and each month to run the
               platform before adding the clinic in Section 01. The $1,500
-              insurance billing allowance is one central monthly vendor line,
-              not a charge for each new clinic.
+              insurance billing allowance is one central planning line; Candid
+              has not quoted coverage for multiple independent owners.
             </p>
             <dl className="i2e-budget-summary">
               <div>
@@ -670,11 +695,19 @@ export function I2eInvestorPage() {
                               <>
                                 {" · "}
                                 <a
-                                  href="https://openrouter.ai/openai/gpt-4o-audio-preview"
+                                  href="https://openrouter.ai/openai/gpt-5.6-luna"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
-                                  OpenAI audio option ↗
+                                  GPT-5.6 Luna pricing ↗
+                                </a>
+                                {" · "}
+                                <a
+                                  href="https://openrouter.ai/pricing/"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  OpenRouter fees ↗
                                 </a>
                               </>
                             )}
@@ -702,9 +735,10 @@ export function I2eInvestorPage() {
             </div>
             <p className="i2e-note">
               $0 means no fixed amount budgeted, not that the service is free.
-              The $3,200 monthly stack includes the $1,500 insurance engine,
-              $800 Photon plan, $150 video reserve, $350 scribe reserve and $400
-              hosting allowance. The $150 added-clinic estimate in Section 01 is
+              The {money(investorBudget.monthly)} monthly stack includes the
+              $1,500 insurance engine, $800 Photon plan, $150 video reserve,
+              $110 modeled scribe allowance and $400 hosting allowance. The{" "}
+              {money(t.vendorCost)} added-clinic estimate in Section 01 is
               incremental usage on top of this base, not a second base
               subscription. Final pricing depends on contracts and usage. Lab
               middleware and per-order test costs are excluded. LegitScript's

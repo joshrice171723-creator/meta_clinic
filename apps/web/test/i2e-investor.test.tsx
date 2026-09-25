@@ -4,6 +4,8 @@ import {
   conversionTarget,
   investorBudget,
   investorCosts,
+  scribeAllowance,
+  scribeCostForNotes,
 } from "../src/features/marketing/I2eInvestorPage";
 import {
   clinicMarkets,
@@ -14,14 +16,21 @@ describe("i2E added-clinic financial model", () => {
   it("separates the central monthly stack from one added clinic's usage", () => {
     expect(investorCosts).toHaveLength(12);
     expect(investorBudget.upfront).toBe(10500);
-    expect(investorBudget.monthly).toBe(3200);
+    expect(investorBudget.monthly).toBe(2960);
     expect(
       investorCosts.find((row) => row.category === "Insurance billing engine")
         ?.monthly,
     ).toBe(1500);
-    expect(addedClinicUsage).toEqual({ video: 30, scribe: 120 });
-    expect(conversionTarget.vendorCost).toBe(150);
-    expect(conversionTarget.price - conversionTarget.vendorCost).toBe(950);
+    expect(addedClinicUsage).toEqual({ video: 30, scribe: 30 });
+    expect(conversionTarget.vendorCost).toBe(60);
+    expect(conversionTarget.price - conversionTarget.vendorCost).toBe(1040);
+  });
+
+  it("prices Whisper transcription and Luna note drafting by workload", () => {
+    expect(scribeCostForNotes(125)).toBeCloseTo(24.21225, 5);
+    expect(scribeCostForNotes(500)).toBeCloseTo(96.849, 5);
+    expect(scribeAllowance(125)).toBe(30);
+    expect(scribeAllowance(500)).toBe(110);
   });
 
   it("keeps the conversion comparison tied to its listed subscriptions", () => {
