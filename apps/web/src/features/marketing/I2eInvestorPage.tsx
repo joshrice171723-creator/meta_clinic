@@ -508,6 +508,25 @@ export function I2eInvestorPage() {
                 <TableCell>
                   2% of eligible payment volume. Example: $10,000 processed × 2%
                   = $200 gross platform fees.
+                  <p className="i2e-note">
+                    <strong>Weight-loss clinic benchmark:</strong>{" "}
+                    Medi-Weightloss's 2025 Franchise Disclosure Document reports
+                    2024 average monthly gross sales of $72,741 for 73 clinics
+                    open more than two years; the median was $59,487. This is
+                    per clinic, not per provider, and is not a national or
+                    cash-only average. At $72,741 in eligible monthly payments,
+                    a proposed 2% fee would generate $1,454.82 in gross platform
+                    fees before payment costs. Actual fees depend on eligible
+                    payments processed through the platform.{" "}
+                    <a
+                      href="https://pdfindx-51ec5d045801.herokuapp.com/get_pdf/NbxH2YWhNbxH2YWhNbxH2YWh#page=66"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Source: Medi-Weightloss 2025 FDD, Item 19, page 60
+                    </a>
+                    .
+                  </p>
                 </TableCell>
                 <TableCell>
                   Proposed Meta Clinic application fee collected through Stripe
@@ -516,24 +535,6 @@ export function I2eInvestorPage() {
                 </TableCell>
               </TableRow>
             </Grid>
-            <p className="i2e-note">
-              <strong>U.S. cash-pay market context:</strong> AmSpa's 2024
-              industry report lists average annual medical-spa revenue of
-              $1,398,833 per practice (about $116,569 per month). This is a
-              practice-level benchmark, not a national per-provider average or a
-              weight-loss/hormone-clinic benchmark. Provider-level revenue
-              depends on specialty, clinician count and utilization; fee
-              projections should use the clinic's actual eligible payment
-              volume.{" "}
-              <a
-                href="https://www.americanmedspa.org/news/2024-medical-spa-state-of-the-industry-executive-report-recap/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Source: AmSpa 2024 report
-              </a>
-              .
-            </p>
             <p className="i2e-note">
               Illustrative opportunities, excluded from subscription
               contribution. Net proceeds depend on partner terms, payment costs,
