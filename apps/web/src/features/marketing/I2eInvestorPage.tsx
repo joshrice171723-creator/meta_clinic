@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import {
   Button,
   Table,
@@ -373,7 +373,7 @@ export function I2eInvestorPage() {
         <nav className="i2e-nav" aria-label="Dashboard sections">
           <a href="#switching">01 / Conversion target</a>
           <a href="#potential-revenue">Other potential revenue</a>
-          <a href="#capital">02 / Vendor budget</a>
+          <a href="#capital">02 / Shared platform costs</a>
           <a href="#sales-deck">Sales deck</a>
         </nav>
         <main id="i2e-main">
@@ -636,70 +636,89 @@ export function I2eInvestorPage() {
             </p>
           </section>
           <section id="capital">
-            <h2>02 / Shared execution and vendor budget</h2>
-            <Grid
-              label="Fixed cost matrix"
-              headers={["Category", "Upfront", "Monthly", "Published basis"]}
-            >
-              {investorCosts.map((row) => (
-                <TableRow key={row.category}>
-                  <TableCell component="th" scope="row">
-                    <I2eHelp label={row.category} />
-                  </TableCell>
-                  <TableCell align="right">
-                    {row.category.startsWith("Diagnostic lab") ||
-                    row.category === "Wholesale clinical lab orders"
-                      ? "Unquoted"
-                      : money(row.upfront)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {row.category.startsWith("Diagnostic lab")
-                      ? "Unquoted"
-                      : row.category === "Wholesale clinical lab orders"
-                        ? "Per order"
-                        : money(row.monthly)}
-                  </TableCell>
-                  <TableCell align="right">
-                    {vendorSources[row.category] ? (
-                      <>
-                        {vendorSources[row.category].basis}{" "}
-                        <a
-                          href={vendorSources[row.category].url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {vendorSources[row.category].label}
-                        </a>
-                        {row.category === "AI Clinical Scribe Engine" && (
-                          <>
-                            {" · "}
+            <h2>02 / Shared platform costs</h2>
+            <p className="i2e-budget-intro">
+              What Meta Clinic budgets once to launch and each month to run the
+              common platform. The clinic-specific vendor costs in Section 01
+              are separate; they are not added again here.
+            </p>
+            <dl className="i2e-budget-summary">
+              <div>
+                <dt>One-time launch budget</dt>
+                <dd>{money(investorBudget.upfront)}</dd>
+              </div>
+              <div>
+                <dt>Shared monthly vendor stack</dt>
+                <dd>
+                  {money(investorBudget.monthly)}
+                  <span> / month</span>
+                </dd>
+              </div>
+            </dl>
+            <div className="i2e-budget-table">
+              <Grid
+                label="Shared platform cost breakdown"
+                headers={["What the budget covers", "Upfront", "Monthly"]}
+              >
+                {investorCosts.map((row, index) => (
+                  <Fragment key={row.category}>
+                    {[0, 4, 9].includes(index) && (
+                      <TableRow className="i2e-budget-group">
+                        <TableCell colSpan={3}>
+                          {index === 0
+                            ? "Launch setup"
+                            : index === 4
+                              ? "Core monthly infrastructure"
+                              : "Partner-dependent services"}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow>
+                      <TableCell component="th" scope="row">
+                        <I2eHelp label={row.category} />
+                        {vendorSources[row.category] && (
+                          <span className="i2e-budget-source">
                             <a
-                              href="https://openrouter.ai/openai/gpt-4o-audio-preview"
+                              href={vendorSources[row.category].url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              title={vendorSources[row.category].basis}
                             >
-                              OpenAI audio model option
+                              {vendorSources[row.category].label} ↗
                             </a>
-                          </>
+                            {row.category === "AI Clinical Scribe Engine" && (
+                              <>
+                                {" · "}
+                                <a
+                                  href="https://openrouter.ai/openai/gpt-4o-audio-preview"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  OpenAI audio option ↗
+                                </a>
+                              </>
+                            )}
+                          </span>
                         )}
-                      </>
-                    ) : (
-                      "Planning allowance"
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="i2e-total">
-                <TableCell>Total shared budget</TableCell>
-                <TableCell align="right">
-                  {money(investorBudget.upfront)}
-                </TableCell>
-                <TableCell align="right">
-                  {money(investorBudget.monthly)}
-                </TableCell>
-                <TableCell />
-              </TableRow>
-            </Grid>
+                      </TableCell>
+                      <TableCell align="right">
+                        {row.category.startsWith("Diagnostic lab") ||
+                        row.category === "Wholesale clinical lab orders"
+                          ? "Unquoted"
+                          : money(row.upfront)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {row.category.startsWith("Diagnostic lab")
+                          ? "Unquoted"
+                          : row.category === "Wholesale clinical lab orders"
+                            ? "Per order"
+                            : money(row.monthly)}
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                ))}
+              </Grid>
+            </div>
             <p className="i2e-note">
               Estimated vendor budget; final pricing depends on usage and
               account terms. Lab middleware and per-order test costs are not
