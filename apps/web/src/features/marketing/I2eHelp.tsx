@@ -88,7 +88,7 @@ const explanations: Record<string, string> = {
   "OpenRouter · OpenAI GPT planned":
     "The development scribe already uses OpenRouter to route audio and SOAP draft requests. Its current default is not an OpenAI model; OpenAI GPT is planned for a future configuration. The $120 per-clinic cost is a usage estimate, not a vendor quote.",
   "AI Clinical Scribe Engine":
-    "The development scribe uses OpenRouter for audio and draft notes that a clinician reviews. An OpenAI GPT audio model is planned; the $350 central budget is an estimate pending model selection and usage measurement.",
+    "The $350 per month is a shared pilot-wide planning reserve, not a vendor price or a fixed number of clinics. The 450–500 draft-note target is aggregate and unverified. Section 01 models $120 of additional scribe usage per added clinic. The development route uses OpenRouter; an OpenAI GPT audio model is planned.",
   "Security & HIPAA hosting":
     "Infrastructure for storing and processing health information with access controls, isolation and audit logging.",
   "B2B Compounding Labs & Diagnostics":

@@ -721,11 +721,17 @@
   table-layout: fixed;
 }
 .i2e-budget-table .MuiTableCell-root:first-child {
-  width: 66%;
+  width: 42%;
 }
 .i2e-budget-table .MuiTableCell-root:nth-child(2),
-.i2e-budget-table .MuiTableCell-root:nth-child(3) {
-  width: 17%;
+.i2e-budget-table .MuiTableCell-root:nth-child(3),
+.i2e-budget-table .MuiTableCell-root:nth-child(4) {
+  width: 15%;
+}
+.i2e-budget-table .MuiTableCell-root:nth-child(2) {
+  width: 28%;
+  color: #4d6277;
+  font-size: 11px;
 }
 .i2e-budget-table
   .MuiTableBody-root
@@ -762,6 +768,6 @@
     font-size: 19px;
   }
   .i2e-budget-table .MuiTable-root {
-    min-width: 460px;
+    min-width: 720px;
   }
 }

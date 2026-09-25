@@ -18,6 +18,7 @@ export const investorCosts = [
     category: "AI Infrastructure & Workstation Hardware",
     upfront: 5000,
     monthly: 0,
+    clinicBasis: "One-time shared build budget; not repeated per clinic.",
     purpose:
       "Provision a high-performance developer workstation and budget for multi-million-token AI API usage, model experimentation, execution and local orchestration.",
     value:
@@ -27,6 +28,8 @@ export const investorCosts = [
     category: "Healthcare legal & contracts",
     upfront: 2000,
     monthly: 0,
+    clinicBasis:
+      "One-time platform templates; each clinic still signs its own agreements.",
     purpose:
       "Deploy a scalable Master Platform MSA and click-through BAA framework that defines platform, partner and clinic responsibilities.",
     value:
@@ -36,6 +39,8 @@ export const investorCosts = [
     category: "DEA EPCS Compliance Audit",
     upfront: 2000,
     monthly: 0,
+    clinicBasis:
+      "One-time application-level allowance; clinic and prescriber enrollment may add costs.",
     purpose:
       "Establish the audit or certification coverage needed for controlled-substance e-prescribing, including provider identity and access requirements.",
     value:
@@ -45,6 +50,8 @@ export const investorCosts = [
     category: "LegitScript certification",
     upfront: 1500,
     monthly: 0,
+    clinicBasis:
+      "One-time platform application allowance; $2,150 annual fee is additional.",
     purpose:
       "Pursue healthcare merchant certification where required. The $1,500 setup allowance exceeds the published $975 application fee; a $2,150 annual fee is due upon approval and is not in the monthly budget.",
     value:
@@ -54,6 +61,8 @@ export const investorCosts = [
     category: "Prescription Network API (eRx)",
     upfront: 0,
     monthly: 800,
+    clinicBasis:
+      "Shared Launch tier across clinics: 2,000 orders/month. Model $195 more for each added three-prescriber clinic; overages extra.",
     purpose:
       "Embed prescription routing through the proposed Photon Health integration, with medication-history and benefit-data scope confirmed in contracting.",
     value:
@@ -63,6 +72,8 @@ export const investorCosts = [
     category: "Insurance billing engine",
     upfront: 0,
     monthly: 1500,
+    clinicBasis:
+      "Shared planning allowance. Model $60 more per added insurance-billing clinic; cash-pay clinics do not need claims mapping.",
     purpose:
       "Integrate ANSI X12 837 claim workflows and clearinghouse submission through the proposed Candid Health API layer.",
     value:
@@ -72,6 +83,8 @@ export const investorCosts = [
     category: "HIPAA Telehealth Video API",
     upfront: 0,
     monthly: 150,
+    clinicBasis:
+      "Shared usage budget, not a clinic subscription. Model $125 more per added three-provider clinic using video.",
     purpose:
       "Consumption-based WebRTC consultations via Twilio Programmable Video, with a signed BAA required before PHI use. At $0.004 per participant-minute, 35,000 participant-minutes cost $140 before extras, within the $150 usage budget.",
     value:
@@ -81,8 +94,10 @@ export const investorCosts = [
     category: "AI Clinical Scribe Engine",
     upfront: 0,
     monthly: 350,
+    clinicBasis:
+      "Shared pilot-wide usage reserve; no clinic count is assumed. Model $120 more per added clinic using the scribe.",
     purpose:
-      "Audio streaming pipelines and medical LLM token processing, targeting 450–500 automated multi-system SOAP note drafts per month. Design targets will be verified during the pilot; clinicians review generated notes.",
+      "Pilot-wide audio and medical LLM processing reserve. The 450–500 draft notes/month figure is an unverified aggregate design target across participating clinics, not a purchased tier or per-clinic capacity; clinicians review generated notes.",
     value:
       "The development scribe already routes through OpenRouter. An OpenAI GPT audio-capable model is planned for the pilot; model selection and usage costs remain to be validated.",
   },
@@ -90,6 +105,8 @@ export const investorCosts = [
     category: "Security & HIPAA hosting",
     upfront: 0,
     monthly: 400,
+    clinicBasis:
+      "Shared hosting allowance; incremental storage, traffic and account costs are not yet quoted.",
     purpose:
       "Implement isolated hosting, access controls and audit infrastructure using an appropriate AWS HIPAA-eligible or Aptible configuration.",
     value:
@@ -99,6 +116,8 @@ export const investorCosts = [
     category: "503A pharmacy partner workflows",
     upfront: 0,
     monthly: 0,
+    clinicBasis:
+      "No fixed fee budgeted; each clinic's partner and per-order terms remain unquoted.",
     purpose:
       "Build partner-order and status pipelines for licensed 503A pharmacies, with transaction-based economics.",
     value:
@@ -108,6 +127,8 @@ export const investorCosts = [
     category: "Diagnostic lab connectivity (Quest / Labcorp)",
     upfront: 0,
     monthly: 0,
+    clinicBasis:
+      "Not included in totals. Per-provider, interface and clinic enrollment fees need a quote.",
     purpose:
       "Planned bidirectional lab ordering and result tracking through a contracted middleware partner. Interface enrollment, implementation and any platform subscription require a quote.",
     value:
@@ -117,6 +138,8 @@ export const investorCosts = [
     category: "Wholesale clinical lab orders",
     upfront: 0,
     monthly: 0,
+    clinicBasis:
+      "No fixed fee budgeted; tests and processing are charged per order.",
     purpose:
       "Patient-specific cash-pay lab orders through a prospective partner catalog, with test prices and processing charges assessed per order.",
     value:
@@ -248,7 +271,7 @@ const vendorSources: Record<
     url: "https://openrouter.ai/docs/quickstart",
     label: "OpenRouter API",
     basis:
-      "OpenRouter route exists in development; $350/mo is a planning allowance for a future OpenAI GPT model.",
+      "OpenRouter documents API access, not a $350 price. This is a shared pilot-wide planning allowance with no fixed clinic count; $120 per added clinic models further usage.",
   },
   "Diagnostic lab connectivity (Quest / Labcorp)": {
     url: "https://help.gethealthie.com/article/1260-direct-labs-by-healthie",
@@ -639,8 +662,11 @@ export function I2eInvestorPage() {
             <h2>02 / Shared platform costs</h2>
             <p className="i2e-budget-intro">
               What Meta Clinic budgets once to launch and each month to run the
-              common platform. The clinic-specific vendor costs in Section 01
-              are separate; they are not added again here.
+              common platform. The clinic-by-clinic column shows which costs
+              repeat as independently owned clinics join; Section 01 models a
+              three-provider clinic using prescribing, video, scribe and
+              insurance billing. A clinic using fewer services has a different
+              variable cost.
             </p>
             <dl className="i2e-budget-summary">
               <div>
@@ -658,17 +684,22 @@ export function I2eInvestorPage() {
             <div className="i2e-budget-table">
               <Grid
                 label="Shared platform cost breakdown"
-                headers={["What the budget covers", "Upfront", "Monthly"]}
+                headers={[
+                  "What the budget covers",
+                  "Clinic-by-clinic effect",
+                  "Upfront",
+                  "Monthly",
+                ]}
               >
                 {investorCosts.map((row, index) => (
                   <Fragment key={row.category}>
                     {[0, 4, 9].includes(index) && (
                       <TableRow className="i2e-budget-group">
-                        <TableCell colSpan={3}>
+                        <TableCell colSpan={4}>
                           {index === 0
                             ? "Launch setup"
                             : index === 4
-                              ? "Core monthly infrastructure"
+                              ? "Shared monthly base + clinic usage"
                               : "Partner-dependent services"}
                         </TableCell>
                       </TableRow>
@@ -701,6 +732,7 @@ export function I2eInvestorPage() {
                           </span>
                         )}
                       </TableCell>
+                      <TableCell>{row.clinicBasis}</TableCell>
                       <TableCell align="right">
                         {row.category.startsWith("Diagnostic lab") ||
                         row.category === "Wholesale clinical lab orders"
@@ -720,10 +752,13 @@ export function I2eInvestorPage() {
               </Grid>
             </div>
             <p className="i2e-note">
-              Estimated vendor budget; final pricing depends on usage and
-              account terms. Lab middleware and per-order test costs are not
-              included in the totals. LegitScript's published $2,150 annual fee
-              is additional if certification is approved.
+              $0 means no fixed amount budgeted, not that the service is free.
+              The $3,200 monthly total is the shared base; the clinic-level
+              figures in the second column are additional estimates as usage
+              grows, not vendor quotes. Final pricing depends on contracts and
+              usage. Lab middleware and per-order test costs are excluded.
+              LegitScript's published $2,150 annual fee is additional if
+              certification is approved.
             </p>
           </section>
           <section id="sales-deck">
