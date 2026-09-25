@@ -157,34 +157,36 @@
 }
 .clinic-theme .encounter-workspace-layout {
   display: grid;
-  grid-template-columns: minmax(170px, 208px) minmax(0, 1fr) minmax(
-      220px,
-      280px
-    );
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 .clinic-theme .encounter-workspace-primary {
   min-width: 0;
 }
-.clinic-theme .encounter-section-rail,
-.clinic-theme .encounter-context-rail {
+.clinic-theme .encounter-section-rail {
   position: sticky;
-  top: 16px;
+  top: 0;
+  z-index: 4;
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--clinic-surface);
 }
 .clinic-theme .encounter-section-rail h2 {
   color: var(--clinic-muted);
 }
+.clinic-theme .encounter-section-links {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .clinic-theme .encounter-section-links .MuiButton-root {
   min-height: 40px;
-  justify-content: flex-start;
-  padding-inline: 8px;
-}
-.clinic-theme .encounter-context-rail {
-  align-content: start;
+  justify-content: center;
+  padding-inline: 12px;
 }
 .clinic-theme .provider-vitals-grid {
   display: grid;
@@ -204,8 +206,8 @@
 }
 .clinic-theme .provider-chart-layout {
   display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
 }
 .clinic-theme .provider-chart-content {
@@ -213,19 +215,27 @@
 }
 .clinic-theme .chart-quick-jump {
   position: sticky;
-  top: 16px;
+  top: 64px;
+  z-index: 3;
   display: grid;
-  gap: 4px;
-  padding: 8px 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--clinic-surface);
 }
 .clinic-theme .chart-quick-jump h2 {
-  padding-inline: 8px;
   color: var(--clinic-muted);
 }
+.clinic-theme .chart-quick-jump-links {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .clinic-theme .chart-quick-jump-links .MuiButton-root {
-  min-height: 44px;
-  justify-content: flex-start;
-  padding-inline: 8px;
+  min-height: 40px;
+  justify-content: center;
+  padding-inline: 12px;
 }
 .clinic-theme .chart-anchor {
   scroll-margin-top: 16px;
@@ -434,17 +444,6 @@
   .clinic-theme .care-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .clinic-theme .provider-chart-layout {
-    grid-template-columns: 116px minmax(0, 1fr);
-    gap: 12px;
-  }
-  .clinic-theme .encounter-workspace-layout {
-    grid-template-columns: minmax(160px, 184px) minmax(0, 1fr);
-  }
-  .clinic-theme .encounter-context-rail {
-    grid-column: 2;
-    position: static;
-  }
   .clinic-theme .ros-system {
     grid-template-columns: 140px minmax(0, 1fr);
   }
@@ -457,36 +456,23 @@
   .clinic-theme .hpi-field-grid {
     grid-template-columns: 1fr;
   }
-  .clinic-theme .provider-chart-layout {
-    grid-template-columns: 1fr;
-  }
-  .clinic-theme .encounter-workspace-layout {
-    grid-template-columns: 1fr;
-  }
   .clinic-theme .encounter-section-rail,
-  .clinic-theme .encounter-context-rail {
-    position: static;
-  }
-  .clinic-theme .encounter-section-links {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .clinic-theme .encounter-section-links .MuiButton-root {
-    justify-content: center;
-  }
-  .clinic-theme .encounter-context-rail {
-    grid-column: auto;
-  }
   .clinic-theme .chart-quick-jump {
     position: static;
+    grid-template-columns: 1fr;
+  }
+  .clinic-theme .encounter-section-links {
+    overflow-x: auto;
+    flex-wrap: nowrap;
   }
   .clinic-theme .chart-quick-jump-links {
-    flex-direction: row;
+    overflow-x: auto;
+    flex-wrap: nowrap;
     gap: 4px;
   }
+  .clinic-theme .encounter-section-links .MuiButton-root,
   .clinic-theme .chart-quick-jump-links .MuiButton-root {
-    flex: 1;
-    justify-content: center;
+    flex: 0 0 auto;
   }
   .clinic-theme .ros-system {
     grid-template-columns: 1fr;

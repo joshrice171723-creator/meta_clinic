@@ -4501,8 +4501,6 @@ function SoapNoteWorkspace({
 
 export function ChartQuickJump() {
   const links = [
-    ["Patient", "#chart-patient"],
-    ["Intake", "#nurse-workspace"],
     ["Education", "#patient-education"],
     ["History", "#clinical-history"],
     ["Labs", "#chart-labs"],
@@ -4513,7 +4511,6 @@ export function ChartQuickJump() {
     ["Assessment", "#chart-assessment"],
     ["Plan", "#chart-plan"],
     ["Signing", "#chart-signing"],
-    ["Completion", "#chart-completion"],
   ] as const;
 
   return (
@@ -4523,10 +4520,10 @@ export function ChartQuickJump() {
       className="chart-quick-jump"
       aria-label="Chart quick navigation"
     >
-      <Typography variant="overline" component="h2">
-        Quick jump
+      <Typography variant="subtitle2" component="h2">
+        Chart
       </Typography>
-      <Stack className="chart-quick-jump-links">
+      <Stack direction="row" className="chart-quick-jump-links">
         {links.map(([label, href]) => (
           <Button
             key={href}
@@ -4557,12 +4554,11 @@ export function EncounterSectionRail({
   chartConfirmed: boolean;
 }) {
   const links = [
-    ["Visit summary", "#chart-patient"],
-    ["Rooming & intake", "#nurse-workspace"],
-    ["Clinician chart", "#chart-access"],
+    ["Summary", "#chart-patient"],
+    ["Intake", "#nurse-workspace"],
+    ["Chart", "#chart-access"],
     ...(chartConfirmed
       ? [
-          ["Encounter context", "#chart-context"],
           ["Documentation", "#chart-hpi"],
           ["Completion", "#chart-completion"],
         ]
@@ -4577,9 +4573,9 @@ export function EncounterSectionRail({
       aria-label="Encounter sections"
     >
       <Typography variant="subtitle2" component="h2">
-        Encounter sections
+        Encounter
       </Typography>
-      <Stack className="encounter-section-links">
+      <Stack direction="row" className="encounter-section-links">
         {links.map(([label, href]) => (
           <Button key={href} href={href} variant="text" size="small">
             {label}
@@ -4728,11 +4724,15 @@ export function ProviderEncounterWorkflow({
               sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}
             >
               <Chip
-                label={chartStateLabel(
+                label={`Visit ${statusLabel(encounter.status)}`}
+                variant="outlined"
+              />
+              <Chip
+                label={`Chart ${chartStateLabel(
                   signedChart,
                   chartConfirmed,
                   existingChart,
-                )}
+                )}`}
                 variant="outlined"
               />
               {chartConfirmed &&
@@ -4813,18 +4813,6 @@ export function ProviderEncounterWorkflow({
                   <TableCell component="th">Weight</TableCell>
                   <TableCell>
                     {observationByLabel(observations, /weight/i)}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell component="th">Encounter</TableCell>
-                  <TableCell>#{encounter.id}</TableCell>
-                  <TableCell component="th">Chart Status</TableCell>
-                  <TableCell>
-                    {chartStateLabel(
-                      signedChart,
-                      chartConfirmed,
-                      existingChart,
-                    )}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -5124,40 +5112,6 @@ export function ProviderEncounterWorkflow({
             </Stack>
           )}
         </Stack>
-        <Paper
-          component="aside"
-          variant="outlined"
-          className="encounter-context-rail"
-          aria-label="Encounter status"
-        >
-          <Stack spacing={1.25}>
-            <Typography component="h2" variant="subtitle2">
-              Encounter status
-            </Typography>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Visit
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {statusLabel(encounter.status)}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Chart
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {chartStateLabel(signedChart, chartConfirmed, existingChart)}
-              </Typography>
-            </Box>
-            <Divider />
-            <Typography variant="body2" color="text.secondary">
-              {chartConfirmed
-                ? "Use the active chart sections to document this encounter."
-                : "Complete available preparation, then confirm the patient and encounter before opening the chart."}
-            </Typography>
-          </Stack>
-        </Paper>
       </Box>
     </Stack>
   );
