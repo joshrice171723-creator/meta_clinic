@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Button,
+  MenuItem,
   TextField,
   Table,
   TableBody,
@@ -183,11 +184,8 @@ export function clinicEconomics(
   clinics: number,
   subscription = 0,
   allowance = 0,
+  incremental = 500,
 ) {
-  const incremental = incrementalCosts.reduce(
-    (sum, row) => sum + row.monthly,
-    0,
-  );
   const monthly =
     investorBudget.monthly + (clinics - 1) * incremental + clinics * allowance;
   const revenue = clinics * subscription;
@@ -244,7 +242,18 @@ function Grid({
     </TableContainer>
   );
 }
+export const clinicServiceProfiles = [
+  { name: "Cash-pay / no eRx", insurance: false, erx: false },
+  { name: "Insurance / no eRx", insurance: true, erx: false },
+  { name: "Cash-pay / with eRx", insurance: false, erx: true },
+  { name: "Insurance / with eRx", insurance: true, erx: true },
+];
+export function incrementalForServices(insurance: boolean, erx: boolean) {
+  return 125 + 120 + (insurance ? 60 : 0) + (erx ? 195 : 0);
+}
 export function I2eInvestorPage() {
+  const [serviceProfile, setServiceProfile] = useState(3);
+  const services = clinicServiceProfiles[serviceProfile];
   const [subscriptionInput, setSubscriptionInput] = useState("1200");
   const [allowanceInput, setAllowanceInput] = useState("0");
   const [showDeck, setShowDeck] = useState(false);
@@ -256,9 +265,11 @@ export function I2eInvestorPage() {
   const validInputs = valid(subscriptionInput) && valid(allowanceInput);
   const subscription = Number(subscriptionInput),
     allowance = Number(allowanceInput);
-  const incremental = incrementalCosts.reduce(
-    (sum, row) => sum + row.monthly,
-    0,
+  const incremental = incrementalForServices(services.insurance, services.erx);
+  const selectedCosts = incrementalCosts.filter(
+    (row) =>
+      (row.name !== "eRx prescriber seats" || services.erx) &&
+      (row.name !== "Clearinghouse / entity mapping" || services.insurance),
   );
   const software = stackCosts.reduce((sum, row) => sum + row.cost, 0);
   const spread = investorBudget.retail - investorBudget.wholesale;
@@ -337,8 +348,9 @@ export function I2eInvestorPage() {
             </dl>
             <p className="i2e-answer">
               <strong>
-                Budget approximately $500/month in additional vendor costs for
-                each new independent three-provider clinic.
+                Additional vendor expense depends on the services each clinic
+                uses: approximately $245–$500/month in this three-provider
+                model.
               </strong>{" "}
               This is the supplied wholesale scenario, not a contracted all-in
               price. Add onboarding, support, payment fees, hosting growth and
@@ -347,11 +359,49 @@ export function I2eInvestorPage() {
               not merely an extra location.
             </p>
           </section>
-          <I2eClinicMarkets />
+          <section aria-label="Clinic service assumptions">
+            <TextField
+              select
+              label="Services used by modeled clinics"
+              size="small"
+              value={serviceProfile}
+              onChange={(event) =>
+                setServiceProfile(Number(event.target.value))
+              }
+            >
+              {clinicServiceProfiles.map((profile, index) => (
+                <MenuItem key={profile.name} value={index}>
+                  {profile.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <p>
+              Cash-pay without eRx: $245/mo · Insurance without eRx: $305/mo ·
+              Cash-pay with eRx: $440/mo · Insurance with eRx: $500/mo.
+            </p>
+            <p className="i2e-note">
+              All scenarios retain $125 video and $120 scribe usage allowances.
+              Insurance adds $60 clearinghouse/entity mapping; eRx adds $195
+              prescriber seats. These are planning assumptions, not vendor
+              quotes. A clinic can prescribe to outside pharmacies without
+              owning a pharmacy. Dispensing, compounding, medication purchases
+              and pharmacy fulfillment are separately uncosted; no pharmacy
+              margin is included in subscription contribution. All modeled
+              clinics use the selected bundle. The shared $3,200 platform budget
+              remains committed here; switching off a clinic service does not
+              automatically cancel platform vendor minimums.
+            </p>
+          </section>
+          <I2eClinicMarkets
+            incremental={incremental}
+            serviceName={services.name}
+          />
           <section id="scaling">
             <div className="i2e-heading">
               <h2>📦 Multi-tenant cost grid</h2>
-              <span>Base $3,200 + ($500 × additional clinics)</span>
+              <span>
+                Shared $3,200 + ({money(incremental)} × additional clinics)
+              </span>
             </div>
             <div className="i2e-split">
               <Grid
@@ -362,7 +412,7 @@ export function I2eInvestorPage() {
                   "Cost driver",
                 ]}
               >
-                {incrementalCosts.map((row) => (
+                {selectedCosts.map((row) => (
                   <TableRow key={row.name}>
                     <TableCell component="th" scope="row">
                       {row.name}
@@ -426,7 +476,12 @@ export function I2eInvestorPage() {
                 ]}
               >
                 {[1, 2, 3, 4, 10].map((count) => {
-                  const e = clinicEconomics(count, subscription, allowance);
+                  const e = clinicEconomics(
+                    count,
+                    subscription,
+                    allowance,
+                    incremental,
+                  );
                   return (
                     <TableRow key={count}>
                       <TableCell component="th" scope="row">
@@ -434,7 +489,9 @@ export function I2eInvestorPage() {
                       </TableCell>
                       <TableCell align="right">{count * 3}</TableCell>
                       <TableCell align="right">
-                        {money(clinicEconomics(count).monthly)}
+                        {money(
+                          clinicEconomics(count, 0, 0, incremental).monthly,
+                        )}
                       </TableCell>
                       <TableCell align="right">
                         {money(count * allowance)}
@@ -460,9 +517,10 @@ export function I2eInvestorPage() {
             <p className="i2e-note">
               Contribution = modeled subscriptions minus listed costs, before
               tax, founder compensation, unbudgeted support and acquisition
-              costs. The $500 is added after the first clinic to avoid counting
-              its baseline services twice. No assumption of permanently flat
-              engineering headcount or server capacity is made.
+              costs. The selected incremental expense is added after the first
+              clinic to avoid counting its baseline services twice. No
+              assumption of permanently flat engineering headcount or server
+              capacity is made.
             </p>
             <Grid
               label="New clinic setup expense gaps"
@@ -629,7 +687,12 @@ export function I2eInvestorPage() {
                 ]}
               >
                 {[1, 3, 4, 10].map((count) => {
-                  const e = clinicEconomics(count, subscription, allowance);
+                  const e = clinicEconomics(
+                    count,
+                    subscription,
+                    allowance,
+                    incremental,
+                  );
                   return (
                     <TableRow key={count}>
                       <TableCell component="th" scope="row">
@@ -693,11 +756,11 @@ export function I2eInvestorPage() {
             </Grid>
             <p className="i2e-note">
               Published baseline verified September 25, 2026. Prices are per
-              organization, not per provider. The $500 cost model applies only
-              to the proposed three-provider clinic; it does not establish
-              delivery costs for larger organizations. Implementation charges
-              are revenue, not an estimate of onboarding expense. Embedded deck
-              inputs are independent of this dashboard.
+              organization, not per provider. The selected service cost model
+              applies only to the proposed three-provider clinic; it does not
+              establish delivery costs for larger organizations. Implementation
+              charges are revenue, not an estimate of onboarding expense.
+              Embedded deck inputs are independent of this dashboard.
             </p>
             <Button
               variant="outlined"
@@ -725,7 +788,7 @@ export function I2eInvestorPage() {
           </section>
           <section id="roadmap">
             <h2>⚙️ Engineering parameters & cost boundaries</h2>
-            <pre className="i2e-technical">{`MODEL_STATUS = planning assumptions; vendor contracts not verified\nTENANCY = independent owners; separate authorization, agreements and enrollment\nUPFRONT_POOL = $10,500 shared initial execution; scope-dependent exceptions\nBASE_MONTHLY = $3,200 including first pilot clinic\nADDITIONAL_CLINIC = $500/month estimate for 3 providers, before unbudgeted costs\nTELEMETRY = compute capacity, transcription speed and engineering velocity require pilot measurement\nVIDEO = Twilio usage $0.004/participant-minute; HIPAA account/BAA terms and extras separate\nCLINICAL_AI = draft notes require clinician review; time savings are design targets`}</pre>
+            <pre className="i2e-technical">{`MODEL_STATUS = planning assumptions; vendor contracts not verified\nTENANCY = independent owners; separate authorization, agreements and enrollment\nUPFRONT_POOL = $10,500 shared initial execution; scope-dependent exceptions\nBASE_MONTHLY = $3,200 including first pilot clinic\nADDITIONAL_CLINIC = ${money(incremental)}/month for ${services.name}; 3 providers, before unbudgeted costs\nTELEMETRY = compute capacity, transcription speed and engineering velocity require pilot measurement\nVIDEO = Twilio usage $0.004/participant-minute; HIPAA account/BAA terms and extras separate\nCLINICAL_AI = draft notes require clinician review; time savings are design targets`}</pre>
             <p className="i2e-note">
               <a href="https://www.twilio.com/en-us/video/pricing">
                 Twilio pricing

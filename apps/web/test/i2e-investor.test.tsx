@@ -93,3 +93,23 @@ describe("clinic switching comparisons", () => {
     expect(switchingEconomics(1354, 20, 4, 100).contribution).toBeLessThan(0);
   });
 });
+
+import { incrementalForServices } from "../src/features/marketing/I2eInvestorPage";
+it("prices each optional service once and propagates the bundle to both models", () => {
+  for (const [insurance, erx, expected] of [
+    [false, false, 245],
+    [true, false, 305],
+    [false, true, 440],
+    [true, true, 500],
+  ] as const) {
+    const incremental = incrementalForServices(insurance, erx);
+    expect(incremental).toBe(expected);
+    expect(clinicEconomics(1, 0, 0, incremental).monthly).toBe(3200);
+    expect(clinicEconomics(10, 0, 0, incremental).monthly).toBe(
+      3200 + 9 * expected,
+    );
+    expect(switchingEconomics(1354, 20, 10, 0, incremental).cost).toBe(
+      clinicEconomics(10, 0, 0, incremental).average,
+    );
+  }
+});

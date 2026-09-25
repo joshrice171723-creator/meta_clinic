@@ -29,9 +29,10 @@ export function switchingEconomics(
   discount: number,
   clinics: number,
   extra: number,
+  incremental = 500,
 ) {
   const offer = current * (1 - discount / 100);
-  const cost = (3200 + (clinics - 1) * 500) / clinics + extra;
+  const cost = (3200 + (clinics - 1) * incremental) / clinics + extra;
   return {
     offer,
     cost,
@@ -41,7 +42,13 @@ export function switchingEconomics(
     minimumCurrent: cost / (1 - discount / 100),
   };
 }
-export function I2eClinicMarkets() {
+export function I2eClinicMarkets({
+  incremental = 500,
+  serviceName = "Insurance / with eRx",
+}: {
+  incremental?: number;
+  serviceName?: string;
+}) {
   const [size, setSize] = useState(1);
   const [market, setMarket] = useState(0);
   const [profile, setProfile] = useState(0);
@@ -66,6 +73,7 @@ export function I2eClinicMarkets() {
         Number(discount),
         Number(clinics),
         Number(extra),
+        incremental,
       )
     : null;
   const selected = clinicMarkets[market];
@@ -153,7 +161,7 @@ export function I2eClinicMarkets() {
             published sales deck
           </a>
           , verified September 25, 2026. Those are proposed customer prices, not
-          validated costs or launch-ready offerings. The $500 incremental
+          validated costs or launch-ready offerings. The selected incremental
           estimate is a three-provider reference, not a cost quote for every
           specialty or organization size.
         </p>
@@ -398,10 +406,12 @@ export function I2eClinicMarkets() {
           </Table>
         </TableContainer>
         <p className="i2e-note">
-          This offer calculator is independent of the network subscription
-          assumption below and the published deck. Selecting a specialty changes
-          the value proposition and implementation range, not the reference
-          vendor cost; specialty costs still require validation.
+          Selected cost bundle: {serviceName} ({money(incremental)} per
+          additional clinic). This offer calculator shares the service selection
+          above but is independent of the network subscription assumption below
+          and the published deck. Selecting a specialty changes the value
+          proposition and implementation range, not the reference vendor cost;
+          specialty costs still require validation.
         </p>
       </section>
     </>
