@@ -298,20 +298,30 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
           room configured.
         </Typography>
       </Paper>
-      <TableContainer component={Paper} variant="outlined">
-        <Table aria-label="Clinic service offerings">
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{ overflowX: "auto" }}
+      >
+        <Table aria-label="Clinic service offerings" sx={{ minWidth: 680 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Offering</TableCell>
-              <TableCell>Visit and sites</TableCell>
-              <TableCell>Status</TableCell>
-              {canManage && <TableCell align="right">Actions</TableCell>}
+              <TableCell sx={{ px: 2, minWidth: 180 }}>Offering</TableCell>
+              <TableCell sx={{ px: 2, minWidth: 220 }}>
+                Visit and sites
+              </TableCell>
+              <TableCell sx={{ px: 2, width: 120 }}>Status</TableCell>
+              {canManage && (
+                <TableCell align="right" sx={{ px: 2, minWidth: 220 }}>
+                  Actions
+                </TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
             {data.service_offerings.length === 0 && (
               <TableRow>
-                <TableCell colSpan={canManage ? 4 : 3}>
+                <TableCell colSpan={canManage ? 4 : 3} sx={{ px: 2 }}>
                   <Typography color="text.secondary">
                     No service offerings have been configured.
                   </Typography>
@@ -320,7 +330,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
             )}
             {data.service_offerings.map((offering) => (
               <TableRow key={offering.id}>
-                <TableCell>
+                <TableCell sx={{ px: 2, overflowWrap: "anywhere" }}>
                   <Typography sx={{ fontWeight: 650 }}>
                     {offering.name}
                   </Typography>
@@ -329,7 +339,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                     {offering.duration_minutes ?? "No duration"} min
                   </Typography>
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ px: 2, overflowWrap: "anywhere" }}>
                   <Typography variant="body2">
                     {activeVisitTypes.find(
                       (item) => item.id === offering.visit_type_id,
@@ -344,7 +354,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                     {offering.requires_room ? " · Room required" : ""}
                   </Typography>
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ px: 2, width: 120 }}>
                   <Chip
                     size="small"
                     variant="outlined"
@@ -352,7 +362,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   />
                 </TableCell>
                 {canManage && (
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ px: 2, minWidth: 220 }}>
                     <Stack
                       direction="row"
                       spacing={0.5}

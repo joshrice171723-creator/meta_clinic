@@ -48,6 +48,22 @@
   margin-right: 4px;
 }
 
+.clinic-theme .facility-operating-hours-row {
+  display: grid;
+  grid-template-columns: minmax(76px, 1fr) auto minmax(132px, 1fr) minmax(
+      132px,
+      1fr
+    );
+  align-items: center;
+  gap: 12px;
+}
+
+.clinic-theme .facility-operating-hours-row > .MuiTypography-root,
+.clinic-theme .facility-operating-hours-row > .MuiTextField-root {
+  min-width: 0;
+  width: 100%;
+}
+
 @media (max-width: 900px) {
   .clinic-theme .facilities-layout,
   .clinic-theme .facility-form-grid {
@@ -57,5 +73,23 @@
   .clinic-theme .facilities-list,
   .clinic-theme .facility-form {
     padding: 18px;
+  }
+}
+
+@media (max-width: 600px) {
+  .clinic-theme .facility-operating-hours-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .clinic-theme .facility-operating-hours-row > .MuiTypography-root {
+    grid-column: 1;
+  }
+
+  .clinic-theme .facility-operating-hours-row > .MuiFormControlLabel {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    justify-self: end;
   }
 }

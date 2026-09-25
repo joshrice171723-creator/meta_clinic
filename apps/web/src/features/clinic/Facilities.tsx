@@ -520,7 +520,10 @@ export function Facilities() {
                       ),
                     });
                   return (
-                    <div className="facility-hours-row" key={day}>
+                    <div
+                      className="facility-hours-row facility-operating-hours-row"
+                      key={day}
+                    >
                       <Typography sx={{ width: 110 }}>{label}</Typography>
                       <FormControlLabel
                         control={

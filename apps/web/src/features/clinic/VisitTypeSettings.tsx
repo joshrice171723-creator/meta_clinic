@@ -226,13 +226,21 @@ export function VisitTypeSettings({
         </Typography>
       </Paper>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table aria-label="Clinic visit types">
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{ overflowX: "auto" }}
+      >
+        <Table aria-label="Clinic visit types" sx={{ minWidth: 520 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Visit type</TableCell>
-              <TableCell>Status</TableCell>
-              {canManage && <TableCell align="right">Actions</TableCell>}
+              <TableCell sx={{ px: 2, minWidth: 180 }}>Visit type</TableCell>
+              <TableCell sx={{ px: 2, width: 120 }}>Status</TableCell>
+              {canManage && (
+                <TableCell align="right" sx={{ px: 2, minWidth: 220 }}>
+                  Actions
+                </TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -249,12 +257,12 @@ export function VisitTypeSettings({
               const active = visitType.retired_at === null;
               return (
                 <TableRow key={visitType.id}>
-                  <TableCell>
+                  <TableCell sx={{ px: 2, overflowWrap: "anywhere" }}>
                     <Typography sx={{ fontWeight: 650 }}>
                       {visitType.code}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ px: 2, width: 120 }}>
                     <Chip
                       size="small"
                       variant="outlined"
@@ -262,7 +270,7 @@ export function VisitTypeSettings({
                     />
                   </TableCell>
                   {canManage && (
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ px: 2, minWidth: 220 }}>
                       <Stack
                         direction="row"
                         spacing={0.5}
