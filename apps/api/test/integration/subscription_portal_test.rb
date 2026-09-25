@@ -226,7 +226,7 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
       post "/api/clinic/subscription_catalog/template", headers: headers, as: :json
       assert_response :success
       assert_equal "weight_loss", response.parsed_body.fetch("clinic_type")
-      assert_equal 3, response.parsed_body.fetch("created_count") if attempt.zero?
+      assert_equal 4, response.parsed_body.fetch("created_count") if attempt.zero?
       assert_equal 0, response.parsed_body.fetch("created_count") if attempt == 1
     end
 
@@ -234,7 +234,12 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     assert_nil family.published_snapshot
     assert_equal ["Weight-management follow-up", "Weight-management initial visit"],
       Clinic::Care::ServiceOption.where(practice: @practice).order(:name).pluck(:name)
-    assert_equal 0, Clinic::Care::SubscriptionPackage.where(practice: @practice).count
+    package = Clinic::Care::SubscriptionPackage.find_by!(practice: @practice, family: family,
+      name: "Weight management membership")
+    assert_nil package.published_version_id
+    assert_equal "149.00", package.draft.fetch("amount")
+    assert_equal ["Weight-management initial visit", "Weight-management follow-up"],
+      Clinic::Care::SubscriptionDefinition.build(package).fetch("components").map { |component| component.fetch("name") }
   end
 
   test "membership starter rejects a clinic type without a matching template" do

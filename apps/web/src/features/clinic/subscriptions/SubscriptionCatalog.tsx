@@ -287,7 +287,7 @@ export function SubscriptionCatalog() {
                       </Typography>
                       <Typography>
                         {data.clinic_type === "weight_loss"
-                          ? "Adds a draft program and initial and follow-up visit services. Set your clinic’s membership cadence, pricing, and terms before publishing."
+                          ? "Adds a draft program, initial and follow-up visit services, and a $149 monthly demo tier. Review the pricing and terms before publishing."
                           : data.clinic_type
                             ? `Selected clinic type: ${clinicTypeLabel}. A matching starter is not available yet.`
                             : "Select a clinic type in Clinic setup to see a matching membership starter."}
@@ -308,9 +308,10 @@ export function SubscriptionCatalog() {
                               });
                               setNotice(
                                 result.created_count
-                                  ? "Weight management starter added as an unpublished draft."
+                                  ? "Weight management program, services, and tier added as unpublished drafts."
                                   : "Weight management starter is already in this catalog.",
                               );
+                              setCatalogSection("package");
                             })
                           }
                         >
