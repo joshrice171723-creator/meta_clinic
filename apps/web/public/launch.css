@@ -94,8 +94,10 @@
 body:has(.login-layout) { --background:#154985; --foreground:#fff; --primary:#1d4ed8; --card:#fff; --border:#8aadd2; --ring:#9cc5ff; background:linear-gradient(125deg,#154985 0%,#12549d 55%,#0d4588 100%); }
 body:has(.login-layout) .wrap { width:min(960px,calc(100% - 40px)); }
 body:has(.login-layout) .site-header { min-height:90px; border-color:rgba(255,255,255,.35); }
+body:has(.login-layout) .site-header nav,
+body:has(.login-layout) .footer-links { display:none; }
 body:has(.login-layout) .site-header .brand-dot { background:#fff; }
-body:has(.login-layout) .footer-wrap { background:#253b4e; }
+body:has(.login-layout) .footer-wrap { width:100%; padding-inline:max(20px,calc((100% - 960px)/2)); background:#253b4e; }
 body:has(.login-layout) .site-footer,
 body:has(.login-layout) .footer-bottom { border-color:rgba(255,255,255,.3); }
 .login-layout { gap:52px; padding-block:64px; }

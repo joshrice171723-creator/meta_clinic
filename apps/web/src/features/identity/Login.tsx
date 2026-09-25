@@ -61,7 +61,7 @@ export function Login({
         <div className="inner-page-copy">
           <h1>
             {ownerPortal
-              ? "Your organizations."
+              ? "Streamline your practice."
               : employeePortal
                 ? "Your workday."
                 : patientPortal
@@ -70,7 +70,7 @@ export function Login({
             <br />
             <em>
               {ownerPortal
-                ? "One place to lead."
+                ? "Scale your organization."
                 : employeePortal
                   ? "One place to work."
                   : patientPortal
@@ -80,7 +80,7 @@ export function Login({
           </h1>
           <p>
             {ownerPortal
-              ? "Sign in to establish clinics and invite their first owners."
+              ? "Establish clinics and invite their first owners."
               : employeePortal
                 ? "Sign in to work in your clinic and access the tools assigned to your team account."
                 : patientPortal
