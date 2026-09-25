@@ -20,7 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { VisitType } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
@@ -33,7 +33,13 @@ type VisitTypeAttempt = {
   success: string;
 };
 
-export function VisitTypeSettings({ canWrite }: { canWrite: boolean }) {
+export function VisitTypeSettings({
+  canWrite,
+  refreshKey = 0,
+}: {
+  canWrite: boolean;
+  refreshKey?: number;
+}) {
   const {
     data,
     error: loadError,
@@ -44,6 +50,12 @@ export function VisitTypeSettings({ canWrite }: { canWrite: boolean }) {
   }>("/api/clinic/facilities?type=visit_types&per_page=100", {
     retainDataOnRefresh: true,
   });
+  const previousRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (previousRefreshKey.current === refreshKey) return;
+    previousRefreshKey.current = refreshKey;
+    refresh();
+  }, [refresh, refreshKey]);
   const [dialog, setDialog] = useState<VisitType | "new" | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);

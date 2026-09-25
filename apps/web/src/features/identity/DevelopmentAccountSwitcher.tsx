@@ -511,7 +511,11 @@ export function DevelopmentControls({
           },
         },
       );
-      openWorkspace(loginDestination(result.destination));
+      const destination =
+        portal === "clinic" && newOrganization
+          ? "/clinic/setup"
+          : result.destination;
+      openWorkspace(loginDestination(destination));
     } catch (caught) {
       setError(
         caught instanceof Error

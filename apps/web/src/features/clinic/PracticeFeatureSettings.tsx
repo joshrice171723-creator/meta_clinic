@@ -215,7 +215,13 @@ function sameSelection<T extends string>(left: T[], right: T[]) {
   );
 }
 
-export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
+export function PracticeFeatureSettings({
+  canWrite,
+  onProfileSaved,
+}: {
+  canWrite: boolean;
+  onProfileSaved?: () => void;
+}) {
   const { data, error, refresh } = useResource<{ features: PracticeFeatures }>(
     "/api/clinic/practice_features",
   );
@@ -315,6 +321,7 @@ export function PracticeFeatureSettings({ canWrite }: { canWrite: boolean }) {
           ? "Setup finalized. Clinic-managed settings remain available."
           : "Clinic profile saved. The selected starter forms and visit types are ready to configure.",
       });
+      onProfileSaved?.();
       refresh();
     } catch (reason) {
       setFeedback({

@@ -127,6 +127,7 @@ export function Facilities() {
   );
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
   const [savingRoom, setSavingRoom] = useState(false);
+  const [visitTypeRefreshKey, setVisitTypeRefreshKey] = useState(0);
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     text: string;
@@ -270,8 +271,9 @@ export function Facilities() {
       )}
       <PracticeFeatureSettings
         canWrite={capabilities.clinic_setup_write === true}
+        onProfileSaved={() => setVisitTypeRefreshKey((current) => current + 1)}
       />
-      <VisitTypeSettings canWrite={canWrite} />
+      <VisitTypeSettings canWrite={canWrite} refreshKey={visitTypeRefreshKey} />
       <ServiceOfferingSettings canWrite={canWrite} />
       {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
