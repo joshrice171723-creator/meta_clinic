@@ -34,7 +34,7 @@ const selectedProfiles = process.env.BROWSER_PROFILES
       .filter(Boolean)
   : profiles;
 const skipRoutes = process.env.BROWSER_SKIP_ROUTES === "1";
-const viewportWidth = Number(process.env.BROWSER_VIEWPORT_WIDTH || 390);
+const viewportWidth = Number(process.env.BROWSER_VIEWPORT_WIDTH || 1024);
 if (
   !Number.isInteger(viewportWidth) ||
   viewportWidth < 320 ||
@@ -44,7 +44,7 @@ if (
 }
 
 const routes = [
-  ["/clinic", ["Tracking Board", "Operations"]],
+  ["/clinic", ["Tracking Board", "Operations", "Front desk"]],
   ["/clinic/schedule", "Schedule"],
   ["/clinic/work", "Patient Flow"],
   ["/clinic/billing", "Billing"],
@@ -182,6 +182,28 @@ async function inspectRoute(page, [path, expected]) {
     .locator("main")
     .first()
     .waitFor({ state: "visible", timeout: 15000 });
+  await page.waitForFunction(
+    () =>
+      document.querySelector("main h1, main [role=heading]") ||
+      document.querySelector(
+        '[role="dialog"][aria-labelledby="location-picker-title"]',
+      ) ||
+      /permission|not authorized|access denied|no access|unavailable for your account|try again/i.test(
+        document.querySelector("main")?.innerText || "",
+      ),
+    undefined,
+    { timeout: 20000 },
+  );
+  const locationPicker = page.getByRole("dialog", {
+    name: "Choose your location",
+  });
+  if (await locationPicker.isVisible()) {
+    await locationPicker
+      .getByRole("list", { name: "Available locations" })
+      .locator('[role="button"]')
+      .first()
+      .click();
+  }
   try {
     await page.waitForFunction(
       (expectedHeading) => {
