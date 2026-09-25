@@ -302,6 +302,7 @@ module Development
       def enabled_for?(practice)
         return false unless GuidedDemoAccess.enabled?
         return true if DemoRun.local_practice?(practice)
+        return true if Rails.env.development? && ENV["APP_DEVELOPMENT_LOGIN"] == "1"
         return false if GuidedDemoAccess.hosted?
 
         configured = ENV.fetch(ENVIRONMENT_KEY, "")

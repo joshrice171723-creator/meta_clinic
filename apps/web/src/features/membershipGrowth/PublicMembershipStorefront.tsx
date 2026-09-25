@@ -483,6 +483,12 @@ export function PublicMembershipStorefront({
               busy={busy}
               canPurchase
               onChoose={choosePlan}
+              actionLabel={
+                resource.data.payment.mode === "local_simulator"
+                  ? "Start simulated checkout"
+                  : undefined
+              }
+              onContact={guidedDemo ? undefined : choosePlan}
             />
           </Stack>
         )}
@@ -709,10 +715,14 @@ export function PublicMembershipStorefront({
                   }
                 >
                   {busy
-                    ? "Creating account…"
+                    ? resource.data?.payment.mode === "local_simulator"
+                      ? "Preparing simulated checkout…"
+                      : "Creating account…"
                     : guidedDemo
                       ? "Continue as patient"
-                      : "Create account"}
+                      : resource.data?.payment.mode === "local_simulator"
+                        ? "Continue to simulated checkout"
+                        : "Create account"}
                 </Button>
               </>
             )}

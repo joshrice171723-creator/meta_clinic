@@ -27,12 +27,16 @@ export function MembershipCard({
   busy = false,
   canPurchase = true,
   onChoose,
+  actionLabel,
+  onContact,
   draftPreview = false,
 }: {
   terms: PackageTerms;
   busy?: boolean;
   canPurchase?: boolean;
   onChoose?: () => void;
+  actionLabel?: string;
+  onContact?: () => void;
   draftPreview?: boolean;
 }) {
   const cardId = useId();
@@ -123,10 +127,22 @@ export function MembershipCard({
           disabled={busy || draftPreview}
           onClick={onChoose}
         >
-          {canPurchase
-            ? `Choose ${t.package_name || (draftPreview ? "Membership name" : "")}`
-            : `Explore ${t.package_name || (draftPreview ? "Membership name" : "")}`}
+          {actionLabel ||
+            (canPurchase
+              ? `Choose ${t.package_name || (draftPreview ? "Membership name" : "")}`
+              : `Explore ${t.package_name || (draftPreview ? "Membership name" : "")}`)}
         </Button>
+        {onContact && (
+          <Button
+            variant="outlined"
+            size="large"
+            fullWidth
+            disabled={busy || draftPreview}
+            onClick={onContact}
+          >
+            Have the clinic contact me
+          </Button>
+        )}
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontWeight: 600, mb: 2 }}>
             What’s included

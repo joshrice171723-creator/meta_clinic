@@ -30,11 +30,15 @@ export function MembershipCatalog({
   busy,
   canPurchase,
   onChoose,
+  actionLabel,
+  onContact,
 }: {
   catalog: PublishedPackage[];
   busy: boolean;
   canPurchase: boolean;
   onChoose: (plan: PublishedPackage) => void;
+  actionLabel?: string;
+  onContact?: (plan: PublishedPackage) => void;
 }) {
   const [familyId, setFamilyId] = useState<number | null>(null);
   const families = [
@@ -159,6 +163,8 @@ export function MembershipCatalog({
               busy={busy}
               canPurchase={canPurchase}
               onChoose={() => onChoose(plan)}
+              actionLabel={actionLabel}
+              onContact={onContact ? () => onContact(plan) : undefined}
             />
           );
         })}
