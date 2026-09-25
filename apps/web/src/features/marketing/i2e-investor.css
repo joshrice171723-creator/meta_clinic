@@ -636,3 +636,21 @@
     display: none;
   }
 }
+.i2e-inclusions .MuiTableCell-root:first-child {
+  width: auto;
+}
+.i2e-inclusions .MuiTableCell-root:last-child {
+  font-family: inherit;
+}
+.i2e-inclusions .MuiTableHead-root .MuiTableCell-root {
+  font-size: 10px;
+  color: var(--muted);
+}
+.i2e-included {
+  color: #17643d;
+  font-size: 11px;
+}
+.i2e-inclusions .i2e-warning-cell {
+  background: #fff2d6;
+  color: #654b17;
+}

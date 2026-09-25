@@ -3,6 +3,8 @@ import { ClickAwayListener, IconButton, Tooltip } from "@mui/material";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 
 const explanations: Record<string, string> = {
+  "1:1 telehealth":
+    "A video visit between one clinician and one patient. Jane includes this in its base plan; Meta Clinic includes video in this proposed bundle.",
   "Pharmacy partner economics":
     "A possible revenue arrangement with a pharmacy partner. The difference between retail price and pharmacy cost is a gross spread; Meta Clinic's share must be established by agreement.",
   "2% platform fee via Stripe":

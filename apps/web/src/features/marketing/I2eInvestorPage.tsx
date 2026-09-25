@@ -317,21 +317,86 @@ export function I2eInvestorPage() {
             </p>
             <div className="i2e-conversion-grid">
               <div>
-                <h2>Current software stack</h2>
-                {ledger("Current Jane customer software stack", [
-                  ["Jane Practice + 2 seats", "$149"],
-                  ["Hint membership billing", "$870", "i2e-warning"],
-                  ["HubSpot CRM", "$150", "i2e-warning"],
-                  ["DoseSpot eRx seats", "$120", "i2e-warning"],
-                  ["Jane AI Scribe · 3 seats", "$45", "i2e-warning"],
-                  [
-                    "Additional software subtotal",
-                    money(t.namedAddons),
-                    "i2e-warning",
-                  ],
-
-                  ["Total software bill", money(t.baseline), "i2e-total"],
-                ])}
+                <h2>Current stack → our included bundle</h2>
+                <TableContainer className="i2e-ledger i2e-inclusions">
+                  <Table
+                    size="small"
+                    aria-label="Current Jane customer software stack"
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Capability / current tool</TableCell>
+                        <TableCell>Current / mo</TableCell>
+                        <TableCell>Meta Clinic</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {[
+                        [
+                          "Jane Practice + 2 seats",
+                          "$149",
+                          "Scheduling + charting",
+                        ],
+                        [
+                          "Hint membership billing",
+                          "$870",
+                          "Membership billing",
+                        ],
+                        ["HubSpot CRM", "$150", "Patient pipeline + follow-up"],
+                        [
+                          "DoseSpot eRx seats",
+                          "$120",
+                          "Embedded eRx · planned",
+                        ],
+                        [
+                          "Jane AI Scribe · 3 seats",
+                          "$45",
+                          "AI note drafts + review",
+                        ],
+                        [
+                          "1:1 telehealth",
+                          "Included in Jane",
+                          "Video consultations",
+                        ],
+                      ].map(([label, current, scope]) => (
+                        <TableRow key={label}>
+                          <TableCell component="th" scope="row">
+                            <I2eHelp label={label} />
+                          </TableCell>
+                          <TableCell
+                            className={
+                              current.startsWith("$") &&
+                              label !== "Jane Practice + 2 seats"
+                                ? "i2e-warning-cell"
+                                : ""
+                            }
+                          >
+                            {current}
+                          </TableCell>
+                          <TableCell>
+                            <strong className="i2e-included">
+                              Included in ours
+                            </strong>
+                            <br />
+                            {scope}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="i2e-total">
+                        <TableCell component="th" scope="row">
+                          <I2eHelp label="Total software bill" />
+                        </TableCell>
+                        <TableCell>{money(t.baseline)}</TableCell>
+                        <TableCell>{money(t.price)} bundled</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <p className="i2e-note">
+                  Included in the proposed bundle for this practice, within
+                  agreed usage limits. Replaces the listed workflow scope, not
+                  every feature of the third-party products.
+                </p>
                 <p>
                   <strong>Conversion pain:</strong> Separate prescribing, lab,
                   membership and pharmacy handoffs. Target practices still
@@ -359,12 +424,58 @@ export function I2eInvestorPage() {
                   partner-order status, consolidating the clinical software
                   stack.
                 </p>
-                <p>
-                  <strong>Target bundle:</strong> Embedded{" "}
-                  <I2eHelp label="503A partner webhooks" />, bidirectional{" "}
-                  <I2eHelp label="Quest/Labcorp order/result tracking" />
-                  and Twilio video. Planned integrations, subject to partner
-                  agreements.
+                <h3>Additional included workflows</h3>
+                <TableContainer className="i2e-ledger i2e-inclusions">
+                  <Table
+                    size="small"
+                    aria-label="Additional included workflows"
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Capability</TableCell>
+                        <TableCell>Current stack</TableCell>
+                        <TableCell>Meta Clinic</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {[
+                        [
+                          "Insurance billing engine",
+                          "Jane add-on + clearinghouse",
+                          "Claims routing · planned",
+                        ],
+                        [
+                          "Quest/Labcorp order/result tracking",
+                          "Jane supports labs via Fullscript",
+                          "Direct lab tracking · planned",
+                        ],
+                        [
+                          "503A partner webhooks",
+                          "Partner-specific ordering outside this stack",
+                          "Partner order + status flow · planned",
+                        ],
+                      ].map(([label, current, scope]) => (
+                        <TableRow key={label}>
+                          <TableCell component="th" scope="row">
+                            <I2eHelp label={label} />
+                          </TableCell>
+                          <TableCell>{current}</TableCell>
+                          <TableCell>
+                            <strong className="i2e-included">
+                              Included in ours
+                            </strong>
+                            <br />
+                            {scope}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <p className="i2e-note">
+                  Planned integrations are part of the proposed bundle, subject
+                  to partner agreements and activation. Lab tests, medications
+                  and payment processing are billed separately.
                 </p>
                 <p className="i2e-note">
                   Subscription comparison excludes implementation and usage
@@ -372,7 +483,7 @@ export function I2eInvestorPage() {
                 </p>
               </div>
               <div>
-                <h2>Account contribution ledger</h2>
+                <h2>Our vendor costs + contribution</h2>
                 {ledger("Account contribution ledger", [
                   ...incrementalCosts.map(
                     (row) =>
