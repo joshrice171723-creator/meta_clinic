@@ -315,203 +315,159 @@ export function I2eInvestorPage() {
               Conversion target: one independent practice · 3 providers · Jane
               customer with a separate clinical software stack · USD / month
             </p>
-            <div className="i2e-conversion-grid">
-              <div>
-                <h2>Current stack → our included bundle</h2>
-                <TableContainer className="i2e-ledger i2e-inclusions">
-                  <Table
-                    size="small"
-                    aria-label="Current Jane customer software stack"
-                  >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Capability / current tool</TableCell>
-                        <TableCell>Current / mo</TableCell>
-                        <TableCell>Meta Clinic</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {[
-                        [
-                          "Jane Practice + 2 seats",
-                          "$149",
-                          "Scheduling + charting",
-                        ],
-                        [
-                          "Hint membership billing",
-                          "$870",
-                          "Membership billing",
-                        ],
-                        ["HubSpot CRM", "$150", "Patient pipeline + follow-up"],
-                        [
-                          "DoseSpot eRx seats",
-                          "$120",
-                          "Embedded eRx · planned",
-                        ],
-                        [
-                          "Jane AI Scribe · 3 seats",
-                          "$45",
-                          "AI note drafts + review",
-                        ],
-                        [
-                          "1:1 telehealth",
-                          "Included in Jane",
-                          "Video consultations",
-                        ],
-                      ].map(([label, current, scope]) => (
-                        <TableRow key={label}>
-                          <TableCell component="th" scope="row">
-                            <I2eHelp label={label} />
-                          </TableCell>
-                          <TableCell
-                            className={
-                              current.startsWith("$") &&
-                              label !== "Jane Practice + 2 seats"
-                                ? "i2e-warning-cell"
-                                : ""
-                            }
-                          >
-                            {current}
-                          </TableCell>
-                          <TableCell>
-                            <strong className="i2e-included">
-                              Included in ours
-                            </strong>
-                            <br />
-                            {scope}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="i2e-total">
-                        <TableCell component="th" scope="row">
-                          <I2eHelp label="Total software bill" />
-                        </TableCell>
-                        <TableCell>{money(t.baseline)}</TableCell>
-                        <TableCell>{money(t.price)} bundled</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <p className="i2e-note">
-                  Included in the proposed bundle for this practice, within
-                  agreed usage limits. Replaces the listed workflow scope, not
-                  every feature of the third-party products.
-                </p>
-                <p>
-                  <strong>Conversion pain:</strong> Separate prescribing, lab,
-                  membership and pharmacy handoffs. Target practices still
-                  re-entering orders or faxing their compounding partner.
-                </p>
-                <p className="i2e-note">
-                  Illustrative three-provider software budget. Insurance billing
-                  and clearinghouse fees are additional.
-                </p>
-              </div>
-              <div>
-                <h2>Meta Clinic target offer</h2>
-                {ledger("Meta Clinic target offer", [
-                  ["Flat monthly platform fee", money(t.price), "i2e-total"],
-                  ["Monthly software saving", money(savings)],
-                  [
-                    "Software cost reduction",
-                    `${((savings / t.baseline) * 100).toFixed(1)}%`,
-                  ],
-                  ["Annual recurring saving", money(savings * 12)],
-                ])}
-                <p>
-                  <strong>Why switch:</strong> One clinical workspace connecting
-                  charting, membership billing, prescribing, labs and
-                  partner-order status, consolidating the clinical software
-                  stack.
-                </p>
-                <h3>Additional included workflows</h3>
-                <TableContainer className="i2e-ledger i2e-inclusions">
-                  <Table
-                    size="small"
-                    aria-label="Additional included workflows"
-                  >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Capability</TableCell>
-                        <TableCell>Current stack</TableCell>
-                        <TableCell>Meta Clinic</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {[
-                        [
-                          "Insurance billing engine",
-                          "Jane add-on + clearinghouse",
-                          "Claims routing · planned",
-                        ],
-                        [
-                          "Quest/Labcorp order/result tracking",
-                          "Jane supports labs via Fullscript",
-                          "Direct lab tracking · planned",
-                        ],
-                        [
-                          "503A partner webhooks",
-                          "Partner-specific ordering outside this stack",
-                          "Partner order + status flow · planned",
-                        ],
-                      ].map(([label, current, scope]) => (
-                        <TableRow key={label}>
-                          <TableCell component="th" scope="row">
-                            <I2eHelp label={label} />
-                          </TableCell>
-                          <TableCell>{current}</TableCell>
-                          <TableCell>
-                            <strong className="i2e-included">
-                              Included in ours
-                            </strong>
-                            <br />
-                            {scope}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <p className="i2e-note">
-                  Planned integrations are part of the proposed bundle, subject
-                  to partner agreements and activation. Lab tests, medications
-                  and payment processing are billed separately.
-                </p>
-                <p className="i2e-note">
-                  Subscription comparison excludes implementation and usage
-                  overages. <a href="https://jane.app/pricing">Jane pricing</a>.
-                </p>
-              </div>
-              <div>
-                <h2>Our vendor costs + contribution</h2>
-                {ledger("Account contribution ledger", [
-                  ...incrementalCosts.map(
-                    (row) =>
-                      [row.name, money(row.monthly)] as [string, ReactNode],
-                  ),
-                  [
-                    "Incremental vendor estimate",
-                    money(t.variable),
-                    "i2e-total",
-                  ],
-                  [
-                    "Software contribution",
-                    `+${money(contribution)} / mo`,
-                    "i2e-profit",
-                  ],
-                  [
-                    "Contribution / subscription",
-                    `${((contribution / t.price) * 100).toFixed(1)}%`,
-                    "i2e-profit",
-                  ],
-                ])}
-                <p className="i2e-note">
-                  Contribution before shared platform costs. Cash-pay with eRx:
-                  $440 vendor expense / $660 contribution. Without eRx: $245
-                  cash-pay or $305 insurance, including video and scribe.
-                </p>
-              </div>
+            <TableContainer
+              className="i2e-grid i2e-comparison-table"
+              tabIndex={0}
+              role="region"
+              aria-label="Clinic software comparison"
+            >
+              <Table size="small" aria-label="Clinic software comparison">
+                <TableHead>
+                  <TableRow>
+                    {[
+                      "Capability / current tool",
+                      "Current stack / month",
+                      "Our bundle",
+                      "Included workflow",
+                      "Our vendor cost / month",
+                    ].map((header) => (
+                      <TableCell key={header}>{header}</TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {[
+                    [
+                      "Jane Practice + 2 seats",
+                      "$149",
+                      "Scheduling + charting",
+                      "Shared platform budget",
+                    ],
+                    [
+                      "Hint membership billing",
+                      "$870",
+                      "Membership billing",
+                      "Shared platform budget",
+                    ],
+                    [
+                      "HubSpot CRM",
+                      "$150",
+                      "Patient pipeline + follow-up",
+                      "Shared platform budget",
+                    ],
+                    [
+                      "DoseSpot eRx seats",
+                      "$120",
+                      "Embedded eRx · planned",
+                      "$195",
+                    ],
+                    [
+                      "Jane AI Scribe · 3 seats",
+                      "$45",
+                      "AI note drafts + review",
+                      "$120",
+                    ],
+                    [
+                      "1:1 telehealth",
+                      "Included in Jane",
+                      "Video consultations",
+                      "$125",
+                    ],
+                    [
+                      "Insurance billing engine",
+                      "Add-on + clearinghouse · extra",
+                      "Claims routing · planned",
+                      "$60",
+                    ],
+                    [
+                      "Quest/Labcorp order/result tracking",
+                      "Via Fullscript · outside subtotal",
+                      "Direct lab tracking · planned",
+                      "Partner terms / usage",
+                    ],
+                    [
+                      "503A partner webhooks",
+                      "Partner workflow · outside subtotal",
+                      "Partner order + status · planned",
+                      "Partner terms / usage",
+                    ],
+                  ].map(([label, current, scope, cost]) => (
+                    <TableRow key={label}>
+                      <TableCell component="th" scope="row">
+                        <I2eHelp label={label} />
+                      </TableCell>
+                      <TableCell
+                        className={
+                          ["$870", "$150", "$120", "$45"].includes(current)
+                            ? "i2e-warning-cell"
+                            : ""
+                        }
+                      >
+                        {current}
+                      </TableCell>
+                      <TableCell>
+                        <strong className="i2e-included">
+                          Included in ours
+                        </strong>
+                      </TableCell>
+                      <TableCell>{scope}</TableCell>
+                      <TableCell>{cost}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="i2e-total">
+                    <TableCell component="th" scope="row">
+                      <I2eHelp label="Total software bill" />
+                    </TableCell>
+                    <TableCell>
+                      {money(t.baseline)} listed subscriptions
+                    </TableCell>
+                    <TableCell>{money(t.price)} bundled</TableCell>
+                    <TableCell>3-provider practice</TableCell>
+                    <TableCell>
+                      {money(t.variable)} incremental estimate
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <p className="i2e-note">
+              Proposed bundle within agreed usage limits; planned integrations
+              depend on partner agreements and activation. Current-stack
+              subtotal excludes insurance and clearinghouse fees. Our $500
+              incremental estimate includes insurance mapping; shared platform
+              costs, lab tests, medication purchases and payment processing are
+              separate.
+            </p>
+            <div className="i2e-summary-ledgers">
+              {ledger("Meta Clinic target offer", [
+                ["Flat monthly platform fee", money(t.price), "i2e-total"],
+                ["Monthly software saving", money(savings)],
+                [
+                  "Software cost reduction",
+                  `${((savings / t.baseline) * 100).toFixed(1)}%`,
+                ],
+                ["Annual recurring saving", money(savings * 12)],
+              ])}
+              {ledger("Account contribution ledger", [
+                ["Incremental vendor estimate", money(t.variable)],
+                [
+                  "Software contribution",
+                  `+${money(contribution)} / mo`,
+                  "i2e-profit",
+                ],
+                [
+                  "Contribution / subscription",
+                  `${((contribution / t.price) * 100).toFixed(1)}%`,
+                  "i2e-profit",
+                ],
+              ])}
             </div>
+            <p className="i2e-note">
+              Contribution before shared platform costs. Cash-pay with eRx: $440
+              vendor expense / $660 contribution. Subscription savings exclude
+              implementation and usage overages.{" "}
+              <a href="https://jane.app/pricing">Jane pricing</a>.
+            </p>
           </section>
           <section id="potential-revenue">
             <h2>Other potential revenue</h2>
