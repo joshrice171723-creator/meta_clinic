@@ -283,6 +283,40 @@ class PatientPortalLifecycleTest < ActiveSupport::TestCase
   end
 end
 
+class PatientPortalActivationSessionTest < ActionController::TestCase
+  tests Clinic::PatientPortal::ActivationController
+
+  setup do
+    @controller.allow_forgery_protection = false
+  end
+
+  test "activation replaces a signed-in development staff session" do
+    practice = Clinic::Practice.create!(name: "Synthetic Activation Session Practice", timezone: "UTC")
+    patient = practice.patients.create!(display_name: "Synthetic Activation Patient", reference: "ACTIVATE-SESSION")
+    staff = User.create!(email_address: "activation-session-staff@example.invalid", password: SecureRandom.hex(20))
+    invitation = Clinic::PatientPortal::InviteIdentity.call(
+      practice:, patient:, email_address: "activation-session-patient@example.invalid", actor: staff
+    )
+    staff_session = staff.member_sessions.create!(expires_at: MemberSession::MAX_DURATION.from_now)
+    session[:member_session_id] = staff_session.id
+    session[:development_demo_user_id] = staff.id
+    session[:development_test_profile] = "employee-10"
+
+    post :create, params: { patient_portal_activation: {
+      token: invitation.fetch(:token), password: "Synthetic-portal-password-2026!",
+      password_confirmation: "Synthetic-portal-password-2026!", accepted_terms: true,
+      terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
+    } }, as: :json
+
+    assert_response :created
+    identity = invitation.fetch(:identity).reload
+    assert_equal identity.id, session[:patient_portal_identity_id]
+    assert_equal identity.user_id, MemberSession.find(session[:member_session_id]).user_id
+    assert_nil session[:development_demo_user_id]
+    assert_nil session[:development_test_profile]
+  end
+end
+
 class PatientPortalRecoveryControllerTest < ActionController::TestCase
   tests Clinic::PatientPortal::RecoveryController
 

@@ -2,7 +2,11 @@
 
 Status: M1–M12 engineering changes integrated and focused checks passed. Full supplied-brief acceptance and clinical release are not yet complete; the milestone acceptance rows below remain open, not silently promoted to complete.
 
-Revision: 9 · 2026-09-19
+Revision: 10 · 2026-09-24
+
+## Interactive recovery checkpoint — 2026-09-24
+
+The synthetic-only `apps/web/scripts/nurse-intake-acceptance.mjs` now provides a repeatable browser draft-save/full-reload check for an explicitly selected encounter and intake-capable development profile. On the isolated local stack it saved encounter 31 for patient 37 as revision 2 and verified the same answer and revision after reload. This closes the previously missing **single-path interactive save/recovery test**. It does not prove the comparison/picker path, all row-level branches, complete M1–M12 acceptance, or clinical release. The [dated execution record](../../records/implementation/2026-09-24-tracker-top-five-checkpoint.md) records the broader connected checkpoint.
 
 ## Latest engineering handoff — 2026-09-19
 
@@ -10,7 +14,7 @@ The final implementation includes generic medication catalog references with an 
 
 Focused final evidence: nurse workflow 17 tests / 366 assertions; questionnaire contract 6 tests / 47 assertions; consent 2 tests / 30 assertions. The medication/form test file passed 14 tests; five existing nurse workspace rendering tests remain rendering-only evidence, not interactive integration acceptance. Type checking, changed Ruby lint and the final web bundle passed. Browser checks established guided confirmation/unlock, coordination persistence and separate consent-decision persistence; they do not establish every milestone's end-to-end acceptance. See the dated audit for limitations and historical results.
 
-Remaining acceptance work is a repeatable interactive nurse workspace save/recovery test and complete row-by-row workflow acceptance, including the final comparison/picker browser path. Clinical content, applicable consent policy and release approval remain separate human gates. These are not replaced by passing builds or field presence.
+Remaining acceptance work is complete row-by-row workflow acceptance, including the final comparison/picker browser path. Clinical content, applicable consent policy and release approval remain separate human gates. These are not replaced by passing builds or field presence.
 
 ## Completion implementation checkpoint
 

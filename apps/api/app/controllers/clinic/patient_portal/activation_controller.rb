@@ -13,7 +13,11 @@ module Clinic
         password_confirmation = password_value!(input[:password_confirmation], :password_confirmation)
         terms_version = required_string!(input[:terms_version], field: :terms_version, maximum: 80)
         accepted_terms = boolean_param(input[:accepted_terms], field: :accepted_terms)
-        ActivateIdentity.call(token:, password:, password_confirmation:, accepted_terms:, terms_version:, session:)
+        identity = ActivateIdentity.call(token:, password:, password_confirmation:, accepted_terms:, terms_version:, session:)
+        member_session_id = session[:member_session_id]
+        reset_session
+        session[:member_session_id] = member_session_id
+        session[:patient_portal_identity_id] = identity.id
         render json: { activated: true, redirect_to: "/patient-portal" }, status: :created
       rescue ActivateIdentity::InvalidInvitation
         render json: { error: "That invitation is invalid or has expired.", code: "invalid_invitation" }, status: :unprocessable_entity
