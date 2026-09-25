@@ -486,7 +486,7 @@ function PortalSettings({
         Back to portal
       </Button>
       <h1>Settings</h1>
-      {user.development_demo && (
+      {(user.workspace_tools || user.development_demo) && (
         <DevelopmentToolbar
           accounts={accounts}
           activeId={user.development_account_id}
@@ -1100,6 +1100,14 @@ function Application() {
           initialSession={session}
         >
           <MemberLayout key={user.id} user={user}>
+            {user.workspace_tools && (
+              <DevelopmentToolbar
+                accounts={configuration.development_accounts}
+                activeId={user.development_account_id}
+                environment={configuration.environment}
+                businessDate={configuration.business_date}
+              />
+            )}
             <RouteBoundary>
               <OwnerCommandCenter />
             </RouteBoundary>

@@ -83,6 +83,104 @@ class DevelopmentLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "hosted workspace tools require a signed in active owner or admin" do
+    host! "aimetaclinic.com"
+    @origin = "http://aimetaclinic.com"
+    with_environment("production", flag: nil) do
+      token = csrf
+      assert_equal false, response.parsed_body.fetch("development_login")
+      post "/api/development_session", params: { profile: "omni" }, headers: token, as: :json
+      assert_response :not_found
+
+      [ [false, false], [true, false], [false, true] ].each_with_index do |(admin, owner), index|
+        user = User.create!(email_address: "hosted-tools-#{index}@example.invalid", active: true,
+          admin: admin, platform_owner: owner, password: "Synthetic-password-123!")
+        post "/api/session", params: { email_address: user.email_address, password: "Synthetic-password-123!" }, headers: csrf, as: :json
+        assert_response :success
+        token = csrf
+        assert_equal admin || owner, response.parsed_body.fetch("development_login")
+        get "/api/session", headers: headers
+        assert_equal admin || owner, response.parsed_body.dig("user", "workspace_tools")
+        patch "/api/development_date", params: { date: "2032-04-15" }, headers: token, as: :json
+        assert_response(admin || owner ? :success : :not_found)
+        delete "/api/session", headers: csrf, as: :json
+        assert_response :no_content
+        get "/api/csrf", headers: headers
+        assert_equal false, response.parsed_body.fetch("development_login")
+      end
+    end
+  end
+
+  test "hosted switches retain owner authorization and stop after owner revocation" do
+    owner = User.create!(email_address: "hosted-switch-owner@example.invalid", active: true,
+      platform_owner: true, password: "Synthetic-password-123!")
+    employee = User.create!(email_address: "hosted-switch-employee@example.invalid", active: true,
+      password: "Synthetic-password-123!")
+    membership = Development::TestClinic.create!(employee)
+    host! "aimetaclinic.com"
+    @origin = "http://aimetaclinic.com"
+    with_environment("production", flag: nil) do
+      post "/api/session", params: { email_address: owner.email_address, password: "Synthetic-password-123!" }, headers: csrf, as: :json
+      assert_response :success
+      owner_session = owner.member_sessions.sole
+      2.times do
+        post "/api/development_session", params: { profile: "employee-#{employee.id}", portal: "clinic", practice_id: membership.practice_id }, headers: csrf, as: :json
+        assert_response :created
+        assert_equal true, response.parsed_body.dig("user", "workspace_tools")
+        assert MemberSession.exists?(owner_session.id)
+        get "/api/clinic/context", headers: headers
+        assert_response :success
+      end
+      owner_session.destroy!
+      get "/api/session", headers: headers
+      assert_response :unauthorized
+      post "/api/development_session", params: { profile: "omni" }, headers: csrf, as: :json
+      assert_response :not_found
+    end
+  end
+
+  test "hosted owner role removal and expiry revoke workspace tools" do
+    owner = User.create!(email_address: "hosted-expiring-owner@example.invalid", active: true,
+      platform_owner: true, password: "Synthetic-password-123!")
+    host! "aimetaclinic.com"
+    @origin = "http://aimetaclinic.com"
+    with_environment("production", flag: nil) do
+      post "/api/session", params: { email_address: owner.email_address, password: "Synthetic-password-123!" }, headers: csrf, as: :json
+      assert_response :success
+      owner.update!(platform_owner: false)
+      get "/api/csrf", headers: headers
+      assert_equal false, response.parsed_body.fetch("development_login")
+      owner.update!(platform_owner: true)
+      owner.member_sessions.sole.update!(expires_at: 1.minute.ago)
+      get "/api/csrf", headers: headers
+      assert_equal false, response.parsed_body.fetch("development_login")
+    end
+  end
+
+  test "hosted owner can provision Omni and logout revokes both sessions" do
+    owner = User.create!(email_address: "hosted-omni-owner@example.invalid", active: true,
+      platform_owner: true, password: "Synthetic-password-123!")
+    host! "aimetaclinic.com"
+    @origin = "http://aimetaclinic.com"
+    with_environment("production", flag: nil) do
+      post "/api/session", params: { email_address: owner.email_address, password: "Synthetic-password-123!" }, headers: csrf, as: :json
+      assert_response :success
+      token = csrf
+      assert response.parsed_body.fetch("development_accounts").any? { |account| account.fetch("id") == "omni" }
+      post "/api/development_session", params: { profile: "omni", portal: "clinic" }, headers: token, as: :json
+      assert_response :created
+      omni_id = response.parsed_body.dig("user", "id")
+      get "/api/clinic/context", headers: headers
+      assert_response :success
+      delete "/api/session", headers: csrf, as: :json
+      assert_response :no_content
+      assert_empty owner.member_sessions.reload
+      assert_empty MemberSession.where(user_id: omni_id)
+      get "/api/csrf", headers: headers
+      assert_equal false, response.parsed_body.fetch("development_login")
+    end
+  end
+
   test "clinic login infers the only authorized location when scope ids are omitted" do
     with_environment do
       Development::TestAccounts.prepare!

@@ -70,7 +70,7 @@ module Development
       else
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
-      BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI") unless GuidedDemoAccess.hosted?
+      BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI") if Rails.env.development? || Rails.env.test?
       seed_purchase_supplier_mix!(membership.practice)
       SubscriptionExamples.seed!(practice: membership.practice, actor: user)
       retire_legacy_workflow!(membership)

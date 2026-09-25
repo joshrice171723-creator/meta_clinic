@@ -25,7 +25,7 @@ afterEach(() => {
 
 describe("same-origin API boundary", () => {
   it.each(["/login", "/clinic", "/owner", "/portal"])(
-    "routes hosted demo %s to the isolated database",
+    "keeps hosted authenticated workspace %s on the ordinary API",
     async (pathname) => {
       vi.stubGlobal("window", {
         location: { hostname: "aimetaclinic.com", pathname },
@@ -34,9 +34,19 @@ describe("same-origin API boundary", () => {
       const fetch = vi.fn().mockResolvedValue(json({ csrf_token: "demo" }));
       vi.stubGlobal("fetch", fetch);
       await csrf();
-      expect(fetch.mock.calls[0][0]).toBe("/api/demo-workspace/csrf");
+      expect(fetch.mock.calls[0][0]).toBe("/api/csrf");
     },
   );
+  it("keeps hosted guided lessons on their isolated API", async () => {
+    vi.stubGlobal("window", {
+      location: { hostname: "aimetaclinic.com", pathname: "/demo" },
+      parent: null,
+    });
+    const fetch = vi.fn().mockResolvedValue(json({ csrf_token: "demo" }));
+    vi.stubGlobal("fetch", fetch);
+    await csrf();
+    expect(fetch.mock.calls[0][0]).toBe("/api/demo-workspace/csrf");
+  });
   it.each(["aimetaclinic.com.example.org", "localhost"])(
     "keeps %s on its ordinary API",
     async (hostname) => {

@@ -1,18 +1,21 @@
 # Meta Clinic Lightsail synthetic demo
 
-## Investor demo entry
+## Workspace tools and investor demo entry
 
-On `aimetaclinic.com`, `/login` and workspace pages use `/api/demo-workspace/`
-and the isolated `apply_guided_demo` database. Login defaults to the account
-tools; the credential form is hidden when the backend enables those tools.
-The headline remains “Streamline your practice. Scale your organization.”
-Choose **Clinic → Organization → New organization**, enter the organization,
-clinic and location names, then **Create organization and enter**. Omni has
-all demo roles. Repeating the same names reopens the saved workspace.
+On `aimetaclinic.com`, `/login` and ordinary workspace pages use `/api/` with
+credential authentication. Signed-in active owners/admins receive the collapsible
+Workspace tools section in the owner workspace, clinic workspace and portal settings.
+Omni switching retains and revalidates the initiating privileged session; anonymous
+visitors and ordinary accounts cannot use these tools. The first authorized Omni
+switch prepares its identity if needed. Hosted use does not require a development
+environment or `APP_DEVELOPMENT_LOGIN`.
+The release prepares Omni's immutable role definitions through the migration
+account before runtime startup; runtime database privileges remain unchanged.
 
-The release seeds Omni in the isolated database and verifies this creation
-flow. The ordinary `/api/` backend retains credential authentication and denies
-development shortcuts. Other hosts retain their existing login policy.
+The `/demo` lessons and their named workspace iframe continue to use
+`/api/demo-workspace/` and the isolated `apply_guided_demo` database. The release
+seeds and verifies that separate demo flow. Existing isolated demo records remain
+in that database; they are not copied into the ordinary workspace.
 
 ## Current connection (verified 2026-09-20)
 

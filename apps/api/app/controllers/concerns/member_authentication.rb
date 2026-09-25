@@ -12,13 +12,17 @@ module MemberAuthentication
     user if user && authenticated && user.active? && !Development::TestAccounts.reserved_email?(email)
   end
 
-  def establish_session(user)
+  def establish_session(user, workspace_owner: nil)
     replacement = User.transaction do
-      current_member_session&.destroy!
+      current_member_session&.destroy! unless current_member_session&.id == workspace_owner&.id
+      if session[:workspace_tools_owner_session_id] && !workspace_owner
+        MemberSession.find_by(id: session[:workspace_tools_owner_session_id])&.destroy!
+      end
       user.member_sessions.create!(expires_at: MemberSession::MAX_DURATION.from_now, last_activity_at: Time.current)
     end
     reset_session
     @current_member_session = replacement
     session[:member_session_id] = @current_member_session.id
+    session[:workspace_tools_owner_session_id] = workspace_owner.id if workspace_owner
   end
 end

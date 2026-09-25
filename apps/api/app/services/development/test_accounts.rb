@@ -153,7 +153,7 @@ module Development
         else
           user = User.create!(email_address: settings.fetch(:email), admin: settings.fetch(:admin),
             active: settings.fetch(:active), password: password_for("omni"))
-          Launch::Paperwork.assign_demo!(user)
+          Launch::Paperwork.assign_demo!(user) if DemoContent.enabled?
         end
         OmniAccess.prepare!(user)
         user
@@ -271,6 +271,9 @@ module Development
 
     def self.omni_account
       user = User.find_by(email_address: PROFILES.fetch("omni").fetch(:email), active: true)
+      if !user && Current.workspace_tools_owner_session
+        return [ { id: "omni", label: "Omni access", account_type: "omni", destination: "/clinic" } ]
+      end
       return [] unless user && OmniAccess.profile_for(user).present?
 
       membership = user.clinic_membership

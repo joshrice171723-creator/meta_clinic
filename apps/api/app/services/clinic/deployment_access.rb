@@ -1,6 +1,7 @@
 module Clinic
   class DeploymentAccess
     def self.available_to?(user)
+      return true if Current.workspace_tools_owner_session && user&.active?
       return true unless Rails.env.production?
       return true if Staging::DemoClinic.available_to?(user)
 
@@ -8,6 +9,7 @@ module Clinic
     end
 
     def self.practice_enabled?(practice_id)
+      return true if Current.workspace_tools_owner_session
       return true unless Rails.env.production?
       return true if GuidedDemoAccess.hosted?
       return true if enabled_practice_ids.include?(practice_id.to_i)

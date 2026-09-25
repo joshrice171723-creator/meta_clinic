@@ -21,6 +21,7 @@ export type User = {
   email_address: string;
   admin: boolean;
   development_demo?: boolean;
+  workspace_tools?: boolean;
   development_account_id?: string | null;
 };
 export type RuntimeEnvironment =

@@ -696,15 +696,17 @@ export function Workspace({
                     }
                     developmentPreview={!!user.development_demo}
                   >
-                    {!scribePage && user.development_demo && !isDemoFrame() && (
-                      <DevelopmentToolbar
-                        className="clinic-development-toolbar"
-                        accounts={developmentAccounts}
-                        activeId={user.development_account_id}
-                        businessDate={businessDate}
-                        environment={environment}
-                      />
-                    )}
+                    {!scribePage &&
+                      (user.workspace_tools || user.development_demo) &&
+                      !isDemoFrame() && (
+                        <DevelopmentToolbar
+                          className="clinic-development-toolbar"
+                          accounts={developmentAccounts}
+                          activeId={user.development_account_id}
+                          businessDate={businessDate}
+                          environment={environment}
+                        />
+                      )}
                     {!scribePage && !isDemoFrame() && (
                       <header
                         className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}

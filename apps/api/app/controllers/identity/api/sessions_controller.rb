@@ -45,8 +45,12 @@ module Identity
       def development
         return head :not_found unless DevelopmentAccess.allowed?(request)
 
+        workspace_owner = Current.workspace_tools_owner_session
         business_date = session[:development_business_date]
         profile = params[:profile]
+        if workspace_owner && profile == "omni" && !User.exists?(email_address: Development::TestAccounts::PROFILES.fetch("omni").fetch(:email))
+          Development::TestAccounts.prepare_omni!
+        end
         default_user = Development::DemoAccount.create! unless params.key?(:profile)
         profile = "employee-#{default_user.id}" if default_user
         user = profile.is_a?(String) && Development::TestAccounts.sign_in_account(profile)
@@ -73,7 +77,8 @@ module Identity
           return render json: { error: "Choose an authorized organization, clinic, and location." }, status: :unprocessable_entity
         end
 
-        establish_session(user)
+        establish_session(user, workspace_owner: workspace_owner)
+        Identity::SessionAudit.record!(action: "workspace.switch_to.#{user.id}", user_id: workspace_owner.user_id) if workspace_owner
         apply_development_clinic_scope(user, preview, practice_id: params[:practice_id].presence, site_id:) if portal == "clinic"
         session[:development_business_date] = business_date if business_date.present?
         session[:development_demo_user_id] = user.id
@@ -89,6 +94,7 @@ module Identity
 
       def destroy
         current_member_session&.destroy!
+        MemberSession.find_by(id: session[:workspace_tools_owner_session_id])&.destroy! if session[:workspace_tools_owner_session_id]
         reset_session
         head :no_content
       end
@@ -152,6 +158,7 @@ module Identity
         preview = Development::TestAccounts.preview_account_for(user,
           profile: session[:development_test_profile]) if demo && DevelopmentAccess.allowed?(request)
         user.as_json(only: %i[id email_address admin platform_owner]).merge(
+          workspace_tools: DevelopmentAccess.allowed?(request),
           development_demo: !!demo,
           development_account_id: preview&.fetch(:id, nil)
         )

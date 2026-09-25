@@ -1,5 +1,5 @@
 class Current < ActiveSupport::CurrentAttributes
-  attribute :business_date
+  attribute :business_date, :workspace_tools_owner_session
 
   def self.business_date
     super || Date.current

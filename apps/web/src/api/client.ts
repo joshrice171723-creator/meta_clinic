@@ -3,15 +3,7 @@ import { isDemoFrame, notifyDemo } from "../features/demo/frame";
 
 function demoSessionHeaders(): Record<string, string> {
   return typeof window !== "undefined" &&
-    (isDemoFrame() ||
-      window.location.pathname.replace(/\/$/, "") === "/demo" ||
-      // This public demonstration host uses its isolated demo database.
-      (["aimetaclinic.com", "www.aimetaclinic.com"].includes(
-        window.location.hostname,
-      ) &&
-        /^\/(login|owner|clinic|portal|paperwork|training|materials|inquiries|patient-portal|memberships|workforce)(\/|$)/.test(
-          window.location.pathname,
-        )))
+    (isDemoFrame() || window.location.pathname.replace(/\/$/, "") === "/demo")
     ? { "X-Clinic-Demo": "1" }
     : {};
 }

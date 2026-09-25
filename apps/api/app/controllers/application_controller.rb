@@ -20,6 +20,7 @@ class ApplicationController < ActionController::Base
   private
 
   def use_business_date
+    Current.workspace_tools_owner_session = DevelopmentAccess.hosted_owner_session(request)
     if DevelopmentAccess.allowed?(request) && session[:development_business_date].present?
       begin
         Current.business_date = Date.iso8601(session[:development_business_date])
@@ -43,6 +44,7 @@ class ApplicationController < ActionController::Base
 
   def current_user
     record = current_member_session
+    return if session[:workspace_tools_owner_session_id] && !Current.workspace_tools_owner_session
     if record && !record.unexpired?
       record.expire_if_inactive!
       session.delete(:member_session_id)

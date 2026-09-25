@@ -139,6 +139,7 @@ rollback() {
 trap rollback ERR
 
 compose "$state/candidate.env" run --rm migrate ./bin/rails db:migrate
+compose "$state/candidate.env" run --rm migrate ./bin/rails runner 'Development::OmniAccess.send(:ensure_roles!)'
 compose "$state/candidate.env" run --rm --no-deps guided-demo ./bin/rails db:migrate
 compose "$state/candidate.env" run --rm --no-deps guided-demo ./bin/rails runner 'Development::TestAccounts.prepare_omni!'
 docker run --rm --entrypoint cat "$(sed -n 's/^API_IMAGE=//p' "$state/candidate.env")" /rails/db/runtime_privileges.sql |

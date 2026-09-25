@@ -155,24 +155,29 @@ describe("development account preview", () => {
     expect(html).toContain("without an account");
   });
 
-  it("presents in-app controls as a separate developer utility region", () => {
-    const html = renderToStaticMarkup(
-      <DevelopmentToolbar
-        environment="development"
-        businessDate="2032-04-15"
-        accounts={[
-          {
-            id: "patient-14",
-            label: "Alex Patient",
-            account_type: "patient",
-            destination: "/patient-portal",
-          },
-        ]}
-      />,
-    );
-    expect(html).toContain("<aside");
-    expect(html).toContain("development-toolbar");
-    expect(html).toContain('aria-label="Workspace tools"');
-    expect(html).toContain("Workspace tools");
-  });
+  it.each(["development", "production"] as const)(
+    "starts workspace tools collapsed in %s",
+    (environment) => {
+      const html = renderToStaticMarkup(
+        <DevelopmentToolbar
+          environment={environment}
+          businessDate="2032-04-15"
+          accounts={[
+            {
+              id: "patient-14",
+              label: "Alex Patient",
+              account_type: "patient",
+              destination: "/patient-portal",
+            },
+          ]}
+        />,
+      );
+      expect(html).toContain("<aside");
+      expect(html).toContain("development-toolbar");
+      expect(html).toContain('aria-label="Workspace tools"');
+      expect(html).toContain("Workspace tools");
+      expect(html).toContain('aria-expanded="false"');
+      expect(html).toContain("aria-controls=");
+    },
+  );
 });

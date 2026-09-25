@@ -1,5 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   FormControl,
@@ -628,6 +639,7 @@ export function DevelopmentToolbar({
   environment: RuntimeEnvironment;
   className?: string;
 }) {
+  const id = useId();
   return (
     <Stack
       component="aside"
@@ -636,21 +648,39 @@ export function DevelopmentToolbar({
       direction={{ xs: "column", lg: "row" }}
       spacing={1.5}
     >
-      <Stack
-        className="development-toolbar-heading"
-        direction="row"
-        spacing={1}
-        sx={{ alignItems: "center" }}
+      <Accordion
+        disableGutters
+        elevation={0}
+        sx={{
+          width: "100%",
+          gridColumn: "1 / -1",
+          bgcolor: "transparent",
+          color: "inherit",
+          "&::before": { display: "none" },
+        }}
       >
-        <Typography component="h2">Workspace tools</Typography>
-        <EnvironmentLabel environment={environment} />
-      </Stack>
-      <DevelopmentControls
-        accounts={accounts}
-        activeId={activeId}
-        businessDate={businessDate}
-        initialPortal="clinic"
-      />
+        <AccordionSummary
+          id={`${id}-heading`}
+          aria-controls={`${id}-tools`}
+          expandIcon={<ExpandMoreIcon />}
+          sx={{ px: 0, minHeight: 32 }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Typography component="span" sx={{ fontSize: 14, fontWeight: 700 }}>
+              Workspace tools
+            </Typography>
+            <EnvironmentLabel environment={environment} />
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ px: 0, pb: 0 }}>
+          <DevelopmentControls
+            accounts={accounts}
+            activeId={activeId}
+            businessDate={businessDate}
+            initialPortal="clinic"
+          />
+        </AccordionDetails>
+      </Accordion>
     </Stack>
   );
 }
