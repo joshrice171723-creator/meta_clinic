@@ -506,8 +506,8 @@ export function I2eInvestorPage() {
                   <I2eHelp label="2% platform fee via Stripe" />
                 </TableCell>
                 <TableCell>
-                  2% of eligible payment volume. Example: $10,000 processed × 2%
-                  = $200 gross platform fees.
+                  2% of eligible payment volume. Example: $72,741 processed × 2%
+                  = $1,454.82 gross platform fees.
                   <p className="i2e-note">
                     <strong>Weight-loss clinic benchmark:</strong>{" "}
                     Medi-Weightloss's 2025 Franchise Disclosure Document reports
