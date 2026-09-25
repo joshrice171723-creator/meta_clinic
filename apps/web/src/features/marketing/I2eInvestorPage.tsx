@@ -12,7 +12,6 @@ import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
 import { I2eHelp } from "./I2eHelp";
-import { clinicMarkets } from "./i2eMarketData";
 
 export const investorCosts = [
   {
@@ -255,7 +254,6 @@ export function I2eInvestorPage() {
   const t = conversionTarget;
   const savings = t.baseline - t.price;
   const contribution = t.price - t.variable;
-  const spread = investorBudget.retail - investorBudget.wholesale;
   useEffect(() => {
     const title = document.title;
     document.title = "Meta Clinic × i2E | Customer conversion workspace";
@@ -304,8 +302,7 @@ export function I2eInvestorPage() {
         <nav className="i2e-nav" aria-label="Dashboard sections">
           <a href="#switching">01 / Conversion target</a>
           <a href="#potential-revenue">Other potential revenue</a>
-          <a href="#clinic-markets">02 / Clinic markets</a>
-          <a href="#capital">03 / Vendor budget</a>
+          <a href="#capital">02 / Vendor budget</a>
           <a href="#sales-deck">Sales deck</a>
         </nav>
         <main id="i2e-main">
@@ -496,8 +493,7 @@ export function I2eInvestorPage() {
                   <I2eHelp label="Pharmacy partner economics" />
                 </TableCell>
                 <TableCell>
-                  $120 retail − $45 partner cost = {money(spread)} gross spread
-                  / order; {t.orders} orders = {money(t.orders * spread)}.
+                  Pricing and revenue share to be negotiated.
                 </TableCell>
                 <TableCell>
                   Potential share of partner transaction economics, subject to
@@ -521,6 +517,24 @@ export function I2eInvestorPage() {
               </TableRow>
             </Grid>
             <p className="i2e-note">
+              <strong>U.S. cash-pay market context:</strong> AmSpa's 2024
+              industry report lists average annual medical-spa revenue of
+              $1,398,833 per practice (about $116,569 per month). This is a
+              practice-level benchmark, not a national per-provider average or a
+              weight-loss/hormone-clinic benchmark. Provider-level revenue
+              depends on specialty, clinician count and utilization; fee
+              projections should use the clinic's actual eligible payment
+              volume.{" "}
+              <a
+                href="https://www.americanmedspa.org/news/2024-medical-spa-state-of-the-industry-executive-report-recap/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Source: AmSpa 2024 report
+              </a>
+              .
+            </p>
+            <p className="i2e-note">
               Illustrative opportunities, excluded from subscription
               contribution. Net proceeds depend on partner terms, payment costs,
               fulfillment, refunds and taxes. A payment-volume fee would be an
@@ -532,40 +546,8 @@ export function I2eInvestorPage() {
               .
             </p>
           </section>
-          <section id="clinic-markets">
-            <h2>02 / Ten clinic markets · conversion priorities</h2>
-            <Grid
-              label="Ten clinic market scenarios"
-              headers={[
-                "Clinic specialty",
-                "Model",
-                "Small-clinic deck range / mo",
-                "Reason to switch",
-                "Workflow scope",
-              ]}
-            >
-              {clinicMarkets.map((row) => (
-                <TableRow key={row.name}>
-                  <TableCell component="th" scope="row">
-                    {row.name}
-                  </TableCell>
-                  <TableCell>
-                    <I2eHelp label={row.payment} />
-                  </TableCell>
-                  <TableCell>${row.prices[1]}</TableCell>
-                  <TableCell>{row.switchReason}</TableCell>
-                  <TableCell>{row.proof}</TableCell>
-                </TableRow>
-              ))}
-            </Grid>
-
-            <p className="i2e-note">
-              Proposed pricing by specialty and scope. The $1,100 conversion
-              offer applies to the featured three-provider practice.
-            </p>
-          </section>
           <section id="capital">
-            <h2>03 / Shared execution and vendor budget</h2>
+            <h2>02 / Shared execution and vendor budget</h2>
             <Grid
               label="Fixed cost matrix"
               headers={["Category", "Upfront", "Monthly"]}
