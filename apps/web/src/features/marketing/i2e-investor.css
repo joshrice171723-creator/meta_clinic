@@ -578,6 +578,10 @@
   color: #17643d;
   font-weight: 700;
 }
+.i2e-console .i2e-negative .MuiTableCell-root {
+  color: #963846;
+  font-weight: 700;
+}
 .i2e-console .i2e-total .MuiTableCell-root {
   font-weight: 700;
 }

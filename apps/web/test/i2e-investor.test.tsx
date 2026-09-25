@@ -3,25 +3,21 @@ import {
   conversionTarget,
   investorBudget,
   investorCosts,
-  pilotClinics,
 } from "../src/features/marketing/I2eInvestorPage";
 import {
   clinicMarkets,
   janeProfiles,
 } from "../src/features/marketing/i2eMarketData";
 
-describe("i2E pilot financial model", () => {
-  it("allocates the shared vendor budget once across four pilot clinics", () => {
+describe("i2E one-clinic financial model", () => {
+  it("compares one cash-pay clinic without adding optional insurance", () => {
     expect(investorCosts).toHaveLength(12);
     expect(investorBudget.upfront).toBe(10500);
-    expect(investorBudget.monthly).toBe(3200);
-    expect(pilotClinics).toBe(4);
-    expect(conversionTarget.allocatedCost).toBe(800);
-    expect(pilotClinics * conversionTarget.price - investorBudget.monthly).toBe(
-      1200,
-    );
-    expect(conversionTarget.price - conversionTarget.allocatedCost).toBe(300);
-    expect(conversionTarget.price - investorBudget.monthly).toBe(-2100);
+    expect(investorBudget.monthly).toBe(1350);
+    expect(investorBudget.insuranceAddOn).toBe(1500);
+    expect(investorBudget.monthly + investorBudget.insuranceAddOn).toBe(2850);
+    expect(conversionTarget.vendorCost).toBe(1350);
+    expect(conversionTarget.price - conversionTarget.vendorCost).toBe(-250);
   });
 
   it("keeps the conversion comparison tied to its listed subscriptions", () => {
