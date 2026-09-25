@@ -11,6 +11,7 @@ import {
 import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
+import { I2eHelp } from "./I2eHelp";
 import { clinicMarkets, janeProfiles } from "./i2eMarketData";
 
 export const investorCosts = [
@@ -223,7 +224,7 @@ function Grid({
                 scope="col"
                 align={index === 0 ? "left" : "right"}
               >
-                {header}
+                <I2eHelp label={header} />
               </TableCell>
             ))}
           </TableRow>
@@ -275,7 +276,7 @@ export function I2eInvestorPage() {
           {rows.map(([name, value, tone]) => (
             <TableRow key={name} className={tone || ""}>
               <TableCell component="th" scope="row">
-                {name}
+                <I2eHelp label={name} />
               </TableCell>
               <TableCell align="right">{value}</TableCell>
             </TableRow>
@@ -359,8 +360,9 @@ export function I2eInvestorPage() {
                   stack.
                 </p>
                 <p>
-                  <strong>Target bundle:</strong> Embedded 503A partner
-                  webhooks, bidirectional Quest/Labcorp order/result tracking
+                  <strong>Target bundle:</strong> Embedded{" "}
+                  <I2eHelp label="503A partner webhooks" />, bidirectional{" "}
+                  <I2eHelp label="Quest/Labcorp order/result tracking" />
                   and Twilio video. Planned integrations, subject to partner
                   agreements.
                 </p>
@@ -447,7 +449,7 @@ export function I2eInvestorPage() {
                   className={name.includes("contribution") ? "i2e-profit" : ""}
                 >
                   <TableCell component="th" scope="row">
-                    {name}
+                    <I2eHelp label={name} />
                   </TableCell>
                   <TableCell>{value}</TableCell>
                 </TableRow>
@@ -477,7 +479,9 @@ export function I2eInvestorPage() {
                   <TableCell component="th" scope="row">
                     {row.name}
                   </TableCell>
-                  <TableCell>{row.payment}</TableCell>
+                  <TableCell>
+                    <I2eHelp label={row.payment} />
+                  </TableCell>
                   <TableCell>${row.prices[1]}</TableCell>
                   <TableCell>{row.switchReason}</TableCell>
                   <TableCell>{row.proof}</TableCell>
@@ -516,7 +520,7 @@ export function I2eInvestorPage() {
               {investorCosts.map((row) => (
                 <TableRow key={row.category}>
                   <TableCell component="th" scope="row">
-                    {row.category}
+                    <I2eHelp label={row.category} />
                   </TableCell>
                   <TableCell align="right">{money(row.upfront)}</TableCell>
                   <TableCell align="right">{money(row.monthly)}</TableCell>
