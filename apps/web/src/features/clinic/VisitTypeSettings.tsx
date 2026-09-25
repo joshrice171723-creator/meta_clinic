@@ -231,13 +231,19 @@ export function VisitTypeSettings({
         variant="outlined"
         sx={{ overflowX: "auto" }}
       >
-        <Table aria-label="Clinic visit types" sx={{ minWidth: 520 }}>
+        <Table
+          aria-label="Clinic visit types"
+          sx={{
+            minWidth: 520,
+            "& .MuiTableCell-root": { px: 2 },
+          }}
+        >
           <TableHead>
             <TableRow>
-              <TableCell sx={{ px: 2, minWidth: 180 }}>Visit type</TableCell>
-              <TableCell sx={{ px: 2, width: 120 }}>Status</TableCell>
+              <TableCell sx={{ minWidth: 180 }}>Visit type</TableCell>
+              <TableCell sx={{ width: 120 }}>Status</TableCell>
               {canManage && (
-                <TableCell align="right" sx={{ px: 2, minWidth: 220 }}>
+                <TableCell align="right" sx={{ minWidth: 220 }}>
                   Actions
                 </TableCell>
               )}
@@ -257,12 +263,12 @@ export function VisitTypeSettings({
               const active = visitType.retired_at === null;
               return (
                 <TableRow key={visitType.id}>
-                  <TableCell sx={{ px: 2, overflowWrap: "anywhere" }}>
+                  <TableCell sx={{ overflowWrap: "anywhere" }}>
                     <Typography sx={{ fontWeight: 650 }}>
                       {visitType.code}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ px: 2, width: 120 }}>
+                  <TableCell sx={{ width: 120 }}>
                     <Chip
                       size="small"
                       variant="outlined"
@@ -270,7 +276,7 @@ export function VisitTypeSettings({
                     />
                   </TableCell>
                   {canManage && (
-                    <TableCell align="right" sx={{ px: 2, minWidth: 220 }}>
+                    <TableCell align="right" sx={{ minWidth: 220 }}>
                       <Stack
                         direction="row"
                         spacing={0.5}
