@@ -90,6 +90,39 @@
 .login-card>svg { margin-bottom:24px; color:#66805b; }
 .login-card h2 { margin-bottom:14px; }
 .login-card .form-note { margin-bottom:0; }
+/* Login has a dedicated blue entry treatment; Launch pages keep their own palette. */
+body:has(.login-layout) { --background:#154985; --foreground:#fff; --primary:#1d4ed8; --card:#fff; --border:#8aadd2; --ring:#9cc5ff; background:linear-gradient(125deg,#154985 0%,#12549d 55%,#0d4588 100%); }
+body:has(.login-layout) .wrap { width:min(960px,calc(100% - 40px)); }
+body:has(.login-layout) .site-header { min-height:90px; border-color:rgba(255,255,255,.35); }
+body:has(.login-layout) .site-header .brand-dot { background:#fff; }
+body:has(.login-layout) .footer-wrap { background:#253b4e; }
+body:has(.login-layout) .site-footer,
+body:has(.login-layout) .footer-bottom { border-color:rgba(255,255,255,.3); }
+.login-layout { gap:52px; padding-block:64px; }
+.login-layout .inner-page-copy h1 { color:#fff; font-size:clamp(42px,4vw,54px); }
+.login-layout .inner-page-copy h1 em { color:#fff; }
+.login-layout .inner-page-copy>p:not(.eyebrow) { color:#e1edfb; }
+.login-layout .login-card { background:#fff; color:#18233c; box-shadow:0 14px 36px rgba(5,30,65,.16); padding:34px; }
+.login-layout .login-card h2 { color:#18233c; font-size:30px; margin-bottom:16px; }
+.login-layout .login-card>p,
+.login-layout .login-development-tools>p { color:#526078; }
+.login-layout .portal-type-links a { background:#fff; border-color:#b9c8df; color:#18233c; }
+.login-layout .portal-type-links a[aria-current=page] { background:#174c85; border-color:#174c85; color:#fff; }
+.login-layout .form-field input { background:#fff; border-color:#8a9cb8; }
+.login-layout .form-submit,
+.login-layout .primary-link,
+.login-layout .MuiButton-containedPrimary { background:#1764ad; color:#fff; }
+.login-layout .form-submit:hover,
+.login-layout .primary-link:hover,
+.login-layout .MuiButton-containedPrimary:hover { background:#104f8d; }
+.login-layout .MuiButton-outlinedPrimary,
+.login-layout .MuiButton-textPrimary { color:#174c85; border-color:#8a9cb8; }
+.login-layout .MuiToggleButton-root.Mui-selected { background:#dce8ff; color:#18233c; }
+.login-layout .MuiToggleButton-root.Mui-selected:hover { background:#cbdcff; }
+.login-layout .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline { border-color:#1764ad; }
+.development-login-layout { display:flex; justify-content:center; }
+.development-login-layout .login-card { width:min(100%,720px); }
+@media(max-width:760px) { .login-layout { padding-block:48px 60px; } .login-layout .login-card { padding:26px; } }
 .portal-type-links { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:18px 0 28px; }
 .portal-type-links a { padding:11px 12px; border:1px solid #b8c3b2; border-radius:5px; background:#fffefa; font-size:12px; font-weight:600; text-align:center; }
 .portal-type-links a[aria-current=page] { background:#254e40; border-color:#254e40; color:#fff; }
