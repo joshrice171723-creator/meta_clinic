@@ -109,8 +109,14 @@ module Public
         source: input[:source], outreach_consent: boolean_param(input[:outreach_consent], field: :outreach_consent),
         request_key: input[:request_key], date_of_birth: input[:date_of_birth], deliver: !local_setup
       )
-      account = { status: local_setup ? "local_setup" : "email_sent", replayed: result.replayed }
-      account[:setup_path] = "/memberships/account/activate#token=#{result.token}" if local_setup && result.token.present?
+      account = { status: "email_sent", replayed: result.replayed }
+      if local_setup
+        user = Development::SyntheticMembershipActivation.call(
+          practice:, prospect: result.prospect, token: result.token)
+        establish_session(user)
+        account = { status: "synthetic_active", replayed: result.replayed,
+          redirect_to: "/memberships/account" }
+      end
       render json: { account: account },
         status: result.replayed ? :ok : :created
     end
@@ -139,6 +145,7 @@ module Public
         amount: prospect.selected_terms.fetch("total"), currency: prospect.selected_terms.fetch("currency"),
         renewal: prospect.selected_terms.fetch("renewal"),
         stage: prospect.enrollment_stage,
+        synthetic_activation: local_simulator_available?(prospect.practice) && prospect.accepted_terms_at.nil?,
         can_pay: prospect.account_activated_at.present? && prospect.patient_id.nil? &&
           !prospect.status_declined? && prospect.recurring_authorized_at.nil? && !prospect.status_payment_processing?,
         redirect_to: patient_ready ? patient_portal_redirect(prospect) : nil,

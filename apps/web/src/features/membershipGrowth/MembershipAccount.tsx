@@ -12,6 +12,7 @@ type Enrollment = {
   currency: string;
   renewal: string;
   stage: string;
+  synthetic_activation: boolean;
   can_pay: boolean;
   redirect_to: string | null;
   local_simulator: {
@@ -169,7 +170,9 @@ export function MembershipAccount() {
                 </Typography>
               </Box>
               <Alert severity="success">
-                Your account is created and your email is verified.
+                {enrollment.synthetic_activation
+                  ? "A fictional account is active for this local walkthrough. Email ownership and portal terms were not verified."
+                  : "Your account is created and your email is verified."}
               </Alert>
               {localMode ? (
                 <Alert severity="warning">

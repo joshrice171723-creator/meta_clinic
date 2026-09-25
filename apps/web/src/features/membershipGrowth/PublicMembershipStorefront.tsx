@@ -31,9 +31,9 @@ type OutreachAcknowledgement = {
 
 type AccountAcknowledgement = {
   account: {
-    status: "email_sent" | "local_setup";
+    status: "email_sent" | "synthetic_active";
     replayed: boolean;
-    setup_path?: string;
+    redirect_to?: string;
   };
 };
 
@@ -101,7 +101,6 @@ export function PublicMembershipStorefront({
   const [error, setError] = useState("");
   const [outreachAcknowledged, setOutreachAcknowledged] = useState(false);
   const [accountAcknowledged, setAccountAcknowledged] = useState(false);
-  const [localSetupPath, setLocalSetupPath] = useState("");
   const [{ paymentOutcome, handoffToken }] = useState(() => {
     if (typeof window === "undefined") {
       return { paymentOutcome: null, handoffToken: "" };
@@ -198,7 +197,6 @@ export function PublicMembershipStorefront({
     setSelections([]);
     setOutreachAcknowledged(false);
     setAccountAcknowledged(false);
-    setLocalSetupPath("");
     setError("");
     requestKey.current = crypto.randomUUID();
   }
@@ -209,7 +207,6 @@ export function PublicMembershipStorefront({
     setSelections([]);
     setOutreachAcknowledged(false);
     setAccountAcknowledged(false);
-    setLocalSetupPath("");
     setError("");
   }
 
@@ -328,8 +325,14 @@ export function PublicMembershipStorefront({
         },
       });
       if ("account" in result) {
-        setLocalSetupPath(result.account.setup_path || "");
-        setAccountAcknowledged(true);
+        if (
+          result.account.status === "synthetic_active" &&
+          result.account.redirect_to === "/memberships/account"
+        ) {
+          window.location.assign(result.account.redirect_to);
+        } else {
+          setAccountAcknowledged(true);
+        }
       } else {
         setOutreachAcknowledged(true);
       }
@@ -499,24 +502,11 @@ export function PublicMembershipStorefront({
           </DialogTitle>
           <DialogContent>
             {accountAcknowledged ? (
-              <Stack spacing={2} sx={{ mt: 1 }}>
-                <Alert severity="success">
-                  Your signup is saved with the clinic.{" "}
-                  {localSetupPath
-                    ? "Continue the local synthetic setup to create your password, then simulate payment."
-                    : "Check your email to verify your address and create your password, then continue to payment."}{" "}
-                  You’ll use this same account for your patient portal.
-                </Alert>
-                {localSetupPath && (
-                  <Button
-                    component="a"
-                    href={localSetupPath}
-                    variant="contained"
-                  >
-                    Continue synthetic account setup
-                  </Button>
-                )}
-              </Stack>
+              <Alert severity="success" sx={{ mt: 1 }}>
+                Your signup is saved with the clinic. Check your email to verify
+                your address and create your password, then continue to payment.
+                You’ll use this same account for your patient portal.
+              </Alert>
             ) : outreachAcknowledged ? (
               <Alert severity="success" sx={{ mt: 1 }}>
                 Your request was sent to{" "}
@@ -565,8 +555,9 @@ export function PublicMembershipStorefront({
                         To ask for clinic contact, enter your name and agree to
                         outreach; this does not create an account or start
                         payment. To purchase, enter your email and birth date.
-                        We will send a link to verify your address and set a
-                        password before the payment step.
+                        {resource.data?.payment.mode === "local_simulator"
+                          ? " This local synthetic walkthrough activates a fictional account before simulated payment."
+                          : " We will send a link to verify your address and set a password before the payment step."}
                       </Typography>
                       <TextField
                         required
@@ -585,7 +576,11 @@ export function PublicMembershipStorefront({
                         label="Email address (required to create account)"
                         value={emailAddress}
                         autoComplete="email"
-                        helperText="We send a one-time password setup link before payment."
+                        helperText={
+                          resource.data?.payment.mode === "local_simulator"
+                            ? "This address identifies the fictional account in the local walkthrough; email ownership is not verified."
+                            : "We send a one-time password setup link before payment."
+                        }
                         slotProps={{ htmlInput: { maxLength: 320 } }}
                         onChange={(event) =>
                           changeIntent(() =>

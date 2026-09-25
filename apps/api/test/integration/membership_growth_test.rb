@@ -475,29 +475,21 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
         params: { account: account_attributes }, headers: csrf_headers, as: :json
       assert_response :created
       prospect = practice.membership_prospects.find_by!(request_key: account_attributes.fetch(:request_key))
-      refute prospect.account_user.active?
+      assert prospect.account_user.active?
       assert_nil prospect.patient_id
       assert_nil prospect.agreement_id
 
       assert_empty ActionMailer::Base.deliveries
-      assert_equal "local_setup", response.parsed_body.dig("account", "status")
-      token = response.parsed_body.dig("account", "setup_path").split("#token=").last
-      post "/api/public/membership_accounts/checkout", headers: csrf_headers, as: :json
-      assert_response :unauthorized
-
-      password = "Synthetic-local-member-password-2026!"
-      post "/api/public/membership_accounts/activate", params: { membership_account: {
-        token:, password:, password_confirmation: password,
-        accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
-      } }, headers: csrf_headers, as: :json
-      assert_response :created
-      assert prospect.account_user.reload.active?
+      assert_equal "synthetic_active", response.parsed_body.dig("account", "status")
+      assert_equal "/memberships/account", response.parsed_body.dig("account", "redirect_to")
       assert_nil prospect.reload.account_setup_token_digest
       assert_nil prospect.patient_id
+      assert_nil prospect.accepted_terms_at
 
       get "/api/public/membership_accounts/current", headers: @headers
       assert_response :success
       assert_equal true, response.parsed_body.dig("enrollment", "can_pay")
+      assert_equal true, response.parsed_body.dig("enrollment", "synthetic_activation")
       local_state = response.parsed_body.dig("enrollment", "local_simulator")
       assert_equal true, local_state.fetch("enabled")
       assert_equal false, local_state.fetch("vendor_confirmed")
@@ -607,7 +599,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "loopback synthetic signup offers a one-time account setup path only with development access" do
+  test "loopback synthetic signup activates only with development access" do
     version_id = publish_catalog(@admin, "LocalSetup")
     configure_storefront(@admin, "local-setup", enabled: true)
     ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = @practice.id.to_s
@@ -620,29 +612,13 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     } }, headers: csrf_headers, as: :json
     assert_response :created
     account = response.parsed_body.fetch("account")
-    assert_equal "local_setup", account.fetch("status")
-    assert_match %r{\A/memberships/account/activate#token=[A-Za-z0-9_-]+\z}, account.fetch("setup_path")
+    assert_equal "synthetic_active", account.fetch("status")
+    assert_equal "/memberships/account", account.fetch("redirect_to")
     assert_empty ActionMailer::Base.deliveries
-
-    first_token = account.fetch("setup_path").split("#token=").last
-    post "/api/public/membership_storefronts/local-setup/accounts", params: { account: {
-      version_id:, selections: [], display_name: "Synthetic Setup Member",
-      email_address: "local-setup-member@example.invalid", date_of_birth: "1990-02-28",
-      source: "membership_storefront", outreach_consent: true, request_key: "local-setup-request"
-    } }, headers: csrf_headers, as: :json
-    assert_response :success
-    assert_equal true, response.parsed_body.dig("account", "replayed")
-    refute_equal first_token, response.parsed_body.dig("account", "setup_path").split("#token=").last
-    assert_empty ActionMailer::Base.deliveries
-
-    token = response.parsed_body.dig("account", "setup_path").split("#token=").last
-    password = "Synthetic-local-setup-password-2026!"
-    post "/api/public/membership_accounts/activate", params: { membership_account: {
-      token:, password:, password_confirmation: password,
-      accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
-    } }, headers: csrf_headers, as: :json
-    assert_response :created
-    assert @practice.membership_prospects.find_by!(request_key: "local-setup-request").account_user.active?
+    prospect = @practice.membership_prospects.find_by!(request_key: "local-setup-request")
+    assert prospect.account_user.active?
+    assert_nil prospect.accepted_terms_at
+    assert_nil prospect.account_setup_token_digest
 
     delete "/api/session", headers: csrf_headers
     ENV.delete("APP_DEVELOPMENT_LOGIN")
@@ -653,7 +629,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     } }, headers: csrf_headers, as: :json
     assert_response :created
     assert_equal "email_sent", response.parsed_body.dig("account", "status")
-    assert_nil response.parsed_body.dig("account", "setup_path")
+    assert_nil response.parsed_body.dig("account", "redirect_to")
     assert_equal 1, ActionMailer::Base.deliveries.length
 
     ENV["APP_DEVELOPMENT_LOGIN"] = "1"
@@ -664,7 +640,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     } }, headers: csrf_headers.merge("REMOTE_ADDR" => "203.0.113.10"), as: :json
     assert_response :created
     assert_equal "email_sent", response.parsed_body.dig("account", "status")
-    assert_nil response.parsed_body.dig("account", "setup_path")
+    assert_nil response.parsed_body.dig("account", "redirect_to")
     assert_equal 2, ActionMailer::Base.deliveries.length
   end
 
@@ -1152,11 +1128,14 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   end
 
   test "adult account boundaries preserve contact first and interrupted identity without merging people" do
-    travel_to Time.utc(2026, 9, 14, 12) do
+    reference_date = [Date.new(2026, 9, 14), Time.current.to_date + 1.day].max
+    adult_birth_date = reference_date - 18.years
+    travel_to Time.utc(reference_date.year, reference_date.month, reference_date.day, 12) do
       version_id = publish_catalog(@admin, "AgeBoundary")
       configure_storefront(@admin, "age-boundary-memberships", enabled: true)
       attributes = prospect_payload(version_id:, request_key: "adult-account").fetch(:prospect)
-      [nil, "invalid", "2026-02-30", "2026-09-15", "2008-09-15", "1876-09-14"].each do |date|
+      [nil, "invalid", "2026-02-30", (reference_date + 1.day).to_s,
+        (adult_birth_date + 1.day).to_s, (reference_date - 150.years).to_s].each do |date|
         assert_no_difference ["User.count", "Clinic::MembershipProspect.count"] do
           assert_raises(ArgumentError) do
             Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes, date_of_birth: date)
@@ -1168,16 +1147,17 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       post_prospect("age-boundary-memberships", { prospect: contact })
       assert_response :created
       assert_nil @practice.membership_prospects.order(:id).last.account_user_id
-      first = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes, date_of_birth: "2008-09-14").prospect
+      first = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes,
+        date_of_birth: adult_birth_date.to_s).prospect
       retry_account = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice,
-        **attributes.merge(request_key: "recovered-browser-key"), date_of_birth: "2008-09-14").prospect
+        **attributes.merge(request_key: "recovered-browser-key"), date_of_birth: adult_birth_date.to_s).prospect
       assert_equal first.id, retry_account.id
       assert_equal first.account_user_id, retry_account.account_user_id
       assert_nil first.patient_id
       assert_raises(Clinic::MembershipGrowth::CaptureProspect::Conflict) do
         Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **attributes, date_of_birth: "1990-01-01")
       end
-      assert_equal Date.new(2008, 9, 14), first.reload.date_of_birth
+      assert_equal adult_birth_date, first.reload.date_of_birth
     end
   end
 

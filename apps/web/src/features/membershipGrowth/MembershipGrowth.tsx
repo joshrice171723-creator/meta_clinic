@@ -444,9 +444,9 @@ export function MembershipGrowth() {
                   Membership pipeline
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                  Account created → email verified → payment. Unpaid signups
+                  Account created → account activated → payment. Unpaid signups
                   stay here for follow-up. Verified payment moves them to the
-                  patient flow with their existing login, receipt email, and
+                  patient flow with their existing account, receipt record, and
                   front-desk onboarding task. No second account invitation is
                   needed.
                 </Typography>
