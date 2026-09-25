@@ -77,6 +77,13 @@
   color: var(--clinic-sidebar-muted);
   font-size: 14px;
 }
+.clinic-theme[data-clinic-palette="cobalt"][data-color-scheme="light"]
+  .clinic-sidebar
+  .practice-label > .MuiStack-root {
+  background: var(--clinic-sidebar-ground);
+  border-color: var(--clinic-sidebar-ground);
+}
+
 .clinic-theme .clinic-sidebar nav :is(a, button) {
   font-size: 14px;
 }
