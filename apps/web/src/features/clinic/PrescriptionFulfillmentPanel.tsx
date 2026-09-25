@@ -79,13 +79,19 @@ export function PrescriptionFulfillmentPanel({
   encounterId,
   orders,
   canWrite,
+  preferredOrderId,
 }: {
   patientId: number;
   encounterId: number;
   orders: MedicationRequestRevision[];
   canWrite: boolean;
+  preferredOrderId?: number;
 }) {
-  const [orderId, setOrderId] = useState(orders[0]?.id ?? 0);
+  const [orderId, setOrderId] = useState(
+    preferredOrderId && orders.some((order) => order.id === preferredOrderId)
+      ? preferredOrderId
+      : (orders[0]?.id ?? 0),
+  );
   const [evidence, setEvidence] = useState<Evidence>();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [canDispense, setCanDispense] = useState(false);
@@ -121,9 +127,12 @@ export function PrescriptionFulfillmentPanel({
   const order = orders.find((row) => row.id === orderId);
   const path = `/api/clinic/patients/${patientId}/medication_requests/${orderId}`;
   useEffect(() => {
-    if (!orders.some((row) => row.id === orderId))
+    if (preferredOrderId && orders.some((row) => row.id === preferredOrderId)) {
+      setOrderId(preferredOrderId);
+    } else if (!orders.some((row) => row.id === orderId)) {
       setOrderId(orders[0]?.id ?? 0);
-  }, [orders, orderId]);
+    }
+  }, [orders, orderId, preferredOrderId]);
   useEffect(() => {
     const controller = new AbortController();
     generation.current += 1;

@@ -1379,6 +1379,11 @@ export function ClinicalPlanWorkspace({
             encounterId={encounter.id}
             orders={data.records.medication_requests}
             canWrite={data.capabilities.medication_requests}
+            preferredOrderId={
+              taskTarget?.kind === "medication_requests"
+                ? taskRecord?.id
+                : undefined
+            }
           />
         )}
       <Dialog
