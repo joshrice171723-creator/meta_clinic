@@ -3,6 +3,10 @@ import { ClickAwayListener, IconButton, Tooltip } from "@mui/material";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 
 const explanations: Record<string, string> = {
+  "Pharmacy partner economics":
+    "A possible revenue arrangement with a pharmacy partner. The difference between retail price and pharmacy cost is a gross spread; Meta Clinic's share must be established by agreement.",
+  "2% platform fee via Stripe":
+    "A proposed fee Meta Clinic would charge on eligible payments, collected using Stripe Connect. It is not a 2% payment from Stripe and does not replace Stripe's processing fees.",
   "Jane Practice + 2 seats":
     "Scheduling and patient-chart software for three bookable providers. A seat means one provider account in this comparison.",
   "Hint membership billing":

@@ -303,6 +303,7 @@ export function I2eInvestorPage() {
       <div className="i2e-workspace">
         <nav className="i2e-nav" aria-label="Dashboard sections">
           <a href="#switching">01 / Conversion target</a>
+          <a href="#potential-revenue">Other potential revenue</a>
           <a href="#clinic-markets">02 / Clinic markets</a>
           <a href="#capital">03 / Vendor budget</a>
           <a href="#sales-deck">Sales deck</a>
@@ -337,7 +338,8 @@ export function I2eInvestorPage() {
                   re-entering orders or faxing their compounding partner.
                 </p>
                 <p className="i2e-note">
-                  Illustrative three-provider software budget.
+                  Illustrative three-provider software budget. Insurance billing
+                  and clearinghouse fees are additional.
                 </p>
               </div>
               <div>
@@ -391,28 +393,65 @@ export function I2eInvestorPage() {
                     `${((contribution / t.price) * 100).toFixed(1)}%`,
                     "i2e-profit",
                   ],
-                  [
-                    "Illustrative spread / order",
-                    `$120 − $45 = ${money(spread)}`,
-                  ],
-                  [
-                    "30 orders × $75 gross spread",
-                    `+${money(t.orders * spread)}`,
-                    "i2e-profit",
-                  ],
                 ])}
                 <p className="i2e-note">
                   Contribution before shared platform costs. Cash-pay with eRx:
                   $440 vendor expense / $660 contribution. Without eRx: $245
                   cash-pay or $305 insurance, including video and scribe.
                 </p>
-                <p className="i2e-note">
-                  Illustrative transaction upside before fulfillment,
-                  processing, refunds and tax; excluded from software
-                  contribution.
-                </p>
               </div>
             </div>
+          </section>
+          <section id="potential-revenue">
+            <h2>Other potential revenue</h2>
+            <Grid
+              label="Other potential revenue"
+              headers={[
+                "Revenue opportunity",
+                "Illustrative economics",
+                "Commercial basis",
+              ]}
+            >
+              <TableRow>
+                <TableCell component="th" scope="row">
+                  <I2eHelp label="Pharmacy partner economics" />
+                </TableCell>
+                <TableCell>
+                  $120 retail − $45 partner cost = {money(spread)} gross spread
+                  / order; {t.orders} orders = {money(t.orders * spread)}.
+                </TableCell>
+                <TableCell>
+                  Potential share of partner transaction economics, subject to
+                  agreements. The full spread is not automatically Meta Clinic
+                  revenue.
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell component="th" scope="row">
+                  <I2eHelp label="2% platform fee via Stripe" />
+                </TableCell>
+                <TableCell>
+                  2% of eligible payment volume. Example: $10,000 processed × 2%
+                  = $200 gross platform fees.
+                </TableCell>
+                <TableCell>
+                  Proposed Meta Clinic application fee collected through Stripe
+                  Connect, separate from Stripe processing charges and any
+                  Stripe revenue-sharing agreement.
+                </TableCell>
+              </TableRow>
+            </Grid>
+            <p className="i2e-note">
+              Illustrative opportunities, excluded from subscription
+              contribution. Net proceeds depend on partner terms, payment costs,
+              fulfillment, refunds and taxes. A payment-volume fee would be an
+              additional clinic expense beyond the software subscription
+              comparison.{" "}
+              <a href="https://stripe.com/connect/pricing">
+                Stripe Connect pricing
+              </a>
+              .
+            </p>
           </section>
           <section id="clinic-markets">
             <h2>02 / Ten clinic markets · conversion priorities</h2>
