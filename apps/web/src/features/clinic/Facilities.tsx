@@ -274,7 +274,6 @@ export function Facilities() {
         onProfileSaved={() => setVisitTypeRefreshKey((current) => current + 1)}
       />
       <VisitTypeSettings canWrite={canWrite} refreshKey={visitTypeRefreshKey} />
-      <ServiceOfferingSettings canWrite={canWrite} />
       {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
         <Paper variant="outlined" className="facilities-list">
@@ -773,6 +772,7 @@ export function Facilities() {
           </Stack>
         </Paper>
       )}
+      <ServiceOfferingSettings canWrite={canWrite} />
       {selected && !creating && (
         <SiteSchedulingPolicySettings key={selected.id} siteId={selected.id} />
       )}

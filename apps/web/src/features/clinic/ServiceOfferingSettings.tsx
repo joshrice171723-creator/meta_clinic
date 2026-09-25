@@ -58,18 +58,18 @@ type Attempt = {
   success: string;
 };
 
-function emptyForm(): FormState {
+function emptyForm(visitType?: VisitType, siteIds: number[] = []): FormState {
   return {
-    name: "",
+    name: visitType?.code ?? "",
     code: null,
     description: null,
-    visit_type_id: null,
+    visit_type_id: visitType?.id ?? null,
     billing_service_id: null,
-    duration_minutes: 30,
+    duration_minutes: null,
     modality: "in_person",
     booking_required: true,
     requires_room: false,
-    eligible_site_ids: [],
+    eligible_site_ids: siteIds,
     eligible_clinician_ids: [],
     status: "draft",
   };
@@ -115,6 +115,10 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       ),
     [visitTypes],
   );
+  const activeSites = useMemo(
+    () => (sites?.sites ?? []).filter((site) => site.status === "active"),
+    [sites],
+  );
 
   const perform = async (attempt: Attempt) => {
     if (busy) return;
@@ -148,7 +152,22 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
 
   const open = (offering: ServiceOffering | "new") => {
     setDialog(offering);
-    setForm(offering === "new" ? emptyForm() : formFor(offering));
+    setForm(
+      offering === "new"
+        ? emptyForm(
+            activeVisitTypes.find(
+              (visitType) =>
+                !(data?.service_offerings ?? []).some(
+                  (existing) =>
+                    existing.visit_type_id === visitType.id &&
+                    existing.status !== "retired",
+                ),
+            ) ??
+              (activeVisitTypes.length === 1 ? activeVisitTypes[0] : undefined),
+            activeSites.length === 1 ? [activeSites[0].id] : [],
+          )
+        : formFor(offering),
+    );
     setFeedback(null);
     setRetryAttempt(null);
   };
@@ -443,6 +462,43 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
               {feedback && (
                 <Alert severity={feedback.tone}>{feedback.text}</Alert>
               )}
+              <FormControl fullWidth>
+                <InputLabel id="offering-visit-type">Visit type</InputLabel>
+                <Select
+                  labelId="offering-visit-type"
+                  label="Visit type"
+                  value={form.visit_type_id ?? ""}
+                  disabled={controlsDisabled}
+                  onChange={(event) => {
+                    const value = String(event.target.value);
+                    const nextVisitType = activeVisitTypes.find(
+                      (item) => item.id === Number(value),
+                    );
+                    const currentVisitType = activeVisitTypes.find(
+                      (item) => item.id === form.visit_type_id,
+                    );
+                    const nameWasVisitType =
+                      !form.name.trim() || form.name === currentVisitType?.code;
+                    update({
+                      visit_type_id: value === "" ? null : Number(value),
+                      ...(nameWasVisitType && nextVisitType
+                        ? { name: nextVisitType.code }
+                        : {}),
+                    });
+                  }}
+                >
+                  <MenuItem value="">Not selected</MenuItem>
+                  {activeVisitTypes.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>
+                      {item.code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="body2" color="text.secondary">
+                Choosing a visit type fills the offering name. If this is the
+                only active site, it is selected automatically below.
+              </Typography>
               <TextField
                 label="Offering name"
                 value={form.name}
@@ -471,30 +527,6 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 }
                 slotProps={{ htmlInput: { maxLength: 500 } }}
               />
-              <FormControl fullWidth>
-                <InputLabel id="offering-visit-type">Visit type</InputLabel>
-                <Select
-                  labelId="offering-visit-type"
-                  label="Visit type"
-                  value={form.visit_type_id ?? ""}
-                  disabled={controlsDisabled}
-                  onChange={(event) =>
-                    update({
-                      visit_type_id:
-                        String(event.target.value) === ""
-                          ? null
-                          : Number(event.target.value),
-                    })
-                  }
-                >
-                  <MenuItem value="">Not selected</MenuItem>
-                  {activeVisitTypes.map((item) => (
-                    <MenuItem key={item.id} value={item.id}>
-                      {item.code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
               <FormControl fullWidth>
                 <InputLabel id="offering-price">
                   Billable price reference
@@ -537,6 +569,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   })
                 }
                 slotProps={{ htmlInput: { min: 5, max: 1440 } }}
+                helperText="Choose the visit length before publishing."
               />
               <FormControl fullWidth>
                 <InputLabel id="offering-modality">Modality</InputLabel>
@@ -634,6 +667,10 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 }
                 label="A room is required"
               />
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                If selected, at least one eligible site needs a configured room.
+                Room setup is above this section.
+              </Typography>
             </Stack>
           </DialogContent>
           <DialogActions>
