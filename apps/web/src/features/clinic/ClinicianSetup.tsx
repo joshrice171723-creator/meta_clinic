@@ -113,6 +113,7 @@ export function ClinicianSetup() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={saving}
+            sx={{ "&& input.MuiInputBase-input": { minHeight: 0 } }}
             slotProps={{ htmlInput: { maxLength: 120 } }}
           />
           <TextField
@@ -137,6 +138,7 @@ export function ClinicianSetup() {
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
             disabled={saving}
+            sx={{ "&& input.MuiInputBase-input": { minHeight: 0 } }}
             slotProps={{ htmlInput: { maxLength: 80 } }}
           />
         </Stack>
