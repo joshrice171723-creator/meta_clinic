@@ -10,7 +10,6 @@ import {
   TableRow,
   TableFooter,
   TableSortLabel,
-  TextField,
 } from "@mui/material";
 import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import PrintOutlined from "@mui/icons-material/PrintOutlined";
@@ -167,24 +166,17 @@ export function I2eInvestorPage() {
   const runway = (capital - upfront) / monthly;
   const spread = retail - wholesale;
   const orders = Math.ceil(monthly / spread);
-  const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"category" | "upfront" | "monthly">(
     "category",
   );
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
-  const rows = investorCosts
-    .filter((row) =>
-      `${row.category} ${row.purpose}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-    )
-    .sort((a, b) => {
-      const comparison =
-        sort === "category"
-          ? a.category.localeCompare(b.category)
-          : a[sort] - b[sort];
-      return direction === "asc" ? comparison : -comparison;
-    });
+  const rows = [...investorCosts].sort((a, b) => {
+    const comparison =
+      sort === "category"
+        ? a.category.localeCompare(b.category)
+        : a[sort] - b[sort];
+    return direction === "asc" ? comparison : -comparison;
+  });
   const changeSort = (key: typeof sort) => {
     setDirection(sort === key && direction === "asc" ? "desc" : "asc");
     setSort(key);
@@ -462,13 +454,6 @@ export function I2eInvestorPage() {
             </div>
             <div className="i2e-matrix">
               <h3>Fixed cost data table</h3>
-              <TextField
-                label="Search costs"
-                size="small"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                fullWidth
-              />
               <TableContainer
                 tabIndex={0}
                 role="region"
@@ -516,13 +501,6 @@ export function I2eInvestorPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {rows.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3}>
-                          No costs match your search.
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                   <TableFooter>
                     <TableRow>
@@ -545,10 +523,6 @@ export function I2eInvestorPage() {
                 </a>
                 . Participant-minutes count each connected participant
                 separately.
-              </p>
-              <p className="i2e-note" aria-live="polite">
-                {rows.length} of {investorCosts.length} costs shown. Totals
-                always include all planned costs.
               </p>
             </div>
           </div>
