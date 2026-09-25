@@ -246,6 +246,7 @@ Rails.application.routes.draw do
       post :transition, on: :member
     end
     get "subscription_catalog/storefront_preview", to: "care/subscription_catalog#storefront_preview"
+    post "subscription_catalog/template", to: "care/subscription_catalog#apply_template"
     post "subscription_catalog/:kind", to: "care/subscription_catalog#save"
     patch "subscription_catalog/:kind/:id", to: "care/subscription_catalog#save"
     get "subscription_catalog/packages/:id/preview", to: "care/subscription_catalog#preview"

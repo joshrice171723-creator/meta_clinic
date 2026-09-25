@@ -101,6 +101,7 @@ export function SubscriptionCatalog() {
     "/api/clinic/subscription_catalog",
   );
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [catalogSection, setCatalogSection] = useState("family");
   const [editorStep, setEditorStep] = useState(0);
@@ -198,6 +199,9 @@ export function SubscriptionCatalog() {
     data?.packages.filter(
       (item) => !item.retired && item.published_version_id,
     ) || [];
+  const clinicTypeLabel = data?.clinic_type
+    ? data.clinic_type.replaceAll("_", " ")
+    : "not selected";
   return (
     <Stack className="subscription-catalog" spacing={0}>
       <header className="subscription-catalog__header">
@@ -220,6 +224,7 @@ export function SubscriptionCatalog() {
       </header>
       {(!data || resource.error) && <LoadState error={resource.error} />}
       {error && <Alert severity="error">{error}</Alert>}
+      {notice && <Alert severity="success">{notice}</Alert>}
       {data && !edit && (
         <div className="subscription-catalog__workspace">
           <section
@@ -269,6 +274,51 @@ export function SubscriptionCatalog() {
             .filter(([kind]) => kind === catalogSection)
             .map(([kind, label, items]) => (
               <section key={kind} className="subscription-catalog__section">
+                {kind === "family" && (
+                  <Paper
+                    className="subscription-catalog__template"
+                    variant="outlined"
+                  >
+                    <div>
+                      <Typography component="h3" variant="h6">
+                        {data.clinic_type === "weight_loss"
+                          ? "Weight management starter"
+                          : "Clinic specific starter"}
+                      </Typography>
+                      <Typography>
+                        {data.clinic_type === "weight_loss"
+                          ? "Adds a draft program and initial and follow-up visit services. Set your clinic’s membership cadence, pricing, and terms before publishing."
+                          : data.clinic_type
+                            ? `Selected clinic type: ${clinicTypeLabel}. A matching starter is not available yet.`
+                            : "Select a clinic type in Clinic setup to see a matching membership starter."}
+                      </Typography>
+                    </div>
+                    {data.clinic_type === "weight_loss" &&
+                      data.capabilities.write && (
+                        <Button
+                          variant="outlined"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              const result = await api<{
+                                created_count: number;
+                              }>("/api/clinic/subscription_catalog/template", {
+                                method: "POST",
+                                body: {},
+                              });
+                              setNotice(
+                                result.created_count
+                                  ? "Weight management starter added as an unpublished draft."
+                                  : "Weight management starter is already in this catalog.",
+                              );
+                            })
+                          }
+                        >
+                          Add starter
+                        </Button>
+                      )}
+                  </Paper>
+                )}
                 <div className="subscription-catalog__section-heading">
                   <div>
                     <Typography variant="h5" component="h2">

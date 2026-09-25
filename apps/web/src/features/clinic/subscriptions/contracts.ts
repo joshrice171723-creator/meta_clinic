@@ -104,6 +104,7 @@ export type AdminCatalog = {
   families: CatalogItem[];
   services: CatalogItem[];
   packages: DraftPackage[];
+  clinic_type: string | null;
   capabilities: { write: boolean; publish: boolean };
 };
 export function subscriptionMoney(amount: string, currency: string) {

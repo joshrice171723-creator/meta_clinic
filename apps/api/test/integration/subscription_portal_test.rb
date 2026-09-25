@@ -10,8 +10,8 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     @password = SecureRandom.hex(18)
     @admin = User.create!(email_address: "subscription-staff@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Dev Seed HTTP Clinic")
-    membership = @practice.memberships.create!(user: @admin)
-    grant_permissions!(membership, "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish", "billing.read", "billing.payment_record", "subscriptions.review")
+    @membership = @practice.memberships.create!(user: @admin)
+    grant_permissions!(@membership, "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish", "billing.read", "billing.payment_record", "subscriptions.review", "facilities.write")
     @patient = @practice.patients.create!(display_name: "Dev Seed HTTP Patient", reference: "HTTP-SUB-1")
     @user = User.create!(email_address: "synthetic-patient@example.invalid", password: Development::TestAccounts.send(:password_for, "patient"))
     @identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: @patient, user: @user, status: "active", invited_at: Time.current, activated_at: Time.current)
@@ -211,6 +211,38 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     assert_equal "Tier 20", Clinic::Care::SubscriptionVersion.find(version_id).snapshot.fetch("package_name")
     submit "/api/patient_portal/subscriptions/quote", { version_id: version_id, selections: selections }
     assert_response :unprocessable_entity
+  end
+
+  test "clinic type selects an idempotent unpublished membership starter" do
+    Clinic::Configuration::PracticeFeatures.revise(practice: @practice, actor: @membership,
+      request_key: "weight-loss-membership-profile", expected_revision: 0, insurance_workflows_enabled: false,
+      clinic_type: "weight_loss", service_scope: [], assessment_scope: [])
+    sign_in(@admin)
+    get "/api/clinic/subscription_catalog", headers: headers
+    assert_response :success
+    assert_equal "weight_loss", response.parsed_body.fetch("clinic_type")
+
+    2.times do |attempt|
+      post "/api/clinic/subscription_catalog/template", headers: headers, as: :json
+      assert_response :success
+      assert_equal "weight_loss", response.parsed_body.fetch("clinic_type")
+      assert_equal 3, response.parsed_body.fetch("created_count") if attempt.zero?
+      assert_equal 0, response.parsed_body.fetch("created_count") if attempt == 1
+    end
+
+    family = Clinic::Care::SubscriptionFamily.find_by!(practice: @practice, name: "Weight management")
+    assert_nil family.published_snapshot
+    assert_equal ["Weight-management follow-up", "Weight-management initial visit"],
+      Clinic::Care::ServiceOption.where(practice: @practice).order(:name).pluck(:name)
+    assert_equal 0, Clinic::Care::SubscriptionPackage.where(practice: @practice).count
+  end
+
+  test "membership starter rejects a clinic type without a matching template" do
+    sign_in(@admin)
+    post "/api/clinic/subscription_catalog/template", headers: headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "No membership starter is available for the selected clinic type.", response.parsed_body.fetch("error")
+    assert_equal 0, Clinic::Care::SubscriptionFamily.where(practice: @practice).count
   end
 
   test "unpublished program moves do not change availability and retirement denies quote and checkout" do
