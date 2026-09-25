@@ -342,56 +342,65 @@ export function I2eInvestorPage() {
                       "$149",
                       "Scheduling + charting",
                       "Shared platform budget",
+                      "Meta Clinic · shared infrastructure",
                     ],
                     [
                       "Hint membership billing",
                       "$870",
                       "Membership billing",
                       "Shared platform budget",
+                      "Meta Clinic · Stripe payment rails",
                     ],
                     [
                       "HubSpot CRM",
                       "$150",
                       "Patient pipeline + follow-up",
                       "Shared platform budget",
+                      "Meta Clinic · native CRM",
                     ],
                     [
                       "DoseSpot eRx seats",
                       "$120",
                       "Embedded eRx · planned",
                       "$195",
+                      "Photon Health · proposed",
                     ],
                     [
                       "Jane AI Scribe · 3 seats",
                       "$45",
                       "AI note drafts + review",
                       "$120",
+                      "AI provider · to be selected",
                     ],
                     [
                       "1:1 telehealth",
                       "Included in Jane",
                       "Video consultations",
                       "$125",
+                      "Twilio Programmable Video",
                     ],
                     [
                       "Insurance billing engine",
                       "Add-on + clearinghouse · extra",
                       "Claims routing · planned",
                       "$60",
+                      "Candid Health · proposed",
                     ],
                     [
                       "Quest/Labcorp order/result tracking",
                       "Via Fullscript · outside subtotal",
                       "Direct lab tracking · planned",
                       "Partner terms / usage",
+                      "Quest / Labcorp · proposed",
                     ],
                     [
                       "503A partner webhooks",
                       "Partner workflow · outside subtotal",
                       "Partner order + status · planned",
                       "Partner terms / usage",
+                      "Compounding pharmacy · to be selected",
                     ],
-                  ].map(([label, current, scope, cost]) => (
+                  ].map(([label, current, scope, cost, vendor]) => (
                     <TableRow key={label}>
                       <TableCell component="th" scope="row">
                         <I2eHelp label={label} />
@@ -411,7 +420,10 @@ export function I2eInvestorPage() {
                         </strong>
                       </TableCell>
                       <TableCell>{scope}</TableCell>
-                      <TableCell>{cost}</TableCell>
+                      <TableCell>
+                        {cost}
+                        <small className="i2e-vendor-label">{vendor}</small>
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="i2e-total">
