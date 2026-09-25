@@ -115,7 +115,11 @@ function emptyValues(data: WorkforceSettingsData): WorkforceSettingValues {
 
 export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
   const fieldId = useId();
-  const [selectedSiteId, setSelectedSiteId] = useState(siteId ?? "");
+  const search = new URLSearchParams(window.location.search);
+  const focusTarget = search.get("focus");
+  const [selectedSiteId, setSelectedSiteId] = useState(
+    siteId ?? search.get("site_id") ?? "",
+  );
   const resourcePath = selectedSiteId
     ? `/api/clinic/workforce/settings?site_id=${encodeURIComponent(selectedSiteId)}`
     : "/api/clinic/workforce/settings";
@@ -136,6 +140,13 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
     setEffectiveFrom(localDateTime());
     setFeedback(null);
   }, [data]);
+
+  useEffect(() => {
+    if (!data || focusTarget !== "payroll_export_enabled") return;
+    const target = document.getElementById(focusTarget);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus();
+  }, [data, focusTarget]);
 
   const booleanKeys = useMemo(
     () =>
@@ -190,6 +201,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
     <FormControl fullWidth key={key}>
       <InputLabel id={`${fieldId}-${key}-label`}>{labels[key]}</InputLabel>
       <Select
+        id={key}
         labelId={`${fieldId}-${key}-label`}
         required={!siteScope}
         label={labels[key]}
@@ -200,6 +212,7 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
               ? "true"
               : "false"
         }
+        autoFocus={key === focusTarget}
         onChange={(event) =>
           setValue(
             key,

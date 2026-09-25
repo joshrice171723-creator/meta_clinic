@@ -959,11 +959,21 @@ function AppointmentRow({
       </div>
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />
-        {needsSetup && (
-          <span>
-            Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}
-          </span>
-        )}
+        {needsSetup &&
+          (canReschedule ? (
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => onReschedule(appointment)}
+              aria-label={`Complete appointment setup: ${setupMissing.map(setupFieldLabel).join(", ")}`}
+            >
+              Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}
+            </Button>
+          ) : (
+            <span>
+              Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}
+            </span>
+          ))}
         {appointment.encounter_status === "open" && (
           <span>Clinical encounter open</span>
         )}
@@ -1188,6 +1198,9 @@ function RescheduleDialog({
             select
             required
             label="Site"
+            autoFocus={Boolean(
+              draft && appointmentSetupMissing(draft.appointment)[0] === "site",
+            )}
             value={draft?.siteId || ""}
             disabled={draft?.busy || draft?.outcomeUnconfirmed}
             onChange={(event) =>
@@ -1246,6 +1259,10 @@ function RescheduleDialog({
             select
             required
             label="Booked clinician"
+            autoFocus={Boolean(
+              draft &&
+              appointmentSetupMissing(draft.appointment)[0] === "clinician",
+            )}
             value={draft?.clinicianId || ""}
             disabled={draft?.busy || draft?.outcomeUnconfirmed}
             onChange={(event) =>
@@ -1275,6 +1292,10 @@ function RescheduleDialog({
             select
             required
             label="Visit type"
+            autoFocus={Boolean(
+              draft &&
+              appointmentSetupMissing(draft.appointment)[0] === "visit_type",
+            )}
             value={draft?.visitTypeId || ""}
             disabled={draft?.busy || draft?.outcomeUnconfirmed}
             onChange={(event) =>

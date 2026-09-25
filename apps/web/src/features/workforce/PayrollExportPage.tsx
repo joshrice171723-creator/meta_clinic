@@ -5,6 +5,7 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
+  Link,
   MenuItem,
   Stack,
   Table,
@@ -18,6 +19,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { businessNow } from "../../shared/businessDate";
 
 type Column = { field: string; header: string };
@@ -61,6 +63,7 @@ type Preview = {
 
 export function PayrollExportPage() {
   const clinic = useClinic();
+  const { navigate } = useClinicNavigation();
   const [siteId, setSiteId] = useState(() =>
     String(clinic.current_site?.id || clinic.sites[0]?.id || ""),
   );
@@ -243,7 +246,22 @@ export function PayrollExportPage() {
               <Typography variant="h6">File settings</Typography>
               <Typography color="text.secondary">
                 Custom CSV. Column headings and employee payroll IDs are saved
-                for this location. Enable payroll exports in Location rules
+                for this location. Enable payroll exports in{" "}
+                {clinic.capabilities.workforce_settings === true ? (
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/clinic/workforce/settings?site_id=${encodeURIComponent(siteId)}&focus=payroll_export_enabled`,
+                      )
+                    }
+                  >
+                    Location rules
+                  </Link>
+                ) : (
+                  "Location rules"
+                )}{" "}
                 before generating a file.
               </Typography>
               <TextField

@@ -410,6 +410,7 @@ function ReviewDrawer({
   selectedSegmentId,
   onEvidenceSelect,
   onSelectDraft,
+  onFocusSection,
 }: {
   open: boolean;
   onClose: () => void;
@@ -420,6 +421,7 @@ function ReviewDrawer({
   selectedSegmentId: number | null;
   onEvidenceSelect: (id: number) => void;
   onSelectDraft: (id: number) => void;
+  onFocusSection: (key: ScribeDraftSection["section_key"]) => void;
 }) {
   return (
     <Drawer
@@ -542,9 +544,21 @@ function ReviewDrawer({
                         · {section.status.replaceAll("_", " ")}
                       </Typography>
                       {reasons.length > 0 && (
-                        <Typography variant="body2" color="warning.main">
-                          Needs review: {reasons.join(" · ")}
-                        </Typography>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: "center", flexWrap: "wrap" }}
+                        >
+                          <Typography variant="body2" color="warning.main">
+                            Needs review: {reasons.join(" · ")}
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => onFocusSection(section.section_key)}
+                          >
+                            Review section
+                          </Button>
+                        </Stack>
                       )}
                       {section.evidence_segment_ids.length > 0 && (
                         <Stack
@@ -615,6 +629,9 @@ export function ScribeReviewWorkspace({
   );
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [focusSectionKey, setFocusSectionKey] = useState<
+    ScribeDraftSection["section_key"] | null
+  >(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const editContextRef = useRef<{
     encounterId: number;
@@ -622,6 +639,15 @@ export function ScribeReviewWorkspace({
     baseline: Record<string, string>;
   } | null>(null);
   const discardTokenRef = useRef(discardEditsToken);
+  useEffect(() => {
+    if (drawerOpen || !focusSectionKey) return;
+    const field = document.getElementById(
+      `scribe-review-section-${focusSectionKey}`,
+    );
+    field?.scrollIntoView({ behavior: "smooth", block: "center" });
+    field?.focus();
+    setFocusSectionKey(null);
+  }, [drawerOpen, focusSectionKey]);
   const consumedFollowRef = useRef<number | null>(null);
   const encounter = state.kind === "ready" ? state.encounter : undefined;
   const latestDraft = useMemo(
@@ -1043,6 +1069,7 @@ export function ScribeReviewWorkspace({
                     </Stack>
                   </Stack>
                   <TextField
+                    id={`scribe-review-section-${section.section_key}`}
                     fullWidth
                     multiline
                     minRows={2}
@@ -1131,6 +1158,24 @@ export function ScribeReviewWorkspace({
                           ? "Human-edited"
                           : "Generated draft"}
                     </Typography>
+                    {reasons.length > 0 && (
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => {
+                          const field = document.getElementById(
+                            `scribe-review-section-${section.section_key}`,
+                          );
+                          field?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                          field?.focus();
+                        }}
+                      >
+                        Focus section
+                      </Button>
+                    )}
                     {section.evidence_segment_ids.length > 0 && (
                       <Button
                         size="small"
@@ -1285,6 +1330,10 @@ export function ScribeReviewWorkspace({
         sources={sources}
         selectedSegmentId={selectedSegmentId}
         onEvidenceSelect={selectEvidence}
+        onFocusSection={(key) => {
+          setFocusSectionKey(key);
+          setDrawerOpen(false);
+        }}
         onSelectDraft={(id) => {
           if (!hasUnsavedEdits) setSelectedDraftId(id);
         }}
