@@ -3177,6 +3177,7 @@ export function SoapNoteForm({
   const [replaceWorkingCopy, setReplaceWorkingCopy] = useState(false);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const restoredDraft = useRef(false);
+  const resetAfterDraftReload = useRef(false);
   const skipNextDraftSave = useRef(false);
   const draftSaveTimer = useRef<number | null>(null);
   const templateChanged =
@@ -3312,6 +3313,57 @@ export function SoapNoteForm({
       setConflictDialogOpen(Boolean(note));
     }
   }, [encounterId, note, patientId, workingDraft.ready, workingDraft.restored]);
+
+  useEffect(() => {
+    if (!workingDraft.ready || !resetAfterDraftReload.current) return;
+    resetAfterDraftReload.current = false;
+    const restored = workingDraft.restored;
+    if (!restored) {
+      saveAttemptRef.current = null;
+      setRequestKey(null);
+      setSaveState("idle");
+      setError("");
+      setBusy(false);
+      return;
+    }
+    if (
+      patientId == null ||
+      restored.schema_version !== 1 ||
+      restored.patient_id !== patientId ||
+      restored.encounter_id !== encounterId ||
+      !restored.baseline ||
+      !validSoapSections(restored.baseline.sections) ||
+      !validSoapSections(restored.sections) ||
+      typeof restored.patient_instructions !== "string"
+    ) {
+      setError(
+        "The latest protected working note did not match this encounter. The save attempt was not reset.",
+      );
+      setBusy(false);
+      return;
+    }
+    void workingDraft
+      .save({ ...restored, pending_attempt: null })
+      .then((saved) => {
+        if (!saved) {
+          setError(
+            "The latest protected working note changed again before its pending save could be cleared.",
+          );
+          return;
+        }
+        saveAttemptRef.current = null;
+        setRequestKey(null);
+        setSaveState("idle");
+        setError("");
+      })
+      .finally(() => setBusy(false));
+  }, [
+    encounterId,
+    patientId,
+    workingDraft.ready,
+    workingDraft.restored,
+    workingDraft.save,
+  ]);
 
   useEffect(() => {
     const revision = note?.current_revision;
@@ -3740,10 +3792,9 @@ export function SoapNoteForm({
     setBusy(true);
     const snapshot = workingSnapshot(null);
     if (!snapshot || !(await workingDraft.save(snapshot))) {
-      setBusy(false);
-      setError(
-        "The pending save identity could not be cleared from the protected working note.",
-      );
+      resetAfterDraftReload.current = true;
+      restoredDraft.current = false;
+      workingDraft.reload();
       return;
     }
     saveAttemptRef.current = null;
