@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   Button,
   Table,
@@ -322,7 +322,6 @@ export const conversionTarget = {
   orders: 30,
 };
 export function I2eInvestorPage() {
-  const [showDeck, setShowDeck] = useState(false);
   const t = conversionTarget;
   const savings = t.baseline - t.price;
   const contribution = t.price - t.variable;
@@ -710,24 +709,8 @@ export function I2eInvestorPage() {
           </section>
           <section id="sales-deck">
             <h2>Sales deck / detailed market scenarios</h2>
-            <Button
-              href={salesDeckUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open published deck
-            </Button>
-            <Button onClick={() => setShowDeck(!showDeck)}>
-              {showDeck ? "Hide deck" : "Show deck"}
-            </Button>
-            {showDeck && (
-              <iframe
-                title="Meta Clinic sales revenue deck"
-                src={salesDeckUrl}
-                className="i2e-deck-frame"
-                loading="lazy"
-              />
-            )}
+            <Button href={salesDeckUrl}>Show deck</Button>
+            <span className="i2e-note">Back returns to this workspace.</span>
           </section>
         </main>
       </div>

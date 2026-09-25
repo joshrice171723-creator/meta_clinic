@@ -581,11 +581,6 @@
 .i2e-console .i2e-total .MuiTableCell-root {
   font-weight: 700;
 }
-.i2e-console .i2e-deck-frame {
-  width: 100%;
-  height: 720px;
-  border: 0;
-}
 @media (max-width: 1000px) {
   .i2e-console .i2e-workspace {
     grid-template-columns: 1fr;
