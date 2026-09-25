@@ -439,6 +439,7 @@ export type InventoryActivityData = InventoryReadContext & {
     page_size: number;
   };
   movements: (InventoryMovement & {
+    product_id: string;
     lot_number: string;
     location_name: string;
     stock_unit: string;

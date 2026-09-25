@@ -144,6 +144,7 @@ describe("inventory integration", () => {
           id: "120",
           type: "receipt",
           lot_id: "1",
+          product_id: "1",
           location_id: "1",
           quantity_units: "0.125",
           direction: "in",
@@ -183,7 +184,11 @@ describe("inventory integration", () => {
     };
     expect(
       renderToStaticMarkup(
-        <ActivityScreen data={data} onRead={async () => {}} run={async () => {}} />,
+        <ActivityScreen
+          data={data}
+          onRead={async () => {}}
+          run={async () => {}}
+        />,
       ),
     ).toContain("Reverse stock removal");
     data.movements[0] = {

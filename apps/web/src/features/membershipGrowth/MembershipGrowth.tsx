@@ -37,11 +37,16 @@ import type {
   MembershipStorefront,
 } from "./types";
 
-const relationshipFilters = ["prospective_patient", "closed"] as const;
+const relationshipFilters = [
+  "prospective_patient",
+  "patient",
+  "closed",
+] as const;
 type RelationshipFilter = (typeof relationshipFilters)[number];
 
 const relationshipLabels: Record<RelationshipFilter, string> = {
   prospective_patient: "Prospective patients",
+  patient: "Patients",
   closed: "Closed",
 };
 
@@ -747,6 +752,20 @@ export function MembershipGrowth() {
                     : "is awaiting email delivery."}
                 </Alert>
               )}
+              {selected.relationship_stage === "patient" &&
+                selected.patient_id && (
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <Button
+                      href={`/clinic/patients/${selected.patient_id}`}
+                      variant="outlined"
+                    >
+                      Open patient chart
+                    </Button>
+                    <Button href="/clinic/work" variant="outlined">
+                      Open Patient Flow
+                    </Button>
+                  </Stack>
+                )}
               <Typography variant="body2" color="text.secondary">
                 Submitted {dateTime(selected.created_at)} ·{" "}
                 {enrollmentLabel(selected)}
