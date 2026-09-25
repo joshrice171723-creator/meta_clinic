@@ -99,6 +99,7 @@ function programHasDraftChanges(item: CatalogItem) {
 export function SubscriptionCatalog() {
   const resource = useResource<AdminCatalog>(
     "/api/clinic/subscription_catalog",
+    { retainDataOnRefresh: true },
   );
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
