@@ -1,473 +1,290 @@
 .i2e-page {
-  --i2e-accent: #245b49;
-  --i2e-muted: #52655e;
-  --i2e-soft: #f0f4ee;
-  --i2e-upfront: #805b36;
-  background: #fbfcfa;
-  color: #20352f;
-  font-family: Arial, sans-serif;
+  --ink: #24342f;
+  --muted: #57645e;
+  --accent: #245b49;
+  --stripe: #f0f3ef;
+  background: #fafbf9;
+  color: var(--ink);
+  font:
+    13px/1.5 Arial,
+    sans-serif;
   min-height: 100vh;
-  font-size: 15px;
-  line-height: 1.6;
-  caret-color: var(--i2e-accent);
 }
 .i2e-page * {
   box-sizing: border-box;
 }
 .i2e-page ::selection {
-  background: #d9e9dc;
-  color: #20352f;
+  background: #d5e6d9;
 }
 .i2e-page a {
-  color: inherit;
-  text-underline-offset: 4px;
-}
-.i2e-page p {
-  margin: 0 0 16px;
-  max-width: 72ch;
+  color: var(--accent);
+  text-underline-offset: 3px;
 }
 .i2e-page h1,
 .i2e-page h2,
 .i2e-page h3 {
+  font-family: Arial, sans-serif;
+  color: var(--ink);
+  font-weight: 600;
   margin: 0;
-  line-height: 1.2;
-  color: inherit;
+  letter-spacing: -0.015em;
 }
-.i2e-page h1,
+.i2e-page h1 {
+  font-size: 25px;
+  line-height: 1.3;
+}
 .i2e-page h2 {
-  font-weight: 500;
-  letter-spacing: -0.025em;
-  text-wrap: balance;
+  font-size: 19px;
+  line-height: 1.4;
 }
 .i2e-page h3 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 20px;
+  font-size: 14px;
+  margin-bottom: 14px;
 }
-.i2e-page em {
-  font-family: Georgia, serif;
-  color: #476c55;
-}
-.i2e-page .MuiButton-root {
-  font-family: inherit;
-  text-transform: none;
-  border-radius: 4px;
-}
-.i2e-page .MuiButton-contained {
-  background: var(--i2e-accent);
-  color: white;
-  padding: 12px 20px;
-}
-.i2e-page .MuiButton-contained:hover {
-  background: #184733;
-}
-.i2e-page .MuiSlider-root {
-  color: var(--i2e-accent);
+.i2e-page p {
+  margin: 10px 0 16px;
+  line-height: 1.6;
+  max-width: none;
 }
 .i2e-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 3.5vw;
   gap: 24px;
+  padding: 14px 28px;
+  background: #fafbf9;
 }
 .i2e-brand {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   text-decoration: none;
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.i2e-brand > span {
-  background: var(--i2e-accent);
-  color: white;
-  padding: 2px 10px;
-  border-radius: 5px;
-  font-size: 26px;
+.i2e-brand span {
+  font-size: 15px;
+  color: var(--ink);
 }
-.i2e-header nav {
+.i2e-header > span {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.i2e-header > div {
   display: flex;
+  gap: 8px;
+}
+.i2e-page .MuiButton-root {
+  font:
+    12px Arial,
+    sans-serif;
+  text-transform: none;
+  min-height: 34px;
+  color: var(--accent);
+  border-color: #a4b6a9;
+  box-shadow: none;
+}
+.i2e-workspace {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
   gap: 28px;
-  font-size: 13px;
+  padding: 0 28px;
 }
-.i2e-header nav a {
+.i2e-nav {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  position: sticky;
+  top: 20px;
+  gap: 5px;
+  padding: 26px 0;
+}
+.i2e-nav a {
   text-decoration: none;
-  padding: 8px 0;
+  color: var(--muted);
+  padding: 9px 12px;
+  border-radius: 3px;
+  font-size: 12px;
 }
-.i2e-header nav a:hover {
-  color: var(--i2e-accent);
-  text-decoration: underline;
+.i2e-nav a:hover,
+.i2e-nav a:focus-visible {
+  background: #e8eee6;
+  color: var(--accent);
 }
 .i2e-page main {
+  min-width: 0;
+  width: 100%;
   max-width: 1800px;
-  margin: auto;
-  padding: 0 3.5vw;
+  margin: 0 auto;
 }
 .i2e-page section {
-  padding: 48px 0;
-  scroll-margin-top: 20px;
+  padding: 26px 0 32px;
+  scroll-margin-top: 16px;
 }
-.i2e-page .i2e-hero {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 8vw;
-  padding: 48px 0 38px;
-}
-.i2e-page h1 {
-  font-family: Georgia, serif;
-  font-size: clamp(38px, 4.4vw, 70px);
-  line-height: 1.06;
-  margin-bottom: 26px;
-}
-.i2e-lead {
-  font-size: 19px;
-  color: var(--i2e-muted);
-  max-width: 680px !important;
-}
-.i2e-hero-actions {
+.i2e-heading {
   display: flex;
   align-items: center;
-  gap: 22px;
-  margin-top: 26px;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
 }
-.i2e-hero-actions > span {
+.i2e-heading p {
   font-size: 12px;
-  color: var(--i2e-muted);
+  color: var(--muted);
+  margin: 6px 0 0;
 }
-.i2e-intro h2 {
-  font-size: 29px;
-  margin-bottom: 18px;
+.i2e-heading > span,
+.i2e-status {
+  font-size: 11px;
+  color: var(--muted);
 }
-.i2e-intro > p {
-  font-size: 14px;
-  color: var(--i2e-muted);
-}
-.i2e-page dl {
-  margin: 0;
-}
-.i2e-page dl > div {
+.i2e-metrics {
   display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 18px;
-  padding: 12px 0;
-  font-size: 13px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0;
 }
-.i2e-page dt {
-  color: var(--i2e-muted);
-}
-.i2e-page dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-.i2e-page .i2e-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 36px;
-  padding: 24px 0 36px;
-}
-.i2e-page .i2e-metrics > div {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 0;
+.i2e-metrics dt {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 5px;
 }
 .i2e-metrics dd {
-  font-size: 42px;
-  font-weight: 500;
-  letter-spacing: -0.025em;
-}
-.i2e-metrics small {
-  font-size: 16px;
-  letter-spacing: 0;
-  color: var(--i2e-muted);
-}
-.i2e-section-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 32px;
-  margin-bottom: 32px;
-}
-.i2e-section-heading h2 {
-  font-size: clamp(25px, 2.35vw, 36px);
-}
-.i2e-section-heading > p {
-  font-size: 12px;
-  color: var(--i2e-muted);
-  max-width: 320px;
   margin: 0;
-}
-.i2e-anchor {
-  font-family: Arial, sans-serif;
-  font-size: 0.65em;
-  margin-right: 12px;
-  vertical-align: 3px;
-  letter-spacing: 0;
-}
-.i2e-comparison,
-.i2e-flow-grid,
-.i2e-economics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-}
-.i2e-comparison h3 {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-}
-.i2e-comparison h3 > span {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--i2e-muted);
-}
-.i2e-page .i2e-statement {
-  font-size: clamp(24px, 2.2vw, 34px);
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  margin-bottom: 24px;
-  font-weight: 500;
-}
-.i2e-statement small {
-  font-size: 15px;
-  letter-spacing: 0;
-  color: var(--i2e-muted);
-}
-.i2e-comparison dl > div {
-  grid-template-columns: 130px 1fr;
-  padding: 16px 12px;
-  min-height: 86px;
-}
-.i2e-comparison dl > div:nth-child(odd) {
-  background: var(--i2e-soft);
-}
-.i2e-note {
-  font-size: 12px !important;
-  color: var(--i2e-muted);
-  line-height: 1.65;
-  margin-top: 18px !important;
-}
-.i2e-capital-grid {
-  display: grid;
-  grid-template-columns: minmax(250px, 1fr) minmax(0, 2.8fr);
-  gap: 60px;
-  align-items: start;
-}
-.i2e-budget-summary {
-  position: sticky;
-  top: 24px;
-}
-.i2e-budget-summary > p:not(.i2e-statement) {
-  font-size: 14px;
-}
-.i2e-budget-summary dl > div {
-  grid-template-columns: 1fr auto;
-}
-.i2e-formula {
+  font-size: 28px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.i2e-answer {
+  max-width: 115ch !important;
+  color: #43554a;
+}
+.i2e-answer strong {
   font-weight: 600;
-  color: var(--i2e-accent);
+  color: var(--ink);
 }
-.i2e-page label[id] {
-  font-size: 13px;
-  display: flex;
-  justify-content: space-between;
-  margin-top: 24px;
-  gap: 20px;
+.i2e-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr);
+  gap: 32px;
+  align-items: start;
+  margin-bottom: 22px;
 }
-.i2e-matrix {
-  min-width: 0;
+.i2e-grid {
+  scrollbar-color: #819789 #edf1eb;
+  margin: 12px 0;
 }
-.i2e-matrix > .MuiFormControl-root {
-  max-width: 370px;
-}
-.i2e-matrix .MuiTableContainer-root {
-  margin-top: 20px;
-  scrollbar-color: #7d9584 #eef2eb;
-}
-.i2e-matrix .MuiTable-root {
-  min-width: 460px;
+.i2e-grid .MuiTable-root {
+  min-width: 660px;
   table-layout: auto;
 }
-.i2e-matrix .MuiTableCell-root {
+.i2e-grid .MuiTableCell-root {
+  font:
+    12px/1.55 Arial,
+    sans-serif;
+  color: var(--ink);
+  padding: 12px 14px;
   border: 0;
-  padding: 18px 16px;
   vertical-align: top;
-  font-size: 13px;
-  font-family: inherit;
-  line-height: 1.55;
-  color: #20352f;
 }
-.i2e-matrix .MuiTableCell-root[align="right"] {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-.i2e-matrix .MuiTableHead-root .MuiTableCell-root {
-  font-size: 12px;
-  color: var(--i2e-muted);
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-.i2e-matrix .MuiTableBody-root .MuiTableRow-root:nth-child(odd) {
-  background: var(--i2e-soft);
-}
-.i2e-matrix .MuiTableCell-root p {
-  font-size: 13px;
-  color: #425a4e;
-  margin: 7px 0;
-  max-width: 80ch;
-}
-.i2e-matrix .MuiTableCell-root small {
+.i2e-grid .MuiTableHead-root .MuiTableCell-root {
   font-size: 11px;
-  color: var(--i2e-muted);
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  white-space: nowrap;
 }
-.i2e-matrix .MuiTableFooter-root .MuiTableCell-root {
-  font-weight: 700;
-  background: #e6ede2;
-  font-size: 14px;
+.i2e-grid .MuiTableBody-root .MuiTableRow-root:nth-child(odd) {
+  background: var(--stripe);
 }
-.i2e-matrix .MuiTableCell-root.i2e-upfront {
-  color: var(--i2e-upfront);
+.i2e-grid .MuiTableCell-root:first-child {
+  min-width: 125px;
 }
-.i2e-matrix .MuiTableCell-root.i2e-recurring {
-  color: var(--i2e-accent);
+.i2e-grid .MuiTableCell-root.MuiTableCell-alignRight {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.i2e-matrix .MuiInputBase-input {
+.i2e-grid .MuiTableBody-root .MuiTableCell-root.MuiTableCell-alignRight {
+  font-family: Consolas, monospace;
+}
+.i2e-grid small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.i2e-grid .i2e-total .MuiTableCell-root {
+  font-weight: 600;
+  background: #e5ece2;
+}
+.i2e-grid .MuiTableCell-root.i2e-negative {
+  color: #963846;
+}
+.i2e-assumptions {
+  padding: 12px 0;
+}
+.i2e-assumptions .MuiFormControl-root {
+  display: flex;
+  margin: 16px 0;
+  width: 100%;
+}
+.i2e-page .MuiInputBase-input {
   height: auto;
   min-height: 0;
-  padding: 10px 14px;
-  box-shadow: none;
+  padding: 10px 12px;
   border: 0;
+  box-shadow: none;
   background: transparent;
+  font-size: 13px;
 }
-.i2e-matrix .MuiOutlinedInput-notchedOutline {
-  height: auto;
+.i2e-page .MuiInputLabel-root {
+  font-size: 12px;
+}
+.i2e-page .MuiOutlinedInput-notchedOutline {
   margin: 0;
+  height: auto;
   padding: 0 8px;
 }
-.i2e-flow {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0;
-}
-.i2e-flow li {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  gap: 16px;
-  padding: 18px 0;
-  position: relative;
-  min-height: 110px;
-}
-.i2e-flow li > span {
-  font-size: 12px;
-  color: var(--i2e-muted);
-  font-variant-numeric: tabular-nums;
-}
-.i2e-flow li:not(:last-child):after {
-  content: "↓";
-  position: absolute;
-  left: 8px;
-  bottom: -4px;
-  color: #71847a;
-}
-.i2e-flow strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-.i2e-flow p {
-  font-size: 13px;
-  color: var(--i2e-muted);
-  margin: 4px 0 0;
-}
-.i2e-flow-result {
-  font-weight: 600;
-  padding: 22px 0;
-  color: var(--i2e-accent);
-}
-.i2e-spread {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 20px 0;
-  color: var(--i2e-accent);
-}
-.i2e-spread span {
-  font-size: 32px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-.i2e-spread small {
+.i2e-page .MuiFormHelperText-root {
   font-size: 11px;
-  display: block;
-  color: var(--i2e-muted);
-  margin-top: 8px;
+  margin: 5px 0 0;
+  line-height: 1.5;
 }
-.i2e-spread b {
-  font-weight: 400;
-  color: var(--i2e-muted);
-  padding-top: 6px;
-}
-.i2e-economics {
-  grid-template-columns: 1fr 1.4fr;
-  gap: 70px;
-}
-.i2e-economics > .i2e-matrix .MuiTableContainer-root {
-  margin-top: 0;
-}
-.i2e-timeline {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 40px;
-}
-.i2e-timeline article > span {
-  font-size: 28px;
-  font-family: Georgia, serif;
-  color: #597762;
-}
-.i2e-timeline h3 {
-  margin: 18px 0 14px;
-}
-.i2e-timeline p {
-  font-size: 14px;
-  color: var(--i2e-muted);
-}
-.i2e-close {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 60px;
-}
-.i2e-close h2 {
-  font-family: Georgia, serif;
-  font-size: 34px;
-}
-.i2e-close p {
-  font-size: 15px;
-  color: var(--i2e-muted);
-}
-.i2e-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 30px;
-  padding: 30px 0;
+.i2e-note {
+  color: var(--muted);
   font-size: 11px;
-  color: var(--i2e-muted);
+  line-height: 1.6;
 }
-.i2e-footer > div:last-child {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
+.i2e-technical {
+  font:
+    12px/1.9 Consolas,
+    monospace;
+  background: transparent;
+  padding: 12px 0;
+  margin: 10px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #46594d;
+}
+.i2e-page iframe {
+  border: 0;
+  width: 100%;
+  height: 780px;
+  background: #f0f3ef;
+  margin-top: 16px;
+}
+.i2e-page footer {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 24px 0 32px;
 }
 .i2e-skip {
   position: absolute;
+  top: -80px;
   left: 15px;
-  top: -90px;
-  background: white;
   padding: 12px;
+  background: white;
   z-index: 10;
 }
 .i2e-skip:focus {
@@ -475,162 +292,133 @@
 }
 .i2e-page a:focus-visible,
 .i2e-page [tabindex]:focus-visible {
-  outline: 2px solid var(--i2e-accent);
-  outline-offset: 4px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.i2e-page [role="alert"] {
+  color: #963846;
 }
 @media (max-width: 1100px) {
-  .i2e-capital-grid {
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 30px;
-  }
-  .i2e-comparison,
-  .i2e-flow-grid,
-  .i2e-economics {
-    gap: 30px;
-  }
-  .i2e-comparison dl > div {
-    grid-template-columns: 100px 1fr;
-    min-height: 112px;
-  }
-  .i2e-page .i2e-hero {
-    gap: 35px;
-  }
-  .i2e-header nav {
+  .i2e-workspace {
+    grid-template-columns: 140px minmax(0, 1fr);
     gap: 18px;
+    padding: 0 20px;
+  }
+  .i2e-split {
+    grid-template-columns: 1fr;
+  }
+  .i2e-assumptions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+  }
+  .i2e-assumptions h3 {
+    grid-column: 1/-1;
+  }
+  .i2e-metrics {
+    gap: 16px;
   }
   .i2e-metrics dd {
-    font-size: 34px;
-  }
-  .i2e-timeline {
-    gap: 24px;
-  }
-  .i2e-economics {
-    grid-template-columns: 1fr 1.2fr;
+    font-size: 25px;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 700px) {
   .i2e-header {
+    padding: 14px 16px;
     flex-wrap: wrap;
-    padding: 18px 5vw;
-    gap: 15px;
+    gap: 10px;
   }
-  .i2e-header nav {
-    order: 3;
-    width: 100%;
-    gap: 20px;
-    flex-wrap: wrap;
+  .i2e-header > span {
+    display: none;
   }
-  .i2e-page main {
-    padding: 0 5vw;
+  .i2e-workspace {
+    display: block;
+    padding: 0 16px;
   }
-  .i2e-page .i2e-hero {
-    grid-template-columns: 1fr;
-    padding-top: 28px;
-    gap: 32px;
-  }
-  .i2e-hero-actions {
-    flex-wrap: wrap;
-  }
-  .i2e-page .i2e-metrics {
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-  }
-  .i2e-section-heading {
-    align-items: start;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .i2e-comparison,
-  .i2e-flow-grid,
-  .i2e-economics,
-  .i2e-capital-grid,
-  .i2e-close {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
-  .i2e-comparison dl > div {
-    grid-template-columns: 110px 1fr;
-    min-height: 0;
-  }
-  .i2e-budget-summary {
+  .i2e-nav {
     position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    gap: 2px;
   }
-  .i2e-timeline {
-    grid-template-columns: 1fr 1fr;
-    gap: 28px;
-  }
-  .i2e-footer {
-    flex-direction: column;
+  .i2e-nav a {
+    padding: 7px 9px;
   }
   .i2e-page section {
-    padding: 32px 0;
+    padding: 20px 0;
   }
-  .i2e-matrix .MuiTableCell-root {
-    padding: 14px 12px;
+  .i2e-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
   }
-  .i2e-page h1 {
-    font-size: 42px;
+  .i2e-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
   }
-  .i2e-close h2 {
-    font-size: 30px;
-  }
-}
-@media (max-width: 380px) {
-  .i2e-page h1 {
-    font-size: 36px;
-  }
-  .i2e-timeline {
+  .i2e-assumptions {
     grid-template-columns: 1fr;
   }
-  .i2e-header nav {
-    gap: 12px;
+  .i2e-page h1 {
+    font-size: 23px;
   }
-  .i2e-spread span {
-    font-size: 27px;
+  .i2e-page iframe {
+    height: 650px;
+  }
+  .i2e-header > div {
+    gap: 0;
+  }
+  .i2e-grid .MuiTableCell-root {
+    padding: 10px 12px;
   }
 }
 @media print {
-  .i2e-header nav,
-  .i2e-print,
-  .i2e-hero-actions,
-  .i2e-page .MuiSlider-root,
-  .i2e-matrix > .MuiFormControl-root {
+  .i2e-header > div,
+  .i2e-nav,
+  .i2e-assumptions,
+  .i2e-page iframe,
+  .i2e-page button {
     display: none !important;
+  }
+  .i2e-workspace {
+    display: block;
+    padding: 0;
   }
   .i2e-page {
     background: white;
-  }
-  .i2e-page main {
-    padding: 0;
+    font-size: 10px;
   }
   .i2e-page section {
-    padding: 24px 0;
+    padding: 16px 0;
   }
-  .i2e-budget-summary {
-    position: static;
-  }
-  .i2e-matrix .MuiTableContainer-root {
+  .i2e-grid {
     overflow: visible;
   }
-  .i2e-matrix .MuiTable-root {
+  .i2e-grid .MuiTable-root {
     min-width: 0;
   }
-  .i2e-comparison article,
-  .i2e-flow-grid article,
-  .i2e-timeline article,
-  .i2e-matrix tr {
+  .i2e-grid .MuiTableCell-root {
+    font-size: 9px;
+    padding: 7px 5px;
+  }
+  .i2e-grid .MuiTableHead-root .MuiTableCell-root {
+    white-space: normal;
+    font-size: 9px;
+  }
+  .i2e-grid .MuiTableCell-root:first-child {
+    min-width: 0;
+  }
+  .i2e-grid tr {
     break-inside: avoid;
+  }
+  .i2e-metrics {
+    grid-template-columns: repeat(4, 1fr);
   }
   .i2e-page a {
     text-decoration: none;
   }
-  .i2e-page .i2e-metrics {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  .i2e-capital-grid {
-    grid-template-columns: 1fr;
-  }
-  .i2e-matrix .MuiTableBody-root .MuiTableRow-root:nth-child(odd) {
+  .i2e-grid .MuiTableBody-root .MuiTableRow-root:nth-child(odd) {
     print-color-adjust: exact;
   }
 }

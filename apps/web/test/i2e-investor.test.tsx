@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  clinicEconomics,
+  incrementalCosts,
+  stackCosts,
   investorBudget,
   investorCosts,
 } from "../src/features/marketing/I2eInvestorPage";
@@ -22,5 +25,31 @@ describe("i2E financial model", () => {
     expect(3 * 14 * spread).toBeLessThan(investorBudget.monthly);
     expect(4 * 11 * spread).toBeGreaterThanOrEqual(investorBudget.monthly);
     expect(4 * 10 * spread).toBeLessThan(investorBudget.monthly);
+  });
+});
+
+describe("independent clinic costs", () => {
+  it("adds marginal costs only after the first clinic", () => {
+    expect(incrementalCosts.reduce((sum, row) => sum + row.monthly, 0)).toBe(
+      500,
+    );
+    expect(clinicEconomics(1).monthly).toBe(3200);
+    expect(clinicEconomics(3).monthly).toBe(4200);
+    expect(clinicEconomics(4).monthly).toBe(4700);
+    expect(clinicEconomics(10).monthly).toBe(7700);
+  });
+  it("includes network costs in order targets and offsets subscription receipts once", () => {
+    expect(clinicEconomics(3).orders).toBe(56);
+    expect(clinicEconomics(4).orders).toBe(63);
+    expect(clinicEconomics(10).orders).toBe(103);
+    expect(clinicEconomics(3, 1200).remainingOrders).toBe(8);
+    expect(clinicEconomics(4, 1200).contribution).toBe(100);
+    expect(clinicEconomics(4, 1200, 100).remainingOrders).toBe(4);
+    expect(clinicEconomics(4, 1200, 100).monthly).toBe(5100);
+    expect(clinicEconomics(10, 1200).remainingOrders).toBe(0);
+  });
+  it("keeps the comparison software-only and reconciles supplied rows", () => {
+    expect(stackCosts).toHaveLength(5);
+    expect(stackCosts.reduce((sum, row) => sum + row.cost, 0)).toBe(1354);
   });
 });
