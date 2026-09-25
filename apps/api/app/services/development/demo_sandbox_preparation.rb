@@ -4,7 +4,7 @@ module Development
       { name: "Casey Brooks", reference: "SANDBOX-PAT-001", offset: 0 },
       { name: "Riley Chen", reference: "SANDBOX-PAT-002", offset: 1 },
       { name: "Avery Diaz", reference: "SANDBOX-PAT-003", offset: 2 },
-      { name: "Morgan Ellis", reference: "SANDBOX-PAT-004", offset: 0 },
+      { name: "Morgan Ellis", reference: "SANDBOX-PAT-004", offset: 3 },
       { name: "Jordan Flores", reference: "SANDBOX-PAT-005", offset: 4 },
       { name: "Taylor Grant", reference: "SANDBOX-PAT-006", offset: 6 },
       { name: "Quinn Harper", reference: "SANDBOX-PAT-007", offset: 8 }
@@ -26,7 +26,7 @@ module Development
         main_site = run.practice.sites.first!
         annex_site = prepare_annex!(run)
         patients = prepare_patients!(run)
-        prepare_appointments!(run, patients:, sites: [ main_site, annex_site ])
+        prepare_appointments!(run, patients:, site: main_site)
         prepare_inventory!(run, main_site:, annex_site:)
       end
 
@@ -76,12 +76,11 @@ module Development
         end
       end
 
-      def prepare_appointments!(run, patients:, sites:)
+      def prepare_appointments!(run, patients:, site:)
         practice = run.practice
         clinician = practice.clinician_profiles.first!
         visit_type = practice.visit_types.first!
         patients.each_with_index do |(fixture, patient), index|
-          site = sites[index % sites.length]
           starts_at = appointment_start(practice:, clinician:, site:, offset: fixture.fetch(:offset), index:)
           appointment = practice.appointments.find_by(patient:, starts_at:) ||
             Clinic::Scheduling::BookAppointment.call(

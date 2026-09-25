@@ -124,6 +124,25 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert Clinic::PatientReminder.where(practice: run.practice).exists?
     assert_equal 2, run.practice.sites.count
     assert_operator run.practice.patients.count, :>=, 8
+    default_site = run.practice.sites.first!
+    sandbox_references = Development::DemoSandboxPreparation::PATIENTS.map { |fixture| fixture.fetch(:reference) }
+    sandbox_patients = run.practice.patients.where(reference: sandbox_references)
+    sandbox_appointments = run.practice.appointments.where(patient: sandbox_patients).to_a
+    assert_equal sandbox_patients.count, sandbox_appointments.count
+    assert sandbox_appointments.all? { |appointment| appointment.site_id == default_site.id }
+    tracked_encounter = run.practice.encounters.find_by!(patient: run.patient)
+    assert tracked_encounter.appointment
+    assert_equal default_site.id, tracked_encounter.appointment.site_id
+
+    expected_appointments = (sandbox_appointments + [ tracked_encounter.appointment ]).uniq
+    visible_appointment_ids = expected_appointments.group_by do |appointment|
+      appointment.starts_at.in_time_zone(run.practice.timezone).strftime("%Y-%m-01")
+    end.flat_map do |month, _appointments|
+      get "/api/clinic/schedule_calendar", params: { site_id: default_site.id, date: month }, headers: @headers
+      assert_response :success
+      response.parsed_body.fetch("days").flat_map { |day| day.fetch("appointments").map { |row| row.fetch("id") } }
+    end.uniq
+    assert_equal expected_appointments.map(&:id).sort, visible_appointment_ids.sort
     assert_operator run.practice.appointments.distinct.pluck(:starts_at).map(&:to_date).uniq.count, :>=, 6
     assert_operator run.practice.pharmacy_products.count, :>=, 5
     assert_operator run.practice.inventory_suppliers.count, :>=, 4
