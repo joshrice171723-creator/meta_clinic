@@ -76,18 +76,18 @@ export const investorCosts = [
     upfront: 0,
     monthly: 150,
     purpose:
-      "Budget for secure WebRTC video, remote consultations and patient check-ins, with Daily as a candidate provider.",
+      "Consumption-based WebRTC consultations via Twilio Programmable Video, with a signed BAA required before PHI use. At $0.004 per participant-minute, 35,000 participant-minutes cost $140 before extras, within the $150 usage budget.",
     value:
-      "Core access: $150 is a budget target. Daily lists a $500/month HIPAA + BAA add-on before usage. The proposed 100,000-minute allowance is unverified; participant-minutes differ from consultation minutes.",
+      "Capital efficiency: pay-as-you-go video usage scales with consultations. Twilio HIPAA Accounts require Security or Enterprise Edition; account fees and BAA terms must be confirmed separately.",
   },
   {
     category: "AI Clinical Scribe Engine",
     upfront: 0,
     monthly: 350,
     purpose:
-      "Audio processing and medical-language-model workflows targeting 450–500 draft SOAP notes per month, subject to recording length, model pricing and clinician review.",
+      "Audio streaming pipelines and medical LLM token processing, targeting 450–500 automated multi-system SOAP note drafts per month. Design targets will be verified during the pilot; clinicians review generated notes.",
     value:
-      "Reduce documentation effort and strengthen adoption. Capacity and up to three hours saved per day are validation targets, not measured outcomes; generated notes require review.",
+      "The Admin Killer: designed to reduce charting labor by up to three hours per day and strengthen adoption and retention. Time savings and adoption impact are pilot validation targets, not measured outcomes.",
   },
   {
     category: "Security & HIPAA hosting",
@@ -535,12 +535,16 @@ export function I2eInvestorPage() {
               </TableContainer>
               <p className="i2e-note">
                 Telehealth pricing reference:{" "}
-                <a href="https://www.daily.co/pricing/video-sdk/">
-                  Daily Video SDK pricing
+                <a href="https://www.twilio.com/en-us/video/pricing">
+                  Twilio Video pricing
                 </a>
-                . The $150 allocation does not cover the currently published
-                $500 healthcare add-on; final vendor selection and usage pricing
-                change the model.
+                . The $150 models video usage only; recording, transcription,
+                storage, taxes and applicable account fees are excluded. Confirm{" "}
+                <a href="https://www.twilio.com/docs/iam/twilio-editions/hippa">
+                  HIPAA Account and BAA terms
+                </a>
+                . Participant-minutes count each connected participant
+                separately.
               </p>
               <p className="i2e-note" aria-live="polite">
                 {rows.length} of {investorCosts.length} costs shown. Totals
