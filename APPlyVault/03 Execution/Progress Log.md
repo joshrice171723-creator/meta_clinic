@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-24 — Recent work integrated; hosted release blocked locally
+
+The recent membership journey, clinic navigation, and marketing branches were integrated into `main` and pushed at `5a2aa693`. No local branch remains ahead of `main`; unrelated uncommitted screenshots and launch styling were preserved. The merged frontend production build and 21 focused tests passed. The focused membership Rails test did not start because local PostgreSQL credentials mismatched; an isolated database startup then stalled. The [integration and release attempt record](../../records/progress/2026/09/2026-09-24-main-integration-release-attempt.md) lists the evidence and limits.
+
+The aimetaclinic.com release was attempted from the pinned `main` revision but stopped during the local API image build: Docker BuildKit closed unexpectedly twice, a fallback builder stalled, and Docker Desktop could not be restarted from this non-administrator shell. Nothing was transferred to the host. The hosted API, worker, guided demo and web remain on `2e866283`; `/up` returned 200. A successful matched-image build and the runbook's backup, restore and hosted checks are still required before the new code is live.
+
 ## 2026-09-24 — Two-scenario membership browser checkpoint
 
 In an isolated local synthetic clinic, staff published weight and behavioral membership tiers, the public page showed each plan, and two account-first requests persisted as unpaid prospects in Growth. A behavioral staff call-in-progress state survived reload. Neither request reached verification, simulated payment, patient creation, portal return or paid Patient Flow; browser control blocked opening the local mailer's verification files. The [dated evidence and 8/16 per-scenario proof score](../../records/progress/2026/09/2026-09-24-two-scenario-membership-browser-proof.md) identify the next connected acceptance step. No clinical or release readiness is claimed.
