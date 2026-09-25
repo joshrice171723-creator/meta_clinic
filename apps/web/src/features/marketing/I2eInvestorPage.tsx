@@ -13,7 +13,7 @@ import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
 import { I2eHelp } from "./I2eHelp";
 
-// Proposed two-stage scribe workload; the current development route is different.
+// End-product two-stage scribe workload used for the cost model.
 export const scribeCostModel = {
   minutesPerNote: 30,
   inputTokensPerNote: 6000,
@@ -118,9 +118,9 @@ export const investorCosts = [
     clinicBasis:
       "Central $110/month allowance models 500 notes; one added clinic models 125 more notes for $30/month. Each note assumes 30 audio minutes, 6,000 GPT-5.6 Luna input tokens and 2,000 output tokens, with 5.5% credit fee, 10% reserve and rounding. Pilot usage will determine actual cost.",
     purpose:
-      "Model a two-stage OpenRouter workflow: Whisper-1 transcribes audio, then GPT-5.6 Luna drafts a note for clinician review. This is a pricing scenario, not the current development route or a guaranteed note capacity.",
+      "Model a two-stage OpenRouter workflow: Whisper-1 transcribes audio, then GPT-5.6 Luna drafts a note for clinician review. This pricing scenario does not establish a guaranteed note capacity.",
     value:
-      "The development scribe already routes through OpenRouter. Whisper-to-Luna routing and real consultation usage require implementation and pilot validation.",
+      "Actual per-note cost depends on audio length, model usage and clinic volume.",
   },
   {
     category: "Security & HIPAA hosting",
@@ -142,7 +142,18 @@ export const investorCosts = [
     purpose:
       "Build partner-order and status pipelines for licensed 503A pharmacies, with transaction-based economics.",
     value:
-      "Pharmacy partners are integration targets. No fixed platform fee is modeled; variable costs and terms require contracts.",
+      "Supported pharmacy partners exchange patient-specific orders and status updates. No fixed platform fee is modeled; variable costs depend on partner terms.",
+  },
+  {
+    category: "Clinic stock supplier connectivity",
+    upfront: 0,
+    monthly: 0,
+    clinicBasis:
+      "Supplier interface setup, account terms and per-order fees are unquoted and excluded from the modeled totals. Product and medication purchases are clinic expenses.",
+    purpose:
+      "Connect supported suppliers to clinic stock purchasing, order acknowledgment, shipment updates and receiving reconciliation.",
+    value:
+      "Supplier-specific commercial and technical terms determine the actual platform cost.",
   },
   {
     category: "Diagnostic lab connectivity (Quest / Labcorp)",
@@ -213,7 +224,7 @@ export const stackCosts = [
     cost: null,
     basis:
       "No DoseSpot price claimed. Confirm current Jane e-prescribing access and any separate vendor contract with the clinic.",
-    meta: "Jane medication management is not the same as sending prescriptions; U.S. e-prescribing availability depends on Jane beta access. Meta's Photon integration is proposed, not active.",
+    meta: "Jane medication management is distinct from pharmacy-network electronic transmission. Meta Clinic's end product connects prescribing to a contracted network such as Photon.",
   },
   {
     name: "AI clinical scribe",
@@ -304,7 +315,6 @@ const janeSources: Record<string, { url: string; label: string }[]> = {
     { url: "https://jane.app/features/telehealth", label: "Jane telehealth" },
   ],
   "Medication records and e-prescribing": [
-    { url: "https://jane.app/guide/medical-wellness-hub", label: "Jane medical hub / roadmap" },
     { url: "https://jane.app/guide/prescriptions", label: "Jane prescriptions guide" },
   ],
   "Insurance billing engine": [
@@ -321,6 +331,11 @@ const janeSources: Record<string, { url: string; label: string }[]> = {
       url: "https://jane.app/integrations",
       label: "Jane integration directory; confirm partner coverage",
     },
+  ],
+  "Clinic stock supplier purchasing": [
+    { url: "https://jane.app/guide/products-hub", label: "Jane product inventory" },
+    { url: "https://jane.app/guide/the-inventory-report-product-price-lists-and-calculating-retail-value", label: "Jane inventory and cost report" },
+    { url: "https://jane.app/guide/fullscript-integration", label: "Jane Fullscript integration" },
   ],
 };
 const metaCostSources: Record<string, { key: string; label: string }[]> = {
@@ -418,11 +433,49 @@ export function I2eInvestorPage() {
           <section id="switching">
             <h1>01 / Medical weight loss + hormone optimization</h1>
             <p className="i2e-note">
-              Cost-to-deliver comparison: one three-provider independent
-              cash-pay weight-management practice · Jane prices are published
-              list prices; Meta Clinic costs are internal models or marked
-              unknown · USD / month
+              Jane's current published product compared with Meta Clinic's
+              intended end product for one three-provider independent cash-pay
+              weight-management practice · Jane prices are published list
+              prices; Meta Clinic costs are internal models or marked unknown
+              · USD / month
             </p>
+            <div className="i2e-difference-summary" aria-label="Key workflow differences">
+              <div>
+                <strong>Electronic prescriptions</strong>
+                <p>
+                  Jane records and faxes prescriptions, but its standard U.S.
+                  offering does not send electronic prescriptions to pharmacies.
+                  A clinic needing that workflow uses a separate prescribing
+                  service. Meta Clinic's end product sends prescriptions from
+                  the clinical workflow through a contracted network.
+                </p>
+                <a
+                  href="https://jane.app/guide/prescriptions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Jane prescription guide ↗
+                </a>
+              </div>
+              <div>
+                <strong>Medication and product procurement</strong>
+                <p>
+                  Jane tracks stock, supplier names and stored costs. Its
+                  published workflow does not show live vendor quotes,
+                  clinic-stock order submission or receiving reconciliation.
+                  Clinics use their supplier's purchasing process; Meta Clinic's
+                  end product links supported supplier prices, orders and receipts
+                  to inventory.
+                </p>
+                <a
+                  href="https://jane.app/guide/the-inventory-report-product-price-lists-and-calculating-retail-value"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Jane inventory guide ↗
+                </a>
+              </div>
+            </div>
             <TableContainer
               className="i2e-grid i2e-comparison-table"
               tabIndex={0}
@@ -436,7 +489,7 @@ export function I2eInvestorPage() {
                       "Capability area",
                       "What Jane or the named vendor provides",
                       "What Jane / vendor charges the clinic",
-                      "Can Meta Clinic provide this at market launch?",
+                      "Meta Clinic end-product offering",
                       "Meta Clinic cost to deliver it",
                     ].map((header) => (
                       <TableCell key={header}>{header}</TableCell>
@@ -449,76 +502,101 @@ export function I2eInvestorPage() {
                       "Jane plan + provider seats",
                       "Core scheduling, online booking, charting, patient communications, billing and reporting.",
                       "Thrive is $99/month and includes one full-time practitioner. Two more provider licenses are charged by scheduled hours; Jane's calculator or the clinic invoice is needed for the actual three-provider total.",
-                      "Target: one clinic platform for the same broad workflow. Feature-by-feature parity and launch readiness are not established by this comparison.",
+                      "One clinic platform connects scheduling, patient records, communications, billing and reporting across the care journey.",
                       "$400/month shared hosting allowance in the operating budget. No per-clinic allocation or measured marginal infrastructure cost; build/support labor is not included.",
                     ],
                     [
                       "Hint Launch · alternative platform",
-      "Full weight-management platform: EMR/charting, scheduling, communications, e-prescribing/refills, lab ordering/results, memberships and automated billing. AI documentation and employer-management/eligibility are Pro features. Hint is an alternative to Jane, not a presumed Jane add-on.",
-      "Launch: $870/month for 3 clinicians and unlimited members ($290 first + $290 each additional). Pro: $784/month for 3 clinicians and 100 members ($320 base + 2 × $232), before extra members. Launch processing: cards 3% + $0.30 (+1% Amex); ACH 1% + $0.25 (capped at $5). Pro processing: cards 2.75% + $0.30 (+1% Amex); ACH 0.75% + $0.25 (capped at $5).",
-                      "Target: connect membership enrollment, recurring charges, visits and follow-up. Employer management and eligibility automation are not claimed as equivalent to Hint Pro.",
+                      "Full weight-management platform: EMR/charting, scheduling, communications, e-prescribing/refills, lab ordering/results, memberships and automated billing. AI documentation and employer-management/eligibility are Pro features. Hint is an alternative to Jane, not a presumed Jane add-on.",
+                      "Launch: $870/month for 3 clinicians and unlimited members ($290 first + $290 each additional). Pro: $784/month for 3 clinicians and 100 members ($320 base + 2 × $232), before extra members. Launch processing: cards 3% + $0.30 (+1% Amex); ACH 1% + $0.25 (capped at $5). Pro processing: cards 2.75% + $0.30 (+1% Amex); ACH 0.75% + $0.25 (capped at $5).",
+                      "Membership enrollment, recurring charges, visits and follow-up connect in the same clinic workflow. Hint Pro's employer management and eligibility automation are outside this comparison.",
                       "No separate membership vendor fee is budgeted. Payment processing and Connect costs depend on transaction volume and payment architecture; Meta's amount is unknown without those inputs.",
                     ],
                     [
                       "Jane memberships + payment processing",
                       "Thrive includes recurring packages/memberships, automated invoices, usage tracking and reports. Jane Payments online cards: 2.85% + $0.25; in-person: 2.6% + $0.10.",
                       "Memberships are included in Thrive's $99 base; add two provider licenses. Payment processing is charged per transaction at Jane's published rates.",
-                      "Target: recurring membership billing connected to clinic records and follow-up. This is a comparable category, not a unique Meta feature.",
+                      "Recurring membership billing connects to clinic records and follow-up. Jane already provides recurring memberships; this capability is not unique to Meta Clinic.",
                       "Payment rails use Stripe Connect in the model. If clinics pay Stripe directly, Stripe lists no platform fee and its standard online card processing starts at 2.9% + $0.30/charge. If Meta handles pricing, Connect adds $2/active account/month + 0.25% + $0.25/payout, plus processing. No transaction volume or architecture is fixed, so total is unknown.",
                     ],
                     [
                       "CRM / HubSpot optional reference",
                       "Jane has patient records, secure messaging and follow-up. A separate CRM is optional for sales pipeline or advanced campaign automation, not required for routine patient communications.",
-      "HubSpot CRM Free: $0 for up to 2 users and 1,000 contacts. For 3 seats, Starter is currently shown as $21/month promotional ($7/seat) or $60/month at its displayed standard monthly price ($20/seat); limits apply.",
-                      "Target: connect prospect capture and follow-up with clinic workflows. The exact CRM feature match is not established here.",
+                      "HubSpot CRM Free: $0 for up to 2 users and 1,000 contacts. For 3 seats, Starter is currently shown as $21/month promotional ($7/seat) or $60/month at its displayed standard monthly price ($20/seat); limits apply.",
+                      "Prospect capture and follow-up connect to clinic scheduling and care workflows. Advanced campaign automation is not priced as an equivalent HubSpot feature.",
                       "No separate CRM subscription is in the model. Engineering, shared hosting, messaging delivery and support are not allocated per clinic.",
                     ],
                     [
                       "Jane AI Scribe · 3 seats",
                       "Draft notes for clinician review; 5 notes/month free per practitioner, then $15/month per opted-in practitioner for unlimited notes.",
                       "$0 if each clinician stays within 5 free notes; $45/month if all 3 choose unlimited.",
-                      "Target: generated draft notes for clinician review. Workflow intent aligns; clinical quality and feature parity are not established by price alone.",
+                      "Consultation audio becomes a draft note in the clinical workflow for clinician review and signing.",
                       "$30/month modeled incremental usage for 125 notes (30 audio minutes each). Shared 500-note allowance is $110/month. These are usage assumptions requiring pilot validation.",
                     ],
                     [
                       "1:1 telehealth",
                       "Jane includes integrated one-to-one video visits in every plan at no extra subscription charge. Group telehealth is a separate add-on.",
                       "Included in Jane plan; no additional 1:1 fee.",
-                      "Target: one-to-one video visits linked to appointments and records.",
+                      "One-to-one video visits link to appointments and records.",
                       "$30/month modeled incremental Twilio usage for 125 two-person 30-minute visits; $150/month central usage reserve. BAA/account or other fees are not included in this usage estimate.",
                     ],
                     [
                       "Medication records and e-prescribing",
-      "Jane supports medication lists/history, prescription chart templates and fax workflows. Jane describes direct U.S. e-prescribing as upcoming; charting/fax is not electronic pharmacy transmission.",
-      "Medication records/templates are within the plan. Direct e-prescribing is not generally available in the sources reviewed; if a clinic needs it now, a separate vendor may be required, but no standard vendor or public price is established here.",
-                      "Target: e-prescribing through a contracted network. Controlled-substance, pharmacy-network and prescriber enrollment coverage need definition.",
-                      "Photon publishes $800/month centrally for up to 2,000 orders, then $0.80/order. No added base fee is modeled for a clinic within that tier; allocation, implementation and entity terms are unpriced/uncontracted.",
+                      "Jane supports medication lists/history, prescription chart templates and fax workflows. Its standard U.S. offering does not include electronic pharmacy transmission.",
+                      "Medication records and fax are within Jane. Clinics needing pharmacy-network electronic transmission use a separate prescribing service; the price depends on that service's contract and is not included in Jane's published plan price.",
+                      "Prescribers create and send electronic prescriptions to pharmacies from the clinical workflow through a contracted network, for supported medications and enrolled prescribers.",
+                      "Photon publishes $800/month centrally for up to 2,000 orders, then $0.80/order. No added base fee is modeled for a clinic within that tier; allocation, implementation and entity terms require a quote.",
                     ],
                     [
                       "Quest/Labcorp order/result tracking",
                       "Jane connects to Fullscript for supplement plans and U.S. lab orders/results in supported states; Fullscript is separate and test charges vary.",
                       "Fullscript platform is marketed as free; lab panels/tests are charged separately. Lab ordering excludes patients in NY, NJ, RI, HI and offshore U.S. territories.",
-                      "Target: orders and results linked to the chart. Exact catalog, state coverage, interface scope and launch partner are not established here.",
-                      "No lab partner is contracted or budgeted. Comparator only: Healthie E-Labs lists $10/ordering provider/month ($30 for 3) + $5/non-NPI user, before Enterprise subscription, setup and tests; this is not a Meta quote.",
+                      "Lab orders and results connect to the patient chart through supported partner catalogs and state coverage.",
+                      "Lab partner fees are unquoted and excluded from the total. Comparator only: Healthie E-Labs lists $10/ordering provider/month ($30 for 3) + $5/non-NPI user, before Enterprise subscription, setup and tests; this is not a Meta quote.",
                     ],
                     [
                       "Insurance billing engine",
                       "Jane offers eligibility, claims, rejection handling, ERAs and payment posting through Insurance Billing + Claim.MD; the clearinghouse account is separate.",
                       "$20/month + $5/full-time or $2.50/part-time per additional provider license; Claim.MD charges are separate and not priced here. Optional for this cash-pay example.",
-                      "Target: optional claims workflow for insurance-enabled clinics; not needed for the cash-pay scenario.",
+                      "An optional claims workflow supports insurance-enabled clinics; the cash-pay scenario does not require it.",
                       "Candid is modeled at $1,500/month for the shared platform. This is an internal allowance, not a vendor quote; per-clinic, clearinghouse and entity fees are unknown.",
                     ],
                     [
                       "503A partner pharmacy orders/status",
                       "Jane has an integrations directory; exact compounding-pharmacy order/status support depends on the named partner and clinic setup.",
                       "No universal price can be stated without the selected pharmacy and clinic contract.",
-                      "Target: partner-specific order/status connection subject to pharmacy selection, permitted data exchange and coverage.",
-                      "No partner selected. Fixed and per-order cost is unknown; $0 in the budget means unpriced, not free.",
+                      "Patient-specific orders and status updates connect to supported compounding pharmacy partners.",
+                      "Partner-specific fixed and per-order costs are unquoted; $0 in the budget means unpriced, not free.",
+                    ],
+                    [
+                      "Clinic stock supplier purchasing",
+                      "Jane includes stock counts, reorder reports, supplier names and manually recorded product costs. Its Fullscript integration supports patient supplement plans and lab orders. Jane's published guides do not describe live medication vendor prices, clinic-stock purchase-order submission, supplier acknowledgments or receiving reconciliation.",
+                      "Inventory is included in Jane plans. For supplier ordering, the clinic uses its supplier's separate purchasing process; product, medication and any portal fees depend on that supplier's agreement. No standard extra Jane fee is established.",
+                      "Supported suppliers connect to product and eligible clinic-owned medication catalogs, purchase-order submission, acknowledgment, shipment tracking, receiving, lot and expiration records, and stock reconciliation.",
+                      "Supplier interface, account and per-order fees are unquoted. No fixed supplier fee is included in Meta Clinic's modeled total; clinic product and medication purchases are separate expenses.",
                     ],
                   ].map(([label, janeFeatures, janePrice, metaCoverage, metaCost]) => (
-                    <TableRow key={label}>
+                    <TableRow
+                      key={label}
+                      className={
+                        label === "Medication records and e-prescribing" ||
+                        label === "Clinic stock supplier purchasing"
+                          ? "i2e-key-gap"
+                          : undefined
+                      }
+                    >
                       <TableCell component="th" scope="row">
                         <I2eHelp label={label} />
+                        {label === "Medication records and e-prescribing" && (
+                          <small className="i2e-gap-tag">
+                            Separate service for electronic pharmacy transmission
+                          </small>
+                        )}
+                        {label === "Clinic stock supplier purchasing" && (
+                          <small className="i2e-gap-tag">
+                            Supplier purchasing outside Jane's documented workflow
+                          </small>
+                        )}
                       </TableCell>
                       <TableCell>{janeFeatures}</TableCell>
                       <TableCell>
@@ -574,7 +652,7 @@ export function I2eInvestorPage() {
             <h2>02 / Meta Clinic cost to operate</h2>
             <p className="i2e-budget-intro">
               Shared one-time and monthly Meta Clinic operating-cost models.
-              These include infrastructure for several target services, not a
+              These include infrastructure for several end-product services, not a
               per-clinic invoice. The $1,500 insurance billing line is an
               optional central planning allowance; Candid has not quoted
               coverage for multiple independent owners.
@@ -654,12 +732,14 @@ export function I2eInvestorPage() {
                       <TableCell>{row.clinicBasis}</TableCell>
                       <TableCell align="right">
                         {row.category.startsWith("Diagnostic lab") ||
-                        row.category === "Wholesale clinical lab orders"
+                        row.category === "Wholesale clinical lab orders" ||
+                        row.category === "Clinic stock supplier connectivity"
                           ? "Unquoted"
                           : money(row.upfront)}
                       </TableCell>
                       <TableCell align="right">
-                        {row.category.startsWith("Diagnostic lab")
+                        {row.category.startsWith("Diagnostic lab") ||
+                        row.category === "Clinic stock supplier connectivity"
                           ? "Unquoted"
                           : row.category === "Wholesale clinical lab orders"
                             ? "Per order"
@@ -679,9 +759,9 @@ export function I2eInvestorPage() {
               01 shows the modeled $30 video and $30 scribe usage for its
               stated clinic assumptions; those are incremental usage estimates,
               not allocated shares of the shared stack. Final clinic cost
-              allocation depends on contracts and usage. Lab middleware and
-              per-order test costs are excluded. LegitScript's published $2,150
-              annual fee is additional if approved.
+              allocation depends on contracts and usage. Lab middleware,
+              supplier connectivity and per-order test costs are excluded.
+              LegitScript's published $2,150 annual fee is additional if approved.
             </p>
           </section>
           <section id="sales-deck">

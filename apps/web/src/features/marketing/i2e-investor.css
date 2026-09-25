@@ -657,6 +657,41 @@
   white-space: normal;
   vertical-align: top;
 }
+.i2e-difference-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.i2e-difference-summary > div {
+  background: #fff2d6;
+  border-left: 4px solid #b97816;
+  padding: 14px 16px;
+}
+.i2e-difference-summary strong {
+  color: #654b17;
+}
+.i2e-difference-summary p {
+  margin: 7px 0;
+}
+@media (max-width: 760px) {
+  .i2e-difference-summary {
+    grid-template-columns: 1fr;
+  }
+}
+.i2e-comparison-table .MuiTableBody-root .i2e-key-gap .MuiTableCell-root {
+  background: #fff2d6;
+  print-color-adjust: exact;
+}
+.i2e-comparison-table .i2e-key-gap .MuiTableCell-root:first-child {
+  border-left: 4px solid #b97816;
+  font-weight: 700;
+}
+.i2e-comparison-table .i2e-gap-tag {
+  color: #654b17;
+  font-weight: 600;
+  line-height: 1.35;
+}
 .i2e-comparison-table .i2e-warning-cell {
   background: #fff2d6;
   color: #654b17;
