@@ -1,5 +1,6 @@
 import {
   Alert,
+  AlertTitle,
   Autocomplete,
   Box,
   Button,
@@ -740,11 +741,12 @@ export function ClinicalPlanWorkspace({
     setDialogOpen(true);
   }
 
-  function openEdit(record: ClinicalRecord) {
-    const initial = recordForm(kind, record);
+  function openEdit(record: ClinicalRecord, overrides: FormState = {}) {
+    const original = recordForm(kind, record);
+    const initial = { ...original, ...overrides };
     setEditing(record);
     setForm(initial);
-    setBaseline(initial);
+    setBaseline(original);
     setError("");
     setNotice("");
     setDialogOpen(true);
@@ -1019,9 +1021,12 @@ export function ClinicalPlanWorkspace({
         {taskTarget?.kind === kind &&
           (taskRecord ? (
             <Alert severity="info">
-              Opened from Patient Flow. Continue the highlighted{" "}
-              {RESOURCE_META[taskTarget.kind].singular} and record its final
-              outcome here.
+              <AlertTitle>Finish this Patient Flow task</AlertTitle>
+              Select <strong>Complete Patient Flow task</strong> on the
+              highlighted {RESOURCE_META[taskTarget.kind].singular}, confirm the
+              status is Completed, and save the revision. Completion needs a
+              linked fulfillment record. If one cannot be linked, explain what
+              established completion in the Completion exception field.
             </Alert>
           ) : (
             <Alert severity="warning">
@@ -1275,6 +1280,36 @@ export function ClinicalPlanWorkspace({
                       spacing={1}
                       sx={{ alignSelf: { xs: "stretch", sm: "center" } }}
                     >
+                      {isTaskRecord &&
+                        record.allowed_statuses.includes("completed") && (
+                          <>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              disabled={
+                                !data.capabilities[kind] ||
+                                busy ||
+                                pendingAttempt !== null
+                              }
+                              onClick={() =>
+                                openEdit(record, { status: "completed" })
+                              }
+                              sx={{
+                                alignSelf: { xs: "stretch", sm: "center" },
+                              }}
+                            >
+                              Complete Patient Flow task
+                            </Button>
+                            <Typography
+                              color="text.secondary"
+                              variant="caption"
+                              sx={{ maxWidth: 240 }}
+                            >
+                              Saving the completed revision removes this order
+                              from Patient Flow.
+                            </Typography>
+                          </>
+                        )}
                       {record.completion_reconciliation_required && (
                         <>
                           <Typography variant="caption">
@@ -1343,10 +1378,26 @@ export function ClinicalPlanWorkspace({
         maxWidth="sm"
       >
         <DialogTitle>
-          {editing ? `Revise ${meta.singular}` : `Add ${meta.singular}`}
+          {editing &&
+          taskTarget?.kind === kind &&
+          taskTarget.seriesId === editing.series_id &&
+          form.status === "completed"
+            ? "Complete Patient Flow task"
+            : editing
+              ? `Revise ${meta.singular}`
+              : `Add ${meta.singular}`}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {editing &&
+              taskTarget?.kind === kind &&
+              taskTarget.seriesId === editing.series_id &&
+              form.status === "completed" && (
+                <Alert severity="info">
+                  Saving this revision as Completed closes the linked order task
+                  and removes it from Patient Flow.
+                </Alert>
+              )}
             {editing ? (
               <FormControl fullWidth>
                 <InputLabel id="clinical-record-status-label">
