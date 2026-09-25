@@ -21,7 +21,10 @@ check(configuration.get('development_login') is public_demo_enabled,
       'public development login matches staging configuration')
 check(configuration.get('public_demo_owner_pin_required') is public_demo_enabled,
       'owner demo PIN matches staging configuration')
-if not public_demo_enabled:
+if public_demo_enabled:
+    check(any(account['id'] == 'omni' for account in configuration.get('development_accounts', [])),
+          'Omni available for new organization setup')
+else:
     check(not configuration.get('development_accounts'), 'no public development account shortcuts')
 csrf = configuration['csrf_token']
 check(session.get(origin + '/api/clinic/context', timeout=20).status_code in (401, 403, 404), 'anonymous clinic access denied')

@@ -144,6 +144,9 @@ compose "$state/candidate.env" run --rm --no-deps guided-demo ./bin/rails db:mig
 compose "$state/candidate.env" run --rm --no-deps guided-demo ./bin/rails runner 'Development::TestAccounts.prepare_omni!'
 docker run --rm --entrypoint cat "$(sed -n 's/^API_IMAGE=//p' "$state/candidate.env")" /rails/db/runtime_privileges.sql |
   compose "$release_file" exec -T postgres psql -v ON_ERROR_STOP=1 -U apply_owner -d apply
+if grep -q '^APP_PUBLIC_DEVELOPMENT_LOGIN=1$' "$secrets/runtime.env"; then
+  compose "$state/candidate.env" run --rm --no-deps api ./bin/rails runner 'Development::TestAccounts.prepare_omni!'
+fi
 activated=1
 install -m 600 "$state/candidate.env" "$release_file"
 compose "$release_file" up -d --pull never --wait --wait-timeout 120 api worker guided-demo web
