@@ -12,7 +12,7 @@ import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
 import { I2eHelp } from "./I2eHelp";
-import { clinicMarkets, janeProfiles } from "./i2eMarketData";
+import { clinicMarkets } from "./i2eMarketData";
 
 export const investorCosts = [
   {
@@ -255,7 +255,6 @@ export function I2eInvestorPage() {
   const t = conversionTarget;
   const savings = t.baseline - t.price;
   const contribution = t.price - t.variable;
-  const network = clinicEconomics(10, t.price);
   const spread = investorBudget.retail - investorBudget.wholesale;
   useEffect(() => {
     const title = document.title;
@@ -304,9 +303,8 @@ export function I2eInvestorPage() {
       <div className="i2e-workspace">
         <nav className="i2e-nav" aria-label="Dashboard sections">
           <a href="#switching">01 / Conversion target</a>
-          <a href="#scaling">02 / Ten owners</a>
-          <a href="#clinic-markets">03 / Clinic markets</a>
-          <a href="#capital">04 / Vendor budget</a>
+          <a href="#clinic-markets">02 / Clinic markets</a>
+          <a href="#capital">03 / Vendor budget</a>
           <a href="#sales-deck">Sales deck</a>
         </nav>
         <main id="i2e-main">
@@ -416,54 +414,8 @@ export function I2eInvestorPage() {
               </div>
             </div>
           </section>
-          <section id="scaling">
-            <h2>02 / Ten independent owners · ten separate clinics</h2>
-            <Grid
-              label="Ten independent owners scale ledger"
-              headers={["Network metric", "Monthly amount / basis"]}
-            >
-              {[
-                [
-                  "Fixed upfront capital pool",
-                  "$10,500 one-time · workstation, legal templates, certification and audit budgets",
-                ],
-                ["Central platform + first clinic", "$3,200 / mo"],
-                ["Nine additional independent sites", "9 × $500 = $4,500 / mo"],
-                ["Total network software costs", money(network.monthly)],
-                [
-                  "Total network software revenue",
-                  "10 × $1,100 = $11,000 / mo",
-                ],
-                [
-                  "Network software contribution",
-                  `+${money(network.contribution)} / mo · ${((network.contribution / network.revenue) * 100).toFixed(0)}%`,
-                ],
-                ["Allocated expense / account", money(network.average)],
-                [
-                  "Allocated contribution / account",
-                  `+${money(network.contribution / 10)}`,
-                ],
-              ].map(([name, value]) => (
-                <TableRow
-                  key={name}
-                  className={name.includes("contribution") ? "i2e-profit" : ""}
-                >
-                  <TableCell component="th" scope="row">
-                    <I2eHelp label={name} />
-                  </TableCell>
-                  <TableCell>{value}</TableCell>
-                </TableRow>
-              ))}
-            </Grid>
-            <p className="i2e-note">
-              Includes the first clinic in the shared base plus nine additional
-              sites. Separate tenants, agreements and enrollment for each owner.
-              Modeled contribution before other operating expenses; excludes
-              transaction revenue.
-            </p>
-          </section>
           <section id="clinic-markets">
-            <h2>03 / Ten clinic markets · conversion priorities</h2>
+            <h2>02 / Ten clinic markets · conversion priorities</h2>
             <Grid
               label="Ten clinic market scenarios"
               headers={[
@@ -488,31 +440,14 @@ export function I2eInvestorPage() {
                 </TableRow>
               ))}
             </Grid>
-            <Grid
-              label="Two Jane clinic profiles"
-              headers={[
-                "Jane profile",
-                "Current bill to compare",
-                "Conversion offer",
-              ]}
-            >
-              {janeProfiles.map((row) => (
-                <TableRow key={row.name}>
-                  <TableCell component="th" scope="row">
-                    {row.name}
-                  </TableCell>
-                  <TableCell>{row.current}</TableCell>
-                  <TableCell>{row.offer}</TableCell>
-                </TableRow>
-              ))}
-            </Grid>
+
             <p className="i2e-note">
               Proposed pricing by specialty and scope. The $1,100 conversion
               offer applies to the featured three-provider practice.
             </p>
           </section>
           <section id="capital">
-            <h2>04 / Shared execution and vendor budget</h2>
+            <h2>03 / Shared execution and vendor budget</h2>
             <Grid
               label="Fixed cost matrix"
               headers={["Category", "Upfront", "Monthly"]}
