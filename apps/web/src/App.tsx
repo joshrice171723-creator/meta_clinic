@@ -66,6 +66,10 @@ const GrowthMarketingPage = lazyNamed(
   () => import("./features/marketing/GrowthMarketingPage"),
   (m) => m.GrowthMarketingPage,
 );
+const I2eInvestorPage = lazyNamed(
+  () => import("./features/marketing/I2eInvestorPage"),
+  (m) => m.I2eInvestorPage,
+);
 const MembershipPatientView = lazyNamed(
   () => import("./features/marketing/MembershipPatientView"),
   (m) => m.MembershipPatientView,
@@ -880,6 +884,7 @@ function Application() {
       "/workforce/kiosk",
       "/memberships",
       "/founder-decisions",
+      "/i2e",
     ].includes(path) ||
     (publicMembership !== null && path !== "/memberships/account") ||
     marketingFeature !== null ||
@@ -937,6 +942,12 @@ function Application() {
       </main>
     );
   const user = session.user || null;
+  if (path === "/i2e")
+    return (
+      <RouteBoundary root>
+        <I2eInvestorPage />
+      </RouteBoundary>
+    );
   const patientVideo = /^\/patient-portal\/telehealth\/([0-9a-f-]{36})$/i.exec(
     path,
   );
@@ -1018,7 +1029,9 @@ function Application() {
   if (path === "/meta-clinic/membership-care/patient-view")
     return (
       <RouteBoundary root>
-        <MembershipPatientView capture={new URLSearchParams(window.location.search).has("capture")} />
+        <MembershipPatientView
+          capture={new URLSearchParams(window.location.search).has("capture")}
+        />
       </RouteBoundary>
     );
   if (growthMarketing)
