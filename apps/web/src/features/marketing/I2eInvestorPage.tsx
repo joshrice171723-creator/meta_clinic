@@ -243,7 +243,7 @@ export function incrementalForServices(insurance: boolean, erx: boolean) {
   return 125 + 120 + (insurance ? 60 : 0) + (erx ? 195 : 0);
 }
 export const conversionTarget = {
-  baseline: 1354,
+  baseline: 149 + 870 + 150 + 120 + 45,
   price: 1100,
   variable: 500,
   namedAddons: 870 + 150 + 120 + 45,
@@ -319,22 +319,18 @@ export function I2eInvestorPage() {
               <div>
                 <h2>Current software stack</h2>
                 {ledger("Current Jane customer software stack", [
-                  ["Jane Practice + 2 seats · assumption", "$149"],
+                  ["Jane Practice + 2 seats", "$149"],
                   ["Hint membership billing", "$870", "i2e-warning"],
                   ["HubSpot CRM", "$150", "i2e-warning"],
                   ["DoseSpot eRx seats", "$120", "i2e-warning"],
                   ["Jane AI Scribe · 3 seats", "$45", "i2e-warning"],
                   [
-                    "Named add-ons subtotal",
+                    "Additional software subtotal",
                     money(t.namedAddons),
                     "i2e-warning",
                   ],
-                  ["Unreconciled baseline allowance", "$20", "i2e-warning"],
-                  [
-                    "Working total software bill",
-                    money(t.baseline),
-                    "i2e-total",
-                  ],
+
+                  ["Total software bill", money(t.baseline), "i2e-total"],
                 ])}
                 <p>
                   <strong>Conversion pain:</strong> Separate prescribing, lab,
@@ -342,10 +338,7 @@ export function I2eInvestorPage() {
                   re-entering orders or faxing their compounding partner.
                 </p>
                 <p className="i2e-note">
-                  Illustrative stack, not verified customer invoices. Named
-                  items total $1,334; the supplied $1,354 baseline includes $20
-                  not yet attributed. Jane Scribe is an add-on within Jane, not
-                  a separate login.
+                  Illustrative three-provider software budget.
                 </p>
               </div>
               <div>
@@ -354,32 +347,26 @@ export function I2eInvestorPage() {
                   ["Flat monthly platform fee", money(t.price), "i2e-total"],
                   ["Monthly software saving", money(savings)],
                   [
-                    "Saving on working baseline",
+                    "Software cost reduction",
                     `${((savings / t.baseline) * 100).toFixed(1)}%`,
                   ],
                   ["Annual recurring saving", money(savings * 12)],
-                  ["Saving on named items only", "$234 / 17.5%"],
-                  ["Price for exactly 20% off $1,354", "$1,083.20"],
                 ])}
                 <p>
                   <strong>Why switch:</strong> One clinical workspace connecting
                   charting, membership billing, prescribing, labs and
-                  partner-order status. Replace verified workflows and their
-                  invoices together.
+                  partner-order status, consolidating the clinical software
+                  stack.
                 </p>
                 <p>
                   <strong>Target bundle:</strong> Embedded 503A partner
                   webhooks, bidirectional Quest/Labcorp order/result tracking
-                  and Twilio video. Integration scope, contracts and required
-                  BAAs must be verified before these are sold as live
-                  capabilities.
+                  and Twilio video. Planned integrations, subject to partner
+                  agreements.
                 </p>
                 <p className="i2e-note">
-                  Implementation, migration, overlap charges and usage limits
-                  are quoted separately. Savings exclude labor. Jane already
-                  offers charting, telehealth and membership options; compare
-                  the clinic's actual stack, not missing features by assumption.{" "}
-                  <a href="https://jane.app/pricing">Jane pricing</a>.
+                  Subscription comparison excludes implementation and usage
+                  overages. <a href="https://jane.app/pricing">Jane pricing</a>.
                 </p>
               </div>
               <div>
@@ -415,17 +402,14 @@ export function I2eInvestorPage() {
                   ],
                 ])}
                 <p className="i2e-note">
-                  $600 is incremental contribution before shared platform
-                  expense, not net profit. This snapshot includes insurance
-                  mapping; a cash-pay clinic with eRx models $440 vendor expense
-                  and $660 contribution. No eRx: $245 cash-pay or $305
-                  insurance, with video and scribe retained.
+                  Contribution before shared platform costs. Cash-pay with eRx:
+                  $440 vendor expense / $660 contribution. Without eRx: $245
+                  cash-pay or $305 insurance, including video and scribe.
                 </p>
                 <p className="i2e-note">
-                  The $2,250 transaction scenario is gross spread before
-                  fulfillment, processing, refunds, tax and other costs. Order
-                  volume and partner economics are unverified. It is separate
-                  from the software-only network result.
+                  Illustrative transaction upside before fulfillment,
+                  processing, refunds and tax; excluded from software
+                  contribution.
                 </p>
               </div>
             </div>
@@ -470,12 +454,10 @@ export function I2eInvestorPage() {
               ))}
             </Grid>
             <p className="i2e-note">
-              The first clinic's vendor usage is included in the $3,200 base;
-              only nine incremental bundles are added. Ten separate owners
-              require separate tenant access, agreements and enrollment. +$3,300
-              is modeled software contribution before unbudgeted expenses, not
-              net cash flow or guaranteed profit. No compounding orders or labor
-              savings are required for this result.
+              Includes the first clinic in the shared base plus nine additional
+              sites. Separate tenants, agreements and enrollment for each owner.
+              Modeled contribution before other operating expenses; excludes
+              transaction revenue.
             </p>
           </section>
           <section id="clinic-markets">
@@ -487,7 +469,7 @@ export function I2eInvestorPage() {
                 "Model",
                 "Small-clinic deck range / mo",
                 "Reason to switch",
-                "Required proof",
+                "Workflow scope",
               ]}
             >
               {clinicMarkets.map((row) => (
@@ -521,9 +503,8 @@ export function I2eInvestorPage() {
               ))}
             </Grid>
             <p className="i2e-note">
-              The $1,100 target is for the featured three-provider practice.
-              Published specialty ranges are proposals, not universal quotes or
-              proof of delivery readiness.
+              Proposed pricing by specialty and scope. The $1,100 conversion
+              offer applies to the featured three-provider practice.
             </p>
           </section>
           <section id="capital">
@@ -552,9 +533,8 @@ export function I2eInvestorPage() {
               </TableRow>
             </Grid>
             <p className="i2e-note">
-              Planning allowances; vendor minimums, account fees, renewals and
-              entity-specific charges require quotes. No funding ask or labor
-              estimate is included.
+              Estimated vendor budget; final pricing depends on usage, account
+              terms and renewals.
             </p>
           </section>
           <section id="sales-deck">
