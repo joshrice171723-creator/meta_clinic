@@ -940,7 +940,10 @@ export function ClinicalPlanWorkspace({
     const payload = Object.fromEntries(
       Object.entries(form).map(([name, value]) => [
         name,
-        name.endsWith("_at") && value ? new Date(value).toISOString() : value,
+        meta.fields.find((field) => field.name === name)?.type ===
+          "datetime-local" && value
+          ? new Date(value).toISOString()
+          : value,
       ]),
     );
     const requestKey = crypto.randomUUID();
@@ -1027,6 +1030,13 @@ export function ClinicalPlanWorkspace({
               status is Completed, and save the revision. Completion needs a
               linked fulfillment record. If one cannot be linked, explain what
               established completion in the Completion exception field.
+              {taskTarget.kind === "medication_requests" && (
+                <>
+                  {" "}
+                  First reconcile any pending simulated prescription outcome in
+                  Prescription review and fulfillment below.
+                </>
+              )}
             </Alert>
           ) : (
             <Alert severity="warning">
@@ -1389,6 +1399,11 @@ export function ClinicalPlanWorkspace({
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {error && (
+              <Alert severity={pendingAttempt ? "warning" : "error"}>
+                {error}
+              </Alert>
+            )}
             {editing &&
               taskTarget?.kind === kind &&
               taskTarget.seriesId === editing.series_id &&
