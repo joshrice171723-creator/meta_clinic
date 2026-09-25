@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addedClinicUsage,
   conversionTarget,
   investorBudget,
   investorCosts,
@@ -9,15 +10,18 @@ import {
   janeProfiles,
 } from "../src/features/marketing/i2eMarketData";
 
-describe("i2E one-clinic financial model", () => {
-  it("compares one cash-pay clinic without adding optional insurance", () => {
+describe("i2E added-clinic financial model", () => {
+  it("separates the central monthly stack from one added clinic's usage", () => {
     expect(investorCosts).toHaveLength(12);
     expect(investorBudget.upfront).toBe(10500);
-    expect(investorBudget.monthly).toBe(1350);
-    expect(investorBudget.insuranceAddOn).toBe(1500);
-    expect(investorBudget.monthly + investorBudget.insuranceAddOn).toBe(2850);
-    expect(conversionTarget.vendorCost).toBe(1350);
-    expect(conversionTarget.price - conversionTarget.vendorCost).toBe(-250);
+    expect(investorBudget.monthly).toBe(3200);
+    expect(
+      investorCosts.find((row) => row.category === "Insurance billing engine")
+        ?.monthly,
+    ).toBe(1500);
+    expect(addedClinicUsage).toEqual({ video: 30, scribe: 120 });
+    expect(conversionTarget.vendorCost).toBe(150);
+    expect(conversionTarget.price - conversionTarget.vendorCost).toBe(950);
   });
 
   it("keeps the conversion comparison tied to its listed subscriptions", () => {

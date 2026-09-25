@@ -62,7 +62,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 800,
     clinicBasis:
-      "One clinic uses the API Launch tier: up to 2,000 orders/month; $0.80 per additional order. Smaller Prescribe App tier does not provide the embedded API scope.",
+      "Central API Launch tier covers up to 2,000 orders/month across the platform. Adding a clinic has no new base fee within that tier; overages are $0.80/order.",
     purpose:
       "Embed prescription routing through the proposed Photon Health integration, with medication-history and benefit-data scope confirmed in contracting.",
     value:
@@ -73,7 +73,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 1500,
     clinicBasis:
-      "Optional for an insurance-billing clinic; excluded from this cash-pay clinic's monthly total. Contract and claim fees need confirmation.",
+      "Central monthly platform allowance, paid before a clinic joins. Incremental entity enrollment or claim fees remain unquoted; cash-pay clinics do not need claims routing.",
     purpose:
       "Integrate ANSI X12 837 claim workflows and clearinghouse submission through the proposed Candid Health API layer.",
     value:
@@ -82,22 +82,22 @@ export const investorCosts = [
   {
     category: "HIPAA Telehealth Video API",
     upfront: 0,
-    monthly: 30,
+    monthly: 150,
     clinicBasis:
-      "One clinic: 125 two-person, 30-minute visits × 60 participant-minutes × $0.004 = $30/month before extras.",
+      "Central $150 usage reserve; one added clinic at 125 two-person, 30-minute visits adds about $30 at $0.004 per participant-minute, before extras.",
     purpose:
-      "Consumption-based WebRTC consultations via Twilio Programmable Video, with a signed BAA required before PHI use. The one-clinic example budgets 7,500 participant-minutes at $0.004 each.",
+      "Consumption-based WebRTC consultations via Twilio Programmable Video, with a signed BAA required before PHI use. Additional clinics add metered participant-minute usage.",
     value:
       "Capital efficiency: pay-as-you-go video usage scales with consultations. Twilio HIPAA Accounts require Security or Enterprise Edition; account fees and BAA terms must be confirmed separately.",
   },
   {
     category: "AI Clinical Scribe Engine",
     upfront: 0,
-    monthly: 120,
+    monthly: 350,
     clinicBasis:
-      "One-clinic audio and model-use planning allowance; note volume, model choice and actual invoice remain unverified.",
+      "Central $350 planning reserve; $120 of additional audio/model usage is estimated for one added clinic. Actual usage remains unverified.",
     purpose:
-      "One-clinic reserve for audio and medical LLM processing. No note count is guaranteed at this price; clinicians review generated drafts.",
+      "Central reserve for audio and medical LLM processing. No note count is guaranteed at this price; clinicians review generated drafts.",
     value:
       "The development scribe already routes through OpenRouter. An OpenAI GPT audio-capable model is planned for the pilot; model selection and usage costs remain to be validated.",
   },
@@ -106,7 +106,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 400,
     clinicBasis:
-      "One-clinic hosting allowance; actual account, storage and traffic costs are not yet quoted.",
+      "Central hosting allowance. No additional fixed amount is modeled for one clinic; storage, traffic and isolation terms need validation.",
     purpose:
       "Implement isolated hosting, access controls and audit infrastructure using an appropriate AWS HIPAA-eligible or Aptible configuration.",
     value:
@@ -155,13 +155,9 @@ const money = (value: number) =>
 export const investorBudget = {
   capital: 30000,
   upfront: investorCosts.reduce((sum, row) => sum + row.upfront, 0),
-  monthly: investorCosts
-    .filter((row) => row.category !== "Insurance billing engine")
-    .reduce((sum, row) => sum + row.monthly, 0),
-  insuranceAddOn:
-    investorCosts.find((row) => row.category === "Insurance billing engine")
-      ?.monthly ?? 0,
+  monthly: investorCosts.reduce((sum, row) => sum + row.monthly, 0),
 };
+export const addedClinicUsage = { video: 30, scribe: 120 };
 export const stackCosts = [
   {
     name: "Base EMR & calendar",
@@ -216,7 +212,7 @@ const vendorSources: Record<
     url: "https://www.twilio.com/en-us/video/pricing",
     label: "Twilio pricing",
     basis:
-      "$30 one-clinic example: 125 two-person 30-minute visits at the published $0.004/participant-minute; account edition and extras are separate.",
+      "$150 central usage reserve; one added clinic's 125 two-person 30-minute visits would add $30 at the published $0.004/participant-minute. Account edition and extras are separate.",
   },
   "LegitScript certification": {
     url: "https://www.legitscript.com/certification/healthcare-certification/faq/",
@@ -228,7 +224,7 @@ const vendorSources: Record<
     url: "https://openrouter.ai/docs/quickstart",
     label: "OpenRouter API",
     basis:
-      "OpenRouter documents API access, not a $120 price. The $120 one-clinic amount is a planning allowance pending measured audio and model usage.",
+      "OpenRouter documents API access, not pricing for this workload. $350 is the central monthly reserve; $120 is estimated additional usage for one new clinic, pending measurement.",
   },
   "Diagnostic lab connectivity (Quest / Labcorp)": {
     url: "https://help.gethealthie.com/article/1260-direct-labs-by-healthie",
@@ -288,7 +284,7 @@ function Grid({
 export const conversionTarget = {
   baseline: 149 + 870 + 150 + 120 + 45,
   price: 1100,
-  vendorCost: investorBudget.monthly,
+  vendorCost: addedClinicUsage.video + addedClinicUsage.scribe,
   namedAddons: 870 + 150 + 120 + 45,
 };
 export function I2eInvestorPage() {
@@ -343,16 +339,16 @@ export function I2eInvestorPage() {
         <nav className="i2e-nav" aria-label="Dashboard sections">
           <a href="#switching">01 / Conversion target</a>
           <a href="#potential-revenue">Other potential revenue</a>
-          <a href="#capital">02 / One-clinic vendor budget</a>
+          <a href="#capital">02 / Central operating budget</a>
           <a href="#sales-deck">Sales deck</a>
         </nav>
         <main id="i2e-main">
           <section id="switching">
             <h1>01 / Medical weight loss + hormone optimization</h1>
             <p className="i2e-note">
-              Conversion target: one independent cash-pay weight-loss practice ·
-              3 providers · Jane customer with a separate clinical software
-              stack · one-clinic costs and revenue · USD / month
+              Conversion target: one additional independent cash-pay weight-loss
+              practice · 3 providers · existing central vendor stack already
+              paid · incremental costs and revenue · USD / month
             </p>
             <TableContainer
               className="i2e-grid i2e-comparison-table"
@@ -368,7 +364,7 @@ export function I2eInvestorPage() {
                       "Current stack / month",
                       "Our bundle",
                       "Included workflow",
-                      "Our cost / month · one clinic",
+                      "Added clinic cost / month",
                     ].map((header) => (
                       <TableCell key={header}>{header}</TableCell>
                     ))}
@@ -380,7 +376,7 @@ export function I2eInvestorPage() {
                       "Jane Practice + 2 seats",
                       "$149",
                       "Scheduling + charting",
-                      "In $400 hosting allowance",
+                      "Covered by central hosting",
                       "Meta Clinic · shared infrastructure",
                     ],
                     [
@@ -401,28 +397,28 @@ export function I2eInvestorPage() {
                       "DoseSpot eRx seats",
                       "$120",
                       "Embedded eRx · planned",
-                      "$800 API tier",
+                      "Within central Photon tier",
                       "Photon Health · proposed",
                     ],
                     [
                       "Jane AI Scribe · 3 seats",
                       "$45",
                       "AI note drafts + review",
-                      "$120 estimate",
+                      "$120 added usage estimate",
                       "OpenRouter · OpenAI GPT planned",
                     ],
                     [
                       "1:1 telehealth",
                       "Included in Jane",
                       "Video consultations",
-                      "$30 at 125 visits",
+                      "$30 added video usage",
                       "Twilio Programmable Video",
                     ],
                     [
                       "Insurance billing engine",
                       "Add-on + clearinghouse · extra",
                       "Claims routing · planned",
-                      "Optional · $1,500 budget",
+                      "Central billing engine · added fees unquoted",
                       "Candid Health · proposed",
                     ],
                     [
@@ -494,7 +490,7 @@ export function I2eInvestorPage() {
                     <TableCell>{money(t.price)} bundled</TableCell>
                     <TableCell>3-provider practice</TableCell>
                     <TableCell>
-                      {money(t.vendorCost)} cash-pay vendor budget
+                      {money(t.vendorCost)} modeled added-clinic usage
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -503,12 +499,13 @@ export function I2eInvestorPage() {
             <p className="i2e-note">
               Proposed bundle within agreed usage limits; planned integrations
               depend on partner agreements and activation. Current-stack
-              subtotal excludes insurance and clearinghouse fees. Our $1,350
-              monthly vendor budget covers one cash-pay clinic: Photon $800,
-              Twilio $30, scribe $120 and hosting $400. Insurance billing is
-              optional and excluded on both sides. Lab connectivity, lab tests,
-              medication purchases, payment processing and vendor overages are
-              separate.
+              subtotal excludes insurance and clearinghouse fees. The $3,200
+              central monthly stack in Section 02 is already paid before this
+              clinic joins. Adding this clinic is modeled at $30 video usage
+              plus a $120 scribe allowance. No second Photon, Candid or hosting
+              subscription is added within contracted capacity. Entity
+              enrollment, vendor overages, lab connectivity, lab tests,
+              medication purchases and payment processing are separate.
             </p>
             <div className="i2e-summary-ledgers">
               {ledger("Meta Clinic target offer", [
@@ -520,26 +517,26 @@ export function I2eInvestorPage() {
                 ],
                 ["Annual recurring saving", money(savings * 12)],
               ])}
-              {ledger("One-clinic cost and profit", [
-                ["Vendor cost / month", money(t.vendorCost)],
+              {ledger("Added-clinic cost and profit", [
+                ["Added clinic vendor cost / month", money(t.vendorCost)],
                 [
-                  "Gross profit / month",
-                  `${money(contribution)} / mo`,
-                  "i2e-negative",
+                  "Profit after modeled added costs / month",
+                  `+${money(contribution)} / mo`,
+                  "i2e-profit",
                 ],
                 [
-                  "Gross margin",
+                  "Profit margin after modeled added costs",
                   `${((contribution / t.price) * 100).toFixed(1)}%`,
-                  "i2e-negative",
+                  "i2e-profit",
                 ],
               ])}
             </div>
             <p className="i2e-note">
-              At $1,100/month, the proposed subscription is $250 below this
-              one-clinic vendor budget before other operating costs. The bundle
-              needs lower vendor costs, different pricing or another verified
-              revenue source to be profitable at one clinic. Subscription
-              savings exclude implementation and usage overages.{" "}
+              The $950 is the new clinic's subscription minus its modeled $150
+              added usage, after the $3,200 central monthly stack has already
+              been funded. It is not whole-platform net profit; unquoted
+              enrollment, overages and other transaction costs can reduce it.
+              Subscription savings exclude implementation and usage overages.{" "}
               <a href="https://jane.app/pricing">Jane pricing</a>.
             </p>
           </section>
@@ -613,12 +610,12 @@ export function I2eInvestorPage() {
             </p>
           </section>
           <section id="capital">
-            <h2>02 / One-clinic vendor budget</h2>
+            <h2>02 / Central operating budget</h2>
             <p className="i2e-budget-intro">
-              What Meta Clinic would budget to launch and operate the same
-              single three-provider cash-pay clinic compared in Section 01.
-              Insurance billing is an optional $1,500 monthly planning
-              allowance, outside the cash-pay total.
+              What Meta Clinic budgets once to launch and each month to run the
+              platform before adding the clinic in Section 01. The $1,500
+              insurance billing allowance is one central monthly vendor line,
+              not a charge for each new clinic.
             </p>
             <dl className="i2e-budget-summary">
               <div>
@@ -626,7 +623,7 @@ export function I2eInvestorPage() {
                 <dd>{money(investorBudget.upfront)}</dd>
               </div>
               <div>
-                <dt>One cash-pay clinic / month</dt>
+                <dt>Central vendor stack / month</dt>
                 <dd>
                   {money(investorBudget.monthly)}
                   <span> / month</span>
@@ -638,7 +635,7 @@ export function I2eInvestorPage() {
                 label="Shared platform cost breakdown"
                 headers={[
                   "What the budget covers",
-                  "One-clinic basis",
+                  "Central cost and added-clinic effect",
                   "Upfront",
                   "Monthly",
                 ]}
@@ -651,7 +648,7 @@ export function I2eInvestorPage() {
                           {index === 0
                             ? "Launch setup"
                             : index === 4
-                              ? "Monthly services for one clinic"
+                              ? "Central monthly vendor stack"
                               : "Partner-dependent services"}
                         </TableCell>
                       </TableRow>
@@ -696,9 +693,7 @@ export function I2eInvestorPage() {
                           ? "Unquoted"
                           : row.category === "Wholesale clinical lab orders"
                             ? "Per order"
-                            : row.category === "Insurance billing engine"
-                              ? `${money(row.monthly)} optional`
-                              : money(row.monthly)}
+                            : money(row.monthly)}
                       </TableCell>
                     </TableRow>
                   </Fragment>
@@ -707,12 +702,13 @@ export function I2eInvestorPage() {
             </div>
             <p className="i2e-note">
               $0 means no fixed amount budgeted, not that the service is free.
-              The $1,350 monthly cash-pay total covers one clinic, not a share
-              allocated across several clinics. Adding the optional $1,500
-              insurance allowance makes the one-clinic budget $2,850/month.
-              Final pricing depends on contracts and usage. Lab middleware and
-              per-order test costs are excluded. LegitScript's published $2,150
-              annual fee is additional if certification is approved.
+              The $3,200 monthly stack includes the $1,500 insurance engine,
+              $800 Photon plan, $150 video reserve, $350 scribe reserve and $400
+              hosting allowance. The $150 added-clinic estimate in Section 01 is
+              incremental usage on top of this base, not a second base
+              subscription. Final pricing depends on contracts and usage. Lab
+              middleware and per-order test costs are excluded. LegitScript's
+              published $2,150 annual fee is additional if approved.
             </p>
           </section>
           <section id="sales-deck">
