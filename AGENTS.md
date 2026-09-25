@@ -30,6 +30,8 @@ If potentially sensitive information or a suspected incident appears, stop the a
 
 ## Task modes and authority
 
+- **Testing preference:** Do not add tests or run tests unless Joshua explicitly requests them. This instruction overrides test recommendations in general workflows and skills. Prefer scoped source and diff review; run only non-test checks that are necessary for the requested change, and avoid broad verification overhead.
+
 - **Review, explain or diagnose:** inspect and report. Do not edit unless the user also requests a change.
 - **Implement:** make the smallest local change within the requested scope and run proportionate checks.
 - **Release or external action:** require explicit authorization for the exact target and action; follow the applicable runbook.
@@ -81,9 +83,9 @@ Use the current commands and ownership rules in `docs/development/`, `docs/archi
 - Keep changes independently reviewable. Do not overwrite, reformat or silently incorporate unrelated work.
 - Keep ordinary development screens focused on the task. Do not add persistent banners or repetitive UI copy that merely restates the synthetic/development or non-production status; record that context in repository documentation and agent guidance instead. This presentation rule never authorizes removing runtime access controls, real-data restrictions, release gates, or security checks.
 - Apply failure-first review proportionately:
-  - For an ordinary local edit, identify the principal failure and test or inspect for it.
+  - For an ordinary local edit, identify the principal failure and inspect the changed behavior and diff; do not run tests unless explicitly requested.
   - Follow `agent-harness/workflows/failure-first.md` proportionately; active-development checks target changed behavior, while complete reviews belong to explicit milestones or release work.
-- Use local tests, mocks, synthetic fixtures or authorized tabletops first. Do not remove guards to make a test pass.
+- Preserve local tests, mocks, synthetic fixtures and guards. Do not add or run tests unless explicitly requested. Do not remove guards to make a test pass.
 - Stop only the blocked or unsafe path; continue independent safe work.
 
 Follow [this workflow](agent-harness/workflows/code-change.md).
@@ -92,14 +94,14 @@ Follow [this workflow](agent-harness/workflows/code-change.md).
 
 ### Active development default
 
-Meta Clinic has no production users. Prioritize working journeys with focused tests, applicable build/type checks and one short walkthrough. Check affected permissions, money, stock, persistence and lost-work behavior. Defer broad regression, device matrices, restore rehearsals and operational hardening to explicit milestones or prelaunch; model/route/schema edits alone do not trigger them.
+Meta Clinic has no production users. Prioritize working journeys with scoped source review, applicable non-test build/type checks when needed and one short walkthrough. Check affected permissions, money, stock, persistence and lost-work behavior. Add or run tests only when Joshua explicitly requests them. Defer broad regression, device matrices, restore rehearsals and operational hardening to explicit milestones or prelaunch; model/route/schema edits alone do not trigger them.
 
 Apply the [code-change workflow](agent-harness/workflows/code-change.md): reassess verification at 10 minutes, reuse valid evidence, bound retries and defer unrelated historical failures. Preserve runtime protections. Report implementation, focused verification and pending launch verification separately. This default supersedes generic launch-depth requirements; explicit user-requested acceptance checks still apply.
 
 Before finishing:
 
 1. Inspect the scoped diff and working-tree state.
-2. Run the checks required by the nearest `AGENTS.md`; use `bin/agent-check` to list or run checks selected from changed paths. Harness changes use `bin/verify-agent-harness`; vault changes use `bin/verify-vault`.
+2. Review checks required by the nearest `AGENTS.md`; use `bin/agent-check` only for non-test checks needed by the requested change. Do not add or run tests unless Joshua explicitly requests them. Harness changes use `bin/verify-agent-harness`; vault changes use `bin/verify-vault` only when requested or necessary for the requested outcome.
 3. Verify that no unrelated work, secret or sensitive material was included.
 4. Update canonical vault records only when direction, requirements, risks, evidence or a decision actually changed. Refresh Home only when overall direction or priorities changed.
 6. Report what changed, checks actually run and their outcomes, checks not run, remaining risks/gates and required human decisions.

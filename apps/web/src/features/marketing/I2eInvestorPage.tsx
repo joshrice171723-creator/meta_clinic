@@ -179,36 +179,47 @@ export const investorBudget = {
   monthly: investorCosts.reduce((sum, row) => sum + row.monthly, 0),
 };
 export const addedClinicUsage = { video: 30, scribe: scribeAllowance(125) };
+// Retained for existing imports; this model is no longer rendered in the i2E page.
+export const conversionTarget = {
+  baseline: null as number | null,
+  price: 1100,
+  vendorCost: addedClinicUsage.video + addedClinicUsage.scribe,
+  namedAddons: null,
+};
 export const stackCosts = [
   {
     name: "Base EMR & calendar",
-    cost: 149,
-    basis: "Brief assumption: Practice + 2 additional seats.",
-    meta: "Shared clinic core: scheduling, charting and billing.",
+    cost: null,
+    basis:
+      "Jane plan and provider-seat price depend on configuration; obtain the clinic's current invoice.",
+    meta: "Jane provides scheduling and charting; compare the actual plan and seat count.",
   },
   {
-    name: "Membership & billing infrastructure",
-    cost: 890,
+    name: "Hint Launch · alternative platform",
+    cost: 870,
     basis:
-      "Brief assumption: $290 × 3 + $20. Not a verified Hint quote; Jane's extra-provider insurance fees may also apply.",
-    meta: "Membership workflow plus a planned claims integration. Candid is not a replacement for every Hint capability.",
+      "Published Hint Launch rate: $290/month for 1 clinician plus $290/month for each additional clinician. Three clinicians = $870/month. Includes unlimited members; transaction fees are extra. This prices Hint's full platform, not a membership-only add-on.",
+    meta: "Relevant alternative for weight-management practices; Hint advertises weight-loss EMR, scheduling and recurring billing. Capabilities overlap with Jane, so do not add this amount to Jane's bill without a verified customer invoice proving both subscriptions are used.",
   },
   {
     name: "Medical CRM & patient nurturing",
-    cost: 150,
-    basis: "Illustrative separate CRM subscription.",
-    meta: "Patient outreach and follow-up in the clinic workspace.",
+    cost: null,
+    basis:
+      "No HubSpot price claimed. Include it only if purchased; use the clinic's actual plan and invoice.",
+    meta: "Jane covers core patient records, booking and communications. A separate CRM may be useful for broader lead pipelines or marketing automation; Meta Clinic's target connects acquisition and follow-up to clinic operations.",
   },
   {
     name: "eRx & retail pharmacy links",
-    cost: 120,
-    basis: "Illustrative 3 × $40 standalone seats; provider quote required.",
-    meta: "Embedded prescribing strategy using a contracted eRx provider.",
+    cost: null,
+    basis:
+      "No DoseSpot price claimed. Confirm current Jane e-prescribing access and any separate vendor contract with the clinic.",
+    meta: "Jane medication management is not the same as sending prescriptions; U.S. e-prescribing availability depends on Jane beta access. Meta's Photon integration is proposed, not active.",
   },
   {
     name: "AI clinical scribe",
     cost: 45,
-    basis: "3 × $15 Jane Scribe seats at published pricing.",
+    basis:
+      "Optional: $15 per opted-in clinician monthly at published pricing; $45 only if all three use the paid tier.",
     meta: "Integrated draft-note workflow with clinician review.",
   },
 ];
@@ -260,12 +271,78 @@ const vendorSources: Record<
       "Rupa comparator: no practitioner subscription; wholesale test price plus 7% processing to patients. Meta Clinic terms unquoted.",
   },
 };
-const conversionVendorSources: Record<string, string> = {
-  "Photon Health · proposed": "Prescription Network API (eRx)",
-  "Twilio Programmable Video": "HIPAA Telehealth Video API",
-  "Candid Health · proposed": "Insurance billing engine",
-  "OpenRouter · Whisper + GPT-5.6 Luna planned": "AI Clinical Scribe Engine",
-  "Lab middleware · proposed": "Diagnostic lab connectivity (Quest / Labcorp)",
+const janeSources: Record<string, { url: string; label: string }[]> = {
+  "Jane plan + provider seats": [
+    { url: "https://jane.app/pricing", label: "Jane plans" },
+  ],
+  "Hint Launch · alternative platform": [
+    {
+      url: "https://www.hint.com/weight-management",
+      label: "Hint features and pricing",
+    },
+    {
+      url: "https://jane.app/features/packages-and-memberships",
+      label: "Jane membership availability",
+    },
+  ],
+  "Jane AI Scribe · 3 seats": [
+    {
+      url: "https://jane.app/guide/ai-scribe",
+      label: "Jane AI Scribe",
+    },
+    { url: "https://jane.app/pricing", label: "Jane pricing" },
+  ],
+  "Jane memberships + payment processing": [
+    { url: "https://jane.app/features/packages-and-memberships", label: "Jane memberships" },
+    { url: "https://jane.app/pricing", label: "Jane payment rates" },
+  ],
+  "CRM / HubSpot optional reference": [
+    { url: "https://jane.app/guide/how-to-connect-trustdrivencare-to-jane", label: "Jane CRM integration" },
+    { url: "https://www.hubspot.com/pricing/crm?product=marketing", label: "HubSpot pricing" },
+  ],
+  "1:1 telehealth": [
+    { url: "https://jane.app/features/telehealth", label: "Jane telehealth" },
+  ],
+  "Medication records and e-prescribing": [
+    { url: "https://jane.app/guide/medical-wellness-hub", label: "Jane medical hub / roadmap" },
+    { url: "https://jane.app/guide/prescriptions", label: "Jane prescriptions guide" },
+  ],
+  "Insurance billing engine": [
+    { url: "https://jane.app/pricing", label: "Jane insurance billing" },
+  ],
+  "Quest/Labcorp order/result tracking": [
+    {
+      url: "https://jane.app/guide/fullscript-integration",
+      label: "Jane and Fullscript Labs",
+    },
+  ],
+  "503A partner pharmacy orders/status": [
+    {
+      url: "https://jane.app/integrations",
+      label: "Jane integration directory; confirm partner coverage",
+    },
+  ],
+};
+const metaCostSources: Record<string, { key: string; label: string }[]> = {
+  "Hint Launch · alternative platform": [],
+  "Jane memberships + payment processing": [
+    { key: "HIPAA Telehealth Video API", label: "Stripe Connect pricing" },
+  ],
+  "Jane AI Scribe · 3 seats": [
+    { key: "AI Clinical Scribe Engine", label: "Model usage cost basis" },
+  ],
+  "1:1 telehealth": [
+    { key: "HIPAA Telehealth Video API", label: "Twilio published rate" },
+  ],
+  "Medication records and e-prescribing": [
+    { key: "Prescription Network API (eRx)", label: "Photon published plan" },
+  ],
+  "Quest/Labcorp order/result tracking": [
+    { key: "Diagnostic lab connectivity (Quest / Labcorp)", label: "Healthie comparator terms" },
+  ],
+  "Insurance billing engine": [
+    { key: "Insurance billing engine", label: "Candid product; estimate is not quoted" },
+  ],
 };
 function Grid({
   label,
@@ -302,19 +379,10 @@ function Grid({
     </TableContainer>
   );
 }
-export const conversionTarget = {
-  baseline: 149 + 870 + 150 + 120 + 45,
-  price: 1100,
-  vendorCost: addedClinicUsage.video + addedClinicUsage.scribe,
-  namedAddons: 870 + 150 + 120 + 45,
-};
 export function I2eInvestorPage() {
-  const t = conversionTarget;
-  const savings = t.baseline - t.price;
-  const contribution = t.price - t.vendorCost;
   useEffect(() => {
     const title = document.title;
-    document.title = "Meta Clinic × i2E | Customer conversion workspace";
+    document.title = "Meta Clinic × i2E | Clinic cost-to-serve comparison";
     const robots = document.createElement("meta");
     robots.name = "robots";
     robots.content = "noindex,nofollow";
@@ -324,29 +392,13 @@ export function I2eInvestorPage() {
       robots.remove();
     };
   }, []);
-  const ledger = (label: string, rows: [string, ReactNode, string?][]) => (
-    <TableContainer className="i2e-ledger">
-      <Table size="small" aria-label={label}>
-        <TableBody>
-          {rows.map(([name, value, tone]) => (
-            <TableRow key={name} className={tone || ""}>
-              <TableCell component="th" scope="row">
-                <I2eHelp label={name} />
-              </TableCell>
-              <TableCell align="right">{value}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
   return (
     <div className="i2e-page i2e-console">
       <header className="i2e-header">
         <a href="/meta-clinic" className="i2e-brand">
           m. <span>Meta Clinic</span>
         </a>
-        <span>i2E / CUSTOMER CONVERSION WORKSPACE</span>
+        <span>i2E / CLINIC COST-TO-SERVE COMPARISON</span>
         <div>
           <Button href="/demo" endIcon={<ArrowOutwardRounded />}>
             Demo
@@ -358,18 +410,18 @@ export function I2eInvestorPage() {
       </header>
       <div className="i2e-workspace">
         <nav className="i2e-nav" aria-label="Dashboard sections">
-          <a href="#switching">01 / Conversion target</a>
-          <a href="#potential-revenue">Other potential revenue</a>
-          <a href="#capital">02 / Central operating budget</a>
+          <a href="#switching">01 / Clinic cost comparison</a>
+          <a href="#capital">02 / Meta Clinic cost to operate</a>
           <a href="#sales-deck">Sales deck</a>
         </nav>
         <main id="i2e-main">
           <section id="switching">
             <h1>01 / Medical weight loss + hormone optimization</h1>
             <p className="i2e-note">
-              Conversion target: one additional independent cash-pay weight-loss
-              practice · 3 providers · existing central vendor stack already
-              paid · incremental costs and revenue · USD / month
+              Cost-to-deliver comparison: one three-provider independent
+              cash-pay weight-management practice · Jane prices are published
+              list prices; Meta Clinic costs are internal models or marked
+              unknown · USD / month
             </p>
             <TableContainer
               className="i2e-grid i2e-comparison-table"
@@ -381,11 +433,11 @@ export function I2eInvestorPage() {
                 <TableHead>
                   <TableRow>
                     {[
-                      "Capability / current tool",
-                      "Current stack / month",
-                      "Our bundle",
-                      "Included workflow",
-                      "Added clinic cost / month",
+                      "Capability area",
+                      "What Jane or the named vendor provides",
+                      "What Jane / vendor charges the clinic",
+                      "Can Meta Clinic provide this at market launch?",
+                      "Meta Clinic cost to deliver it",
                     ].map((header) => (
                       <TableCell key={header}>{header}</TableCell>
                     ))}
@@ -394,253 +446,138 @@ export function I2eInvestorPage() {
                 <TableBody>
                   {[
                     [
-                      "Jane Practice + 2 seats",
-                      "$149",
-                      "Scheduling + charting",
-                      "Covered by central hosting",
-                      "Meta Clinic · shared infrastructure",
+                      "Jane plan + provider seats",
+                      "Core scheduling, online booking, charting, patient communications, billing and reporting.",
+                      "Thrive is $99/month and includes one full-time practitioner. Two more provider licenses are charged by scheduled hours; Jane's calculator or the clinic invoice is needed for the actual three-provider total.",
+                      "Target: one clinic platform for the same broad workflow. Feature-by-feature parity and launch readiness are not established by this comparison.",
+                      "$400/month shared hosting allowance in the operating budget. No per-clinic allocation or measured marginal infrastructure cost; build/support labor is not included.",
                     ],
                     [
-                      "Hint membership billing",
-                      "$870",
-                      "Membership billing",
-                      "No separate vendor fee budgeted",
-                      "Meta Clinic · Stripe payment rails",
+                      "Hint Launch · alternative platform",
+      "Full weight-management platform: EMR/charting, scheduling, communications, e-prescribing/refills, lab ordering/results, memberships and automated billing. AI documentation and employer-management/eligibility are Pro features. Hint is an alternative to Jane, not a presumed Jane add-on.",
+      "Launch: $870/month for 3 clinicians and unlimited members ($290 first + $290 each additional). Pro: $784/month for 3 clinicians and 100 members ($320 base + 2 × $232), before extra members. Launch processing: cards 3% + $0.30 (+1% Amex); ACH 1% + $0.25 (capped at $5). Pro processing: cards 2.75% + $0.30 (+1% Amex); ACH 0.75% + $0.25 (capped at $5).",
+                      "Target: connect membership enrollment, recurring charges, visits and follow-up. Employer management and eligibility automation are not claimed as equivalent to Hint Pro.",
+                      "No separate membership vendor fee is budgeted. Payment processing and Connect costs depend on transaction volume and payment architecture; Meta's amount is unknown without those inputs.",
                     ],
                     [
-                      "HubSpot CRM",
-                      "$150",
-                      "Patient pipeline + follow-up",
-                      "No separate vendor fee budgeted",
-                      "Meta Clinic · native CRM",
+                      "Jane memberships + payment processing",
+                      "Thrive includes recurring packages/memberships, automated invoices, usage tracking and reports. Jane Payments online cards: 2.85% + $0.25; in-person: 2.6% + $0.10.",
+                      "Memberships are included in Thrive's $99 base; add two provider licenses. Payment processing is charged per transaction at Jane's published rates.",
+                      "Target: recurring membership billing connected to clinic records and follow-up. This is a comparable category, not a unique Meta feature.",
+                      "Payment rails use Stripe Connect in the model. If clinics pay Stripe directly, Stripe lists no platform fee and its standard online card processing starts at 2.9% + $0.30/charge. If Meta handles pricing, Connect adds $2/active account/month + 0.25% + $0.25/payout, plus processing. No transaction volume or architecture is fixed, so total is unknown.",
                     ],
                     [
-                      "DoseSpot eRx seats",
-                      "$120",
-                      "Embedded eRx · planned",
-                      "Within central Photon tier",
-                      "Photon Health · proposed",
+                      "CRM / HubSpot optional reference",
+                      "Jane has patient records, secure messaging and follow-up. A separate CRM is optional for sales pipeline or advanced campaign automation, not required for routine patient communications.",
+      "HubSpot CRM Free: $0 for up to 2 users and 1,000 contacts. For 3 seats, Starter is currently shown as $21/month promotional ($7/seat) or $60/month at its displayed standard monthly price ($20/seat); limits apply.",
+                      "Target: connect prospect capture and follow-up with clinic workflows. The exact CRM feature match is not established here.",
+                      "No separate CRM subscription is in the model. Engineering, shared hosting, messaging delivery and support are not allocated per clinic.",
                     ],
                     [
                       "Jane AI Scribe · 3 seats",
-                      "$45",
-                      "AI note drafts + review",
-                      "$30 / 125 notes modeled",
-                      "OpenRouter · Whisper + GPT-5.6 Luna planned",
+                      "Draft notes for clinician review; 5 notes/month free per practitioner, then $15/month per opted-in practitioner for unlimited notes.",
+                      "$0 if each clinician stays within 5 free notes; $45/month if all 3 choose unlimited.",
+                      "Target: generated draft notes for clinician review. Workflow intent aligns; clinical quality and feature parity are not established by price alone.",
+                      "$30/month modeled incremental usage for 125 notes (30 audio minutes each). Shared 500-note allowance is $110/month. These are usage assumptions requiring pilot validation.",
                     ],
                     [
                       "1:1 telehealth",
-                      "Included in Jane",
-                      "Video consultations",
-                      "$30 added video usage",
-                      "Twilio Programmable Video",
+                      "Jane includes integrated one-to-one video visits in every plan at no extra subscription charge. Group telehealth is a separate add-on.",
+                      "Included in Jane plan; no additional 1:1 fee.",
+                      "Target: one-to-one video visits linked to appointments and records.",
+                      "$30/month modeled incremental Twilio usage for 125 two-person 30-minute visits; $150/month central usage reserve. BAA/account or other fees are not included in this usage estimate.",
                     ],
                     [
-                      "Insurance billing engine",
-                      "Add-on + clearinghouse · extra",
-                      "Claims routing · planned",
-                      "Central billing engine · added fees unquoted",
-                      "Candid Health · proposed",
+                      "Medication records and e-prescribing",
+      "Jane supports medication lists/history, prescription chart templates and fax workflows. Jane describes direct U.S. e-prescribing as upcoming; charting/fax is not electronic pharmacy transmission.",
+      "Medication records/templates are within the plan. Direct e-prescribing is not generally available in the sources reviewed; if a clinic needs it now, a separate vendor may be required, but no standard vendor or public price is established here.",
+                      "Target: e-prescribing through a contracted network. Controlled-substance, pharmacy-network and prescriber enrollment coverage need definition.",
+                      "Photon publishes $800/month centrally for up to 2,000 orders, then $0.80/order. No added base fee is modeled for a clinic within that tier; allocation, implementation and entity terms are unpriced/uncontracted.",
                     ],
                     [
                       "Quest/Labcorp order/result tracking",
-                      "Via Fullscript · outside subtotal",
-                      "Direct lab tracking · planned",
-                      "Connectivity quote + test costs",
-                      "Lab middleware · proposed",
+                      "Jane connects to Fullscript for supplement plans and U.S. lab orders/results in supported states; Fullscript is separate and test charges vary.",
+                      "Fullscript platform is marketed as free; lab panels/tests are charged separately. Lab ordering excludes patients in NY, NJ, RI, HI and offshore U.S. territories.",
+                      "Target: orders and results linked to the chart. Exact catalog, state coverage, interface scope and launch partner are not established here.",
+                      "No lab partner is contracted or budgeted. Comparator only: Healthie E-Labs lists $10/ordering provider/month ($30 for 3) + $5/non-NPI user, before Enterprise subscription, setup and tests; this is not a Meta quote.",
                     ],
                     [
-                      "503A partner webhooks",
-                      "Partner workflow · outside subtotal",
-                      "Partner order + status · planned",
-                      "Partner terms / usage",
-                      "Compounding pharmacy · to be selected",
+                      "Insurance billing engine",
+                      "Jane offers eligibility, claims, rejection handling, ERAs and payment posting through Insurance Billing + Claim.MD; the clearinghouse account is separate.",
+                      "$20/month + $5/full-time or $2.50/part-time per additional provider license; Claim.MD charges are separate and not priced here. Optional for this cash-pay example.",
+                      "Target: optional claims workflow for insurance-enabled clinics; not needed for the cash-pay scenario.",
+                      "Candid is modeled at $1,500/month for the shared platform. This is an internal allowance, not a vendor quote; per-clinic, clearinghouse and entity fees are unknown.",
                     ],
-                  ].map(([label, current, scope, cost, vendor]) => (
+                    [
+                      "503A partner pharmacy orders/status",
+                      "Jane has an integrations directory; exact compounding-pharmacy order/status support depends on the named partner and clinic setup.",
+                      "No universal price can be stated without the selected pharmacy and clinic contract.",
+                      "Target: partner-specific order/status connection subject to pharmacy selection, permitted data exchange and coverage.",
+                      "No partner selected. Fixed and per-order cost is unknown; $0 in the budget means unpriced, not free.",
+                    ],
+                  ].map(([label, janeFeatures, janePrice, metaCoverage, metaCost]) => (
                     <TableRow key={label}>
                       <TableCell component="th" scope="row">
                         <I2eHelp label={label} />
                       </TableCell>
-                      <TableCell
-                        className={
-                          ["$870", "$150", "$120", "$45"].includes(current)
-                            ? "i2e-warning-cell"
-                            : ""
-                        }
-                      >
-                        {current}
-                      </TableCell>
+                      <TableCell>{janeFeatures}</TableCell>
                       <TableCell>
-                        <strong className="i2e-included">
-                          {label === "Insurance billing engine"
-                            ? "Optional add-on"
-                            : "Included in ours"}
-                        </strong>
+                        {janePrice}
+                        {janeSources[label]?.map((source) => (
+                          <small className="i2e-vendor-label" key={source.url}>
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {source.label}
+                            </a>
+                          </small>
+                        ))}
                       </TableCell>
-                      <TableCell>{scope}</TableCell>
+                      <TableCell>{metaCoverage}</TableCell>
                       <TableCell>
-                        {cost}
+                        {metaCost}
                         <small className="i2e-vendor-label">
-                          <I2eHelp label={vendor} />
-                          {vendorSources[conversionVendorSources[vendor]] && (
-                            <>
-                              {" · "}
+                          {metaCostSources[label]?.map(({ key, label: sourceLabel }) =>
+                            vendorSources[key] ? (
                               <a
-                                href={
-                                  vendorSources[conversionVendorSources[vendor]]
-                                    .url
-                                }
+                                href={vendorSources[key].url}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                title={vendorSources[key].basis}
+                                key={key}
                               >
-                                Source
+                                {` · ${sourceLabel}`}
                               </a>
-                            </>
+                            ) : null,
                           )}
                         </small>
                       </TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="i2e-total">
-                    <TableCell component="th" scope="row">
-                      <I2eHelp label="Total software bill" />
-                    </TableCell>
-                    <TableCell>
-                      {money(t.baseline)} listed subscriptions
-                    </TableCell>
-                    <TableCell>{money(t.price)} bundled</TableCell>
-                    <TableCell>3-provider practice</TableCell>
-                    <TableCell>
-                      {money(t.vendorCost)} modeled added-clinic usage
-                    </TableCell>
-                  </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
             <p className="i2e-note">
-              Proposed bundle within agreed usage limits; planned integrations
-              depend on partner agreements and activation. Current-stack
-              subtotal excludes insurance and clearinghouse fees. The{" "}
-              {money(investorBudget.monthly)}
-              central monthly stack in Section 02 is already paid before this
-              clinic joins. Adding this clinic is modeled at $30 video usage
-              plus a $30 scribe allowance. No second Photon or hosting base
-              subscription is modeled within capacity. Candid coverage for
-              separately owned clinics is not yet priced. Entity enrollment,
-              vendor overages, lab connectivity, lab tests, medication purchases
-              and payment processing are separate.
-            </p>
-            <div className="i2e-summary-ledgers">
-              {ledger("Meta Clinic target offer", [
-                ["Flat monthly platform fee", money(t.price), "i2e-total"],
-                ["Monthly software saving", money(savings)],
-                [
-                  "Software cost reduction",
-                  `${((savings / t.baseline) * 100).toFixed(1)}%`,
-                ],
-                ["Annual recurring saving", money(savings * 12)],
-              ])}
-              {ledger("Added-clinic cost and profit", [
-                ["Added clinic vendor cost / month", money(t.vendorCost)],
-                [
-                  "Profit after modeled added costs / month",
-                  `+${money(contribution)} / mo`,
-                  "i2e-profit",
-                ],
-                [
-                  "Profit margin after modeled added costs",
-                  `${((contribution / t.price) * 100).toFixed(1)}%`,
-                  "i2e-profit",
-                ],
-              ])}
-            </div>
-            <p className="i2e-note">
-              The {money(contribution)} is the new clinic's subscription minus
-              its modeled {money(t.vendorCost)}
-              added usage, after the {money(investorBudget.monthly)} central
-              monthly stack has already been funded. It is not whole-platform
-              net profit; unquoted enrollment, overages and other transaction
-              costs can reduce it. Subscription savings exclude implementation
-              and usage overages.{" "}
-              <a href="https://jane.app/pricing">Jane pricing</a>.
-            </p>
-          </section>
-          <section id="potential-revenue">
-            <h2>Other potential revenue</h2>
-            <Grid
-              label="Other potential revenue"
-              headers={[
-                "Revenue opportunity",
-                "Illustrative economics",
-                "Commercial basis",
-              ]}
-            >
-              <TableRow>
-                <TableCell component="th" scope="row">
-                  <I2eHelp label="Pharmacy partner economics" />
-                </TableCell>
-                <TableCell>
-                  Pricing and revenue share to be negotiated.
-                </TableCell>
-                <TableCell>
-                  Potential share of partner transaction economics, subject to
-                  agreements. The full spread is not automatically Meta Clinic
-                  revenue.
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell component="th" scope="row">
-                  <I2eHelp label="2% platform fee via Stripe" />
-                </TableCell>
-                <TableCell>
-                  2% of eligible payment volume. Example: $72,741 processed × 2%
-                  = $1,454.82 gross platform fees.
-                  <p className="i2e-note">
-                    <strong>Weight-loss clinic benchmark:</strong>{" "}
-                    Medi-Weightloss's 2025 Franchise Disclosure Document reports
-                    2024 average monthly gross sales of $72,741 for 73 clinics
-                    open more than two years; the median was $59,487. This is
-                    per clinic, not per provider, and is not a national or
-                    cash-only average. At $72,741 in eligible monthly payments,
-                    a proposed 2% fee would generate $1,454.82 in gross platform
-                    fees before payment costs. Actual fees depend on eligible
-                    payments processed through the platform.{" "}
-                    <a
-                      href="https://pdfindx-51ec5d045801.herokuapp.com/get_pdf/NbxH2YWhNbxH2YWhNbxH2YWh#page=66"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Source: Medi-Weightloss 2025 FDD, Item 19, page 60
-                    </a>
-                    .
-                  </p>
-                </TableCell>
-                <TableCell>
-                  Proposed Meta Clinic application fee collected through Stripe
-                  Connect, separate from Stripe processing charges and any
-                  Stripe revenue-sharing agreement.
-                </TableCell>
-              </TableRow>
-            </Grid>
-            <p className="i2e-note">
-              Illustrative opportunities, excluded from subscription
-              contribution. Net proceeds depend on partner terms, payment costs,
-              fulfillment, refunds and taxes. A payment-volume fee would be an
-              additional clinic expense beyond the software subscription
-              comparison.{" "}
-              <a href="https://stripe.com/connect/pricing">
-                Stripe Connect pricing
-              </a>
-              .
+              This compares published competitor pricing with Meta Clinic's
+              modeled cost to deliver comparable workflows. Jane's three-provider
+              subscription total depends on provider license hours. Hint Launch
+              is an alternative full platform, not an assumed Jane add-on. Meta
+              Clinic's {money(investorBudget.monthly)} shared monthly operating
+              budget is detailed in Section 02; per-clinic cost allocation,
+              implementation labor, payment volume, partner contracts and any
+              unquoted or usage-based fees remain explicit unknowns.
             </p>
           </section>
           <section id="capital">
-            <h2>02 / Central operating budget</h2>
+            <h2>02 / Meta Clinic cost to operate</h2>
             <p className="i2e-budget-intro">
-              What Meta Clinic budgets once to launch and each month to run the
-              platform before adding the clinic in Section 01. The $1,500
-              insurance billing allowance is one central planning line; Candid
-              has not quoted coverage for multiple independent owners.
+              Shared one-time and monthly Meta Clinic operating-cost models.
+              These include infrastructure for several target services, not a
+              per-clinic invoice. The $1,500 insurance billing line is an
+              optional central planning allowance; Candid has not quoted
+              coverage for multiple independent owners.
             </p>
             <dl className="i2e-budget-summary">
               <div>
@@ -735,14 +672,16 @@ export function I2eInvestorPage() {
             </div>
             <p className="i2e-note">
               $0 means no fixed amount budgeted, not that the service is free.
-              The {money(investorBudget.monthly)} monthly stack includes the
-              $1,500 insurance engine, $800 Photon plan, $150 video reserve,
-              $110 modeled scribe allowance and $400 hosting allowance. The{" "}
-              {money(t.vendorCost)} added-clinic estimate in Section 01 is
-              incremental usage on top of this base, not a second base
-              subscription. Final pricing depends on contracts and usage. Lab
-              middleware and per-order test costs are excluded. LegitScript's
-              published $2,150 annual fee is additional if approved.
+              The {money(investorBudget.monthly)} modeled monthly stack includes
+              a $1,500 optional insurance-engine allowance (not a Candid quote),
+              the $800 Photon plan, $150 video reserve,
+              $110 modeled scribe allowance and $400 hosting allowance. Section
+              01 shows the modeled $30 video and $30 scribe usage for its
+              stated clinic assumptions; those are incremental usage estimates,
+              not allocated shares of the shared stack. Final clinic cost
+              allocation depends on contracts and usage. Lab middleware and
+              per-order test costs are excluded. LegitScript's published $2,150
+              annual fee is additional if approved.
             </p>
           </section>
           <section id="sales-deck">

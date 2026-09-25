@@ -52,7 +52,7 @@ export function I2eClinicMarkets({
   const [size, setSize] = useState(1);
   const [market, setMarket] = useState(0);
   const [profile, setProfile] = useState(0);
-  const [current, setCurrent] = useState("1354");
+  const [current, setCurrent] = useState("");
   const [discount, setDiscount] = useState("20");
   const [clinics, setClinics] = useState("10");
   const [extra, setExtra] = useState("0");
@@ -99,11 +99,12 @@ export function I2eClinicMarkets({
         </div>
         <p>
           <strong>
-            Sell a lower total software bill and a more connected clinic
-            workflow.
+            Show where Meta Clinic can connect more of the clinic's work in one
+            workflow; make a savings claim only when actual invoices and
+            required capabilities support it.
           </strong>{" "}
           Start with the clinic's current invoices and required capabilities.
-          Replace only tools whose workflows we can demonstrate end to end; do
+          Compare only the tools and workflow gaps the clinic actually has; do
           not count labor, medication markups or hypothetical staffing savings.
         </p>
         <TableContainer
@@ -259,7 +260,7 @@ export function I2eClinicMarkets({
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             error={!validCurrent}
-            helperText="Default $1,354 is the illustrative stack below. Replace with actual invoices."
+            helperText="Enter the clinic's verified monthly invoices. Exclude capabilities already included in its Jane plan; the page does not assume a competitor bill."
           />
           <TextField
             label="Desired customer saving (%)"

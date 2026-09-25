@@ -4,29 +4,37 @@ import InfoOutlined from "@mui/icons-material/InfoOutlined";
 
 const explanations: Record<string, string> = {
   "1:1 telehealth":
-    "A video visit between one clinician and one patient. Jane includes this in its base plan; Meta Clinic includes video in this proposed bundle.",
+    "Jane includes one-to-one telehealth in its plans at no extra subscription cost; group telehealth is an optional add-on. Meta Clinic's current model estimates Twilio usage for a stated visit volume, but excludes account/BAA requirements and other fees. Compare the actual usage and complete vendor costs.",
   "Pharmacy partner economics":
     "A possible revenue arrangement with a pharmacy partner. The difference between retail price and pharmacy cost is a gross spread; Meta Clinic's share must be established by agreement.",
   "2% platform fee via Stripe":
     "A proposed fee Meta Clinic would charge on eligible payments, collected using Stripe Connect. It is not a 2% payment from Stripe and does not replace Stripe's processing fees.",
-  "Jane Practice + 2 seats":
-    "Scheduling and patient-chart software for three bookable providers. A seat means one provider account in this comparison.",
-  "Hint membership billing":
-    "Software for managing clinic memberships: enroll patients, collect recurring fees, and track membership status. The budget models it as a separate subscription.",
-  "HubSpot CRM":
-    "Customer relationship management software: tracks prospective patients, outreach, and follow-up before they become active patients.",
-  "DoseSpot eRx seats":
-    "Electronic prescribing accounts that let clinicians send prescriptions to pharmacies. The estimate covers three prescribers.",
+  "Jane plan + provider seats":
+    "Jane publishes monthly plan base prices. Thrive is $99/month and includes one full-time practitioner; additional practitioner licenses depend on booked hours. The exact three-provider total needs the provider schedule or Jane's account calculator. Meta Clinic's $400 hosting allowance is shared infrastructure, not a measured per-clinic cost, and build/support labor is not included.",
+  "Hint Launch · alternative platform":
+    "WHY HINT IS HERE: Hint's weight-management Launch platform lists EMR/charting, e-prescribing/refills, lab ordering/results, scheduling, membership management and billing. A clinic may choose it as a weight-management-focused system; it is a full-platform alternative to Jane, not a required Jane add-on. Jane Thrive already includes recurring packages/memberships, so a clinic that is satisfied with Jane would not need Hint just for membership billing. PRICE BASIS: Hint Launch is $290/month for one clinician plus $290/month per additional clinician: $870/month for three clinicians with unlimited members. Launch payment fees are cards 3% + $0.30 (+1% Amex) and ACH 1% + $0.25 (capped at $5). Hint Pro includes AI and employer-management/eligibility features; for 3 clinicians and 100 members the published formula gives $784/month ($320 + 2 × $232), before extra members, with separate transaction rates. Do not add Hint to Jane unless a real clinic invoice shows both. Meta's membership workflow is a launch target; employer features are not claimed as equivalent, and full feature/partner coverage needs validation.",
+  "Jane memberships + payment processing":
+    "Jane Thrive includes recurring packages/memberships, automated invoices, usage tracking and reports. Its published payment rates are 2.85% plus $0.25 for online card transactions and 2.6% plus $0.10 in person. Hint Launch is a separately priced full-platform alternative at $870/month for three clinicians; don't add it to Jane unless an actual clinic bill shows both. Stripe Connect's cost depends on payment architecture. If clinics pay Stripe directly, Stripe says no platform fee and standard online cards start at 2.9% plus $0.30 per successful charge. If Meta handles pricing, Connect adds $2 per active account/month and 0.25% plus $0.25 per payout, as well as processing. Without transaction volume and a decided architecture, the full Meta cost is unknown.",
+  "CRM / HubSpot optional reference":
+    "Jane includes patient records, secure messaging and routine patient follow-up, and offers a TrustDrivenCare integration. A separate CRM is optional for lead pipeline or marketing automation. HubSpot currently lists CRM Free at $0 for up to two users and 1,000 contacts; Starter shows promotional $7/seat/month and standard monthly $20/seat. Those tiers have different limits. Meta's product engineering, messaging, hosting allocation and support cost are not separately allocated per clinic.",
+  "Medication records and e-prescribing":
+    "Jane's medication list/history, chart templates and fax workflow do not mean the app electronically transmits prescriptions to pharmacies. Jane's U.S. Medical Hub describes direct e-prescribing as upcoming, so don't count it as a currently included live feature. Meta's market-launch target uses Photon, which publishes $800/month for up to 2,000 orders and $0.80 per additional order; that is a shared central vendor tier, not a verified per-clinic quote or proof that required controlled-substance and pharmacy-network scope is covered.",
   "Jane AI Scribe · 3 seats":
-    "An optional note-drafting assistant inside Jane. This estimate includes one subscription for each of three clinicians.",
+    "WHY IT IS HERE: this is an optional, directly comparable note-drafting capability. Jane publishes $15/month per opted-in practitioner for unlimited AI Scribe notes, so three paid seats total $45/month; eligible Jane plans include five notes/month at no charge. The $45 applies only if all three clinicians choose the paid tier. Meta Clinic's target is a clinician-reviewed draft-note workflow; the page's model-processing cost is an internal usage assumption, not a vendor quote or a claim that the workflows are clinically equivalent.",
+  "Insurance billing engine":
+    "Jane publishes a $20/month Insurance Billing add-on plus $5 per added full-time practitioner license or $2.50 per part-time license. The Claim.MD clearinghouse account is separate. It is optional and excluded from this cash-pay example. Meta Clinic budgets $1,500/month centrally for Candid, but that is an internal allowance, not a Candid quote; separate-clinic coverage and additional fees remain unknown.",
+  "Quest/Labcorp order/result tracking":
+    "Jane's Fullscript connection supports supplements and U.S. lab orders/results, but labs exclude NY, NJ, RI, HI and offshore U.S. territories; test prices vary. Meta Clinic has not selected or contracted a lab partner. Healthie's $10/provider/month plus $5/non-NPI-user listing is a comparator requiring Enterprise and separate setup/testing; it is not a Meta quote. The interface and launch coverage must be confirmed before claiming parity.",
+  "503A partner pharmacy orders/status":
+    "Jane's integration directory does not establish universal order/status connectivity with every 503A pharmacy. Verify the specific pharmacy, workflow and fee with the clinic. Meta Clinic has not selected a partner; both fixed and per-order costs are unknown. A zero budget line means unpriced, not free.",
   "Additional software subtotal":
-    "Membership billing, CRM, prescribing and scribe subscriptions added together. This subtotal excludes Jane's base subscription.",
+    "No generic Jane-plus-add-ons subtotal is shown. Build a competitor baseline from the clinic's Jane plan and actual third-party invoices, excluding features already in its Jane plan and optional tools it does not use.",
   "Total software bill":
-    "The modeled monthly total of Jane plus the listed additional tools. It excludes staff wages, medication purchases and implementation fees.",
+    "A modeled comparison only, not a quote or verified current bill. Reconcile the Jane plan and any third-party subscriptions to actual clinic invoices; staff wages, medication purchases and implementation fees are excluded.",
   "Flat monthly platform fee":
     "The proposed recurring subscription for this three-provider practice. Implementation and usage overages are separate.",
   "Monthly software saving":
-    "The current modeled software bill minus Meta Clinic's proposed monthly subscription.",
+    "No savings figure is claimed until a real clinic's Jane plan and invoices are compared against the target Meta Clinic offer, after confirming equivalent workflows and including required third-party, transaction and implementation costs.",
   "Software cost reduction":
     "Monthly software savings divided by the current software bill, expressed as a percentage.",
   "Annual recurring saving":
@@ -61,8 +69,6 @@ const explanations: Record<string, string> = {
     "A healthcare merchant review program used by some payment and advertising partners. LegitScript publishes a $975 application fee and $2,150 annual fee after approval. The page's $1,500 setup allowance is not its published price.",
   "Prescription Network API (eRx)":
     "Photon's published Launch plan costs $800 per month for 2,000 orders, with $0.80 per additional order. An API connects prescribing workflows to the vendor; production terms and supported data remain to be confirmed.",
-  "Insurance billing engine":
-    "Software that prepares insurance claims and manages submission and response workflows. $1,500/month is one planning allowance, not a verified Candid price or a confirmed multi-owner contract. Separately owned clinics may require individual enrollment or fees.",
   "HIPAA Telehealth Video API":
     "Twilio lists video at $0.004 per participant-minute. A two-person 30-minute visit uses 60 participant-minutes, or $0.24 before extras. Health-data use requires the appropriate account edition and BAA.",
   "Photon Health · proposed":
@@ -71,8 +77,8 @@ const explanations: Record<string, string> = {
     "Twilio publishes $0.004 per participant-minute. The central budget includes $150/month of existing usage; 125 two-person, 30-minute visits at the added clinic would add $30 before extras. HIPAA account edition and BAA terms need confirmation.",
   "Candid Health · proposed":
     "Candid offers claims and revenue-cycle software. $1,500 is a central planning allowance, not a published price. Its API supports organization-scoped records, but one contract covering separately owned clinics has not been confirmed; entity enrollment and claim fees need a quote.",
-  "OpenRouter · Whisper + GPT-5.6 Luna planned":
-    "Proposed two-stage workload: Whisper-1 transcribes 30 audio minutes per note at $0.006/min; GPT-5.6 Luna processes 6,000 input and 2,000 output tokens at $0.20/M and $1.20/M. For 125 notes this is $22.95 in model usage, about $24.21 with OpenRouter's standard 5.5% credit-purchase fee, budgeted at $30 after a 10% reserve and rounding. The current development scribe route differs.",
+  "Whisper + GPT-5.6 Luna usage model":
+    "Target cost scenario: Whisper-1 transcribes 30 audio minutes per note at $0.006/min; GPT-5.6 Luna processes 6,000 input and 2,000 output tokens at $0.20/M and $1.20/M. For 125 notes this is $22.95 in model usage, about $24.21 with OpenRouter's standard 5.5% credit-purchase fee, budgeted at $30 after a 10% reserve and rounding. This is an explicit workload model, not a vendor subscription quote or validated production usage cost.",
   "AI Clinical Scribe Engine":
     "At 500 notes of 30 audio minutes each, Whisper-1 plus GPT-5.6 Luna costs about $96.85 including an effective 5.5% OpenRouter credit-purchase fee; with a 10% reserve rounded up, the central allowance is $110. One added clinic's 125 notes costs about $24.21, budgeted at $30. This is a workload model, not a vendor quote or guaranteed note capacity.",
   "Security & HIPAA hosting":
@@ -83,10 +89,6 @@ const explanations: Record<string, string> = {
     "The proposed monthly organization-level price range from the sales deck, rather than a price per individual provider.",
   "Workflow scope":
     "The specialty-specific workflows the proposed offering needs to support.",
-  "503A partner webhooks":
-    "Connections that send order or status updates between the platform and a partner compounding pharmacy. Compounding prepares medication for an individual patient's prescription.",
-  "Quest/Labcorp order/result tracking":
-    "Planned connections for placing Quest or Labcorp orders and receiving results in the clinic workspace. Middleware, interface setup and per-order tests are not contracted or included in the $60 modeled added-clinic cost.",
   "Lab middleware · proposed":
     "Healthie publishes $10 per ordering provider monthly for Enterprise customers connecting existing Quest/Labcorp accounts, plus $5 per non-NPI ordering user. A three-provider example is $30 monthly before Enterprise subscription, interface setup and test costs. This is a market comparator, not Meta Clinic pricing.",
   "Diagnostic lab connectivity (Quest / Labcorp)":
@@ -118,7 +120,15 @@ export function I2eHelp({ label }: { label: string }) {
             onClose={() => setOpen(false)}
             disableTouchListener
             slotProps={{
-              tooltip: { sx: { fontSize: 12, lineHeight: 1.5, maxWidth: 320 } },
+              tooltip: {
+                sx: {
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  maxWidth: 460,
+                  maxHeight: "65vh",
+                  overflowY: "auto",
+                },
+              },
             }}
           >
             <IconButton

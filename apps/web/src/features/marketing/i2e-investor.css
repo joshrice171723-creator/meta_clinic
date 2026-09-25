@@ -654,7 +654,8 @@
   color: #654b17;
 }
 .i2e-comparison-table .MuiTableCell-root {
-  white-space: nowrap;
+  white-space: normal;
+  vertical-align: top;
 }
 .i2e-comparison-table .i2e-warning-cell {
   background: #fff2d6;
