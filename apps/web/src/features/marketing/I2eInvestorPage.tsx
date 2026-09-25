@@ -22,64 +22,71 @@ export const investorCosts = [
     upfront: 5000,
     monthly: 0,
     purpose:
-      "Workflow development, UI components and sandbox integration testing.",
-    value: "Build the shared care-delivery core.",
+      "Finalize shared care-delivery feature blocks and sandbox verification to accelerate time-to-market.",
+    value: "One core, repeatable across clinic specialties.",
   },
   {
     category: "Healthcare legal & contracts",
     upfront: 2000,
     monthly: 0,
     purpose:
-      "Budget for counsel-reviewed MSA and BAA templates; scope and quotes pending.",
-    value: "Define customer, platform and partner responsibilities.",
+      "Deploy a scalable Master Platform MSA and click-through BAA framework that defines platform, partner and clinic responsibilities.",
+    value:
+      "Counsel-reviewed contracts; statutory duties and malpractice exposure cannot simply be transferred away.",
   },
   {
-    category: "Prescription network API",
-    upfront: 0,
-    monthly: 800,
+    category: "EPCS assurance / DEA audit",
+    upfront: 2000,
+    monthly: 0,
     purpose:
-      "Planning allowance for an eRx provider; routing, volume and benefit-check terms to confirm.",
-    value: "Connect prescribing to external pharmacy fulfillment.",
-  },
-  {
-    category: "Insurance billing engine",
-    upfront: 0,
-    monthly: 1500,
-    purpose:
-      "Planning allowance for claims and clearinghouse integration; optional for cash-pay clinics.",
-    value: "Support a future hybrid payment model.",
-  },
-  {
-    category: "Security & cloud hosting",
-    upfront: 0,
-    monthly: 400,
-    purpose:
-      "Hosting, access controls and audit infrastructure; security implementation remains necessary.",
-    value: "Establish an accountable operating foundation.",
+      "Establish the audit or certification coverage needed for controlled-substance e-prescribing, including provider identity and access requirements.",
+    value:
+      "Scope depends on the prescribing application and vendor coverage; this budget is not an approval.",
   },
   {
     category: "LegitScript certification",
     upfront: 1500,
     monthly: 0,
     purpose:
-      "Placeholder allowance; applicability, application fees and recurring fees require confirmation.",
-    value: "Evaluate payment and advertising channel requirements.",
+      "Pursue healthcare merchant certification where required to support payment and advertising access.",
+    value:
+      "Confirm application and annual fees; certification does not guarantee Stripe or other processor acceptance.",
   },
   {
-    category: "EPCS assurance",
-    upfront: 2000,
-    monthly: 0,
+    category: "Prescription network API",
+    upfront: 0,
+    monthly: 800,
     purpose:
-      "Placeholder for EPCS assurance work; confirm provider certification coverage and our application scope.",
-    value: "Resolve controlled-prescribing requirements before activation.",
+      "Embed prescription routing through the proposed Photon Health integration, with medication-history and benefit-data scope confirmed in contracting.",
+    value:
+      "Target: a connected prescribing experience and external pharmacy fulfillment.",
   },
   {
-    category: "Pharmacy & diagnostic partners",
+    category: "Insurance billing engine",
+    upfront: 0,
+    monthly: 1500,
+    purpose:
+      "Integrate ANSI X12 837 claim workflows and clearinghouse submission through the proposed Candid Health API layer.",
+    value:
+      "Expand into hybrid clinics while keeping insurance optional for cash-pay practices.",
+  },
+  {
+    category: "Security & HIPAA hosting",
+    upfront: 0,
+    monthly: 400,
+    purpose:
+      "Implement isolated hosting, access controls and audit infrastructure using an appropriate AWS HIPAA-eligible or Aptible configuration.",
+    value:
+      "Hosting eligibility supports the architecture; BAAs, safeguards and operating controls remain essential.",
+  },
+  {
+    category: "Partner labs & compounding",
     upfront: 0,
     monthly: 0,
     purpose:
-      "No fixed fee assumed in this model. Partner quotes, per-order costs and agreements remain open.",
-    value: "Coordinate partner orders and fulfillment status.",
+      "Build partner-order and result pipelines for diagnostic networks and licensed 503A pharmacies, with transaction-based economics.",
+    value:
+      "Quest/Labcorp and pharmacy partners are integration targets. No fixed platform fee is modeled; variable costs and terms require contracts.",
   },
 ];
 const money = (value: number) =>
@@ -89,13 +96,57 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 export const investorBudget = {
+  capital: 30000,
   upfront: investorCosts.reduce((sum, row) => sum + row.upfront, 0),
   monthly: investorCosts.reduce((sum, row) => sum + row.monthly, 0),
+  retail: 120,
+  wholesale: 45,
 };
+const sources = [
+  ["Jane / U.S. pricing", "https://jane.app/pricing"],
+  [
+    "Jane / medical & lab workflows",
+    "https://jane.app/guide/medical-wellness-hub",
+  ],
+  [
+    "Jane / reported financing & ARR",
+    "https://betakit.com/jane-software-to-be-reportedly-valued-at-1-8-billion-in-upcoming-secondary-financing/",
+  ],
+  [
+    "Photon / Amazon Pharmacy",
+    "https://blog.photon.health/amazon-pharmacy-and-photon-collaborate-to-improve-transparency-and-access-for-patients/",
+  ],
+  [
+    "HHS / business associate liability",
+    "https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/business-associates/factsheet/index.html",
+  ],
+  [
+    "DEA / EPCS requirements",
+    "https://www.deadiversion.usdoj.gov/faq/epcs-faq.html",
+  ],
+  [
+    "LegitScript / certification",
+    "https://www.legitscript.com/certification/healthcare-certification/faq/",
+  ],
+  [
+    "FDA / compounding",
+    "https://www.fda.gov/drugs/human-drug-compounding/compounding-and-fda-questions-and-answers",
+  ],
+];
+function Anchor({ children }: { children: string }) {
+  return (
+    <span className="i2e-anchor" aria-hidden="true">
+      {children}
+    </span>
+  );
+}
 
 export function I2eInvestorPage() {
   const [months, setMonths] = useState(7);
-  const { upfront, monthly } = investorBudget;
+  const [clinics, setClinics] = useState(4);
+  const { capital, upfront, monthly, retail, wholesale } = investorBudget;
+  const spread = retail - wholesale;
+  const orders = Math.ceil(monthly / spread);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"category" | "upfront" | "monthly">(
     "category",
@@ -120,7 +171,7 @@ export function I2eInvestorPage() {
   };
   useEffect(() => {
     const title = document.title;
-    document.title = "Meta Clinic × i2E | Investment conversation";
+    document.title = "Meta Clinic × i2E | Clinical transaction strategy";
     const robots = document.createElement("meta");
     robots.name = "robots";
     robots.content = "noindex,nofollow";
@@ -137,12 +188,13 @@ export function I2eInvestorPage() {
       </a>
       <header className="i2e-header">
         <a href="/meta-clinic" className="i2e-brand">
-          <span aria-hidden="true">m.</span> Meta Clinic
+          <span aria-hidden="true">m.</span>Meta Clinic
         </a>
         <nav aria-label="Investor navigation">
-          <a href="#capital">Costs</a>
+          <a href="#positioning">Positioning</a>
+          <a href="#capital">Capital</a>
+          <a href="#supply-chain">Supply chain</a>
           <a href="#roadmap">Milestones</a>
-          <a href="#discussion">Discussion</a>
         </nav>
         <Button
           className="i2e-print"
@@ -155,17 +207,15 @@ export function I2eInvestorPage() {
       <main id="i2e-main">
         <section className="i2e-hero">
           <div>
-            <p className="i2e-eyebrow">
-              PREPARED FOR i2E / INVESTMENT CONVERSATION
-            </p>
             <h1>
-              A connected clinic.
+              The operating system
               <br />
-              <em>A focused next chapter.</em>
+              for <em>clinical commerce.</em>
             </h1>
             <p className="i2e-lead">
-              One operating workspace for independent clinics — from the first
-              appointment to care, payment and follow-up.
+              Connect the clinic day to the transactions behind it:
+              prescriptions, diagnostics, claims and fulfillment in one
+              coordinated workspace.
             </p>
             <div className="i2e-hero-actions">
               <Button
@@ -176,106 +226,216 @@ export function I2eInvestorPage() {
               >
                 Explore the product demo
               </Button>
-              <a href="#capital">Explore the operating plan ↓</a>
+              <span>Strategy briefing prepared for i2E</span>
             </div>
           </div>
-          <aside className="i2e-ask">
-            <p className="i2e-eyebrow">THE OPPORTUNITY</p>
-            <h2>Built around the independent clinic.</h2>
+          <aside className="i2e-intro">
+            <h2>
+              Build once.
+              <br />
+              Scale with clinic activity.
+            </h2>
             <p>
-              Connect the tools. Simplify the handoffs. Make the clinic day work
-              better.
+              Our strategy combines a shared care-delivery core with embedded
+              service integrations and transaction-linked revenue.
             </p>
-            <div>
-              <span>Focus</span>
-              <b>Cash-pay & hybrid clinics</b>
-            </div>
-            <div>
-              <span>First markets</span>
-              <b>Concierge / Wellness / Med spas</b>
-            </div>
-            <div>
-              <span>Next milestone</span>
-              <b>Validate a repeatable pilot offering</b>
-            </div>
+            <dl>
+              <div>
+                <dt>Initial market</dt>
+                <dd>Concierge, wellness & med spas</dd>
+              </div>
+              <div>
+                <dt>Distribution</dt>
+                <dd>Repeatable clinic onboarding</dd>
+              </div>
+              <div>
+                <dt>Economic engine</dt>
+                <dd>Software + transaction margin</dd>
+              </div>
+            </dl>
           </aside>
         </section>
-        <section className="i2e-thesis" aria-label="Investment thesis">
+        <dl className="i2e-metrics" aria-label="Funding plan">
           <div>
-            <span>01 / THE PROBLEM</span>
-            <p>
-              Small clinics piece together scheduling, charts, payments and
-              supplier tools.
-            </p>
+            <dt>Funding ask</dt>
+            <dd>{money(capital)}</dd>
           </div>
           <div>
-            <span>02 / THE PRODUCT</span>
-            <p>
-              A shared clinic core with specialty workflows and optional
-              integrations.
-            </p>
+            <dt>Upfront execution</dt>
+            <dd>{money(upfront)}</dd>
           </div>
           <div>
-            <span>03 / THE NEXT PROOF</span>
-            <p>
-              Validate willingness to pay, onboarding effort and repeatable
-              clinic economics.
-            </p>
+            <dt>Fixed vendor stack</dt>
+            <dd>
+              {money(monthly)}
+              <small> / mo</small>
+            </dd>
           </div>
-        </section>
-        <section id="capital" className="i2e-capital">
+          <div>
+            <dt>Modeled operating runway</dt>
+            <dd>
+              7<small> months</small>
+            </dd>
+          </div>
+        </dl>
+        <section id="positioning">
           <div className="i2e-section-heading">
-            <div>
-              <p className="i2e-eyebrow">01 / OPERATING PLAN</p>
-              <h2>Every dollar, with a purpose.</h2>
-            </div>
+            <h2>
+              <Anchor>↔️</Anchor>Compete on the whole clinical transaction.
+            </h2>
             <p>
-              Founder planning estimates in USD.
-              <br />
-              Vendor quotes and scope remain to be confirmed.
+              A focused strategy against an established practice-management
+              platform.
             </p>
           </div>
-          <div className="i2e-capital-grid">
-            <aside>
-              <h3>Monthly cost mix</h3>
-              <div
-                className="i2e-donut"
-                role="img"
-                aria-label="Monthly estimates: insurance billing 1,500 dollars, prescription API 800 dollars, cloud hosting 400 dollars"
-              >
+          <div className="i2e-comparison">
+            <article>
+              <h3>
+                Jane App <span>Established platform</span>
+              </h3>
+              <p className="i2e-statement">
+                Practice management
+                <br />
+                with an integration ecosystem.
+              </p>
+              <dl>
                 <div>
-                  <strong>$2,700</strong>
-                  <span>monthly estimate</span>
-                </div>
-              </div>
-              <dl className="i2e-legend">
-                <div>
-                  <dt>
-                    <i className="i2e-dot upfront" />
-                    Insurance billing
-                  </dt>
-                  <dd>$1,500</dd>
+                  <dt>Core offering</dt>
+                  <dd>
+                    Scheduling, charting, payments and insurance workflows.
+                  </dd>
                 </div>
                 <div>
-                  <dt>
-                    <i className="i2e-dot recurring" />
-                    Prescription API
-                  </dt>
-                  <dd>$800</dd>
+                  <dt>U.S. base pricing</dt>
+                  <dd>
+                    $54 Balance / $79 Practice / $99 Thrive per month;
+                    practitioner and feature charges apply.
+                  </dd>
                 </div>
                 <div>
-                  <dt>
-                    <i className="i2e-dot reserve" />
-                    Cloud hosting
-                  </dt>
-                  <dd>$400</dd>
+                  <dt>Connected services</dt>
+                  <dd>
+                    Insurance add-on starts at $20/mo; Claim.MD clearinghouse
+                    account is separate. Fullscript supports lab ordering.
+                  </dd>
+                </div>
+                <div>
+                  <dt>The buying question</dt>
+                  <dd>
+                    What is the total cost and workflow effort across the
+                    clinic's full service stack?
+                  </dd>
                 </div>
               </dl>
               <p className="i2e-note">
-                Estimated fixed costs. Insurance is an optional module for
-                cash-pay clinics.
+                Category scale: BetaKit reported a $1.8B valuation and $100M ARR
+                milestone in 2025. Historical reporting, not a current valuation
+                or a Meta Clinic comparable; currencies are not normalized here.{" "}
+                <a href={sources[2][1]}>Read report</a>.
               </p>
-            </aside>
+            </article>
+            <article>
+              <h3>
+                Meta Clinic <span>Our strategic advantage</span>
+              </h3>
+              <p className="i2e-statement">
+                Unify the workflow.
+                <br />
+                <em>Participate in the transaction.</em>
+              </p>
+              <dl>
+                <div>
+                  <dt>Architecture</dt>
+                  <dd>
+                    One clinic workflow spanning care, orders, billing,
+                    fulfillment and reconciliation.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Integration strategy</dt>
+                  <dd>
+                    Embed eRx, diagnostic and clearinghouse services behind a
+                    shared operating experience.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Revenue strategy</dt>
+                  <dd>
+                    Combine recurring software revenue with transaction
+                    economics where the commercial structure permits.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Defensibility to build</dt>
+                  <dd>
+                    Repeatable onboarding, reliable handoffs and operational
+                    depth that grows with clinic activity.
+                  </dd>
+                </div>
+              </dl>
+              <p className="i2e-note">
+                Target architecture and commercial strategy. Named provider
+                connections and transaction revenue are not represented as live.
+                Current Jane feature and pricing references:{" "}
+                <a href={sources[0][1]}>pricing</a> /{" "}
+                <a href={sources[1][1]}>medical workflows</a>.
+              </p>
+            </article>
+          </div>
+        </section>
+        <section id="capital">
+          <div className="i2e-section-heading">
+            <h2>
+              <Anchor>⚖️</Anchor>Capital into execution.
+            </h2>
+            <p>
+              USD budget model. Amounts retain the founder's estimates; they are
+              not vendor quotes.
+            </p>
+          </div>
+          <div className="i2e-capital-grid">
+            <div className="i2e-budget-summary">
+              <h3>A seven-month execution window</h3>
+              <p className="i2e-statement">
+                {money(capital - upfront)}
+                <br />
+                <small>allocated to operations</small>
+              </p>
+              <p>
+                {money(capital)} funds {money(upfront)} in upfront work, leaving{" "}
+                {money(capital - upfront)} against a {money(monthly)} monthly
+                vendor stack.
+              </p>
+              <p className="i2e-formula">$19,500 ÷ $2,700 = 7.22 months</p>
+              <label id="i2e-months-label">
+                Operating period <b>{months} months</b>
+              </label>
+              <Slider
+                aria-labelledby="i2e-months-label"
+                min={1}
+                max={12}
+                step={1}
+                value={months}
+                onChange={(_, value) => setMonths(value as number)}
+                valueLabelDisplay="auto"
+              />
+              <dl>
+                <div>
+                  <dt>Operating expenses</dt>
+                  <dd aria-live="polite">{money(monthly * months)}</dd>
+                </div>
+                <div>
+                  <dt>Upfront + operating</dt>
+                  <dd>{money(upfront + monthly * months)}</dd>
+                </div>
+              </dl>
+              <p className="i2e-note">
+                Seven months of the listed fixed costs, assuming no revenue and
+                unchanged rates. Founder pay, acquisition, support, taxes,
+                variable usage and renewal fees are excluded; this is not
+                guaranteed company runway.
+              </p>
+            </div>
             <div className="i2e-matrix">
               <h3>Fixed cost data table</h3>
               <TextField
@@ -354,116 +514,213 @@ export function I2eInvestorPage() {
                 always include all planned costs.
               </p>
             </div>
-            <aside className="i2e-runway">
-              <p className="i2e-eyebrow">COST EXPLORER</p>
-              <h3>Plan the operating period.</h3>
-              <strong className="i2e-runway-number">
-                {money(monthly)}
-                <small> / mo</small>
-              </strong>
-              <p>Estimated fixed vendor costs at the modeled service scope.</p>
-              <label id="i2e-months-label">
-                Model duration <b>{months} months</b>
-              </label>
-              <Slider
-                aria-labelledby="i2e-months-label"
-                min={1}
-                max={12}
-                step={1}
-                value={months}
-                onChange={(_, value) => setMonths(value as number)}
-                valueLabelDisplay="auto"
-              />
-              <dl>
-                <div>
-                  <dt>Upfront expenses</dt>
-                  <dd>{money(upfront)}</dd>
-                </div>
-                <div>
-                  <dt>{months}-month operating costs</dt>
-                  <dd aria-live="polite">{money(monthly * months)}</dd>
-                </div>
-              </dl>
-              <p className="i2e-note">
-                Founder pay, taxes, acquisition, support, transaction fees,
-                variable usage and recurring certification fees are not
-                included.
-              </p>
-            </aside>
           </div>
         </section>
-        <section className="i2e-fulfillment">
+        <section id="supply-chain">
           <div className="i2e-section-heading">
-            <div>
-              <p className="i2e-eyebrow">02 / PRODUCT ARCHITECTURE</p>
-              <h2>One workspace. Two fulfillment paths.</h2>
-            </div>
+            <h2>
+              <Anchor>📦</Anchor>Two fulfillment paths. One transaction layer.
+            </h2>
             <p>
-              Proposed integrations; provider contracts
-              <br />
-              and live connectivity are not established here.
+              Target automated flows. Integration activation follows provider
+              contracts and verified implementation.
             </p>
           </div>
-          <div className="i2e-two-columns">
+          <div className="i2e-flow-grid">
             <article>
-              <span className="i2e-eyebrow">A / RETAIL PHARMACY</span>
-              <h3>Route care. Let partners fulfill.</h3>
-              <ol>
-                <li>Clinician prepares a prescription</li>
-                <li>eRx provider routes to a selected pharmacy</li>
-                <li>Pharmacy dispenses; clinic tracks the handoff</li>
+              <h3>Flow A / Commercial retail</h3>
+              <ol className="i2e-flow">
+                <li>
+                  <span>01</span>
+                  <div>
+                    <strong>Care team writes order</strong>
+                    <p>Prescription originates in the clinic workflow.</p>
+                  </div>
+                </li>
+                <li>
+                  <span>02</span>
+                  <div>
+                    <strong>Photon API routes prescription</strong>
+                    <p>Target embedded prescribing and routing layer.</p>
+                  </div>
+                </li>
+                <li>
+                  <span>03</span>
+                  <div>
+                    <strong>Amazon Pharmacy fulfills</strong>
+                    <p>
+                      Illustrative destination; patient choice and network
+                      availability apply.
+                    </p>
+                  </div>
+                </li>
               </ol>
-              <p>
-                External fulfillment can limit inventory and logistics exposure.
-                Network coverage and commercial terms need validation.
+              <p className="i2e-flow-result">
+                No inventory ownership in this modeled retail flow.
+              </p>
+              <p className="i2e-note">
+                Photon's Amazon Pharmacy collaboration is documented; Meta
+                Clinic connectivity is a target.{" "}
+                <a href={sources[3][1]}>Provider announcement</a>.
               </p>
             </article>
             <article>
-              <span className="i2e-eyebrow">B / SPECIALTY PARTNER</span>
-              <h3>Connect orders to the clinic workflow.</h3>
-              <ol>
-                <li>Clinician initiates an appropriate partner order</li>
-                <li>Authorized pharmacy or laboratory processes it</li>
-                <li>Status, charges and applicable stock events reconcile</li>
+              <h3>Flow B / Specialty compounding</h3>
+              <ol className="i2e-flow">
+                <li>
+                  <span>01</span>
+                  <div>
+                    <strong>
+                      Clinician selects an appropriate formulation
+                    </strong>
+                    <p>
+                      Patient-specific prescription and legally permissible
+                      ingredients.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>02</span>
+                  <div>
+                    <strong>Platform routes to a licensed 503A pharmacy</strong>
+                    <p>
+                      Target order, fulfillment and reconciliation webhooks.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>03</span>
+                  <div>
+                    <strong>Reconcile supplier cost and customer charge</strong>
+                    <p>
+                      Illustrative structure: $45 wholesale cost / $120 retail
+                      charge.
+                    </p>
+                  </div>
+                </li>
               </ol>
-              <p>
-                Commercial hypothesis: a $120 charge less a $45 supplier cost
-                leaves a $75 gross spread before other costs. This is
-                illustrative, not approved platform revenue or net profit;
-                entity roles and prescribing rules require review.
+              <div className="i2e-spread">
+                <span>
+                  $120<small>Retail charge</small>
+                </span>
+                <b>−</b>
+                <span>
+                  $45<small>Supplier cost</small>
+                </span>
+                <b>=</b>
+                <span>
+                  $75<small>Gross spread</small>
+                </span>
+              </div>
+              <p className="i2e-note">
+                Core transaction-margin hypothesis, before shipping, payment
+                fees, refunds and service costs. Meta Clinic's right to collect
+                or retain this spread depends on the agreed entity, pharmacy and
+                payment structure. Compounding is not general manufacturing or
+                blanket peptide authorization.{" "}
+                <a href={sources[7][1]}>FDA reference</a>.
               </p>
             </article>
+          </div>
+        </section>
+        <section id="discussion">
+          <div className="i2e-section-heading">
+            <h2>
+              <Anchor>📊</Anchor>A small cohort can test the economics.
+            </h2>
+            <p>Fixed-stack coverage model. Gross spread is not net profit.</p>
+          </div>
+          <div className="i2e-economics">
+            <div>
+              <p className="i2e-statement">{orders} orders per month.</p>
+              <p>
+                At {money(spread)} gross spread per order, {orders} orders
+                generate {money(orders * spread)} before other costs — equal to
+                the modeled fixed vendor stack.
+              </p>
+              <label id="i2e-clinics-label">
+                Pilot clinics <b>{clinics}</b>
+              </label>
+              <Slider
+                aria-labelledby="i2e-clinics-label"
+                min={1}
+                max={10}
+                step={1}
+                value={clinics}
+                onChange={(_, value) => setClinics(value as number)}
+                valueLabelDisplay="auto"
+              />
+              <p className="i2e-formula" aria-live="polite">
+                {Math.ceil(orders / clinics)} orders per clinic / month at{" "}
+                {clinics} clinics
+              </p>
+            </div>
+            <div className="i2e-matrix">
+              <TableContainer
+                tabIndex={0}
+                role="region"
+                aria-label="Scrollable pilot economics"
+              >
+                <Table aria-label="Pilot clinic cost coverage">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Pilot clinics</TableCell>
+                      <TableCell align="right">Orders / clinic / mo</TableCell>
+                      <TableCell align="right">Gross spread / mo</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[3, 4].map((count) => (
+                      <TableRow key={count}>
+                        <TableCell component="th" scope="row">
+                          {count} clinics
+                        </TableCell>
+                        <TableCell align="right">{orders / count}</TableCell>
+                        <TableCell align="right">
+                          {money(orders * spread)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <p className="i2e-note">
+                Three clinics at 12 orders each, or four at 9, cover the listed
+                stack only if the full modeled spread is retained. Additional
+                costs raise the break-even volume. Pilot demand and realized
+                contribution must establish profitability.
+              </p>
+            </div>
           </div>
         </section>
         <section id="roadmap">
           <div className="i2e-section-heading">
-            <div>
-              <p className="i2e-eyebrow">03 / PROPOSED SEQUENCE</p>
-              <h2>Clear milestones. Testable assumptions.</h2>
-            </div>
-            <p>Planning sequence, not promised completion dates.</p>
+            <h2>
+              <Anchor>🎯</Anchor>Execute toward repeatable clinic economics.
+            </h2>
+            <p>Milestones for the next investment decision.</p>
           </div>
           <div className="i2e-timeline">
             {[
               [
                 "01",
-                "Define the commercial foundation",
-                "Confirm clinic demand, pricing, entity responsibilities and counsel-reviewed contracts.",
+                "Finish the shared core",
+                "Complete connected care, order and billing workflows with sandbox verification.",
               ],
               [
                 "02",
-                "Resolve vendor & regulatory scope",
-                "Obtain provider quotes; assess BAA/security obligations, EPCS coverage and certification applicability.",
+                "Activate the service stack",
+                "Finalize commercial agreements, legal scope, security controls and required provider assurance.",
               ],
               [
                 "03",
-                "Prove the connected workflow",
-                "Verify clinic onboarding, end-to-end persistence and external integration behavior before activation.",
+                "Launch the pilot cohort",
+                "Onboard 3–4 target clinics and measure time-to-value, workflow adoption and order volume.",
               ],
               [
                 "04",
-                "Measure pilot economics",
-                "Track onboarding hours, support load, collected revenue and contribution margin per clinic.",
+                "Prove contribution margin",
+                "Measure collected revenue, true cost per order and support load before scaling acquisition.",
               ],
             ].map(([step, title, body]) => (
               <article key={step}>
@@ -474,64 +731,32 @@ export function I2eInvestorPage() {
             ))}
           </div>
         </section>
-        <section id="discussion" className="i2e-discussion">
-          <div>
-            <p className="i2e-eyebrow">04 / CONVERSATION WITH i2E</p>
-            <h2>
-              A focused conversation.
-              <br />A measurable next step.
-            </h2>
-            <p>
-              Discuss the path forward, introductions to early clinic partners,
-              and the evidence needed for the next investment decision.
-            </p>
-          </div>
-          <div>
-            <h3>Investor talking points</h3>
-            <ul>
-              <li>
-                <strong>Capital discipline.</strong> Use a bounded budget to
-                validate the clinic offering and replace estimates with actual
-                quotes.
-              </li>
-              <li>
-                <strong>Technical efficiency.</strong> Build the shared workflow
-                once and integrate specialized services where they make economic
-                sense.
-              </li>
-              <li>
-                <strong>Revenue potential.</strong> At four clinics, each would
-                need $675 in monthly contribution to cover the modeled $2,700
-                fixed vendor costs; at three, $900. Pricing, volume and margins
-                remain hypotheses.
-              </li>
-              <li>
-                <strong>Milestone-based progress.</strong> Tie follow-on
-                investment to workflow proof, clinic demand and measured unit
-                economics.
-              </li>
-            </ul>
-          </div>
+        <section className="i2e-close">
+          <h2>
+            Our ambition: become the operating layer
+            <br />
+            for independent clinical commerce.
+          </h2>
+          <p>
+            i2E conversation: a $30,000 execution plan, introductions to pilot
+            clinics, and measurable milestones for follow-on capital.
+          </p>
         </section>
         <footer className="i2e-footer">
           <div>
-            <strong>Meta Clinic / i2E discussion brief</strong>
+            <strong>Meta Clinic / i2E strategy brief</strong>
             <p>
-              Prepared for discussion. No i2E affiliation or investment
+              Source review: September 24, 2026. No i2E affiliation or
               commitment implied.
             </p>
           </div>
           <div>
-            <span>Scope references</span>
-            <a href="https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/business-associates/index.html">
-              HHS · Business associates
-            </a>
-            <a href="https://www.deadiversion.usdoj.gov/faq/epcs-faq.html">
-              DEA · EPCS
-            </a>
-            <a href="https://www.legitscript.com/certification/healthcare-certification/faq/">
-              LegitScript · Applicability & fees
-            </a>
+            <strong>Supporting references</strong>
+            {sources.slice(4, 7).map(([label, url]) => (
+              <a key={url} href={url}>
+                {label}
+              </a>
+            ))}
           </div>
         </footer>
       </main>
