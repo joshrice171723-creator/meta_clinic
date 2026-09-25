@@ -18,12 +18,13 @@ import "./i2e-investor.css";
 
 export const investorCosts = [
   {
-    category: "Core software development",
+    category: "AI Infrastructure & Workstation Hardware",
     upfront: 5000,
     monthly: 0,
     purpose:
-      "Finalize shared care-delivery feature blocks and sandbox verification to accelerate time-to-market.",
-    value: "One core, repeatable across clinic specialties.",
+      "Provision a high-performance developer workstation and budget for multi-million-token AI API usage, model experimentation, execution and local orchestration.",
+    value:
+      "Engineering velocity: reduce hardware and compute bottlenecks. A 10x acceleration is a target, not a measured result; training and inference costs require separate scoping.",
   },
   {
     category: "Healthcare legal & contracts",
@@ -35,7 +36,7 @@ export const investorCosts = [
       "Counsel-reviewed contracts; statutory duties and malpractice exposure cannot simply be transferred away.",
   },
   {
-    category: "EPCS assurance / DEA audit",
+    category: "DEA EPCS Compliance Audit",
     upfront: 2000,
     monthly: 0,
     purpose:
@@ -53,13 +54,13 @@ export const investorCosts = [
       "Confirm application and annual fees; certification does not guarantee Stripe or other processor acceptance.",
   },
   {
-    category: "Prescription network API",
+    category: "Prescription Network API (eRx)",
     upfront: 0,
     monthly: 800,
     purpose:
       "Embed prescription routing through the proposed Photon Health integration, with medication-history and benefit-data scope confirmed in contracting.",
     value:
-      "Target: a connected prescribing experience and external pharmacy fulfillment.",
+      "Retention: connected prescribing and external fulfillment. The assumed 2,000-order allowance, Surescripts access and real-time benefit checks require provider confirmation.",
   },
   {
     category: "Insurance billing engine",
@@ -71,6 +72,24 @@ export const investorCosts = [
       "Expand into hybrid clinics while keeping insurance optional for cash-pay practices.",
   },
   {
+    category: "HIPAA Telehealth Video API",
+    upfront: 0,
+    monthly: 150,
+    purpose:
+      "Budget for secure WebRTC video, remote consultations and patient check-ins, with Daily as a candidate provider.",
+    value:
+      "Core access: $150 is a budget target. Daily lists a $500/month HIPAA + BAA add-on before usage. The proposed 100,000-minute allowance is unverified; participant-minutes differ from consultation minutes.",
+  },
+  {
+    category: "AI Clinical Scribe Engine",
+    upfront: 0,
+    monthly: 350,
+    purpose:
+      "Audio processing and medical-language-model workflows targeting 450–500 draft SOAP notes per month, subject to recording length, model pricing and clinician review.",
+    value:
+      "Reduce documentation effort and strengthen adoption. Capacity and up to three hours saved per day are validation targets, not measured outcomes; generated notes require review.",
+  },
+  {
     category: "Security & HIPAA hosting",
     upfront: 0,
     monthly: 400,
@@ -80,7 +99,7 @@ export const investorCosts = [
       "Hosting eligibility supports the architecture; BAAs, safeguards and operating controls remain essential.",
   },
   {
-    category: "Partner labs & compounding",
+    category: "B2B Compounding Labs & Diagnostics",
     upfront: 0,
     monthly: 0,
     purpose:
@@ -142,9 +161,10 @@ function Anchor({ children }: { children: string }) {
 }
 
 export function I2eInvestorPage() {
-  const [months, setMonths] = useState(7);
+  const [months, setMonths] = useState(6);
   const [clinics, setClinics] = useState(4);
   const { capital, upfront, monthly, retail, wholesale } = investorBudget;
+  const runway = (capital - upfront) / monthly;
   const spread = retail - wholesale;
   const orders = Math.ceil(monthly / spread);
   const [query, setQuery] = useState("");
@@ -274,7 +294,8 @@ export function I2eInvestorPage() {
           <div>
             <dt>Modeled operating runway</dt>
             <dd>
-              7<small> months</small>
+              {runway.toFixed(2)}
+              <small> months</small>
             </dd>
           </div>
         </dl>
@@ -395,7 +416,7 @@ export function I2eInvestorPage() {
           </div>
           <div className="i2e-capital-grid">
             <div className="i2e-budget-summary">
-              <h3>A seven-month execution window</h3>
+              <h3>{Math.floor(runway)} full months of modeled operations</h3>
               <p className="i2e-statement">
                 {money(capital - upfront)}
                 <br />
@@ -406,7 +427,10 @@ export function I2eInvestorPage() {
                 {money(capital - upfront)} against a {money(monthly)} monthly
                 vendor stack.
               </p>
-              <p className="i2e-formula">$19,500 ÷ $2,700 = 7.22 months</p>
+              <p className="i2e-formula">
+                {money(capital - upfront)} ÷ {money(monthly)} ={" "}
+                {runway.toFixed(2)} months
+              </p>
               <label id="i2e-months-label">
                 Operating period <b>{months} months</b>
               </label>
@@ -430,10 +454,10 @@ export function I2eInvestorPage() {
                 </div>
               </dl>
               <p className="i2e-note">
-                Seven months of the listed fixed costs, assuming no revenue and
-                unchanged rates. Founder pay, acquisition, support, taxes,
-                variable usage and renewal fees are excluded; this is not
-                guaranteed company runway.
+                {Math.floor(runway)} full months of the listed fixed costs,
+                assuming no revenue and unchanged rates. Founder pay,
+                acquisition, support, taxes, variable usage and renewal fees are
+                excluded; this is not guaranteed company runway.
               </p>
             </div>
             <div className="i2e-matrix">
@@ -509,6 +533,15 @@ export function I2eInvestorPage() {
                   </TableFooter>
                 </Table>
               </TableContainer>
+              <p className="i2e-note">
+                Telehealth pricing reference:{" "}
+                <a href="https://www.daily.co/pricing/video-sdk/">
+                  Daily Video SDK pricing
+                </a>
+                . The $150 allocation does not cover the currently published
+                $500 healthcare add-on; final vendor selection and usage pricing
+                change the model.
+              </p>
               <p className="i2e-note" aria-live="polite">
                 {rows.length} of {investorCosts.length} costs shown. Totals
                 always include all planned costs.
@@ -635,7 +668,7 @@ export function I2eInvestorPage() {
               <p className="i2e-statement">{orders} orders per month.</p>
               <p>
                 At {money(spread)} gross spread per order, {orders} orders
-                generate {money(orders * spread)} before other costs — equal to
+                generate {money(orders * spread)} before other costs — covering
                 the modeled fixed vendor stack.
               </p>
               <label id="i2e-clinics-label">
@@ -675,9 +708,11 @@ export function I2eInvestorPage() {
                         <TableCell component="th" scope="row">
                           {count} clinics
                         </TableCell>
-                        <TableCell align="right">{orders / count}</TableCell>
                         <TableCell align="right">
-                          {money(orders * spread)}
+                          {Math.ceil(orders / count)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {money(count * Math.ceil(orders / count) * spread)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -685,10 +720,11 @@ export function I2eInvestorPage() {
                 </Table>
               </TableContainer>
               <p className="i2e-note">
-                Three clinics at 12 orders each, or four at 9, cover the listed
-                stack only if the full modeled spread is retained. Additional
-                costs raise the break-even volume. Pilot demand and realized
-                contribution must establish profitability.
+                Three clinics at {Math.ceil(orders / 3)} orders each, or four at{" "}
+                {Math.ceil(orders / 4)}, cover the listed stack only if the full
+                modeled spread is retained. Additional costs raise the
+                break-even volume. Pilot demand and realized contribution must
+                establish profitability.
               </p>
             </div>
           </div>
