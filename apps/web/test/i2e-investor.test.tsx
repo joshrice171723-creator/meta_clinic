@@ -53,3 +53,43 @@ describe("independent clinic costs", () => {
     expect(stackCosts.reduce((sum, row) => sum + row.cost, 0)).toBe(1354);
   });
 });
+
+import {
+  clinicMarkets,
+  janeProfiles,
+} from "../src/features/marketing/i2eMarketData";
+import { switchingEconomics } from "../src/features/marketing/I2eMarketComparison";
+
+describe("clinic switching comparisons", () => {
+  it("covers ten specialties and both Jane payment profiles", () => {
+    expect(new Set(clinicMarkets.map((row) => row.name)).size).toBe(10);
+    expect(
+      clinicMarkets.filter((row) => row.payment === "Insurance-enabled"),
+    ).toHaveLength(5);
+    clinicMarkets.forEach((row) => {
+      expect(row.prices).toHaveLength(5);
+      expect(row.implementation).toHaveLength(5);
+    });
+    expect(janeProfiles.map((row) => row.name)).toEqual([
+      "Jane cash-pay clinic",
+      "Jane insurance-billing clinic",
+    ]);
+  });
+  it("shows savings and contribution without labor or pharmacy revenue", () => {
+    const result = switchingEconomics(1354, 20, 10, 0);
+    expect(result.offer).toBeCloseTo(1083.2);
+    expect(result.cost).toBe(clinicEconomics(10).average);
+    expect(result.saving).toBeCloseTo(270.8);
+    expect(result.annualSaving).toBeCloseTo(3249.6);
+    expect(result.contribution).toBeCloseTo(313.2);
+    expect(result.minimumCurrent).toBeCloseTo(962.5);
+  });
+  it("rejects the economics of undercutting a low software bill", () => {
+    expect(switchingEconomics(149, 20, 10, 0).contribution).toBeCloseTo(-650.8);
+    expect(switchingEconomics(0, 20, 10, 0).contribution).toBe(-770);
+  });
+  it("includes extra expenses and the higher cost of a smaller network", () => {
+    expect(switchingEconomics(1354, 20, 4, 100).cost).toBe(1275);
+    expect(switchingEconomics(1354, 20, 4, 100).contribution).toBeLessThan(0);
+  });
+});

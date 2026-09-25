@@ -12,6 +12,7 @@ import {
 import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import PrintOutlined from "@mui/icons-material/PrintOutlined";
 import "./i2e-investor.css";
+import { I2eClinicMarkets } from "./I2eMarketComparison";
 
 export const investorCosts = [
   {
@@ -295,6 +296,8 @@ export function I2eInvestorPage() {
       <div className="i2e-workspace">
         <nav className="i2e-nav" aria-label="Dashboard sections">
           <a href="#overview">Overview</a>
+          <a href="#clinic-markets">10 clinic types</a>
+          <a href="#switching">Why switch?</a>
           <a href="#scaling">Per-clinic costs</a>
           <a href="#positioning">Stack value</a>
           <a href="#capital">Execution budget</a>
@@ -344,6 +347,7 @@ export function I2eInvestorPage() {
               not merely an extra location.
             </p>
           </section>
+          <I2eClinicMarkets />
           <section id="scaling">
             <div className="i2e-heading">
               <h2>📦 Multi-tenant cost grid</h2>

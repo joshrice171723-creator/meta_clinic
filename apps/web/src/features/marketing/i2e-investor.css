@@ -1,9 +1,9 @@
 .i2e-page {
-  --ink: #24342f;
-  --muted: #57645e;
-  --accent: #245b49;
-  --stripe: #f0f3ef;
-  background: #fafbf9;
+  --ink: #152c3c;
+  --muted: #536779;
+  --accent: #28629a;
+  --stripe: #e8eef8;
+  background: #101d2d;
   color: var(--ink);
   font:
     13px/1.5 Arial,
@@ -14,7 +14,7 @@
   box-sizing: border-box;
 }
 .i2e-page ::selection {
-  background: #d5e6d9;
+  background: #cce0f8;
 }
 .i2e-page a {
   color: var(--accent);
@@ -52,7 +52,7 @@
   justify-content: space-between;
   gap: 24px;
   padding: 14px 28px;
-  background: #fafbf9;
+  background: #101d2d;
 }
 .i2e-brand {
   font-size: 24px;
@@ -109,7 +109,7 @@
 }
 .i2e-nav a:hover,
 .i2e-nav a:focus-visible {
-  background: #e8eee6;
+  background: #21364f;
   color: var(--accent);
 }
 .i2e-page main {
@@ -158,7 +158,7 @@
 }
 .i2e-answer {
   max-width: 115ch !important;
-  color: #43554a;
+  color: #536779;
 }
 .i2e-answer strong {
   font-weight: 600;
@@ -420,5 +420,97 @@
   }
   .i2e-grid .MuiTableBody-root .MuiTableRow-root:nth-child(odd) {
     print-color-adjust: exact;
+  }
+}
+
+.i2e-switch-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 28px 0 20px;
+}
+.i2e-switch-inputs .MuiFormControl-root {
+  min-width: 0;
+}
+#clinic-markets .i2e-heading > .MuiFormControl-root {
+  min-width: 230px;
+}
+#clinic-markets .MuiTableCell-root:nth-child(3),
+#clinic-markets .MuiTableCell-root:nth-child(4) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1100px) {
+  .i2e-switch-inputs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .i2e-switch-inputs {
+    grid-template-columns: 1fr;
+  }
+}
+@media print {
+  .i2e-switch-inputs {
+    display: none;
+  }
+}
+
+/* Sales-deck palette: navy shell, pale blue workspace, blue emphasis. */
+.i2e-header .i2e-brand,
+.i2e-header .i2e-brand span {
+  color: #f5f8ff;
+}
+.i2e-header > span,
+.i2e-nav a {
+  color: #b9cbe0;
+}
+.i2e-header .MuiButton-root {
+  color: #c1dbff;
+  border-color: #5c7798;
+}
+.i2e-nav a:hover,
+.i2e-nav a:focus-visible {
+  color: #fff;
+}
+.i2e-page main {
+  background: #f5f8ff;
+  padding: 0 28px;
+  border-radius: 20px 20px 0 0;
+}
+.i2e-page h1 {
+  font-size: clamp(25px, 2.5vw, 36px);
+  font-weight: 700;
+}
+.i2e-grid .MuiTableHead-root .MuiTableCell-root {
+  background: #dfe9f8;
+  color: #203b55;
+}
+.i2e-metrics dd {
+  color: #28629a;
+  font-weight: 600;
+}
+.i2e-page .MuiOutlinedInput-root {
+  background: #fff;
+}
+.i2e-page .MuiInputLabel-root,
+.i2e-page .MuiFormHelperText-root {
+  color: #536779;
+}
+@media (max-width: 700px) {
+  .i2e-page main {
+    padding: 0 14px;
+    border-radius: 14px 14px 0 0;
+  }
+}
+@media print {
+  .i2e-page,
+  .i2e-header,
+  .i2e-page main {
+    background: white;
+  }
+  .i2e-header .i2e-brand,
+  .i2e-header .i2e-brand span {
+    color: #152c3c;
   }
 }
