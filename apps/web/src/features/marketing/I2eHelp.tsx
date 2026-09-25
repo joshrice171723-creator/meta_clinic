@@ -39,32 +39,18 @@ const explanations: Record<string, string> = {
     "The cost of processing consultation audio and generating draft clinical notes. Clinicians review the drafts.",
   "Clearinghouse / entity mapping":
     "A clearinghouse routes insurance claims between a clinic and payers. Entity mapping connects submissions to the correct independently owned clinic.",
-  "Vendor cost / clinic":
-    "Estimated monthly vendor expense for this three-provider clinic, including eRx, video, scribe processing and insurance mapping. Shared platform costs are separate.",
-  "Gross software profit / clinic":
-    "The proposed $1,100 monthly subscription minus $500 in clinic-specific vendor costs. Shared platform and other operating costs are still deducted separately.",
-  "Gross software profit margin":
-    "The $600 gross software profit divided by the $1,100 subscription: 54.5%. This is before shared platform and other operating costs.",
+  "Shared vendor cost / clinic at 4 pilots":
+    "The $3,200 shared monthly budget divided by four independently owned pilot clinics is $800 per clinic. This is an allocation, not a separate bill for each clinic; usage overages and unquoted services are excluded.",
+  "Modeled gross profit / clinic at 4 pilots":
+    "At four subscribing clinics, $1,100 per clinic minus $800 of allocated shared vendor cost leaves $300 per clinic before other costs. One clinic alone does not cover the $3,200 shared budget.",
+  "Modeled gross profit margin at 4 pilots":
+    "$300 divided by the proposed $1,100 subscription is 27.3%, conditional on four clinics sharing the $3,200 vendor budget without overages.",
   "Illustrative spread / order":
     "An example patient price of $120 minus a $45 pharmacy charge leaves $75 before other transaction costs. These are scenario assumptions.",
   "30 orders × $75 gross spread":
     "An illustrative 30 monthly orders multiplied by the $75 spread. It excludes fulfillment, processing, refunds and tax, and is not included in software revenue.",
   "Fixed upfront capital pool":
     "One-time shared setup spending. It is not charged again for every clinic and is separate from monthly operating costs.",
-  "Central platform + first clinic":
-    "The shared monthly vendor budget already includes the first clinic. Only the other nine clinics receive additional per-clinic costs.",
-  "Nine additional independent sites":
-    "Nine separate clinic businesses added to the first clinic, each modeled with a $500 monthly vendor bundle.",
-  "Total network software costs":
-    "The $3,200 shared base plus nine additional $500 clinic bundles: $7,700 per month.",
-  "Total network software revenue":
-    "Ten clinic owners each paying the proposed $1,100 monthly subscription: $11,000 total.",
-  "Network software contribution":
-    "Combined subscriptions minus the modeled network vendor costs. This is before other operating expenses and excludes pharmacy transaction revenue.",
-  "Allocated expense / account":
-    "Total modeled network software costs divided equally across ten clinics. This is an average, not the cost of adding the next clinic.",
-  "Allocated contribution / account":
-    "Network software contribution divided by ten clinic accounts after allocating the shared platform expense.",
   "AI Infrastructure & Workstation Hardware":
     "Shared developer hardware and AI computing budget used to build and operate the platform.",
   "Healthcare legal & contracts":
@@ -80,15 +66,15 @@ const explanations: Record<string, string> = {
   "HIPAA Telehealth Video API":
     "Twilio lists video at $0.004 per participant-minute. A two-person 30-minute visit uses 60 participant-minutes, or $0.24 before extras. Health-data use requires the appropriate account edition and BAA.",
   "Photon Health · proposed":
-    "Photon's published Launch plan is $800 per month for 2,000 orders. The $195 per-clinic figure is a separate allocation estimate, not a Photon quote. Integration and terms are proposed.",
+    "Photon's published Launch plan is $800 per month for 2,000 orders across the account, then $0.80 per additional order. Four clinics averaging 500 orders each fit that order tier; multi-entity terms remain to be confirmed.",
   "Twilio Programmable Video":
-    "Twilio publishes $0.004 per participant-minute. The $125 per-clinic figure is a usage allocation estimate; HIPAA account edition and BAA terms add requirements.",
+    "Twilio publishes $0.004 per participant-minute. The shared $150 budget covers 37,500 participant-minutes, about 625 two-person 30-minute visits before extras. HIPAA account edition and BAA terms need confirmation.",
   "Candid Health · proposed":
-    "Candid offers claims and revenue-cycle software. The $60 per-clinic and $1,500 central figures are planning allowances; a vendor quote is needed.",
+    "Candid offers claims and revenue-cycle software. The $1,500 shared figure is a planning allowance, not a published quote or confirmed price for four independent clinic entities.",
   "OpenRouter · OpenAI GPT planned":
-    "The development scribe already uses OpenRouter to route audio and SOAP draft requests. Its current default is not an OpenAI model; OpenAI GPT is planned for a future configuration. The $120 per-clinic cost is a usage estimate, not a vendor quote.",
+    "The development scribe uses OpenRouter to route audio and SOAP draft requests. Its current default is not an OpenAI model; OpenAI GPT is planned. The $350 shared reserve for four pilots requires usage validation and is not a vendor quote.",
   "AI Clinical Scribe Engine":
-    "The $350 per month is a shared pilot-wide planning reserve, not a vendor price or a fixed number of clinics. The 450–500 draft-note target is aggregate and unverified. Section 01 models $120 of additional scribe usage per added clinic. The development route uses OpenRouter; an OpenAI GPT audio model is planned.",
+    "The $350 per month is a shared planning reserve for four pilot clinics, not a vendor price. The 450–500 draft-note target is aggregate and unverified. Actual model choice, audio duration and note length determine cost.",
   "Security & HIPAA hosting":
     "Infrastructure for storing and processing health information with access controls, isolation and audit logging.",
   "B2B Compounding Labs & Diagnostics":
@@ -100,7 +86,7 @@ const explanations: Record<string, string> = {
   "503A partner webhooks":
     "Connections that send order or status updates between the platform and a partner compounding pharmacy. Compounding prepares medication for an individual patient's prescription.",
   "Quest/Labcorp order/result tracking":
-    "Planned connections for placing Quest or Labcorp orders and receiving results in the clinic workspace. The middleware account, interface setup and per-order test costs are not contracted or included in the shown $500 clinic estimate.",
+    "Planned connections for placing Quest or Labcorp orders and receiving results in the clinic workspace. Middleware, interface setup and per-order tests are not contracted or included in the shared pilot budget.",
   "Lab middleware · proposed":
     "Healthie publishes $10 per ordering provider monthly for Enterprise customers connecting existing Quest/Labcorp accounts, plus $5 per non-NPI ordering user. A three-provider example is $30 monthly before Enterprise subscription, interface setup and test costs. This is a market comparator, not Meta Clinic pricing.",
   "Diagnostic lab connectivity (Quest / Labcorp)":

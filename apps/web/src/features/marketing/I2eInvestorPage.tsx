@@ -62,7 +62,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 800,
     clinicBasis:
-      "Shared Launch tier across clinics: 2,000 orders/month. Model $195 more for each added three-prescriber clinic; overages extra.",
+      "Shared Launch tier: 2,000 orders/month across the pilot. At four clinics, that is 500 orders each if usage is even; $0.80/order above the tier.",
     purpose:
       "Embed prescription routing through the proposed Photon Health integration, with medication-history and benefit-data scope confirmed in contracting.",
     value:
@@ -73,7 +73,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 1500,
     clinicBasis:
-      "Shared planning allowance. Model $60 more per added insurance-billing clinic; cash-pay clinics do not need claims mapping.",
+      "Shared planning allowance, not a per-clinic quote. Clinic/entity enrollment and claim fees need a contract; cash-pay clinics may not use it.",
     purpose:
       "Integrate ANSI X12 837 claim workflows and clearinghouse submission through the proposed Candid Health API layer.",
     value:
@@ -84,7 +84,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 150,
     clinicBasis:
-      "Shared usage budget, not a clinic subscription. Model $125 more per added three-provider clinic using video.",
+      "Shared usage pool: $150 covers about 625 two-person 30-minute visits, or 156 per clinic at four clinics, before extras.",
     purpose:
       "Consumption-based WebRTC consultations via Twilio Programmable Video, with a signed BAA required before PHI use. At $0.004 per participant-minute, 35,000 participant-minutes cost $140 before extras, within the $150 usage budget.",
     value:
@@ -95,7 +95,7 @@ export const investorCosts = [
     upfront: 0,
     monthly: 350,
     clinicBasis:
-      "Shared pilot-wide usage reserve; no clinic count is assumed. Model $120 more per added clinic using the scribe.",
+      "Shared planning reserve. Four clinics at about 112–125 drafts each would use 450–500 drafts/month; actual model cost is unverified.",
     purpose:
       "Pilot-wide audio and medical LLM processing reserve. The 450–500 draft notes/month figure is an unverified aggregate design target across participating clinics, not a purchased tier or per-clinic capacity; clinicians review generated notes.",
     value:
@@ -156,36 +156,9 @@ export const investorBudget = {
   capital: 30000,
   upfront: investorCosts.reduce((sum, row) => sum + row.upfront, 0),
   monthly: investorCosts.reduce((sum, row) => sum + row.monthly, 0),
-  retail: 120,
-  wholesale: 45,
 };
 
-export const incrementalCosts = [
-  {
-    name: "eRx prescriber seats",
-    monthly: 195,
-    basis:
-      "3 providers × $65; proposed wholesale rate, not a Photon/Surescripts quote.",
-  },
-  {
-    name: "Twilio Video usage",
-    monthly: 125,
-    basis:
-      "31,250 participant-minutes at $0.004; excludes account fees and extras.",
-  },
-  {
-    name: "AI scribe processing",
-    monthly: 120,
-    basis:
-      "Proposed incremental audio/token allowance; validate note length and model usage.",
-  },
-  {
-    name: "Clearinghouse / entity mapping",
-    monthly: 60,
-    basis:
-      "Proposed location allowance; independent entities may require separate enrollment and terms.",
-  },
-];
+export const pilotClinics = 4;
 export const stackCosts = [
   {
     name: "Base EMR & calendar",
@@ -219,25 +192,6 @@ export const stackCosts = [
     meta: "Integrated draft-note workflow with clinician review.",
   },
 ];
-export function clinicEconomics(
-  clinics: number,
-  subscription = 0,
-  allowance = 0,
-  incremental = 500,
-) {
-  const monthly =
-    investorBudget.monthly + (clinics - 1) * incremental + clinics * allowance;
-  const revenue = clinics * subscription;
-  const spread = investorBudget.retail - investorBudget.wholesale;
-  return {
-    monthly,
-    average: monthly / clinics,
-    revenue,
-    contribution: revenue - monthly,
-    orders: Math.ceil(monthly / spread),
-    remainingOrders: Math.ceil(Math.max(0, monthly - revenue) / spread),
-  };
-}
 const salesDeckUrl = "https://meta-clinic-market-deck.trt53.chatgpt.site/";
 const vendorSources: Record<
   string,
@@ -271,7 +225,7 @@ const vendorSources: Record<
     url: "https://openrouter.ai/docs/quickstart",
     label: "OpenRouter API",
     basis:
-      "OpenRouter documents API access, not a $350 price. This is a shared pilot-wide planning allowance with no fixed clinic count; $120 per added clinic models further usage.",
+      "OpenRouter documents API access, not a $350 price. The $350 is a shared usage planning reserve for four pilot clinics, conditional on measured note and model costs.",
   },
   "Diagnostic lab connectivity (Quest / Labcorp)": {
     url: "https://help.gethealthie.com/article/1260-direct-labs-by-healthie",
@@ -328,26 +282,16 @@ function Grid({
     </TableContainer>
   );
 }
-export const clinicServiceProfiles = [
-  { name: "Cash-pay / no eRx", insurance: false, erx: false },
-  { name: "Insurance / no eRx", insurance: true, erx: false },
-  { name: "Cash-pay / with eRx", insurance: false, erx: true },
-  { name: "Insurance / with eRx", insurance: true, erx: true },
-];
-export function incrementalForServices(insurance: boolean, erx: boolean) {
-  return 125 + 120 + (insurance ? 60 : 0) + (erx ? 195 : 0);
-}
 export const conversionTarget = {
   baseline: 149 + 870 + 150 + 120 + 45,
   price: 1100,
-  variable: 500,
+  allocatedCost: investorBudget.monthly / pilotClinics,
   namedAddons: 870 + 150 + 120 + 45,
-  orders: 30,
 };
 export function I2eInvestorPage() {
   const t = conversionTarget;
   const savings = t.baseline - t.price;
-  const contribution = t.price - t.variable;
+  const contribution = t.price - t.allocatedCost;
   useEffect(() => {
     const title = document.title;
     document.title = "Meta Clinic × i2E | Customer conversion workspace";
@@ -404,7 +348,8 @@ export function I2eInvestorPage() {
             <h1>01 / Medical weight loss + hormone optimization</h1>
             <p className="i2e-note">
               Conversion target: one independent practice · 3 providers · Jane
-              customer with a separate clinical software stack · USD / month
+              customer with a separate clinical software stack · cost and profit
+              modeled within a four-clinic pilot · USD / month
             </p>
             <TableContainer
               className="i2e-grid i2e-comparison-table"
@@ -420,7 +365,7 @@ export function I2eInvestorPage() {
                       "Current stack / month",
                       "Our bundle",
                       "Included workflow",
-                      "Our vendor cost / month",
+                      "Our cost basis / month",
                     ].map((header) => (
                       <TableCell key={header}>{header}</TableCell>
                     ))}
@@ -453,28 +398,28 @@ export function I2eInvestorPage() {
                       "DoseSpot eRx seats",
                       "$120",
                       "Embedded eRx · planned",
-                      "$195",
+                      "In shared Photon tier",
                       "Photon Health · proposed",
                     ],
                     [
                       "Jane AI Scribe · 3 seats",
                       "$45",
                       "AI note drafts + review",
-                      "$120",
+                      "In shared pilot reserve",
                       "OpenRouter · OpenAI GPT planned",
                     ],
                     [
                       "1:1 telehealth",
                       "Included in Jane",
                       "Video consultations",
-                      "$125",
+                      "Metered within shared pool",
                       "Twilio Programmable Video",
                     ],
                     [
                       "Insurance billing engine",
                       "Add-on + clearinghouse · extra",
                       "Claims routing · planned",
-                      "$60",
+                      "In shared Candid allowance",
                       "Candid Health · proposed",
                     ],
                     [
@@ -544,7 +489,8 @@ export function I2eInvestorPage() {
                     <TableCell>{money(t.price)} bundled</TableCell>
                     <TableCell>3-provider practice</TableCell>
                     <TableCell>
-                      {money(t.variable)} vendor cost estimate
+                      {money(t.allocatedCost)} allocated at {pilotClinics}{" "}
+                      clinics
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -553,10 +499,11 @@ export function I2eInvestorPage() {
             <p className="i2e-note">
               Proposed bundle within agreed usage limits; planned integrations
               depend on partner agreements and activation. Current-stack
-              subtotal excludes insurance and clearinghouse fees. Our $500
-              vendor cost estimate includes insurance mapping; shared platform
-              costs, lab connectivity, lab tests, medication purchases and
-              payment processing are separate.
+              subtotal excludes insurance and clearinghouse fees. Our cost
+              column allocates the $3,200 shared monthly budget across four
+              pilot clinics; it does not add unquoted per-clinic fees. Lab
+              connectivity, lab tests, medication purchases, payment processing,
+              vendor overages and entity enrollment are separate.
             </p>
             <div className="i2e-summary-ledgers">
               {ledger("Meta Clinic target offer", [
@@ -569,22 +516,28 @@ export function I2eInvestorPage() {
                 ["Annual recurring saving", money(savings * 12)],
               ])}
               {ledger("Account cost and profit", [
-                ["Vendor cost / clinic", money(t.variable)],
                 [
-                  "Gross software profit / clinic",
+                  "Shared vendor cost / clinic at 4 pilots",
+                  money(t.allocatedCost),
+                ],
+                [
+                  "Modeled gross profit / clinic at 4 pilots",
                   `+${money(contribution)} / mo`,
                   "i2e-profit",
                 ],
                 [
-                  "Gross software profit margin",
+                  "Modeled gross profit margin at 4 pilots",
                   `${((contribution / t.price) * 100).toFixed(1)}%`,
                   "i2e-profit",
                 ],
               ])}
             </div>
             <p className="i2e-note">
-              Gross software profit before shared platform costs. Cash-pay with
-              eRx: $440 vendor cost / $660 gross software profit. Subscription
+              Four clinics paying $1,100 each bring in $4,400/month against the
+              $3,200 shared vendor budget, leaving $1,200/month before excluded
+              costs. At one clinic, the full shared budget still applies.
+              Four-clinic capacity depends on scribe usage and vendor contracts;
+              it is a planning case, not a guaranteed limit. Subscription
               savings exclude implementation and usage overages.{" "}
               <a href="https://jane.app/pricing">Jane pricing</a>.
             </p>
@@ -662,11 +615,11 @@ export function I2eInvestorPage() {
             <h2>02 / Shared platform costs</h2>
             <p className="i2e-budget-intro">
               What Meta Clinic budgets once to launch and each month to run the
-              common platform. The clinic-by-clinic column shows which costs
-              repeat as independently owned clinics join; Section 01 models a
-              three-provider clinic using prescribing, video, scribe and
-              insurance billing. A clinic using fewer services has a different
-              variable cost.
+              common platform. Four independently owned, three-provider clinics
+              are the pilot planning case: $3,200 / 4 = $800 of shared cost
+              allocated per clinic. The clinic-by-clinic column shows the usage
+              this case assumes. It is not evidence that every vendor will serve
+              four entities at the listed price.
             </p>
             <dl className="i2e-budget-summary">
               <div>
@@ -753,10 +706,10 @@ export function I2eInvestorPage() {
             </div>
             <p className="i2e-note">
               $0 means no fixed amount budgeted, not that the service is free.
-              The $3,200 monthly total is the shared base; the clinic-level
-              figures in the second column are additional estimates as usage
-              grows, not vendor quotes. Final pricing depends on contracts and
-              usage. Lab middleware and per-order test costs are excluded.
+              The $3,200 monthly total is the shared base for the four-clinic
+              planning case. Clinic-level usage in the second column is within
+              that base, not an extra charge. Final pricing depends on contracts
+              and usage. Lab middleware and per-order test costs are excluded.
               LegitScript's published $2,150 annual fee is additional if
               certification is approved.
             </p>
