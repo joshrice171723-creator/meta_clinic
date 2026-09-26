@@ -219,7 +219,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     first_companion_site_id = first_companion.sites.find_by!(code: "SANDBOX-NORTH").id
 
     second = travel_to(Time.zone.now + 14.days) do
-      Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first)
+      Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first, restart: true)
     end
 
     assert_equal first.practice_id, second.practice_id
@@ -243,35 +243,27 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_equal 2, second_companion.sites.count
   end
 
-  test "two visitors keep independent sandbox organizations and resets" do
+  test "two visitors share the prepared sandbox until an explicit reset" do
     first_visitor = demo_visitor
     second_visitor = demo_visitor
     first = Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor)
     second = Development::SharedDemoLesson.enter!("sandbox", visitor: second_visitor)
 
-    refute_equal first.practice_id, second.practice_id
-    refute_equal first.practice.organization_id, second.practice.organization_id
-    refute_equal first.operator_user_id, second.operator_user_id
+    assert_equal first.id, second.id
+    assert_equal first.practice_id, second.practice_id
     assert first.reload.active?
-    assert second.reload.active?
-    second_patient_id = second.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
-    second_companion = second.practice.organization.practices.where.not(id: second.practice_id).sole
-    second_companion_site_id = second_companion.sites.find_by!(code: "SANDBOX-NORTH").id
+    patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
 
-    replacement = Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor, previous_run: first)
+    replacement = Development::SharedDemoLesson.enter!("sandbox", visitor: second_visitor,
+      previous_run: second, restart: true)
 
     assert_equal first.practice_id, replacement.practice_id
     refute first.reload.active?
-    assert second.reload.active?
-    assert second.practice.patients.exists?(second_patient_id)
-    assert second_companion.sites.exists?(second_companion_site_id)
-    assert_equal 2, second.practice.organization.practices.count
-    assert_raises(ActiveRecord::RecordNotFound) do
-      Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor, previous_run: second)
-    end
+    refute replacement.practice.patients.exists?(patient_id)
+    assert_equal replacement.id, Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor).id
   end
 
-  test "one browser restarting sandbox leaves another browser active" do
+  test "leaving the shared sandbox in one browser leaves another browser active" do
     first_session = open_session
     second_session = open_session
     first_session.host! "localhost:3000"
@@ -280,52 +272,13 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     register_visitor_for(second_session, email: "second-sandbox@example.test")
     first_id = enter_lesson_for(first_session, "sandbox").fetch("id")
     second_id = enter_lesson_for(second_session, "sandbox").fetch("id")
-    second_run = Development::DemoRun.find(second_id)
-    second_patient_id = second_run.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
-
-    replacement_id = enter_lesson_for(first_session, "sandbox").fetch("id")
-
-    refute_equal first_id, replacement_id
-    assert second_run.reload.active?
-    assert second_run.practice.patients.exists?(second_patient_id)
+    assert_equal first_id, second_id
+    first_session.post "/api/demo/reset", params: { all: true },
+      headers: csrf_headers_for(first_session), as: :json
+    assert_equal 200, first_session.response.status
     second_session.get "/api/demo/run", headers: @headers
     assert_equal 200, second_session.response.status
     assert_equal second_id, second_session.response.parsed_body.dig("run", "id")
-  end
-
-  test "an expired sandbox shell is reset and assigned to the next visitor" do
-    first_visitor = demo_visitor
-    first = Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor)
-    first_patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
-    first_companion = first.practice.organization.practices.where.not(id: first.practice_id).sole
-    second_visitor = demo_visitor
-
-    second = travel_to(Time.zone.now + 8.days) do
-      Development::SharedDemoLesson.enter!("sandbox", visitor: second_visitor)
-    end
-
-    assert_equal first.practice_id, second.practice_id
-    assert_equal first_companion.id, second.practice.organization.practices.where.not(id: second.practice_id).sole.id
-    refute first.reload.active?
-    refute second.practice.patients.exists?(first_patient_id)
-    assert second.practice.patients.exists?(reference: "SANDBOX-PAT-001")
-    assert_equal second_visitor.id, Development::DemoLesson.find_by!(practice: second.practice).visitor_id
-    assert_equal second_visitor.id, Development::DemoLesson.find_by!(practice: first_companion).visitor_id
-    assert_equal 2, second.practice.organization.practices.count
-  end
-
-  test "an active sandbox session prevents shell reuse" do
-    first = Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
-
-    second = travel_to(Time.zone.now + 8.days) do
-      MemberSession.create!(user: first.operator_user, expires_at: 1.hour.from_now,
-        last_activity_at: Time.current)
-      Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
-    end
-
-    refute_equal first.practice_id, second.practice_id
-    assert first.reload.active?
-    assert second.active?
   end
 
   test "sandbox population makes eight completed sixty-visit weeks at every location" do

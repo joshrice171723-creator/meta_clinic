@@ -57,7 +57,9 @@ module Development
         return render json: { error: visitor.errors.full_messages.to_sentence }, status: :unprocessable_entity
       end
       run = current_run
-      SharedDemoLesson.leave!(run) if run && valid_run_user?(run)
+      if run && valid_run_user?(run)
+        DemoLessonCatalog.sandbox?(run.lesson_key) ? current_member_session&.destroy! : SharedDemoLesson.leave!(run)
+      end
       clear_demo_session!
       cookies.encrypted[:guided_clinic_demo_visitor] = cookie_value(visitor.id)
       render json: inactive_payload(visitor:)
@@ -90,9 +92,9 @@ module Development
       clear_visitor = boolean_input!(input, :all, default: false)
       visitor = current_visitor
       run = current_run
-      SharedDemoLesson.leave!(run) if run && valid_run_user?(run) &&
-        (!DemoLessonCatalog.sandbox?(run.lesson_key) || clear_visitor)
-      current_member_session&.destroy! if run && !clear_visitor && DemoLessonCatalog.sandbox?(run.lesson_key)
+      if run && valid_run_user?(run)
+        DemoLessonCatalog.sandbox?(run.lesson_key) ? current_member_session&.destroy! : SharedDemoLesson.leave!(run)
+      end
       clear_demo_session!
       cookies.delete(:guided_clinic_demo_visitor) if clear_visitor
       render json: inactive_payload(visitor: clear_visitor ? nil : visitor)

@@ -34,7 +34,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
       refute_equal baseline, snapshot(practices)
 
       reset_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      second = Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first)
+      second = Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first, restart: true)
       reset_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - reset_started
       assert_equal practices.map(&:id), second.practice.organization.practices.order(:id).pluck(:id)
       restored = snapshot(second.practice.organization.practices.order(:id).to_a)

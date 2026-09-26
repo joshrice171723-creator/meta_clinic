@@ -8,7 +8,8 @@ module Development
       template_key = definition.fetch(:template_key, TEMPLATE_KEY)
       sandbox = lesson_key == DemoLessonCatalog::SANDBOX_KEY
       raise ActiveRecord::RecordNotFound if sandbox && visitor.nil?
-      raise ActiveRecord::RecordNotFound if previous_run && previous_run.visitor_id != visitor.id
+      raise ActiveRecord::RecordNotFound if previous_run &&
+        !DemoLessonCatalog.sandbox?(previous_run.lesson_key) && previous_run.visitor_id != visitor.id
       ApplicationRecord.transaction do
         if sandbox
           ApplicationRecord.connection.execute(
@@ -16,18 +17,21 @@ module Development
           )
         end
         [ lesson_key, previous_run&.lesson_key ].compact.uniq.sort.each do |key|
-          lock_key = key == DemoLessonCatalog::SANDBOX_KEY ? "#{key}:#{visitor.id}" : key
           ApplicationRecord.connection.execute(
-            "SELECT pg_advisory_xact_lock(hashtextextended(#{ApplicationRecord.connection.quote("apply:demo-lesson:#{lock_key}")}, 0))"
+            "SELECT pg_advisory_xact_lock(hashtextextended(#{ApplicationRecord.connection.quote("apply:demo-lesson:#{key}")}, 0))"
           )
         end
-        lesson_scope = sandbox ? DemoLesson.where(lesson_key:, visitor:) : DemoLesson.where(lesson_key:, visitor_id: nil)
-        lesson = lesson_scope.lock.first ||
-          (DemoSandboxOrganization.reuse_expired!(visitor:) if sandbox) ||
-          create_lesson!(definition, visitor: sandbox ? visitor : nil)
+        lesson = if sandbox
+          active_practice_id = DemoRun.active.where(lesson_key:).order(id: :desc).pick(:practice_id)
+          (DemoLesson.find_by(lesson_key:, practice_id: active_practice_id) if active_practice_id) ||
+            DemoLesson.where(lesson_key:).order(:id).first ||
+            create_lesson!(definition, visitor:)
+        else
+          DemoLesson.where(lesson_key:, visitor_id: nil).lock.first || create_lesson!(definition)
+        end
         lesson.lock!
         if sandbox && !restart
-          existing_run = DemoRun.active.find_by(lesson_key:, visitor:, practice: lesson.practice)
+          existing_run = DemoRun.active.find_by(lesson_key:, practice: lesson.practice)
           if existing_run
             if previous_run&.reload&.active? && previous_run.id != existing_run.id &&
                 !DemoLessonCatalog.sandbox?(previous_run.lesson_key)

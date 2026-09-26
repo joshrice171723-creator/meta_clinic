@@ -531,6 +531,7 @@ export function DemoJourney() {
                   This is a full, editable clinic workspace with prepared
                   synthetic patients, appointments, encounters, inventory,
                   messaging, workforce, telehealth, reminders, and billing data.
+                  Everyone entering the sandbox sees changes made here.
                 </Alert>
               ) : (
                 <Box
@@ -754,7 +755,7 @@ export function DemoJourney() {
           {error && <Alert severity="error">{error}</Alert>}
           <Typography>
             {sandbox
-              ? "This rebuilds the full sample clinic and removes changes made in this sandbox."
+              ? "This shared workspace is used by other visitors. Reset rebuilds the full clinic, removes everyone's changes, and interrupts their active sessions."
               : "This restarts only this lesson’s clinic and progress."}
           </Typography>
         </DialogContent>
