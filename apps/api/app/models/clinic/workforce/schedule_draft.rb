@@ -35,8 +35,11 @@ module Clinic
       end
 
       def same_practice
-        [ site, schedule_template, created_by ].compact.each do |record|
+        [ site, schedule_template ].compact.each do |record|
           errors.add(:base, "Related records must belong to this practice") if record.practice_id != practice_id
+        end
+        if created_by_id && !Clinic::Membership.exists?(practice_id:, user_id: created_by_id)
+          errors.add(:base, "Related records must belong to this practice")
         end
       end
     end

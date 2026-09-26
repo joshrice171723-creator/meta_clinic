@@ -13,7 +13,7 @@ module Development
 
     def self.prepare_site!(run:, practice:, site:, site_index:)
       appointment = practice.appointments.where(site:, status: "scheduled")
-        .where("starts_at > ?", Current.business_time).order(:starts_at, :id).first!
+        .where.missing(:encounter).where("starts_at > ?", Current.business_time).order(:starts_at, :id).first!
       actor = run.operator_user
       original_start = appointment.starts_at
       Clinic::Scheduling::RescheduleAppointment.call(appointment:, actor:,

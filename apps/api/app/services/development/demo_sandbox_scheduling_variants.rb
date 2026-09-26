@@ -80,7 +80,7 @@ module Development
 
       if entry.state == "waiting"
         Clinic::Scheduling::Waitlist.transition(entry:, actor:, action: "offer", expected_version: entry.lock_version,
-          request_key: "sandbox-waitlist-offer-#{run.id}-#{site.id}",
+          request_key: "sandbox-accepted-waitlist-offer-#{run.id}-#{site.id}",
           attributes: { starts_at:, expires_at: starts_at - 1.hour })
         entry.reload
       end
