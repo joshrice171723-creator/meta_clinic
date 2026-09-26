@@ -235,6 +235,8 @@ function AppointmentDayQueue({
   const busyActionRef = useRef("");
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
+  const [demoDayMessage, setDemoDayMessage] = useState("");
+  const checkedDemoDay = useRef(false);
   const [noticeContext, setNoticeContext] = useState<{
     patientId: number;
     appointmentId: number;
@@ -286,6 +288,51 @@ function AppointmentDayQueue({
   useEffect(() => {
     if (appointments.data) setRefreshedAt(new Date());
   }, [appointments.data]);
+
+  useEffect(() => {
+    if (
+      checkedDemoDay.current ||
+      !isDemoFrame() ||
+      new URLSearchParams(window.location.search).has("date") ||
+      date !== today ||
+      query ||
+      !appointments.data ||
+      appointments.data.appointments.length > 0
+    )
+      return;
+
+    checkedDemoDay.current = true;
+    const params = new URLSearchParams({ upcoming: "true", per_page: "100" });
+    if (siteId) params.set("site_id", siteId);
+    let active = true;
+    void api<FrontDeskAppointmentResponse>(`/api/clinic/appointments?${params}`)
+      .then(({ appointments: upcoming }) => {
+        if (!active) return;
+        const next =
+          upcoming.find((appointment) => {
+            const day = new Date(
+              `${clinicDateValue(new Date(appointment.starts_at), timezone)}T12:00:00Z`,
+            ).getUTCDay();
+            return day > 0 && day < 6;
+          }) ?? upcoming[0];
+        if (!next) return;
+        const nextDate = clinicDateValue(new Date(next.starts_at), timezone);
+        const nextLabel = new Intl.DateTimeFormat("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          timeZone: "UTC",
+        }).format(new Date(`${nextDate}T12:00:00Z`));
+        setDate(nextDate);
+        setDemoDayMessage(
+          `No appointments today. Showing the next scheduled workday, ${nextLabel}.`,
+        );
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [appointments.data, date, query, siteId, timezone, today]);
 
   useEffect(() => {
     if (appointmentRequestRevision) appointments.refresh();
@@ -598,6 +645,7 @@ function AppointmentDayQueue({
           onChange={(event) => {
             if (!event.target.value) return;
             setDate(event.target.value);
+            setDemoDayMessage("");
             setPage(1);
           }}
           slotProps={{ inputLabel: { shrink: true } }}
@@ -607,6 +655,7 @@ function AppointmentDayQueue({
           startIcon={<TodayOutlinedIcon />}
           onClick={() => {
             setDate(today);
+            setDemoDayMessage("");
             setPage(1);
           }}
           disabled={date === today}
@@ -624,6 +673,7 @@ function AppointmentDayQueue({
           }}
           onChange={(event) => {
             setSiteId(event.target.value);
+            setDemoDayMessage("");
             setPage(1);
           }}
         >
@@ -688,6 +738,11 @@ function AppointmentDayQueue({
           }
         >
           {notice}
+        </Alert>
+      )}
+      {demoDayMessage && (
+        <Alert severity="info" className="front-desk-alert">
+          {demoDayMessage}
         </Alert>
       )}
 
