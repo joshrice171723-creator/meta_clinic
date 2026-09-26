@@ -138,9 +138,12 @@ module Development
 
     def self.configure_template_profile!(practice:, membership:, template_key:, suffix:)
       clinic_type = template_key == "primary_care" ? "primary_care" : "weight_loss"
+      services = [ "in_office_medications" ]
+      services += %w[prescription_preparation external_lab_coordination] if
+        suffix == "lesson-sandbox" || suffix == "sandbox-companion"
       Clinic::Configuration::PracticeFeatures.revise(
         practice:, actor: membership, request_key: "guided-profile-#{suffix}", expected_revision: 0,
-        insurance_workflows_enabled: false, clinic_type:, service_scope: [ "in_office_medications" ],
+        insurance_workflows_enabled: false, clinic_type:, service_scope: services,
         assessment_scope: [], finalize: false
       )
     end

@@ -348,10 +348,24 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
         assert_equal 30, upcoming.where(status: "scheduled").count
         assert_equal 90, upcoming.where(status: "confirmed").count
         assert upcoming.includes(:patient).all? { |visit| visit.patient.primary_site_id == site.id }
+        journey = practice.encounters.joins(:patient).where(site:, status: "open")
+          .where("clinic_patients.reference LIKE 'SBX-%'")
+        assert_equal 1, journey.count
+        assert practice.encounters.where(patient_id: journey.first!.patient_id, site:, status: "completed").exists?
       end
       outlook = Clinic::Billing::IncomeOutlook.call(practice:, now: Current.business_time)
       assert_operator outlook.fetch(:currencies).first.fetch(:history_invoice_count), :>, 0
       assert outlook.fetch(:currencies).first.fetch(:estimated_monthly_revenue).present?
+      assert_equal 1, Clinic::Care::MedicationRequestRevision.where(practice:, status: "authorized").count
+      if practice == run.practice
+        assert_equal 1, Clinic::Care::ServiceRequestRevision.where(practice:, request_kind: "lab", status: "active").count
+        attempt = Clinic::Care::PrescriptionTransmissionAttempt.where(practice:).sole
+        assert_equal [ "accepted", "standard" ], [ attempt.outcome, attempt.mode ]
+        assert_equal "simulation", attempt.prescription_event.source
+      else
+        assert_equal 1, Clinic::Care::CarePlanRevision.where(practice:, status: "active").count
+        assert_equal 1, Clinic::Care::CareGoalRevision.where(practice:).count
+      end
     end
   end
 
