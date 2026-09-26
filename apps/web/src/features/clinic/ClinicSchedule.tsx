@@ -778,9 +778,12 @@ export function ClinicSchedule({
           {(data.policy?.recurrence === "not_configured" ||
             data.policy?.overbook === "not_configured") && (
             <Alert severity="warning" sx={{ py: 0, alignItems: "center" }}>
-              {data.policy.recurrence === "not_configured" && "Recurring appointments are off. "}
-              {data.policy.overbook === "not_configured" && "Overbook exceptions are off. "}
-              An authorized staff member can change this site's scheduling policy in Clinic setup.
+              {data.policy.recurrence === "not_configured" &&
+                "Recurring appointments are off. "}
+              {data.policy.overbook === "not_configured" &&
+                "Overbook exceptions are off. "}
+              An authorized staff member can change this site's scheduling
+              policy in Clinic setup.
             </Alert>
           )}
           {view === "month" ? (
@@ -810,65 +813,76 @@ export function ClinicSchedule({
                     <Box key={`blank-${i}`} sx={{ bgcolor: "action.hover" }} />
                   ),
                 )}
-                {data.days.map((item) => (
-                  <ButtonBase
-                    key={item.date}
-                    onClick={() => openDay(item.date)}
-                    aria-label={`${dateLabel(item.date)}: ${item.scheduled} scheduled, ${item.confirmed} confirmed, ${item.available ?? "unknown"} available, ${item.holds.length} active holds, ${item.conflicts} conflicts`}
-                    sx={{
-                      display: "block",
-                      textAlign: "left",
-                      p: 1.25,
-                      minHeight: 128,
-                      borderTop: 1,
-                      borderRight: 1,
-                      borderColor: "divider",
-                      bgcolor:
-                        item.date === today
-                          ? "action.selected"
-                          : "background.paper",
-                      "&:hover": { bgcolor: "action.hover" },
-                      "&.Mui-focusVisible": {
-                        outline: "2px solid",
-                        outlineColor: "primary.main",
-                        outlineOffset: -2,
-                      },
-                    }}
-                  >
-                    <Typography
-                      sx={{ fontWeight: 700 }}
-                      color={item.date === today ? "primary" : "text.primary"}
+                {data.days.map((item) => {
+                  const completed = item.appointments.filter(
+                    (appointment) =>
+                      appointment.calendar_status === "completed",
+                  ).length;
+                  return (
+                    <ButtonBase
+                      key={item.date}
+                      onClick={() => openDay(item.date)}
+                      aria-label={`${dateLabel(item.date)}: ${completed} completed, ${item.scheduled} scheduled, ${item.confirmed} confirmed, ${item.available ?? "unknown"} available slots, ${item.holds.length} active holds, ${item.conflicts} conflicts`}
+                      sx={{
+                        display: "block",
+                        textAlign: "left",
+                        p: 1.25,
+                        minHeight: 128,
+                        borderTop: 1,
+                        borderRight: 1,
+                        borderColor: "divider",
+                        bgcolor:
+                          item.date === today
+                            ? "action.selected"
+                            : "background.paper",
+                        "&:hover": { bgcolor: "action.hover" },
+                        "&.Mui-focusVisible": {
+                          outline: "2px solid",
+                          outlineColor: "primary.main",
+                          outlineOffset: -2,
+                        },
+                      }}
                     >
-                      {Number(item.date.slice(-2))}
-                      {item.date === today ? " · Today" : ""}
-                    </Typography>
-                    <Typography variant="body2">
-                      {item.scheduled} scheduled
-                    </Typography>
-                    <Typography variant="body2">
-                      {item.confirmed} confirmed
-                    </Typography>
-                    {item.holds.length > 0 && (
-                      <Typography variant="body2" color="warning.main">
-                        {item.holds.length} held
+                      <Typography
+                        sx={{ fontWeight: 700 }}
+                        color={item.date === today ? "primary" : "text.primary"}
+                      >
+                        {Number(item.date.slice(-2))}
+                        {item.date === today ? " · Today" : ""}
                       </Typography>
-                    )}
-                    <Typography
-                      variant="caption"
-                      sx={{ display: "block" }}
-                      color="text.secondary"
-                    >
-                      {item.available === null
-                        ? "Capacity not set"
-                        : `${item.available} open · ${data.slot_minutes} min`}
-                    </Typography>
-                    {item.conflicts > 0 && (
-                      <Typography variant="caption" color="error">
-                        {item.conflicts} conflicts
+                      {completed > 0 && (
+                        <Typography variant="body2" color="success.main">
+                          {completed} completed
+                        </Typography>
+                      )}
+                      <Typography variant="body2">
+                        {item.scheduled} scheduled
                       </Typography>
-                    )}
-                  </ButtonBase>
-                ))}
+                      <Typography variant="body2">
+                        {item.confirmed} confirmed
+                      </Typography>
+                      {item.holds.length > 0 && (
+                        <Typography variant="body2" color="warning.main">
+                          {item.holds.length} held
+                        </Typography>
+                      )}
+                      <Typography
+                        variant="caption"
+                        sx={{ display: "block" }}
+                        color="text.secondary"
+                      >
+                        {item.available === null
+                          ? "Capacity not set"
+                          : `${item.available} open slots · ${data.slot_minutes} min`}
+                      </Typography>
+                      {item.conflicts > 0 && (
+                        <Typography variant="caption" color="error">
+                          {item.conflicts} conflicts
+                        </Typography>
+                      )}
+                    </ButtonBase>
+                  );
+                })}
               </Box>
             </Paper>
           ) : (
@@ -1316,10 +1330,13 @@ export function ClinicSchedule({
                   </Typography>
                 )}
                 {selected.series_id && (
-                  <Button sx={{ alignSelf: "start" }} onClick={() => {
-                    setSeriesId(selected.series_id ?? null);
-                    setSelected(undefined);
-                  }}>
+                  <Button
+                    sx={{ alignSelf: "start" }}
+                    onClick={() => {
+                      setSeriesId(selected.series_id ?? null);
+                      setSelected(undefined);
+                    }}
+                  >
                     Recurring visit {selected.series_sequence} · View series
                   </Button>
                 )}
@@ -1375,10 +1392,13 @@ export function ClinicSchedule({
           )}
         </DialogActions>
       </Dialog>
-      <SeriesManagement seriesId={seriesId} canChange={canBook}
+      <SeriesManagement
+        seriesId={seriesId}
+        canChange={canBook}
         canCancel={Boolean(context.capabilities.appointments_status_transition)}
         onClose={() => setSeriesId(null)}
-        onChanged={() => refreshCalendar.current()} />
+        onChanged={() => refreshCalendar.current()}
+      />
     </Stack>
   );
 }
