@@ -6,13 +6,18 @@ module Development
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       definition = DemoLessonCatalog.definition!(lesson_key)
       template_key = definition.fetch(:template_key, TEMPLATE_KEY)
+      sandbox = lesson_key == DemoLessonCatalog::SANDBOX_KEY
+      raise ActiveRecord::RecordNotFound if sandbox && visitor.nil?
+      raise ActiveRecord::RecordNotFound if previous_run && previous_run.visitor_id != visitor.id
       ApplicationRecord.transaction do
         [ lesson_key, previous_run&.lesson_key ].compact.uniq.sort.each do |key|
+          lock_key = key == DemoLessonCatalog::SANDBOX_KEY ? "#{key}:#{visitor.id}" : key
           ApplicationRecord.connection.execute(
-            "SELECT pg_advisory_xact_lock(hashtextextended(#{ApplicationRecord.connection.quote("apply:demo-lesson:#{key}")}, 0))"
+            "SELECT pg_advisory_xact_lock(hashtextextended(#{ApplicationRecord.connection.quote("apply:demo-lesson:#{lock_key}")}, 0))"
           )
         end
-        lesson = DemoLesson.lock.find_by(lesson_key:) || create_lesson!(definition)
+        lesson_scope = sandbox ? DemoLesson.where(lesson_key:, visitor:) : DemoLesson.where(lesson_key:, visitor_id: nil)
+        lesson = lesson_scope.lock.first || create_lesson!(definition, visitor: sandbox ? visitor : nil)
         lesson.lock!
         if previous_run&.reload&.active? && previous_run.lesson_key != lesson_key
           [ previous_run.operator_user, previous_run.patient_user ].compact.each do |user|
@@ -20,7 +25,9 @@ module Development
           end
           finish!(previous_run)
         end
-        old_runs = DemoRun.where(lesson_key:).lock.to_a
+        old_runs = DemoRun.where(lesson_key:)
+        old_runs = old_runs.where(visitor:) if sandbox
+        old_runs = old_runs.lock.to_a
         patient_users = old_runs.filter_map(&:patient_user).uniq(&:id)
         old_runs.each do |run|
           [ run.operator_user, run.patient_user ].compact.each { |user| user.member_sessions.destroy_all }
@@ -30,7 +37,7 @@ module Development
         lesson.operator_user.member_sessions.destroy_all
 
         DemoClinicReset.call!(lesson)
-        DemoSandboxOrganization.prepare!(lesson) if lesson_key == DemoLessonCatalog::SANDBOX_KEY
+        DemoSandboxOrganization.prepare!(lesson) if sandbox
         patient_users.each { |user| user.destroy! if user.reload.member_sessions.empty? }
         GuidedClinicDemo.prepare_clinic!(
           practice: lesson.practice, operator: lesson.operator_user, template_key:,
@@ -62,13 +69,18 @@ module Development
       run
     end
 
-    def self.create_lesson!(definition)
+    def self.create_lesson!(definition, visitor: nil)
       lesson_key = definition.fetch(:id)
+      operator_email = if visitor
+        "guided-lesson-#{lesson_key.tr('_', '-')}-visitor-#{visitor.id}@example.test"
+      else
+        "guided-lesson-#{lesson_key.tr('_', '-')}@example.test"
+      end
       clinic = GuidedClinicDemo.create_clinic!(
         clinic_name: "Meta Clinic Lesson — #{definition.fetch(:title)}".first(160),
-        operator_email: "guided-lesson-#{lesson_key.tr('_', '-')}@example.test"
+        operator_email:
       )
-      DemoLesson.create!(lesson_key:, practice: clinic.practice, operator_user: clinic.operator)
+      DemoLesson.create!(lesson_key:, practice: clinic.practice, operator_user: clinic.operator, visitor:)
     end
 
     def self.finish!(run, at: Time.current)

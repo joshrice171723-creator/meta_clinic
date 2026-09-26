@@ -227,6 +227,56 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_equal 2, second_companion.sites.count
   end
 
+  test "two visitors keep independent sandbox organizations and resets" do
+    first_visitor = demo_visitor
+    second_visitor = demo_visitor
+    first = Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor)
+    second = Development::SharedDemoLesson.enter!("sandbox", visitor: second_visitor)
+
+    refute_equal first.practice_id, second.practice_id
+    refute_equal first.practice.organization_id, second.practice.organization_id
+    refute_equal first.operator_user_id, second.operator_user_id
+    assert first.reload.active?
+    assert second.reload.active?
+    second_patient_id = second.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
+    second_companion = second.practice.organization.practices.where.not(id: second.practice_id).sole
+    second_companion_site_id = second_companion.sites.find_by!(code: "SANDBOX-NORTH").id
+
+    replacement = Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor, previous_run: first)
+
+    assert_equal first.practice_id, replacement.practice_id
+    refute first.reload.active?
+    assert second.reload.active?
+    assert second.practice.patients.exists?(second_patient_id)
+    assert second_companion.sites.exists?(second_companion_site_id)
+    assert_equal 2, second.practice.organization.practices.count
+    assert_raises(ActiveRecord::RecordNotFound) do
+      Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor, previous_run: second)
+    end
+  end
+
+  test "one browser restarting sandbox leaves another browser active" do
+    first_session = open_session
+    second_session = open_session
+    first_session.host! "localhost:3000"
+    second_session.host! "localhost:3000"
+    register_visitor_for(first_session, email: "first-sandbox@example.test")
+    register_visitor_for(second_session, email: "second-sandbox@example.test")
+    first_id = enter_lesson_for(first_session, "sandbox").fetch("id")
+    second_id = enter_lesson_for(second_session, "sandbox").fetch("id")
+    second_run = Development::DemoRun.find(second_id)
+    second_patient_id = second_run.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
+
+    replacement_id = enter_lesson_for(first_session, "sandbox").fetch("id")
+
+    refute_equal first_id, replacement_id
+    assert second_run.reload.active?
+    assert second_run.practice.patients.exists?(second_patient_id)
+    second_session.get "/api/demo/run", headers: @headers
+    assert_equal 200, second_session.response.status
+    assert_equal second_id, second_session.response.parsed_body.dig("run", "id")
+  end
+
   test "an expired guided demo session can resume its bound lesson" do
     register_visitor
     run = Development::DemoRun.find(enter_lesson("navigation_tour").fetch("id"))
@@ -518,7 +568,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     session.post "/api/demo/visitor",
       params: { name: "Second Visitor", email:, company: "Example Clinic" },
       headers: csrf_headers_for(session), as: :json
-    assert_equal 200, session.response.status
+    assert_equal 200, session.response.status, session.response.body
   end
 
   def enter_lesson(lesson_key)

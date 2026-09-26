@@ -12051,6 +12051,7 @@ CREATE TABLE public.development_demo_lessons (
     generation integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    visitor_id bigint,
     CONSTRAINT development_demo_lessons_values CHECK ((((lesson_key)::text <> ''::text) AND (generation >= 0)))
 );
 
@@ -18750,6 +18751,20 @@ CREATE UNIQUE INDEX clinical_plan_links_request_key ON public.clinic_clinical_pl
 
 
 --
+-- Name: development_demo_lessons_shared_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX development_demo_lessons_shared_key ON public.development_demo_lessons USING btree (lesson_key) WHERE (visitor_id IS NULL);
+
+
+--
+-- Name: development_demo_lessons_visitor_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX development_demo_lessons_visitor_key ON public.development_demo_lessons USING btree (visitor_id, lesson_key) WHERE (visitor_id IS NOT NULL);
+
+
+--
 -- Name: development_demo_runs_active_practice; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -18767,7 +18782,7 @@ CREATE UNIQUE INDEX development_demo_runs_active_visitor_lesson ON public.develo
 -- Name: development_demo_runs_one_active_lesson; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX development_demo_runs_one_active_lesson ON public.development_demo_runs USING btree (lesson_key) WHERE (active AND (lesson_key IS NOT NULL));
+CREATE UNIQUE INDEX development_demo_runs_one_active_lesson ON public.development_demo_runs USING btree (lesson_key) WHERE (active AND (lesson_key IS NOT NULL) AND ((lesson_key)::text <> 'sandbox'::text));
 
 
 --
@@ -20745,13 +20760,6 @@ CREATE INDEX index_credit_notes_on_practice_and_issuer ON public.clinic_credit_n
 
 
 --
--- Name: index_development_demo_lessons_on_lesson_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_development_demo_lessons_on_lesson_key ON public.development_demo_lessons USING btree (lesson_key);
-
-
---
 -- Name: index_development_demo_lessons_on_operator_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -20763,6 +20771,13 @@ CREATE UNIQUE INDEX index_development_demo_lessons_on_operator_user_id ON public
 --
 
 CREATE UNIQUE INDEX index_development_demo_lessons_on_practice_id ON public.development_demo_lessons USING btree (practice_id);
+
+
+--
+-- Name: index_development_demo_lessons_on_visitor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_lessons_on_visitor_id ON public.development_demo_lessons USING btree (visitor_id);
 
 
 --
@@ -28120,6 +28135,14 @@ ALTER TABLE ONLY public.clinic_inventory_catalog_events
 
 
 --
+-- Name: development_demo_lessons fk_rails_6ea7ff4510; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_lessons
+    ADD CONSTRAINT fk_rails_6ea7ff4510 FOREIGN KEY (visitor_id) REFERENCES public.development_demo_visitors(id);
+
+
+--
 -- Name: identity_preferences fk_rails_6f731ca26a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31102,6 +31125,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260926020000'),
 ('20260926010000'),
 ('20260925090000'),
 ('20260924030000'),

@@ -6,12 +6,13 @@ module Development
     def self.prepare!(primary_lesson)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled? &&
         primary_lesson.lesson_key == DemoLessonCatalog::SANDBOX_KEY &&
+        primary_lesson.visitor_id.present? &&
         DemoLesson.exists?(id: primary_lesson.id, practice_id: primary_lesson.practice_id)
 
       organization = primary_lesson.practice.organization ||
         Organization.create!(name: "#{NAME} #{primary_lesson.practice_id}")
-      companion = DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY) ||
-        create_companion!
+      companion = DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
+        visitor_id: primary_lesson.visitor_id) || create_companion!(primary_lesson.visitor)
       raise ActiveRecord::RecordNotFound if organization.practices.where.not(id: [ primary_lesson.practice_id, companion.practice_id ]).exists? ||
         (companion.practice.organization_id.present? && companion.practice.organization_id != organization.id)
 
@@ -38,10 +39,10 @@ module Development
       companion
     end
 
-    def self.create_companion!
+    def self.create_companion!(visitor)
       clinic = GuidedClinicDemo.create_clinic!(clinic_name: "Sandbox Weight Management")
       DemoLesson.create!(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
-        practice: clinic.practice, operator_user: clinic.operator)
+        practice: clinic.practice, operator_user: clinic.operator, visitor:)
     end
     private_class_method :create_companion!
   end
