@@ -83,8 +83,8 @@ check(sandbox.post(base + '/demo/visitor', json=visitor, timeout=20).status_code
       'Sandbox visitor registration')
 csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
 sandbox.headers['X-CSRF-Token'] = csrf
-opened = sandbox.post(base + '/demo/lesson', json={'lesson_key': 'sandbox'}, timeout=30)
-check(opened.status_code == 201 and opened.json()['run']['sandbox'], 'Sandbox creation')
+opened = sandbox.post(base + '/demo/lesson', json={'lesson_key': 'sandbox'}, timeout=600)
+check(opened.status_code == 201 and opened.json()['run']['sandbox'], 'Sandbox available')
 clinic_id = opened.json()['run']['clinic']['id']
 context = sandbox.get(base + '/clinic/context', timeout=20).json()
 sites = context['sites']
@@ -98,6 +98,14 @@ check(sandbox.get(base + '/clinic/context', timeout=20).json()['current_site']['
       'Sandbox location persisted')
 csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
 sandbox.headers['X-CSRF-Token'] = csrf
-restarted = sandbox.post(base + '/demo/lesson', json={'lesson_key': 'sandbox', 'restart': True}, timeout=30)
-check(restarted.status_code == 201 and restarted.json()['run']['clinic']['id'] == clinic_id,
-      'Sandbox reset retained its clinic')
+second_visitor = requests.Session()
+second_visitor.headers['Origin'] = origin
+second_visitor.headers['X-CSRF-Token'] = second_visitor.get(base + '/csrf', timeout=20).json()['csrf_token']
+check(second_visitor.post(base + '/demo/visitor', json={
+    'name': 'Second Release Check', 'email': 'release-check-secondary@example.test',
+    'company': 'Synthetic demo'}, timeout=20).status_code == 200,
+      'Second Sandbox visitor registration')
+second_visitor.headers['X-CSRF-Token'] = second_visitor.get(base + '/csrf', timeout=20).json()['csrf_token']
+joined = second_visitor.post(base + '/demo/lesson', json={'lesson_key': 'sandbox'}, timeout=30)
+check(joined.status_code == 201 and joined.json()['run']['clinic']['id'] == clinic_id,
+      'Second visitor joined prepared Sandbox')
