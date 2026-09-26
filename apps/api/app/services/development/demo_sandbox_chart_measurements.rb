@@ -1,7 +1,7 @@
 module Development
   class DemoSandboxChartMeasurements
     COHORT_PER_SITE = 8
-    MIN_HISTORY_SPAN = 35.days
+    MIN_HISTORY_DAYS = 35
 
     def self.prepare!(run)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled? &&
@@ -20,9 +20,12 @@ module Development
       encounters_by_patient = practice.encounters.includes(:patient)
         .where(site:, status: "completed", patient_id: patients.map(&:id))
         .order(:started_at, :id).to_a.group_by(&:patient_id)
+      zone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone] ||
+        raise(ArgumentError, "Sandbox location timezone is unavailable")
       cohort = patients.filter_map do |patient|
         visits = encounters_by_patient.fetch(patient.id, [])
-        next if visits.length < 2 || visits.last.started_at - visits.first.started_at < MIN_HISTORY_SPAN
+        next if visits.length < 2 ||
+          (visits.last.started_at.in_time_zone(zone).to_date - visits.first.started_at.in_time_zone(zone).to_date) < MIN_HISTORY_DAYS
 
         [ patient, [ visits.first, visits.last ] ]
       end.first(COHORT_PER_SITE)

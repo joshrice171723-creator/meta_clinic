@@ -414,7 +414,7 @@ export function DemoJourney() {
           <Stack spacing={2}>
             <Typography color="text.secondary">
               Guided lessons start with a fresh sample clinic. Your sandbox has
-              its own clinic organization and resets when you reopen it.
+              its own clinic organization and keeps your changes until you reset it.
             </Typography>
             {preparingSandbox && (
               <Alert severity="info" role="status">
@@ -754,7 +754,7 @@ export function DemoJourney() {
           {error && <Alert severity="error">{error}</Alert>}
           <Typography>
             {sandbox
-              ? "This restores the full synthetic clinic dataset."
+              ? "This rebuilds the full sample clinic and removes changes made in this sandbox."
               : "This restarts only this lesson’s clinic and progress."}
           </Typography>
         </DialogContent>

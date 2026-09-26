@@ -1,7 +1,5 @@
 module Development
   class DemoSandboxRefillCompletion
-    RESOLVED_PATIENT_ORDINAL = 31
-
     def self.prepare!(run)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled? &&
         run.lesson_key == DemoLessonCatalog::SANDBOX_KEY && run.visitor_id.present?
@@ -17,9 +15,11 @@ module Development
       clinician = practice.clinician_profiles.find_by!(reference: "SBX-CLIN-#{site_index}-1")
       actor = clinician.membership.user
 
-      reference = "SBX-#{site_index}-#{RESOLVED_PATIENT_ORDINAL.to_s.rjust(3, '0')}"
-      patient = practice.patients.find_by!(primary_site: site, reference:)
-      request = practice.patient_portal_requests.refill.find_by!(patient:, request_key: "sandbox-refill-#{patient.id}")
+      patient_ids = practice.patients.where(primary_site: site)
+        .where("reference LIKE ?", "SBX-#{site_index}-%").select(:id)
+      request = practice.patient_portal_requests.refill.where(patient_id: patient_ids, status: "pending")
+        .where("request_key LIKE 'sandbox-refill-%'").order(:id).first!
+      patient = request.patient
       return if request.status.in?(%w[resolved declined]) && request.medication_request_revision_id.present?
       unless request.status.in?(%w[pending in_review])
         raise ArgumentError, "Sandbox refill request is not ready for clinician review"

@@ -48,9 +48,12 @@ module Development
         end
       end
 
-      [ [ 31, "pending" ], [ 32, "in_review" ] ].each do |ordinal, status|
-        patient = practice.patients.find_by!(primary_site: site,
-          reference: "SBX-#{site_index}-#{ordinal.to_s.rjust(3, '0')}")
+      medicated_patients = practice.patients.where(primary_site: site)
+        .where("reference LIKE ?", "SBX-#{site_index}-%")
+        .where(id: Clinic::Care::MedicationStatement.where(practice:, status: "active").select(:patient_id))
+        .order(:id).limit(2).to_a
+      medicated_patients.each_with_index do |patient, index|
+        status = index.zero? ? "pending" : "in_review"
         medication = patient.medication_statements.where(status: "active").order(:id).first!
         content = Clinic::PatientPortal::RefillRequestData.content(
           medication_name: medication.medication_name,
@@ -62,7 +65,7 @@ module Development
           practice:, patient:, identity: nil,
           request_key: "sandbox-refill-#{patient.id}", request_type: "refill", content:
         )
-        requested_at = Current.business_time - (ordinal - 28).days
+        requested_at = Current.business_time - (index + 3).days
         request.update!(requested_at:, created_at: requested_at)
         next unless status == "in_review"
 

@@ -16,7 +16,7 @@ module Development
       setting.update!(updated_by_membership: membership, provider_code: "daily", provider_account_ref: nil,
         enabled: false, health_status: "unconfigured")
 
-      patient = practice.patients.find_by!(reference: "SBX-1-001", primary_site: site)
+      patient = practice.patients.where(primary_site: site).where("reference LIKE 'SBX-1-%'").order(:id).first!
       clinician = practice.clinician_profiles.find_by!(reference: "SBX-CLIN-1-1")
       visit_type_code = practice.name == "Sandbox Weight Management" ? "Weight-loss follow-up" : "Follow-up visit"
       visit_type = practice.visit_types.find_by!(code: visit_type_code)

@@ -61,7 +61,12 @@ module Development
         raise(ArgumentError, "Sandbox location timezone is unavailable")
       date = Current.business_time.in_time_zone(zone).to_date.beginning_of_week(:monday) + 4.weeks
       starts_at = zone.local(date.year, date.month, date.day, 10)
-      visit_code = practice.name == "Sandbox Weight Management" ? "Weight management follow-up" : "Follow-up visit"
+      clinic_type = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site:).fetch(:clinic_type)
+      visit_code = case clinic_type
+      when "weight_loss" then "Weight management follow-up"
+      when "behavioral_health" then "Behavioral health follow-up"
+      else "Follow-up visit"
+      end
       Clinic::Scheduling::BookAppointment.call(
         practice:, actor:, patient:, site:, room: site.rooms.find_by!(code: "EXAM-1"),
         booked_clinician: practice.clinician_profiles.find_by!(reference: "SBX-CLIN-#{site_index}-1"),

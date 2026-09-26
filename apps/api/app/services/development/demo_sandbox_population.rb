@@ -156,7 +156,6 @@ module Development
 
     def self.prepare_patients!(practice:, site:, site_index:, as_of:)
       existing = practice.patients.where(primary_site_id: site.id).count
-      raise ArgumentError, "Sandbox location exceeds patient target" if existing > PATIENTS_PER_SITE
 
       (existing + 1).upto(PATIENTS_PER_SITE) do |ordinal|
         clinic_offset = practice.name == "Sandbox Weight Management" ? PATIENTS_PER_SITE * 2 : 0
@@ -193,7 +192,7 @@ module Development
       rooms = (1..3).map { |number| site.rooms.find_by!(code: "EXAM-#{number}") }
       raise ArgumentError, "Visit history needs physical rooms" unless rooms.all? { |room| room.kind == "physical" }
       patients = practice.patients.where(primary_site_id: site.id).order(:id).to_a
-      raise ArgumentError, "Visit history needs a complete patient cohort" unless patients.length == PATIENTS_PER_SITE
+      raise ArgumentError, "Visit history needs a complete patient cohort" if patients.length < PATIENTS_PER_SITE
       background_patients = patients.select { |patient| patient.reference.start_with?("SBX-") }
       raise ArgumentError, "Visit history needs background patients" if background_patients.length < 120
 

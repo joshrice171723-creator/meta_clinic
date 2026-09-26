@@ -16,7 +16,9 @@ module Development
     end
 
     def self.prepare_site!(practice:, site:, actor:)
-      patient = practice.patients.where(primary_site: site).where("reference LIKE 'SBX-%'").order(:id).find do |candidate|
+      patients_with_notes = practice.encounter_notes.where(note_kind: "soap").select(:patient_id)
+      patient = practice.patients.where(primary_site: site).where("reference LIKE 'SBX-%'")
+        .where.not(id: patients_with_notes).order(:id).find do |candidate|
         practice.encounters.where(patient: candidate, site:, status: "completed").count >= 2
       end
       return unless patient

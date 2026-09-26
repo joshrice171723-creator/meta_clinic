@@ -11,6 +11,7 @@ module Development
         .where.not(visitor_id: nil).where("updated_at < ?", at - REUSE_AFTER)
         .order(:updated_at, :id).limit(20).each do |lesson|
         next if lesson.visitor_id == visitor.id
+        next if DemoRun.active.exists?(practice_id: lesson.practice_id)
 
         companion = DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
           visitor_id: lesson.visitor_id)

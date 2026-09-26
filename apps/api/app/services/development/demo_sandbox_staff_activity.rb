@@ -81,9 +81,7 @@ module Development
             record.status = "draft"
             record.revision = 1
           end
-          unless draft.shifts.count == SHIFTS_PER_WEEK
-            raise ArgumentError, "Sandbox workforce schedule draft is incomplete" if draft.shifts.exists?
-
+          unless draft.shifts.exists?
             SHIFTS_PER_WEEK.times do |slot|
               index = (week_index * SHIFTS_PER_WEEK + slot) % employments.length
               employment = employments.fetch(index)

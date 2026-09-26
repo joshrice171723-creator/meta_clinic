@@ -2,7 +2,7 @@ module Development
   class SharedDemoLesson
     TEMPLATE_KEY = "primary_care".freeze
 
-    def self.enter!(lesson_key, visitor:, previous_run: nil)
+    def self.enter!(lesson_key, visitor:, previous_run: nil, restart: false)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       definition = DemoLessonCatalog.definition!(lesson_key)
       template_key = definition.fetch(:template_key, TEMPLATE_KEY)
@@ -26,7 +26,21 @@ module Development
           (DemoSandboxOrganization.reuse_expired!(visitor:) if sandbox) ||
           create_lesson!(definition, visitor: sandbox ? visitor : nil)
         lesson.lock!
-        if previous_run&.reload&.active? && previous_run.lesson_key != lesson_key
+        if sandbox && !restart
+          existing_run = DemoRun.active.find_by(lesson_key:, visitor:, practice: lesson.practice)
+          if existing_run
+            if previous_run&.reload&.active? && previous_run.id != existing_run.id &&
+                !DemoLessonCatalog.sandbox?(previous_run.lesson_key)
+              [ previous_run.operator_user, previous_run.patient_user ].compact.each do |user|
+                user.member_sessions.destroy_all
+              end
+              finish!(previous_run)
+            end
+            next existing_run
+          end
+        end
+        if previous_run&.reload&.active? && previous_run.lesson_key != lesson_key &&
+            !DemoLessonCatalog.sandbox?(previous_run.lesson_key)
           [ previous_run.operator_user, previous_run.patient_user ].compact.each do |user|
             user.member_sessions.destroy_all
           end

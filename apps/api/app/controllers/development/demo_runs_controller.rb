@@ -32,15 +32,14 @@ module Development
     def lesson
       visitor = current_visitor || raise(ActiveRecord::RecordNotFound)
       input = demo_input!(%i[lesson_key restart])
-      boolean_input!(input, :restart, default: false)
+      restart = boolean_input!(input, :restart, default: false)
       lesson_key = input[:lesson_key].presence
       return leave_lesson(visitor) unless lesson_key
 
       DemoLessonCatalog.definition!(lesson_key)
       previous_run = current_run
-      require_run_user!(previous_run) if previous_run
       run = ApplicationRecord.transaction do
-        selected = SharedDemoLesson.enter!(lesson_key, visitor:, previous_run:)
+        selected = SharedDemoLesson.enter!(lesson_key, visitor:, previous_run:, restart:)
         establish_demo_session(session_user_for(selected), selected, view: DemoLessonCatalog.view_for(lesson_key))
         selected
       end
@@ -91,7 +90,9 @@ module Development
       clear_visitor = boolean_input!(input, :all, default: false)
       visitor = current_visitor
       run = current_run
-      SharedDemoLesson.leave!(run) if run && valid_run_user?(run)
+      SharedDemoLesson.leave!(run) if run && valid_run_user?(run) &&
+        (!DemoLessonCatalog.sandbox?(run.lesson_key) || clear_visitor)
+      current_member_session&.destroy! if run && !clear_visitor && DemoLessonCatalog.sandbox?(run.lesson_key)
       clear_demo_session!
       cookies.delete(:guided_clinic_demo_visitor) if clear_visitor
       render json: inactive_payload(visitor: clear_visitor ? nil : visitor)
@@ -127,7 +128,8 @@ module Development
     def leave_lesson(visitor)
       run = current_run
       require_run_user!(run) if run
-      SharedDemoLesson.leave!(run) if run
+      SharedDemoLesson.leave!(run) if run && !DemoLessonCatalog.sandbox?(run.lesson_key)
+      current_member_session&.destroy! if run && DemoLessonCatalog.sandbox?(run.lesson_key)
       clear_demo_session!
       render json: inactive_payload(visitor:)
     end
@@ -199,7 +201,7 @@ module Development
     end
 
     def cookie_value(id)
-      { value: id.to_s, httponly: true, same_site: :lax, secure: Rails.env.production? }
+      { value: id.to_s, expires: 30.days.from_now, httponly: true, same_site: :lax, secure: Rails.env.production? }
     end
 
     def boolean_input!(input, field, default:)
