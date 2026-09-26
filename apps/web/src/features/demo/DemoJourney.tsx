@@ -413,8 +413,8 @@ export function DemoJourney() {
         ) : (
           <Stack spacing={2}>
             <Typography color="text.secondary">
-              Guided lessons start with a fresh sample clinic. Your sandbox has
-              its own clinic organization and keeps your changes until you reset it.
+              Guided lessons start with a fresh sample clinic. The sandbox is
+              shared, and changes remain visible to visitors until it is reset.
             </Typography>
             {preparingSandbox && (
               <Alert severity="info" role="status">
