@@ -15,16 +15,15 @@ module Development
         membership = practice.memberships.active.find_by!(user: actor)
         window_start = Current.business_time - ACTIVITY_START
         ensure_settings!(practice:, membership:, window_start:)
-        practice.sites.order(:id).each do |site|
+        practice.sites.order(:id).each_with_index do |site, site_index|
           ensure_site_features!(practice:, site:, membership:, window_start:)
           zone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone] ||
             raise(ArgumentError, "Sandbox workforce timezone is unavailable")
           employments = Clinic::Workforce::Employment.where(practice:)
             .includes(:staff_member, :employment_sites, membership: :user).order(:id).select do |employment|
-            employment.active_for_work?(at: Current.business_time) && employment.eligible_site?(site, at: Current.business_time)
+            employment.membership.user.email_address.start_with?("sandbox-staff-#{practice.id}-#{site_index + 1}-") &&
+              employment.active_for_work?(at: Current.business_time) && employment.eligible_site?(site, at: Current.business_time)
           end
-          raise ArgumentError, "Sandbox workforce site needs twelve active employees" unless employments.length == 12
-
           prepare_schedules!(practice:, site:, employments:, actor:, zone:)
           prepare_leave!(practice:, site:, employment: employments.find { |item| item.staff_member.job_title == "Clinic manager" },
             actor:, membership:, zone:)

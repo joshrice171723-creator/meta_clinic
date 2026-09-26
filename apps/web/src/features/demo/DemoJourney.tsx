@@ -10,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  LinearProgress,
   Paper,
   Stack,
   TextField,
@@ -108,6 +109,12 @@ export function DemoPreparationDialog({
 const message = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
+const sandboxDurationKey = "demo-sandbox-last-duration-ms";
+const durationLabel = (milliseconds: number) => {
+  const seconds = Math.floor(milliseconds / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+};
+
 function frameUrl(run: DemoRun) {
   const href = run.steps.find((step) => step.id === run.lesson_key)?.href;
   if (!href) return null;
@@ -138,6 +145,24 @@ export function DemoJourney() {
   const [frameLoading, setFrameLoading] = useState(false);
   const [frameFailed, setFrameFailed] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
+  const [preparingSandbox, setPreparingSandbox] = useState(false);
+  const [sandboxElapsed, setSandboxElapsed] = useState(0);
+  const [lastSandboxDuration, setLastSandboxDuration] = useState<number | null>(
+    () => {
+      const stored = window.sessionStorage.getItem(sandboxDurationKey);
+      return stored === null ? null : Number(stored);
+    },
+  );
+  const sandboxStartedAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!preparingSandbox) return;
+    const interval = window.setInterval(() => {
+      if (sandboxStartedAt.current !== null)
+        setSandboxElapsed(Date.now() - sandboxStartedAt.current);
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [preparingSandbox]);
 
   const load = useCallback(async () => {
     try {
@@ -237,6 +262,12 @@ export function DemoJourney() {
     }
   };
   const selectLesson = async (lesson_key: string | null, restart = false) => {
+    const startingSandbox = lesson_key === "sandbox";
+    if (startingSandbox) {
+      sandboxStartedAt.current = Date.now();
+      setSandboxElapsed(0);
+      setPreparingSandbox(true);
+    }
     setBusy(true);
     setSwitching(true);
     setError(null);
@@ -267,8 +298,21 @@ export function DemoJourney() {
           // Keep the original outcome-unconfirmed error available to the visitor.
         }
       }
-      setError(message(reason, "This lesson could not be opened."));
+      const failure = message(reason, "This lesson could not be opened.");
+      setError(
+        startingSandbox && sandboxStartedAt.current !== null
+          ? `${failure} Preparation ran for ${durationLabel(Date.now() - sandboxStartedAt.current)}.`
+          : failure,
+      );
     } finally {
+      if (startingSandbox && sandboxStartedAt.current !== null) {
+        const duration = Date.now() - sandboxStartedAt.current;
+        setSandboxElapsed(duration);
+        setLastSandboxDuration(duration);
+        window.sessionStorage.setItem(sandboxDurationKey, String(duration));
+        sandboxStartedAt.current = null;
+        setPreparingSandbox(false);
+      }
       setBusy(false);
       setSwitching(false);
     }
@@ -372,10 +416,25 @@ export function DemoJourney() {
               Guided lessons start with a fresh sample clinic. Your sandbox has
               its own clinic organization and resets when you reopen it.
             </Typography>
-            {busy && (
+            {preparingSandbox && (
               <Alert severity="info" role="status">
-                Preparing your clinic workspace. This can take a couple of minutes.
+                <Stack spacing={1}>
+                  <Typography variant="body2">
+                    Building your clinic workspace: locations and staff, then
+                    patient histories, visits, inventory, and billing. This can
+                    take a couple of minutes.
+                  </Typography>
+                  <LinearProgress aria-label="Preparing sandbox" />
+                  <Typography variant="caption">
+                    Elapsed: {durationLabel(sandboxElapsed)}
+                  </Typography>
+                </Stack>
               </Alert>
+            )}
+            {!preparingSandbox && lastSandboxDuration !== null && (
+              <Typography variant="caption" color="text.secondary">
+                Last sandbox preparation: {durationLabel(lastSandboxDuration)}
+              </Typography>
             )}
             <LessonCatalog
               lessons={state.value.lessons}
@@ -405,6 +464,20 @@ export function DemoJourney() {
       sx={{ maxWidth: 1440, mx: "auto", p: 2 }}
     >
       {error && <Alert severity="error">{error}</Alert>}
+      {preparingSandbox && (
+        <Alert severity="info" role="status">
+          <Stack spacing={1}>
+            <Typography variant="body2">
+              Preparing clinic data and reopening your workspace. This can take
+              a couple of minutes.
+            </Typography>
+            <LinearProgress aria-label="Preparing sandbox" />
+            <Typography variant="caption">
+              Elapsed: {durationLabel(sandboxElapsed)}
+            </Typography>
+          </Stack>
+        </Alert>
+      )}
       {progressError && (
         <Alert
           severity="error"
@@ -438,6 +511,11 @@ export function DemoJourney() {
                       ? "Full synthetic clinic workspace"
                       : `${roleLabel(activeLesson?.role ?? "administrator")} workspace`}
                   </Typography>
+                  {sandbox && lastSandboxDuration !== null && (
+                    <Typography variant="caption" color="text.secondary">
+                      Last preparation: {durationLabel(lastSandboxDuration)}
+                    </Typography>
+                  )}
                 </Box>
                 <Button
                   variant="outlined"

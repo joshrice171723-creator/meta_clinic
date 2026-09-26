@@ -10,18 +10,20 @@ module Clinic
 
       class << self
         def tokens_for(practice_id:, name:)
+          key = tenant_key(practice_id)
           words(name).flat_map do |word|
             MIN_PREFIX_LENGTH.upto([ word.length, MAX_PREFIX_LENGTH ].min).map do |length|
-              digest(practice_id:, value: word.first(length))
+              digest(key:, value: word.first(length))
             end
           end.uniq
         end
 
         def query_tokens(practice_id:, query:)
+          key = tenant_key(practice_id)
           words(query).filter_map do |word|
             next if word.length < MIN_PREFIX_LENGTH
 
-            digest(practice_id:, value: word.first(MAX_PREFIX_LENGTH))
+            digest(key:, value: word.first(MAX_PREFIX_LENGTH))
           end.uniq
         end
 
@@ -48,8 +50,8 @@ module Clinic
             .scan(/[\p{Alnum}]+/).first(MAX_NAME_TOKENS)
         end
 
-        def digest(practice_id:, value:)
-          OpenSSL::HMAC.hexdigest("SHA256", tenant_key(practice_id), value)
+        def digest(key:, value:)
+          OpenSSL::HMAC.hexdigest("SHA256", key, value)
         end
 
         def tenant_key(practice_id)
