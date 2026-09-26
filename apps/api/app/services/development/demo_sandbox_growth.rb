@@ -49,7 +49,7 @@ module Development
           prospect = Clinic::MembershipGrowth::PrepareAccount.call(
             practice:, version_id: versions.fetch(index % versions.length).id,
             selections: [], display_name: name,
-            email_address: "sandbox-signup-#{practice.id}-#{index + 1}@example.test",
+            email_address: "sandbox-signup-#{practice.id}-#{run.id}-#{index + 1}@example.test",
             phone_number: "512-555-#{3000 + index}", source: "membership signup",
             outreach_consent: true,
             request_key: "sandbox-signup-#{practice.id}-#{index + 1}",
