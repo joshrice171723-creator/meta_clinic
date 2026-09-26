@@ -68,6 +68,9 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
   end
 
   test "registration preserves an unknown date of birth without inventing one" do
+    site = @practice.sites.create!(code: "REGISTRATION")
+    patch "/api/clinic/context", params: { site_id: site.id }, headers: csrf_headers, as: :json
+    assert_response :success
     post "/api/clinic/patients", params: {
       clinic_patient: {
         display_name: "Unknown birth date patient", reference: "UNKNOWN-DOB-001",
@@ -80,8 +83,29 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     get "/api/clinic/patients/#{patient_id}", headers: @headers
     assert_response :success
     patient = response.parsed_body.fetch("patient")
+    assert_equal site.id, patient.fetch("primary_site_id")
     assert_nil patient.dig("demographics", "date_of_birth")
     assert_equal "unknown", patient.dig("demographics", "date_of_birth_status")
+  end
+
+  test "patient directory filters by a clinic site and rejects an unknown site" do
+    site = @practice.sites.create!(code: "DIRECTORY")
+    @patient.update!(primary_site: site)
+
+    get "/api/clinic/patients", params: { site_id: site.id }, headers: @headers
+    assert_response :success
+    assert_includes response.parsed_body.fetch("patients").map { |row| row.fetch("id") }, @patient.id
+    assert response.parsed_body.fetch("patients").all? { |row| row.fetch("primary_site_id") == site.id }
+
+    get "/api/clinic/patients", params: { site_id: site.id + 1_000_000 }, headers: @headers
+    assert_response :not_found
+
+    other_practice = Clinic::Practice.create!(name: "Synthetic Other Practice", organization: @practice.organization)
+    other_site = other_practice.sites.create!(code: "OTHER")
+    get "/api/clinic/patients", params: { site_id: other_site.id }, headers: @headers
+    assert_response :not_found
+    @patient.primary_site = other_site
+    refute @patient.valid?
   end
 
   test "partial registration edits preserve demographics and communication preferences" do

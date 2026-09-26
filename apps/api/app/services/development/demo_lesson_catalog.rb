@@ -264,6 +264,7 @@ module Development
         %i[patient appointment encounter stock].each do |kind|
           prepare_context!(run, kind:)
         end
+        run.patient.update!(primary_site: run.practice.sites.first!)
         DemoSandboxPreparation.prepare!(run)
         DemoNavigationPreparation.prepare!(run)
         DemoWorkspacePreparation.prepare!(run)

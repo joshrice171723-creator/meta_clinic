@@ -5,7 +5,8 @@ module Clinic
         payload = {
           id: patient.id,
           reference: patient.reference,
-          display_name: patient.display_name
+          display_name: patient.display_name,
+          primary_site_id: patient.primary_site_id
         }
         return payload unless detail
 

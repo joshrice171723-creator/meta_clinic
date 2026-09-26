@@ -7,6 +7,8 @@ module Clinic
     has_many :rooms, class_name: "Clinic::Room", dependent: :restrict_with_error
     has_many :clinician_assignments, class_name: "Clinic::ClinicianAssignment", dependent: :restrict_with_error
     has_many :appointments, class_name: "Clinic::Appointment", dependent: :restrict_with_error
+    has_many :primary_patients, class_name: "Clinic::Care::Patient", foreign_key: :primary_site_id,
+      dependent: :restrict_with_error
     has_many :encounters, class_name: "Clinic::Encounter", dependent: :restrict_with_error
     has_many :role_grants, class_name: "Clinic::RoleGrant", dependent: :restrict_with_error
     has_many :operating_hours, class_name: "Clinic::SiteOperatingHour", dependent: :restrict_with_error

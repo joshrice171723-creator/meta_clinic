@@ -256,6 +256,7 @@ export type PatientActivityHistory = {
 
 export type Patient = {
   id: number;
+  primary_site_id?: number | null;
   updated_at?: string;
   display_name: string;
   reference: string;

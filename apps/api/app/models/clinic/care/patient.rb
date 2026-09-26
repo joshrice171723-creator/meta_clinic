@@ -27,6 +27,7 @@ module Clinic
       has_one :communication_preference, class_name: "Clinic::Care::PatientCommunicationPreference", dependent: :restrict_with_error
       has_many :social_histories, class_name: "Clinic::Care::PatientSocialHistory", dependent: :restrict_with_error
       belongs_to :primary_address_version, class_name: "Clinic::Care::PatientAddressVersion", optional: true
+      belongs_to :primary_site, class_name: "Clinic::Site", optional: true
       has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
       has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error
       has_many :communication_endpoints, class_name: "Clinic::CommunicationEndpoint", dependent: :restrict_with_error
@@ -44,8 +45,13 @@ module Clinic
       before_validation :refresh_name_search_tokens, if: -> { will_save_change_to_display_name? || will_save_change_to_practice_id? }
       validates :display_name, presence: true, length: { maximum: 120 }
       validates :reference, presence: true, length: { maximum: 32 }, uniqueness: { scope: :practice_id }
+      validate :primary_site_belongs_to_practice
 
       private
+
+      def primary_site_belongs_to_practice
+        errors.add(:primary_site, "must belong to this clinic") if primary_site && primary_site.practice_id != practice_id
+      end
 
       def refresh_name_search_tokens
         self.name_search_tokens = if practice_id.present? && display_name.present?

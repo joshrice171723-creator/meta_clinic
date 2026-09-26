@@ -15,6 +15,10 @@ module Clinic
       def index
         patients = current_practice.patients.accessible_by(current_ability, :read)
           .includes(:demographics, :contacts)
+        if params[:site_id].present?
+          site = accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id))
+          patients = patients.where(primary_site_id: site.id)
+        end
         query = query_param
         if query.present?
           escaped = Clinic::Care::Patient.sanitize_sql_like(query)
@@ -64,7 +68,8 @@ module Clinic
           Clinic::Care::Patient.transaction do
             created = current_practice.patients.create!(
               display_name: required_string!(input[:display_name], field: :display_name, maximum: 120),
-              reference: required_string!(input[:reference], field: :reference, maximum: 32)
+              reference: required_string!(input[:reference], field: :reference, maximum: 32),
+              primary_site: current_clinic_site
             )
             save_registration!(created, input)
             created

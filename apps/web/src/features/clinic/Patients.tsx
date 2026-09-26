@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   InputAdornment,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -75,6 +76,12 @@ function currentPage() {
 export function Patients({ id }: { id?: string }) {
   const clinic = useClinic();
   const page = currentPage();
+  const requestedSiteId =
+    typeof window === "undefined"
+      ? null
+      : Number(new URLSearchParams(window.location.search).get("site_id"));
+  const selectedSite = clinic.sites.find((site) => site.id === requestedSiteId);
+  const siteQuery = selectedSite ? `&site_id=${selectedSite.id}` : "";
   const { data, error, refresh } = useResource<{
     patients?: Patient[];
     patient?: Patient;
@@ -82,7 +89,7 @@ export function Patients({ id }: { id?: string }) {
     notes?: LegacyNote[];
     portal_access?: PortalAccess | null;
     pagination?: Pagination;
-  }>(`/api/clinic/patients${id ? `/${id}` : `?page=${page}`}`);
+  }>(`/api/clinic/patients${id ? `/${id}` : `?page=${page}${siteQuery}`}`);
   if (!data) return <LoadState error={error} />;
   if (data.patient)
     return (
@@ -116,25 +123,48 @@ export function Patients({ id }: { id?: string }) {
         Return to tracking board →
       </a>
       <Card title="Patient directory">
+        <TextField
+          select
+          label="Primary location"
+          size="small"
+          value={selectedSite?.id ?? ""}
+          onChange={(event) =>
+            window.location.assign(
+              event.target.value
+                ? `/clinic/patients?site_id=${event.target.value}`
+                : "/clinic/patients",
+            )
+          }
+          sx={{ mb: 2, minWidth: 240 }}
+        >
+          <MenuItem value="">All clinic patients</MenuItem>
+          {clinic.sites.map((site) => (
+            <MenuItem key={site.id} value={site.id}>
+              {site.name || site.code}
+            </MenuItem>
+          ))}
+        </TextField>
         {clinic.capabilities.patient_identity_read === true && (
           <>
             <PatientLookup />
             <Divider sx={{ my: 3 }} />
             <Typography component="h2" variant="h6" sx={{ mb: 0.5 }}>
-              All patients
+              {selectedSite ? `${selectedSite.name} patients` : "All patients"}
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 2 }}>
-              Browse the patients registered at this location.
+              {selectedSite
+                ? `Browse patients assigned to ${selectedSite.name}.`
+                : "Browse patients registered at this clinic."}
             </Typography>
           </>
         )}
         {data.patients?.length === 0 ? (
-          <p>No patients are registered at this location yet.</p>
+          <p>{selectedSite ? "No patients are assigned to this location yet." : "No patients are registered at this clinic yet."}</p>
         ) : (
           <div className="clinic-table-wrap">
             <table className="care-table">
               <caption className="sr-only">
-                Patients registered at this location
+                {selectedSite ? `Patients assigned to ${selectedSite.name}` : "Patients registered at this clinic"}
               </caption>
               <thead>
                 <tr>
@@ -170,7 +200,7 @@ export function Patients({ id }: { id?: string }) {
             page={data.pagination.page}
             total={data.pagination.total}
             size={data.pagination.per_page}
-            path="/clinic/patients"
+            path={`/clinic/patients${selectedSite ? `?site_id=${selectedSite.id}` : ""}`}
           />
         )}
       </Card>

@@ -25,8 +25,8 @@ module Development
       def prepare!(run)
         main_site = run.practice.sites.first!
         annex_site = prepare_annex!(run)
-        patients = prepare_patients!(run)
-        prepare_appointments!(run, patients:, site: main_site)
+        patients = prepare_patients!(run, main_site:, annex_site:)
+        prepare_appointments!(run, patients:)
         prepare_inventory!(run, main_site:, annex_site:)
       end
 
@@ -65,10 +65,12 @@ module Development
         site
       end
 
-      def prepare_patients!(run)
-        PATIENTS.map do |fixture|
+      def prepare_patients!(run, main_site:, annex_site:)
+        PATIENTS.each_with_index.map do |fixture, index|
+          site = index.even? ? main_site : annex_site
           patient = run.practice.patients.find_or_create_by!(reference: fixture.fetch(:reference)) do |record|
             record.display_name = fixture.fetch(:name)
+            record.primary_site = site
           end
           patient.create_demographics!(practice: run.practice, date_of_birth: Date.new(1980 + PATIENTS.index(fixture), 1, 1),
             sex: "unknown", primary_language: "English", interpreter_required: false) unless patient.demographics
@@ -76,11 +78,12 @@ module Development
         end
       end
 
-      def prepare_appointments!(run, patients:, site:)
+      def prepare_appointments!(run, patients:)
         practice = run.practice
         clinician = practice.clinician_profiles.first!
         visit_type = practice.visit_types.first!
         patients.each_with_index do |(fixture, patient), index|
+          site = patient.primary_site || raise(ArgumentError, "Sandbox patient has no primary site.")
           starts_at = appointment_start(practice:, clinician:, site:, offset: fixture.fetch(:offset), index:)
           appointment = practice.appointments.find_by(patient:, starts_at:) ||
             Clinic::Scheduling::BookAppointment.call(

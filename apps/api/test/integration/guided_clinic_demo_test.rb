@@ -144,20 +144,27 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     sandbox_patients = run.practice.patients.where(reference: sandbox_references)
     sandbox_appointments = run.practice.appointments.where(patient: sandbox_patients).to_a
     assert_equal sandbox_patients.count, sandbox_appointments.count
-    assert sandbox_appointments.all? { |appointment| appointment.site_id == default_site.id }
+    assert sandbox_appointments.all? { |appointment| appointment.site_id == appointment.patient.primary_site_id }
     tracked_encounter = run.practice.encounters.find_by!(patient: run.patient)
     assert tracked_encounter.appointment
     assert_equal default_site.id, tracked_encounter.appointment.site_id
 
     expected_appointments = (sandbox_appointments + [ tracked_encounter.appointment ]).uniq
     visible_appointment_ids = expected_appointments.group_by do |appointment|
-      appointment.starts_at.in_time_zone(run.practice.timezone).strftime("%Y-%m-01")
-    end.flat_map do |month, _appointments|
-      get "/api/clinic/schedule_calendar", params: { site_id: default_site.id, date: month }, headers: @headers
+      [ appointment.site_id, appointment.starts_at.in_time_zone(run.practice.timezone).strftime("%Y-%m-01") ]
+    end.flat_map do |(site_id, month), _appointments|
+      get "/api/clinic/schedule_calendar", params: { site_id:, date: month }, headers: @headers
       assert_response :success
       response.parsed_body.fetch("days").flat_map { |day| day.fetch("appointments").map { |row| row.fetch("id") } }
     end.uniq
     assert_equal expected_appointments.map(&:id).sort, visible_appointment_ids.sort
+    northside = run.practice.sites.find_by!(code: "SANDBOX-NORTH")
+    assert_equal 4, sandbox_patients.where(primary_site_id: default_site.id).count
+    assert_equal 3, sandbox_patients.where(primary_site_id: northside.id).count
+    get "/api/clinic/patients", params: { site_id: northside.id }, headers: @headers
+    assert_response :success
+    assert_equal 3, response.parsed_body.fetch("pagination").fetch("total")
+    assert response.parsed_body.fetch("patients").all? { |patient| patient.fetch("primary_site_id") == northside.id }
     assert_operator run.practice.appointments.distinct.pluck(:starts_at).map(&:to_date).uniq.count, :>=, 6
     assert_operator run.practice.pharmacy_products.count, :>=, 5
     assert_operator run.practice.inventory_suppliers.count, :>=, 4
@@ -168,7 +175,6 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     get "/api/clinic/context", headers: @headers
     assert_response :success
     assert_equal true, response.parsed_body.fetch("demo_sandbox")
-    northside = run.practice.sites.find_by!(code: "SANDBOX-NORTH")
     patch "/api/clinic/context", params: { site_id: northside.id }, headers: csrf_headers, as: :json
     assert_response :success
     get "/api/clinic/context", headers: @headers

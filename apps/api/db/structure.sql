@@ -425,7 +425,8 @@ $_$;
 --
 
 CREATE FUNCTION public.erd_freeze_granted_role() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'pg_catalog', 'public'
     AS $$
 BEGIN
   -- Both grant creation and permission insertion serialize on the role.
@@ -2094,7 +2095,7 @@ CREATE TABLE public.clinic_appointment_series_changes (
     after_visits jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_appointment_series_change_required_fields CHECK ((((action)::text = ANY ((ARRAY['change_future'::character varying, 'cancel_future'::character varying])::text[])) AND ((from_sequence >= 1) AND (from_sequence <= 12)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500))))
+    CONSTRAINT clinic_appointment_series_change_required_fields CHECK ((((action)::text = ANY (ARRAY[('change_future'::character varying)::text, ('cancel_future'::character varying)::text])) AND ((from_sequence >= 1) AND (from_sequence <= 12)) AND ((length(TRIM(BOTH FROM reason)) >= 1) AND (length(TRIM(BOTH FROM reason)) <= 500))))
 );
 
 
@@ -7616,7 +7617,8 @@ CREATE TABLE public.clinic_patients (
     updated_at timestamp(6) without time zone NOT NULL,
     primary_address_version_id bigint,
     name_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
-    identity_search_tokens text[] DEFAULT '{}'::text[] NOT NULL
+    identity_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
+    primary_site_id bigint
 );
 
 
@@ -18048,6 +18050,13 @@ CREATE UNIQUE INDEX clinic_patient_social_histories_practice_id ON public.clinic
 
 
 --
+-- Name: clinic_patients_primary_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_patients_primary_site_id ON public.clinic_patients USING btree (practice_id, primary_site_id);
+
+
+--
 -- Name: clinic_payment_allocations_practice_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -26319,6 +26328,14 @@ ALTER TABLE ONLY public.clinic_patients
 
 
 --
+-- Name: clinic_patients fk_patients_primary_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_patients
+    ADD CONSTRAINT fk_patients_primary_site FOREIGN KEY (practice_id, primary_site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_payment_allocations fk_payment_allocations_invoice; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31085,6 +31102,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260926010000'),
+('20260925090000'),
 ('20260924030000'),
 ('20260924020000'),
 ('20260924010000'),
