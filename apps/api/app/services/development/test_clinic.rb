@@ -30,7 +30,7 @@ module Development
     # clinic capabilities must not mutate those already-granted definitions.
     SUBSCRIPTION_PERMISSIONS = %w[subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review].freeze
 
-    def self.create!(user, permissions: DEFAULT_PERMISSIONS + SUBSCRIPTION_PERMISSIONS, practice: nil)
+    def self.create!(user, permissions: DEFAULT_PERMISSIONS + SUBSCRIPTION_PERMISSIONS, practice: nil, seed_fixtures: true)
       raise "Test clinics require development or authorized workspace tools." unless
         GuidedDemoAccess.enabled? || DevelopmentAccess.public_staging_demo? || Current.workspace_tools_owner_session
 
@@ -46,17 +46,19 @@ module Development
         practice = Clinic::Practice.create!(name: "Test Clinic")
         membership = Clinic::Membership.create!(practice: practice, user: user)
         grant_access!(membership, permissions)
-        MANAGED_PATIENTS.each do |fixture|
-          patient = practice.patients.create!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
-          create_reminder_defaults!(practice, patient)
+        if seed_fixtures
+          MANAGED_PATIENTS.each do |fixture|
+            patient = practice.patients.create!(display_name: fixture.fetch(:display_name), reference: fixture.fetch(:reference))
+            create_reminder_defaults!(practice, patient)
+          end
+          paper = practice.items.create!(name: "Printer paper", sku: "OFFICE-001", reorder_level: 5)
+          folders = practice.items.create!(name: "File folders", sku: "OFFICE-002", reorder_level: 10)
+          if permissions.include?("inventory.adjust")
+            paper.adjust!(delta: 3, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
+            folders.adjust!(delta: 24, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
+          end
+          practice.staff_members.create!(display_name: "Alex Example", job_title: "Office coordinator")
         end
-        paper = practice.items.create!(name: "Printer paper", sku: "OFFICE-001", reorder_level: 5)
-        folders = practice.items.create!(name: "File folders", sku: "OFFICE-002", reorder_level: 10)
-        if permissions.include?("inventory.adjust")
-          paper.adjust!(delta: 3, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
-          folders.adjust!(delta: 24, reason: "Synthetic opening stock", actor: user, request_key: SecureRandom.uuid)
-        end
-        practice.staff_members.create!(display_name: "Alex Example", job_title: "Office coordinator")
         membership
       end
     end

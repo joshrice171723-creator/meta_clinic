@@ -6,6 +6,10 @@ class GuidedClinicDemoPermissionsTest < ActiveSupport::TestCase
       clinic_name: "Guided supplier role clinic",
       operator_email: "guided-demo-supplier-role@example.test"
     )
+    assert_empty clinic.practice.sites
+    assert_empty clinic.practice.patients
+    assert_empty clinic.practice.items
+    assert_empty clinic.practice.staff_members
 
     Development::GuidedClinicDemo.prepare_clinic!(
       practice: clinic.practice,
@@ -13,6 +17,10 @@ class GuidedClinicDemoPermissionsTest < ActiveSupport::TestCase
       template_key: "primary_care",
       suffix: "supplier-role"
     )
+
+    assert_equal 1, clinic.practice.sites.count
+    assert_empty clinic.practice.patients
+    assert clinic.practice.pharmacy_products.exists?
 
     ability = Ability.new(clinic.operator, practice: clinic.practice)
     assert ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)

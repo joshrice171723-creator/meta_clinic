@@ -120,6 +120,11 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert companion.patients.exists?(reference: "SANDBOX-PAT-001")
     assert companion.inventory_purchase_orders.exists?
     assert Clinic::Membership.active.exists?(practice: companion, user: run.operator_user)
+    [ run.practice, companion ].each do |practice|
+      assert practice.appointments.includes(:patient, :site).all? { |appointment|
+        appointment.patient&.practice_id == practice.id && appointment.site&.practice_id == practice.id
+      }
+    end
     assert run.paid_patient?
     assert run.practice.appointments.where(patient: run.patient).exists?
     assert run.practice.encounters.where(patient: run.patient).exists?

@@ -21,7 +21,7 @@ module Development
       suffix = SecureRandom.hex(8)
       operator = User.create!(email_address: operator_email || "guided-clinic-operator-#{suffix}@example.test",
         password: SecureRandom.urlsafe_base64(32), active: true)
-      membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
+      membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS, seed_fixtures: false)
       practice = membership.practice
       practice.update!(name: clinic_name, public_membership_slug: "guided-clinic-#{suffix}",
         membership_storefront_enabled: true)
