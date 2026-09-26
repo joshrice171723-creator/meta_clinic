@@ -213,7 +213,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     first_product_id = first.practice.pharmacy_products.find_by!(sku: "SANDBOX-PREP-PADS").id
     first_operations_site = first.practice.sites.order(:id).first!
     first_receipt = Clinic::Inventory::Receipt.find_by!(practice: first.practice,
-      invoice_reference: "OPS-#{first.practice_id}-#{first_operations_site.id}-initial")
+      invoice_reference: "OPS-#{first.practice_id}-#{first_operations_site.code}-initial")
     first_received_at = first_receipt.received_at
     first_companion = first.practice.organization.practices.where.not(id: first.practice_id).sole
     first_companion_site_id = first_companion.sites.find_by!(code: "SANDBOX-NORTH").id
@@ -235,7 +235,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     refute Clinic::Inventory::Receipt.exists?(first_receipt.id)
     second_operations_site = second.practice.sites.order(:id).first!
     second_receipt = Clinic::Inventory::Receipt.find_by!(practice: second.practice,
-      invoice_reference: "OPS-#{second.practice_id}-#{second_operations_site.id}-initial")
+      invoice_reference: "OPS-#{second.practice_id}-#{second_operations_site.code}-initial")
     assert_in_delta 14.days, second_receipt.received_at - first_received_at, 1.minute
     second_companion = second.practice.organization.practices.where.not(id: second.practice_id).sole
     assert_equal first_companion.id, second_companion.id
@@ -334,22 +334,25 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
       practice.sites.each do |site|
         week_start = Current.business_time.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) - 8.weeks
         visits = practice.appointments.where(site:).where(starts_at: week_start...week_start + 8.weeks)
-        assert_equal 480, visits.count
+        assert_equal 560, visits.count
         assert_equal 480, visits.where(status: "completed").count
+        assert_equal 40, visits.where(status: "cancelled").count
+        assert_equal 40, visits.where(status: "no_show").count
         assert_equal 480, practice.encounters.where(appointment_id: visits.select(:id), status: "completed").count
         invoices = practice.invoices.joins(:encounter)
           .where(clinic_encounters: { site_id: site.id, started_at: week_start...week_start + 8.weeks })
         invoice_ids = invoices.where(status: "posted").pluck(:id)
         assert_equal 480, invoice_ids.length
         assert_equal 480, Clinic::InvoiceLine.where(invoice_id: invoice_ids).count
-        assert_equal 360, Clinic::PaymentAllocation.where(invoice_id: invoice_ids).count
-        assert_equal 0, Clinic::PaymentAllocation.where(invoice_id: invoice_ids)
-          .where.not(amount: [ 75, 95, 110 ]).count
+        invoice_amounts = Clinic::InvoiceLine.where(invoice_id: invoice_ids).pluck(:invoice_id, :posted_amount).to_h
+        allocations = Clinic::PaymentAllocation.where(invoice_id: invoice_ids).pluck(:invoice_id, :amount)
+        assert_equal 360, allocations.length
+        assert_equal 120, allocations.count { |invoice_id, amount| amount < invoice_amounts.fetch(invoice_id) }
         assert visits.includes(:patient).all? { |visit| visit.patient.primary_site_id == site.id }
         counts = visits.pluck(:starts_at).group_by { |start| start.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) }
-        assert_equal Array.new(8, 60), counts.sort.map { |_, starts| starts.length }
-        assert_equal 480, visits.pluck(:room_id, :starts_at).uniq.length
-        assert_equal 480, visits.pluck(:booked_clinician_id, :starts_at).uniq.length
+        assert_equal Array.new(8, 70), counts.sort.map { |_, starts| starts.length }
+        assert_equal 560, visits.pluck(:room_id, :starts_at).uniq.length
+        assert_equal 560, visits.pluck(:booked_clinician_id, :starts_at).uniq.length
         upcoming_start = Current.business_time.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) + 1.week
         upcoming = practice.appointments.joins(:patient).where(site:, starts_at: upcoming_start...upcoming_start + 2.weeks)
           .where("clinic_patients.reference LIKE 'SBX-%'")
@@ -361,11 +364,16 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
           .where("clinic_patients.reference LIKE 'SBX-%'")
         assert_equal 1, journey.count
         assert practice.encounters.where(patient_id: journey.first!.patient_id, site:, status: "completed").exists?
+        follow_up = practice.appointments.where(patient_id: journey.first!.patient_id, site:)
+          .where("starts_at > ?", Current.business_time).order(:starts_at).first!
+        expected_type = practice == run.practice ? "Follow-up visit" : "Weight-loss follow-up"
+        assert_equal expected_type, follow_up.visit_type.code
         supply_location = practice.inventory_locations.find_by!(site:, name: "Operations supply")
         supply_batches = Clinic::Inventory::PharmacyBatch.where(practice:, location_id: supply_location.id)
           .joins(:product).where("clinic_pharmacy_products.sku LIKE 'OPS-%'")
         assert_equal 10, supply_batches.count
         assert_equal 10, Clinic::Inventory::PharmacyMovement.where(batch_id: supply_batches.select(:id), kind: "receipt").count
+        assert_equal 44, Clinic::Inventory::PharmacyMovement.where(batch_id: supply_batches.select(:id), kind: "adjustment_out").count
         assert supply_batches.all? { |batch| batch.quantity.positive? }
       end
       outlook = Clinic::Billing::IncomeOutlook.call(practice:, now: Current.business_time)

@@ -9,14 +9,34 @@ module Development
     LAST_NAMES = %w[
       Brooks Chen Diaz Ellis Flores Grant Harper Ibrahim James Kim Lane Moreno
       Nguyen Ortiz Patel Quinn Rivera Silva Turner Usman Vega Walker Xu Young
-      Zeller Adams Bennett Clarke Dawson Evans
+      Zeller Adams Bennett Clarke Dawson Evans Allen Carter Coleman Foster Hsu
+      Ingram Novak Price Santos Wilson
     ].freeze
+    VISIT_PRICES = {
+      "Initial visit" => 150, "Follow-up visit" => 95,
+      "Annual wellness" => 165, "Medication review" => 80,
+      "Lab follow-up" => 75, "Care planning" => 120,
+      "Weight-loss initial visit" => 150, "Weight-loss follow-up" => 95,
+      "Weight management follow-up" => 110, "Nutrition consult" => 90,
+      "Medication check" => 85, "Goal review" => 75
+    }.freeze
+    EXTRA_VISIT_TYPES = {
+      "Sandbox Primary Care" => [ "Annual wellness", "Medication review", "Lab follow-up", "Care planning" ],
+      "Sandbox Weight Management" => [ "Weight management follow-up", "Nutrition consult", "Medication check", "Goal review" ]
+    }.freeze
     STAFF_TITLES = [
       "Nurse practitioner", "Physician", "Physician assistant", "Registered nurse",
       "Medical assistant", "Medical assistant", "Front desk coordinator",
       "Front desk coordinator", "Billing specialist", "Inventory coordinator",
       "Care coordinator", "Clinic manager"
     ].freeze
+    STAFF_ROLE_CODES = {
+      "Nurse practitioner" => "clinician", "Physician" => "clinician",
+      "Physician assistant" => "clinician", "Registered nurse" => "clinical-staff",
+      "Medical assistant" => "clinical-staff", "Front desk coordinator" => "front-desk-coordinator",
+      "Billing specialist" => "billing-accounting", "Inventory coordinator" => "inventory-coordinator",
+      "Care coordinator" => "clinical-staff", "Clinic manager" => "clinic-administrator"
+    }.freeze
 
     def self.prepare!(run)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled? &&
@@ -31,6 +51,12 @@ module Development
       raise ArgumentError, "Sandbox organization has unexpected clinics" unless
         organization.practices.order(:id).pluck(:id) == expected_ids
 
+      [ primary.practice, companion.practice ].each do |practice|
+        practice.patients.where("reference LIKE 'MEM-%'").order(:id).each_with_index do |patient, index|
+          patient.update!(reference: "SANDBOX-MEMBER-#{index + 1}")
+        end
+      end
+
       as_of = Current.business_time
       cohorts = [ primary.practice, companion.practice ].flat_map do |practice|
         sites = practice.sites.order(:id).to_a
@@ -38,6 +64,13 @@ module Development
 
         sites.each_with_index.map { |site, index| { practice:, site:, site_index: index + 1 } }
       end
+      [ primary.practice, companion.practice ].each do |practice|
+        EXTRA_VISIT_TYPES.fetch(practice.name).each do |code|
+          practice.visit_types.find_or_create_by!(code:)
+        end
+      end
+      Clinic::Authorization::PilotRoleCatalog.install!
+      STAFF_ROLE_CODES.values.uniq.each { |role_code| prepare_practice_role!(role_code) }
       cohorts.each do |cohort|
         prepare_staff!(**cohort, as_of:)
         prepare_patients!(**cohort, as_of:)
@@ -69,6 +102,13 @@ module Development
           membership:, status: "active", effective_from: as_of - 65.days)
         employment.employment_sites.create!(practice:, site:, active: true,
           effective_from: as_of - 65.days)
+        role = RoleVersion.find_by!(role_code: STAFF_ROLE_CODES.fetch(title),
+          version: Clinic::Authorization::PilotRoleCatalog::VERSION)
+        membership.role_grants.create!(practice:, role_version: role, scope_kind: "site",
+          site:, source_employment: employment, effective_from: Time.current, revision: 1)
+        practice_role = practice_role_for(STAFF_ROLE_CODES.fetch(title))
+        membership.role_grants.create!(practice:, role_version: practice_role, scope_kind: "practice",
+          source_employment: employment, effective_from: Time.current, revision: 1) if practice_role
         next unless index < 3
 
         clinician = practice.clinician_profiles.create!(membership:, display_name: name,
@@ -82,12 +122,38 @@ module Development
     end
     private_class_method :prepare_staff!
 
+    def self.practice_role_for(role_code)
+      RoleVersion.find_by(role_code: "#{role_code}-clinic-access",
+        version: Clinic::Authorization::PilotRoleCatalog::VERSION)
+    end
+    private_class_method :practice_role_for
+
+    def self.prepare_practice_role!(role_code)
+      permissions = Clinic::Authorization::PilotRoleCatalog.definition(role_code).fetch(:permissions)
+        .select { |code| Ability.rule_for(code)&.fetch(:scope) == :practice }
+      return if permissions.empty?
+
+      role = RoleVersion.find_or_create_by!(role_code: "#{role_code}-clinic-access",
+        version: Clinic::Authorization::PilotRoleCatalog::VERSION)
+      if role.permissions.exists?
+        raise ActiveRecord::RecordInvalid, role unless role.permissions.pluck(:action_code).sort == permissions.sort
+        return
+      end
+
+      permissions.each do |action_code|
+        permission = Permission.find_or_create_by!(action_code:)
+        RoleVersionPermission.create!(role_version: role, permission:)
+      end
+    end
+    private_class_method :prepare_practice_role!
+
     def self.prepare_patients!(practice:, site:, site_index:, as_of:)
       existing = practice.patients.where(primary_site_id: site.id).count
       raise ArgumentError, "Sandbox location exceeds patient target" if existing > PATIENTS_PER_SITE
 
       (existing + 1).upto(PATIENTS_PER_SITE) do |ordinal|
-        person_index = (site_index - 1) * PATIENTS_PER_SITE + ordinal - 1
+        clinic_offset = practice.name == "Sandbox Weight Management" ? PATIENTS_PER_SITE * 2 : 0
+        person_index = clinic_offset + (site_index - 1) * PATIENTS_PER_SITE + ordinal - 1
         name = "#{FIRST_NAMES.fetch(person_index % FIRST_NAMES.length)} " \
           "#{LAST_NAMES.fetch(person_index / FIRST_NAMES.length)}"
         registered_at = as_of - (1 + (person_index * 17 % 59)).days
@@ -124,7 +190,7 @@ module Development
       background_patients = patients.select { |patient| patient.reference.start_with?("SBX-") }
       raise ArgumentError, "Visit history needs background patients" if background_patients.length < 120
 
-      visit_types = practice.visit_types.order(:id).limit(2).to_a
+      visit_types = practice.visit_types.order(:id).to_a
       raise ArgumentError, "Visit history needs a visit type" if visit_types.empty?
 
       zone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone] ||
@@ -173,23 +239,46 @@ module Development
             end
           end
           inserted = Clinic::Appointment.insert_all!(appointments,
-            returning: %w[id patient_id site_id room_id starts_at ends_at])
+            returning: %w[id patient_id site_id room_id starts_at ends_at visit_type_id])
           raise "Historical appointment count mismatch" unless inserted.rows.length == 60
 
-          encounters = inserted.rows.map do |id, patient_id, site_id, room_id, starts_at, ends_at|
+          missed_appointments = 5.times.flat_map do |weekday|
+            date = first_monday + week.weeks + weekday.days
+            [ [ 12, "cancelled" ], [ 15, "no_show" ] ].each_with_index.map do |(hour, status), index|
+              starts_at = zone.local(date.year, date.month, date.day, hour)
+              ordinal = week * 10 + weekday * 2 + index
+              patient = background_patients.fetch((ordinal * 13) % background_patients.length)
+              { practice_id: practice.id, patient_id: patient.id, site_id: site.id,
+                room_id: rooms.fetch(index).id, booked_clinician_id: clinicians.fetch(index).id,
+                visit_type_id: visit_types.fetch(ordinal % visit_types.length).id,
+                starts_at:, ends_at: starts_at + 30.minutes, status:, visit_modality: "in_person",
+                created_at: starts_at - 7.days,
+                updated_at: status == "cancelled" ? starts_at - 2.days : starts_at + 30.minutes }
+            end
+          end
+          Clinic::Appointment.insert_all!(missed_appointments)
+
+          encounters = inserted.rows.map do |id, patient_id, site_id, room_id, starts_at, ends_at, _visit_type_id|
             { practice_id: practice.id, patient_id:, appointment_id: id, site_id:, room_id:,
               started_at: starts_at, ended_at: ends_at, status: "completed",
               created_at: ends_at, updated_at: ends_at }
           end
           saved_encounters = Clinic::Encounter.insert_all!(encounters,
             returning: %w[id appointment_id patient_id ended_at])
-          starts_by_appointment = inserted.rows.to_h { |id, _patient_id, _site_id, _room_id, starts_at, _ends_at|
+          starts_by_appointment = inserted.rows.to_h { |id, _patient_id, _site_id, _room_id, starts_at, _ends_at, _visit_type_id|
             [ id, starts_at ]
+          }
+          visit_type_by_id = visit_types.index_by(&:id)
+          type_by_appointment = inserted.rows.to_h { |id, _patient_id, _site_id, _room_id, _starts_at, _ends_at, visit_type_id|
+            [ id, visit_type_by_id.fetch(visit_type_id).code ]
           }
           amount_by_encounter = {}
           invoices = saved_encounters.rows.map do |id, appointment_id, patient_id, ended_at|
             hour = starts_by_appointment.fetch(appointment_id).in_time_zone(zone).hour
-            amount_by_encounter[id] = { amount: { 9 => 110, 10 => 95, 11 => 75, 14 => 120 }.fetch(hour), paid: hour != 14 }
+            description = type_by_appointment.fetch(appointment_id)
+            amount = VISIT_PRICES.fetch(description)
+            paid_amount = { 11 => (amount * 0.4).to_i, 14 => 0 }.fetch(hour, amount)
+            amount_by_encounter[id] = { amount:, paid_amount:, description: }
             { practice_id: practice.id, patient_id:, encounter_id: id, currency: "USD", status: "posted",
               rounding_policy_version: Clinic::Billing::Money::POLICY_VERSION,
               created_at: ended_at + 1.hour, updated_at: ended_at + 1.hour }
@@ -199,17 +288,18 @@ module Development
           lines = saved_invoices.rows.map do |id, patient_id, encounter_id, created_at|
             amount = amount_by_encounter.fetch(encounter_id).fetch(:amount)
             { practice_id: practice.id, patient_id:, invoice_id: id, quantity: 1,
-              unit_amount: amount, posted_amount: amount, description_snapshot: "Office visit",
+              unit_amount: amount, posted_amount: amount,
+              description_snapshot: amount_by_encounter.fetch(encounter_id).fetch(:description),
               created_at:, updated_at: created_at }
           end
           Clinic::InvoiceLine.insert_all!(lines)
 
           paid_invoices = saved_invoices.rows.select { |_id, _patient_id, encounter_id, _created_at|
-            amount_by_encounter.fetch(encounter_id).fetch(:paid)
+            amount_by_encounter.fetch(encounter_id).fetch(:paid_amount).positive?
           }
           payments = paid_invoices.map do |id, patient_id, encounter_id, created_at|
             { practice_id: practice.id, patient_id:, currency: "USD",
-              amount: amount_by_encounter.fetch(encounter_id).fetch(:amount),
+              amount: amount_by_encounter.fetch(encounter_id).fetch(:paid_amount),
               external_event_reference: "sandbox-local-payment-#{id}",
               created_at: created_at + 1.day, updated_at: created_at + 1.day }
           end
@@ -221,7 +311,7 @@ module Development
           allocations = paid_invoices.map do |id, patient_id, encounter_id, created_at|
             { practice_id: practice.id, patient_id:, invoice_id: id,
               payment_event_id: payment_id_by_invoice.fetch(id),
-              amount: amount_by_encounter.fetch(encounter_id).fetch(:amount),
+              amount: amount_by_encounter.fetch(encounter_id).fetch(:paid_amount),
               created_at: created_at + 1.day, updated_at: created_at + 1.day }
           end
           Clinic::PaymentAllocation.insert_all!(allocations)
@@ -244,7 +334,7 @@ module Development
       patients = practice.patients.where(primary_site_id: site.id)
         .where("reference LIKE 'SBX-%'").order(:id).to_a
       raise ArgumentError, "Upcoming schedule needs background patients" if patients.length < 120
-      visit_types = practice.visit_types.order(:id).limit(2).to_a
+      visit_types = practice.visit_types.order(:id).to_a
       raise ArgumentError, "Upcoming schedule needs visit types" if visit_types.empty?
 
       appointments = []

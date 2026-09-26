@@ -419,7 +419,8 @@ module Development
           practice: run.practice, actor: run.operator_user, supplier: order.supplier&.name,
           reason: "Fictional lesson stock", request_key: SecureRandom.uuid,
           purchase_order: order, shipment:, status: "received",
-          lines: [ { product_id: line.product_id, lot_number: "GUIDED-LOT-#{run.id}",
+          lines: [ { product_id: line.product_id,
+            lot_number: run.lesson_key == SANDBOX_KEY ? "GUIDED-LOT-SANDBOX" : "GUIDED-LOT-#{run.id}",
             location_id: location.id, location: location.name, expires_on: "2099-01-01",
             amount: 2, input_unit: "package", purchase_order_line_id: line.id } ]
         )

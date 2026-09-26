@@ -50,12 +50,12 @@ module Development
         template_key: "weight_management", suffix: "sandbox-companion")
       DemoSandboxPreparation.prepare!(RunContext.new(companion.practice, companion.operator_user))
 
+      primary_membership = primary_lesson.operator_user.clinic_memberships.find_by!(practice: primary_lesson.practice)
       membership = Clinic::Membership.find_or_create_by!(practice: companion.practice, user: primary_lesson.operator_user) do |record|
         record.active = true
       end
       effective_from = ApplicationRecord.connection.select_value("SELECT CURRENT_TIMESTAMP")
-      primary_lesson.operator_user.clinic_memberships.find_by!(practice: primary_lesson.practice)
-        .role_grants.where(scope_kind: "practice", revoked_at: nil).find_each do |grant|
+      primary_membership.role_grants.where(scope_kind: "practice", revoked_at: nil).find_each do |grant|
         membership.role_grants.find_or_create_by!(role_version: grant.role_version, scope_kind: "practice") do |new_grant|
           new_grant.practice = companion.practice
           new_grant.effective_from = effective_from

@@ -44,18 +44,29 @@ module Development
         lesson.operator_user.member_sessions.destroy_all
 
         DemoClinicReset.call!(lesson)
-        DemoSandboxOrganization.prepare!(lesson) if sandbox
         patient_users.each { |user| user.destroy! if user.reload.member_sessions.empty? }
         GuidedClinicDemo.prepare_clinic!(
           practice: lesson.practice, operator: lesson.operator_user, template_key:,
           suffix: "lesson-#{lesson.lesson_key}"
         )
+        DemoSandboxOrganization.prepare!(lesson) if sandbox
         run = DemoRun.create!(template_key:, lesson_key:, practice: lesson.practice,
           operator_user: lesson.operator_user, visitor:)
         DemoLessonCatalog.prepare!(run)
         DemoSandboxPopulation.prepare!(run) if sandbox
+        DemoSandboxSchedulingExceptions.prepare!(run) if sandbox
+        DemoSandboxChartHistory.prepare!(run) if sandbox
+        DemoSandboxLabHistory.prepare!(run) if sandbox
         DemoSandboxInventoryHistory.prepare!(run) if sandbox
+        DemoSandboxInventoryReplenishment.prepare!(run) if sandbox
         DemoSandboxJourneys.prepare!(run) if sandbox
+        DemoSandboxPrescriptionOutcomes.prepare!(run) if sandbox
+        DemoSandboxBillingExceptions.prepare!(run) if sandbox
+        DemoSandboxQueue.prepare!(run) if sandbox
+        DemoSandboxCarePlanHistory.prepare!(run) if sandbox
+        DemoSandboxPatientContact.prepare!(run) if sandbox
+        DemoSandboxGrowth.prepare!(run) if sandbox
+        DemoSandboxMembershipHistory.prepare!(run) if sandbox
         lesson.update!(generation: lesson.generation + 1)
         run
       end
