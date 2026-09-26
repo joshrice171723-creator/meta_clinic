@@ -61,6 +61,7 @@ module Development
 
     CLINIC_VIEW = "clinic"
     SANDBOX_KEY = "sandbox"
+    SANDBOX_COMPANION_KEY = "sandbox_companion"
     SANDBOX_DEFINITION = {
       id: SANDBOX_KEY,
       title: "Sandbox",
@@ -82,7 +83,7 @@ module Development
         ).freeze
       end
 
-      def lesson_keys = definitions.pluck(:id) + [ SANDBOX_KEY ]
+      def lesson_keys = definitions.pluck(:id) + [ SANDBOX_KEY, SANDBOX_COMPANION_KEY ]
 
       def definition!(lesson_key)
         return SANDBOX_DEFINITION if sandbox?(lesson_key)

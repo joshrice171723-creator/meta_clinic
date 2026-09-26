@@ -29,7 +29,7 @@ module Development
     end
 
     def self.prepare_clinic!(practice:, operator:, template_key:, suffix:)
-      membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS)
+      membership = TestClinic.create!(operator, permissions: OPERATOR_PERMISSIONS, practice: practice)
       grant_supplier_pricing_role!(membership)
       provision_schedule_baseline!(practice:, membership:, suffix:)
       configure_template_profile!(practice:, membership:, template_key:, suffix:)

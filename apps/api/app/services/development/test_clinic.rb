@@ -30,13 +30,15 @@ module Development
     # clinic capabilities must not mutate those already-granted definitions.
     SUBSCRIPTION_PERMISSIONS = %w[subscription_catalog.read subscription_catalog.write subscription_catalog.publish subscriptions.review].freeze
 
-    def self.create!(user, permissions: DEFAULT_PERMISSIONS + SUBSCRIPTION_PERMISSIONS)
+    def self.create!(user, permissions: DEFAULT_PERMISSIONS + SUBSCRIPTION_PERMISSIONS, practice: nil)
       raise "Test clinics require development or authorized workspace tools." unless
         GuidedDemoAccess.enabled? || DevelopmentAccess.public_staging_demo? || Current.workspace_tools_owner_session
 
       User.transaction do
         user.lock!
-        existing = Clinic::Membership.find_by(user: user)
+        existing = Clinic::Membership.find_by(user: user, practice: practice) if practice
+        raise ActiveRecord::RecordNotFound if practice && existing.nil?
+        existing ||= Clinic::Membership.find_by(user: user)
         if existing
           normalize_managed_patients!(existing.practice)
           return grant_access!(existing, permissions)

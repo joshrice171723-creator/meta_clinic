@@ -70,7 +70,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
 
   test "leaving a completed lesson records its outcome and elapsed time" do
     visitor = demo_visitor
-    started_at = Time.zone.parse("2026-09-20 09:00:00")
+    started_at = Time.zone.now.change(usec: 0) + 1.hour
     completed_at = started_at + 4.minutes
 
     run = travel_to(started_at) { Development::SharedDemoLesson.enter!("navigation_tour", visitor:) }
@@ -109,7 +109,17 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
 
     assert_equal true, payload.fetch("sandbox")
     refute_includes payload.fetch("lessons").pluck("id"), "sandbox"
+    refute_includes payload.fetch("lessons").pluck("id"), "sandbox_companion"
     assert_equal "/clinic", payload.fetch("steps").sole.fetch("href")
+    organization = run.practice.organization
+    assert_equal "Meta Clinic Sandbox #{run.practice_id}", organization.name
+    assert_equal 2, organization.practices.count
+    companion = organization.practices.where.not(id: run.practice_id).sole
+    assert_equal "Sandbox Weight Management", companion.name
+    assert_equal 2, companion.sites.count
+    assert companion.patients.exists?(reference: "SANDBOX-PAT-001")
+    assert companion.inventory_purchase_orders.exists?
+    assert Clinic::Membership.active.exists?(practice: companion, user: run.operator_user)
     assert run.paid_patient?
     assert run.practice.appointments.where(patient: run.patient).exists?
     assert run.practice.encounters.where(patient: run.patient).exists?
@@ -158,6 +168,11 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert_response :success
     get "/api/clinic/context", headers: @headers
     assert_equal northside.id, response.parsed_body.dig("current_site", "id")
+    patch "/api/clinic/context", params: { practice_id: companion.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/context", headers: @headers
+    assert_equal companion.id, response.parsed_body.dig("practice", "id")
+    assert_equal true, response.parsed_body.fetch("demo_sandbox")
     get "/api/session", headers: @headers
     assert_equal false, response.parsed_body.dig("user", "platform_owner")
   end
@@ -165,7 +180,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
   test "sandbox appointments remain in the future after clinic hours" do
     run = nil
 
-    travel_to(Time.zone.parse("2026-09-20 23:30:00")) do
+    travel_to(Time.zone.now.next_day.change(hour: 23, min: 30)) do
       run = Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
       assert run.practice.appointments.all? { |appointment| appointment.starts_at >= Current.business_time }
     end
@@ -176,9 +191,14 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     first = Development::SharedDemoLesson.enter!("sandbox", visitor:)
     first_site_id = first.practice.sites.find_by!(code: "SANDBOX-NORTH").id
     first_patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
+    first_appointment_at = first.practice.appointments.find_by!(patient_id: first_patient_id).starts_at
     first_product_id = first.practice.pharmacy_products.find_by!(sku: "SANDBOX-PREP-PADS").id
+    first_companion = first.practice.organization.practices.where.not(id: first.practice_id).sole
+    first_companion_site_id = first_companion.sites.find_by!(code: "SANDBOX-NORTH").id
 
-    second = Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first)
+    second = travel_to(Time.zone.now + 14.days) do
+      Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first)
+    end
 
     assert_equal first.practice_id, second.practice_id
     refute second.practice.sites.exists?(first_site_id)
@@ -186,7 +206,14 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     refute second.practice.pharmacy_products.exists?(first_product_id)
     assert_equal 2, second.practice.sites.count
     assert_operator second.practice.patients.count, :>=, 8
+    second_patient = second.practice.patients.find_by!(reference: "SANDBOX-PAT-001")
+    second_appointment_at = second.practice.appointments.find_by!(patient: second_patient).starts_at
+    assert_operator second_appointment_at, :>, first_appointment_at
     assert_operator second.practice.pharmacy_products.count, :>=, 5
+    second_companion = second.practice.organization.practices.where.not(id: second.practice_id).sole
+    assert_equal first_companion.id, second_companion.id
+    refute second_companion.sites.exists?(first_companion_site_id)
+    assert_equal 2, second_companion.sites.count
   end
 
   test "an expired guided demo session can resume its bound lesson" do

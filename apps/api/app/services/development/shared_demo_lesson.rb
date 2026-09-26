@@ -30,6 +30,7 @@ module Development
         lesson.operator_user.member_sessions.destroy_all
 
         DemoClinicReset.call!(lesson)
+        DemoSandboxOrganization.prepare!(lesson) if lesson_key == DemoLessonCatalog::SANDBOX_KEY
         patient_users.each { |user| user.destroy! if user.reload.member_sessions.empty? }
         GuidedClinicDemo.prepare_clinic!(
           practice: lesson.practice, operator: lesson.operator_user, template_key:,
