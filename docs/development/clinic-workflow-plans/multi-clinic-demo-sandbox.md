@@ -171,6 +171,11 @@ For scale, use deterministic generated values and bounded batch insertion only f
 
 ## Last run
 
+- Date: 2026-09-26 America/Chicago; sandbox entry usability repair.
+- Outcome: The local browser timed out at the web client's 30-second deadline while the full sandbox reset was still running. Sandbox entry/reset now has a 240-second client deadline and checks the current run if a mutation's outcome remains uncertain. The page identifies the longer preparation while it runs. The root `AGENTS.md` was shortened below its 12,000-byte harness limit without changing the operating instructions.
+- Checks: `python bin/verify-agent-harness` and web TypeScript typecheck passed. In the local in-app browser, Open Sandbox reached the visitor's isolated organization and a selectable Northside Clinic; selecting it opened the Tracking Board with three current visits. This proves entry and one clinic route in this local session, not all workspace routes or concurrent load. Startup still runs synchronously and may take more than a minute; an asynchronous preparation job with progress is the longer-term latency fix.
+- Next action: inspect the remaining priority routes and complete the linked stock, laboratory, follow-up and billing stories, then measure concurrent entries and resets.
+
 - Date: 2026-09-26 America/Chicago; implementation slice 6 in progress.
 - Outcome: Added five supply products, two dated receipts and ten lot-backed receipt movements per site using the inventory receiving operation.
 - Checks: four-site population, clinical story and inventory assertions passed (93 assertions); expanded reset/date-shift passed (16 assertions, 159 seconds). Changed-file Ruby lint, vault links and whitespace checks passed. The unchanged root `AGENTS.md` size gate, concurrent load and browser acceptance remain open.

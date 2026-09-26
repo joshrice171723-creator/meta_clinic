@@ -17,7 +17,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
-import { api, clearCsrf } from "../../api/client";
+import { ApiError, api, clearCsrf } from "../../api/client";
 import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
 import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
@@ -246,10 +246,27 @@ export function DemoJourney() {
       const response = await api<DemoRunResponse>("/api/demo/lesson", {
         method: "POST",
         body: { lesson_key, restart },
+        timeoutMs: lesson_key === "sandbox" ? 240_000 : undefined,
       });
       setState({ status: "ready", value: response });
       setRestartOpen(false);
     } catch (reason) {
+      if (
+        lesson_key === "sandbox" &&
+        reason instanceof ApiError &&
+        reason.code === "outcome_unconfirmed"
+      ) {
+        try {
+          const current = await api<DemoRunResponse>("/api/demo/run");
+          if (current.active && current.run?.lesson_key === "sandbox") {
+            setState({ status: "ready", value: current });
+            setRestartOpen(false);
+            return;
+          }
+        } catch {
+          // Keep the original outcome-unconfirmed error available to the visitor.
+        }
+      }
       setError(message(reason, "This lesson could not be opened."));
     } finally {
       setBusy(false);
@@ -352,9 +369,14 @@ export function DemoJourney() {
         ) : (
           <Stack spacing={2}>
             <Typography color="text.secondary">
-              Every lesson starts with a fresh shared sample clinic. No personal
-              clinic names or unfinished work are stored.
+              Guided lessons start with a fresh sample clinic. Your sandbox has
+              its own clinic organization and resets when you reopen it.
             </Typography>
+            {busy && (
+              <Alert severity="info" role="status">
+                Preparing your clinic workspace. This can take a couple of minutes.
+              </Alert>
+            )}
             <LessonCatalog
               lessons={state.value.lessons}
               busy={busy}

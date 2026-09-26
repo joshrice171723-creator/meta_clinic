@@ -83,6 +83,7 @@ async function withDeadline<T>(
   signal: AbortSignal | undefined,
   action: (signal: AbortSignal) => Promise<T>,
   mutation = false,
+  timeoutMs = 30_000,
 ): Promise<T> {
   const controller = new AbortController();
   let timedOut = false;
@@ -95,7 +96,7 @@ async function withDeadline<T>(
       timedOut = true;
       controller.abort();
       reject(new Error("Request deadline exceeded"));
-    }, 30_000);
+    }, timeoutMs);
   });
   try {
     return await Promise.race([action(controller.signal), deadline]);
@@ -163,7 +164,7 @@ export function csrf(): Promise<Configuration> {
 
 export async function api<T>(
   path: string,
-  options: { method?: string; body?: unknown; signal?: AbortSignal } = {},
+  options: { method?: string; body?: unknown; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
   if (!path.startsWith("/api/"))
     throw new Error("Requests must use the same-origin API.");
@@ -269,6 +270,7 @@ export async function api<T>(
       return data as T;
     },
     method !== "GET" && method !== "HEAD",
+    options.timeoutMs,
   );
 }
 
