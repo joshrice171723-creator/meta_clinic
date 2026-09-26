@@ -1,7 +1,33 @@
 module Development
   class DemoSandboxOrganization
     NAME = "Meta Clinic Sandbox".freeze
+    REUSE_AFTER = 7.days
     RunContext = Data.define(:practice, :operator_user)
+
+    def self.reuse_expired!(visitor:, at: Time.current)
+      raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
+
+      DemoLesson.where(lesson_key: DemoLessonCatalog::SANDBOX_KEY)
+        .where.not(visitor_id: nil).where("updated_at < ?", at - REUSE_AFTER)
+        .order(:updated_at, :id).limit(20).each do |lesson|
+        next if lesson.visitor_id == visitor.id
+
+        companion = DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
+          visitor_id: lesson.visitor_id)
+        next unless companion && lesson.practice.organization_id.present? &&
+          companion.practice.organization_id == lesson.practice.organization_id &&
+          lesson.practice.organization.practices.where.not(id: [ lesson.practice_id, companion.practice_id ]).none?
+
+        users = DemoRun.where(practice_id: lesson.practice_id).pluck(:operator_user_id, :patient_user_id).flatten.compact
+        users.concat(Clinic::Membership.where(practice_id: [ lesson.practice_id, companion.practice_id ]).pluck(:user_id))
+        next if MemberSession.where(user_id: users.uniq).any?(&:unexpired?)
+
+        lesson.update!(visitor:)
+        companion.update!(visitor:)
+        return lesson
+      end
+      nil
+    end
 
     def self.prepare!(primary_lesson)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled? &&

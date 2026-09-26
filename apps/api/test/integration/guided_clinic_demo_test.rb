@@ -121,6 +121,13 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     assert companion.inventory_purchase_orders.exists?
     assert Clinic::Membership.active.exists?(practice: companion, user: run.operator_user)
     [ run.practice, companion ].each do |practice|
+      assert_equal [ 300, 300 ], practice.sites.order(:id).map { |site|
+        practice.patients.where(primary_site_id: site.id).count
+      }
+      assert practice.sites.all? { |site|
+        Clinic::Workforce::EmploymentSite.where(practice_id: practice.id, site_id: site.id, active: true)
+          .count.between?(10, 20)
+      }
       assert practice.appointments.includes(:patient, :site).all? { |appointment|
         appointment.patient&.practice_id == practice.id && appointment.site&.practice_id == practice.id
       }
@@ -157,13 +164,13 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
       assert_response :success
       response.parsed_body.fetch("days").flat_map { |day| day.fetch("appointments").map { |row| row.fetch("id") } }
     end.uniq
-    assert_equal expected_appointments.map(&:id).sort, visible_appointment_ids.sort
+    assert_empty expected_appointments.map(&:id) - visible_appointment_ids
     northside = run.practice.sites.find_by!(code: "SANDBOX-NORTH")
     assert_equal 4, sandbox_patients.where(primary_site_id: default_site.id).count
     assert_equal 3, sandbox_patients.where(primary_site_id: northside.id).count
     get "/api/clinic/patients", params: { site_id: northside.id }, headers: @headers
     assert_response :success
-    assert_equal 3, response.parsed_body.fetch("pagination").fetch("total")
+    assert_equal 300, response.parsed_body.fetch("pagination").fetch("total")
     assert response.parsed_body.fetch("patients").all? { |patient| patient.fetch("primary_site_id") == northside.id }
     assert_operator run.practice.appointments.distinct.pluck(:starts_at).map(&:to_date).uniq.count, :>=, 6
     assert_operator run.practice.pharmacy_products.count, :>=, 5
@@ -275,6 +282,77 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     second_session.get "/api/demo/run", headers: @headers
     assert_equal 200, second_session.response.status
     assert_equal second_id, second_session.response.parsed_body.dig("run", "id")
+  end
+
+  test "an expired sandbox shell is reset and assigned to the next visitor" do
+    first_visitor = demo_visitor
+    first = Development::SharedDemoLesson.enter!("sandbox", visitor: first_visitor)
+    first_patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
+    first_companion = first.practice.organization.practices.where.not(id: first.practice_id).sole
+    second_visitor = demo_visitor
+
+    second = travel_to(Time.zone.now + 8.days) do
+      Development::SharedDemoLesson.enter!("sandbox", visitor: second_visitor)
+    end
+
+    assert_equal first.practice_id, second.practice_id
+    assert_equal first_companion.id, second.practice.organization.practices.where.not(id: second.practice_id).sole.id
+    refute first.reload.active?
+    refute second.practice.patients.exists?(first_patient_id)
+    assert second.practice.patients.exists?(reference: "SANDBOX-PAT-001")
+    assert_equal second_visitor.id, Development::DemoLesson.find_by!(practice: second.practice).visitor_id
+    assert_equal second_visitor.id, Development::DemoLesson.find_by!(practice: first_companion).visitor_id
+    assert_equal 2, second.practice.organization.practices.count
+  end
+
+  test "an active sandbox session prevents shell reuse" do
+    first = Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
+
+    second = travel_to(Time.zone.now + 8.days) do
+      MemberSession.create!(user: first.operator_user, expires_at: 1.hour.from_now,
+        last_activity_at: Time.current)
+      Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
+    end
+
+    refute_equal first.practice_id, second.practice_id
+    assert first.reload.active?
+    assert second.active?
+  end
+
+  test "sandbox population makes eight completed sixty-visit weeks at every location" do
+    run = Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
+    run.practice.organization.practices.each do |practice|
+      practice.sites.each do |site|
+        week_start = Current.business_time.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) - 8.weeks
+        visits = practice.appointments.where(site:).where(starts_at: week_start...week_start + 8.weeks)
+        assert_equal 480, visits.count
+        assert_equal 480, visits.where(status: "completed").count
+        assert_equal 480, practice.encounters.where(appointment_id: visits.select(:id), status: "completed").count
+        invoices = practice.invoices.joins(:encounter)
+          .where(clinic_encounters: { site_id: site.id, started_at: week_start...week_start + 8.weeks })
+        invoice_ids = invoices.where(status: "posted").pluck(:id)
+        assert_equal 480, invoice_ids.length
+        assert_equal 480, Clinic::InvoiceLine.where(invoice_id: invoice_ids).count
+        assert_equal 360, Clinic::PaymentAllocation.where(invoice_id: invoice_ids).count
+        assert_equal 0, Clinic::PaymentAllocation.where(invoice_id: invoice_ids)
+          .where.not(amount: [ 75, 95, 110 ]).count
+        assert visits.includes(:patient).all? { |visit| visit.patient.primary_site_id == site.id }
+        counts = visits.pluck(:starts_at).group_by { |start| start.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) }
+        assert_equal Array.new(8, 60), counts.sort.map { |_, starts| starts.length }
+        assert_equal 480, visits.pluck(:room_id, :starts_at).uniq.length
+        assert_equal 480, visits.pluck(:booked_clinician_id, :starts_at).uniq.length
+        upcoming_start = Current.business_time.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) + 1.week
+        upcoming = practice.appointments.joins(:patient).where(site:, starts_at: upcoming_start...upcoming_start + 2.weeks)
+          .where("clinic_patients.reference LIKE 'SBX-%'")
+        assert_equal 120, upcoming.count
+        assert_equal 30, upcoming.where(status: "scheduled").count
+        assert_equal 90, upcoming.where(status: "confirmed").count
+        assert upcoming.includes(:patient).all? { |visit| visit.patient.primary_site_id == site.id }
+      end
+      outlook = Clinic::Billing::IncomeOutlook.call(practice:, now: Current.business_time)
+      assert_operator outlook.fetch(:currencies).first.fetch(:history_invoice_count), :>, 0
+      assert outlook.fetch(:currencies).first.fetch(:estimated_monthly_revenue).present?
+    end
   end
 
   test "an expired guided demo session can resume its bound lesson" do

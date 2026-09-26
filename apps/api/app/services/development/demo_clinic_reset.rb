@@ -9,9 +9,12 @@ module Development
         ActiveRecord::Relation::QueryAttribute.new("lesson_key", lesson.lesson_key, ActiveRecord::Type::String.new),
         ActiveRecord::Relation::QueryAttribute.new("practice_id", lesson.practice_id, ActiveRecord::Type::Integer.new)
       ]
-      ApplicationRecord.connection.exec_query(
-        "SELECT development_reset_demo_practice($1, $2)", "Reset registered demo lesson clinic", binds
-      )
+      ApplicationRecord.transaction do
+        ApplicationRecord.connection.execute("SET LOCAL statement_timeout = '120s'")
+        ApplicationRecord.connection.exec_query(
+          "SELECT development_reset_demo_practice($1, $2)", "Reset registered demo lesson clinic", binds
+        )
+      end
     end
   end
 end

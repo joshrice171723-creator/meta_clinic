@@ -10,6 +10,11 @@ module Development
       raise ActiveRecord::RecordNotFound if sandbox && visitor.nil?
       raise ActiveRecord::RecordNotFound if previous_run && previous_run.visitor_id != visitor.id
       ApplicationRecord.transaction do
+        if sandbox
+          ApplicationRecord.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('apply:demo-sandbox-pool', 0))"
+          )
+        end
         [ lesson_key, previous_run&.lesson_key ].compact.uniq.sort.each do |key|
           lock_key = key == DemoLessonCatalog::SANDBOX_KEY ? "#{key}:#{visitor.id}" : key
           ApplicationRecord.connection.execute(
@@ -17,7 +22,9 @@ module Development
           )
         end
         lesson_scope = sandbox ? DemoLesson.where(lesson_key:, visitor:) : DemoLesson.where(lesson_key:, visitor_id: nil)
-        lesson = lesson_scope.lock.first || create_lesson!(definition, visitor: sandbox ? visitor : nil)
+        lesson = lesson_scope.lock.first ||
+          (DemoSandboxOrganization.reuse_expired!(visitor:) if sandbox) ||
+          create_lesson!(definition, visitor: sandbox ? visitor : nil)
         lesson.lock!
         if previous_run&.reload&.active? && previous_run.lesson_key != lesson_key
           [ previous_run.operator_user, previous_run.patient_user ].compact.each do |user|
@@ -26,7 +33,7 @@ module Development
           finish!(previous_run)
         end
         old_runs = DemoRun.where(lesson_key:)
-        old_runs = old_runs.where(visitor:) if sandbox
+        old_runs = old_runs.where(practice_id: lesson.practice_id) if sandbox
         old_runs = old_runs.lock.to_a
         patient_users = old_runs.filter_map(&:patient_user).uniq(&:id)
         old_runs.each do |run|
@@ -46,6 +53,7 @@ module Development
         run = DemoRun.create!(template_key:, lesson_key:, practice: lesson.practice,
           operator_user: lesson.operator_user, visitor:)
         DemoLessonCatalog.prepare!(run)
+        DemoSandboxPopulation.prepare!(run) if sandbox
         lesson.update!(generation: lesson.generation + 1)
         run
       end
