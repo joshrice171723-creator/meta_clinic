@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Alert,
   Button,
@@ -113,7 +113,12 @@ function nextRoomName(site: ClinicSite, kind: "physical" | "telehealth") {
 }
 
 export function Facilities() {
-  const { capabilities, current_site: currentSite, practice } = useClinic();
+  const {
+    capabilities,
+    current_site: currentSite,
+    practice,
+    refreshWorkspace,
+  } = useClinic();
   const { data, error, refresh } = useResource<{ sites: ClinicSite[] }>(
     "/api/clinic/facilities?type=sites&detail=true&per_page=100",
     { retainDataOnRefresh: true },
@@ -133,6 +138,7 @@ export function Facilities() {
     tone: "success" | "error";
     text: string;
   } | null>(null);
+  const previousCurrentSiteId = useRef(currentSite?.id);
   const selected = useMemo(
     () => data?.sites.find((site) => site.id === selectedId),
     [data, selectedId],
@@ -145,15 +151,26 @@ export function Facilities() {
   }, [selectedId]);
 
   useEffect(() => {
+    if (previousCurrentSiteId.current === currentSite?.id || !data) return;
+    previousCurrentSiteId.current = currentSite?.id;
+    const selectedSite = data.sites.find((site) => site.id === currentSite?.id);
+    if (!selectedSite) return;
+    setCreating(false);
+    setSelectedId(selectedSite.id);
+    setDraft(siteForm(selectedSite));
+  }, [currentSite?.id, data]);
+
+  useEffect(() => {
     if (!data) return;
     if (creating) return;
     if (selectedId !== null) return;
-    const first = data.sites[0];
-    if (first) {
-      setSelectedId(first.id);
-      setDraft(siteForm(first));
+    const selectedSite =
+      data.sites.find((site) => site.id === currentSite?.id) ?? data.sites[0];
+    if (selectedSite) {
+      setSelectedId(selectedSite.id);
+      setDraft(siteForm(selectedSite));
     }
-  }, [creating, data, selectedId]);
+  }, [creating, currentSite?.id, data, selectedId]);
 
   if (!data) return <LoadState error={error} />;
 
@@ -249,6 +266,7 @@ export function Facilities() {
     return (
       <PracticeFeatureSettings
         canWrite={capabilities.clinic_setup_write === true}
+        siteId={currentSite?.id ?? null}
       />
     );
   return (
@@ -271,7 +289,11 @@ export function Facilities() {
       )}
       <PracticeFeatureSettings
         canWrite={capabilities.clinic_setup_write === true}
-        onProfileSaved={() => setVisitTypeRefreshKey((current) => current + 1)}
+        siteId={currentSite?.id ?? null}
+        onProfileSaved={() => {
+          setVisitTypeRefreshKey((current) => current + 1);
+          refreshWorkspace();
+        }}
       />
       <VisitTypeSettings canWrite={canWrite} refreshKey={visitTypeRefreshKey} />
       {capabilities.clinic_setup_write && <ClinicianSetup />}
@@ -337,6 +359,12 @@ export function Facilities() {
                     <br />
                     <small>
                       {site.code} · {(site.status ?? "draft").replace("_", " ")}
+                    </small>
+                    <br />
+                    <small>
+                      {site.specialty_configured
+                        ? site.clinic_type?.replaceAll("_", " ")
+                        : "Specialty not selected"}
                     </small>
                   </span>
                 </Button>

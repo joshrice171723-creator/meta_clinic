@@ -64,12 +64,18 @@ module Clinic
 
       def create
         input = patient_input
+        site = current_clinic_site
+        unless site && Clinic::Configuration::PracticeFeatures.site_specialty_selected?(
+          practice: current_practice, site:
+        )
+          raise ArgumentError, "Select a configured clinic location before registering a patient."
+        end
         create_patient = -> do
           Clinic::Care::Patient.transaction do
             created = current_practice.patients.create!(
               display_name: required_string!(input[:display_name], field: :display_name, maximum: 120),
               reference: required_string!(input[:reference], field: :reference, maximum: 32),
-              primary_site: current_clinic_site
+              primary_site: site
             )
             save_registration!(created, input)
             created

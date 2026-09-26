@@ -1296,6 +1296,8 @@ export type CashPaymentResult = {
 export type ClinicSite = {
   id: number;
   code: string;
+  clinic_type?: ClinicType | null;
+  specialty_configured?: boolean;
   name?: string;
   status?: "draft" | "active" | "temporarily_closed" | "retired";
   timezone_override: string | null;
@@ -1356,6 +1358,10 @@ export type ClinicWorkspaceContext = {
   sites: ClinicSite[];
 };
 export type PracticeFeatures = {
+  site_id?: number | null;
+  site_specialty_configured?: boolean;
+  profile_scope?: "site" | "clinic_default";
+  site_revision?: number;
   finalized?: boolean;
   finalized_at?: string | null;
   selected_services?: ClinicServiceCode[];

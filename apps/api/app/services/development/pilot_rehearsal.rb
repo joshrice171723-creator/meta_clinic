@@ -10,12 +10,18 @@ module Development
       administrator = accounts.fetch("clinic-administrator")
       clinical_staff = accounts.fetch("clinical-staff")
       clinician = accounts.fetch("clinician")
-      patient = practice.patients.find_or_create_by!(reference: PATIENT_REFERENCE) do |record|
-        record.display_name = "Morgan Juniper"
-      end
       site = practice.sites.find_or_create_by!(code: SITE_CODE) do |record|
         record.name = "Main clinic"
       end
+      unless Clinic::Configuration::PracticeFeatures.site_specialty_selected?(practice:, site:)
+        GuidedClinicDemo.configure_site_profile!(practice:, site:,
+          membership: administrator.clinic_membership, clinic_type: "primary_care",
+          request_key: "pilot-site-profile-#{site.id}", finalize: true)
+      end
+      patient = practice.patients.find_or_initialize_by(reference: PATIENT_REFERENCE)
+      patient.display_name ||= "Morgan Juniper"
+      patient.primary_site ||= site
+      patient.save!
       prepare_clinician!(practice:, clinician:, site:, as_of:)
       encounter = practice.encounters.open.find_by(patient: patient)
       return encounter if encounter

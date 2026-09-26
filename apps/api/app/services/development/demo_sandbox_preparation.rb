@@ -46,6 +46,11 @@ module Development
         site.rooms.find_or_create_by!(practice:, code: "EXAM-1")
         site.rooms.find_or_create_by!(practice:, code: "EXAM-2")
 
+        membership = run.operator_user.clinic_memberships.find_by!(practice:)
+        clinic_type = practice.name == "Sandbox Primary Care" ? "behavioral_health" : "weight_loss"
+        GuidedClinicDemo.configure_site_profile!(practice:, site:, membership:, clinic_type:,
+          request_key: "sandbox-site-profile-#{site.id}", finalize: true)
+
         clinician = practice.clinician_profiles.first!
         department = practice.departments.first!
         clinician.assignments.find_or_create_by!(practice:, site:, department:) do |assignment|

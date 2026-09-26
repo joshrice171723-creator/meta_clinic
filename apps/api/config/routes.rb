@@ -376,6 +376,8 @@ Rails.application.routes.draw do
         post "versions/:version_id/review", on: :member, action: :review, as: :review_version
         post "versions/:version_id/actions", on: :member, action: :record_action, as: :record_action
         post "versions/:version_id/follow_up", on: :member, action: :record_follow_up, as: :record_follow_up
+        post "versions/:version_id/follow_up/contact_attempts", on: :member,
+          action: :record_follow_up_contact_attempt, as: :record_follow_up_contact_attempt
         post "versions/:version_id/follow_up/complete", on: :member, action: :complete_follow_up, as: :complete_follow_up
       end
       resources :address_versions, controller: "care/patient_addresses", only: %i[index create]

@@ -23,7 +23,7 @@ module Clinic
         current_clinician_profile_id: current_clinician_profile&.id&.to_s,
         credentials: current_credential_types,
         policy_version: "clinic-authorization-v1",
-        features: Clinic::Configuration::PracticeFeatures.snapshot(practice: current_practice),
+        features: Clinic::Configuration::PracticeFeatures.snapshot(practice: current_practice, site: current_site),
         capabilities: {
           workforce_self: workforce_employment.present?,
           workforce_admin: current_ability.allowed_permission?("workforce.admin", any_site: true),

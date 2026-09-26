@@ -18,8 +18,16 @@ module Clinic
         when "order"
           task.source_kind == "medication_request" ? Clinic::Care::MedicationRequestRevision : Clinic::Care::ServiceRequestRevision
         when "handoff" then Clinic::EncounterHandoff
+        when "lab_follow_up"
+          return false if Clinic::Care::LabReportAction.exists?(practice_id: task.practice_id,
+            id: task.source_id, clinical_task_id: task.id, kind: "recollection_requested")
+          Clinic::Care::LabResultFollowUpContactAttempt
         end
-        model && !model.exists?(practice_id: task.practice_id, patient_id: task.patient_id, id: task.source_id)
+        if task.source_type == "lab_follow_up"
+          !model.exists?(practice_id: task.practice_id, clinical_task_id: task.id, id: task.source_id)
+        else
+          model && !model.exists?(practice_id: task.practice_id, patient_id: task.patient_id, id: task.source_id)
+        end
       end
 
       def projection(task, eligible_membership_ids: nil)

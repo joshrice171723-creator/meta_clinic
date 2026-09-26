@@ -20,7 +20,7 @@ module Development
           )
           case [ clinic_index, site_index ]
           when [ 0, 0 ] then medication_story!(practice:, actor: run.operator_user, patient:, encounter:, transmit: true)
-          when [ 0, 1 ] then lab_story!(practice:, actor: run.operator_user, patient:, encounter:)
+          when [ 0, 1 ] then care_plan_story!(practice:, actor: run.operator_user, patient:, encounter:)
           when [ 1, 0 ] then inventory_medication_story!(practice:, actor: run.operator_user, patient:, encounter:)
           when [ 1, 1 ] then care_plan_story!(practice:, actor: run.operator_user, patient:, encounter:)
           end
@@ -34,13 +34,21 @@ module Development
         raise(ArgumentError, "Sandbox location timezone is unavailable")
       day = Current.business_time.in_time_zone(zone).to_date.beginning_of_week(:monday) + 3.weeks
       starts_at = zone.local(day.year, day.month, day.day, 9)
-      follow_up_code = practice.name == "Sandbox Weight Management" ? "Weight-loss follow-up" : "Follow-up visit"
+      clinic_type = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site:).fetch(:clinic_type)
+      follow_up_code = if clinic_type == "behavioral_health"
+        "Behavioral health follow-up"
+      elsif practice.name == "Sandbox Weight Management"
+        "Weight-loss follow-up"
+      else
+        "Follow-up visit"
+      end
       Clinic::Scheduling::BookAppointment.call(
         practice:, actor:, patient:, site:, room: site.rooms.find_by!(code: "EXAM-1"),
         booked_clinician: practice.clinician_profiles.find_by!(reference: "SBX-CLIN-#{site_index + 1}-1"),
         visit_type: practice.visit_types.find_by!(code: follow_up_code),
         starts_at:, ends_at: starts_at + 30.minutes,
-        reason: "Review progress and care plan", request_key: SecureRandom.uuid
+        reason: clinic_type == "behavioral_health" ? "Review patient priorities and care goals" :
+          "Review progress and care plan", request_key: SecureRandom.uuid
       )
     end
     private_class_method :follow_up!
@@ -124,22 +132,6 @@ module Development
       Clinic::Billing::PostInvoice.call(invoice:, actor:, request_key: "#{key}-post")
     end
     private_class_method :inventory_medication_story!
-
-    def self.lab_story!(practice:, actor:, patient:, encounter:)
-      key = "sandbox-lab-#{encounter.id}"
-      draft = Clinic::Care::ClinicalPlanWorkflow.create(
-        kind: :service_requests, practice:, actor:, patient:, encounter:, request_key: "#{key}-draft",
-        attributes: { request_kind: "lab", intent: "order", priority: "routine",
-          requested_display: "Sample follow-up laboratory panel", destination: "Outside lab",
-          reason_text: "Review at the next scheduled visit", due_at: Current.business_time + 7.days }
-      )
-      Clinic::Care::ClinicalPlanWorkflow.revise(
-        kind: :service_requests, series_id: draft.series_id, practice:, actor:, patient:, encounter:,
-        attributes: { status: "active" }, expected_version: draft.version_number,
-        request_key: "#{key}-activate"
-      )
-    end
-    private_class_method :lab_story!
 
     def self.care_plan_story!(practice:, actor:, patient:, encounter:)
       key = "sandbox-care-plan-#{encounter.id}"

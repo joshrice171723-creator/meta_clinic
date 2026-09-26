@@ -54,9 +54,14 @@ module Development
           operator_user: lesson.operator_user, visitor:)
         DemoLessonCatalog.prepare!(run)
         DemoSandboxPopulation.prepare!(run) if sandbox
+        DemoSandboxStaffActivity.prepare!(run) if sandbox
         DemoSandboxSchedulingExceptions.prepare!(run) if sandbox
+        DemoSandboxSchedulingVariants.prepare!(run) if sandbox
+        DemoSandboxChartMeasurements.prepare!(run) if sandbox
         DemoSandboxChartHistory.prepare!(run) if sandbox
+        DemoSandboxLongitudinalChart.prepare!(run) if sandbox
         DemoSandboxLabHistory.prepare!(run) if sandbox
+        DemoSandboxLabContact.prepare!(run) if sandbox
         DemoSandboxInventoryHistory.prepare!(run) if sandbox
         DemoSandboxInventoryReplenishment.prepare!(run) if sandbox
         DemoSandboxJourneys.prepare!(run) if sandbox
@@ -64,7 +69,9 @@ module Development
         DemoSandboxBillingExceptions.prepare!(run) if sandbox
         DemoSandboxQueue.prepare!(run) if sandbox
         DemoSandboxCarePlanHistory.prepare!(run) if sandbox
+        DemoSandboxTelehealth.prepare!(run) if sandbox
         DemoSandboxPatientContact.prepare!(run) if sandbox
+        DemoSandboxRefillCompletion.prepare!(run) if sandbox
         DemoSandboxGrowth.prepare!(run) if sandbox
         DemoSandboxMembershipHistory.prepare!(run) if sandbox
         lesson.update!(generation: lesson.generation + 1)

@@ -274,6 +274,11 @@ function LabFollowUpInbox() {
                         Follow-up recorded:{" "}
                         {dateLabel(item.follow_up.recorded_at)}
                       </Typography>
+                      {item.follow_up.contact_attempts.map((attempt) => (
+                        <Typography key={attempt.id} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          Contact attempt: {attempt.contact_method.replaceAll("_", " ")} · {attempt.outcome.replaceAll("_", " ")} · {dateLabel(attempt.attempted_at)} · next action #{attempt.next_action.task_id} owned
+                        </Typography>
+                      ))}
                     </Box>
                     <Button
                       variant="outlined"

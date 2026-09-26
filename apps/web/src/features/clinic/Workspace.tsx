@@ -66,11 +66,15 @@ import { DevelopmentToolbar } from "../identity/DevelopmentAccountSwitcher";
 import {
   canLoadClinicOverview,
   clinicOverviewRequired,
+  requiresClinicSetup,
   requiresLocationSelection,
 } from "./locationSelection";
 import { PatientContextBar } from "./PatientContextBar";
 
-const ClinicContext = createContext<ClinicWorkspaceContext | null>(null);
+type ClinicContextValue = ClinicWorkspaceContext & {
+  refreshWorkspace: () => void;
+};
+const ClinicContext = createContext<ClinicContextValue | null>(null);
 const ClinicOverviewContext = createContext<ClinicOverview | null>(null);
 type ClinicNavigationLink = {
   href: string;
@@ -504,12 +508,25 @@ export function Workspace({
     ),
   });
   const appearance = useClinicAppearance(user.id);
-  const landingDestination = data
+  const setupFeatures = data?.features as
+    | (NonNullable<ClinicWorkspaceContext["features"]> & {
+        site_specialty_configured?: boolean;
+      })
+    | undefined;
+  const setupRequired = requiresClinicSetup(
+    data?.current_site?.id,
+    setupFeatures,
+  );
+  const landingDestination = data && !setupRequired
     ? clinicLandingDestination(data.capabilities, path, homeView)
     : null;
   useEffect(() => {
     if (landingDestination) navigate(landingDestination, { replace: true });
   }, [landingDestination, navigate]);
+  useEffect(() => {
+    if (setupRequired && path !== "/clinic/setup")
+      navigate("/clinic/setup", { replace: true });
+  }, [navigate, path, setupRequired]);
   useEffect(() => {
     document.getElementById("main")?.focus({ preventScroll: true });
   }, [path, homeView]);
@@ -580,6 +597,35 @@ export function Workspace({
         </main>
       </ClinicAppearanceScope>
     );
+  const clinicContext: ClinicContextValue = {
+    ...data,
+    refreshWorkspace,
+  };
+  if (setupRequired)
+    return (
+      <ClinicAppearanceScope {...appearance}>
+        <AppearanceContext value={appearance}>
+          <ClinicContext value={clinicContext}>
+            <ClinicOverviewContext value={overview.data ?? null}>
+              <main id="main" className="wrap inner-page">
+                {data.sites.length > 1 && (
+                  <Button onClick={() => setLocationSelectionMade(false)}>
+                    Choose another location
+                  </Button>
+                )}
+                {path === "/clinic/setup" ? (
+                  children
+                ) : (
+                  <Typography color="text.secondary">
+                    Complete Clinic Setup for this location to continue.
+                  </Typography>
+                )}
+              </main>
+            </ClinicOverviewContext>
+          </ClinicContext>
+        </AppearanceContext>
+      </ClinicAppearanceScope>
+    );
   if (clinicOverviewRequired(path) && !overview.data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -618,7 +664,7 @@ export function Workspace({
   return (
     <ClinicAppearanceScope {...appearance}>
       <AppearanceContext value={appearance}>
-        <ClinicContext value={data}>
+        <ClinicContext value={clinicContext}>
           <ClinicOverviewContext value={overview.data ?? null}>
             <ScribeRecordingProvider
               key={`${user.id}:${data.practice.id}:${data.membership_id ?? "none"}:${data.current_site?.id ?? "all"}`}

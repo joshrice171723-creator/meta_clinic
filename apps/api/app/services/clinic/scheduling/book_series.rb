@@ -14,7 +14,7 @@ module Clinic
         BookAppointment.offering_snapshot!(offering: service_offering, practice: practice, site: site,
           clinician: clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
           starts_at: starts_at, ends_at: ends_at) if service_offering
-        Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
+        Configuration::StarterProfile.require_service!(practice: practice, site:, service: "telehealth") if visit_modality == "video"
         rows = expand(practice: practice, site: site, room: room, starts_at: starts_at, ends_at: ends_at,
           interval_weeks: interval_weeks, occurrence_count: occurrence_count, resolutions: resolutions)
         raise ArgumentError, "Book at least one visit in the series." unless rows.any? { |row| row[:state] == "booked" }

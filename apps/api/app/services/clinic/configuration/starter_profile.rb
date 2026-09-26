@@ -47,19 +47,19 @@ module Clinic
       end
 
       def self.form_id(practice:, appointment: nil)
-        setup = PracticeFeatures.snapshot(practice:).fetch(:starter_profile)
+        setup = PracticeFeatures.snapshot(practice:, site: appointment&.site).fetch(:starter_profile)
         visits = setup.fetch("visits", {})
         definition = visits.values.find { |visit| visit["visit_type_id"] == appointment&.visit_type_id }
         definition&.fetch("form_id", nil) || Care::PrevisitIntake::FORM_ID
       end
 
-      def self.service_available?(practice:, service:)
-        features = PracticeFeatures.snapshot(practice:)
+      def self.service_available?(practice:, service:, site: nil)
+        features = PracticeFeatures.snapshot(practice:, site:)
         !features[:finalized] || features[:service_scope].include?(service)
       end
 
-      def self.require_service!(practice:, service:)
-        return if service_available?(practice:, service:)
+      def self.require_service!(practice:, service:, site: nil)
+        return if service_available?(practice:, service:, site:)
         raise ArgumentError, "This service is not available for new work. Ask the clinic configuration team; existing work and unrelated care remain available."
       end
     end

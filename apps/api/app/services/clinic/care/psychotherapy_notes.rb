@@ -4,7 +4,7 @@ module Clinic
       OPERATION = "psychotherapy_notes.save"
 
       def self.therapy_visit?(practice, encounter)
-        visit_id = Configuration::PracticeFeatures.snapshot(practice:).dig(
+        visit_id = Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site).dig(
           :starter_profile, "visits", "individual_therapy", "visit_type_id"
         )
         visit_id.present? && encounter.appointment&.visit_type_id == visit_id
@@ -57,7 +57,7 @@ module Clinic
         ) do
           encounter.with_lock do
             current = latest(practice, encounter, member)
-            unless current || Configuration::PracticeFeatures.snapshot(practice:)[:service_scope].include?("individual_therapy")
+            unless current || Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)[:service_scope].include?("individual_therapy")
               raise ArgumentError, "Individual therapy must be selected in clinic setup before starting a protected note."
             end
             unless (current&.version_number || 0) == expected_version

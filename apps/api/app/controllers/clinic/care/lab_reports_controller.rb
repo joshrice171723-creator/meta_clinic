@@ -252,6 +252,33 @@ module Clinic
         }
       end
 
+      def record_follow_up_contact_attempt
+        patient = readable_patient!
+        report = current_practice.lab_reports.where(patient:).find(requested_id!(params[:id], :id))
+        authorize_report!(report, "notes.write")
+        version = report.report_versions.find(requested_id!(params[:version_id], :version_id))
+        follow_up = version.follow_up || raise(ActiveRecord::RecordNotFound)
+        input = parameter_hash!(:contact_attempt,
+          %i[request_key contact_method outcome attempted_at next_action_due_at note])
+        result = LabResultFollowUps.attempt_contact(
+          practice: current_practice, actor: current_user, patient:, report:, version:, follow_up:,
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
+          contact_method: enum_param!(input[:contact_method], field: :contact_method,
+            allowed: LabResultFollowUpContactAttempt::METHODS),
+          outcome: enum_param!(input[:outcome], field: :outcome,
+            allowed: LabResultFollowUpContactAttempt::OUTCOMES),
+          attempted_at: time_param!(input[:attempted_at], field: :attempted_at),
+          next_action_due_at: input[:next_action_due_at].present? ?
+            time_param!(input[:next_action_due_at], field: :next_action_due_at) : nil,
+          note: optional_string(input[:note], field: :note, maximum: 1000)
+        )
+        render json: {
+          follow_up: LabReportSerializer.follow_up(follow_up.reload),
+          contact_attempt_id: result.value.id,
+          task_id: result.value.clinical_task_id
+        }, status: result.replayed ? :ok : :created
+      end
+
       private
 
       def readable_patient!

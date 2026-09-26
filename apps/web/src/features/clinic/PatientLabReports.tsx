@@ -92,6 +92,21 @@ export type LabFollowUp = {
   patient_contact_method:
     "portal" | "phone" | "in_person" | "letter" | "other" | null;
   patient_contact_at: string | null;
+  contact_attempts: {
+    id: number;
+    outcome: "informed" | "not_reached";
+    contact_method: "portal" | "phone" | "in_person" | "letter" | "other";
+    attempted_at: string;
+    recorded_at: string;
+    attempted_by: number;
+    note: string | null;
+    next_action: {
+      task_id: number;
+      state: string;
+      assigned_to_membership_id: number | null;
+      due_at: string | null;
+    };
+  }[];
 };
 type LabSpecimen = {
   id: number;
@@ -1430,9 +1445,15 @@ export function PatientLabReports({
                       : ""}
                     {version.follow_up?.outcome
                       ? ` · Outcome: ${version.follow_up.outcome}`
-                      : ""}
+                    : ""}
                   </Typography>
                 )}
+                {version.follow_up?.contact_attempts.map((attempt) => (
+                  <Typography key={attempt.id} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Contact attempt: {attempt.contact_method.replaceAll("_", " ")} · {attempt.outcome.replaceAll("_", " ")} · {new Date(attempt.attempted_at).toLocaleString()}.
+                    {` Next action #${attempt.next_action.task_id} owned by membership ${attempt.next_action.assigned_to_membership_id ?? "unassigned"}.`}
+                  </Typography>
+                ))}
                 {version.results.map((row, resultIndex) => (
                   <Stack
                     key={`${version.id}-${resultIndex}`}

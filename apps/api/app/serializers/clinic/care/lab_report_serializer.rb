@@ -69,7 +69,20 @@ module Clinic
           escalated_by: value.escalated_by_membership_id,
           patient_contact_status: value.patient_contact_status,
           patient_contact_method: value.patient_contact_method,
-          patient_contact_at: iso(value.patient_contact_at)
+          patient_contact_at: iso(value.patient_contact_at),
+          contact_attempts: value.contact_attempts.includes(:clinical_task, :attempted_by_membership)
+            .order(:attempted_at, :id).map { |attempt|
+              {
+                id: attempt.id, outcome: attempt.outcome, contact_method: attempt.contact_method,
+                attempted_at: iso(attempt.attempted_at), recorded_at: iso(attempt.recorded_at),
+                attempted_by: attempt.attempted_by_membership_id, note: attempt.note,
+                next_action: {
+                  task_id: attempt.clinical_task_id, state: attempt.clinical_task.state,
+                  assigned_to_membership_id: attempt.clinical_task.assigned_to_membership_id,
+                  due_at: iso(attempt.clinical_task.due_at)
+                }
+              }
+            }
         )
       end
 

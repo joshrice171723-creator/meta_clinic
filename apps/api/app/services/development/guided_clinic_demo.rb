@@ -37,6 +37,10 @@ module Development
         practice.visit_types.create!(code: "Initial visit")
         practice.visit_types.create!(code: "Follow-up visit")
       end
+      configure_site_profile!(practice:, site: practice.sites.first!, membership:,
+        clinic_type: template_key == "weight_management" ? "weight_loss" : "primary_care",
+        request_key: "guided-site-profile-#{suffix}",
+        finalize: suffix == "lesson-sandbox" || suffix == "sandbox-companion")
       DemoInventory.prepare!(practice:, actor: operator)
       practice
     end
@@ -139,7 +143,7 @@ module Development
     def self.configure_template_profile!(practice:, membership:, template_key:, suffix:)
       clinic_type = template_key == "primary_care" ? "primary_care" : "weight_loss"
       services = [ "in_office_medications" ]
-      services += %w[prescription_preparation external_lab_coordination] if
+      services += %w[prescription_preparation external_lab_coordination telehealth] if
         suffix == "lesson-sandbox" || suffix == "sandbox-companion"
       Clinic::Configuration::PracticeFeatures.revise(
         practice:, actor: membership, request_key: "guided-profile-#{suffix}", expected_revision: 0,
@@ -148,5 +152,20 @@ module Development
       )
     end
     private_class_method :configure_template_profile!
+
+    def self.configure_site_profile!(practice:, site:, membership:, clinic_type:, request_key:, finalize: false)
+      defaults = Clinic::Configuration::PracticeFeatures.snapshot(practice:)
+      services = defaults.fetch(:service_scope)
+      services |= %w[psychiatric_evaluation adhd_evaluation medication_management therapy_referral_coordination individual_therapy urgent_clinical_follow_up] if
+        clinic_type == "behavioral_health"
+      assessments = defaults.fetch(:assessment_scope)
+      assessments |= %w[depression anxiety psychiatry_assessment] if clinic_type == "behavioral_health"
+      Clinic::Configuration::PracticeFeatures.revise(
+        practice:, site:, actor: membership, request_key:, expected_revision: 0,
+        insurance_workflows_enabled: defaults.fetch(:insurance_workflows_enabled),
+        clinic_type:, service_scope: services, assessment_scope: assessments,
+        finalize:
+      )
+    end
   end
 end

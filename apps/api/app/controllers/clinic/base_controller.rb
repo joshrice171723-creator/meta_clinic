@@ -3,11 +3,21 @@ module Clinic
     include Clinic::Api::RequestParameters
     include Clinic::Api::Pagination
 
+    SETUP_ENDPOINTS = {
+      "clinic/context" => %w[show update],
+      "clinic/facilities" => %w[index create create_department create_room update update_room],
+      "clinic/practice_features" => %w[show update],
+      "clinic/visit_types" => %w[create update],
+      "clinic/clinicians" => %w[index create],
+      "clinic/scheduling/site_policies" => %w[show update]
+    }.freeze
+
     before_action :require_prototype
     before_action :require_member
     before_action :require_expected_actor
     before_action :require_clinic
     before_action :require_expected_practice
+    before_action :require_finalized_site_profile
     before_action :capture_authorization_generation
     around_action :attribute_clinic_mutations
 
@@ -137,6 +147,32 @@ module Clinic
       return if expected.blank? || expected == current_practice.id.to_s
 
       render json: { error: "Your clinic changed in another window. Reload before continuing.", code: "clinic_changed" }, status: :conflict
+    end
+
+    def require_finalized_site_profile
+      site_id = session[:clinic_site_id]
+      return if site_id.blank?
+
+      site = current_practice.sites.find_by(id: site_id)
+      return unless site
+
+      features = Clinic::Configuration::PracticeFeatures.snapshot(practice: current_practice, site:)
+      return if features[:site_specialty_configured] && features[:finalized]
+      return if setup_endpoint_allowed?
+
+      render json: {
+        error: "Complete clinic setup for this location before opening its workspaces.",
+        code: "clinic_setup_required",
+        setup_url: "/clinic/setup"
+      }, status: :conflict
+    end
+
+    def setup_endpoint_allowed?
+      actions = SETUP_ENDPOINTS[controller_path]
+      return false unless actions&.include?(action_name)
+      return params[:setup].to_s == "true" if controller_path == "clinic/clinicians" && action_name == "index"
+
+      true
     end
 
     def capture_authorization_generation

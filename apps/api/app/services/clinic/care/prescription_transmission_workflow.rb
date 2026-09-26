@@ -15,7 +15,8 @@ module Clinic
         raise ArgumentError, "Choose a supported simulator outcome." unless PrescriptionTransmissionAttempt::OUTCOMES.include?(outcome)
         mode = mode.to_s
         raise ArgumentError, "Choose a supported simulation mode." unless PrescriptionTransmissionAttempt::MODES.include?(mode)
-        signer_snapshot, reviewer_snapshot = controlled_snapshots!(practice:, mode:, signer_state:, reviewer_state:, outcome:)
+        signer_snapshot, reviewer_snapshot = controlled_snapshots!(practice:, site: order.encounter.site,
+          mode:, signer_state:, reviewer_state:, outcome:)
         payload = { order_id: order.id, pharmacy_destination_id:, scenario: outcome, mode:, signer_snapshot:, reviewer_snapshot: }
         result = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "prescription.transmission.submit", request_key:, payload:,
@@ -51,10 +52,10 @@ module Clinic
           :adapter, :outcome, :mode, :signer_snapshot, :reviewer_snapshot, :destination_snapshot).merge(submitted_at: attempt.submitted_at.iso8601)
       end
 
-      def controlled_snapshots!(practice:, mode:, signer_state:, reviewer_state:, outcome:)
+      def controlled_snapshots!(practice:, site:, mode:, signer_state:, reviewer_state:, outcome:)
         return [{}, {}] if mode == "standard"
 
-        unless Configuration::PracticeFeatures.snapshot(practice:).fetch(:service_scope).include?("controlled_medications")
+        unless Configuration::PracticeFeatures.snapshot(practice:, site:).fetch(:service_scope).include?("controlled_medications")
           raise ArgumentError, "Controlled prescription test mode is not configured. The draft remains available without external transmission."
         end
         signer = signer_state.to_s.presence || "active"

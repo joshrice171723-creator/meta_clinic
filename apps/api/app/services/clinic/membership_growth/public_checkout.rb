@@ -41,6 +41,7 @@ module Clinic
 
         def start_for_prospect(practice:, prospect:, replayed:, gateway:)
           begin
+            configured_patient_site!(practice)
             unless Clinic::Care::SubscriptionProjection.catalog(practice: practice).any? { |offer| offer.fetch(:id) == prospect.subscription_version_id }
               raise ArgumentError, "This offer changed. Review the current membership terms with the clinic before continuing."
             end
@@ -264,7 +265,8 @@ module Clinic
 
             actor_membership = clinic_membership!(prospect.practice, connection.connected_by)
             patient = prospect.practice.patients.create!(display_name: prospect.display_name,
-              reference: "MEM-#{prospect.id.to_s(36).upcase}-#{SecureRandom.hex(4).upcase}")
+              reference: "MEM-#{prospect.id.to_s(36).upcase}-#{SecureRandom.hex(4).upcase}",
+              primary_site: configured_patient_site!(prospect.practice))
             if prospect.date_of_birth
               patient.create_demographics!(practice: prospect.practice, legal_name: prospect.display_name,
                 date_of_birth: prospect.date_of_birth, sex: "not_recorded", primary_language: "Not recorded", interpreter_required: nil)
@@ -299,6 +301,13 @@ module Clinic
               reviewed_at: Current.business_time)
             checkout
           end
+        end
+
+        def configured_patient_site!(practice)
+          site = practice.sites.order(:id).detect do |candidate|
+            Clinic::Configuration::PracticeFeatures.site_specialty_selected?(practice:, site: candidate)
+          end
+          site || raise(ArgumentError, "The clinic must configure a location specialty before patient enrollment.")
         end
 
         def finish_onboarding!(prospect, actor)

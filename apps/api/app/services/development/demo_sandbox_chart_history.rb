@@ -42,6 +42,8 @@ module Development
       visits = encounters.group_by(&:patient_id)
       appointments = Clinic::Appointment.includes(:visit_type)
         .where(practice:, id: encounters.filter_map(&:appointment_id)).index_by(&:id)
+      behavioral_health = Clinic::Configuration::PracticeFeatures
+        .snapshot(practice:, site:).fetch(:clinic_type) == "behavioral_health"
       reviews = []
 
       patients.each_with_index do |patient, index|
@@ -82,10 +84,12 @@ module Development
 
         if patient_visits.length > 1 && index % 28 == 0
           note!(practice:, actor:, encounter: first_visit,
-            visit_type: appointments.fetch(first_visit.appointment_id).visit_type.code, profile:)
+            visit_type: appointments.fetch(first_visit.appointment_id).visit_type.code, profile:,
+            behavioral_health:)
         end
         note!(practice:, actor:, encounter: latest_visit,
-          visit_type: appointments.fetch(latest_visit.appointment_id).visit_type.code, profile:)
+          visit_type: appointments.fetch(latest_visit.appointment_id).visit_type.code, profile:,
+          behavioral_health:)
       end
       Clinic::Care::PatientHistoryReview.insert_all!(reviews) if reviews.any?
     end
@@ -105,10 +109,16 @@ module Development
     end
     private_class_method :review_rows!
 
-    def self.note!(practice:, actor:, encounter:, visit_type:, profile:)
-      body = Clinic::Care::SoapNotePayload.dump(
-        template_id: "adult-physical-exam-detailed", template_version: 1,
-        sections: {
+    def self.note!(practice:, actor:, encounter:, visit_type:, profile:, behavioral_health:)
+      sections = if behavioral_health
+        {
+          subjective: "Retrospective summary of #{visit_type.downcase}. #{HISTORY_CONTEXT.fetch(profile)}",
+          objective: "Chart history reviewed for this encounter at #{encounter.site.name}. No behavioral-health assessment instrument or mental-status examination is represented in this historical entry.",
+          assessment: "Historical chart review only; this entry does not represent a behavioral-health diagnosis or safety assessment.",
+          plan: "Confirm patient priorities and relevant history at follow-up. No intervention or treatment is recorded in this historical entry."
+        }
+      else
+        {
           subjective: "Retrospective summary of #{visit_type.downcase}. #{HISTORY_CONTEXT.fetch(profile)}",
           objective: "Visit completed at #{encounter.site.name}. Structured measurements are available in the encounter when recorded.",
           assessment: profile == 9 ? "Medication and allergy reconciliation remains open." :
@@ -116,6 +126,10 @@ module Development
           plan: profile == 9 ? "Obtain and reconcile the missing history at a subsequent contact." :
             "Review outstanding questions and the documented care plan at the next contact."
         }
+      end
+      body = Clinic::Care::SoapNotePayload.dump(
+        template_id: behavioral_health ? "behavioral-health-progress" : "adult-physical-exam-detailed",
+        template_version: 1, sections:
       )
       note = Clinic::Care::CreateEncounterNote.call(practice:, actor:, encounter:,
         note_kind: "soap", payload_version: Clinic::Care::SoapNotePayload::VERSION,

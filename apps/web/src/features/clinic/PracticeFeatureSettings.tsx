@@ -217,13 +217,16 @@ function sameSelection<T extends string>(left: T[], right: T[]) {
 
 export function PracticeFeatureSettings({
   canWrite,
+  siteId = null,
   onProfileSaved,
 }: {
   canWrite: boolean;
+  siteId?: number | null;
   onProfileSaved?: () => void;
 }) {
+  const siteQuery = siteId ? `?site_id=${siteId}` : "";
   const { data, error, refresh } = useResource<{ features: PracticeFeatures }>(
-    "/api/clinic/practice_features",
+    `/api/clinic/practice_features${siteQuery}`,
   );
   const [clinicType, setClinicType] = useState<ClinicType>("primary_care");
   const [serviceScope, setServiceScope] = useState<ClinicServiceCode[]>([]);
@@ -296,6 +299,7 @@ export function PracticeFeatureSettings({
       assessmentScope,
       insuranceEnabled,
       features.revision,
+      siteId,
       finalize,
     ]);
     if (request.current?.signature !== signature)
@@ -305,6 +309,7 @@ export function PracticeFeatureSettings({
         method: "PUT",
         body: {
           features: {
+            ...(siteId ? { site_id: siteId } : {}),
             clinic_type: clinicType,
             service_scope: serviceScope,
             assessment_scope: assessmentScope,
@@ -361,7 +366,7 @@ export function PracticeFeatureSettings({
               color={features.configured ? "success" : "warning"}
               label={
                 features.configured
-                  ? `Profile revision ${features.revision}`
+                  ? `${siteId ? "Location" : "Clinic"} profile revision ${features.revision}`
                   : "Setup not saved"
               }
             />
@@ -370,6 +375,11 @@ export function PracticeFeatureSettings({
             An Implementation Specialist (FDE) starts with the Meta Clinic base
             and tailors this profile with the clinic team before handoff.
           </Typography>
+          {siteId && !features.site_specialty_configured && (
+            <Alert severity="warning">
+              This location currently inherits its clinic profile. Choose and save a location specialty before assigning patients here.
+            </Alert>
+          )}
           <Alert severity="info">
             This records intended service scope. It does not grant clinical
             authority, verify credentials, or prove that a selected workflow is
@@ -408,7 +418,7 @@ export function PracticeFeatureSettings({
         </Stack>
 
         <FormControl disabled={!canWrite || saving || features.finalized}>
-          <FormLabel id="clinic-type-label">1. Clinic type</FormLabel>
+          <FormLabel id="clinic-type-label">1. {siteId ? "Location specialty" : "Clinic type"}</FormLabel>
           <RadioGroup
             aria-labelledby="clinic-type-label"
             value={clinicType}
@@ -453,7 +463,7 @@ export function PracticeFeatureSettings({
 
         <FormControl disabled={!canWrite || saving}>
           <FormLabel component="legend">
-            2. Services this clinic intends to provide
+            {`2. Services this ${siteId ? "location" : "clinic"} intends to provide`}
           </FormLabel>
           <Typography
             variant="body2"
@@ -614,7 +624,7 @@ export function PracticeFeatureSettings({
                     }}
                   />
                 }
-                label="This clinic uses insurance workflows"
+                label={`This ${siteId ? "location" : "clinic"} uses insurance workflows`}
               />
               <Typography variant="body2" color="text.secondary">
                 Cash prices, estimates, invoices, receipts, card payments,
@@ -647,7 +657,7 @@ export function PracticeFeatureSettings({
               disabled={!canWrite || saving || changed}
               onClick={() => void save(true)}
             >
-              Finalize clinic setup
+              Finalize {siteId ? "location" : "clinic"} setup
             </Button>
           )}
           <Button

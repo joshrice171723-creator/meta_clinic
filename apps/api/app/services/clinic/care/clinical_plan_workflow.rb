@@ -150,11 +150,11 @@ module Clinic
             dose_units: MedicationRequestRevision::DOSE_UNITS.map { |code, label| { code:, label: } },
             routes: MedicationRequestRevision::ROUTES.map { |code, label| { code:, label: } }
           },
-          assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope),
-          immunization_administration_enabled: Clinic::Configuration::PracticeFeatures.snapshot(practice:)
+          assessment_scope: Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site).fetch(:assessment_scope),
+          immunization_administration_enabled: Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)
             .fetch(:immunization_administration_enabled),
-          new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind) },
-          weight_context: weight_context(practice, patient),
+          new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind, site: encounter.site) },
+          weight_context: weight_context(practice, patient, site: encounter.site),
           prior_orders: prior_orders(practice, actor, patient, encounter),
           prior_care: prior_care(practice, actor, patient, encounter)
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
@@ -180,12 +180,12 @@ module Clinic
           resource_resolver: resolver(definition.fetch(:klass), encounter)
         ) do
           practice.lock!
-          raise ArgumentError, "This service is disabled for new work. Clinic Setup owns availability; existing records and unrelated care remain available." unless new_work_available?(practice, kind)
+          raise ArgumentError, "This service is disabled for new work. Clinic Setup owns availability; existing records and unrelated care remain available." unless new_work_available?(practice, kind, site: encounter.site)
           if kind.to_sym == :service_requests && values[:request_kind] == "lab"
-            Configuration::StarterProfile.require_service!(practice: practice, service: "external_lab_coordination")
+            Configuration::StarterProfile.require_service!(practice: practice, site: encounter.site, service: "external_lab_coordination")
           end
           if kind.to_sym == :medication_requests && values[:fulfillment_route] == "take_home"
-            Configuration::StarterProfile.require_service!(practice: practice, service: "take_home_fulfillment")
+            Configuration::StarterProfile.require_service!(practice: practice, site: encounter.site, service: "take_home_fulfillment")
           end
           series_id = SecureRandom.uuid
           definition.fetch(:klass).create!(
@@ -384,7 +384,7 @@ module Clinic
           administration_reference = values[:medication_administration_id]
           MedicationAdministration.where(practice:, patient:, encounter:).find(administration_reference) if administration_reference.present?
         when :assessments
-          configured = Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:assessment_scope)
+          configured = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site).fetch(:assessment_scope)
           unless configured.include?(values[:category])
             raise ArgumentError, "This assessment category is not enabled in Clinic Setup."
           end
@@ -424,7 +424,8 @@ module Clinic
       def prepare_immunization_values!(practice, patient, encounter, values)
         values[:manufacturer_mvx_code] = values[:manufacturer_mvx_code].to_s.upcase.presence
         if values[:status] == "completed" && values[:occurrence_source] == "administered_here" &&
-            !Clinic::Configuration::PracticeFeatures.snapshot(practice:).fetch(:immunization_administration_enabled)
+            !Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)
+              .fetch(:immunization_administration_enabled)
           raise ArgumentError,
             "Clinic-administered immunizations are unavailable until clinic scope, sites, personnel, and review are configured."
         end
@@ -496,14 +497,14 @@ module Clinic
         end
       end
 
-      def new_work_available?(practice, kind)
+      def new_work_available?(practice, kind, site: nil)
         service = { medication_requests: "prescription_preparation",
           procedures: "minor_office_procedures", immunizations: "vaccinations" }[kind.to_sym]
-        !service || Configuration::StarterProfile.service_available?(practice: practice, service: service)
+        !service || Configuration::StarterProfile.service_available?(practice: practice, site:, service: service)
       end
 
-      def weight_context(practice, patient)
-        profile = Configuration::PracticeFeatures.snapshot(practice:).fetch(:starter_profile)
+      def weight_context(practice, patient, site: nil)
+        profile = Configuration::PracticeFeatures.snapshot(practice:, site:).fetch(:starter_profile)
         return unless Array(profile["components"]).include?("weight_context")
         notes = PrevisitNote.where(practice: practice, patient: patient).order(submitted_at: :desc, id: :desc).limit(30)
         notes.filter_map do |note|

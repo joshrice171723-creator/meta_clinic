@@ -34,9 +34,16 @@ module Clinic
         "assessment_scope" => []
       }.freeze
 
-      def self.snapshot(practice:, at: Current.business_time)
-        version = Clinic::PracticeFeatureVersion.for_practice(practice)
+      def self.snapshot(practice:, site: nil, at: Current.business_time)
+        raise ArgumentError, "The location must belong to this clinic." if site && site.practice_id != practice.id
+
+        clinic_version = Clinic::PracticeFeatureVersion.for_practice(practice).where(site_id: nil)
           .where(effective_from: ..at).order(revision: :desc, id: :desc).first
+        site_version = if site
+          Clinic::PracticeFeatureVersion.for_practice(practice).where(site:)
+            .where(effective_from: ..at).order(revision: :desc, id: :desc).first
+        end
+        version = site_version || clinic_version
         stored = version&.optional_features || {}
         optional = OPTIONAL_DEFAULTS.merge(stored)
         optional["clinic_type"] = nil unless CLINIC_TYPES.include?(optional["clinic_type"])
@@ -52,20 +59,34 @@ module Clinic
             optional.fetch("service_scope").include?("vaccinations"),
           assessment_configured: stored.key?("assessment_scope"),
           starter_profile: stored.fetch("starter_profile", {}),
-          finalized: stored["finalized_at"].present?, finalized_at: stored["finalized_at"],
+          finalized: site ? site_version&.optional_features&.dig("finalized_at").present? : stored["finalized_at"].present?,
+          finalized_at: site ? site_version&.optional_features&.dig("finalized_at") : stored["finalized_at"],
           selected_services: stored.fetch("selected_services", optional.fetch("service_scope")),
+          site_id: site&.id,
+          profile_scope: site_version ? "site" : "clinic_default",
+          site_specialty_configured: site_version.present? && CLINIC_TYPES.include?(site_version.optional_features["clinic_type"]),
+          site_revision: site_version&.revision || 0,
           change_handoff: "Clinic staff can change availability, hours, prices and forms within this profile. Capability changes require Meta Clinic review; unsupported transitions require a scoped FDE assignment. No request has been sent.",
-          configured: version.present? && stored.key?("clinic_type") && stored.key?("service_scope"),
+          configured: if site
+            site_specialty_configured = site_version.present? && CLINIC_TYPES.include?(site_version.optional_features["clinic_type"])
+            site_specialty_configured
+          else
+            version.present? && stored.key?("clinic_type") && stored.key?("service_scope")
+          end,
           recommended_clinic_type: RECOMMENDED_CLINIC_TYPE,
           recommended_service_scope: RECOMMENDED_SERVICE_SCOPE,
           recommended_assessment_scope: RECOMMENDED_ASSESSMENT_SCOPE,
-          revision: version&.revision || 0, effective_from: version&.effective_from&.iso8601
+          revision: site ? (site_version&.revision || 0) : (clinic_version&.revision || 0),
+          effective_from: version&.effective_from&.iso8601
         }
       end
 
       def self.revise(practice:, actor:, request_key:, expected_revision:, insurance_workflows_enabled:,
+        site: nil,
         clinic_type:, service_scope:, assessment_scope:, finalize: false)
-        Clinic::Authorization.authorize!(practice: practice, actor: actor.user, action: "facilities.write")
+        raise ArgumentError, "The location must belong to this clinic." if site && site.practice_id != practice.id
+        Clinic::Authorization.authorize!(practice: practice, actor: actor.user,
+          action: "facilities.write", site: site)
         key = request_key.to_s.strip
         raise ArgumentError, "request_key is required" if key.blank?
 
@@ -94,13 +115,14 @@ module Clinic
         }
         digest = Digest::SHA256.hexdigest([optional, finalize == true].to_json)
         practice.with_lock do
-          existing = Clinic::PracticeFeatureVersion.find_by(practice: practice, request_key: key)
+          site&.lock!
+          existing = Clinic::PracticeFeatureVersion.find_by(practice: practice, site:, request_key: key)
           if existing
             raise Clinic::Idempotency::Conflict unless existing.content_digest == digest
-            return snapshot(practice: practice)
+            return snapshot(practice: practice, site:)
           end
 
-          current = snapshot(practice: practice)
+          current = snapshot(practice: practice, site:)
           unless current.fetch(:revision) == expected_revision.to_i
             raise ActiveRecord::StaleObjectError.new(practice, "update practice features")
           end
@@ -110,8 +132,13 @@ module Clinic
             (normalized_scope - current[:selected_services]).any?)
             raise ArgumentError, "Protected profile change: request Meta Clinic review. Unsupported transitions require an FDE assignment. Existing care and permitted clinic settings remain available."
           end
-          old = current[:optional]
-          if old["starter_profile"].present? && normalized_type != current[:clinic_type]
+          old_version = if site
+            Clinic::PracticeFeatureVersion.find_by(practice:, site:, revision: current.fetch(:revision)) if current.fetch(:revision).positive?
+          else
+            Clinic::PracticeFeatureVersion.find_by(practice:, site_id: nil, revision: current.fetch(:revision))
+          end
+          old = old_version&.optional_features || {}
+          if old["starter_profile"].present? && normalized_type != old["clinic_type"]
             raise ArgumentError, "This starter profile already has linked records. Request a scoped Meta Clinic review to change the specialty."
           end
           optional["starter_profile"] = StarterProfile.apply(practice: practice, clinic_type: normalized_type,
@@ -120,19 +147,25 @@ module Clinic
           optional["finalized_at"] = old["finalized_at"]
           optional["finalized_by_membership_id"] = old["finalized_by_membership_id"]
           if finalize == true && !current[:finalized]
-            raise ArgumentError, "Choose an active location before finalizing setup." unless practice.sites.where(status: "active").exists?
+            raise ArgumentError, "Choose an active location before finalizing setup." unless site ? site.status == "active" : practice.sites.where(status: "active").exists?
             raise ArgumentError, "Configure an active visit type before finalizing setup." unless practice.visit_types.active.exists?
             optional["finalized_at"] = Current.business_time.iso8601(6)
             optional["finalized_by_membership_id"] = actor.id
           end
 
           Clinic::PracticeFeatureVersion.create!(
-            practice: practice, created_by_membership: actor, revision: current.fetch(:revision) + 1,
+            practice: practice, site:, created_by_membership: actor, revision: current.fetch(:revision) + 1,
             optional_features: optional, effective_from: Current.business_time,
             request_key: key, content_digest: digest
           )
         end
-        snapshot(practice: practice)
+        snapshot(practice: practice, site:)
+      end
+
+      def self.site_specialty_selected?(practice:, site:, at: Current.business_time)
+        version = Clinic::PracticeFeatureVersion.for_practice(practice).where(site:)
+          .where(effective_from: ..at).order(revision: :desc, id: :desc).first
+        version.present? && CLINIC_TYPES.include?(version.optional_features["clinic_type"])
       end
     end
   end

@@ -103,7 +103,7 @@ module Clinic
           snapshot = service_offering && offering_snapshot!(offering: service_offering, practice: practice,
             site: site, clinician: booked_clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
             starts_at: starts_at, ends_at: ends_at)
-          Configuration::StarterProfile.require_service!(practice: practice, service: "telehealth") if visit_modality == "video"
+          Configuration::StarterProfile.require_service!(practice: practice, site:, service: "telehealth") if visit_modality == "video"
           overbook = overbook_reason.present?
           policy = nil
           if overbook

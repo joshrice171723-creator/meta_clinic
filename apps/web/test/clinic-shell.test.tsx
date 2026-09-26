@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canLoadClinicOverview,
   clinicOverviewRequired,
+  requiresClinicSetup,
   requiresLocationSelection,
 } from "../src/features/clinic/locationSelection";
 
@@ -108,6 +109,25 @@ describe("clinic shell composition", () => {
     expect(clinicOverviewRequired("/clinic/inventory")).toBe(true);
     expect(clinicOverviewRequired("/clinic")).toBe(false);
     expect(clinicOverviewRequired("/clinic/work")).toBe(false);
+  });
+
+  it("gates a selected site until its specialty and setup are finalized", () => {
+    expect(requiresClinicSetup(null, undefined)).toBe(false);
+    expect(requiresClinicSetup(4, undefined)).toBe(true);
+    expect(
+      requiresClinicSetup(4, {
+        site_specialty_configured: true,
+        configured: true,
+        finalized: false,
+      }),
+    ).toBe(true);
+    expect(
+      requiresClinicSetup(4, {
+        site_specialty_configured: true,
+        configured: true,
+        finalized: true,
+      }),
+    ).toBe(false);
   });
 
   it("keeps 1024px rail use while moving portrait tablet widths into the drawer fallback", () => {

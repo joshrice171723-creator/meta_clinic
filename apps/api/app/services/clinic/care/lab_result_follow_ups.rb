@@ -85,11 +85,74 @@ module Clinic
             patient_contact_status: contact[:status], patient_contact_method: contact[:method],
             patient_contact_at: contact[:at]
           )
+          complete_contact_tasks!(follow_up:, member:)
           audit!(practice:, actor:, action: "lab_report.follow_up.complete", follow_up:)
           follow_up
         end
         confirmed_result!(result)
       end
+
+      def self.attempt_contact(practice:, actor:, patient:, report:, version:, follow_up:, request_key:,
+        contact_method:, outcome:, attempted_at:, next_action_due_at:, note: nil)
+        patient = practice.patients.find(patient.id)
+        report = practice.lab_reports.where(patient:).find(report.id)
+        version = report.report_versions.find(version.id)
+        follow_up = follow_up.class.where(practice:, patient:, lab_report: report, lab_report_version: version).find(follow_up.id)
+        member = authorize!(practice:, actor:, patient:, site: report.site)
+        raise ArgumentError, "The contact method is unsupported." unless contact_method.to_s.in?(LabResultFollowUpContactAttempt::METHODS)
+        raise ArgumentError, "The contact outcome is unsupported." unless outcome.to_s.in?(LabResultFollowUpContactAttempt::OUTCOMES)
+        raise ArgumentError, "Record a contact attempt time that is not in the future." if attempted_at > Current.business_time
+        raise Clinic::Authorization::Denied unless Ability.new(actor, practice:).allowed_permission?("encounters.write", site: report.site)
+
+        payload = { patient_id: patient.id, report_id: report.id, version_id: version.id,
+          follow_up_id: follow_up.id, contact_method:, outcome:, attempted_at: attempted_at.iso8601(6),
+          next_action_due_at: next_action_due_at&.iso8601(6), note: optional_text(note, "contact_attempt_note") }
+        result = Clinic::Idempotency.execute(
+          practice:, actor:, operation_code: "lab_report.follow_up.contact_attempt", request_key:, payload:,
+          resource: follow_up, authorization_action: "notes.write",
+          authorization: -> { authorize!(practice:, actor:, patient:, site: report.site) },
+          result_resource: ->(attempt) { attempt },
+          resource_resolver: ->(practice:, receipt:) {
+            LabResultFollowUpContactAttempt.find_by(practice:, id: receipt.resource_id)
+          }
+        ) do
+          locked_report = practice.lab_reports.where(patient:).lock.find(report.id)
+          locked_follow_up = LabResultFollowUp.where(practice:, patient:, lab_report: locked_report,
+            lab_report_version: version).lock.find(follow_up.id)
+          unless version.reviewed_at.present? && locked_follow_up.state_open?
+            raise ArgumentError, "Contact attempts require a reviewed version's open follow-up."
+          end
+
+          attempt_id = ApplicationRecord.connection.select_value(
+            "SELECT nextval(pg_get_serial_sequence('clinic_lab_result_follow_up_contact_attempts', 'id'))"
+          )
+          task = Clinic::ClinicalTask.create!(practice:, patient:, encounter: report.service_request_revision&.encounter,
+            site: report.site, task_kind: "result_follow_up", pool_code: "clinical", state: "claimed",
+            assigned_to_membership: member, recorded_by_membership: member, source_type: "lab_follow_up",
+            source_id: attempt_id, due_at: next_action_due_at)
+          TaskContinuity.record!(task, member, "created")
+          attempt = LabResultFollowUpContactAttempt.create!(id: attempt_id, practice:, follow_up: locked_follow_up,
+            clinical_task: task, attempted_by_membership: member, contact_method:, outcome:, attempted_at:,
+            recorded_at: Current.business_time, request_key:, note: payload[:note])
+          AuditRecorder.record!(practice:, actor:, action_code: "lab_report.follow_up.contact_attempt",
+            outcome: :committed,
+            resource_version_ref: "lab_follow_up/#{locked_follow_up.id}/contact_attempt/#{attempt.id}/task/#{task.id}")
+          attempt
+        end
+        confirmed_result!(result)
+      end
+
+      def self.complete_contact_tasks!(follow_up:, member:)
+        follow_up.contact_attempts.includes(:clinical_task).each do |attempt|
+          task = attempt.clinical_task
+          next unless task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
+
+          task.update!(state: "completed", resolution_code: "completed", completed_by_membership: member,
+            completed_at: Current.business_time)
+          TaskContinuity.record!(task, member, "complete")
+        end
+      end
+      private_class_method :complete_contact_tasks!
 
       def self.normalize_optional_decision(value, priority:)
         return nil if value.nil?

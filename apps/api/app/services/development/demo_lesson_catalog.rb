@@ -299,13 +299,26 @@ module Development
 
       def finalize_clinic!(run)
         snapshot = Clinic::Configuration::PracticeFeatures.snapshot(practice: run.practice)
-        return if snapshot.fetch(:finalized)
         membership = run.operator_user.clinic_memberships.find_by!(practice_id: run.practice_id)
+        unless snapshot.fetch(:finalized)
+          Clinic::Configuration::PracticeFeatures.revise(
+            practice: run.practice, actor: membership, request_key: "guided-finalize-#{run.id}",
+            expected_revision: snapshot.fetch(:revision), insurance_workflows_enabled: false,
+            clinic_type: snapshot.fetch(:clinic_type), service_scope: snapshot.fetch(:service_scope),
+            assessment_scope: snapshot.fetch(:assessment_scope), finalize: true
+          )
+        end
+        site = run.practice.sites.first!
+        site_snapshot = Clinic::Configuration::PracticeFeatures.snapshot(practice: run.practice, site:)
+        return if site_snapshot.fetch(:finalized)
+
         Clinic::Configuration::PracticeFeatures.revise(
-          practice: run.practice, actor: membership, request_key: "guided-finalize-#{run.id}",
-          expected_revision: snapshot.fetch(:revision), insurance_workflows_enabled: false,
-          clinic_type: snapshot.fetch(:clinic_type), service_scope: snapshot.fetch(:service_scope),
-          assessment_scope: snapshot.fetch(:assessment_scope), finalize: true
+          practice: run.practice, site:, actor: membership,
+          request_key: "guided-site-finalize-#{run.id}",
+          expected_revision: site_snapshot.fetch(:site_revision),
+          insurance_workflows_enabled: site_snapshot.fetch(:insurance_workflows_enabled),
+          clinic_type: site_snapshot.fetch(:clinic_type), service_scope: site_snapshot.fetch(:service_scope),
+          assessment_scope: site_snapshot.fetch(:assessment_scope), finalize: true
         )
       end
 

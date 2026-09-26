@@ -46,11 +46,18 @@ module Clinic
       validates :display_name, presence: true, length: { maximum: 120 }
       validates :reference, presence: true, length: { maximum: 32 }, uniqueness: { scope: :practice_id }
       validate :primary_site_belongs_to_practice
+      validate :primary_site_has_selected_specialty, if: -> { primary_site_id.present? && (new_record? || will_save_change_to_primary_site_id?) }
 
       private
 
       def primary_site_belongs_to_practice
         errors.add(:primary_site, "must belong to this clinic") if primary_site && primary_site.practice_id != practice_id
+      end
+
+      def primary_site_has_selected_specialty
+        return if Clinic::Configuration::PracticeFeatures.site_specialty_selected?(practice:, site: primary_site)
+
+        errors.add(:primary_site, "needs a selected location specialty before patients can be assigned")
       end
 
       def refresh_name_search_tokens

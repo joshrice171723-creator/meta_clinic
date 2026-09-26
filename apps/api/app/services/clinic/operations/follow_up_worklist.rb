@@ -276,8 +276,15 @@ module Clinic
           Clinic::Care::LabReportAction.where(practice_id: task.practice_id, clinical_task_id: task.id,
             kind: "recollection_requested").includes(:lab_report_version).first
         end
+        contact_attempt = if task.source_type == "lab_follow_up" && !lab_action
+          Clinic::Care::LabResultFollowUpContactAttempt.where(practice_id: task.practice_id,
+            clinical_task_id: task.id).includes(follow_up: :lab_report_version).first
+        end
         if lab_action
           version = lab_action.lab_report_version
+          encounter_href = "/clinic/patients/#{task.patient_id}?lab_report_id=#{version.lab_report_id}&lab_version_id=#{version.id}"
+        elsif contact_attempt
+          version = contact_attempt.follow_up.lab_report_version
           encounter_href = "/clinic/patients/#{task.patient_id}?lab_report_id=#{version.lab_report_id}&lab_version_id=#{version.id}"
         end
         Clinic::Care::NurseWorkflow.serialize_task(task).merge(
@@ -287,8 +294,10 @@ module Clinic
           assignee_label: task.assigned_to_membership&.user&.email_address,
           overdue: task.due_at.present? && task.due_at < at,
           eligible_assignees: eligible_assignees_for_task(task),
-          source_label: lab_action ? "Laboratory recollection" : nil,
-          source_note: lab_action && Ability.new(actor, practice:).allowed_permission?("notes.read", site: task.site) ? lab_action.note : nil,
+          source_label: lab_action ? "Laboratory recollection" : (contact_attempt ? "Lab result contact follow-up" : nil),
+          source_note: if Ability.new(actor, practice:).allowed_permission?("notes.read", site: task.site)
+            contact_attempt&.note || lab_action&.note
+          end,
           encounter_href:,
           patient_href: "/clinic/patients/#{task.patient_id}",
           has_recorded_appointment:

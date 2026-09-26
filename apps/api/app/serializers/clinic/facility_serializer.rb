@@ -1,11 +1,14 @@
 module Clinic
   module FacilitySerializer
     def self.site(site, detail: false)
+      profile = Clinic::Configuration::PracticeFeatures.snapshot(practice: site.practice, site: site)
       payload = {
         id: site.id,
         code: site.code,
         name: site.name,
         status: site.status,
+        clinic_type: profile[:clinic_type],
+        specialty_configured: profile[:site_specialty_configured],
         timezone_override: site.timezone_override,
         address_line1: site.address_line1,
         address_line2: site.address_line2,

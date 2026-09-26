@@ -18,8 +18,14 @@ module Development
       "Lab follow-up" => 75, "Care planning" => 120,
       "Weight-loss initial visit" => 150, "Weight-loss follow-up" => 95,
       "Weight management follow-up" => 110, "Nutrition consult" => 90,
-      "Medication check" => 85, "Goal review" => 75
+      "Medication check" => 85, "Goal review" => 75,
+      "Behavioral health initial visit" => 155, "Behavioral health follow-up" => 100,
+      "Psychiatric evaluation" => 185, "Medication follow-up" => 95
     }.freeze
+    BEHAVIORAL_VISIT_TYPES = [
+      "Behavioral health initial visit", "Behavioral health follow-up",
+      "Psychiatric evaluation", "Medication follow-up"
+    ].freeze
     EXTRA_VISIT_TYPES = {
       "Sandbox Primary Care" => [ "Annual wellness", "Medication review", "Lab follow-up", "Care planning" ],
       "Sandbox Weight Management" => [ "Weight management follow-up", "Nutrition consult", "Medication check", "Goal review" ]
@@ -69,6 +75,7 @@ module Development
           practice.visit_types.find_or_create_by!(code:)
         end
       end
+      BEHAVIORAL_VISIT_TYPES.each { |code| primary.practice.visit_types.find_or_create_by!(code:) }
       Clinic::Authorization::PilotRoleCatalog.install!
       STAFF_ROLE_CODES.values.uniq.each { |role_code| prepare_practice_role!(role_code) }
       cohorts.each do |cohort|
@@ -190,7 +197,7 @@ module Development
       background_patients = patients.select { |patient| patient.reference.start_with?("SBX-") }
       raise ArgumentError, "Visit history needs background patients" if background_patients.length < 120
 
-      visit_types = practice.visit_types.order(:id).to_a
+      visit_types = visit_types_for_site(practice:, site:, site_index:)
       raise ArgumentError, "Visit history needs a visit type" if visit_types.empty?
 
       zone = ActiveSupport::TimeZone[site.timezone_override.presence || practice.timezone] ||
@@ -334,7 +341,7 @@ module Development
       patients = practice.patients.where(primary_site_id: site.id)
         .where("reference LIKE 'SBX-%'").order(:id).to_a
       raise ArgumentError, "Upcoming schedule needs background patients" if patients.length < 120
-      visit_types = practice.visit_types.order(:id).to_a
+      visit_types = visit_types_for_site(practice:, site:, site_index:)
       raise ArgumentError, "Upcoming schedule needs visit types" if visit_types.empty?
 
       appointments = []
@@ -358,6 +365,20 @@ module Development
         end
       end
       Clinic::Appointment.insert_all!(appointments)
+    end
+
+    def self.visit_types_for_site(practice:, site:, site_index:)
+      codes = if practice.name == "Sandbox Primary Care" && site_index == 2
+        BEHAVIORAL_VISIT_TYPES
+      elsif practice.name == "Sandbox Primary Care"
+        [ "Initial visit", "Follow-up visit", *EXTRA_VISIT_TYPES.fetch(practice.name) ]
+      else
+        [ "Weight-loss initial visit", "Weight-loss follow-up", *EXTRA_VISIT_TYPES.fetch(practice.name) ]
+      end
+      types = practice.visit_types.where(code: codes).order(:id).to_a
+      raise ArgumentError, "Sandbox location visit catalog is incomplete" unless types.length == codes.length
+
+      types
     end
   end
 end

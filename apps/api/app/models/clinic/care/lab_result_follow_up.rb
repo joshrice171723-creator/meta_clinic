@@ -17,6 +17,8 @@ module Clinic
       belongs_to :recorded_by_membership, class_name: "Clinic::Membership"
       belongs_to :completed_by_membership, class_name: "Clinic::Membership", optional: true
       belongs_to :escalated_by_membership, class_name: "Clinic::Membership", optional: true
+      has_many :contact_attempts, class_name: "Clinic::Care::LabResultFollowUpContactAttempt",
+        foreign_key: :follow_up_id, dependent: :restrict_with_error
 
       enum :state, STATES.index_with(&:itself), prefix: true, validate: true
       attr_readonly(*IMMUTABLE_ATTRIBUTES)
