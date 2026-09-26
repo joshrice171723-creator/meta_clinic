@@ -54,6 +54,7 @@ module Development
           operator_user: lesson.operator_user, visitor:)
         DemoLessonCatalog.prepare!(run)
         DemoSandboxPopulation.prepare!(run) if sandbox
+        DemoSandboxInventoryHistory.prepare!(run) if sandbox
         DemoSandboxJourneys.prepare!(run) if sandbox
         lesson.update!(generation: lesson.generation + 1)
         run

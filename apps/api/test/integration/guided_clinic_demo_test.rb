@@ -211,6 +211,10 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     first_patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
     first_appointment_at = first.practice.appointments.find_by!(patient_id: first_patient_id).starts_at
     first_product_id = first.practice.pharmacy_products.find_by!(sku: "SANDBOX-PREP-PADS").id
+    first_operations_site = first.practice.sites.order(:id).first!
+    first_receipt = Clinic::Inventory::Receipt.find_by!(practice: first.practice,
+      invoice_reference: "OPS-#{first.practice_id}-#{first_operations_site.id}-initial")
+    first_received_at = first_receipt.received_at
     first_companion = first.practice.organization.practices.where.not(id: first.practice_id).sole
     first_companion_site_id = first_companion.sites.find_by!(code: "SANDBOX-NORTH").id
 
@@ -228,6 +232,11 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     second_appointment_at = second.practice.appointments.find_by!(patient: second_patient).starts_at
     assert_operator second_appointment_at, :>, first_appointment_at
     assert_operator second.practice.pharmacy_products.count, :>=, 5
+    refute Clinic::Inventory::Receipt.exists?(first_receipt.id)
+    second_operations_site = second.practice.sites.order(:id).first!
+    second_receipt = Clinic::Inventory::Receipt.find_by!(practice: second.practice,
+      invoice_reference: "OPS-#{second.practice_id}-#{second_operations_site.id}-initial")
+    assert_in_delta 14.days, second_receipt.received_at - first_received_at, 1.minute
     second_companion = second.practice.organization.practices.where.not(id: second.practice_id).sole
     assert_equal first_companion.id, second_companion.id
     refute second_companion.sites.exists?(first_companion_site_id)
@@ -352,6 +361,12 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
           .where("clinic_patients.reference LIKE 'SBX-%'")
         assert_equal 1, journey.count
         assert practice.encounters.where(patient_id: journey.first!.patient_id, site:, status: "completed").exists?
+        supply_location = practice.inventory_locations.find_by!(site:, name: "Operations supply")
+        supply_batches = Clinic::Inventory::PharmacyBatch.where(practice:, location_id: supply_location.id)
+          .joins(:product).where("clinic_pharmacy_products.sku LIKE 'OPS-%'")
+        assert_equal 10, supply_batches.count
+        assert_equal 10, Clinic::Inventory::PharmacyMovement.where(batch_id: supply_batches.select(:id), kind: "receipt").count
+        assert supply_batches.all? { |batch| batch.quantity.positive? }
       end
       outlook = Clinic::Billing::IncomeOutlook.call(practice:, now: Current.business_time)
       assert_operator outlook.fetch(:currencies).first.fetch(:history_invoice_count), :>, 0

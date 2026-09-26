@@ -161,11 +161,20 @@ Expired visitor sandbox shells are reused after seven days only when both regist
 
 Each location now has one background patient with prior completed visits and a current open walk-in encounter. These four encounters use the existing encounter creation operation. The primary clinic has an authorized outside-pharmacy medication order reviewed through the prescription workflow, a locally simulated accepted transmission, and an active lab service request with its order work item. The companion clinic has an authorized medication order without a transmission claim, plus an active care plan and goal. Clinical revisions and prescription events use the existing domain operations; the accepted result is explicitly a simulator outcome, not a pharmacy fill or live transmission. Sandbox clinic profiles select prescription preparation and external lab coordination during initial setup, before profile finalization; ordinary guided clinics retain their existing profile.
 
-These are four bounded, linked stories rather than clinical documentation for all 1,920 imported completed visits. There is still no full prescription/refill/dispense chain, laboratory result, broad condition mix, site-level stock consumption and replenishment, membership billing history, or broad cancellation/no-show/waitlist mix. Next: add those connected record families, calibrate the two-month billing outlook, measure concurrent visitors and walk the priority browser routes.
+These are four bounded, linked stories rather than clinical documentation for all 1,920 imported completed visits. There is still no full prescription/refill/dispense chain, laboratory result, broad condition mix, site-level stock consumption, membership billing history, or broad cancellation/no-show/waitlist mix. Next: add those connected record families, calibrate the two-month billing outlook, measure concurrent visitors and walk the priority browser routes.
+
+### Implementation slice 6: site-level supply receipts
+
+Each site now has an operations supply location with five additional clinical supplies, an opening delivery and a later replenishment. The existing receiving operation creates dated receipts, lots, batches and stock movements, anchored 58 and 20 days before the selected demo date. The previous sandbox purchase orders, shipments and receipts remain as separate procurement examples. These new receipt histories have supplier and invoice references but no linked purchase order or shipment; they must not be described as vendor connector activity. On-hand stock reflects receipts only. The app still needs supported supply consumption, count variance, stock-linked care and more procurement outcomes for the inventory to fully match eight weeks of visit volume.
 
 For scale, use deterministic generated values and bounded batch insertion only for safe background records whose encryption, search indexes, tenancy and audit rules can be explicitly reproduced. Use existing domain operations for stateful clinical, prescription, inventory movement and connector events. The Faker gem can generate names and addresses but does not make database writes faster; it is not installed. The existing reset transaction is the orchestration boundary, so each reset can anchor records to `Current.business_time` and replace both demo-owned practices together.
 
 ## Last run
+
+- Date: 2026-09-26 America/Chicago; implementation slice 6 in progress.
+- Outcome: Added five supply products, two dated receipts and ten lot-backed receipt movements per site using the inventory receiving operation.
+- Checks: four-site population, clinical story and inventory assertions passed (93 assertions); expanded reset/date-shift passed (16 assertions, 159 seconds). Changed-file Ruby lint, vault links and whitespace checks passed. The unchanged root `AGENTS.md` size gate, concurrent load and browser acceptance remain open.
+- Next action: reconcile stock use and procurement history, then billing projection and browser/concurrency evidence.
 
 - Date: 2026-09-26 America/Chicago; implementation slice 5 in progress.
 - Outcome: Added one longitudinal patient/active encounter per site, authorized medication examples in both clinics, a primary-care lab order, a companion care plan/goal, and one local prescription simulator outcome. Enabled only the sandbox's required services during initial clinic setup.
