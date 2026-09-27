@@ -7,7 +7,7 @@ module Clinic
         refunds = tenders.sum(BigDecimal("0")) { |tender| tender.payment_event.refund_events.sum(BigDecimal("0"), &:amount) }
         expected = session.opening_float + received - refunds
         {
-          id: session.id, site_id: session.site_id, status: session.status, opening_float: session.opening_float.to_s("F"),
+          id: session.id, site_id: session.site_id, currency: session.currency, status: session.status, opening_float: session.opening_float.to_s("F"),
           cash_received: received.to_s("F"), cash_refunded: refunds.to_s("F"), expected_cash: expected.to_s("F"),
           counted_cash: session.counted_cash&.to_s("F"), discrepancy: session.discrepancy&.to_s("F"),
           discrepancy_explanation: session.discrepancy_explanation, opened_at: session.created_at.iso8601,

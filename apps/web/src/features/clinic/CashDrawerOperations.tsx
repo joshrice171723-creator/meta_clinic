@@ -105,6 +105,9 @@ export function CashDrawerOperations({
   const [selectedDrawerId, setSelectedDrawerId] = useState("");
   const [newDrawerMode, setNewDrawerMode] = useState(false);
   const [openingFloat, setOpeningFloat] = useState("");
+  const [drawerCurrency, setDrawerCurrency] = useState(
+    invoice?.currency ?? "USD",
+  );
   const [tenderedAmount, setTenderedAmount] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [countedCash, setCountedCash] = useState("");
@@ -244,10 +247,11 @@ export function CashDrawerOperations({
     if (
       !permitted ||
       !siteId ||
+      !/^[A-Z]{3}$/.test(drawerCurrency) ||
       !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(openingFloat)
     ) {
       setError(
-        "Choose a location and enter an opening cash amount with up to six decimal places.",
+        "Choose a location, a three-letter currency, and an opening cash amount with up to six decimal places.",
       );
       return;
     }
@@ -259,7 +263,11 @@ export function CashDrawerOperations({
         {
           method: "POST",
           body: {
-            drawer: { site_id: Number(siteId), opening_float: openingFloat },
+            drawer: {
+              site_id: Number(siteId),
+              opening_float: openingFloat,
+              currency: drawerCurrency,
+            },
           },
         },
       );
@@ -288,6 +296,15 @@ export function CashDrawerOperations({
     ) {
       setError(
         "Enter positive tendered and allocated amounts before recording cash.",
+      );
+      return;
+    }
+    if (
+      !cashAttempt &&
+      (!drawer?.currency || drawer.currency !== invoice?.currency)
+    ) {
+      setError(
+        "Choose a drawer with the same recorded currency as the invoice before taking cash.",
       );
       return;
     }
@@ -549,13 +566,32 @@ export function CashDrawerOperations({
             </Stack>
           </Alert>
         )}
+        {drawer && !drawer.currency && (
+          <Alert severity="warning">
+            This older drawer has no recorded currency. New cash payments and
+            refunds are blocked. Preserve its reconciliation record, close it,
+            and open a new drawer with an explicit currency.
+          </Alert>
+        )}
+        {drawer?.currency && (
+          <Typography variant="body2">
+            Drawer currency: {drawer.currency}
+          </Typography>
+        )}
         {drawer?.status === "closed" && (
           <Stack spacing={1.5}>
             <Alert severity="info">
               Closed drawer · Counted{" "}
-              {money(drawer.counted_cash ?? "0", invoice?.currency ?? "USD")} ·
-              Discrepancy{" "}
-              {money(drawer.discrepancy ?? "0", invoice?.currency ?? "USD")} ·{" "}
+              {money(
+                drawer.counted_cash ?? "0",
+                drawer.currency ?? "Unspecified",
+              )}{" "}
+              · Discrepancy{" "}
+              {money(
+                drawer.discrepancy ?? "0",
+                drawer.currency ?? "Unspecified",
+              )}{" "}
+              ·{" "}
               {drawer.reconciliation_status === "reconciled"
                 ? "Manager reconciled"
                 : "Awaiting manager reconciliation"}
@@ -654,6 +690,17 @@ export function CashDrawerOperations({
               ))}
             </TextField>
             <TextField
+              label="Drawer currency"
+              value={drawerCurrency}
+              onChange={(event) =>
+                setDrawerCurrency(event.target.value.toUpperCase())
+              }
+              slotProps={{ htmlInput: { maxLength: 3 } }}
+              helperText="Three-letter code; fixed for this session."
+              required
+              sx={{ width: 200 }}
+            />
+            <TextField
               label="Opening cash"
               inputMode="decimal"
               value={openingFloat}
@@ -711,10 +758,7 @@ export function CashDrawerOperations({
                   <Typography
                     sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 700 }}
                   >
-                    {money(
-                      value,
-                      cashAttempt?.currency ?? invoice?.currency ?? "USD",
-                    )}
+                    {money(value, drawer.currency ?? "Unspecified")}
                   </Typography>
                 </Box>
               ))}

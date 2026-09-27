@@ -1045,6 +1045,7 @@ type CashDrawerReport = {
     site_name: string;
     status: string;
     reconciliation_status: string;
+    currency: string | null;
     payment_currencies: string[];
     opening_float: string;
     cash_received: string;
@@ -1091,7 +1092,7 @@ function DailyCashDrawers({ date }: { date: string }) {
                 Opened {row.opened_at}; closed {row.closed_at ?? "not yet"}.
                 Payment currencies:{" "}
                 {row.payment_currencies.join(", ") || "none recorded"}. Drawer
-                currency is not recorded.
+                currency: {row.currency ?? "not recorded"}.
               </Typography>
               {row.payment_currencies.length > 1 ? (
                 <Alert severity="warning">

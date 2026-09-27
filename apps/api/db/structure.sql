@@ -2640,6 +2640,8 @@ CREATE TABLE public.clinic_cash_drawer_sessions (
     reconciled_at timestamp(6) without time zone,
     reconciliation_note text,
     reconciliation_request_key character varying,
+    currency character varying(3),
+    CONSTRAINT cash_drawer_currency_format CHECK (((currency IS NULL) OR ((currency)::text ~ '^[A-Z]{3}$'::text))),
     CONSTRAINT cash_drawer_reconciliation_state CHECK ((((reconciliation_status)::text = ANY ((ARRAY['pending'::character varying, 'reconciled'::character varying])::text[])) AND ((((reconciliation_status)::text = 'pending'::text) AND (reconciled_by_id IS NULL) AND (reconciled_at IS NULL) AND (reconciliation_request_key IS NULL)) OR (((reconciliation_status)::text = 'reconciled'::text) AND (reconciled_by_id IS NOT NULL) AND (reconciled_at IS NOT NULL) AND (reconciliation_request_key IS NOT NULL))))),
     CONSTRAINT cash_drawer_session_status CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'closed'::character varying])::text[])))
 );
@@ -31828,6 +31830,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927221000'),
 ('20260927215500'),
 ('20260927211000'),
 ('20260927195400'),

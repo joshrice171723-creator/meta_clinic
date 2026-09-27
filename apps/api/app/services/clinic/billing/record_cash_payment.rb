@@ -23,6 +23,8 @@ module Clinic
 
           drawer = practice.cash_drawer_sessions.lock.find(drawer_session.id)
           raise ArgumentError, "The cash drawer is closed." unless drawer.status == "open"
+          raise ArgumentError, "Close this legacy drawer and open a drawer with an explicit currency before recording new cash." if drawer.currency.nil?
+          raise ArgumentError, "The invoice currency must match the cash drawer currency." unless drawer.currency == invoice.currency
           raise ArgumentError, "The cash drawer does not belong to this invoice's practice." unless drawer.practice_id == invoice.practice_id
 
           allocation = AllocatePayment.call(

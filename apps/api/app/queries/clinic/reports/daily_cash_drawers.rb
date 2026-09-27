@@ -18,7 +18,7 @@ module Clinic
           variance_count: sessions.where(status: "closed").where.not(discrepancy: 0).count,
           records: records.includes(:site).order(created_at: :desc, id: :desc).map do |session|
             currencies = Clinic::PaymentEvent.where(id: session.cash_tenders.select(:payment_event_id), practice:).distinct.order(:currency).pluck(:currency)
-            row = Clinic::Billing::CashDrawer.call(session).slice(:id, :site_id, :status, :opening_float,
+            row = Clinic::Billing::CashDrawer.call(session).slice(:id, :site_id, :status, :currency, :opening_float,
               :cash_received, :cash_refunded, :expected_cash, :counted_cash, :discrepancy, :opened_at,
               :closed_at, :reconciliation_status, :reconciled_at)
             row.merge(site_name: session.site.name, payment_currencies: currencies,

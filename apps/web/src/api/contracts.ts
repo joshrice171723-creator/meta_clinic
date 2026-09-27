@@ -1266,6 +1266,7 @@ export type BillingDashboard = {
 };
 export type CashDrawer = {
   id: number;
+  currency: string | null;
   site_id: number;
   status: "open" | "closed";
   opening_float: Decimal;

@@ -11,6 +11,7 @@ module Clinic
           tender = payment.cash_tender or raise ArgumentError, "Only cash payments can be refunded from the drawer."
           raise ArgumentError, "Cash payment drawer details changed." unless tender.cash_drawer_session_id == drawer.id
           raise ArgumentError, "The cash drawer is closed." unless drawer.status == "open"
+          raise ArgumentError, "A cash refund requires a drawer with the payment currency recorded." unless drawer.currency.present? && drawer.currency == payment.currency
           value = Money.currency_amount(amount, name: "refund", positive: true)
           reason = required_reason!(reason)
           raise ArgumentError, "Cash refund exceeds the payment." if payment.refund_events.sum(:amount) + value > payment.amount
