@@ -116,6 +116,7 @@ Rails.application.routes.draw do
     get "reports/payment_collection_activity", to: "reports/payment_collection_activity#show"
     get "reports/reminder_delivery_activity", to: "reports/reminder_delivery_activity#show"
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
+    get "reports/current_stock", to: "reports/current_stock#show"
     get "reports/daily_cash_drawers", to: "reports/daily_cash_drawers#show"
     get "reports/scribe_activity", to: "reports/scribe_activity#show"
     namespace :operations do

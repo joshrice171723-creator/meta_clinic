@@ -3,6 +3,7 @@ import {
   Button,
   Chip,
   Divider,
+  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -265,6 +266,7 @@ export function OperationsReportsCatalog({
       {siteId && capabilities.patients && capabilities.encounters && (
         <OpenClinicalWork siteId={siteId} />
       )}
+      {capabilities.inventory && <CurrentStockReport />}
       {capabilities.configuration_manifest_read && (
         <ConfigurationManifestDownload />
       )}
@@ -1133,6 +1135,151 @@ function DailyCashDrawers({ date }: { date: string }) {
             sx={{ alignSelf: "flex-start" }}
           >
             Refresh cash report
+          </Button>
+        </>
+      )}
+    </Stack>
+  );
+}
+
+type StockSnapshot = {
+  as_of: string;
+  inventory_date: string;
+  timezone: string;
+  source: string;
+  low_product_count: number;
+  low_office_count: number;
+  office_quantity: string;
+  pharmacy_units: { unit: string; physical: string; available: string }[];
+  pagination: ReportPagination;
+  office_pagination: ReportPagination;
+  pharmacy_records: {
+    id: number;
+    product_id: number;
+    name: string;
+    lot: string;
+    location: string;
+    unit: string;
+    physical: string;
+    available: boolean;
+    status: string;
+    expires_on: string;
+    expiring: boolean;
+  }[];
+  office_records: {
+    id: number;
+    name: string;
+    sku: string;
+    quantity: string;
+    reorder_level: string;
+    low_stock: boolean;
+  }[];
+};
+
+function CurrentStockReport() {
+  const [page, setPage] = useState(1);
+  const [officePage, setOfficePage] = useState(1);
+  const [status, setStatus] = useState("all");
+  const result = useResource<{ report: StockSnapshot }>(
+    `/api/clinic/reports/current_stock?page=${page}&office_page=${officePage}&status=${status}`,
+  );
+  const report = result.data?.report;
+  return (
+    <Stack spacing={1} sx={{ mt: 3 }}>
+      <Divider />
+      <Typography variant="h6" component="h3">
+        Current stock on hand
+      </Typography>
+      <TextField
+        select
+        size="small"
+        label="Pharmacy stock status"
+        value={status}
+        onChange={(event) => {
+          setStatus(event.target.value);
+          setPage(1);
+        }}
+        sx={{ maxWidth: 280 }}
+      >
+        {[
+          ["all", "All"],
+          ["available", "Available"],
+          ["held", "Held"],
+          ["expired", "Expired"],
+        ].map(([value, label]) => (
+          <MenuItem key={value} value={value}>
+            {label}
+          </MenuItem>
+        ))}
+      </TextField>
+      {!report ? (
+        <LoadState error={result.error} onRetry={result.refresh} />
+      ) : (
+        <>
+          <Typography variant="body2">
+            {report.low_product_count} pharmacy products and{" "}
+            {report.low_office_count} office items at or below their reorder
+            level across the clinic.
+          </Typography>
+          {report.pharmacy_units.map((row) => (
+            <Typography key={row.unit} variant="body2">
+              Pharmacy ({status}): {row.physical} {row.unit} on hand;{" "}
+              {row.available} available.
+            </Typography>
+          ))}
+          {report.pharmacy_records.map((row) => (
+            <Stack key={row.id} spacing={0.25}>
+              <Typography variant="body2">
+                {row.name} - lot {row.lot} - {row.location}: {row.physical}{" "}
+                {row.unit}. {row.available ? "Available" : "Unavailable"};{" "}
+                {row.status}; expires {row.expires_on}
+                {row.expiring ? " (within 30 days)" : ""}.
+              </Typography>
+              <Button
+                href={`/clinic/inventory/lots?product_id=${row.product_id}`}
+                size="small"
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Open product {row.product_id}
+              </Button>
+            </Stack>
+          ))}
+          <ReportPageControls
+            label="pharmacy positions"
+            pagination={report.pagination}
+            onPage={setPage}
+          />
+          <Typography variant="subtitle1" component="h4">
+            Office stock
+          </Typography>
+          <Typography variant="body2">
+            {report.office_quantity} each across office items. Office stock has
+            no location or expiry tracking.
+          </Typography>
+          {report.office_records.map((row) => (
+            <Typography key={row.id} variant="body2">
+              {row.name} ({row.sku}): {row.quantity} each; reorder level{" "}
+              {row.reorder_level}
+              {row.low_stock ? " - reorder needed" : ""}.
+            </Typography>
+          ))}
+          <ReportPageControls
+            label="office items"
+            pagination={report.office_pagination}
+            onPage={setOfficePage}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.source}. As of {report.as_of}; inventory date{" "}
+            {report.inventory_date} ({report.timezone}). Current balances, not a
+            historical snapshot. Available stock follows existing hold, expiry,
+            product and location rules. Units and stock types are kept separate.
+          </Typography>
+          <Button
+            size="small"
+            onClick={result.refresh}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Refresh stock snapshot
           </Button>
         </>
       )}
