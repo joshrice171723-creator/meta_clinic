@@ -18,10 +18,20 @@ module Clinic
           RoleAssignment.assignable?(actor: current_user, practice: current_practice,
             role_version: role_version, ability: assignment_ability)
         end
+        active_work_by_membership = Clinic::ClinicalTask
+          .where(practice_id: current_practice.id, assigned_to_membership_id: linked_membership_ids.keys,
+            state: Clinic::ClinicalTask::ACTIVE_STATES)
+          .group(:assigned_to_membership_id, :site_id).count
+          .group_by { |(membership_id, _site_id), _count| membership_id }
 
         render json: {
           schema_version: 1,
-          employments: employments.map { |employment| EmploymentSerializer.call(employment) },
+          employments: employments.map do |employment|
+            work = active_work_by_membership.fetch(employment.membership_id, []).map do |(_membership_id, site_id), count|
+              { site_id:, count: }
+            end
+            EmploymentSerializer.call(employment).merge(active_work_by_site: work)
+          end,
           staff_members: staff_members.map { |member|
             { id: member.id, display_name: member.display_name, job_title: member.job_title,
               linked: linked_staff_ids.key?(member.id) }

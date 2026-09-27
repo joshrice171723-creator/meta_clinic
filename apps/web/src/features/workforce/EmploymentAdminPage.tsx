@@ -5,6 +5,10 @@ import {
   Checkbox,
   Chip,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -68,6 +72,7 @@ function EmploymentAccessEditor({
     employment.sites.filter((site) => site.active).map((site) => site.id),
   );
   const [saving, setSaving] = useState(false);
+  const [revokeOpen, setRevokeOpen] = useState(false);
   const toggleSite = (siteId: number) =>
     setSiteIds((current) =>
       current.includes(siteId)
@@ -161,9 +166,9 @@ function EmploymentAccessEditor({
               (!roleVersionId || siteIds.length === 0))
           }
           onClick={() =>
-            void update(
-              employment.membership_summary.active ? "revoke" : "restore",
-            )
+            employment.membership_summary.active
+              ? setRevokeOpen(true)
+              : void update("restore")
           }
         >
           {employment.membership_summary.active
@@ -171,6 +176,49 @@ function EmploymentAccessEditor({
             : "Restore clinic account"}
         </Button>
       </Stack>
+      <Dialog open={revokeOpen} onClose={() => setRevokeOpen(false)}>
+        <DialogTitle>
+          Revoke {employment.staff_member.display_name}’s clinic account?
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            <Typography>
+              Active assigned work stays with this employee. Eligible staff can
+              claim it from the clinical work queue.
+            </Typography>
+            <Typography variant="subtitle2">Active work by location</Typography>
+            {employment.active_work_by_site.length ? (
+              employment.active_work_by_site.map(({ site_id, count }) => (
+                <Typography key={site_id ?? "no-site"}>
+                  {sites.find((site) => site.id === site_id)?.name ??
+                    employment.sites.find((site) => site.id === site_id)
+                      ?.name ??
+                    (site_id ? `Site ${site_id}` : "No location")}
+                  : {count}
+                </Typography>
+              ))
+            ) : (
+              <Typography>No active assigned work.</Typography>
+            )}
+            <Typography variant="caption" color="text.secondary">
+              Counts reflect the employment list when it was loaded.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevokeOpen(false)}>Cancel</Button>
+          <Button
+            color="warning"
+            disabled={saving}
+            onClick={() => {
+              setRevokeOpen(false);
+              void update("revoke");
+            }}
+          >
+            Revoke account
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-13 offboarding work visibility
+
+The workforce administrator can review active assigned work by location before revoking an account. The [dated source record](../../records/implementation/2026-09-27-mc13-offboarding-work-summary.md) records the no-patient-detail response and states that existing tasks remain assigned for eligible coverage to claim. MC-13 Build moved 60→62%; validation and external/human gates are unchanged.
+
 ## 2026-09-27 — MC-14/15 clinical work and configuration snapshot
 
 Operations gained a current, site-scoped clinical-task summary and a practice-admin configuration JSON snapshot for human review. [Dated source evidence](../../records/implementation/2026-09-27-mc14-mc15-clinical-work-and-configuration.md) records authorized/denied synthetic reads and remaining browser, import and migration gaps. Build estimates moved to 40% for MC-14 and MC-15; validation and external gates did not change.

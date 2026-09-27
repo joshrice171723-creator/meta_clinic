@@ -35,6 +35,7 @@ export type WorkforceEmployment = {
       effective_until: string | null;
     }
   >;
+  active_work_by_site: Array<{ site_id: number | null; count: number }>;
 };
 
 export type EmploymentAdminData = {
