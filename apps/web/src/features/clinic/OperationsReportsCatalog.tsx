@@ -44,6 +44,7 @@ type DailyInvoicesReport = {
     currency: string;
     counts: Record<string, number>;
     posted_line_total: string;
+    current_outstanding_balance: string;
   }[];
 };
 
@@ -57,6 +58,15 @@ type DailyStockReport = {
   date: string;
   timezone: string;
   as_of: string;
+  records: {
+    id: number;
+    stock_type: string;
+    stock_unit: string;
+    kind: string;
+    signed_quantity: string;
+    occurred_at: string;
+  }[];
+  records_capped: boolean;
   movements: {
     stock_type: string;
     stock_unit: string;
@@ -527,7 +537,8 @@ function DailyInvoices({ date }: { date: string }) {
                 {Object.entries(row.counts)
                   .map(([state, count]) => `${state} ${count}`)
                   .join(" · ")}{" "}
-                · Posted line total {row.posted_line_total}
+                · Posted line total {row.posted_line_total} · Current
+                outstanding balance {row.current_outstanding_balance}
               </Typography>
             ))
           )}
@@ -536,6 +547,10 @@ function DailyInvoices({ date }: { date: string }) {
             {report.definition.revision} · {report.definition.date_basis} ·{" "}
             {report.timezone} · As of {report.as_of}.{" "}
             {report.definition.exclusions}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Outstanding balance is current for invoices created on this date,
+            not a day-end snapshot.
           </Typography>
           {report.records.map((record) => (
             <Button
@@ -567,15 +582,29 @@ function DailyInvoices({ date }: { date: string }) {
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
                   ["as_of", report.as_of],
-                  ["currency", "state", "count", "posted_line_total"],
-                  ...report.currencies.flatMap((row) =>
-                    Object.entries(row.counts).map(([state, count]) => [
+                  [
+                    "currency",
+                    "state",
+                    "count",
+                    "posted_line_total",
+                    "current_outstanding_balance",
+                  ],
+                  ...report.currencies.flatMap((row) => [
+                    ...Object.entries(row.counts).map(([state, count]) => [
                       row.currency,
                       state,
                       String(count),
                       state === "posted" ? row.posted_line_total : "",
+                      "",
                     ]),
-                  ),
+                    [
+                      row.currency,
+                      "all",
+                      "",
+                      "",
+                      row.current_outstanding_balance,
+                    ],
+                  ]),
                 ],
                 `daily-invoices-${report.date}.csv`,
               )
@@ -634,6 +663,30 @@ function DailyStockMovements({ date }: { date: string }) {
             {report.timezone} · As of {report.as_of}.{" "}
             {report.definition.exclusions}
           </Typography>
+          {report.records.map((record) =>
+            record.stock_type === "pharmacy" ? (
+              <Button
+                key={record.id}
+                size="small"
+                href={`/clinic/inventory/activity?q=entry%3A${record.id}`}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Entry {record.id} · pharmacy · {record.kind} ·{" "}
+                {record.signed_quantity} {record.stock_unit}
+              </Button>
+            ) : (
+              <Typography variant="body2" key={record.id}>
+                Entry {record.id} · {record.stock_type} · {record.kind} ·{" "}
+                {record.signed_quantity} {record.stock_unit} (no direct office
+                entry view)
+              </Typography>
+            ),
+          )}
+          {report.records_capped && (
+            <Typography variant="caption">
+              Showing the latest 25 stock entries for this date.
+            </Typography>
+          )}
           <Button
             size="small"
             variant="outlined"

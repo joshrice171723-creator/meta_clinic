@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14/15 current report recovery source checkpoint
+
+Five source changes add current invoice-cohort balances, bounded stock entry identities, exact pharmacy-entry ledger filtering, requested online collection amounts and current-revision unknown prescription recovery. Read-only managed-PostgreSQL queries and an authorized synthetic browser path showed the zero-balance invoice, USD 79 requested intent, five receipts and exact entry 296 in Activity. The [dated record](../../records/implementation/2026-09-27-mc14-mc15-current-report-recovery.md) separates this proof from missing CSV, server denial, exception-branch and external evidence. No tests ran; tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14/15 populated Operations browser checkpoint
 
 In a setup-complete synthetic clinic, five local proof slices covered selected-day Schedule counts, an invoice/payment allocation, five stock receipts, and the current local payment and prescription integration states. A limited same-practice account hid restricted data, and the report date survived navigation. The [dated browser record](../../records/implementation/2026-09-27-mc14-mc15-populated-browser-proof.md) separates these observations from missing server denial, CSV, exception-branch and external evidence. No application code changed or tests ran; tracker percentages remain unchanged.

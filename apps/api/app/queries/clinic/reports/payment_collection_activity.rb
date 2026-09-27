@@ -5,11 +5,15 @@ module Clinic
         Clinic::Authorization.authorize_with_legacy!(actor:, practice:, action: "billing.read", legacy_action: "billing.write")
         intents = Clinic::PaymentCollectionIntent.where(practice:)
         counts = intents.group(:state).count
+        amounts = intents.group(:currency, :state).sum(:amount)
         reconciliation = intents.where(state: "needs_reconciliation")
         {
           source: "clinic_payment_collection_intents", as_of: Time.current.iso8601(6),
           freshness: "live_source_query_no_cache", total: counts.values.sum,
           state_counts: Clinic::PaymentCollectionIntent::STATES.keys.index_with { |state| counts.fetch(state, 0) },
+          requested_amounts: amounts.keys.map(&:first).uniq.sort.map { |currency|
+            { currency:, states: Clinic::PaymentCollectionIntent::STATES.keys.index_with { |state| amounts.fetch([ currency, state ], 0).to_d.to_s("F") } }
+          },
           needs_reconciliation_count: counts.fetch("needs_reconciliation", 0),
           reconciliation_records: reconciliation.order(updated_at: :desc, id: :desc).limit(25)
             .pluck(:id, :patient_id, :invoice_id, :updated_at)

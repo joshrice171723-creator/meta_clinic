@@ -24,6 +24,10 @@ export function OperationsIntegrationInventory({
       as_of: string;
       total: number;
       state_counts: Record<string, number>;
+      requested_amounts: {
+        currency: string;
+        states: Record<string, string>;
+      }[];
       needs_reconciliation_count: number;
       reconciliation_records: {
         id: number;
@@ -48,7 +52,8 @@ export function OperationsIntegrationInventory({
       outcome_counts: Record<string, number>;
       latest_per_revision_outcome_counts: Record<string, number>;
       latest_per_revision_unknown_count: number;
-      latest_unknown_records: {
+      current_revision_unknown_count: number;
+      current_revision_unknown_records: {
         id: number;
         patient_id: number;
         medication_request_revision_id: number;
@@ -56,7 +61,7 @@ export function OperationsIntegrationInventory({
         outcome: string;
         submitted_at: string;
       }[];
-      latest_unknown_records_capped: boolean;
+      current_revision_unknown_records_capped: boolean;
       latest_submitted_at: string | null;
     };
   }>("/api/clinic/reports/prescription_simulator_activity", {
@@ -127,6 +132,19 @@ export function OperationsIntegrationInventory({
                       .join(" · ")}
                     .
                   </Typography>
+                  {collectionActivity.requested_amounts.map((row) => (
+                    <Typography variant="body2" key={row.currency}>
+                      {row.currency} requested by current intent state:{" "}
+                      {Object.entries(row.states)
+                        .map(
+                          ([state, amount]) =>
+                            `${state.replaceAll("_", " ")} ${amount}`,
+                        )
+                        .join(" · ")}
+                      . These are requested amounts, not collected or settled
+                      funds.
+                    </Typography>
+                  ))}
                   <Typography variant="caption" color="text.secondary">
                     Source: {collectionActivity.source} · As of{" "}
                     {collectionActivity.as_of}
@@ -194,9 +212,10 @@ export function OperationsIntegrationInventory({
                 {activity.unknown_outcome_count} attempts recorded an unknown
                 outcome historically ·{" "}
                 {activity.latest_per_revision_unknown_count} medication request
-                revisions have an unknown latest recorded attempt. Review each
-                current request before retrying; this is not a count of
-                unresolved patient work.
+                revisions have an unknown latest recorded attempt ·{" "}
+                {activity.current_revision_unknown_count} are the current
+                revision in their request series. Review each current request
+                before retrying; this is not a count of unresolved patient work.
               </Typography>
               <Typography variant="body2">
                 Recorded outcomes:{" "}
@@ -227,7 +246,7 @@ export function OperationsIntegrationInventory({
                   : " · No attempt recorded"}
                 .
               </Typography>
-              {activity.latest_unknown_records.map((record) => (
+              {activity.current_revision_unknown_records.map((record) => (
                 <Button
                   key={record.id}
                   href={`/clinic/patients/${record.patient_id}/encounters/${record.encounter_id}?medication_request_revision_id=${record.medication_request_revision_id}&prescription_attempt_id=${record.id}`}
@@ -239,10 +258,10 @@ export function OperationsIntegrationInventory({
                   {record.outcome.replaceAll("_", " ")}
                 </Button>
               ))}
-              {activity.latest_unknown_records_capped && (
+              {activity.current_revision_unknown_records_capped && (
                 <Typography variant="caption">
-                  Showing the latest 25 request revisions. Open patient records
-                  for the rest.
+                  Showing the latest 25 current request revisions with unknown
+                  attempts. Open patient records for the rest.
                 </Typography>
               )}
             </>

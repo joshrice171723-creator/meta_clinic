@@ -2744,6 +2744,12 @@ export function InventoryApp({ path }: { path: string }) {
           query.set("product_id", routeQuery.get("product_id")!);
         if (screen === "activity" && routeQuery.get("lot_id"))
           query.set("lot_id", routeQuery.get("lot_id")!);
+        if (
+          screen === "activity" &&
+          read.q === undefined &&
+          routeQuery.get("q")
+        )
+          query.set("q", routeQuery.get("q")!);
         if (needsPurchaseOrderFacility && routeQuery.get("product_id"))
           query.set("product_id", routeQuery.get("product_id")!);
         if (read.plan_mode) query.set("plan_mode", read.plan_mode);

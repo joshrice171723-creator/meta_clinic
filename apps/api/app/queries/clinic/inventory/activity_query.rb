@@ -19,8 +19,13 @@ module Clinic
         lot = Lot.where(practice_id: practice.id).find(lot_id) if lot_id.present?
         filtered = filtered.joins(:batch).where(clinic_pharmacy_batches: { lot_id: lot.id }) if lot
         if query.present?
-          filtered = filtered.where("concat_ws(' ',#{table}.kind,#{table}.reason,CASE WHEN #{receipt_table}.id IS NOT NULL THEN 'receipt_' || #{receipt_table}.receipt_id::text ELSE #{table}.request_key END) ILIKE ?",
-            "%#{PharmacyMovement.sanitize_sql_like(query)}%")
+          entry_id = query.match(/\Aentry:([1-9]\d{0,18})\z/)&.captures&.first
+          if entry_id && entry_id.to_i <= 9_223_372_036_854_775_807
+            filtered = filtered.where("#{table}.id = ?", entry_id.to_i)
+          else
+            filtered = filtered.where("concat_ws(' ',#{table}.kind,#{table}.reason,CASE WHEN #{receipt_table}.id IS NOT NULL THEN 'receipt_' || #{receipt_table}.receipt_id::text ELSE #{table}.request_key END) ILIKE ?",
+              "%#{PharmacyMovement.sanitize_sql_like(query)}%")
+          end
         end
         total_count = scope.count
         filtered_count = filtered.count

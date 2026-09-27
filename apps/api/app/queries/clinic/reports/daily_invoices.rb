@@ -24,7 +24,10 @@ module Clinic
             posted = scoped.where(status: "posted")
             {
               currency:, counts: Clinic::Invoice::STATES.keys.index_with { |state| counts.fetch([ currency, state ], 0) },
-              posted_line_total: Clinic::InvoiceLine.where(invoice_id: posted.select(:id)).sum(:posted_amount).to_d.to_s("F")
+              posted_line_total: Clinic::InvoiceLine.where(invoice_id: posted.select(:id)).sum(:posted_amount).to_d.to_s("F"),
+              current_outstanding_balance: Clinic::Invoice.from(
+                scoped.select(Arel.sql("#{Clinic::Billing::Dashboard::OUTSTANDING_BALANCE_SQL} AS outstanding_balance")), :cohort
+              ).sum(:outstanding_balance).to_d.to_s("F")
             }
           end
         }

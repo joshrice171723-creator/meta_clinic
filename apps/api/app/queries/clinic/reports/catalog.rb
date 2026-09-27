@@ -12,13 +12,13 @@ module Clinic
         exclusions: "Appointment requests, schedule holds, and encounter-derived calendar states are excluded."
       }.freeze
       DAILY_INVOICES = {
-        id: "daily_invoices", revision: 1, source: "clinic_invoices and clinic_invoice_lines",
+        id: "daily_invoices", revision: 2, source: "clinic_invoices, clinic_invoice_lines, clinic_payment_allocations and clinic_credit_notes",
         date_basis: "invoice created_at", state_basis: "current invoice status at query time",
         population: "Invoices created on the clinic-local date.",
         exclusions: "Payments, refunds, credits and later invoice state changes are not cash received."
       }.freeze
       DAILY_STOCK_MOVEMENTS = {
-        id: "daily_stock_movements", revision: 1, source: "clinic_inventory_entries",
+        id: "daily_stock_movements", revision: 2, source: "clinic_inventory_entries",
         date_basis: "entry occurred_at", population: "Recorded office and pharmacy inventory entries on the clinic-local date, including migrated entries.",
         exclusions: "Quantities with different stock types or units are never combined."
       }.freeze

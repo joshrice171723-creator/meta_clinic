@@ -13,6 +13,12 @@ module Clinic
           definition: Catalog::DAILY_STOCK_MOVEMENTS, practice_id: practice.id, date: date.iso8601,
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
+          records: entries.order(occurred_at: :desc, id: :desc).limit(25)
+            .pluck(:id, :stock_type, :stock_unit, :kind, :quantity, :occurred_at)
+            .map { |id, stock_type, stock_unit, kind, quantity, occurred_at|
+              { id:, stock_type:, stock_unit:, kind:, signed_quantity: quantity.to_d.to_s("F"), occurred_at: occurred_at.iso8601(6) }
+            },
+          records_capped: entries.count > 25,
           movements: counts.keys.sort.map do |stock_type, stock_unit, kind|
             { stock_type:, stock_unit:, kind:, count: counts.fetch([ stock_type, stock_unit, kind ]),
               signed_quantity: quantities.fetch([ stock_type, stock_unit, kind ]).to_d.to_s("F") }
