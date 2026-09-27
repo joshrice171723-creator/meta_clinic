@@ -8,11 +8,13 @@ module Clinic
           allowed: Clinic::Operations::FollowUpWorklist::FILTERS
         )
         site_id = params[:site_id].present? ? requested_id!(params[:site_id], :site_id) : nil
+        page = params[:page].present? ? bounded_integer!(params[:page], field: :page, min: 1, max: 1_000_000) : 1
         payload = Clinic::Operations::FollowUpWorklist.call(
           practice: current_practice,
           actor: current_user,
           filter: filter,
-          site_id: site_id
+          site_id: site_id,
+          page: page
         )
         Clinic::AuditRecorder.record!(
           practice: current_practice,

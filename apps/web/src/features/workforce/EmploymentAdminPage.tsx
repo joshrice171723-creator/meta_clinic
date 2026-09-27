@@ -175,6 +175,15 @@ function EmploymentAccessEditor({
             ? "Revoke clinic account"
             : "Restore clinic account"}
         </Button>
+        {!employment.membership_summary.active &&
+          employment.active_work_by_site.some(({ count }) => count > 0) && (
+            <Button
+              href="/clinic/work?assignment=offboarded"
+              variant="outlined"
+            >
+              Review work needing coverage
+            </Button>
+          )}
       </Stack>
       <Dialog open={revokeOpen} onClose={() => setRevokeOpen(false)}>
         <DialogTitle>

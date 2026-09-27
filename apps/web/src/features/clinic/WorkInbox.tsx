@@ -36,7 +36,7 @@ import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
 import { useClinicRealtimeTopic } from "./ClinicRealtime";
 
-type AssignmentFilter = "all" | "mine" | "overdue";
+type AssignmentFilter = "all" | "mine" | "overdue" | "offboarded";
 type WorkType =
   | "all"
   | "intake"
@@ -116,6 +116,12 @@ type FollowUpResponse = {
   encounter_follow_ups: EncounterFollowUpItem[];
   clinical_task_summary: Summary;
   clinical_tasks: ClinicalTaskItem[];
+  offboarded_tasks_page: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
   reminder_attention_count: number | null;
   actor_membership_id: number;
   can_manage_staff_requests: boolean;
@@ -1476,7 +1482,13 @@ export function WorkInbox() {
   const [callbacks, setCallbacks] = useState<
     SourceState<{ callback_requests: CallbackRequest[] }>
   >({ loading: canLoadCallbacks });
-  const [assignment, setAssignment] = useState<AssignmentFilter>("all");
+  const [assignment, setAssignment] = useState<AssignmentFilter>(() =>
+    new URLSearchParams(window.location.search).get("assignment") ===
+    "offboarded"
+      ? "offboarded"
+      : "all",
+  );
+  const [offboardedPage, setOffboardedPage] = useState(1);
   const [workType, setWorkType] = useState<WorkType>("all");
   const [refreshRevision, setRefreshRevision] = useState(0);
   const workScope = useRef("");
@@ -1539,6 +1551,7 @@ export function WorkInbox() {
     if (!canLoadWork) return;
     const abort = new AbortController();
     const params = new URLSearchParams({ filter: assignment });
+    if (assignment === "offboarded") params.set("page", String(offboardedPage));
     if (current_site?.id) params.set("site_id", String(current_site.id));
     const scope = params.toString();
     const retain = workScope.current === scope;
@@ -1561,7 +1574,13 @@ export function WorkInbox() {
           }));
       });
     return () => abort.abort();
-  }, [assignment, canLoadWork, current_site?.id, refreshRevision]);
+  }, [
+    assignment,
+    canLoadWork,
+    current_site?.id,
+    offboardedPage,
+    refreshRevision,
+  ]);
 
   useEffect(() => {
     if (!canLoadLabs) return;
@@ -1841,7 +1860,7 @@ export function WorkInbox() {
       });
     }
 
-    if (assignment !== "mine") {
+    if (assignment === "all" || assignment === "overdue") {
       labFollowUps.data?.items.forEach((item) => {
         const dueAt = item.follow_up.due_at;
         const overdue = Boolean(dueAt && isBeforeBusinessTime(dueAt));
@@ -1970,40 +1989,50 @@ export function WorkInbox() {
   ]);
 
   const anyLoading =
-    callbacks.loading ||
-    work.loading ||
-    labReviews.loading ||
-    labFollowUps.loading ||
-    refills.loading ||
-    exceptions.loading ||
-    scheduledVisits.loading;
+    assignment === "offboarded"
+      ? work.loading
+      : callbacks.loading ||
+        work.loading ||
+        labReviews.loading ||
+        labFollowUps.loading ||
+        refills.loading ||
+        exceptions.loading ||
+        scheduledVisits.loading;
   const exceptionSourceErrors = exceptions.data
     ? Object.entries(exceptions.data.sources)
         .filter(([, source]) => Boolean(source.error))
         .map(([, source]) => source.error?.message)
         .filter((message): message is string => Boolean(message))
     : [];
-  const sourceErrors = [
-    callbacks.error && "Callback requests",
-    work.error && "Assigned work",
-    labReviews.error && "Lab review",
-    labFollowUps.error && "Lab follow-up",
-    refills.error && "Refill requests",
-    exceptions.error && "Documentation and payment exceptions",
-    scheduledVisits.error && "Scheduled visits",
-    ...exceptionSourceErrors,
-  ].filter(Boolean);
+  const sourceErrors = (
+    assignment === "offboarded"
+      ? [work.error && "Assigned work"]
+      : [
+          callbacks.error && "Callback requests",
+          work.error && "Assigned work",
+          labReviews.error && "Lab review",
+          labFollowUps.error && "Lab follow-up",
+          refills.error && "Refill requests",
+          exceptions.error && "Documentation and payment exceptions",
+          scheduledVisits.error && "Scheduled visits",
+          ...exceptionSourceErrors,
+        ]
+  ).filter(Boolean);
   const returnedWorkCount = work.data
     ? work.data.requests.length +
       work.data.encounter_follow_ups.length +
       work.data.clinical_tasks.length
     : 0;
   const expectedWorkCount = work.data
-    ? work.data.summary[assignment === "all" ? "open" : assignment] +
-      work.data.encounter_summary[assignment === "all" ? "open" : assignment] +
-      work.data.clinical_task_summary[
-        assignment === "all" ? "open" : assignment
-      ]
+    ? assignment === "offboarded"
+      ? work.data.clinical_tasks.length
+      : work.data.summary[assignment === "all" ? "open" : assignment] +
+        work.data.encounter_summary[
+          assignment === "all" ? "open" : assignment
+        ] +
+        work.data.clinical_task_summary[
+          assignment === "all" ? "open" : assignment
+        ]
     : 0;
   const queuesTruncated =
     work.data?.renewal_exceptions_truncated === true ||
@@ -2025,7 +2054,11 @@ export function WorkInbox() {
 
   const flowItems = useMemo(() => {
     const patientFlowItems = items.filter((item) => !item.patientFlowHidden);
-    const scheduled = (scheduledVisits.data?.appointments || [])
+    const scheduled = (
+      assignment === "offboarded"
+        ? []
+        : scheduledVisits.data?.appointments || []
+    )
       .filter(
         (visit) =>
           !visit.encounter_id &&
@@ -2061,7 +2094,7 @@ export function WorkInbox() {
       },
       { new: [], active: [], scheduling: [], scheduled: [] },
     );
-  }, [items, scheduledVisits.data]);
+  }, [assignment, items, scheduledVisits.data]);
   const flowItemCount = patientFlowColumns.reduce(
     (count, column) => count + flowItems[column.id].length,
     0,
@@ -2143,7 +2176,15 @@ export function WorkInbox() {
       >
         <Tabs
           value={assignment}
-          onChange={(_, value: AssignmentFilter) => setAssignment(value)}
+          onChange={(_, value: AssignmentFilter) => {
+            setAssignment(value);
+            setOffboardedPage(1);
+            const url = new URL(window.location.href);
+            if (value === "offboarded")
+              url.searchParams.set("assignment", value);
+            else url.searchParams.delete("assignment");
+            window.history.replaceState(window.history.state, "", url);
+          }}
           aria-label="Work assignment filters"
           variant="scrollable"
           scrollButtons="auto"
@@ -2156,8 +2197,41 @@ export function WorkInbox() {
           <Tab value="all" label="All open" />
           <Tab value="mine" label="Mine" />
           <Tab value="overdue" label="Overdue" />
+          <Tab value="offboarded" label="Revoked owner work" />
         </Tabs>
         <Box sx={{ p: { xs: 2, md: 2.5 } }}>
+          {assignment === "offboarded" && work.data && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", mb: 2 }}
+            >
+              <Typography variant="body2" aria-live="polite">
+                {work.data.offboarded_tasks_page.total} active tasks assigned to
+                revoked accounts · Page {work.data.offboarded_tasks_page.page}{" "}
+                of {Math.max(1, work.data.offboarded_tasks_page.total_pages)}
+              </Typography>
+              <Button
+                disabled={work.data.offboarded_tasks_page.page <= 1}
+                onClick={() =>
+                  setOffboardedPage(work.data!.offboarded_tasks_page.page - 1)
+                }
+              >
+                Previous
+              </Button>
+              <Button
+                disabled={
+                  work.data.offboarded_tasks_page.page >=
+                  work.data.offboarded_tasks_page.total_pages
+                }
+                onClick={() =>
+                  setOffboardedPage(work.data!.offboarded_tasks_page.page + 1)
+                }
+              >
+                Next
+              </Button>
+            </Stack>
+          )}
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={2}

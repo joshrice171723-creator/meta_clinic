@@ -2,18 +2,19 @@ module Clinic
   module Operations
     class FollowUpWorklist
       ACTIONABLE_STATES = %w[open acknowledged in_progress].freeze
-      FILTERS = %w[all mine overdue unassigned].freeze
+      FILTERS = %w[all mine overdue unassigned offboarded].freeze
       LIMIT = 50
 
-      def self.call(practice:, actor:, filter: "all", site_id: nil, at: Current.business_time)
-        new(practice: practice, actor: actor, filter: filter, site_id: site_id, at: at).call
+      def self.call(practice:, actor:, filter: "all", site_id: nil, page: 1, at: Current.business_time)
+        new(practice: practice, actor: actor, filter: filter, site_id: site_id, page: page, at: at).call
       end
 
-      def initialize(practice:, actor:, filter:, site_id:, at:)
+      def initialize(practice:, actor:, filter:, site_id:, page:, at:)
         @practice = practice
         @actor = actor
         @filter = filter.to_s
         @site_id = site_id
+        @page = page
         @at = at
       end
 
@@ -69,9 +70,13 @@ module Clinic
           assignee_column: "assigned_to_membership_id",
           member: member
         )
-        clinical_tasks = filtered_clinical_tasks(task_scope, member)
+        filtered_tasks = filtered_clinical_tasks(task_scope, member)
+        offboarded_total = filter == "offboarded" ? filtered_tasks.count : 0
+        offboarded_page_count = (offboarded_total.to_f / LIMIT).ceil
+        offboarded_page = [ @page, [ offboarded_page_count, 1 ].max ].min
+        clinical_tasks = filtered_tasks
           .includes(:patient, :encounter, assigned_to_membership: :user)
-          .order(:due_at, :id).limit(LIMIT)
+          .order(:due_at, :id).limit(LIMIT).offset(filter == "offboarded" ? (offboarded_page - 1) * LIMIT : 0)
         recorded_appointment_keys = recorded_appointment_keys_for(clinical_tasks)
 
         renewals = can_read_renewals && !site_id && filter.in?(%w[all unassigned]) ? renewal_exceptions : []
@@ -85,6 +90,7 @@ module Clinic
           encounter_summary: encounter_summary,
           encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
           clinical_task_summary: clinical_task_summary,
+          offboarded_tasks_page: { page: offboarded_page, per_page: LIMIT, total: offboarded_total, total_pages: offboarded_page_count },
           clinical_tasks: clinical_tasks.map do |task|
             serialize_clinical_task(task, member,
               has_recorded_appointment: has_recorded_appointment?(task, recorded_appointment_keys))
@@ -96,7 +102,7 @@ module Clinic
 
       private
 
-      attr_reader :practice, :actor, :filter, :site_id, :at
+      attr_reader :practice, :actor, :filter, :site_id, :page, :at
 
       def renewal_exceptions
         coverage = practice.memberships.active.includes(:user).any? do |membership|
@@ -158,6 +164,7 @@ module Clinic
         when "mine" then scope.where(assignee_membership_id: member.id)
         when "overdue" then scope.where("clinic_staff_message_requests.due_at < ?", at)
         when "unassigned" then scope.where(assignee_membership_id: nil)
+        when "offboarded" then scope.none
         else scope
         end
       end
@@ -203,6 +210,7 @@ module Clinic
         when "mine" then scope.where(assigned_to_membership_id: member.id)
         when "overdue" then scope.where("clinic_encounter_follow_ups.due_at < ?", at)
         when "unassigned" then scope.where(assigned_to_membership_id: nil)
+        when "offboarded" then scope.none
         else scope
         end
       end
@@ -233,6 +241,9 @@ module Clinic
         when "mine" then scope.where(assigned_to_membership_id: member.id)
         when "overdue" then scope.where("clinic_clinical_tasks.due_at < ?", at)
         when "unassigned" then scope.where(assigned_to_membership_id: nil)
+        when "offboarded" then scope.joins("INNER JOIN clinic_memberships task_owner ON task_owner.id = clinic_clinical_tasks.assigned_to_membership_id AND task_owner.practice_id = clinic_clinical_tasks.practice_id")
+          .joins("INNER JOIN users task_owner_user ON task_owner_user.id = task_owner.user_id")
+          .where("task_owner.active = FALSE OR task_owner_user.active = FALSE")
         else scope
         end
       end
@@ -287,6 +298,9 @@ module Clinic
           version = contact_attempt.follow_up.lab_report_version
           encounter_href = "/clinic/patients/#{task.patient_id}?lab_report_id=#{version.lab_report_id}&lab_version_id=#{version.id}"
         end
+        source_note = if Ability.new(actor, practice:).allowed_permission?("notes.read", site: task.site)
+          contact_attempt&.note || lab_action&.note
+        end
         Clinic::Care::NurseWorkflow.serialize_task(task).merge(
           patient_display_name: task.patient.display_name,
           patient_reference: task.patient.reference,
@@ -295,9 +309,7 @@ module Clinic
           overdue: task.due_at.present? && task.due_at < at,
           eligible_assignees: eligible_assignees_for_task(task),
           source_label: lab_action ? "Laboratory recollection" : (contact_attempt ? "Lab result contact follow-up" : nil),
-          source_note: if Ability.new(actor, practice:).allowed_permission?("notes.read", site: task.site)
-            contact_attempt&.note || lab_action&.note
-          end,
+          source_note: source_note,
           encounter_href:,
           patient_href: "/clinic/patients/#{task.patient_id}",
           has_recorded_appointment:
