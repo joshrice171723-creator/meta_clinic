@@ -143,6 +143,9 @@ export function CashDrawerOperations({
   onPendingChangeRef.current = onPendingChange;
   const allocationInvoiceSelection = useRef("");
   const drawerRefreshVersion = useRef(refreshVersion);
+  const closeAttempt = useRef<{ signature: string; requestKey: string } | null>(
+    null,
+  );
   useEffect(() => {
     persistCashAttempt(clinic, cashAttempt);
     const pending = cashAttempt !== null;
@@ -401,6 +404,16 @@ export function CashDrawerOperations({
       setError("Enter the counted cash amount with up to six decimal places.");
       return;
     }
+    const signature = JSON.stringify({
+      drawerId: drawer.id,
+      countedCash,
+      explanation: explanation.trim(),
+    });
+    const attempt =
+      closeAttempt.current?.signature === signature
+        ? closeAttempt.current
+        : { signature, requestKey: requestKey() };
+    closeAttempt.current = attempt;
     setBusy("close");
     setError("");
     try {
@@ -412,6 +425,7 @@ export function CashDrawerOperations({
             drawer: {
               counted_cash: countedCash,
               discrepancy_explanation: explanation,
+              request_key: attempt.requestKey,
             },
           },
         },
@@ -419,12 +433,14 @@ export function CashDrawerOperations({
       setNotice(
         `Drawer closed with a ${money(result.drawer.discrepancy ?? "0", "USD")} discrepancy. It remains recorded for manager reconciliation.`,
       );
+      closeAttempt.current = null;
       setCountedCash("");
       setExplanation("");
       setSelectedDrawerId(result.drawer.id.toString());
       setNewDrawerMode(false);
       drawers.refresh();
     } catch (reason) {
+      drawers.refresh();
       reportError(reason, "The cash drawer could not be closed.");
     } finally {
       setBusy(null);

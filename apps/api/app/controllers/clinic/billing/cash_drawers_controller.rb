@@ -26,16 +26,35 @@ module Clinic
       end
 
       def close
-        input = parameter_hash!(:drawer, %i[counted_cash discrepancy_explanation])
+        input = parameter_hash!(:drawer, %i[counted_cash discrepancy_explanation request_key])
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 100)
         session = current_practice.cash_drawer_sessions.find(requested_id!(params[:id], :id))
-        session.with_lock do
-          raise ArgumentError, "The cash drawer is already closed." unless session.status == "open"
-          counted = BigDecimal(decimal_string!(input[:counted_cash], field: :counted_cash))
-          expected = BigDecimal(CashDrawer.call(session).fetch(:expected_cash))
-          session.update!(status: "closed", counted_cash: counted, discrepancy: counted - expected,
-            discrepancy_explanation: input[:discrepancy_explanation].presence, closed_by: current_user, closed_at: Time.current)
+        counted = BigDecimal(decimal_string!(input[:counted_cash], field: :counted_cash))
+        explanation = input[:discrepancy_explanation].to_s.strip.presence
+        outcome = Clinic::Idempotency.execute(
+          practice: current_practice,
+          actor: current_user,
+          operation_code: "billing.cash_drawer.close",
+          request_key: request_key,
+          payload: { cash_drawer_session_id: session.id, counted_cash: counted.to_s("F"), discrepancy_explanation: explanation },
+          resource: session,
+          authorization: -> { authorize_drawer_access },
+          authorization_action: "billing.payment_record",
+          result_resource: ->(drawer) { drawer },
+          resource_resolver: ->(practice:, receipt:) { practice.cash_drawer_sessions.find_by(id: receipt.resource_id) }
+        ) do
+          session.with_lock do
+            raise ArgumentError, "The cash drawer is already closed." unless session.status == "open"
+            expected = BigDecimal(CashDrawer.call(session).fetch(:expected_cash))
+            session.update!(status: "closed", counted_cash: counted, discrepancy: counted - expected,
+              discrepancy_explanation: explanation, closed_by: current_user, closed_at: Time.current)
+          end
+          session
         end
-        render json: { drawer: CashDrawer.call(session.reload) }
+        raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+        closed_session = outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed cash drawer close is unavailable.")
+        render json: { drawer: CashDrawer.call(closed_session.reload) }
       end
 
       def reconcile
