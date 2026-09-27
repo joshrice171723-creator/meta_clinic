@@ -10,6 +10,7 @@ Rails.application.routes.draw do
   post "owner/clinics/:id/owner_invitation", to: "platform/api/command_center#invite_owner"
   get "public/membership_storefronts", to: "public/membership_storefronts#index"
   get "public/clinic_services/:slug", to: "public/clinic_services#show"
+  post "public/clinic_services/:slug/inquiries", to: "public/clinic_services#create"
   get "demo/run", to: "development/demo_runs#show"
   post "demo/lesson", to: "development/demo_runs#lesson"
   post "demo/lesson/complete", to: "development/demo_runs#complete"
@@ -251,6 +252,7 @@ Rails.application.routes.draw do
       post :phone_payment, on: :member
       post :refresh_phone_payment, on: :member
     end
+    resources :service_inquiries, only: %i[index update]
     resources :callback_requests, controller: "operations/callback_requests", only: :index do
       post :transition, on: :member
     end

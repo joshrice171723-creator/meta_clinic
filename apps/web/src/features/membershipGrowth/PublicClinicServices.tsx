@@ -1,13 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Checkbox,
+  FormControlLabel,
+  MenuItem,
   Stack,
+  TextField,
   ThemeProvider,
   Typography,
 } from "@mui/material";
+import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 
@@ -15,6 +21,7 @@ type ClinicServicesResponse = {
   practice: { name: string; slug: string };
   membership_path: string | null;
   services: Array<{
+    id: number;
     name: string;
     description: string | null;
     duration_minutes: number | null;
@@ -26,6 +33,50 @@ export function PublicClinicServices({ slug }: { slug: string }) {
   const resource = useResource<ClinicServicesResponse>(
     `/api/public/clinic_services/${encodeURIComponent(slug)}`,
   );
+  const [serviceId, setServiceId] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [outreachConsent, setOutreachConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [received, setReceived] = useState(false);
+  const requestKey = useRef<string | null>(null);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    requestKey.current ||= crypto.randomUUID();
+    try {
+      await api(
+        `/api/public/clinic_services/${encodeURIComponent(slug)}/inquiries`,
+        {
+          method: "POST",
+          body: {
+            inquiry: {
+              service_offering_id: Number(serviceId),
+              display_name: displayName,
+              email_address: emailAddress,
+              phone_number: phoneNumber,
+              outreach_consent: outreachConsent,
+              request_key: requestKey.current,
+            },
+          },
+        },
+      );
+      setReceived(true);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "The request could not be confirmed. Try again without changing your details.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!resource.data) return;
@@ -104,6 +155,104 @@ export function PublicClinicServices({ slug }: { slug: string }) {
                   </Card>
                 ))}
               </Box>
+            )}
+            {resource.data.services.length > 0 && (
+              <Card
+                component="section"
+                variant="outlined"
+                sx={{ maxWidth: 640 }}
+              >
+                <CardContent>
+                  <Typography component="h2" variant="h5" gutterBottom>
+                    Ask about a service
+                  </Typography>
+                  {received ? (
+                    <Alert severity="success">
+                      Your request was received. The clinic can contact you
+                      using the details you provided.
+                    </Alert>
+                  ) : (
+                    <Stack
+                      component="form"
+                      spacing={2}
+                      onSubmit={(event) => void submit(event)}
+                    >
+                      <TextField
+                        select
+                        required
+                        label="Service"
+                        value={serviceId}
+                        onChange={(event) => setServiceId(event.target.value)}
+                      >
+                        {resource.data.services.map((service) => (
+                          <MenuItem key={service.id} value={service.id}>
+                            {service.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        required
+                        label="Your name"
+                        value={displayName}
+                        onChange={(event) => setDisplayName(event.target.value)}
+                        slotProps={{ htmlInput: { maxLength: 120 } }}
+                      />
+                      <TextField
+                        type="email"
+                        label="Email address"
+                        value={emailAddress}
+                        onChange={(event) =>
+                          setEmailAddress(event.target.value)
+                        }
+                        slotProps={{ htmlInput: { maxLength: 320 } }}
+                      />
+                      <TextField
+                        type="tel"
+                        label="Phone number"
+                        value={phoneNumber}
+                        onChange={(event) => setPhoneNumber(event.target.value)}
+                        slotProps={{ htmlInput: { maxLength: 40 } }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        Provide an email address or phone number so the clinic
+                        can reply.
+                      </Typography>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={outreachConsent}
+                            onChange={(_, checked) =>
+                              setOutreachConsent(checked)
+                            }
+                            required
+                          />
+                        }
+                        label={`I agree that ${resource.data.practice.name} may contact me about this service request.`}
+                      />
+                      {error && (
+                        <Alert severity="error">
+                          {error} If the result is uncertain, submit again
+                          without changing your details.
+                        </Alert>
+                      )}
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        disabled={
+                          busy ||
+                          !serviceId ||
+                          !displayName.trim() ||
+                          (!emailAddress.trim() && !phoneNumber.trim()) ||
+                          !outreachConsent
+                        }
+                        sx={{ alignSelf: "flex-start" }}
+                      >
+                        {busy ? "Sending…" : "Ask the clinic"}
+                      </Button>
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
             )}
             {resource.data.membership_path && (
               <Button

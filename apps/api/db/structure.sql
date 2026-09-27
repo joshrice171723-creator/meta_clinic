@@ -9414,6 +9414,47 @@ ALTER SEQUENCE public.clinic_scribe_sources_id_seq OWNED BY public.clinic_scribe
 
 
 --
+-- Name: clinic_service_inquiries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_service_inquiries (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    service_offering_id bigint NOT NULL,
+    request_key character varying(160) NOT NULL,
+    request_digest character varying(64) NOT NULL,
+    display_name text NOT NULL,
+    email_address text,
+    phone_number text,
+    outreach_consent_at timestamp(6) with time zone NOT NULL,
+    status character varying(24) DEFAULT 'new'::character varying NOT NULL,
+    lock_version bigint DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_service_inquiries_values CHECK ((((status)::text = ANY ((ARRAY['new'::character varying, 'contacted'::character varying, 'closed'::character varying])::text[])) AND (lock_version >= 0) AND ((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((char_length(TRIM(BOTH FROM request_key)) >= 1) AND (char_length(TRIM(BOTH FROM request_key)) <= 160))))
+);
+
+
+--
+-- Name: clinic_service_inquiries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_service_inquiries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_service_inquiries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_service_inquiries_id_seq OWNED BY public.clinic_service_inquiries.id;
+
+
+--
 -- Name: clinic_service_offering_clinicians; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -14142,6 +14183,13 @@ ALTER TABLE ONLY public.clinic_scribe_sources ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: clinic_service_inquiries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_inquiries ALTER COLUMN id SET DEFAULT nextval('public.clinic_service_inquiries_id_seq'::regclass);
+
+
+--
 -- Name: clinic_service_offering_clinicians id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -16189,6 +16237,14 @@ ALTER TABLE ONLY public.clinic_scribe_source_segments
 
 ALTER TABLE ONLY public.clinic_scribe_sources
     ADD CONSTRAINT clinic_scribe_sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_service_inquiries clinic_service_inquiries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_inquiries
+    ADD CONSTRAINT clinic_service_inquiries_pkey PRIMARY KEY (id);
 
 
 --
@@ -18721,6 +18777,27 @@ CREATE UNIQUE INDEX clinic_scribe_sources_practice_id ON public.clinic_scribe_so
 --
 
 CREATE UNIQUE INDEX clinic_scribe_sources_scope ON public.clinic_scribe_sources USING btree (practice_id, encounter_id, id);
+
+
+--
+-- Name: clinic_service_inquiries_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_service_inquiries_practice_id ON public.clinic_service_inquiries USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_service_inquiries_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_service_inquiries_queue ON public.clinic_service_inquiries USING btree (practice_id, status, created_at, id);
+
+
+--
+-- Name: clinic_service_inquiries_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_service_inquiries_request_key ON public.clinic_service_inquiries USING btree (practice_id, request_key);
 
 
 --
@@ -31080,6 +31157,22 @@ ALTER TABLE ONLY public.clinic_scribe_sources
 
 
 --
+-- Name: clinic_service_inquiries fk_service_inquiries_offering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_inquiries
+    ADD CONSTRAINT fk_service_inquiries_offering FOREIGN KEY (practice_id, service_offering_id) REFERENCES public.clinic_service_offerings(practice_id, id);
+
+
+--
+-- Name: clinic_service_inquiries fk_service_inquiries_practice; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_service_inquiries
+    ADD CONSTRAINT fk_service_inquiries_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_service_offering_clinicians fk_service_offering_clinicians_clinician; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31718,6 +31811,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927192000'),
 ('20260927182000'),
 ('20260926030100'),
 ('20260926030000'),

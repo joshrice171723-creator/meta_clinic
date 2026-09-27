@@ -46,6 +46,7 @@ module Clinic
     has_many :patient_reminder_outboxes, class_name: "Clinic::PatientReminderOutbox", dependent: :restrict_with_error
     has_many :billing_services, class_name: "Clinic::BillingService", dependent: :restrict_with_error
     has_many :service_offerings, class_name: "Clinic::ServiceOffering", dependent: :restrict_with_error
+    has_many :service_inquiries, class_name: "Clinic::ServiceInquiry", dependent: :restrict_with_error
     has_many :lab_reports, class_name: "Clinic::Care::LabReport", dependent: :restrict_with_error
     has_many :invoices, class_name: "Clinic::Invoice", dependent: :restrict_with_error
     has_many :payment_collection_intents, class_name: "Clinic::PaymentCollectionIntent", dependent: :restrict_with_error

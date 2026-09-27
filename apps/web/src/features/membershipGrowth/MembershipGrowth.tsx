@@ -25,6 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import { ServiceInquiries } from "./ServiceInquiries";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { subscriptionMoney } from "../clinic/subscriptions/contracts";
@@ -566,6 +567,7 @@ export function MembershipGrowth() {
                 </TableContainer>
               )}
             </Paper>
+            {resource.data.capabilities.review && <ServiceInquiries />}
           </>
         )}
       </Stack>

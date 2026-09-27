@@ -11,6 +11,7 @@ module Clinic
     has_many :sites, through: :offering_sites, class_name: "Clinic::Site"
     has_many :offering_clinicians, class_name: "Clinic::ServiceOfferingClinician", dependent: :restrict_with_error
     has_many :clinicians, through: :offering_clinicians, class_name: "Clinic::ClinicianProfile"
+    has_many :service_inquiries, class_name: "Clinic::ServiceInquiry", dependent: :restrict_with_error
 
     validates :name, presence: true, length: { maximum: 160 }
     validates :code, length: { maximum: 50 }, uniqueness: { scope: :practice_id }, allow_nil: true
