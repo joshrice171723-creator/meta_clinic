@@ -569,6 +569,7 @@ function LedgerDetails({
       <CashPayEstimates
         key={ledger.patient.id}
         patientId={ledger.patient.id}
+        patientName={ledger.patient.display_name}
         canDraft={canDraft}
         onUnknownOutcomeChange={onEstimateUnknownOutcomeChange}
       />

@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Chip,
+  GlobalStyles,
   MenuItem,
   Paper,
   Stack,
@@ -16,6 +17,8 @@ import type { BillingService } from "./InvoiceLineEditor";
 export type CashPayEstimate = {
   id: number;
   patient_id: number | null;
+  practice_name: string;
+  total_amount: string;
   classification: "general_estimate" | "gfe_candidate" | "issued_gfe";
   status: "draft" | "issued" | "superseded" | "void";
   currency: string;
@@ -165,10 +168,12 @@ export function estimateFailure(reason: unknown) {
 
 export function CashPayEstimates({
   patientId,
+  patientName,
   canDraft,
   onUnknownOutcomeChange,
 }: {
   patientId: number;
+  patientName: string;
   canDraft: boolean;
   onUnknownOutcomeChange?: (unknown: boolean) => void;
 }) {
@@ -342,6 +347,9 @@ export function CashPayEstimates({
     selected?.status === "draft" &&
     selected.classification === "gfe_candidate" &&
     (!selected.supersedes_id || Boolean(predecessor));
+  const printable =
+    selected?.classification === "issued_gfe" &&
+    ["issued", "superseded"].includes(selected.status);
   const validLines =
     lines.length > 0 &&
     lines.every(
@@ -396,6 +404,26 @@ export function CashPayEstimates({
   return (
     <Paper component="section" variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
+        {printable && (
+          <GlobalStyles
+            styles={{
+              "@media print": {
+                "body *": { visibility: "hidden !important" },
+                ".cash-pay-estimate-printout, .cash-pay-estimate-printout *": {
+                  visibility: "visible !important",
+                },
+                ".cash-pay-estimate-printout": {
+                  display: "block !important",
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  boxShadow: "none",
+                  border: 0,
+                },
+              },
+            }}
+          />
+        )}
         <Box>
           <Typography component="h3" variant="h6">
             Cash-pay estimates
@@ -469,6 +497,92 @@ export function CashPayEstimates({
               />
             )}
           </Stack>
+        )}
+        {printable && (
+          <Button
+            variant="outlined"
+            onClick={() => window.print()}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Print estimate copy
+          </Button>
+        )}
+        {printable && (
+          <Paper
+            className="cash-pay-estimate-printout"
+            variant="outlined"
+            sx={{ display: "none", p: 4, color: "#111", bgcolor: "#fff" }}
+          >
+            <Typography component="h1" variant="h4" sx={{ mb: 1 }}>
+              Good Faith Estimate
+            </Typography>
+            <Typography>{selected.practice_name}</Typography>
+            <Typography>Prepared for {patientName}</Typography>
+            <Typography>
+              Estimate #{selected.id} · revision {selected.revision} ·{" "}
+              {selected.status}
+            </Typography>
+            <Typography>
+              Issued{" "}
+              {selected.issued_at
+                ? new Date(selected.issued_at).toLocaleString()
+                : "date unavailable"}
+              {selected.policy_version
+                ? ` · Policy ${selected.policy_version}`
+                : ""}
+            </Typography>
+            {selected.supersedes_id && (
+              <Typography>
+                Correction of estimate #{selected.supersedes_id}:{" "}
+                {selected.correction_reason}
+              </Typography>
+            )}
+            <Box
+              component="table"
+              sx={{ width: "100%", borderCollapse: "collapse", mt: 3 }}
+            >
+              <thead>
+                <tr>
+                  <th align="left">Service and details</th>
+                  <th align="right">Quantity</th>
+                  <th align="right">Unit estimate</th>
+                  <th align="right">Expected amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selected.lines.map((line) => (
+                  <tr key={line.id}>
+                    <td>
+                      {line.description}
+                      {line.inclusions ? ` · Includes: ${line.inclusions}` : ""}
+                      {line.exclusions ? ` · Excludes: ${line.exclusions}` : ""}
+                    </td>
+                    <td align="right">{line.quantity}</td>
+                    <td align="right">
+                      {selected.currency} {line.unit_amount}
+                    </td>
+                    <td align="right">
+                      {selected.currency} {line.expected_amount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colSpan={3} align="right">
+                    Estimated total
+                  </th>
+                  <th align="right">
+                    {selected.currency} {selected.total_amount}
+                  </th>
+                </tr>
+              </tfoot>
+            </Box>
+            <Typography variant="body2" sx={{ mt: 3 }}>
+              This estimate reflects the saved expected charges. It is not an
+              invoice or receipt.
+            </Typography>
+          </Paper>
         )}
         {selected && companion && (
           <Typography color="text.secondary" variant="body2">

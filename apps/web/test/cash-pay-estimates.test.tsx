@@ -11,6 +11,8 @@ import {
 const issued: CashPayEstimate = {
   id: 10,
   patient_id: 3,
+  practice_name: "Synthetic clinic",
+  total_amount: "75.0",
   classification: "issued_gfe",
   status: "superseded",
   currency: "USD",
