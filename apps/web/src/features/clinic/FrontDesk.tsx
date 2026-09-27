@@ -36,7 +36,11 @@ import type {
 } from "../../api/contracts";
 import { businessNow } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
-import { bookingAvailability } from "./CareFlow";
+import {
+  bookingAvailability,
+  offeringEligibilityIssue,
+  type BookingServiceOffering,
+} from "./CareFlow";
 import { patientReferenceLabel } from "./patientReference";
 import {
   appointmentActions,
@@ -259,6 +263,11 @@ function AppointmentDayQueue({
     page,
   });
   const appointments = useResource<FrontDeskAppointmentResponse>(path);
+  const offerings = useResource<{
+    service_offerings: BookingServiceOffering[];
+  }>("/api/clinic/service_offerings?status=published", {
+    enabled: Boolean(reschedule),
+  });
   const clinicians = useResource<{ clinicians: Clinician[] }>(
     "/api/clinic/clinicians?per_page=100",
   );
@@ -508,6 +517,9 @@ function AppointmentDayQueue({
       visitTypeId: appointment.visit_type_id
         ? String(appointment.visit_type_id)
         : "",
+      serviceOfferingId: appointment.service_offering_id
+        ? String(appointment.service_offering_id)
+        : "",
       requestKey: crypto.randomUUID(),
       error: "",
       busy: false,
@@ -550,6 +562,30 @@ function AppointmentDayQueue({
       return;
     }
 
+    if (reschedule.serviceOfferingId) {
+      const offering = offerings.data?.service_offerings.find(
+        (item) => String(item.id) === reschedule.serviceOfferingId,
+      );
+      const issue = offering
+        ? offeringEligibilityIssue(
+            offering,
+            reschedule.siteId,
+            reschedule.clinicianId,
+            reschedule.visitTypeId,
+            reschedule.appointment.visit_modality || "in_person",
+            reschedule.roomId,
+            reschedule.startsAt,
+            reschedule.endsAt,
+          )
+        : "The selected service is unavailable. Choose a published replacement or reload the service list.";
+      if (issue) {
+        setReschedule((current) =>
+          current ? { ...current, error: issue } : current,
+        );
+        return;
+      }
+    }
+
     setReschedule((current) =>
       current ? { ...current, busy: true, error: "" } : current,
     );
@@ -564,6 +600,7 @@ function AppointmentDayQueue({
             room_id: reschedule.roomId || null,
             booked_clinician_id: reschedule.clinicianId,
             visit_type_id: reschedule.visitTypeId,
+            service_offering_id: reschedule.serviceOfferingId || null,
             expected_updated_at: reschedule.appointment.updated_at,
             request_key: reschedule.requestKey,
           },
@@ -950,7 +987,10 @@ function AppointmentDayQueue({
         clinicians={clinicians.data?.clinicians ?? []}
         visitTypes={visitTypes.data?.visit_types ?? []}
         rooms={rooms.data?.rooms ?? []}
-        setupOptionsError={clinicians.error || visitTypes.error || rooms.error}
+        offerings={offerings.data?.service_offerings ?? []}
+        setupOptionsError={
+          offerings.error || clinicians.error || visitTypes.error || rooms.error
+        }
         onChange={setReschedule}
         onClose={() => {
           if (!reschedule?.busy) setReschedule(undefined);
@@ -1179,6 +1219,7 @@ type RescheduleDraft = {
   roomId: string;
   clinicianId: string;
   visitTypeId: string;
+  serviceOfferingId: string;
   requestKey: string;
   error: string;
   busy: boolean;
@@ -1192,6 +1233,7 @@ function RescheduleDialog({
   clinicians,
   visitTypes,
   rooms,
+  offerings,
   setupOptionsError,
   onChange,
   onClose,
@@ -1204,6 +1246,7 @@ function RescheduleDialog({
   clinicians: Clinician[];
   visitTypes: VisitType[];
   rooms: FacilityRoom[];
+  offerings: BookingServiceOffering[];
   setupOptionsError?: string;
   onChange: (draft: RescheduleDraft | undefined) => void;
   onClose: () => void;
@@ -1318,6 +1361,66 @@ function RescheduleDialog({
                 {site.status !== "active" ? " (unavailable)" : ""}
               </MenuItem>
             ))}
+          </TextField>
+          <TextField
+            select
+            label="Service offering"
+            value={draft?.serviceOfferingId || ""}
+            disabled={draft?.busy || draft?.outcomeUnconfirmed}
+            helperText="Selecting a service sets its visit type. Review the required duration and room before saving."
+            onChange={(event) => {
+              if (!draft) return;
+              const offering = offerings.find(
+                (item) => String(item.id) === event.target.value,
+              );
+              onChange({
+                ...draft,
+                serviceOfferingId: event.target.value,
+                visitTypeId: offering?.visit_type_id
+                  ? String(offering.visit_type_id)
+                  : draft.visitTypeId,
+                requestKey: crypto.randomUUID(),
+                error: "",
+              });
+            }}
+          >
+            <MenuItem
+              value=""
+              disabled={Boolean(draft?.appointment.service_offering_id)}
+            >
+              Visit-type booking (no linked service)
+            </MenuItem>
+            {draft?.serviceOfferingId &&
+              !offerings.some(
+                (item) => String(item.id) === draft.serviceOfferingId,
+              ) && (
+                <MenuItem value={draft.serviceOfferingId} disabled>
+                  Saved service #{draft.serviceOfferingId} — unavailable; choose
+                  a replacement
+                </MenuItem>
+              )}
+            {offerings.map((offering) => {
+              const eligible =
+                offering.eligible_site_ids.includes(Number(draft?.siteId)) &&
+                (!offering.eligible_clinician_ids.length ||
+                  offering.eligible_clinician_ids.includes(
+                    Number(draft?.clinicianId),
+                  )) &&
+                (offering.modality === "either" ||
+                  offering.modality ===
+                    (draft?.appointment.visit_modality || "in_person"));
+              return (
+                <MenuItem
+                  key={offering.id}
+                  value={String(offering.id)}
+                  disabled={!eligible}
+                >
+                  {offering.name} · {offering.duration_minutes} min
+                  {offering.requires_room ? " · room required" : ""}
+                  {!eligible ? " · unavailable for this selection" : ""}
+                </MenuItem>
+              );
+            })}
           </TextField>
           <TextField
             select

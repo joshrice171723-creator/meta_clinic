@@ -172,7 +172,7 @@ type BookingClinician = Clinician & {
   display_name?: string | null;
 };
 
-type BookingServiceOffering = {
+export type BookingServiceOffering = {
   id: number;
   name: string;
   code: string | null;
