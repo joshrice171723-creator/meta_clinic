@@ -492,27 +492,37 @@ export function DemoJourney() {
       )}
       {run.lesson_key && (activeLesson || sandbox) ? (
         <>
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-            <Stack spacing={1.5}>
+          <Paper variant="outlined" sx={{ px: { xs: 1.25, sm: 2 }, py: 0.5 }}>
+            <Stack spacing={sandbox ? 0.5 : 1.5}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
-                spacing={1}
+                spacing={sandbox ? 0.5 : 1}
                 sx={{
                   alignItems: { sm: "center" },
                   justifyContent: "space-between",
                 }}
               >
                 <Box>
-                  <Typography component="h1" variant="h5">
+                  <Typography
+                    component="h1"
+                    variant={sandbox ? "subtitle1" : "h5"}
+                  >
                     {sandbox ? "Sandbox" : activeLesson?.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    variant={sandbox ? "caption" : "body2"}
+                    color="text.secondary"
+                  >
                     {sandbox
                       ? "Full synthetic clinic workspace"
                       : `${roleLabel(activeLesson?.role ?? "administrator")} workspace`}
                   </Typography>
                   {sandbox && lastSandboxDuration !== null && (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: { xs: "none", md: "block" } }}
+                    >
                       Last preparation: {durationLabel(lastSandboxDuration)}
                     </Typography>
                   )}
@@ -527,11 +537,13 @@ export function DemoJourney() {
                 </Button>
               </Stack>
               {sandbox ? (
-                <Alert severity="info" icon={false}>
-                  This is a full, editable clinic workspace with prepared
-                  synthetic patients, appointments, encounters, inventory,
-                  messaging, workforce, telehealth, reminders, and billing data.
-                  Everyone entering the sandbox sees changes made here.
+                <Alert
+                  severity="info"
+                  icon={false}
+                  sx={{ py: 0, "& .MuiAlert-message": { py: 0.5 } }}
+                >
+                  Shared editable workspace · synthetic clinic data · changes
+                  visible to everyone.
                 </Alert>
               ) : (
                 <Box
