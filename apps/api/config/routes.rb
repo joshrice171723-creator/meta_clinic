@@ -89,6 +89,7 @@ Rails.application.routes.draw do
     patch "facilities/:id", to: "facilities#update"
     get "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#show"
     patch "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#update"
+    get "practice_features/history", to: "practice_features#history"
     resource :practice_features, only: %i[show update]
     resources :visit_types, only: %i[create update]
     resources :clinicians, controller: "clinicians", only: %i[index create]

@@ -3,6 +3,21 @@ module Clinic
     before_action -> { require_capability_with_legacy("facilities.read", "appointments.book", any_site: true) }, only: :show
     before_action -> { require_capability_with_legacy("facilities.write", "appointments.write", any_site: true) }, only: :update
 
+    def history
+      site = feature_site(params[:site_id], current_fallback: false)
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+        action: "facilities.write", site:)
+      versions = Clinic::PracticeFeatureVersion.for_practice(current_practice).where(site:)
+        .order(revision: :desc).limit(26).to_a
+      render json: {
+        versions: versions.first(25).map { |version|
+          version.optional_features.slice("clinic_type", "service_scope", "assessment_scope", "insurance_workflows")
+            .merge(revision: version.revision, effective_from: version.effective_from.iso8601(6))
+        },
+        capped: versions.length > 25
+      }
+    end
+
     def show
       site = feature_site
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,

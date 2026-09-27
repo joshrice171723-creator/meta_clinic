@@ -8,11 +8,13 @@ import {
   FormControl,
   FormControlLabel,
   FormLabel,
+  MenuItem,
   Paper,
   Radio,
   RadioGroup,
   Stack,
   Switch,
+  TextField,
   Typography,
 } from "@mui/material";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
@@ -215,6 +217,96 @@ function sameSelection<T extends string>(left: T[], right: T[]) {
   );
 }
 
+type SavedFeatureChoices = {
+  revision: number;
+  effective_from: string;
+  clinic_type: ClinicType;
+  service_scope: ClinicServiceCode[];
+  assessment_scope: ClinicAssessmentCode[];
+  insurance_workflows: boolean;
+};
+
+function FeatureHistory({
+  siteId,
+  current,
+  onApply,
+}: {
+  siteId: number | null;
+  current: PracticeFeatures;
+  onApply: (saved: SavedFeatureChoices) => void;
+}) {
+  const history = useResource<{
+    versions: SavedFeatureChoices[];
+    capped: boolean;
+  }>(
+    `/api/clinic/practice_features/history${siteId ? `?site_id=${siteId}` : ""}`,
+  );
+  const [revision, setRevision] = useState("");
+  const saved = history.data?.versions.find(
+    (version) => String(version.revision) === revision,
+  );
+  const protectedChange =
+    current.finalized &&
+    saved &&
+    (saved.clinic_type !== current.clinic_type ||
+      saved.insurance_workflows !== current.insurance_workflows_enabled ||
+      saved.service_scope.some(
+        (service) => !(current.selected_services ?? []).includes(service),
+      ));
+
+  return (
+    <Stack spacing={1}>
+      <Typography variant="h3">Saved profile choices</Typography>
+      <Typography variant="body2" color="text.secondary">
+        Load an earlier version into this form, review it, then use Save clinic
+        profile. Current permissions and protected-profile rules still apply.
+      </Typography>
+      {!history.data && (
+        <LoadState error={history.error} onRetry={history.refresh} />
+      )}
+      {history.data && (
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <TextField
+            select
+            label="Saved revision"
+            value={revision}
+            onChange={(event) => setRevision(event.target.value)}
+            sx={{ minWidth: 220 }}
+          >
+            {history.data.versions
+              .filter((version) => version.revision !== current.revision)
+              .map((version) => (
+                <MenuItem
+                  key={version.revision}
+                  value={String(version.revision)}
+                >
+                  Revision {version.revision} ·{" "}
+                  {new Date(version.effective_from).toLocaleString()}
+                </MenuItem>
+              ))}
+          </TextField>
+          <Button
+            disabled={!saved || !!protectedChange}
+            onClick={() => saved && onApply(saved)}
+          >
+            Load choices into form
+          </Button>
+        </Stack>
+      )}
+      {protectedChange && (
+        <Alert severity="warning">
+          This saved version changes a protected part of the finalized profile.
+        </Alert>
+      )}
+      {history.data?.capped && (
+        <Typography variant="caption">
+          Showing the latest 25 revisions.
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
 export function PracticeFeatureSettings({
   canWrite,
   siteId = null,
@@ -377,7 +469,8 @@ export function PracticeFeatureSettings({
           </Typography>
           {siteId && !features.site_specialty_configured && (
             <Alert severity="warning">
-              This location currently inherits its clinic profile. Choose and save a location specialty before assigning patients here.
+              This location currently inherits its clinic profile. Choose and
+              save a location specialty before assigning patients here.
             </Alert>
           )}
           <Alert severity="info">
@@ -418,7 +511,9 @@ export function PracticeFeatureSettings({
         </Stack>
 
         <FormControl disabled={!canWrite || saving || features.finalized}>
-          <FormLabel id="clinic-type-label">1. {siteId ? "Location specialty" : "Clinic type"}</FormLabel>
+          <FormLabel id="clinic-type-label">
+            1. {siteId ? "Location specialty" : "Clinic type"}
+          </FormLabel>
           <RadioGroup
             aria-labelledby="clinic-type-label"
             value={clinicType}
@@ -671,6 +766,20 @@ export function PracticeFeatureSettings({
             {saving ? "Saving profile…" : "Save clinic profile"}
           </Button>
         </Stack>
+        {canWrite && features.revision > 1 && (
+          <FeatureHistory
+            key={siteId ?? "clinic"}
+            siteId={siteId}
+            current={features}
+            onApply={(saved) => {
+              setClinicType(saved.clinic_type);
+              setServiceScope(saved.service_scope);
+              setAssessmentScope(saved.assessment_scope);
+              setInsuranceEnabled(saved.insurance_workflows);
+              setFeedback(null);
+            }}
+          />
+        )}
       </Stack>
     </Paper>
   );
