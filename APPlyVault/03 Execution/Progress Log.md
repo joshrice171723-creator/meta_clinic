@@ -9,6 +9,10 @@ canonical_for: recent-progress-and-history-index
 
 ## 2026-09-27 — Hourly source and tracker checkpoint
 
+Five pushed commits since the prior tracker checkpoint deliver BR-06 supplier quotes and source slices in MC-08, MC-14 and MC-15. The tracker and live atlas now show the changes, preserve the starting baseline, and report a 69.6% equal-weight MC-01–15 Build estimate. [Exact per-file line counts](../../records/implementation/2026-09-27-hourly-source-line-counts-2247.md) include every source commit; one small currency-label correction is not counted as a substantive slice, leaving the hourly run one slice short. No tests or browser acceptance ran; the BR-06 browser reload/role path remains open.
+
+## 2026-09-27 — Hourly source and tracker checkpoint
+
 Nine pushed source commits since the prior checkpoint advance MC-02, MC-08, MC-11, MC-13, MC-14 and MC-15. The [tracker](Meta%20Clinic%20Implementation%20Tracker.md) now reflects a 69.2% equal-weight MC-01–15 Build estimate; validation and human gates are unchanged. The [exact per-file Git line-count ledger](../../records/implementation/2026-09-27-hourly-source-line-counts.md) is linked from the live atlas. BR-05 is source-delivered and BR-06 names the next confirmed missing-code workflow. Scoped source checks passed on each commit; no tests or populated browser acceptance ran for these changes.
 
 ## 2026-09-27 - MC-14 complete daily source lists
