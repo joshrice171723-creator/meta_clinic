@@ -24,7 +24,8 @@ module Public
       raise ActiveRecord::RecordNotFound unless offerings.exists?
 
       render json: {
-        practice: { name: practice.name, slug: slug },
+        practice: { name: practice.name, slug: slug,
+          headline: practice.public_page_headline, intro: practice.public_page_intro },
         membership_path: practice.membership_storefront_enabled? ? "/memberships/#{slug}" : nil,
         services: offerings.map { |offering|
           { id: offering.id, name: offering.name, description: offering.description, duration_minutes: offering.duration_minutes, modality: offering.modality }

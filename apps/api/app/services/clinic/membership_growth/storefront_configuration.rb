@@ -3,7 +3,8 @@ module Clinic
     class StorefrontConfiguration
       SLUG_PATTERN = /\A[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])\z/
 
-      def self.call(practice:, actor:, slug_provided:, slug:, enabled_provided:, enabled:)
+      def self.call(practice:, actor:, slug_provided:, slug:, enabled_provided:, enabled:,
+        headline_provided: false, headline: nil, intro_provided: false, intro: nil)
         Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.publish")
 
         ApplicationRecord.transaction do
@@ -14,6 +15,8 @@ module Clinic
             attributes[:public_membership_slug] = normalize_slug(slug)
           end
           attributes[:membership_storefront_enabled] = requested_enabled if enabled_provided
+          attributes[:public_page_headline] = page_copy(headline, 160, "Headline") if headline_provided
+          attributes[:public_page_intro] = page_copy(intro, 500, "Introduction") if intro_provided
           raise ArgumentError, "Provide a storefront setting to update." if attributes.empty?
 
           practice.update!(attributes)
@@ -44,7 +47,14 @@ module Clinic
         else raise ArgumentError, "Storefront enabled must be true or false."
         end
       end
-      private_class_method :normalize_slug, :boolean
+
+      def self.page_copy(value, limit, label)
+        copy = value.to_s.strip.presence
+        raise ArgumentError, "#{label} must be at most #{limit} characters." if copy && copy.length > limit
+
+        copy
+      end
+      private_class_method :normalize_slug, :boolean, :page_copy
     end
   end
 end

@@ -139,6 +139,8 @@ export function MembershipGrowth() {
   const [recurringAuthorization, setRecurringAuthorization] = useState(false);
   const [slug, setSlug] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [headline, setHeadline] = useState("");
+  const [intro, setIntro] = useState("");
   const [configurationBusy, setConfigurationBusy] = useState(false);
   const [configurationError, setConfigurationError] = useState("");
   const [configurationNotice, setConfigurationNotice] = useState("");
@@ -165,6 +167,8 @@ export function MembershipGrowth() {
     if (!storefront) return;
     setSlug(storefront.slug || "");
     setEnabled(storefront.enabled);
+    setHeadline(storefront.headline || "");
+    setIntro(storefront.intro || "");
   }, [storefront]);
 
   const counts = useMemo(() => {
@@ -183,7 +187,9 @@ export function MembershipGrowth() {
   const slugValid = /^[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])$/.test(slug);
   const configurationChanged =
     slug !== (storefront?.slug || "") ||
-    enabled !== (storefront?.enabled || false);
+    enabled !== (storefront?.enabled || false) ||
+    headline !== (storefront?.headline || "") ||
+    intro !== (storefront?.intro || "");
 
   async function saveStorefront() {
     if (!canConfigure || configurationBusy || !slugValid) return;
@@ -193,14 +199,19 @@ export function MembershipGrowth() {
     try {
       const result = await api<{ storefront: MembershipStorefront }>(
         "/api/clinic/membership_storefront",
-        { method: "PATCH", body: { storefront: { slug, enabled } } },
+        {
+          method: "PATCH",
+          body: { storefront: { slug, enabled, headline, intro } },
+        },
       );
       setSlug(result.storefront.slug || "");
       setEnabled(result.storefront.enabled);
+      setHeadline(result.storefront.headline || "");
+      setIntro(result.storefront.intro || "");
       setConfigurationNotice(
         result.storefront.enabled
           ? "Public membership page saved and enabled."
-          : "Public membership page settings saved. The page is not public.",
+          : "Membership page settings saved. The services page may remain available.",
       );
       resource.refresh();
     } catch (reason) {
@@ -391,7 +402,26 @@ export function MembershipGrowth() {
                         onChange={(_, checked) => setEnabled(checked)}
                       />
                     }
-                    label="Public page enabled"
+                    label="Membership page enabled"
+                  />
+                </Stack>
+                <Stack spacing={1.5} sx={{ maxWidth: 720 }}>
+                  <TextField
+                    label="Public page headline"
+                    value={headline}
+                    disabled={!canConfigure || configurationBusy}
+                    onChange={(event) => setHeadline(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 160 } }}
+                  />
+                  <TextField
+                    label="Public page introduction"
+                    value={intro}
+                    multiline
+                    minRows={2}
+                    disabled={!canConfigure || configurationBusy}
+                    onChange={(event) => setIntro(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 500 } }}
+                    helperText="Shown on this clinic's membership and services pages."
                   />
                 </Stack>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>

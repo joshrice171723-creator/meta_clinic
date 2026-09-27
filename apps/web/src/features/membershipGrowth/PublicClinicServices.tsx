@@ -18,7 +18,12 @@ import { LoadState, useResource } from "../../shared/ui";
 import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 
 type ClinicServicesResponse = {
-  practice: { name: string; slug: string };
+  practice: {
+    name: string;
+    slug: string;
+    headline: string | null;
+    intro: string | null;
+  };
   membership_path: string | null;
   services: Array<{
     id: number;
@@ -108,6 +113,16 @@ export function PublicClinicServices({ slug }: { slug: string }) {
             <Typography component="h2" variant="h4">
               Services
             </Typography>
+            {resource.data.practice.headline && (
+              <Typography variant="h5">
+                {resource.data.practice.headline}
+              </Typography>
+            )}
+            {resource.data.practice.intro && (
+              <Typography color="text.secondary">
+                {resource.data.practice.intro}
+              </Typography>
+            )}
             {resource.data.services.length === 0 ? (
               <Typography color="text.secondary">
                 No services are currently listed. Contact the clinic for its

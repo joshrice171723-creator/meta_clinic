@@ -71,6 +71,8 @@ module Clinic
 
     validates :timezone, inclusion: { in: ActiveSupport::TimeZone::MAPPING.values + [ "UTC" ] }
     validates :name, presence: true, length: { maximum: 120 }
+    validates :public_page_headline, length: { maximum: 160 }, allow_nil: true
+    validates :public_page_intro, length: { maximum: 500 }, allow_nil: true
     validates :public_membership_slug, uniqueness: true,
       format: { with: /\A[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])\z/ }, allow_nil: true
     validate :enabled_storefront_has_slug

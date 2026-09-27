@@ -6,6 +6,8 @@ import type {
 export type MembershipStorefront = {
   slug: string | null;
   enabled: boolean;
+  headline: string | null;
+  intro: string | null;
   public_path: string | null;
   service_page_path: string | null;
 };
@@ -15,6 +17,8 @@ export type PublicMembershipStorefrontResponse = {
   practice: {
     name: string;
     slug: string;
+    headline: string | null;
+    intro: string | null;
   };
   catalog: PublishedPackage[];
   services: Array<{

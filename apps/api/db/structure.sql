@@ -8322,7 +8322,10 @@ CREATE TABLE public.clinic_practices (
     platform_managed boolean DEFAULT false NOT NULL,
     public_membership_slug character varying,
     membership_storefront_enabled boolean DEFAULT false NOT NULL,
-    CONSTRAINT clinic_practices_public_membership_slug_format CHECK (((public_membership_slug IS NULL) OR ((public_membership_slug)::text ~ '^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$'::text)))
+    public_page_headline character varying(160),
+    public_page_intro text,
+    CONSTRAINT clinic_practices_public_membership_slug_format CHECK (((public_membership_slug IS NULL) OR ((public_membership_slug)::text ~ '^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$'::text))),
+    CONSTRAINT clinic_practices_public_page_intro_length CHECK (((public_page_intro IS NULL) OR (char_length(public_page_intro) <= 500)))
 );
 
 
@@ -31811,6 +31814,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927193500'),
 ('20260927192000'),
 ('20260927182000'),
 ('20260926030100'),

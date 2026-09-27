@@ -394,15 +394,15 @@ export function PublicMembershipStorefront({
                   letterSpacing: "-0.04em",
                 }}
               >
-                Membership care from {resource.data.practice.name}
+                {resource.data.practice.headline ||
+                  `Membership care from ${resource.data.practice.name}`}
               </Typography>
               <Box>
                 <Typography
                   sx={{ color: "#e0e8de", fontSize: 18, lineHeight: 1.6 }}
                 >
-                  Compare this clinic’s published memberships, choose the
-                  services that fit you, purchase online, or ask the clinic to
-                  contact you before you decide.
+                  {resource.data.practice.intro ||
+                    "Compare this clinic’s published memberships, choose the services that fit you, purchase online, or ask the clinic to contact you before you decide."}
                 </Typography>
                 <Button
                   href="#memberships"

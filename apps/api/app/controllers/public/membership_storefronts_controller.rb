@@ -62,7 +62,8 @@ module Public
       practice = storefront_practice
       local_simulator = local_simulator_available?(practice)
       render json: {
-        practice: { name: practice.name, slug: practice.public_membership_slug },
+        practice: { name: practice.name, slug: practice.public_membership_slug,
+          headline: practice.public_page_headline, intro: practice.public_page_intro },
         services: practice.service_offerings.where(status: "published", public_visible: true).order(:name, :id).map { |offering|
           { name: offering.name, description: offering.description, duration_minutes: offering.duration_minutes, modality: offering.modality }
         },
