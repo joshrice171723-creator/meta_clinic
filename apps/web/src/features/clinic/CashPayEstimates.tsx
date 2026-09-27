@@ -18,6 +18,13 @@ export type CashPayEstimate = {
   id: number;
   patient_id: number | null;
   practice_name: string;
+  clinic_contact_snapshot: {
+    practice_name?: string;
+    site_name?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  };
   total_amount: string;
   classification: "general_estimate" | "gfe_candidate" | "issued_gfe";
   status: "draft" | "issued" | "superseded" | "void";
@@ -516,7 +523,30 @@ export function CashPayEstimates({
             <Typography component="h1" variant="h4" sx={{ mb: 1 }}>
               Good Faith Estimate
             </Typography>
-            <Typography>{selected.practice_name}</Typography>
+            <Typography>
+              {selected.clinic_contact_snapshot.practice_name ??
+                selected.practice_name}
+            </Typography>
+            {selected.clinic_contact_snapshot.site_name && (
+              <Typography>
+                {selected.clinic_contact_snapshot.site_name}
+              </Typography>
+            )}
+            {selected.clinic_contact_snapshot.address && (
+              <Typography sx={{ whiteSpace: "pre-line" }}>
+                {selected.clinic_contact_snapshot.address}
+              </Typography>
+            )}
+            {selected.clinic_contact_snapshot.phone && (
+              <Typography>
+                Phone: {selected.clinic_contact_snapshot.phone}
+              </Typography>
+            )}
+            {selected.clinic_contact_snapshot.email && (
+              <Typography>
+                Email: {selected.clinic_contact_snapshot.email}
+              </Typography>
+            )}
             <Typography>Prepared for {patientName}</Typography>
             <Typography>
               Estimate #{selected.id} · revision {selected.revision} ·{" "}

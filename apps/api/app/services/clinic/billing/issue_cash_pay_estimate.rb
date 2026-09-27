@@ -16,7 +16,17 @@ module Clinic
           if predecessor && (predecessor.status != "issued" || predecessor.classification != "issued_gfe" || predecessor.patient_id != estimate.patient_id || predecessor.currency != estimate.currency)
             raise ArgumentError, "The preceding issued GFE is no longer eligible for correction."
           end
-          estimate.update!(classification: "issued_gfe", status: "issued", issued_at: Time.current, policy_version: policy_version.to_s.strip, delivery_method: delivery_method.to_s.strip.presence)
+          site = practice.sites.find_by(id: estimate.patient&.primary_site_id)
+          contact_snapshot = {
+            practice_name: practice.name,
+            site_name: site&.name,
+            address: site&.formatted_address,
+            phone: site&.phone.presence,
+            email: site&.contact_email.presence
+          }.select { |_key, value| value.present? }
+          estimate.update!(classification: "issued_gfe", status: "issued", issued_at: Time.current,
+            policy_version: policy_version.to_s.strip, delivery_method: delivery_method.to_s.strip.presence,
+            clinic_contact_snapshot: contact_snapshot)
           predecessor&.update!(status: "superseded")
           AuditRecorder.record!(practice: practice, actor: actor, action_code: "cash_pay_estimate.issue", outcome: :committed, resource_version_ref: "cash_pay_estimate/#{estimate.id}:#{estimate.revision}")
           estimate

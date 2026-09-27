@@ -55,7 +55,8 @@ module Clinic
       private
       def serialize(estimate)
         { id: estimate.id, patient_id: estimate.patient_id,
-          practice_name: current_practice.name, total_amount: estimate.lines.sum(&:expected_amount).to_s("F"),
+          practice_name: current_practice.name, clinic_contact_snapshot: estimate.clinic_contact_snapshot,
+          total_amount: estimate.lines.sum(&:expected_amount).to_s("F"),
           classification: estimate.classification, status: estimate.status, currency: estimate.currency,
           policy_version: estimate.policy_version, delivery_method: estimate.delivery_method, issued_at: estimate.issued_at&.iso8601(6),
           delivered_at: estimate.delivered_at&.iso8601(6), supersedes_id: estimate.supersedes_id, correction_reason: estimate.correction_reason,

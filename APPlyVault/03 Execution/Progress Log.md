@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-08 issued estimate contact snapshot
+
+Issued GFEs now retain clinic/site contact values from the patient's primary practice location for their printable copy. The [dated source record](../../records/implementation/2026-09-27-mc08-estimate-contact-snapshot.md) records the additive migration and preserves historic issues without reconstructing their contact details. MC-08 Build moved 81→84%; validation and external/human gates are unchanged.
+
 ## 2026-09-27 — MC-13 offboarding work visibility
 
 The workforce administrator can review active assigned work by location before revoking an account. The [dated source record](../../records/implementation/2026-09-27-mc13-offboarding-work-summary.md) records the no-patient-detail response and states that existing tasks remain assigned for eligible coverage to claim. MC-13 Build moved 60→62%; validation and external/human gates are unchanged.
