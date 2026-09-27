@@ -365,6 +365,20 @@ export function PublicMembershipStorefront({
         {resource.data && (
           <Stack spacing={4} sx={{ width: "100%", maxWidth: 1200, mx: "auto" }}>
             <Box component="header">
+              {resource.data.practice.logo_path && (
+                <Box
+                  component="img"
+                  src={resource.data.practice.logo_path}
+                  alt={`${resource.data.practice.name} logo`}
+                  sx={{
+                    display: "block",
+                    maxWidth: 240,
+                    maxHeight: 96,
+                    objectFit: "contain",
+                    mb: 1,
+                  }}
+                />
+              )}
               <Typography sx={{ fontWeight: 700, fontSize: 18 }}>
                 {resource.data.practice.name}
               </Typography>

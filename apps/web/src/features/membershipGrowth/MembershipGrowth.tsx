@@ -144,6 +144,8 @@ export function MembershipGrowth() {
   const [headline, setHeadline] = useState("");
   const [intro, setIntro] = useState("");
   const [accent, setAccent] = useState("");
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [logoContentType, setLogoContentType] = useState<string | null>(null);
   const [configurationBusy, setConfigurationBusy] = useState(false);
   const [configurationError, setConfigurationError] = useState("");
   const [configurationNotice, setConfigurationNotice] = useState("");
@@ -194,7 +196,31 @@ export function MembershipGrowth() {
     enabled !== (storefront?.enabled || false) ||
     headline !== (storefront?.headline || "") ||
     intro !== (storefront?.intro || "") ||
-    accent !== (storefront?.accent || "");
+    accent !== (storefront?.accent || "") ||
+    logoBase64 !== null;
+
+  async function selectLogo(file?: File) {
+    if (!file) return;
+    if (!(
+      ["image/png", "image/jpeg"].includes(file.type) && file.size <= 100_000
+    )) {
+      setConfigurationError("Choose a PNG or JPEG of 100 KB or less.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("The logo could not be read."));
+      reader.readAsDataURL(file);
+    }).catch((error: Error) => {
+      setConfigurationError(error.message);
+      return null;
+    });
+    if (!dataUrl) return;
+    setLogoBase64(dataUrl.split(",", 2)[1] || "");
+    setLogoContentType(file.type);
+    setConfigurationError("");
+  }
 
   async function saveStorefront() {
     if (!canConfigure || configurationBusy || !slugValid) return;
@@ -206,7 +232,21 @@ export function MembershipGrowth() {
         "/api/clinic/membership_storefront",
         {
           method: "PATCH",
-          body: { storefront: { slug, enabled, headline, intro, accent } },
+          body: {
+            storefront: {
+              slug,
+              enabled,
+              headline,
+              intro,
+              accent,
+              ...(logoBase64 === null
+                ? {}
+                : {
+                    logo_base64: logoBase64,
+                    logo_content_type: logoContentType,
+                  }),
+            },
+          },
         },
       );
       setSlug(result.storefront.slug || "");
@@ -214,6 +254,8 @@ export function MembershipGrowth() {
       setHeadline(result.storefront.headline || "");
       setIntro(result.storefront.intro || "");
       setAccent(result.storefront.accent || "");
+      setLogoBase64(null);
+      setLogoContentType(null);
       setConfigurationNotice(
         result.storefront.enabled
           ? "Public membership page saved and enabled."
@@ -412,6 +454,45 @@ export function MembershipGrowth() {
                   />
                 </Stack>
                 <Stack spacing={1.5} sx={{ maxWidth: 720 }}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                    <Button
+                      component="label"
+                      variant="outlined"
+                      disabled={!canConfigure || configurationBusy}
+                    >
+                      Choose logo
+                      <input
+                        hidden
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        onChange={(event) => {
+                          void selectLogo(event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+                    </Button>
+                    {(storefront?.logo_path ||
+                      (logoBase64 && logoContentType)) && (
+                      <Button
+                        disabled={!canConfigure || configurationBusy}
+                        onClick={() => {
+                          setLogoBase64("");
+                          setLogoContentType(null);
+                        }}
+                      >
+                        Remove logo
+                      </Button>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      {logoBase64 === ""
+                        ? "Logo will be removed"
+                        : logoBase64
+                          ? "New logo selected"
+                          : storefront?.logo_path
+                            ? "Logo saved"
+                            : "PNG or JPEG, up to 100 KB"}
+                    </Typography>
+                  </Stack>
                   <TextField
                     select
                     label="Public page accent"

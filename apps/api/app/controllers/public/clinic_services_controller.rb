@@ -25,12 +25,23 @@ module Public
 
       render json: {
         practice: { name: practice.name, slug: slug,
-          headline: practice.public_page_headline, intro: practice.public_page_intro, accent: practice.public_page_accent },
+          headline: practice.public_page_headline, intro: practice.public_page_intro, accent: practice.public_page_accent,
+          logo_path: practice.public_page_logo_data.present? ? "/api/public/clinic_services/#{slug}/logo" : nil },
         membership_path: practice.membership_storefront_enabled? ? "/memberships/#{slug}" : nil,
         services: offerings.map { |offering|
           { id: offering.id, name: offering.name, description: offering.description, duration_minutes: offering.duration_minutes, modality: offering.modality }
         }
       }
+    end
+
+    def logo
+      practice = service_page_practice
+      raise ActiveRecord::RecordNotFound unless practice.membership_storefront_enabled? ||
+        practice.service_offerings.where(status: "published", public_visible: true).exists?
+      raise ActiveRecord::RecordNotFound if practice.public_page_logo_data.blank?
+
+      response.headers["X-Content-Type-Options"] = "nosniff"
+      send_data practice.public_page_logo_data, type: practice.public_page_logo_content_type, disposition: "inline"
     end
 
     def create

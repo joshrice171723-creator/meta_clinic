@@ -120,6 +120,8 @@ module Clinic
         headline: current_practice.public_page_headline,
         intro: current_practice.public_page_intro,
         accent: current_practice.public_page_accent,
+        logo_path: current_practice.public_membership_slug.present? && current_practice.public_page_logo_data.present? ?
+          "/api/public/clinic_services/#{current_practice.public_membership_slug}/logo" : nil,
         public_path: current_practice.public_membership_slug &&
           "/memberships/#{current_practice.public_membership_slug}",
         service_page_path: service_page_available ? "/clinics/#{current_practice.public_membership_slug}/services" : nil

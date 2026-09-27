@@ -24,6 +24,7 @@ type ClinicServicesResponse = {
     headline: string | null;
     intro: string | null;
     accent: string | null;
+    logo_path: string | null;
   };
   membership_path: string | null;
   services: Array<{
@@ -108,6 +109,19 @@ export function PublicClinicServices({ slug }: { slug: string }) {
         {!resource.data && <LoadState error={resource.error} />}
         {resource.data && (
           <Stack spacing={3} sx={{ maxWidth: 960, mx: "auto" }}>
+            {resource.data.practice.logo_path && (
+              <Box
+                component="img"
+                src={resource.data.practice.logo_path}
+                alt={`${resource.data.practice.name} logo`}
+                sx={{
+                  maxWidth: 240,
+                  maxHeight: 96,
+                  objectFit: "contain",
+                  alignSelf: "flex-start",
+                }}
+              />
+            )}
             <Typography component="h1" variant="h2">
               {resource.data.practice.name}
             </Typography>

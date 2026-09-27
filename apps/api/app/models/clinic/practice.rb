@@ -74,11 +74,23 @@ module Clinic
     validates :public_page_headline, length: { maximum: 160 }, allow_nil: true
     validates :public_page_accent, inclusion: { in: %w[#155e75 #6d28d9 #166534] }, allow_nil: true
     validates :public_page_intro, length: { maximum: 500 }, allow_nil: true
+    validate :valid_public_page_logo
     validates :public_membership_slug, uniqueness: true,
       format: { with: /\A[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])\z/ }, allow_nil: true
     validate :enabled_storefront_has_slug
 
     private
+
+    def valid_public_page_logo
+      data = public_page_logo_data
+      type = public_page_logo_content_type
+      return if data.nil? && type.nil?
+
+      valid = data.present? && data.bytesize <= 100_000 &&
+        ((type == "image/png" && data.start_with?("\x89PNG\r\n\x1a\n".b)) ||
+         (type == "image/jpeg" && data.start_with?("\xff\xd8\xff".b) && data.end_with?("\xff\xd9".b)))
+      errors.add(:public_page_logo_data, "must be a PNG or JPEG of 100 KB or less") unless valid
+    end
 
     def enabled_storefront_has_slug
       if membership_storefront_enabled? && public_membership_slug.blank?

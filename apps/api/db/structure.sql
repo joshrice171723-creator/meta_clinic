@@ -8329,6 +8329,8 @@ CREATE TABLE public.clinic_practices (
     public_page_headline character varying(160),
     public_page_intro text,
     public_page_accent character varying(7),
+    public_page_logo_data bytea,
+    public_page_logo_content_type character varying,
     CONSTRAINT clinic_practices_public_membership_slug_format CHECK (((public_membership_slug IS NULL) OR ((public_membership_slug)::text ~ '^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$'::text))),
     CONSTRAINT clinic_practices_public_page_accent_palette CHECK (((public_page_accent IS NULL) OR ((public_page_accent)::text = ANY ((ARRAY['#155e75'::character varying, '#6d28d9'::character varying, '#166534'::character varying])::text[])))),
     CONSTRAINT clinic_practices_public_page_intro_length CHECK (((public_page_intro IS NULL) OR (char_length(public_page_intro) <= 500)))
@@ -31830,6 +31832,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927224000'),
 ('20260927221000'),
 ('20260927215500'),
 ('20260927211000'),

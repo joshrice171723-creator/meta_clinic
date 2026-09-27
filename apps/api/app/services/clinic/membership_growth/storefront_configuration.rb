@@ -4,7 +4,8 @@ module Clinic
       SLUG_PATTERN = /\A[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])\z/
 
       def self.call(practice:, actor:, slug_provided:, slug:, enabled_provided:, enabled:,
-        headline_provided: false, headline: nil, intro_provided: false, intro: nil, accent_provided: false, accent: nil)
+        headline_provided: false, headline: nil, intro_provided: false, intro: nil, accent_provided: false, accent: nil,
+        logo_provided: false, logo_base64: nil, logo_content_type: nil)
         Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.publish")
 
         ApplicationRecord.transaction do
@@ -18,6 +19,21 @@ module Clinic
           attributes[:public_page_headline] = page_copy(headline, 160, "Headline") if headline_provided
           attributes[:public_page_intro] = page_copy(intro, 500, "Introduction") if intro_provided
           attributes[:public_page_accent] = accent.to_s.strip.downcase.presence if accent_provided
+          if logo_provided
+            if logo_base64.to_s.empty?
+              attributes[:public_page_logo_data] = nil
+              attributes[:public_page_logo_content_type] = nil
+            else
+              raise ArgumentError, "Logo must be 100 KB or less." if logo_base64.to_s.length > 140_000
+
+              attributes[:public_page_logo_data] = begin
+                Base64.strict_decode64(logo_base64.to_s)
+              rescue ArgumentError
+                raise ArgumentError, "Logo must be valid base64."
+              end
+              attributes[:public_page_logo_content_type] = logo_content_type
+            end
+          end
           raise ArgumentError, "Provide a storefront setting to update." if attributes.empty?
 
           practice.update!(attributes)

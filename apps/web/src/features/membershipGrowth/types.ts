@@ -9,6 +9,7 @@ export type MembershipStorefront = {
   headline: string | null;
   intro: string | null;
   accent: string | null;
+  logo_path: string | null;
   public_path: string | null;
   service_page_path: string | null;
 };
@@ -21,6 +22,7 @@ export type PublicMembershipStorefrontResponse = {
     headline: string | null;
     intro: string | null;
     accent: string | null;
+    logo_path: string | null;
   };
   catalog: PublishedPackage[];
   services: Array<{
