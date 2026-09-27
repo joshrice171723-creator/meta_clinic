@@ -177,6 +177,7 @@ export function Operations() {
                 }
               />
               <OperationsIntegrationInventory
+                canReadScribe={context.capabilities.scribe_read === true}
                 canReadBilling={context.capabilities.billing_read === true}
                 canReadReminders={context.capabilities.reminders === true}
                 canReadClinical={

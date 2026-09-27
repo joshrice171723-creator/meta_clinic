@@ -132,8 +132,9 @@ export function OperationsProviderReadiness({
         label the connection live.
       </Typography>
       <Alert severity="info">
-        Scribe workflows expose record-level outcomes but no comparable
-        operations-level readiness response. They are not summarized here.
+        Scribe activity is listed in the integration inventory for authorized
+        staff. Its configuration status does not establish provider
+        connectivity.
       </Alert>
       <Button
         component="a"

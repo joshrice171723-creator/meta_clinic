@@ -4,10 +4,12 @@ import type { StripeConnectionStatus } from "./billing/StripeConnectPanel";
 import { IntegrationStatusBadge } from "./IntegrationStatusBadge";
 
 export function OperationsIntegrationInventory({
+  canReadScribe = false,
   canReadBilling,
   canReadClinical,
   canReadReminders,
 }: {
+  canReadScribe?: boolean;
   canReadBilling: boolean;
   canReadClinical: boolean;
   canReadReminders: boolean;
@@ -106,6 +108,7 @@ export function OperationsIntegrationInventory({
   return (
     <Card title="Integration inventory">
       <Stack spacing={1.5}>
+        {canReadScribe && <ScribeActivitySummary />}
         <Stack spacing={0.75}>
           <Typography variant="h6" component="h3">
             Payments
@@ -408,5 +411,79 @@ export function OperationsIntegrationInventory({
         </Stack>
       </Stack>
     </Card>
+  );
+}
+
+type ScribeActivityReport = {
+  as_of: string;
+  provider_configured: boolean;
+  current_draft_counts: Record<string, number>;
+  source_counts: Record<string, number>;
+  recording_counts: Record<string, number>;
+  documents_without_draft: number;
+  latest_recording_update_at: string | null;
+};
+
+function ScribeActivitySummary() {
+  const resource = useResource<{ report: ScribeActivityReport }>(
+    "/api/clinic/reports/scribe_activity",
+  );
+  const report = resource.data?.report;
+  return (
+    <Stack spacing={0.75}>
+      <Typography variant="h6" component="h3">
+        Scribe
+      </Typography>
+      {!report ? (
+        <LoadState error={resource.error} onRetry={resource.refresh} />
+      ) : (
+        <>
+          <Typography variant="body2">
+            Audio transcription:{" "}
+            {report.provider_configured
+              ? "configuration present"
+              : "unavailable"}
+            . Provider connectivity has not been checked by this report.
+          </Typography>
+          <Typography variant="body2">
+            {report.current_draft_counts.draft ?? 0} drafts awaiting review;{" "}
+            {report.current_draft_counts.in_review ?? 0} in review;{" "}
+            {report.documents_without_draft} documents without a draft.
+          </Typography>
+          <Typography variant="body2">
+            {report.recording_counts.interrupted ?? 0} interrupted recordings;{" "}
+            {report.recording_counts.recording ?? 0} recordings still open;{" "}
+            {report.source_counts.incomplete ?? 0} incomplete sources.
+          </Typography>
+          <Typography variant="body2">
+            Current approved drafts: {report.current_draft_counts.approved ?? 0}
+            ; current exported drafts:{" "}
+            {report.current_draft_counts.exported ?? 0}. Superseded drafts are
+            excluded.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Your authorized encounters only. As of {report.as_of}. Last
+            recording change: {report.latest_recording_update_at ?? "none"}.
+            Recording counts describe capture state, not transcription success.
+            Review the encounter before retrying.
+          </Typography>
+          <Button
+            size="small"
+            onClick={resource.refresh}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Refresh scribe activity
+          </Button>
+          <Button
+            size="small"
+            href="/clinic/scribe"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open scribe workspace
+          </Button>
+        </>
+      )}
+      <Divider />
+    </Stack>
   );
 }

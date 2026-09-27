@@ -116,6 +116,7 @@ Rails.application.routes.draw do
     get "reports/payment_collection_activity", to: "reports/payment_collection_activity#show"
     get "reports/reminder_delivery_activity", to: "reports/reminder_delivery_activity#show"
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
+    get "reports/scribe_activity", to: "reports/scribe_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
       get "configuration_manifest", to: "configuration_manifest#show"
