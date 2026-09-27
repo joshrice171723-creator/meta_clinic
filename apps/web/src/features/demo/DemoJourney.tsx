@@ -361,7 +361,7 @@ export function DemoJourney() {
       <Stack
         component="main"
         spacing={3}
-        sx={{ maxWidth: 960, mx: "auto", p: 3 }}
+        sx={{ width: "100%", p: { xs: 2, sm: 3 } }}
       >
         <Typography component="h1" variant="h4">
           Explore clinic workflows
@@ -461,7 +461,7 @@ export function DemoJourney() {
     <Stack
       component="main"
       spacing={2}
-      sx={{ maxWidth: 1440, mx: "auto", p: 2 }}
+      sx={{ width: "100%", p: { xs: 1, sm: 2 } }}
     >
       {error && <Alert severity="error">{error}</Alert>}
       {preparingSandbox && (
