@@ -3737,6 +3737,22 @@ function ReplenishmentScreen({
               conversion_factor: item.units_per_package,
               unit_price: unitPrice,
               currency: currency.trim().toUpperCase(),
+              ...(supplierProduct?.eligible &&
+              supplierProduct.product_id === item.id &&
+              decimalCompare(
+                supplierProduct.wholesale_unit_cost,
+                unitPrice || "0",
+              ) === 0 &&
+              decimalCompare(
+                supplierProduct.package_quantity,
+                item.units_per_package,
+              ) === 0 &&
+              supplierProduct.currency === currency.trim().toUpperCase()
+                ? {
+                    supplier_product_id: supplierProduct.id,
+                    supplier_product_updated_at: supplierProduct.updated_at,
+                  }
+                : {}),
             },
           ],
         },
@@ -3881,7 +3897,7 @@ function ReplenishmentScreen({
             label="Unit price"
             hint={
               supplierProduct
-                ? `Supplier feed: ${supplierProduct.supplier_sku} · ${supplierProduct.contract_status} contract`
+                ? `${supplierProduct.price_source === "manual_quote" ? `Supplier quote ${supplierProduct.quote_reference} · ${supplierProduct.quoted_on}` : `Supplier feed: ${supplierProduct.supplier_sku}`} · ${supplierProduct.contract_status} contract`
                 : "Enter the supplier quote for this order."
             }
           >
@@ -5398,6 +5414,11 @@ function PurchaseOrderDetails({
                     </td>
                     <td className="numeric">
                       {money(line.package_price, line.currency)} / {packageUnit}
+                      {line.quote_reference && (
+                        <small>
+                          Quote {line.quote_reference} · {line.quoted_on}
+                        </small>
+                      )}
                     </td>
                   </tr>
                 );

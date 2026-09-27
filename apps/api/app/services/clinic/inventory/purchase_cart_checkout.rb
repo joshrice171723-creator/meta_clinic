@@ -40,6 +40,7 @@ module Clinic
         captured_at = Time.current
         payload = [ offer.id, offer.supplier_id, offer.wholesale_unit_cost.to_d.to_s("F"), offer.currency, offer.package_quantity.to_d.to_s("F"), offer.effective_date&.iso8601,
           offer.supplier_sku, offer.ordering_unit, offer.contract_status, offer.available?, offer.lead_time_days,
+          offer.price_source, offer.quote_reference, offer.quoted_on&.iso8601,
           product.package_size.to_d.to_s("F"), product.stock_unit, desired_units.to_s("F"), supplier_packages,
           overage_units.to_s("F"), normalized_cost.to_s("F"), total_cost.to_s("F") ]
         Offer.new(supplier_product: offer, supplier: offer.supplier, supplier_packages: supplier_packages,
@@ -105,7 +106,8 @@ module Clinic
                 input_unit: item.input_unit, ordered_quantity: offer.supplier_packages, ordered_package_quantity: offer.supplier_packages,
                 received_quantity: 0, conversion_factor: supplier_product.package_quantity, unit_price: supplier_product.wholesale_unit_cost,
                 currency: supplier_product.currency, cart_item: item, supplier_product: supplier_product, supplier_sku: supplier_product.supplier_sku,
-                price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest
+                price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest,
+                quote_reference: supplier_product.quote_reference, quoted_on: supplier_product.quoted_on
               )
               item.update!(status: "checked_out", purchase_order_line: line)
               subtotal += offer.supplier_packages * supplier_product.wholesale_unit_cost.to_d

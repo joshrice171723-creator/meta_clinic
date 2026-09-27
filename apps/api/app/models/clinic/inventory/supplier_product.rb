@@ -17,6 +17,9 @@ module Clinic
       validates :package_quantity, numericality: { greater_than: 0 }
       validates :wholesale_unit_cost, numericality: { greater_than_or_equal_to: 0 }
       validates :lead_time_days, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 3650 }, allow_nil: true
+      validates :price_source, inclusion: { in: %w[price_sheet manual_quote] }
+      validates :quote_reference, presence: true, length: { maximum: 120 }, if: -> { price_source == "manual_quote" }
+      validates :quoted_on, presence: true, if: -> { price_source == "manual_quote" }
 
       scope :eligible_for_purchase, ->(on:) do
         joins(:product, :supplier).merge(PharmacyProduct.where(active: true))

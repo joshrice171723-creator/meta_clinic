@@ -154,6 +154,10 @@ export type InventorySupplierProduct = {
   lead_time_days?: number | null;
   effective_date?: string | null;
   imported_at: string;
+  updated_at: string;
+  price_source: "price_sheet" | "manual_quote";
+  quote_reference: string | null;
+  quoted_on: string | null;
   eligible?: boolean;
   eligibility_reason?: string | null;
 };
@@ -243,6 +247,8 @@ export type InventoryPurchaseOrderLine = {
   ordered_units: Decimal;
   package_price: Decimal;
   currency: string;
+  quote_reference?: string | null;
+  quoted_on?: string | null;
   received_units: Decimal;
   received_packages: Decimal;
 };

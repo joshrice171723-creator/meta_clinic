@@ -1,8 +1,17 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, ApiError } from "../../api/client";
-import { Button } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  TextField,
+} from "@mui/material";
 import type {
   InventorySupplierData,
+  InventorySupplierProduct,
   InventorySupplierRead,
 } from "./inventoryContracts";
 import { decimalMoney } from "./inventoryContracts";
@@ -80,6 +89,13 @@ export function SupplierPricingScreen({
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [quoteOffer, setQuoteOffer] = useState<InventorySupplierProduct | null>(
+    null,
+  );
+  const [quoteReference, setQuoteReference] = useState("");
+  const [quotedOn, setQuotedOn] = useState("");
+  const [quotePrice, setQuotePrice] = useState("");
+  const [quoteCurrency, setQuoteCurrency] = useState("");
   const writeBlocked = loading || Boolean(readError) || readBlocked;
 
   useEffect(() => {
@@ -101,6 +117,45 @@ export function SupplierPricingScreen({
   const requireAck = (payload: { acknowledged?: boolean }) => {
     if (payload.acknowledged !== true)
       throw new Error("The supplier pricing response could not be confirmed.");
+  };
+
+  const saveQuote = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!quoteOffer || writeBlocked || busy) return;
+    setBusy("quote");
+    setError("");
+    setNotice("");
+    try {
+      const response = await api<{ acknowledged?: boolean }>(
+        `/api/clinic/inventory/supplier-products/${quoteOffer.id}/manual-quote?response=ack`,
+        {
+          method: "PATCH",
+          body: {
+            quote: {
+              reference: quoteReference,
+              quoted_on: quotedOn,
+              wholesale_unit_cost: quotePrice,
+              currency: quoteCurrency,
+              expected_updated_at: quoteOffer.updated_at,
+            },
+          },
+        },
+      );
+      requireAck(response);
+      await refresh();
+      setQuoteOffer(null);
+      setNotice(
+        "Dated supplier quote saved. Review availability and contract status before ordering.",
+      );
+    } catch (reason) {
+      await refresh();
+      setQuoteOffer(null);
+      setError(
+        `${friendlyError(reason)} Review the refreshed offer before retrying.`,
+      );
+    } finally {
+      setBusy("");
+    }
   };
 
   const saveSupplier = async (event: FormEvent) => {
@@ -706,6 +761,11 @@ export function SupplierPricingScreen({
                           ? "Lead time not recorded"
                           : `${offer.lead_time_days} day lead`}
                       </small>
+                      {offer.price_source === "manual_quote" && (
+                        <small>
+                          Quote {offer.quote_reference} · {offer.quoted_on}
+                        </small>
+                      )}
                     </td>
                     <td>
                       {offer.eligible ? (
@@ -717,6 +777,28 @@ export function SupplierPricingScreen({
                       )}
                     </td>
                     <td>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        type="button"
+                        disabled={
+                          !canManage ||
+                          !offer.product_id ||
+                          writeBlocked ||
+                          Boolean(busy)
+                        }
+                        onClick={() => {
+                          setQuoteOffer(offer);
+                          setQuoteReference(offer.quote_reference || "");
+                          setQuotedOn(offer.quoted_on || "");
+                          setQuotePrice(offer.wholesale_unit_cost);
+                          setQuoteCurrency(
+                            offer.currency === "UNK" ? "" : offer.currency,
+                          );
+                        }}
+                      >
+                        Record quote
+                      </Button>
                       {product && (
                         <Button
                           variant="outlined"
@@ -781,6 +863,77 @@ export function SupplierPricingScreen({
           </nav>
         )}
       </section>
+      <Dialog
+        open={Boolean(quoteOffer)}
+        onClose={() => {
+          if (!busy) setQuoteOffer(null);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <form onSubmit={(event) => void saveQuote(event)}>
+          <DialogTitle>Record supplier quote</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                label="Supplier offer"
+                value={
+                  quoteOffer
+                    ? `${quoteOffer.supplier_name} · ${quoteOffer.supplier_sku}`
+                    : ""
+                }
+                slotProps={{ input: { readOnly: true } }}
+              />
+              <TextField
+                label="Quote reference"
+                value={quoteReference}
+                onChange={(event) => setQuoteReference(event.target.value)}
+                required
+                slotProps={{ htmlInput: { maxLength: 120 } }}
+              />
+              <TextField
+                label="Quoted on"
+                type="date"
+                value={quotedOn}
+                onChange={(event) => setQuotedOn(event.target.value)}
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="Package price"
+                value={quotePrice}
+                onChange={(event) => setQuotePrice(event.target.value)}
+                required
+                inputMode="decimal"
+              />
+              <TextField
+                label="Currency"
+                value={quoteCurrency}
+                onChange={(event) =>
+                  setQuoteCurrency(event.target.value.toUpperCase())
+                }
+                required
+                slotProps={{ htmlInput: { maxLength: 3 } }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setQuoteOffer(null)}
+              disabled={Boolean(busy)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={Boolean(busy) || writeBlocked}
+            >
+              Save quote
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </div>
   );
 }

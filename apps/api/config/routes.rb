@@ -310,6 +310,7 @@ Rails.application.routes.draw do
       patch "suppliers/:id", to: "inventory/supplier_pricing#update"
       post "suppliers/preview", to: "inventory/supplier_pricing#preview"
       post "suppliers/import", to: "inventory/supplier_pricing#import"
+      patch "supplier-products/:id/manual-quote", to: "inventory/supplier_pricing#record_quote"
       patch "products/:id/preferred-supplier", to: "inventory/supplier_pricing#set_preferred_supplier"
       post "demo", to: "inventory/management#demo"
       get "catalog", to: "inventory/management#catalog"

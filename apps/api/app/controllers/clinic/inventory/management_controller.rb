@@ -183,7 +183,7 @@ module Clinic
 
       def create_purchase_order
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
-        input = params.require(:purchase_order).permit(:number, :destination, :destination_location_id, :receiving_site_id, :destination_address, :reason, :supplier_id, :request_key, :tax, :shipping, lines: %i[product_id quantity input_unit conversion_factor unit_price currency])
+        input = params.require(:purchase_order).permit(:number, :destination, :destination_location_id, :receiving_site_id, :destination_address, :reason, :supplier_id, :request_key, :tax, :shipping, lines: %i[product_id quantity input_unit conversion_factor unit_price currency supplier_product_id supplier_product_updated_at])
         request_key = input[:request_key].to_s
         validate_request_key!(request_key)
         payload_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
@@ -230,12 +230,25 @@ module Clinic
               price = Quantity.parse(row[:unit_price].presence || "0", scale: 6, zero: true)
               currency = row.require(:currency).to_s.upcase
               raise ArgumentError, "Currency must be a three-letter ISO code." unless currency.match?(/\A[A-Z]{3}\z/)
+              offer = if row[:supplier_product_id].present?
+                SupplierProduct.where(practice_id: current_practice.id).lock.find(row[:supplier_product_id])
+              end
+              if offer
+                raise ArgumentError, "The supplier quote no longer matches this draft. Review the price before retrying." unless
+                  supplier && offer.supplier_id == supplier.id && offer.product_id == product.id &&
+                  offer.purchase_eligibility_reason(on: current_practice.inventory_date).nil? &&
+                  offer.package_quantity == factor && offer.wholesale_unit_cost == price && offer.currency == currency &&
+                  offer.updated_at.iso8601(6) == row[:supplier_product_updated_at].to_s
+              end
               if order_currency && order_currency != currency
                 raise ArgumentError, "A purchase order cannot contain multiple currencies."
               end
               order_currency ||= currency
               subtotal += quantity * price
-              order.lines.create!(practice_id: current_practice.id, product: product, product_name: product.name, stock_unit: product.stock_unit, input_unit: input_unit, ordered_quantity: quantity, received_quantity: 0, conversion_factor: factor, unit_price: price, currency: currency)
+              order.lines.create!(practice_id: current_practice.id, product: product, product_name: product.name, stock_unit: product.stock_unit, input_unit: input_unit, ordered_quantity: quantity, received_quantity: 0, conversion_factor: factor, unit_price: price, currency: currency,
+                supplier_product: offer, supplier_sku: offer&.supplier_sku, price_snapshot_at: offer && Time.current,
+                price_snapshot_digest: offer && Digest::SHA256.hexdigest([ offer.id, offer.wholesale_unit_cost.to_s("F"), offer.currency, offer.quote_reference, offer.quoted_on&.iso8601 ].join("|")),
+                quote_reference: offer&.quote_reference, quoted_on: offer&.quoted_on)
             end
             order.update!(subtotal: subtotal, total: subtotal + order.tax + order.shipping)
             order

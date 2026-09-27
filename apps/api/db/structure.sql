@@ -4821,6 +4821,8 @@ CREATE TABLE public.clinic_inventory_purchase_order_lines (
     ordered_package_quantity numeric(20,6),
     price_snapshot_at timestamp(6) without time zone,
     price_snapshot_digest character varying,
+    quote_reference character varying,
+    quoted_on date,
     CONSTRAINT inventory_purchase_order_line_values CHECK (((ordered_quantity > (0)::numeric) AND ((received_quantity >= (0)::numeric) AND (received_quantity <= ordered_quantity)) AND (conversion_factor > (0)::numeric) AND (unit_price >= (0)::numeric) AND ((length(TRIM(BOTH FROM product_name)) >= 1) AND (length(TRIM(BOTH FROM product_name)) <= 160)) AND ((length(TRIM(BOTH FROM stock_unit)) >= 1) AND (length(TRIM(BOTH FROM stock_unit)) <= 20)) AND ((length(TRIM(BOTH FROM input_unit)) >= 1) AND (length(TRIM(BOTH FROM input_unit)) <= 20))))
 );
 
@@ -5418,6 +5420,10 @@ CREATE TABLE public.clinic_inventory_supplier_products (
     imported_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    price_source character varying DEFAULT 'price_sheet'::character varying NOT NULL,
+    quote_reference character varying,
+    quoted_on date,
+    CONSTRAINT inventory_supplier_price_source CHECK (((((price_source)::text = 'price_sheet'::text) AND (quote_reference IS NULL) AND (quoted_on IS NULL)) OR (((price_source)::text = 'manual_quote'::text) AND ((length(TRIM(BOTH FROM quote_reference)) >= 1) AND (length(TRIM(BOTH FROM quote_reference)) <= 120)) AND (quoted_on IS NOT NULL)))),
     CONSTRAINT inventory_supplier_product_values CHECK (((length(TRIM(BOTH FROM ndc)) = 11) AND ((ndc)::text ~ '^[0-9]{11}$'::text) AND ((length(TRIM(BOTH FROM supplier_sku)) >= 1) AND (length(TRIM(BOTH FROM supplier_sku)) <= 120)) AND ((length(TRIM(BOTH FROM description)) >= 1) AND (length(TRIM(BOTH FROM description)) <= 400)) AND ((length(TRIM(BOTH FROM ordering_unit)) >= 1) AND (length(TRIM(BOTH FROM ordering_unit)) <= 40)) AND (length(TRIM(BOTH FROM currency)) = 3) AND (package_quantity > (0)::numeric) AND (wholesale_unit_cost >= (0)::numeric) AND (wholesale_unit_cost = round(wholesale_unit_cost, 6)) AND ((lead_time_days IS NULL) OR ((lead_time_days >= 0) AND (lead_time_days <= 3650))) AND ((length(TRIM(BOTH FROM contract_status)) >= 1) AND (length(TRIM(BOTH FROM contract_status)) <= 40))))
 );
 
@@ -31832,6 +31838,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927225000'),
 ('20260927224000'),
 ('20260927221000'),
 ('20260927215500'),

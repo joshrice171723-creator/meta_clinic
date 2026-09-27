@@ -204,6 +204,9 @@ module Clinic
             supplier_id: @supplier.id,
             product_id: product_id,
             imported_at: imported_at,
+            price_source: "price_sheet",
+            quote_reference: nil,
+            quoted_on: nil,
             created_at: imported_at,
             updated_at: imported_at,
           )
