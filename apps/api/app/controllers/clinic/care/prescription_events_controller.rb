@@ -3,7 +3,8 @@ module Clinic
     class PrescriptionEventsController < Clinic::ApiController
       def index
         order = readable_order
-        render json: { transmission_available: true, events: PrescriptionWorkflow.events(order).map { |event| PrescriptionWorkflow.serialize(event) },
+        render json: { transmission_available: true, order_encounter_id: order.encounter_id,
+          events: PrescriptionWorkflow.events(order).map { |event| PrescriptionWorkflow.serialize(event) },
           attempts: PrescriptionTransmissionWorkflow.attempts(order).map { |attempt| PrescriptionTransmissionWorkflow.serialize(attempt) },
           dispenses: MedicationDispensing.records(order).map { |event| MedicationDispensing.serialize(event) },
           remaining_quantity: order.prescribed_quantity && order.quantity_unit.present? ? MedicationDispensing.remaining(order).to_s("F") : nil }

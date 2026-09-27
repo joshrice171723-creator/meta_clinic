@@ -1088,6 +1088,7 @@ export type BillingInvoiceDetail = {
   online_payment: InvoiceOnlinePayment;
 };
 export type InvoiceOnlinePayment = {
+  collection_intent_id: number | null;
   state:
     | "available"
     | "processing"

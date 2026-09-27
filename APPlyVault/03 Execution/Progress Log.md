@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14/15 exact source-record recovery
+
+Operations now carries invoice, payment, refund, collection-intent and prescription-attempt identities into their owning workspaces. Current state and missing-record messages avoid silently substituting another record. The [dated source record](../../records/implementation/2026-09-27-mc14-mc15-source-record-recovery.md) names the five slices, checks and still-open browser, reconciliation and external gates. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14/15 record location from Operations
 
 Five scoped report lists now identify selected-day invoices, payments and refunds, current collection intents needing reconciliation, and latest unknown prescription attempts. Each is capped and links to its owning patient workspace. [Dated evidence](../../records/implementation/2026-09-27-mc14-mc15-record-location.md) separates source checks from the blocked browser walkthrough and remaining exact-record, permission and reconciliation proof. Tracker percentages remain unchanged.

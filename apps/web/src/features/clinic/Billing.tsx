@@ -264,7 +264,7 @@ export function Billing() {
     queryId("encounter_id"),
   );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
-    null,
+    () => queryId("invoice_id"),
   );
   const [reloadLedger, setReloadLedger] = useState(0);
   const [estimateOutcomeUnknown, setEstimateOutcomeUnknown] = useState(false);
@@ -297,11 +297,17 @@ export function Billing() {
       .then((data) => {
         if (active && !controller.signal.aborted) {
           setLedger({ data });
-          setSelectedInvoiceId((current) =>
-            current && data.invoices.some((invoice) => invoice.id === current)
-              ? current
-              : (data.invoices[0]?.id ?? null),
-          );
+          setSelectedInvoiceId((current) => {
+            if (
+              current &&
+              data.invoices.some((invoice) => invoice.id === current)
+            )
+              return current;
+            return selectedPatientId === queryId("patient_id") &&
+              queryId("invoice_id")
+              ? null
+              : (data.invoices[0]?.id ?? null);
+          });
         }
       })
       .catch((error: unknown) => {
@@ -484,6 +490,16 @@ export function Billing() {
                 checkoutEncounterId={checkoutEncounterId}
                 checkoutInvoice={checkoutInvoice}
                 financialRevision={reloadLedger}
+                focusPaymentId={
+                  selectedPatientId === queryId("patient_id")
+                    ? queryId("payment_id")
+                    : null
+                }
+                focusRefundId={
+                  selectedPatientId === queryId("patient_id")
+                    ? queryId("refund_id")
+                    : null
+                }
                 onFinancialChange={(invoiceId) => {
                   if (invoiceId) setSelectedInvoiceId(invoiceId);
                   setReloadLedger((version) => version + 1);
@@ -509,6 +525,8 @@ function LedgerDetails({
   checkoutEncounterId,
   checkoutInvoice,
   financialRevision,
+  focusPaymentId,
+  focusRefundId,
   onFinancialChange,
 }: {
   ledger: BillingPatientLedger;
@@ -527,6 +545,8 @@ function LedgerDetails({
     checking?: boolean;
   };
   financialRevision: number;
+  focusPaymentId: number | null;
+  focusRefundId: number | null;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
@@ -593,6 +613,35 @@ function LedgerDetails({
       {checkoutEncounterId && checkoutInvoice.error && (
         <Alert severity="error">{checkoutInvoice.error}</Alert>
       )}
+      {ledger.patient.id === queryId("patient_id") &&
+        queryId("invoice_id") &&
+        !ledger.invoices.some(
+          (invoice) => invoice.id === queryId("invoice_id"),
+        ) && (
+          <Alert severity="warning">
+            The linked invoice is unavailable in this patient ledger.
+          </Alert>
+        )}
+      {selectedInvoice &&
+        ledger.patient.id === queryId("patient_id") &&
+        selectedInvoice.id === queryId("invoice_id") &&
+        queryId("collection_intent_id") && (
+          <Alert
+            severity={
+              selectedInvoice.online_payment.collection_intent_id ===
+                queryId("collection_intent_id") &&
+              selectedInvoice.online_payment.state === "needs_reconciliation"
+                ? "warning"
+                : "info"
+            }
+          >
+            {selectedInvoice.online_payment.collection_intent_id ===
+              queryId("collection_intent_id") &&
+            selectedInvoice.online_payment.state === "needs_reconciliation"
+              ? `Collection intent #${queryId("collection_intent_id")} currently needs reconciliation. Review the recorded payment state before another collection.`
+              : `Collection intent #${queryId("collection_intent_id")} is no longer recorded as needing reconciliation for invoice #${selectedInvoice.id}. Check its current state before another collection.`}
+          </Alert>
+        )}
       {checkoutEncounterId && checkoutInvoice.checking && (
         <Alert severity="info">
           Verifying this encounter's checkout invoice…
@@ -717,7 +766,12 @@ function LedgerDetails({
         )}
       </Paper>
       {selectedInvoice && (
-        <Accordion disableGutters variant="outlined">
+        <Accordion
+          key={selectedInvoice.id}
+          defaultExpanded={selectedInvoice.id === queryId("invoice_id")}
+          disableGutters
+          variant="outlined"
+        >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box>
               <Typography
@@ -783,6 +837,8 @@ function LedgerDetails({
         patientName={ledger.patient.display_name}
         payments={ledger.payments}
         invoices={ledger.invoices}
+        focusPaymentId={focusPaymentId}
+        focusRefundId={focusRefundId}
         onFinancialChange={onFinancialChange}
         onSelectPatient={checkoutEncounterId ? undefined : selectPatient}
       />
@@ -1937,6 +1993,8 @@ function PaymentHistory({
   patientName,
   payments,
   invoices,
+  focusPaymentId,
+  focusRefundId,
   onFinancialChange,
   onSelectPatient,
 }: {
@@ -1944,6 +2002,8 @@ function PaymentHistory({
   patientName: string;
   payments: BillingPatientLedger["payments"];
   invoices: BillingPatientLedger["invoices"];
+  focusPaymentId: number | null;
+  focusRefundId: number | null;
   onFinancialChange: () => void;
   onSelectPatient?: (id: number) => void;
 }) {
@@ -1994,6 +2054,17 @@ function PaymentHistory({
     refundAttempt?.paymentId === refundConfirmationPaymentId
       ? refundAttempt.reason
       : refundReason.trim();
+  useEffect(() => {
+    const targetId = focusRefundId
+      ? `billing-refund-${focusRefundId}`
+      : focusPaymentId
+        ? `billing-payment-${focusPaymentId}`
+        : null;
+    if (!targetId) return;
+    const target = document.getElementById(targetId);
+    target?.scrollIntoView({ block: "center" });
+    target?.focus();
+  }, [focusPaymentId, focusRefundId, payments]);
 
   useEffect(() => {
     const retained = pendingCashRefundAttempts.get(refundScope) ?? null;
@@ -2185,6 +2256,20 @@ function PaymentHistory({
             recording another refund.
           </Alert>
         )}
+        {focusPaymentId &&
+          !payments.some((payment) => payment.id === focusPaymentId) && (
+            <Alert severity="warning" sx={{ m: 2.5 }}>
+              The linked payment is unavailable in this patient ledger.
+            </Alert>
+          )}
+        {focusRefundId &&
+          !payments.some((payment) =>
+            payment.refunds.some((refund) => refund.id === focusRefundId),
+          ) && (
+            <Alert severity="warning" sx={{ m: 2.5 }}>
+              The linked refund is unavailable in this patient ledger.
+            </Alert>
+          )}
         {payments.length === 0 ? (
           <Typography color="text.secondary" sx={{ p: 2.5 }}>
             No payments were returned for this patient.
@@ -2195,6 +2280,8 @@ function PaymentHistory({
               <Box
                 component="li"
                 key={payment.id}
+                id={`billing-payment-${payment.id}`}
+                tabIndex={payment.id === focusPaymentId ? -1 : undefined}
                 sx={{ listStyle: "none", p: 2.5 }}
               >
                 <Stack
@@ -2422,14 +2509,19 @@ function PaymentHistory({
                 )}
                 {payment.refunds.length > 0 && (
                   <Alert severity="info" sx={{ mt: 1.5 }}>
-                    Refund history:{" "}
-                    {payment.refunds
-                      .map(
-                        (refund) =>
-                          `${money(refund.amount, payment.currency)} on ${date(refund.created_at, true)} · ${refund.reason}`,
-                      )
-                      .join("; ")}
-                    . Refunds are shown separately from invoice balances.
+                    Refund history is shown separately from invoice balances.
+                    {payment.refunds.map((refund) => (
+                      <Typography
+                        id={`billing-refund-${refund.id}`}
+                        key={refund.id}
+                        tabIndex={refund.id === focusRefundId ? -1 : undefined}
+                        variant="body2"
+                      >
+                        Refund #{refund.id} ·{" "}
+                        {money(refund.amount, payment.currency)} on{" "}
+                        {date(refund.created_at, true)} · {refund.reason}
+                      </Typography>
+                    ))}
                   </Alert>
                 )}
               </Box>

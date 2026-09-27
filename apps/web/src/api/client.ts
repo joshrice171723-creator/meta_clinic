@@ -164,7 +164,12 @@ export function csrf(): Promise<Configuration> {
 
 export async function api<T>(
   path: string,
-  options: { method?: string; body?: unknown; signal?: AbortSignal; timeoutMs?: number } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+  } = {},
 ): Promise<T> {
   if (!path.startsWith("/api/"))
     throw new Error("Requests must use the same-origin API.");
@@ -291,6 +296,11 @@ export function loginDestination(value: string | null): string {
       "patient_id",
       "encounter_id",
       "invoice_id",
+      "payment_id",
+      "refund_id",
+      "medication_request_revision_id",
+      "prescription_attempt_id",
+      "collection_intent_id",
       "reminder_id",
       "conversation_id",
       "page",

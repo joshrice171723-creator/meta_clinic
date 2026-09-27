@@ -52,6 +52,7 @@ export function OperationsIntegrationInventory({
         id: number;
         patient_id: number;
         medication_request_revision_id: number;
+        encounter_id: number;
         outcome: string;
         submitted_at: string;
       }[];
@@ -137,7 +138,7 @@ export function OperationsIntegrationInventory({
                   {collectionActivity.reconciliation_records.map((record) => (
                     <Button
                       key={record.id}
-                      href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+                      href={`/clinic/billing/patients?patient_id=${record.patient_id}&invoice_id=${record.invoice_id}&collection_intent_id=${record.id}`}
                       size="small"
                       sx={{ alignSelf: "flex-start" }}
                     >
@@ -229,7 +230,7 @@ export function OperationsIntegrationInventory({
               {activity.latest_unknown_records.map((record) => (
                 <Button
                   key={record.id}
-                  href={`/clinic/patients/${record.patient_id}`}
+                  href={`/clinic/patients/${record.patient_id}/encounters/${record.encounter_id}?medication_request_revision_id=${record.medication_request_revision_id}&prescription_attempt_id=${record.id}`}
                   size="small"
                   sx={{ alignSelf: "flex-start" }}
                 >

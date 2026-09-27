@@ -37,7 +37,7 @@ import type {
   ServiceRequestRevision,
 } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
-import { useResource } from "../../shared/ui";
+import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ClinicalPlanClosurePanel } from "./ClinicalPlanClosurePanel";
@@ -649,6 +649,28 @@ export function ClinicalPlanWorkspace({
       retainDataOnRefresh: true,
     },
   );
+  const reviewParams = new URLSearchParams(
+    typeof window === "undefined" ? "" : window.location.search,
+  );
+  const requestedRevision = Number(
+    reviewParams.get("medication_request_revision_id"),
+  );
+  const requestedAttempt = Number(reviewParams.get("prescription_attempt_id"));
+  const reviewRevisionId =
+    Number.isSafeInteger(requestedRevision) &&
+    requestedRevision > 0 &&
+    Number.isSafeInteger(requestedAttempt) &&
+    requestedAttempt > 0
+      ? requestedRevision
+      : null;
+  const reviewAttemptId = reviewRevisionId ? requestedAttempt : null;
+  const attemptReview = useResource<{
+    order_encounter_id: number;
+    attempts: { id: number; outcome: string; submitted_at: string }[];
+  }>(
+    `/api/clinic/patients/${patient.id}/medication_requests/${reviewRevisionId}/events`,
+    { enabled: reviewRevisionId !== null },
+  );
   const [kind, setKind] = useState<ResourceKind>("medication_requests");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ClinicalRecord | null>(null);
@@ -692,6 +714,11 @@ export function ClinicalPlanWorkspace({
       }),
     [dirty, pendingAttempt, registerBlocker],
   );
+
+  useEffect(() => {
+    if (reviewRevisionId && kind !== "medication_requests")
+      setKind("medication_requests");
+  }, [kind, reviewRevisionId]);
 
   useEffect(() => {
     if (!workspace.data || !taskTarget) return;
@@ -994,6 +1021,9 @@ export function ClinicalPlanWorkspace({
     );
   }
   const data = workspace.data;
+  const reviewedAttempt = attemptReview.data?.attempts.find(
+    (item) => item.id === reviewAttemptId,
+  );
 
   return (
     <Paper
@@ -1012,6 +1042,29 @@ export function ClinicalPlanWorkspace({
             status are not decision support.
           </Typography>
         </Box>
+        {reviewAttemptId &&
+          (!attemptReview.data ? (
+            <LoadState
+              error={attemptReview.error}
+              onRetry={attemptReview.refresh}
+            />
+          ) : attemptReview.data.order_encounter_id !== encounter.id ? (
+            <Alert severity="warning">
+              This attempt belongs to another encounter.
+            </Alert>
+          ) : reviewedAttempt ? (
+            <Alert severity="info">
+              Simulated prescription attempt #{reviewedAttempt.id} · request
+              revision #{reviewRevisionId} ·{" "}
+              {reviewedAttempt.outcome.replaceAll("_", " ")} · recorded{" "}
+              {new Date(reviewedAttempt.submitted_at).toLocaleString()}. Review
+              its history before another submission.
+            </Alert>
+          ) : (
+            <Alert severity="warning">
+              The linked attempt was not found in this request revision.
+            </Alert>
+          ))}
         {notice && <Alert severity="success">{notice}</Alert>}
         {data.truncated[kind] && (
           <Alert severity="info">
@@ -1380,9 +1433,13 @@ export function ClinicalPlanWorkspace({
             orders={data.records.medication_requests}
             canWrite={data.capabilities.medication_requests}
             preferredOrderId={
-              taskTarget?.kind === "medication_requests"
-                ? taskRecord?.id
-                : undefined
+              data.records.medication_requests.some(
+                (record) => record.id === reviewRevisionId,
+              )
+                ? (reviewRevisionId ?? undefined)
+                : taskTarget?.kind === "medication_requests"
+                  ? taskRecord?.id
+                  : undefined
             }
           />
         )}

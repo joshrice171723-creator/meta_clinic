@@ -15,10 +15,11 @@ module Clinic
           unknown_outcome_count: counts.fetch("unknown", 0) + counts.fetch("outcome_unknown", 0),
           latest_per_revision_outcome_counts: latest_counts,
           latest_per_revision_unknown_count: latest_counts.fetch("unknown", 0) + latest_counts.fetch("outcome_unknown", 0),
-          latest_unknown_records: unknown.order(id: :desc).limit(25)
-            .pluck(:id, :patient_id, :medication_request_revision_id, :outcome, :submitted_at)
-            .map { |id, patient_id, medication_request_revision_id, outcome, submitted_at|
-              { id:, patient_id:, medication_request_revision_id:, outcome:, submitted_at: submitted_at.iso8601(6) }
+          latest_unknown_records: unknown.joins("INNER JOIN clinic_medication_request_revisions revisions ON revisions.id = clinic_prescription_transmission_attempts.medication_request_revision_id AND revisions.practice_id = clinic_prescription_transmission_attempts.practice_id")
+            .order("clinic_prescription_transmission_attempts.id DESC").limit(25)
+            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at)
+            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at|
+              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6) }
             },
           latest_unknown_records_capped: unknown.count > 25,
           latest_submitted_at: attempts.maximum(:submitted_at)&.iso8601(6)

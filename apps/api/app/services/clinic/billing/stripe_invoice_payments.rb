@@ -246,7 +246,7 @@ module Clinic
         if checkout
           state = checkout.collection_intent.state == "needs_reconciliation" ? "needs_reconciliation" : "processing"
           reason = state == "needs_reconciliation" ? "provider_reconciliation_required" : "checkout_active"
-          return eligibility_result(invoice, state, false, true, amount, reason)
+          return eligibility_result(invoice, state, false, true, amount, reason, collection_intent_id: checkout.collection_intent_id)
         end
         unless StripeConnect.patient_checkout_available?(invoice.practice)
           return eligibility_result(invoice, "unavailable", false, false, amount, "stripe_unavailable")
@@ -466,9 +466,10 @@ module Clinic
       end
       private_class_method :association_sum
 
-      def self.eligibility_result(invoice, state, eligible, can_cancel, amount, reason)
+      def self.eligibility_result(invoice, state, eligible, can_cancel, amount, reason, collection_intent_id: nil)
         { state: state, eligible: eligible, can_cancel: can_cancel,
-          amount: amount.to_s("F"), currency: invoice.currency, reason: reason }
+          amount: amount.to_s("F"), currency: invoice.currency, reason: reason,
+          collection_intent_id: collection_intent_id }
       end
       private_class_method :eligibility_result
 

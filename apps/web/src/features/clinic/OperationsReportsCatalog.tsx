@@ -424,7 +424,7 @@ function DailyPaymentActivity({ date }: { date: string }) {
             <Button
               key={`payment-${record.id}`}
               size="small"
-              href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+              href={`/clinic/billing/patients?patient_id=${record.patient_id}&payment_id=${record.id}`}
               sx={{ alignSelf: "flex-start" }}
             >
               Payment {record.id} · {record.currency} {record.amount}
@@ -439,7 +439,7 @@ function DailyPaymentActivity({ date }: { date: string }) {
             <Button
               key={`refund-${record.id}`}
               size="small"
-              href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+              href={`/clinic/billing/patients?patient_id=${record.patient_id}&payment_id=${record.payment_event_id}&refund_id=${record.id}`}
               sx={{ alignSelf: "flex-start" }}
             >
               Refund {record.id} for payment {record.payment_event_id} ·{" "}
@@ -541,7 +541,7 @@ function DailyInvoices({ date }: { date: string }) {
             <Button
               key={record.id}
               size="small"
-              href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+              href={`/clinic/billing/patients?patient_id=${record.patient_id}&invoice_id=${record.id}`}
               sx={{ alignSelf: "flex-start" }}
             >
               Invoice {record.id} · {record.status} · {record.currency}
