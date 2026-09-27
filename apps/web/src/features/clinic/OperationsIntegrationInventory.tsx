@@ -25,6 +25,13 @@ export function OperationsIntegrationInventory({
       total: number;
       state_counts: Record<string, number>;
       needs_reconciliation_count: number;
+      reconciliation_records: {
+        id: number;
+        patient_id: number;
+        invoice_id: number;
+        updated_at: string;
+      }[];
+      reconciliation_records_capped: boolean;
       latest_updated_at: string | null;
     };
   }>("/api/clinic/reports/payment_collection_activity", {
@@ -41,6 +48,14 @@ export function OperationsIntegrationInventory({
       outcome_counts: Record<string, number>;
       latest_per_revision_outcome_counts: Record<string, number>;
       latest_per_revision_unknown_count: number;
+      latest_unknown_records: {
+        id: number;
+        patient_id: number;
+        medication_request_revision_id: number;
+        outcome: string;
+        submitted_at: string;
+      }[];
+      latest_unknown_records_capped: boolean;
       latest_submitted_at: string | null;
     };
   }>("/api/clinic/reports/prescription_simulator_activity", {
@@ -119,6 +134,23 @@ export function OperationsIntegrationInventory({
                       : " · No collection intent recorded"}
                     .
                   </Typography>
+                  {collectionActivity.reconciliation_records.map((record) => (
+                    <Button
+                      key={record.id}
+                      href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+                      size="small"
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Review collection {record.id} · invoice{" "}
+                      {record.invoice_id}
+                    </Button>
+                  ))}
+                  {collectionActivity.reconciliation_records_capped && (
+                    <Typography variant="caption">
+                      Showing the latest 25 reconciliation records. Open Billing
+                      for the rest.
+                    </Typography>
+                  )}
                 </>
               )}
               <Button
@@ -194,6 +226,24 @@ export function OperationsIntegrationInventory({
                   : " · No attempt recorded"}
                 .
               </Typography>
+              {activity.latest_unknown_records.map((record) => (
+                <Button
+                  key={record.id}
+                  href={`/clinic/patients/${record.patient_id}`}
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Review patient record · request revision{" "}
+                  {record.medication_request_revision_id} ·{" "}
+                  {record.outcome.replaceAll("_", " ")}
+                </Button>
+              ))}
+              {activity.latest_unknown_records_capped && (
+                <Typography variant="caption">
+                  Showing the latest 25 request revisions. Open patient records
+                  for the rest.
+                </Typography>
+              )}
             </>
           )}
           <Typography variant="caption" color="text.secondary">

@@ -32,6 +32,14 @@ type DailyInvoicesReport = {
   date: string;
   timezone: string;
   as_of: string;
+  records: {
+    id: number;
+    patient_id: number;
+    currency: string;
+    status: string;
+    created_at: string;
+  }[];
+  records_capped: boolean;
   currencies: {
     currency: string;
     counts: Record<string, number>;
@@ -68,6 +76,23 @@ type DailyPaymentReport = {
   date: string;
   timezone: string;
   as_of: string;
+  payment_records: {
+    id: number;
+    patient_id: number;
+    currency: string;
+    amount: string;
+    created_at: string;
+  }[];
+  payment_records_capped: boolean;
+  refund_records: {
+    id: number;
+    patient_id: number;
+    payment_event_id: number;
+    currency: string;
+    amount: string;
+    created_at: string;
+  }[];
+  refund_records_capped: boolean;
   currencies: {
     currency: string;
     payment_count: number;
@@ -395,6 +420,37 @@ function DailyPaymentActivity({ date }: { date: string }) {
             {report.timezone} · As of {report.as_of}.{" "}
             {report.definition.exclusions}
           </Typography>
+          {report.payment_records.map((record) => (
+            <Button
+              key={`payment-${record.id}`}
+              size="small"
+              href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Payment {record.id} · {record.currency} {record.amount}
+            </Button>
+          ))}
+          {report.payment_records_capped && (
+            <Typography variant="caption">
+              Showing the latest 25 payments for this date.
+            </Typography>
+          )}
+          {report.refund_records.map((record) => (
+            <Button
+              key={`refund-${record.id}`}
+              size="small"
+              href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Refund {record.id} for payment {record.payment_event_id} ·{" "}
+              {record.currency} {record.amount}
+            </Button>
+          ))}
+          {report.refund_records_capped && (
+            <Typography variant="caption">
+              Showing the latest 25 refunds for this date.
+            </Typography>
+          )}
           <Button
             size="small"
             variant="outlined"
@@ -481,6 +537,21 @@ function DailyInvoices({ date }: { date: string }) {
             {report.timezone} · As of {report.as_of}.{" "}
             {report.definition.exclusions}
           </Typography>
+          {report.records.map((record) => (
+            <Button
+              key={record.id}
+              size="small"
+              href={`/clinic/billing/patients?patient_id=${record.patient_id}`}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Invoice {record.id} · {record.status} · {record.currency}
+            </Button>
+          ))}
+          {report.records_capped && (
+            <Typography variant="caption">
+              Showing the latest 25 invoices for this date.
+            </Typography>
+          )}
           <Button
             size="small"
             variant="outlined"

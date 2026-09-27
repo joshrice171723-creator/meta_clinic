@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14/15 record location from Operations
+
+Five scoped report lists now identify selected-day invoices, payments and refunds, current collection intents needing reconciliation, and latest unknown prescription attempts. Each is capped and links to its owning patient workspace. [Dated evidence](../../records/implementation/2026-09-27-mc14-mc15-record-location.md) separates source checks from the blocked browser walkthrough and remaining exact-record, permission and reconciliation proof. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14 exports and MC-15 state visibility
 
 Five scoped Operations source changes add invoice and stock movement CSV, a formula guard for exported cells, and full collection and prescription-attempt outcome breakdowns. The [dated evidence](../../records/implementation/2026-09-27-mc14-mc15-export-state-visibility.md) names the sources and remaining browser, permission, reconciliation and record-level recovery proof. Tracker percentages remain unchanged.

@@ -17,6 +17,18 @@ module Clinic
           definition: Catalog::DAILY_PAYMENT_ACTIVITY, practice_id: practice.id, date: date.iso8601,
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
+          payment_records: payments.order(created_at: :desc, id: :desc).limit(25)
+            .pluck(:id, :patient_id, :currency, :amount, :created_at)
+            .map { |id, patient_id, currency, amount, created_at|
+              { id:, patient_id:, currency:, amount: amount.to_d.to_s("F"), created_at: created_at.iso8601(6) }
+            },
+          payment_records_capped: payments.count > 25,
+          refund_records: refunds.order(created_at: :desc, id: :desc).limit(25)
+            .pluck(:id, :patient_id, :payment_event_id, :currency, :amount, :created_at)
+            .map { |id, patient_id, payment_event_id, currency, amount, created_at|
+              { id:, patient_id:, payment_event_id:, currency:, amount: amount.to_d.to_s("F"), created_at: created_at.iso8601(6) }
+            },
+          refund_records_capped: refunds.count > 25,
           currencies: currencies.map do |currency|
             {
               currency:, payment_count: payment_counts.fetch(currency, 0),

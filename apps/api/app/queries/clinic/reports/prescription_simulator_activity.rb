@@ -7,6 +7,7 @@ module Clinic
         counts = attempts.group(:outcome).count
         latest_attempts = attempts.where(id: attempts.select("MAX(id)").group(:medication_request_revision_id))
         latest_counts = latest_attempts.group(:outcome).count
+        unknown = latest_attempts.where(outcome: %w[unknown outcome_unknown])
         {
           source: "clinic_prescription_transmission_attempts", adapter: Clinic::Care::PrescriptionTransmissionAttempt::ADAPTER,
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
@@ -14,6 +15,12 @@ module Clinic
           unknown_outcome_count: counts.fetch("unknown", 0) + counts.fetch("outcome_unknown", 0),
           latest_per_revision_outcome_counts: latest_counts,
           latest_per_revision_unknown_count: latest_counts.fetch("unknown", 0) + latest_counts.fetch("outcome_unknown", 0),
+          latest_unknown_records: unknown.order(id: :desc).limit(25)
+            .pluck(:id, :patient_id, :medication_request_revision_id, :outcome, :submitted_at)
+            .map { |id, patient_id, medication_request_revision_id, outcome, submitted_at|
+              { id:, patient_id:, medication_request_revision_id:, outcome:, submitted_at: submitted_at.iso8601(6) }
+            },
+          latest_unknown_records_capped: unknown.count > 25,
           latest_submitted_at: attempts.maximum(:submitted_at)&.iso8601(6)
         }
       end

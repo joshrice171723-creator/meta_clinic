@@ -13,6 +13,12 @@ module Clinic
           definition: Catalog::DAILY_INVOICES, practice_id: practice.id, date: date.iso8601,
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
+          records: invoices.order(created_at: :desc, id: :desc).limit(25)
+            .pluck(:id, :patient_id, :currency, :status, :created_at)
+            .map { |id, patient_id, currency, status, created_at|
+              { id:, patient_id:, currency:, status:, created_at: created_at.iso8601(6) }
+            },
+          records_capped: invoices.count > 25,
           currencies: currencies.map do |currency|
             scoped = invoices.where(currency:)
             posted = scoped.where(status: "posted")
