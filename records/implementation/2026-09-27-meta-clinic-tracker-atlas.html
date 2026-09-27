@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Meta Clinic · Implementation Atlas · 27 September 2026</title>
+  <style>
+    :root { --paper:#f4f1e9; --card:#fffdf8; --ink:#173d38; --muted:#60716d; --line:#cbd7cf; --deep:#092c29; --build:#207b70; --proof:#d79041; --gate:#ba554c; --pale:#e6eee8; --shadow:0 18px 48px rgba(9,44,41,.08); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 "Segoe UI",Tahoma,sans-serif; }
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    a { color:var(--build); text-underline-offset:3px; }
+    a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid var(--proof); outline-offset:3px; }
+    .shell { max-width:1540px; margin:auto; padding:0 30px 90px; }
+    .mast { padding:24px 0 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    .brand { font:700 15px/1 Georgia,serif; letter-spacing:.16em; text-transform:uppercase; }
+    .mast small,.mono,.eyebrow,.code { font:600 11px/1.35 Consolas,"Courier New",monospace; letter-spacing:.08em; text-transform:uppercase; }
+    .mast small { color:var(--muted); text-align:right; }
+    .hero { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(300px,.7fr); gap:42px; padding:70px 0 58px; align-items:end; }
+    .eyebrow { color:var(--build); }
+    h1,h2,h3,p { margin-top:0; }
+    h1,h2,h3 { font-family:Georgia,"Times New Roman",serif; font-weight:500; }
+    h1 { font-size:clamp(3.3rem,6.9vw,7.3rem); line-height:.94; letter-spacing:-.055em; margin:15px 0 25px; max-width:950px; }
+    h1 em { color:var(--build); font-weight:400; }
+    .lead { font-size:clamp(1.05rem,1.5vw,1.34rem); max-width:760px; color:#47615a; line-height:1.55; }
+    .hero-note { border-left:4px solid var(--proof); padding:20px 0 20px 24px; color:var(--muted); }
+    .hero-note strong { display:block; color:var(--ink); font:500 1.6rem/1.16 Georgia,serif; margin-bottom:10px; }
+    .hero-note p { margin:0 0 12px; }
+    .hero-note a { font-weight:700; }
+    .source-panel { display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:var(--deep); color:#f7f5ec; padding:18px 22px; margin:0 0 22px; border-left:5px solid var(--proof); }
+    .source-panel strong { font:700 11px/1.25 Consolas,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a7dacc; }
+    .source-panel span { flex:1; min-width:230px; }
+    .source-panel button { border:1px solid #a7dacc; background:transparent; color:#f7f5ec; padding:8px 11px; }
+    .source-panel button:hover { background:#a7dacc; color:var(--deep); }
+    .source-panel small { width:100%; color:#c3d5ca; }
+    .source-panel[data-state="error"] { border-color:var(--gate); }
+    .source-panel[data-state="live"] { border-color:#a7dacc; }
+    .facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); box-shadow:var(--shadow); }
+    .fact { background:var(--card); padding:27px 25px 25px; min-height:164px; }
+    .fact .value { display:block; font:500 clamp(2.5rem,4vw,4.4rem)/.95 Georgia,serif; letter-spacing:-.06em; margin:15px 0 9px; }
+    .fact p { font-size:.89rem; color:var(--muted); margin:0; }
+    .fact.gate .value { color:var(--gate); }
+    .chapter { margin-top:84px; }
+    .chapter-head { display:flex; align-items:end; justify-content:space-between; gap:25px; padding-bottom:22px; border-bottom:1px solid var(--ink); }
+    .chapter-head h2 { margin:8px 0 0; font-size:clamp(2.2rem,3.8vw,4.2rem); line-height:1; letter-spacing:-.04em; }
+    .chapter-head p { max-width:480px; color:var(--muted); margin:0; }
+    .legend { display:flex; gap:19px; flex-wrap:wrap; margin:22px 0; color:var(--muted); font-size:.86rem; }
+    .legend span { display:inline-flex; align-items:center; gap:8px; }
+    .swatch { width:12px; height:12px; border-radius:2px; display:inline-block; }
+    .build { background:var(--build); } .proof { background:var(--proof); } .gate-color { background:var(--gate); }
+    .progress-list { display:grid; gap:10px; }
+    .progress-row { width:100%; text-align:left; display:grid; grid-template-columns:70px minmax(165px,1.1fr) minmax(340px,2.1fr) 35px; align-items:center; gap:16px; padding:16px 19px; border:1px solid var(--line); background:var(--card); color:var(--ink); transition:transform .18s,box-shadow .18s,border-color .18s; }
+    .progress-row:hover,.progress-row[aria-pressed="true"] { border-color:var(--build); box-shadow:0 8px 26px rgba(9,44,41,.11); transform:translateY(-2px); }
+    .progress-row[aria-pressed="true"] { background:#f0f8f3; }
+    .code { color:var(--build); }
+    .progress-row .name { font-weight:700; line-height:1.25; }
+    .bars { display:grid; gap:5px; }
+    .bar { display:grid; grid-template-columns:56px 1fr 37px; gap:7px; align-items:center; font:600 10px/1 Consolas,monospace; letter-spacing:.01em; color:var(--muted); }
+    .track { height:5px; background:#e4e9e3; border-radius:8px; overflow:hidden; }
+    .fill { height:100%; border-radius:8px; }
+    .arrow { color:var(--build); font-size:1.35rem; text-align:right; }
+    .milestone-detail { display:grid; grid-template-columns:240px 1fr 1fr; gap:28px; background:var(--deep); color:#f8f5ec; padding:30px; margin-top:18px; box-shadow:var(--shadow); }
+    .milestone-detail .eyebrow { color:#a7dacc; }
+    .milestone-detail h3 { font-size:2.2rem; line-height:1.05; margin:10px 0 0; }
+    .milestone-detail h4 { font:700 11px/1.2 Consolas,monospace; letter-spacing:.12em; text-transform:uppercase; color:#a7dacc; margin:3px 0 13px; }
+    .milestone-detail p { margin:0; color:#e3e9e2; }
+    .milestone-detail a { color:#a7dacc; }
+    .relation-wrap { overflow:auto; background:var(--card); border:1px solid var(--line); padding:26px 28px; box-shadow:var(--shadow); }
+    .relation-guide { display:grid; grid-template-columns:190px 1fr; gap:14px; min-width:875px; margin-bottom:12px; align-items:end; }
+    .relation-guide .nodes,.relation-row .nodes { display:grid; grid-template-columns:repeat(16,minmax(25px,1fr)); gap:4px; }
+    .relation-guide .nodes span { text-align:center; color:var(--muted); font:700 9px/1 Consolas,monospace; }
+    .relation-row { min-width:875px; display:grid; grid-template-columns:190px 1fr; gap:14px; align-items:center; border-top:1px solid var(--line); padding:12px 0; }
+    .relation-row button { background:none; border:0; color:var(--ink); text-align:left; padding:3px; font-weight:700; }
+    .relation-row button:hover { color:var(--build); text-decoration:underline; }
+    .cell { height:22px; background:#e9eee8; border-radius:2px; }
+    .cell.on { background:var(--build); }
+    .relation-row[data-kind="intake"] .cell.on { background:#91a469; }
+    .relation-row[data-kind="review"] .cell.on { background:#c58d4d; }
+    .relation-row[data-kind="hardening"] .cell.on { background:#7299a1; }
+    .relation-row[data-kind="journey"] .cell.on { background:#a8757f; }
+    .relation-row[data-kind="sandbox"] .cell.on { background:#88927f; }
+    .relation-caption { color:var(--muted); font-size:.86rem; margin:14px 0 0; }
+    .inventory-tools { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:25px 0 15px; }
+    .inventory-tools input,.inventory-tools select { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:13px 15px; min-height:46px; border-radius:0; }
+    .inventory-tools input { min-width:270px; flex:1; }
+    .inventory-tools select { min-width:190px; }
+    .inventory-tools button { border:1px solid var(--ink); padding:12px 16px; color:var(--ink); background:transparent; min-height:46px; }
+    .inventory-tools button:hover { background:var(--ink); color:white; }
+    .inventory-count { margin-left:auto; font:600 11px/1.3 Consolas,monospace; color:var(--muted); text-transform:uppercase; }
+    .table-scroll { overflow:auto; border:1px solid var(--line); background:var(--card); box-shadow:var(--shadow); }
+    table { border-collapse:collapse; width:100%; min-width:790px; }
+    th { text-align:left; background:var(--deep); color:#f7f5ec; font:700 11px/1.2 Consolas,monospace; text-transform:uppercase; letter-spacing:.07em; padding:15px 17px; position:sticky; top:0; }
+    td { border-bottom:1px solid #e4e9e4; vertical-align:top; padding:16px 17px; }
+    tbody tr:last-child td { border-bottom:0; }
+    tbody tr:hover { background:#f2f7f1; }
+    td:first-child { white-space:nowrap; font:700 12px/1.5 Consolas,monospace; color:var(--build); }
+    .badge { display:inline-block; padding:3px 7px; background:#e8f0e9; color:var(--ink); margin:0 4px 4px 0; font:700 10px/1.3 Consolas,monospace; }
+    .kind-label { color:var(--muted); font-size:.78rem; display:block; margin-top:4px; }
+    .empty { padding:32px; color:var(--muted); }
+    .note-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:25px; }
+    .note { padding:24px; border-top:4px solid var(--build); background:var(--card); }
+    .note:nth-child(2) { border-color:var(--proof); } .note:nth-child(3) { border-color:var(--gate); }
+    .note h3 { font-size:1.45rem; margin:0 0 9px; }
+    .note p { color:var(--muted); margin:0; }
+    footer { margin-top:95px; border-top:1px solid var(--line); padding-top:22px; display:flex; justify-content:space-between; gap:20px; color:var(--muted); font-size:.83rem; }
+    @media (max-width:900px) { .hero { grid-template-columns:1fr; gap:16px; padding-top:50px; } .facts { grid-template-columns:repeat(2,1fr); } .progress-row { grid-template-columns:65px 1fr 35px; } .bars { grid-column:2; grid-row:2; } .milestone-detail { grid-template-columns:1fr 1fr; } .milestone-detail > div:first-child { grid-column:1/-1; } .chapter-head { display:block; } .chapter-head p { margin-top:15px; } }
+    @media (max-width:600px) { .shell { padding:0 17px 60px; } .mast { align-items:start; } .mast small { max-width:175px; } .facts { grid-template-columns:1fr 1fr; } .fact { padding:20px; min-height:142px; } .chapter { margin-top:63px; } .progress-row { gap:8px; padding:13px; } .milestone-detail { grid-template-columns:1fr; padding:23px; } .milestone-detail > div:first-child { grid-column:auto; } .note-grid { grid-template-columns:1fr; } footer { display:block; } }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .progress-row { transition:none; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="mast"><div class="brand">Meta Clinic <span aria-hidden="true">/</span> Field Notes</div><small>Implementation register · live source view<br>Initial snapshot 27 Sep 2026</small></header>
+    <main>
+      <section class="source-panel" id="source-panel" data-state="loading" aria-live="polite"><strong>Source connection</strong><span id="source-status">Connecting to the tracker and linked files…</span><button id="refresh-source" type="button">Refresh now</button><button id="choose-folder" type="button">Choose repository folder</button><small id="source-meta">The register reads source files; edits belong in the canonical tracker.</small></section>
+      <section class="hero" aria-labelledby="title"><div><span class="eyebrow">A map of the work</span><h1 id="title">What is built.<br><em>What is proved.</em><br>What is left.</h1><p class="lead">Explore the core milestones and the plans that cross them. Select a milestone to see recorded progress and the next gaps, then filter the full inventory below.</p></div><aside class="hero-note"><strong>No single “done” percentage</strong><p>The tracker scores build, local validation and external or human acceptance separately. It says the lowest applicable dimension controls readiness; averaging the three would hide unfinished gates.</p><a href="../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md">Open canonical tracker ↗</a></aside></section>
+      <section class="facts" aria-label="Current tracker facts"><div class="fact"><span class="eyebrow">Core milestones</span><strong class="value" id="core-count">16</strong><p>MC rows detected in the tracker.</p></div><div class="fact"><span class="eyebrow">Build range</span><strong class="value" id="build-range">35–86<span style="font-size:.46em">%</span></strong><p>Tracker estimates across the core rows.</p></div><div class="fact"><span class="eyebrow">Validation range</span><strong class="value" id="proof-range">15–68<span style="font-size:.46em">%</span></strong><p>Local evidence is narrower than source coverage.</p></div><div class="fact gate"><span class="eyebrow">External / human</span><strong class="value" id="gate-range">0<span style="font-size:.46em">%</span></strong><p>Shown separately; never averaged into readiness.</p></div></section>
+      <section class="chapter" aria-labelledby="milestones-title"><div class="chapter-head"><div><span class="eyebrow">01 / Milestone landscape</span><h2 id="milestones-title">16 open rows</h2></div><p>Each bar is the tracker’s dated planning estimate for that dimension. Click a row for its concrete evidence and remaining work.</p></div><div class="legend" aria-label="Progress legend"><span><i class="swatch build"></i>Build</span><span><i class="swatch proof"></i>Local validation</span><span><i class="swatch gate-color"></i>External / human</span></div><div id="progress" class="progress-list"></div><article id="detail" class="milestone-detail" aria-live="polite"></article></section>
+      <section class="chapter" aria-labelledby="relations-title"><div class="chapter-head"><div><span class="eyebrow">02 / Relationship map</span><h2 id="relations-title">One core, many lenses</h2></div><p>Colored squares show which MC milestones a named plan touches. These plans overlap; their rows must not be added into a platform completion count.</p></div><div class="relation-wrap"><div class="relation-guide"><span class="mono">Plan or evidence lens</span><div id="relation-head" class="nodes"></div></div><div id="relations"></div><p class="relation-caption">Select a lens to filter the inventory. The links are navigation, not a dependency claim or approval.</p></div></section>
+      <section class="chapter" id="inventory" aria-labelledby="inventory-title"><div class="chapter-head"><div><span class="eyebrow">03 / Complete named inventory</span><h2 id="inventory-title">Every row in one place</h2></div><p>Core milestones, specialty and intake rows, full-review slices, hardening sequence, journey checks and the sandbox coverage overlay.</p></div><div class="inventory-tools"><label for="search" class="visually-hidden" style="position:absolute;clip:rect(0 0 0 0)">Search slices</label><input id="search" type="search" placeholder="Search a code, milestone or gap…"><label for="kind" class="visually-hidden" style="position:absolute;clip:rect(0 0 0 0)">Filter type</label><select id="kind"><option value="all">All work</option><option value="core">Core MC</option><option value="intake">Intake M</option><option value="behavioral">Behavioral BH</option><option value="review">Review PR</option><option value="hardening">Hardening H</option><option value="journey">Journey T</option><option value="sandbox">Sandbox</option></select><button id="clear" type="button">Clear filters</button><span id="count" class="inventory-count"></span></div><div class="table-scroll"><table><thead><tr><th scope="col">Slice</th><th scope="col">Belongs to</th><th scope="col">Current evidence / state</th><th scope="col">Still needed</th></tr></thead><tbody id="inventory-body"></tbody></table><div id="empty" class="empty" hidden>No rows match this filter.</div></div></section>
+      <section class="chapter" aria-labelledby="read-title"><div class="chapter-head"><div><span class="eyebrow">04 / How to read the map</span><h2 id="read-title">Evidence has edges</h2></div></div><div class="note-grid"><div class="note"><h3>Source exists</h3><p>Implemented fields, routes and guards can be present without a complete patient or staff journey. The build bar describes this dimension only.</p></div><div class="note"><h3>Local path proved</h3><p>A focused check or synthetic browser path proves only the recorded action and environment. Reload, denial and exception paths may still be open.</p></div><div class="note"><h3>External gate remains</h3><p>Vendor acceptance, clinical decisions, operational ownership and release approval need their own evidence. Local simulation does not grant them.</p></div></div></section>
+    </main>
+    <footer><span>Live read view of repository files. The tracker remains the editable source of truth; source failures are shown above.</span><span><a href="../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md">Tracker</a> · <a href="../../docs/development/weight-management-intake-tracking.md">Intake M1–M12</a> · <a href="../../PATIENT_JOURNEY_PLAN.md">Journey T01–T10</a></span></footer>
+  </div>
+  <script>
+    const core = [
+      ['MC-01','Clinic setup',84,61,'Service-offering drafts, publishing and retirement; linked booking snapshots and independent visit-type booking have local evidence.','Contact/referral rules, availability, clinician eligibility and cross-clinic denial proof, historic booking comparison.'],
+      ['MC-02','Digital front door / Growth',60,45,'Two clinic catalogs and a local account-first membership path were walked through with synthetic records.','Broader clinic pages and lead tools; email/terms, payment failure/retry and cross-clinic proof.'],
+      ['MC-03','Registration / walk-ins',72,58,'A synthetic walk-in, invitation, portal activation and same-patient return survived reload.','Identity correction, duplicate recovery and telehealth return.'],
+      ['MC-04','Scheduling / capacity',86,68,'Site policy, weekly series and a two-visit create/change/cancel/reload walkthrough are recorded.','Overbook/reload, concurrent allocation, hold and waitlist recovery, resource compatibility and rescheduling after closure.'],
+      ['MC-05','Intake / handoffs',70,50,'Reusable intake and handoff owners plus explicit psychiatry review/task states have scoped evidence.','Psychiatry browser persistence, draft/retry, role/site proof, selected instrument and safety-coverage decisions.'],
+      ['MC-06','Clinical work',65,40,'Linked clinical work and typed lab history separate distinct code systems and units.','Typed-lab review/reopen, completion and exception proof, provenance and external order/result mapping.'],
+      ['MC-07','Telehealth',55,35,'Audio-only join and selected device preferences reach the local adapter and reconnect path.','Two-party join/media, disconnect/rejoin and provider readiness.'],
+      ['MC-08','Cash billing',76,60,'Estimate issue/correction evidence and a single audited staff delivery attestation are recorded.','Estimate replay after catalog change, actual written delivery, collection/refund, allocation, receipts and unknown-outcome recovery.'],
+      ['MC-09','Memberships / packages',65,50,'Focused local simulator evidence covers paid entitlement, renewal failure, exact retry and period-end cancellation.','Connected browser recovery, package entitlements and signed provider outcomes.'],
+      ['MC-10','Medication / refills',65,45,'Destination snapshots, local transmission attempts and outcome guards exist; 27 Sep guards have source checks only.','Browser proof, response/reconciliation worklist, RxFill and cancellation extensions, external prescribing acceptance.'],
+      ['MC-11','Inventory / procurement',70,45,'Shared ledger, lot and reversal path have scoped evidence; 27 Sep order-state guards have source checks only.','Receiving-to-use/reversal browser trace, role denial, supplier mapping, quotes, order/shipment recovery and external proof.'],
+      ['MC-12','Portal / messaging',60,40,'Existing portal requests, messages and follow-up owners are documented in workflow delivery.','Patient visibility, failed-message recovery and return-visit proof.'],
+      ['MC-13','Workforce / locations',60,45,'Configured roles and bounded context checks exist.','Administrator assignment, revocation, site isolation, coverage transfer and staff-recovery proof.'],
+      ['MC-14','Reporting / ownership',35,30,'Daily visits, financial and stock report slices plus a limited populated browser path are recorded.','Financial/stock/workflow reconciliation, denied-role/reload/CSV proof, named owner and retention policy.'],
+      ['MC-15','Onboarding / operations',35,20,'Local integration readiness and simulator-state views exist in Operations.','Integration inventory, configuration/import/export, migration recovery, exceptions, runbooks and scoped acceptance.'],
+      ['MC-16','Optional insurance',35,15,'An optional cash-pay-independent preparation boundary is defined; source and acceptance are not fully reconciled.','Coverage, eligibility, authorization, claims, reconciliation, permissions and recovery.']
+    ].map(([code,title,build,validation,done,remaining])=>({code,title,build,validation,external:0,done,remaining,kind:'core',parents:[code]}));
+
+    const overlayRows = [
+      ['M1','Shared intake shell','intake','MC-05','Versioned intake and explicit answer states are partly present.','Question/version provenance, requiredness and interactive recovery.'],
+      ['M2','Profile and coordination','intake','MC-03 MC-05','Profile reuse and room context have limited proof.','Full contacts, provider/pharmacy references and address confirmation.'],
+      ['M3','Goals and measurements','intake','MC-05 MC-06','Dated measurements and calculated BMI have local proof.','Structured goals, weight trajectory, repeated measures and source verification.'],
+      ['M4','Treatment history','intake','MC-05','Repeating treatment and procedure entries persist.','Detailed outcomes, stop reasons, doses and dates.'],
+      ['M5','Medical and symptom history','intake','MC-05 MC-06','Condition/family/symptom records persist in limited form.','Specific detail and owned triage/follow-up work.'],
+      ['M6','Medication and allergy reconciliation','intake','MC-05 MC-10','Actual-use and uncertainty fields persist.','Stable product identity, full use/reaction detail and clarification linkage.'],
+      ['M7','Product safety branches','intake','MC-05 MC-10','Some reproductive and product-class states persist.','Product-specific questions, uncertainty tasks and approved counseling.'],
+      ['M8','Nutrition and behavior','intake','MC-05 MC-12','Bounded selections persist without inferred scores.','Detailed patterns, sensitive presentation and approved instruments.'],
+      ['M9','Activity, sleep and barriers','intake','MC-05 MC-12','Broad activity and support selections persist.','Specific activity/sleep detail and actual support-task ownership.'],
+      ['M10','Records, labs and consent','intake','MC-05 MC-06 MC-08','Separate neutral consent evidence was later connected locally.','Actual document/result linkage, versioned purpose-specific evidence and acceptance.'],
+      ['M11','Confirmation and review','intake','MC-05 MC-06','Staff confirmation, versions and handoff task are distinct.','Prioritized unresolved-item ownership and correction-driven review reopening.'],
+      ['M12','Shorter follow-up','intake','MC-05 MC-12','A separate follow-up form and change fields exist.','Change-focused path, longitudinal comparison and review reopening.'],
+      ['BH-01','Psychiatry visit','behavioral','MC-05 MC-10','Initial/return visits, notes and open follow-up have scoped local evidence.','Browser persistence, role/site denial, draft/retry, handoff owner and policy decisions.'],
+      ['BH-02','Protected therapy note','behavioral','MC-05 MC-12','Private note save/reload/revise and another-clinician denial have local evidence.','Portal/export absence proof and privacy, disclosure and retention decisions.'],
+      ['PR-01','Entry and session recovery','review','MC-13','Navigation recovery and fresh clinic entry are recorded.','Fresh-entry timeout/error and no mutation auto-replay.'],
+      ['PR-02','Navigation and landing','review','MC-03 MC-04 MC-13','Capability-filtered routes and role landing are implemented.','Deep links, history navigation, draft blockers and board/schedule distinction.'],
+      ['PR-03','Patient schedule context','review','MC-04','Calendar, picker and selected-patient context have browser evidence.','New booking/check-in mutation walkthrough.'],
+      ['PR-04','Record lifecycle','review','MC-03 MC-05 MC-08 MC-09','Operations maps independent records and writers.','Persisted state, visible owner and next action.'],
+      ['PR-05','Provider and report discovery','review','MC-08 MC-11 MC-13 MC-15','Report catalog and telehealth health projection exist.','Permissions, source/freshness and honest unavailable/simulated states.'],
+      ['PR-06','Communication lifecycle','review','MC-10','Returned attempt history and cancellation review handoff exist.','Consent, unknown delivery/no automatic resend and cancellation-notification proof.'],
+      ['PR-07','Correction provenance','review','MC-05 MC-08 MC-11 MC-14','Focused history isolation and denial checks passed.','No separate local slice is named; keep protected values out of snapshots and avoid a parallel ledger.'],
+      ['PR-08','Scribe accountability','review','MC-05 MC-12','Exact-revision review and approving-account provenance exist.','Reviewer/signature boundary and clinical-policy approval.'],
+      ['PR-09','Workflow accessibility','review','MC-01 MC-03 MC-04 MC-05 MC-06 MC-08 MC-11 MC-12 MC-13','Four-role desktop/tablet route and site-boundary matrix passed.','Keyboard and screen-reader acceptance.'],
+      ['PR-10','Conditional enhancements','review','MC-04 MC-13 MC-15','Later scope is identified, not selected for full build.','Source-specific decisions before external sync, advanced recurrence or aggregates.'],
+      ['H0','Acceptance setup','hardening','MC-01 MC-03 MC-04 MC-05 MC-06 MC-08 MC-11 MC-13 MC-14','Existing browser and API check conventions can be reused.','Record exact role, route, mutation, recovery and limitation for each selected slice.'],
+      ['H1','Service offerings','hardening','MC-01 MC-08','Offering catalog and linked booking/estimate foundations exist.','Remaining setup dependencies and connected authorization/selection proof.'],
+      ['H2','Availability and booking','hardening','MC-04','Scheduling policy and series exist.','Capacity, holds, booking and recovery acceptance.'],
+      ['H3','Cash estimates','hardening','MC-08','Estimate and staff-attestation foundations exist.','Written delivery and recovery evidence.'],
+      ['H4','Typed laboratory results','hardening','MC-06','Coded result history distinguishes code system and units.','Review/reopen and provenance acceptance.'],
+      ['H5','Immunization records','hardening','MC-06','Linked immunization work is reported in the tracker.','Administration-grade record acceptance.'],
+      ['H6','Registration and clinical browser','hardening','MC-03 MC-05 MC-06','Selected walk-in and clinical paths have local evidence.','Connected mutation, denial and recovery matrix.'],
+      ['H7','Inventory and workforce browser','hardening','MC-11 MC-13','One stock reversal survived reload.','Receiving and staff lifecycle journeys with denial and recovery.'],
+      ['H8','Accessibility pass','hardening','MC-01 MC-03 MC-04 MC-05 MC-06 MC-08 MC-11 MC-12 MC-13','Desktop/tablet role matrix is recorded.','Keyboard and screen-reader acceptance.'],
+      ['H9','Reporting and retention','hardening','MC-14 MC-15','Several source-owned reports and exports exist.','Reconciliation, audit, retention and owner catalog.'],
+      ['T01','Entry and identity','journey','MC-02 MC-09','Parts of account-first entry have local proof.','Age/identity/terms/payment replay and no duplicate conversion.'],
+      ['T02','Scheduling and capacity','journey','MC-04','Two-visit series mutations survived reload.','Callback versus reservation, staff booking and capacity alternatives.'],
+      ['T03','Intake recovery','journey','MC-05 MC-12','A connected local journey exists for selected actions.','Draft/submitted states, source history and stale-edit recovery.'],
+      ['T04','Arrival and handoff','journey','MC-03 MC-05','Walk-in and selected handoff evidence exists.','Scoped linkage, timezone, actual attendance and accepted handoff.'],
+      ['T05','Visit and Scribe','journey','MC-05 MC-06 MC-07 MC-12','Selected note and connected journey steps are locally proved.','Consent/capture epoch, disconnected video and note correction.'],
+      ['T06','Prescription events','journey','MC-10','Local attempts and unknown-outcome guards exist.','Exact review, reconciliation, destination change and resend recovery.'],
+      ['T07','Lab result lifecycle','journey','MC-06','Versioned result work exists.','Pending/partial/corrected, acknowledgment, contact and independent work.'],
+      ['T08','Money and continuation','journey','MC-08 MC-09 MC-12','Local billing and membership records exist.','Failure, reversal, renewal, cancellation and open outreach.'],
+      ['T09','Stock and external events','journey','MC-10 MC-11 MC-15','Local simulator and inventory ledger are present.','Duplicate/out-of-order outcomes, lot conservation and partial-fulfillment reversal.'],
+      ['T10','Parallel ownership','journey','MC-05 MC-06 MC-13 MC-15','Task owners and handoff records exist.','Revoked actor, transfer coverage, dependency and closure recovery.'],
+      ['SBX','Multi-clinic sandbox','sandbox','MC-01 MC-02 MC-03 MC-04 MC-05 MC-06 MC-07 MC-08 MC-09 MC-10 MC-11 MC-12 MC-13 MC-14 MC-15','Two-clinic, four-site synthetic population has a dated partial coverage matrix.','Broader chart history, linked lab/refill/membership stories, forecasting, load and browser coverage.']
+    ].map(([code,title,kind,parents,done,remaining])=>({code,title,kind,parents:parents.split(' '),done,remaining}));
+    let all = [...core,...overlayRows];
+    const groups = [ ['intake','M1–M12 · Weight-management intake'],['behavioral','BH-01/02 · Behavioral health'],['review','PR-01–10 · Full-app review'],['hardening','H0–H9 · Non-vendor hardening'],['journey','T01–T10 · Patient journey'],['sandbox','SBX · Multi-clinic sandbox'] ];
+    const esc = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+    let selected = 'MC-01';
+    const progress = document.getElementById('progress');
+    const detail = document.getElementById('detail');
+    const search = document.getElementById('search');
+    const kind = document.getElementById('kind');
+    const body = document.getElementById('inventory-body');
+    function selectMilestone(code) { selected=code; drawProgress(); drawDetail(); }
+    function drawProgress() {
+      progress.innerHTML = core.map(item => `<button type="button" class="progress-row" data-code="${item.code}" aria-pressed="${item.code===selected}"><span class="code">${item.code}</span><span class="name">${esc(item.title)}</span><span class="bars"><span class="bar"><span>BUILD</span><span class="track"><span class="fill build" style="display:block;width:${item.build}%"></span></span><span>${item.build}%</span></span><span class="bar"><span>PROOF</span><span class="track"><span class="fill proof" style="display:block;width:${item.validation}%"></span></span><span>${item.validation}%</span></span><span class="bar"><span>GATE</span><span class="track"><span class="fill gate-color" style="display:block;width:${item.external}%"></span></span><span>${item.external}%</span></span></span><span class="arrow" aria-hidden="true">↗</span></button>`).join('');
+      progress.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>selectMilestone(button.dataset.code)));
+    }
+    function drawDetail() {
+      const item=core.find(row=>row.code===selected);
+      const connected=overlayRows.filter(row=>row.parents.includes(selected));
+      detail.innerHTML=`<div><span class="eyebrow">${item.code} · Selected milestone</span><h3>${esc(item.title)}</h3><p style="margin-top:16px;font-size:.83rem">${connected.length} named overlay ${connected.length===1?'row':'rows'} point here.</p></div><div><h4>Current evidence / state</h4><p>${esc(item.done)}</p></div><div><h4>Still open</h4><p>${esc(item.remaining)}</p><p style="margin-top:14px"><a href="#inventory" id="related-link">See linked rows ↓</a></p></div>`;
+      document.getElementById('related-link').addEventListener('click',()=>{search.value=selected;kind.value='all';drawInventory();});
+    }
+    function drawRelations() {
+      document.querySelectorAll('.nodes').forEach(node=>node.style.gridTemplateColumns=`repeat(${core.length},minmax(25px,1fr))`);
+      document.getElementById('relation-head').innerHTML=core.map(item=>`<span title="${esc(item.title)}">${item.code.slice(3)}</span>`).join('');
+      document.getElementById('relations').innerHTML=groups.map(([group,label])=>{const ids=new Set(overlayRows.filter(item=>item.kind===group).flatMap(item=>item.parents));return `<div class="relation-row" data-kind="${group}"><button type="button" data-filter="${group}">${esc(label)} ↗</button><div class="nodes" aria-label="${esc(label)} maps to ${[...ids].join(', ')}">${core.map(item=>`<span class="cell ${ids.has(item.code)?'on':''}" title="${ids.has(item.code)?esc(item.code+' '+item.title):''}"></span>`).join('')}</div></div>`}).join('');
+      document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{kind.value=button.dataset.filter;search.value='';drawInventory();document.getElementById('inventory').scrollIntoView({behavior:'smooth'});}));
+    }
+    function drawInventory() {
+      const query=search.value.trim().toLowerCase();
+      const selectedKind=kind.value;
+      const visible=all.filter(item=>(selectedKind==='all'||item.kind===selectedKind)&&(!query||[item.code,item.title,item.done,item.remaining,...item.parents].join(' ').toLowerCase().includes(query)));
+      body.innerHTML=visible.map(item=>`<tr><td>${esc(item.code)}<span class="kind-label">${esc(item.kind)}</span>${item.source?`<a class="kind-label" href="../../${item.source.split('/').map(encodeURIComponent).join('/')}" target="_blank" rel="noopener">source ↗</a>`:''}</td><td><strong>${esc(item.title)}</strong><div style="margin-top:8px">${item.parents.map(parent=>`<span class="badge">${esc(parent)}</span>`).join('')}</div></td><td>${esc(item.done)}</td><td>${esc(item.remaining)}</td></tr>`).join('');
+      document.getElementById('empty').hidden=visible.length!==0;
+      document.getElementById('count').textContent=`${visible.length} of ${all.length} rows`;
+    }
+    search.addEventListener('input',drawInventory);
+    kind.addEventListener('change',drawInventory);
+    document.getElementById('clear').addEventListener('click',()=>{search.value='';kind.value='all';drawInventory();});
+    const files = {
+      tracker:'APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md',
+      intake:'records/implementation/2026-09-19-weight-management-intake-audit.md',
+      hardening:'docs/development/non-vendor-clinic-hardening-plan.md',
+      journey:'PATIENT_JOURNEY_PLAN.md',
+      sandbox:'docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md'
+    };
+    let repositoryHandle;
+    const cellValues = line => line.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(value=>value.trim());
+    const plain = markdown => String(markdown||'').replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g,'$2').replace(/\[\[([^\]]+)\]\]/g,'$1').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/[*`_]/g,'').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+    async function readSource(path) {
+      if (repositoryHandle) {
+        let folder=repositoryHandle;
+        const parts=path.split('/');
+        for (const part of parts.slice(0,-1)) folder=await folder.getDirectoryHandle(part);
+        const file=await (await folder.getFileHandle(parts.at(-1))).getFile();
+        return {text:await file.text(),modified:file.lastModified};
+      }
+      if (!/^https?:$/.test(location.protocol)) throw new Error('Choose the repository folder, or open this page through a local server.');
+      const response=await fetch('../../'+path.split('/').map(encodeURIComponent).join('/'),{cache:'no-store'});
+      if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+      return {text:await response.text(),modified:Date.parse(response.headers.get('last-modified'))||null};
+    }
+    function parseTracker(text) {
+      const lines=text.split(/\r?\n/);
+      const dashboards=lines.map(cellValues).filter(c=>/^MC-\d{2} —/.test(c[0])&&/^\d+%$/.test(c[1]||''));
+      if (dashboards.length<16) throw new Error(`Tracker dashboard: expected at least 16 MC rows; found ${dashboards.length}.`);
+      const currentStates=new Map();
+      for (const c of lines.map(cellValues).filter(c=>/^MC-\d{2}$/.test(c[0]))) if (!currentStates.has(c[0])) currentStates.set(c[0],c[2]);
+      const nextCore=dashboards.map(c=>{
+        const match=c[0].match(/^(MC-\d{2}) — (.+)$/);
+        return {code:match[1],title:plain(match[2]),kind:'core',parents:[match[1]],build:parseInt(c[1]),validation:parseInt(c[2]),external:parseInt(c[3]),done:plain(currentStates.get(match[1])||c[6]),remaining:plain(c[4]),source:files.tracker};
+      });
+      const bh=lines.map(cellValues).filter(c=>/^BH-\d{2} —/.test(c[0])).map(c=>{
+        const match=c[0].match(/^(BH-\d{2}) — (.+)$/);
+        const prior=overlayRows.find(row=>row.code===match[1]);
+        return {...prior,code:match[1],title:plain(match[2]),done:plain(c[1]),remaining:plain(c[2]),source:files.tracker};
+      });
+      const pr=lines.map(cellValues).filter(c=>/^PR-\d{2} /.test(c[0])).map(c=>{
+        const match=c[0].match(/^(PR-\d{2}) (.+)$/);
+        const expanded=c[1].replace(/MC-(\d{2}(?:\/\d{2})+)/g,(_,codes)=>codes.split('/').map(code=>'MC-'+code).join(' '));
+        const parents=/All affected MC rows/i.test(c[1])?nextCore.map(row=>row.code):[...new Set(expanded.match(/MC-\d{2}/g)||[])];
+        return {code:match[1],title:plain(match[2]),kind:'review',parents:parents.length?parents:(overlayRows.find(row=>row.code===match[1])?.parents||[]),done:plain(c[2]),remaining:plain(c[3]),source:files.tracker};
+      });
+      const sandboxLine=lines.find(line=>line.startsWith('| Organization-wide demo sandbox |'));
+      const sbx=sandboxLine?cellValues(sandboxLine):null;
+      return {core:nextCore,bh,pr,sandbox:sbx?{...overlayRows.find(row=>row.code==='SBX'),done:plain(sbx[2]),remaining:plain(sbx[2].split('Next proof:')[1]||sbx[2]),source:files.tracker}:null};
+    }
+    function parseIntake(text) {
+      const rows=text.split(/\r?\n/).map(cellValues).filter(c=>/^M(?:[1-9]|1[0-2]) —/.test(c[0]));
+      if (rows.length!==12) throw new Error(`Intake audit: expected 12 M rows; found ${rows.length}.`);
+      return rows.map(c=>{const match=c[0].match(/^(M\d{1,2}) — (.+)$/);return {...overlayRows.find(row=>row.code===match[1]),title:plain(match[2]),done:plain(c[1]),remaining:plain(c[2]),source:files.intake};});
+    }
+    function parseHardening(text) {
+      const headings=[...text.matchAll(/^### ([0-9])\. (.+)$/gm)];
+      if (headings.length!==10) throw new Error(`Hardening plan: expected 10 numbered slices; found ${headings.length}.`);
+      return headings.map((match,index)=>{
+        const code='H'+match[1];
+        const section=text.slice(match.index+match[0].length,headings[index+1]?.index||text.length);
+        const excerpt=section.split(/\n\s*\n/).map(plain).find(part=>part.length>45&&!part.startsWith('Reuse and inspect'))||'Read the linked plan section.';
+        return {...overlayRows.find(row=>row.code===code),title:plain(match[2]),done:'Plan section; current implementation evidence is in the linked MC rows.',remaining:excerpt.slice(0,650),source:files.hardening};
+      });
+    }
+    function parseJourney(text) {
+      const start=text.indexOf('## Broader acceptance reference — T01–T10');
+      if (start<0) throw new Error('Journey plan: T01–T10 section was not found.');
+      const section=text.slice(start,text.indexOf('\n## ',start+3)>0?text.indexOf('\n## ',start+3):undefined);
+      const next=new Map();
+      for (const line of section.split(/\r?\n/)) {
+        if (!line.startsWith('| T')) continue;
+        const c=cellValues(line);
+        const nums=[...c[0].matchAll(/T(\d{2})/g)].map(match=>+match[1]);
+        const range=nums.length===2&&/T\d{2}–T\d{2}/.test(c[0])?Array.from({length:nums[1]-nums[0]+1},(_,i)=>nums[0]+i):nums;
+        for (const number of range) {
+          const code='T'+String(number).padStart(2,'0');
+          const prior=overlayRows.find(row=>row.code===code);
+          if (prior) next.set(code,{...prior,done:'Broader acceptance case; J0–J7 has separate bounded local proof.',remaining:plain(c[1]),source:files.journey});
+        }
+      }
+      if (next.size!==10) throw new Error(`Journey plan: expected 10 T cases; found ${next.size}.`);
+      return [...next.values()].sort((a,b)=>a.code.localeCompare(b.code));
+    }
+    function parseSandbox(text) {
+      const parents={
+        W00:'MC-15',W01:'MC-01',W02:'MC-01 MC-13',W03:'MC-13',W04:'MC-03',
+        W05:'MC-05 MC-06',W06:'MC-04',W07:'MC-05',W08:'MC-06',W09:'MC-10',
+        W10:'MC-06',W11:'MC-06 MC-12',W12:'MC-11',W13:'MC-08',W14:'MC-09',
+        W15:'MC-12',W16:'MC-07',W17:'MC-15',W18:'MC-14 MC-15',W19:'MC-15'
+      };
+      const rows=text.split(/\r?\n/).map(cellValues).filter(c=>/^W\d{2}$/.test(c[0]));
+      if (rows.length!==20) throw new Error(`Sandbox matrix: expected W00–W19; found ${rows.length}.`);
+      return rows.map(c=>({code:c[0],title:plain(c[1]),kind:'sandbox',parents:parents[c[0]].split(' '),done:plain(c[2]),remaining:plain(c[3]),source:files.sandbox}));
+    }
+    function refreshFacts() {
+      const range=key=>`${Math.min(...core.map(row=>row[key]))}–${Math.max(...core.map(row=>row[key]))}<span style="font-size:.46em">%</span>`;
+      document.getElementById('core-count').textContent=core.length;
+      document.getElementById('milestones-title').textContent=`${core.length} open rows`;
+      document.getElementById('build-range').innerHTML=range('build');
+      document.getElementById('proof-range').innerHTML=range('validation');
+      document.getElementById('gate-range').innerHTML=range('external');
+    }
+    let loading=false;
+    async function loadLive() {
+      if (loading) return;
+      loading=true;
+      const panel=document.getElementById('source-panel');
+      const status=document.getElementById('source-status');
+      panel.dataset.state='loading';status.textContent='Reading tracker and linked files…';
+      const results=await Promise.allSettled(Object.entries(files).map(async ([key,path])=>[key,await readSource(path)]));
+      const loaded=Object.fromEntries(results.filter(result=>result.status==='fulfilled').map(result=>result.value));
+      const failures=results.map((result,index)=>result.status==='rejected'?`${Object.keys(files)[index]}: ${result.reason.message}`:null).filter(Boolean);
+      try {
+        if (!loaded.tracker) throw new Error('The canonical tracker could not be read.');
+        const parsed=parseTracker(loaded.tracker.text);
+        core.splice(0,core.length,...parsed.core);
+        const byKind={behavioral:parsed.bh,review:parsed.pr};
+        if (loaded.intake) byKind.intake=parseIntake(loaded.intake.text);
+        if (loaded.hardening) byKind.hardening=parseHardening(loaded.hardening.text);
+        if (loaded.journey) byKind.journey=parseJourney(loaded.journey.text);
+        if (loaded.sandbox) byKind.sandbox=[...(parsed.sandbox?[parsed.sandbox]:[]),...parseSandbox(loaded.sandbox.text)];
+        else if (parsed.sandbox) byKind.sandbox=[parsed.sandbox];
+        for (const [name,rows] of Object.entries(byKind)) overlayRows.splice(overlayRows.findIndex(row=>row.kind===name),overlayRows.filter(row=>row.kind===name).length,...rows);
+        all=[...core,...overlayRows];
+        if (!core.some(row=>row.code===selected)) selected=core[0].code;
+        drawProgress();drawDetail();drawRelations();drawInventory();refreshFacts();
+        const now=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+        status.textContent=failures.length?`Partial live view · ${Object.keys(loaded).length}/${Object.keys(files).length} files · read ${now}`:`Live from repository · ${Object.keys(loaded).length} files · read ${now}`;
+        document.getElementById('source-meta').textContent=failures.length?`Unavailable: ${failures.join(' · ')}. Rows from those files retain the dated fallback; reconnect before relying on them.`:'The tracker supplies MC scores and current evidence; linked files supply named plan and acceptance rows. Auto-refresh every 30 seconds.';
+        panel.dataset.state=failures.length?'error':'live';
+      } catch (error) {
+        panel.dataset.state='error';status.textContent='Source read failed · showing the dated fallback';
+        document.getElementById('source-meta').textContent=error.message+' Choose the repository folder or open this page through a local server.';
+      } finally { loading=false; }
+    }
+    document.getElementById('refresh-source').addEventListener('click',loadLive);
+    document.getElementById('choose-folder').addEventListener('click',async()=>{
+      if (!window.showDirectoryPicker) {document.getElementById('source-meta').textContent='This browser has no folder picker. Serve the repository with a local HTTP server to enable live reading.';return;}
+      try {repositoryHandle=await window.showDirectoryPicker({mode:'read'});await loadLive();}
+      catch (error) {if (error.name!=='AbortError') document.getElementById('source-meta').textContent=error.message;}
+    });
+    drawProgress();drawDetail();drawRelations();drawInventory();
+    if (/^https?:$/.test(location.protocol)) loadLive();
+    else {document.getElementById('source-panel').dataset.state='error';document.getElementById('source-status').textContent='Dated fallback · choose the repository folder for live data';}
+    setInterval(()=>{if (repositoryHandle||/^https?:$/.test(location.protocol)) loadLive();},30000);
+  </script>
+</body>
+</html>
