@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-10/11 source closure follow-up
+
+Four scoped safeguards tighten prescription reconciliation and attempt pairing, and prevent empty order submission or closure with unresolved shipments. The [dated record](../../records/implementation/2026-09-27-mc10-mc11-source-closure.md) lists source checks, the one-slice hourly shortfall, and still-open browser/recovery evidence. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-10/11 prescription and procurement state boundaries
 
 Five local source guards now restrict simulated prescription outcomes and reconciliation to recorded attempts, and prevent supplier-free sending or early purchase-order completion. The [dated implementation record](../../records/implementation/2026-09-27-mc10-mc11-state-boundaries.md) separates source checks from still-open browser, retry, external, and clinical proof. Tracker percentages remain unchanged.

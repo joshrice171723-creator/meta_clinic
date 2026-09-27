@@ -38,7 +38,7 @@ module Clinic
             if kind == "confirmed_not_sent" && prior.kind.in?(%w[acknowledged accepted])
               raise ArgumentError, "An accepted prescription requires confirmed cancellation before replacement."
             end
-            raise ArgumentError, "Simulation evidence must stay simulated." if prior.source == "simulation" && source != "simulation"
+            raise ArgumentError, "Reconciliation must retain the original evidence source." unless source == prior.source
             if prior.source == "simulation" && !PrescriptionTransmissionAttempt.exists?(practice_id: practice.id, prescription_event_id: prior.id)
               raise ArgumentError, "Reconcile a recorded simulator attempt, not an unlinked outcome."
             end

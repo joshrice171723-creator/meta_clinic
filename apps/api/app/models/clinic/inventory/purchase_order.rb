@@ -47,7 +47,14 @@ module Clinic
             "partially_received" => %w[complete cancelled]
           }.fetch(status, [])
           raise ArgumentError, "Purchase order state cannot change from #{status}." unless allowed.include?(to)
+          if to == "submitted" && lines.empty?
+            raise ArgumentError, "Add at least one order line before submitting this purchase order."
+          end
           raise ArgumentError, "Choose a supplier before recording a sent purchase order." if to == "sent" && supplier_id.nil?
+          if %w[complete cancelled].include?(to) && shipments.where.not(id: Receipt.where(practice_id: practice_id).where.not(shipment_id: nil).select(:shipment_id))
+            .where.not(id: ShipmentReconciliation.where(practice_id: practice_id).select(:shipment_id)).exists?
+            raise ArgumentError, "Resolve recorded shipments before closing this purchase order."
+          end
           if to == "complete" && (lines.empty? || lines.where("received_quantity < ordered_quantity").exists?)
             raise ArgumentError, "Receive outstanding packages before completing this purchase order."
           end

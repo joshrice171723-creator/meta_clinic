@@ -35,7 +35,8 @@ module Clinic
         errors.add(:pharmacy_destination, "must belong to this clinic") unless destination&.practice_id == practice_id
         errors.add(:prescription_event, "must match this prescription") unless event &&
           event.practice_id == practice_id && event.patient_id == patient_id && event.medication_request_revision_id == order&.id &&
-          event.source == "simulation" && event.kind == outcome
+          event.source == "simulation" && event.kind == outcome && event.prior_event_id.nil? &&
+          event.request_key == "prescription-event:#{request_key}"
         errors.add(:initiated_by_membership, "must belong to this clinic") unless actor&.practice_id == practice_id
       end
     end
