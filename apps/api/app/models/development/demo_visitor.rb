@@ -10,5 +10,7 @@ module Development
     validates :clinic_name, length: { maximum: 160 }, allow_blank: true
     has_many :demo_runs, class_name: "Development::DemoRun", foreign_key: :visitor_id,
       inverse_of: :visitor, dependent: :restrict_with_error
+    has_many :demo_feedback, class_name: "Development::DemoFeedback", foreign_key: :visitor_id,
+      inverse_of: :visitor, dependent: :restrict_with_error
   end
 end

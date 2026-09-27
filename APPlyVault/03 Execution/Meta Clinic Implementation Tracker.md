@@ -351,10 +351,10 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 
 | Field | Value |
 | --- | --- |
-| Now | Resume the active >90% build goal by confirming the next concrete MC-11 shipment-recovery gap. |
-| State | Atlas activity panel delivered; source implementation is the next meaningful update. |
-| Updated (UTC) | 2026-09-27 23:13 UTC |
-| Up next | Confirm the exact shipment-recovery behavior before changing code; hold the 69.6% build average until source evidence supports a score change. |
+| Now | Sandbox visitors can submit demo feedback from the top bar; platform owners can review it in the owner command center. |
+| State | Additive local source and schema are in place; focused non-test checks passed. Browser acceptance and hosted release remain open. |
+| Updated (UTC) | 2026-09-27 23:42 UTC |
+| Up next | Resume the >90% build goal with the next confirmed MC-11 shipment-recovery gap; do not change the Build average for this unscored feature. |
 
 ### Activity log
 
@@ -363,6 +363,9 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 | 23:08 UTC | Codex | Started adding a tracker-fed current-work panel after Joshua asked for visible activity in the atlas. |
 | 23:10 UTC | Codex | Added the chat-style panel, current focus and next step; connecting it to this section with a 30-second tracker poll. |
 | 23:13 UTC | Codex | Panel is delivered and visible in the local atlas. HTML script syntax, scoped diff, and vault checks passed; no tests ran. Next source work is MC-11 shipment recovery discovery. |
+| 23:42 UTC | Codex | Added sandbox feedback submission and a platform-owner-only review inbox; local migration and focused source checks passed. No tests or browser submission ran. Build scoring is unchanged; resume MC-11 next. |
+
+**2026-09-27 demo feedback source checkpoint:** [Dated evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records the sandbox form, visitor/session binding, owner-only review surface, local migration and checks. This is outside MC-01–MC-15 scoring; browser acceptance and hosted release remain open.
 
 ## Build-ready queue — 2026-09-27 preparation
 

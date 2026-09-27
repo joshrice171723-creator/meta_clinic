@@ -65,6 +65,17 @@ module Development
       render json: inactive_payload(visitor:)
     end
 
+    def create_feedback
+      visitor = current_visitor
+      return render json: { error: "Register for the demo before sending feedback." }, status: :unauthorized unless visitor
+      run = current_run
+      raise ActiveRecord::RecordNotFound unless run&.visitor_id == visitor.id && DemoLessonCatalog.sandbox?(run.lesson_key)
+
+      input = demo_input!(%i[message])
+      feedback = visitor.demo_feedback.create!(message: required_string!(input[:message], field: :message, maximum: 2000))
+      render json: { id: feedback.id, created_at: feedback.created_at.iso8601 }, status: :created
+    end
+
     def view
       run = current_run!
       require_run_user!(run)

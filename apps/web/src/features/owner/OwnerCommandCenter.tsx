@@ -53,6 +53,7 @@ type CommandCenterData = {
   schema_version: "owner-command-center-v1";
   delivery_methods: { email: boolean; sms: boolean };
   demo_usage: DemoUsage[];
+  demo_feedback: DemoFeedback[];
   website_traffic: WebsiteTrafficData;
   organizations: OrganizationSummary[];
   unassigned_clinics: ClinicSummary[];
@@ -60,6 +61,7 @@ type CommandCenterData = {
   counts: { organizations: number; clinics: number; active_members: number };
   organization_pagination: PageMetadata;
   demo_usage_pagination: PageMetadata;
+  demo_feedback_pagination: PageMetadata;
   unassigned_clinic_pagination: PageMetadata;
 };
 
@@ -85,6 +87,14 @@ type DemoLessonUsage = {
   title: string;
   elapsed_seconds: number;
   completed: boolean;
+};
+
+type DemoFeedback = {
+  id: number;
+  visitor_name: string;
+  visitor_company: string;
+  message: string;
+  created_at: string;
 };
 
 type CreatedInvitation = {
@@ -152,9 +162,10 @@ function PageControls({
 export function OwnerCommandCenter() {
   const [organizationPage, setOrganizationPage] = useState(1);
   const [demoPage, setDemoPage] = useState(1);
+  const [feedbackPage, setFeedbackPage] = useState(1);
   const [unassignedPage, setUnassignedPage] = useState(1);
   const { data, error, refresh } = useResource<CommandCenterData>(
-    `/api/owner/command_center?organization_page=${organizationPage}&demo_page=${demoPage}&unassigned_clinic_page=${unassignedPage}`,
+    `/api/owner/command_center?organization_page=${organizationPage}&demo_page=${demoPage}&feedback_page=${feedbackPage}&unassigned_clinic_page=${unassignedPage}`,
     { retainDataOnRefresh: true },
   );
   const [open, setOpen] = useState(false);
@@ -345,6 +356,9 @@ export function OwnerCommandCenter() {
         <Button component="a" href="#demo-usage" variant="text">
           Demo usage
         </Button>
+        <Button component="a" href="#demo-feedback" variant="text">
+          Demo feedback
+        </Button>
       </Box>
 
       <WebsiteTraffic data={data.website_traffic} onRefresh={refresh} />
@@ -504,6 +518,56 @@ export function OwnerCommandCenter() {
         <PageControls
           pagination={data.demo_usage_pagination}
           onPageChange={setDemoPage}
+        />
+      </Paper>
+
+      <Paper
+        component="section"
+        id="demo-feedback"
+        variant="outlined"
+        sx={{ overflow: "hidden" }}
+      >
+        <Box sx={{ px: 2.5, py: 2 }}>
+          <Typography component="h2" variant="h5">
+            Demo feedback
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Messages submitted from the sandbox. Only Meta Clinic platform
+            owners can review them.
+          </Typography>
+        </Box>
+        <Divider />
+        {data.demo_feedback_pagination.total === 0 ? (
+          <Typography sx={{ p: 2.5 }} color="text.secondary">
+            No demo feedback has been submitted yet.
+          </Typography>
+        ) : (
+          <Stack divider={<Divider />}>
+            {data.demo_feedback.map((entry) => (
+              <Box key={entry.id} sx={{ p: 2.5 }}>
+                <Typography variant="subtitle2">
+                  {entry.visitor_name}
+                  {entry.visitor_company ? ` · ${entry.visitor_company}` : ""}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(entry.created_at).toLocaleString()}
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 1,
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {entry.message}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        )}
+        <PageControls
+          pagination={data.demo_feedback_pagination}
+          onPageChange={setFeedbackPage}
         />
       </Paper>
 

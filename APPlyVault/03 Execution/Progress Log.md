@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — Public sandbox demo feedback
+
+Visitors can submit up to 2,000 characters from the sandbox header, tied to the existing demo visitor and active sandbox session. Platform owners can review paginated submissions in the owner command center. [Dated source evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records boundaries and checks. The local additive migration and focused non-test checks passed; browser acceptance and hosted release remain open. No MC Build score changed.
+
 ## 2026-09-27 — Hourly source and tracker checkpoint
 
 Five pushed commits since the prior tracker checkpoint deliver BR-06 supplier quotes and source slices in MC-08, MC-14 and MC-15. The tracker and live atlas now show the changes, preserve the starting baseline, and report a 69.6% equal-weight MC-01–15 Build estimate. [Exact per-file line counts](../../records/implementation/2026-09-27-hourly-source-line-counts-2247.md) include every source commit; one small currency-label correction is not counted as a substantive slice, leaving the hourly run one slice short. No tests or browser acceptance ran; the BR-06 browser reload/role path remains open.

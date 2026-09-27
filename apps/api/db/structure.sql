@@ -12356,6 +12356,39 @@ ALTER SEQUENCE public.contact_messages_id_seq OWNED BY public.contact_messages.i
 
 
 --
+-- Name: development_demo_feedback; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.development_demo_feedback (
+    id bigint NOT NULL,
+    visitor_id bigint NOT NULL,
+    message text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT development_demo_feedback_message_length CHECK (((length(btrim(message)) >= 1) AND (length(btrim(message)) <= 2000)))
+);
+
+
+--
+-- Name: development_demo_feedback_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.development_demo_feedback_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: development_demo_feedback_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.development_demo_feedback_id_seq OWNED BY public.development_demo_feedback.id;
+
+
+--
 -- Name: development_demo_lessons; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -14693,6 +14726,13 @@ ALTER TABLE ONLY public.contact_messages ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: development_demo_feedback id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_feedback ALTER COLUMN id SET DEFAULT nextval('public.development_demo_feedback_id_seq'::regclass);
+
+
+--
 -- Name: development_demo_lessons id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -16817,6 +16857,14 @@ ALTER TABLE ONLY public.clinic_working_drafts
 
 ALTER TABLE ONLY public.contact_messages
     ADD CONSTRAINT contact_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: development_demo_feedback development_demo_feedback_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_feedback
+    ADD CONSTRAINT development_demo_feedback_pkey PRIMARY KEY (id);
 
 
 --
@@ -21205,6 +21253,20 @@ CREATE UNIQUE INDEX index_clinic_workforce_timecard_versions_on_practice_id_and_
 --
 
 CREATE INDEX index_credit_notes_on_practice_and_issuer ON public.clinic_credit_notes USING btree (practice_id, issued_by_membership_id);
+
+
+--
+-- Name: index_development_demo_feedback_on_created_at_and_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_feedback_on_created_at_and_id ON public.development_demo_feedback USING btree (created_at, id);
+
+
+--
+-- Name: index_development_demo_feedback_on_visitor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_development_demo_feedback_on_visitor_id ON public.development_demo_feedback USING btree (visitor_id);
 
 
 --
@@ -29672,6 +29734,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipt_lines
 
 
 --
+-- Name: development_demo_feedback fk_rails_aeda633b59; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.development_demo_feedback
+    ADD CONSTRAINT fk_rails_aeda633b59 FOREIGN KEY (visitor_id) REFERENCES public.development_demo_visitors(id);
+
+
+--
 -- Name: clinic_inventory_holds fk_rails_af351b5454; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31838,6 +31908,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927233500'),
 ('20260927225000'),
 ('20260927224000'),
 ('20260927221000'),

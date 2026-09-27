@@ -113,6 +113,9 @@ module Platform
         demo_visitors = Development::DemoVisitor.order(created_at: :desc, id: :desc)
         demo_total = demo_visitors.count
         demo_page = page_param!(:demo_page, demo_total)
+        feedback = Development::DemoFeedback.includes(:visitor).order(created_at: :desc, id: :desc)
+        feedback_total = feedback.count
+        feedback_page = page_param!(:feedback_page, feedback_total)
         {
           schema_version: "owner-command-center-v1",
           delivery_methods: { email: true, sms: Platform::ClinicOwnerInvitationSms.configured? },
@@ -124,6 +127,11 @@ module Platform
           organization_options: Organization.order(:name, :id).pluck(:id, :name).map { |id, name| { id:, name: } },
           demo_usage: demo_usage_payload(demo_visitors.limit(PAGE_SIZE).offset((demo_page - 1) * PAGE_SIZE)),
           demo_usage_pagination: page_metadata(demo_page, demo_total),
+          demo_feedback: feedback.limit(PAGE_SIZE).offset((feedback_page - 1) * PAGE_SIZE).map do |entry|
+            { id: entry.id, visitor_name: entry.visitor.name, visitor_company: entry.visitor.company,
+              message: entry.message, created_at: entry.created_at.iso8601 }
+          end,
+          demo_feedback_pagination: page_metadata(feedback_page, feedback_total),
           website_traffic: Platform::WebsiteTraffic.call,
           organizations: organizations.map { |organization| organization_payload(organization) },
           organization_pagination: page_metadata(organization_page, organization_total),

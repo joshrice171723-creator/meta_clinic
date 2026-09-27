@@ -20,6 +20,7 @@ Rails.application.routes.draw do
   post "demo/run/enrollment", to: "development/demo_runs#enrollment"
   post "demo/run/reset", to: "development/demo_runs#reset"
   post "demo/visitor", to: "development/demo_runs#register_visitor"
+  post "demo/feedback", to: "development/demo_runs#create_feedback"
   get "public/membership_storefronts/:slug", to: "public/membership_storefronts#show"
   post "public/membership_storefronts/:slug/prospects", to: "public/membership_storefronts#create"
   post "public/membership_storefronts/:slug/accounts", to: "public/membership_storefronts#create_account"

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import {
   Alert,
@@ -141,6 +148,10 @@ export function DemoJourney() {
     null,
   );
   const [restartOpen, setRestartOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [frameLoading, setFrameLoading] = useState(false);
   const [frameFailed, setFrameFailed] = useState(false);
@@ -329,6 +340,23 @@ export function DemoJourney() {
       setState({ status: "ready", value: response });
     } catch (reason) {
       setError(message(reason, fallback));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const submitFeedback = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setFeedbackError("");
+    try {
+      await api("/api/demo/feedback", {
+        method: "POST",
+        body: { message: feedbackText },
+      });
+      setFeedbackText("");
+      setFeedbackSent(true);
+    } catch (reason) {
+      setFeedbackError(message(reason, "Your feedback could not be sent."));
     } finally {
       setBusy(false);
     }
@@ -532,6 +560,18 @@ export function DemoJourney() {
                 >
                   Back to lessons
                 </Button>
+                {sandbox && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setFeedbackError("");
+                      setFeedbackSent(false);
+                      setFeedbackOpen(true);
+                    }}
+                  >
+                    Give feedback
+                  </Button>
+                )}
               </Stack>
               {!sandbox && (
                 <Box
@@ -713,6 +753,56 @@ export function DemoJourney() {
           preparingLesson && void selectLesson(preparingLesson.id)
         }
       />
+      <Dialog
+        open={feedbackOpen}
+        onClose={() => !busy && setFeedbackOpen(false)}
+        aria-labelledby="demo-feedback-title"
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle id="demo-feedback-title">Share demo feedback</DialogTitle>
+        <Box component="form" onSubmit={submitFeedback}>
+          <DialogContent>
+            <Stack spacing={2}>
+              <Typography color="text.secondary">
+                Tell us what worked or what you expected to find. Please do not
+                include patient, health, or account details.
+              </Typography>
+              {feedbackSent ? (
+                <Alert severity="success">
+                  Thanks. Your feedback was sent to the Meta Clinic team.
+                </Alert>
+              ) : (
+                <TextField
+                  label="Your feedback"
+                  value={feedbackText}
+                  onChange={(event) => setFeedbackText(event.target.value)}
+                  required
+                  multiline
+                  minRows={4}
+                  helperText={`${feedbackText.length}/2000`}
+                  slotProps={{ htmlInput: { maxLength: 2000 } }}
+                />
+              )}
+              {feedbackError && <Alert severity="error">{feedbackError}</Alert>}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setFeedbackOpen(false)} disabled={busy}>
+              {feedbackSent ? "Close" : "Cancel"}
+            </Button>
+            {!feedbackSent && (
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={busy || !feedbackText.trim()}
+              >
+                {busy ? "Sending…" : "Send feedback"}
+              </Button>
+            )}
+          </DialogActions>
+        </Box>
+      </Dialog>
       <Dialog
         open={completionOpen}
         onClose={() => !busy && setCompletionOpen(false)}
