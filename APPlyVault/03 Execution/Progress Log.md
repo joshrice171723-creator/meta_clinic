@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-25
+updated: 2026-09-27
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-27 — MC-14 and MC-15 local source checkpoint
+
+Five bounded reporting and integration-inventory source slices were added to Operations. TypeScript, changed-file formatting, Ruby syntax/lint and Rails eager loading passed; tests and browser acceptance were not run. The [dated record](../../records/implementation/2026-09-27-mc14-mc15-reporting-integration-inventory.md) identifies each owner, data source and remaining runtime/external proof. Tracker percentages and release gates remain unchanged.
 
 ## 2026-09-25 — i2E investor page published on aimetaclinic.com
 

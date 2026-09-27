@@ -22,6 +22,42 @@ type DailyVisitsReport = {
   unknown_state_count: number;
 };
 
+type DailyInvoicesReport = {
+  definition: {
+    revision: number;
+    source: string;
+    date_basis: string;
+    exclusions: string;
+  };
+  date: string;
+  timezone: string;
+  as_of: string;
+  currencies: {
+    currency: string;
+    counts: Record<string, number>;
+    posted_line_total: string;
+  }[];
+};
+
+type DailyStockReport = {
+  definition: {
+    revision: number;
+    source: string;
+    date_basis: string;
+    exclusions: string;
+  };
+  date: string;
+  timezone: string;
+  as_of: string;
+  movements: {
+    stock_type: string;
+    stock_unit: string;
+    kind: string;
+    count: number;
+    signed_quantity: string;
+  }[];
+};
+
 type ReportDestination = {
   title: string;
   href: string;
@@ -133,14 +169,22 @@ export function OperationsReportsCatalog({
         permission boundary, and export/reference metadata so a report can be
         reconciled back to the ledger that produced it.
       </Alert>
-      {siteId && capabilities.appointments_read === true && (
-        <DailyVisitsByState siteId={siteId} />
+      {((siteId && capabilities.appointments_read === true) ||
+        capabilities.billing_read === true ||
+        capabilities.inventory === true) && (
+        <DailyVisitsByState siteId={siteId} capabilities={capabilities} />
       )}
     </Card>
   );
 }
 
-function DailyVisitsByState({ siteId }: { siteId: number }) {
+function DailyVisitsByState({
+  siteId,
+  capabilities,
+}: {
+  siteId?: number;
+  capabilities: ClinicCapabilities;
+}) {
   const requestedDate = new URLSearchParams(window.location.search).get("date");
   const initialDate =
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
@@ -150,7 +194,7 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
   const [loadedDate, setLoadedDate] = useState(initialDate);
   const path = `/api/clinic/reports/daily_visits_by_state?date=${encodeURIComponent(loadedDate)}&site_id=${siteId}`;
   const result = useResource<{ report: DailyVisitsReport }>(path, {
-    enabled: Boolean(loadedDate),
+    enabled: Boolean(loadedDate && siteId && capabilities.appointments_read),
   });
   const report = result.data?.report;
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -168,12 +212,11 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
     <Stack spacing={1.5} sx={{ mt: 3 }}>
       <Divider />
       <Typography variant="h6" component="h3">
-        Daily visits by state
+        Daily source reports
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        Current appointment states for one clinic location and local date.
-        Counts include cancelled and no-show visits; requests and holds are
-        excluded.
+        Select a clinic-local date to review source-owned visit, invoice and
+        stock activity. Each report follows its own access permission.
       </Typography>
       <Stack
         component="form"
@@ -196,21 +239,26 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
             : "Show report"}
         </Button>
       </Stack>
-      {loadedDate && !report && (
+      {loadedDate && siteId && capabilities.appointments_read && !report && (
         <LoadState error={result.error} onRetry={result.refresh} />
       )}
       {report && (
         <Stack spacing={1} aria-live="polite">
+          <Typography variant="subtitle1" component="h4">
+            Visits by current state
+          </Typography>
           <Typography>
             {report.date} · {report.total} visits
           </Typography>
-          <Button
-            href={`/clinic/schedule?site_id=${siteId}&month=${report.date.slice(0, 7)}&day=${report.date}&view=day`}
-            size="small"
-            sx={{ alignSelf: "flex-start" }}
-          >
-            Open source schedule
-          </Button>
+          {siteId && (
+            <Button
+              href={`/clinic/schedule?site_id=${siteId}&month=${report.date.slice(0, 7)}&day=${report.date}&view=day`}
+              size="small"
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Open source schedule
+            </Button>
+          )}
           {Object.entries(report.counts).map(([state, count]) => (
             <Typography variant="body2" key={state}>
               {state.replaceAll("_", " ")}: {count}
@@ -226,10 +274,155 @@ function DailyVisitsByState({ siteId }: { siteId: number }) {
             {report.definition.revision}
             {" · "}Date basis: {report.definition.date_basis} ·{" "}
             {report.timezone}
-            {" · "}As of {report.as_of} · {report.freshness}. No export is
-            available.
+            {" · "}As of {report.as_of} · {report.freshness}.
           </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={() => downloadVisitCsv(report)}
+          >
+            Download visit counts CSV
+          </Button>
         </Stack>
+      )}
+      {capabilities.billing_read && <DailyInvoices date={loadedDate} />}
+      {capabilities.inventory && <DailyStockMovements date={loadedDate} />}
+    </Stack>
+  );
+}
+
+function downloadVisitCsv(report: DailyVisitsReport) {
+  const rows = [
+    ["report", "daily_visits_by_state"],
+    ["definition_revision", String(report.definition.revision)],
+    ["source", report.definition.source],
+    ["date_basis", report.definition.date_basis],
+    ["clinic_date", report.date],
+    ["timezone", report.timezone],
+    ["as_of", report.as_of],
+    ["state", "count"],
+    ...Object.entries(report.counts).map(([state, count]) => [
+      state,
+      String(count),
+    ]),
+    ["unknown_state", String(report.unknown_state_count)],
+    ["total", String(report.total)],
+  ];
+  const csv = rows
+    .map((row) =>
+      row.map((value) => `"${value.replaceAll('"', '""')}"`).join(","),
+    )
+    .join("\r\n");
+  const url = URL.createObjectURL(
+    new Blob([csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `daily-visits-${report.date}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function DailyInvoices({ date }: { date: string }) {
+  const result = useResource<{ report: DailyInvoicesReport }>(
+    `/api/clinic/reports/daily_invoices?date=${encodeURIComponent(date)}`,
+    { enabled: Boolean(date) },
+  );
+  if (!date) return null;
+  const report = result.data?.report;
+  return (
+    <Stack spacing={0.75}>
+      <Divider />
+      <Typography variant="subtitle1" component="h4">
+        Invoices created
+      </Typography>
+      {!report ? (
+        <LoadState error={result.error} onRetry={result.refresh} />
+      ) : (
+        <>
+          {report.currencies.length === 0 ? (
+            <Typography variant="body2">
+              No invoices were created on this date.
+            </Typography>
+          ) : (
+            report.currencies.map((row) => (
+              <Typography variant="body2" key={row.currency}>
+                {row.currency}:{" "}
+                {Object.entries(row.counts)
+                  .map(([state, count]) => `${state} ${count}`)
+                  .join(" · ")}{" "}
+                · Posted line total {row.posted_line_total}
+              </Typography>
+            ))
+          )}
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.definition.source} · Definition revision{" "}
+            {report.definition.revision} · {report.definition.date_basis} ·{" "}
+            {report.timezone} · As of {report.as_of}.{" "}
+            {report.definition.exclusions}
+          </Typography>
+          <Button
+            href="/clinic/billing"
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open source billing ledger
+          </Button>
+        </>
+      )}
+    </Stack>
+  );
+}
+
+function DailyStockMovements({ date }: { date: string }) {
+  const result = useResource<{ report: DailyStockReport }>(
+    `/api/clinic/reports/daily_stock_movements?date=${encodeURIComponent(date)}`,
+    { enabled: Boolean(date) },
+  );
+  if (!date) return null;
+  const report = result.data?.report;
+  return (
+    <Stack spacing={0.75}>
+      <Divider />
+      <Typography variant="subtitle1" component="h4">
+        Stock movements
+      </Typography>
+      {!report ? (
+        <LoadState error={result.error} onRetry={result.refresh} />
+      ) : (
+        <>
+          {report.movements.length === 0 ? (
+            <Typography variant="body2">
+              No stock movements were recorded on this date.
+            </Typography>
+          ) : (
+            report.movements.map((row) => (
+              <Typography
+                variant="body2"
+                key={`${row.stock_type}-${row.stock_unit}-${row.kind}`}
+              >
+                {row.stock_type} · {row.kind}: {row.count} entries · signed
+                quantity {row.signed_quantity} {row.stock_unit}
+              </Typography>
+            ))
+          )}
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.definition.source} · Definition revision{" "}
+            {report.definition.revision} · {report.definition.date_basis} ·{" "}
+            {report.timezone} · As of {report.as_of}.{" "}
+            {report.definition.exclusions}
+          </Typography>
+          <Button
+            href="/clinic/inventory/activity"
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open source movement ledger
+          </Button>
+        </>
       )}
     </Stack>
   );

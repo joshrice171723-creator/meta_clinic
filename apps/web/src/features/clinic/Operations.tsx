@@ -5,6 +5,7 @@ import { LabReviewWorklist } from "./LabReviewWorklist";
 import { LabFollowUpWorklist } from "./LabFollowUpWorklist";
 import { OperationFollowUps } from "./OperationFollowUps";
 import { OperationsProviderReadiness } from "./OperationsProviderReadiness";
+import { OperationsIntegrationInventory } from "./OperationsIntegrationInventory";
 import { OperationsReportsCatalog } from "./OperationsReportsCatalog";
 import { OperationsWorkflowGuide } from "./OperationsWorkflowGuide";
 import { useClinic, useClinicOverview } from "./Workspace";
@@ -173,6 +174,12 @@ export function Operations() {
               <OperationsProviderReadiness
                 canConfigureTelehealth={
                   context.capabilities.telehealth_configure === true
+                }
+              />
+              <OperationsIntegrationInventory
+                canReadBilling={context.capabilities.billing_read === true}
+                canReadClinical={
+                  context.capabilities.clinical_records_read === true
                 }
               />
               <OperationsReportsCatalog

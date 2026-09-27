@@ -106,6 +106,9 @@ Rails.application.routes.draw do
     get "tracking_board", to: "scheduling/tracking_board#show"
     get "schedule_calendar", to: "scheduling/calendar#show"
     get "reports/daily_visits_by_state", to: "reports/daily_visits_by_state#show"
+    get "reports/daily_invoices", to: "reports/daily_invoices#show"
+    get "reports/daily_stock_movements", to: "reports/daily_stock_movements#show"
+    get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
       patch "encounter_follow_ups/:id", to: "encounter_follow_ups#update"
