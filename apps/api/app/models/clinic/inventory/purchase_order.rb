@@ -47,6 +47,10 @@ module Clinic
             "partially_received" => %w[complete cancelled]
           }.fetch(status, [])
           raise ArgumentError, "Purchase order state cannot change from #{status}." unless allowed.include?(to)
+          raise ArgumentError, "Choose a supplier before recording a sent purchase order." if to == "sent" && supplier_id.nil?
+          if to == "complete" && (lines.empty? || lines.where("received_quantity < ordered_quantity").exists?)
+            raise ArgumentError, "Receive outstanding packages before completing this purchase order."
+          end
           from = status
           update!(status: to, version: version + 1)
           events.create!(practice_id: practice_id, actor: actor, from_status: from, to_status: to, reason: reason, request_key: request_key)

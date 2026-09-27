@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-10/11 prescription and procurement state boundaries
+
+Five local source guards now restrict simulated prescription outcomes and reconciliation to recorded attempts, and prevent supplier-free sending or early purchase-order completion. The [dated implementation record](../../records/implementation/2026-09-27-mc10-mc11-state-boundaries.md) separates source checks from still-open browser, retry, external, and clinical proof. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-10/15 unknown-attempt worklist reconciliation
 
 The Operations worklist now removes a current prescription attempt after its linked cancellation or confirmed-not-sent event, while historical outcome counts remain intact. This is one local source slice; runtime and browser reconciliation remain unverified, and tracker percentages are unchanged.

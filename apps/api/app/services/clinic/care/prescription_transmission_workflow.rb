@@ -37,7 +37,7 @@ module Clinic
             .exists?(medication_request_revision_id: order.id, kind: "review")
           PrescriptionWorkflow.ensure_dependencies!(order)
           event = PrescriptionWorkflow.record(practice:, actor:, order:, kind: outcome, source: "simulation",
-            request_key: "prescription-event:#{request_key}")
+            request_key: "prescription-event:#{request_key}", simulated_submission: true)
           PrescriptionTransmissionAttempt.create!(practice:, patient: order.patient, medication_request_revision: order,
             pharmacy_destination: destination, prescription_event: event,
             initiated_by_membership: practice.memberships.active.find_by!(user: actor), request_key:,

@@ -12,9 +12,12 @@ module Clinic
         events(order).where.not(kind: "review").last&.kind.in?(%w[unknown acknowledged accepted outcome_unknown rejected unavailable revoked duplicate])
       end
 
-      def record(practice:, actor:, order:, kind:, source:, request_key:, prior_event_id: nil, note: nil)
+      def record(practice:, actor:, order:, kind:, source:, request_key:, prior_event_id: nil, note: nil, simulated_submission: false)
         authorize!(practice, actor, order)
         raise ArgumentError, "Transmission is unavailable. Use the explicitly labeled simulator to exercise an outcome." unless source.in?(%w[manual simulation])
+        if source == "simulation" && !kind.in?(%w[cancelled confirmed_not_sent]) && !simulated_submission
+          raise ArgumentError, "Use the prescription simulator to record a simulated outcome."
+        end
         if source == "manual" && !kind.in?(%w[review confirmed_not_sent cancelled])
           raise ArgumentError, "Manual evidence cannot claim vendor acceptance."
         end
@@ -36,6 +39,9 @@ module Clinic
               raise ArgumentError, "An accepted prescription requires confirmed cancellation before replacement."
             end
             raise ArgumentError, "Simulation evidence must stay simulated." if prior.source == "simulation" && source != "simulation"
+            if prior.source == "simulation" && !PrescriptionTransmissionAttempt.exists?(practice_id: practice.id, prescription_event_id: prior.id)
+              raise ArgumentError, "Reconcile a recorded simulator attempt, not an unlinked outcome."
+            end
           else
             raise ActiveRecord::StaleObjectError.new(order, "prescription action") unless current.id == order.id
             raise ArgumentError, "Confirm the previous prescription outcome before another action." if unresolved?(order)
