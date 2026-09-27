@@ -102,7 +102,16 @@ export function CashDrawerOperations({
     "/api/clinic/cash_drawers",
   );
   const [siteId, setSiteId] = useState(sites[0]?.id?.toString() ?? "");
-  const [selectedDrawerId, setSelectedDrawerId] = useState("");
+  const [selectedDrawerId, setSelectedDrawerId] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get(
+      "cash_drawer_id",
+    );
+    return requested &&
+      /^[1-9]\d*$/.test(requested) &&
+      Number.isSafeInteger(Number(requested))
+      ? requested
+      : "";
+  });
   const [newDrawerMode, setNewDrawerMode] = useState(false);
   const [openingFloat, setOpeningFloat] = useState("");
   const [drawerCurrency, setDrawerCurrency] = useState(

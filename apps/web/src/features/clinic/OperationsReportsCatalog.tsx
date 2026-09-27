@@ -1138,6 +1138,13 @@ function DailyCashDrawers({ date }: { date: string }) {
                     ` At close: expected ${row.expected_at_close ?? "unavailable"}; counted ${row.counted_cash ?? "unavailable"}; variance ${row.discrepancy ?? "unavailable"}.`}
                 </Typography>
               )}
+              <Button
+                size="small"
+                href={`/clinic/billing?cash_drawer_id=${row.id}`}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Review drawer {row.id} in billing
+              </Button>
             </Stack>
           ))}
           <ReportPageControls
