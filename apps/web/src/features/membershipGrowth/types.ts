@@ -7,6 +7,7 @@ export type MembershipStorefront = {
   slug: string | null;
   enabled: boolean;
   public_path: string | null;
+  service_page_path: string | null;
 };
 
 export type PublicMembershipStorefrontResponse = {

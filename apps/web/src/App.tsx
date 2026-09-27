@@ -218,6 +218,10 @@ const PublicMembershipStorefront = lazyNamed(
   () => import("./features/membershipGrowth/PublicMembershipStorefront"),
   (m) => m.PublicMembershipStorefront,
 );
+const PublicClinicServices = lazyNamed(
+  () => import("./features/membershipGrowth/PublicClinicServices"),
+  (m) => m.PublicClinicServices,
+);
 const PublicMembershipDirectory = lazyNamed(
   () => import("./features/membershipGrowth/PublicMembershipDirectory"),
   (m) => m.PublicMembershipDirectory,
@@ -864,9 +868,12 @@ function Application() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   const publicMembership =
     /^\/memberships\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))$/.exec(path);
+  const publicClinicServices =
+    /^\/clinics\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))\/services$/.exec(path);
   const publicMembershipRoute =
     path === "/memberships" ||
-    (publicMembership !== null && path !== "/memberships/account");
+    (publicMembership !== null && path !== "/memberships/account") ||
+    publicClinicServices !== null;
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
   const growthMarketing = hasGrowthPage(path) && path !== "/meta-clinic";
   const marketingClinicFeature =
@@ -895,6 +902,7 @@ function Application() {
       "/i2e",
     ].includes(path) ||
     (publicMembership !== null && path !== "/memberships/account") ||
+    publicClinicServices !== null ||
     marketingFeature !== null ||
     marketingClinicFeature !== null ||
     marketingClinicType !== null ||
@@ -1080,6 +1088,14 @@ function Application() {
             slug={publicMembership[1]}
             guidedDemo={isDemoFrame()}
           />
+        </PublicMembershipEntry>
+      </RouteBoundary>
+    );
+  if (publicClinicServices)
+    return (
+      <RouteBoundary root>
+        <PublicMembershipEntry>
+          <PublicClinicServices slug={publicClinicServices[1]} />
         </PublicMembershipEntry>
       </RouteBoundary>
     );

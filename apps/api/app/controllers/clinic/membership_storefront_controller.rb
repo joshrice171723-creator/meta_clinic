@@ -27,10 +27,13 @@ module Clinic
     end
 
     def storefront_payload(practice)
+      service_page_available = practice.public_membership_slug.present? &&
+        practice.service_offerings.where(status: "published", public_visible: true).exists?
       {
         slug: practice.public_membership_slug,
         enabled: practice.membership_storefront_enabled,
-        public_path: practice.public_membership_slug && "/memberships/#{practice.public_membership_slug}"
+        public_path: practice.public_membership_slug && "/memberships/#{practice.public_membership_slug}",
+        service_page_path: service_page_available ? "/clinics/#{practice.public_membership_slug}/services" : nil
       }
     end
   end

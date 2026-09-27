@@ -416,6 +416,17 @@ export function MembershipGrowth() {
                         Open public page
                       </Button>
                     )}
+                  {resource.data.storefront.service_page_path && (
+                    <Button
+                      href={resource.data.storefront.service_page_path}
+                      target="_blank"
+                      rel="noreferrer"
+                      variant="outlined"
+                      endIcon={<OpenInNewRoundedIcon />}
+                    >
+                      Open services page
+                    </Button>
+                  )}
                 </Stack>
                 <Box>
                   <Button

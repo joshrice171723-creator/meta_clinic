@@ -9,6 +9,7 @@ Rails.application.routes.draw do
   post "owner/clinics", to: "platform/api/command_center#create"
   post "owner/clinics/:id/owner_invitation", to: "platform/api/command_center#invite_owner"
   get "public/membership_storefronts", to: "public/membership_storefronts#index"
+  get "public/clinic_services/:slug", to: "public/clinic_services#show"
   get "demo/run", to: "development/demo_runs#show"
   post "demo/lesson", to: "development/demo_runs#lesson"
   post "demo/lesson/complete", to: "development/demo_runs#complete"
