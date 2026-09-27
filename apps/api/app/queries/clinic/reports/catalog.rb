@@ -3,7 +3,7 @@ module Clinic
     module Catalog
       DAILY_VISITS_BY_STATE = {
         id: "daily_visits_by_state",
-        revision: 1,
+        revision: 2,
         purpose: "Count appointments by their current appointment state for a clinic-local day.",
         source: "clinic_appointments",
         date_basis: "starts_at",

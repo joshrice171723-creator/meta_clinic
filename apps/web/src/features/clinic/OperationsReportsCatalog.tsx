@@ -28,6 +28,14 @@ type DailyVisitsReport = {
   counts: Record<string, number>;
   total: number;
   unknown_state_count: number;
+  records: {
+    id: number;
+    site_id: number | null;
+    status: string;
+    visit_modality: string;
+    local_start: string;
+  }[];
+  pagination: ReportPagination;
 };
 
 type DailyInvoicesReport = {
@@ -481,7 +489,8 @@ function DailyVisitsByState({
       : "";
   const [inputDate, setInputDate] = useState(initialDate);
   const [loadedDate, setLoadedDate] = useState(initialDate);
-  const path = `/api/clinic/reports/daily_visits_by_state?date=${encodeURIComponent(loadedDate)}&site_id=${siteId}`;
+  const [page, setPage] = useState(1);
+  const path = `/api/clinic/reports/daily_visits_by_state?date=${encodeURIComponent(loadedDate)}&site_id=${siteId}&page=${page}`;
   const result = useResource<{ report: DailyVisitsReport }>(path, {
     enabled: Boolean(loadedDate && siteId && capabilities.appointments_read),
   });
@@ -493,7 +502,10 @@ function DailyVisitsByState({
       url.searchParams.set("date", inputDate);
       window.history.replaceState(window.history.state, "", url);
       if (inputDate === loadedDate) result.refresh();
-      else setLoadedDate(inputDate);
+      else {
+        setPage(1);
+        setLoadedDate(inputDate);
+      }
     }
   };
 
@@ -559,6 +571,22 @@ function DailyVisitsByState({
               Unknown states: {report.unknown_state_count}
             </Typography>
           )}
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Source appointments
+          </Typography>
+          {report.records.map((record) => (
+            <Typography variant="body2" key={record.id}>
+              Appointment {record.id} · {record.local_start} {report.timezone} ·{" "}
+              {record.status.replaceAll("_", " ")} ·{" "}
+              {record.visit_modality.replaceAll("_", " ")}
+              {!siteId && record.site_id ? ` · Site ${record.site_id}` : ""}
+            </Typography>
+          ))}
+          <ReportPageControls
+            label="appointments"
+            pagination={report.pagination}
+            onPage={setPage}
+          />
           <Typography variant="caption" color="text.secondary">
             Source: {report.definition.source} · Definition revision{" "}
             {report.definition.revision}
