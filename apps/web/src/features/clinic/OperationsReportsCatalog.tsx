@@ -130,9 +130,9 @@ type ConfigurationManifest = {
   generated_at: string;
   source_digest: string;
   configuration: {
-    practice: { name: string; features: { revision: number } };
-    sites: unknown[];
-    service_offerings: unknown[];
+    practice: { id: number; name: string; features: { revision: number } };
+    sites: { id: number }[];
+    service_offerings: { id: number }[];
   };
 };
 
@@ -322,6 +322,56 @@ function ConfigurationManifestDownload() {
     "/api/clinic/operations/configuration_manifest",
   );
   const manifest = result.data?.manifest;
+  const [comparison, setComparison] = useState<string | null>(null);
+  const [comparisonError, setComparisonError] = useState("");
+  const compareFile = async (file?: File) => {
+    if (!file || !manifest) return;
+    setComparison(null);
+    setComparisonError("");
+    try {
+      if (file.size > 1_000_000)
+        throw new Error("Choose a JSON file smaller than 1 MB.");
+      const saved = JSON.parse(await file.text()) as ConfigurationManifest;
+      if (
+        !saved ||
+        typeof saved !== "object" ||
+        saved.format !== manifest.format ||
+        saved.configuration?.practice?.id !==
+          manifest.configuration.practice.id ||
+        !Array.isArray(saved.configuration.sites) ||
+        !Array.isArray(saved.configuration.service_offerings) ||
+        [
+          ...saved.configuration.sites,
+          ...saved.configuration.service_offerings,
+        ].some((row) => !Number.isInteger(row?.id))
+      ) {
+        throw new Error(
+          "Choose a configuration snapshot from this clinic and format.",
+        );
+      }
+      const changes = (older: { id: number }[], current: { id: number }[]) => {
+        const previous = new Map(
+          older.map((row) => [row.id, JSON.stringify(row)]),
+        );
+        const latest = new Map(
+          current.map((row) => [row.id, JSON.stringify(row)]),
+        );
+        return `${[...latest.keys()].filter((id) => !previous.has(id)).length} added, ${[...previous.keys()].filter((id) => !latest.has(id)).length} removed, ${[...latest.keys()].filter((id) => previous.has(id) && previous.get(id) !== latest.get(id)).length} changed`;
+      };
+      setComparison(
+        JSON.stringify(saved.configuration) ===
+          JSON.stringify(manifest.configuration)
+          ? "Saved snapshot matches the currently loaded clinic configuration."
+          : `Saved snapshot differs: clinic settings ${JSON.stringify(saved.configuration.practice) === JSON.stringify(manifest.configuration.practice) ? "unchanged" : "changed"}; locations ${changes(saved.configuration.sites, manifest.configuration.sites)}; service offerings ${changes(saved.configuration.service_offerings, manifest.configuration.service_offerings)}.`,
+      );
+    } catch (error) {
+      setComparisonError(
+        error instanceof Error
+          ? error.message
+          : "The snapshot could not be read.",
+      );
+    }
+  };
   const download = () => {
     if (!manifest) return;
     const url = URL.createObjectURL(
@@ -367,10 +417,38 @@ function ConfigurationManifestDownload() {
           <Button
             size="small"
             sx={{ alignSelf: "flex-start" }}
-            onClick={result.refresh}
+            onClick={() => {
+              setComparison(null);
+              setComparisonError("");
+              result.refresh();
+            }}
           >
             Refresh snapshot
           </Button>
+          <Button
+            component="label"
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Compare saved JSON
+            <input
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(event) => {
+                void compareFile(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          </Button>
+          {comparison && (
+            <Alert severity="info">
+              {comparison} Comparison is for review only; it does not restore or
+              import settings.
+            </Alert>
+          )}
+          {comparisonError && <Alert severity="error">{comparisonError}</Alert>}
         </>
       )}
     </Stack>
