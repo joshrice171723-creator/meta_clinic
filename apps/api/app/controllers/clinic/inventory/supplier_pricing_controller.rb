@@ -3,11 +3,14 @@ module Clinic
     class SupplierPricingController < Clinic::BaseController
       before_action -> { require_capability(:inventory_access?) }
       before_action :require_supplier_pricing_role
-      before_action :require_catalog_access, only: %i[create update preview import set_preferred_supplier record_quote]
+      before_action :require_catalog_access, only: %i[create update preview import set_preferred_supplier record_quote catalog_products create_manual_quote]
 
       rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
         message = error.is_a?(ActiveRecord::RecordInvalid) ? error.record.errors.full_messages.to_sentence : error.message
         render_error(message, :unprocessable_entity)
+      end
+      rescue_from ActiveRecord::RecordNotUnique do
+        render_error("An offer with this supplier SKU and NDC already exists. Reload supplier pricing before retrying.", :conflict)
       end
 
       def create
@@ -84,6 +87,79 @@ module Clinic
           end
         end
         render json: mutation_response
+      end
+
+      def catalog_products
+        query = params[:q].to_s.strip
+        raise ArgumentError, "Search must be 100 characters or fewer." if query.length > 100
+
+        products = current_practice.pharmacy_products.where(active: true).where.not(ndc: nil)
+        if query.present?
+          pattern = "%#{Clinic::Inventory::PharmacyProduct.sanitize_sql_like(query)}%"
+          products = products.where("name ILIKE :query OR sku ILIKE :query OR ndc ILIKE :query", query: pattern)
+        end
+        rows = products.order(:name, :id).limit(25).filter_map do |product|
+          ndc = IngestPriceSheet.normalize_ndc(product.ndc)
+          next unless ndc
+
+          { id: product.id.to_s, name: product.name, ndc:, package_quantity: product.package_size.to_d.to_s("F"), stock_unit: product.stock_unit }
+        end
+        render json: { products: rows, limit: 25 }
+      end
+
+      def create_manual_quote
+        input = parameter_hash!(:offer, %i[supplier_id product_id supplier_sku description package_quantity quote_reference quoted_on wholesale_unit_cost currency contract_status available lead_time_days])
+        supplier = current_practice.inventory_suppliers.find(requested_id!(input[:supplier_id], :supplier_id))
+        product = current_practice.pharmacy_products.find(requested_id!(input[:product_id], :product_id))
+        raise ArgumentError, "Choose an active catalog item." unless product.active?
+
+        ndc = IngestPriceSheet.normalize_ndc(product.ndc)
+        raise ArgumentError, "This catalog item needs a valid NDC before it can have a supplier offer." unless ndc
+        reference = required_string!(input[:quote_reference], field: :quote_reference, maximum: 120)
+        quoted_on = date_param!(input[:quoted_on], field: :quoted_on)
+        raise ArgumentError, "A supplier quote cannot be dated in the future." if quoted_on > current_practice.inventory_date
+
+        currency = input[:currency].to_s.strip.upcase
+        unless currency.match?(/\A[A-Z]{3}\z/) && currency != SupplierProduct::UNKNOWN_CURRENCY
+          raise ArgumentError, "Currency must be a three-letter ISO code."
+        end
+        contract_status = input[:contract_status].to_s
+        unless IngestPriceSheet::CONTRACT_STATUSES.include?(contract_status)
+          raise ArgumentError, "Choose a valid supplier contract status."
+        end
+        available = case input[:available].to_s
+        when "true" then true
+        when "false" then false
+        when "unknown" then nil
+        else raise ArgumentError, "Choose whether availability is confirmed."
+        end
+        lead_time = if input[:lead_time_days].blank?
+          nil
+        elsif input[:lead_time_days].to_s.match?(/\A\d{1,4}\z/) && input[:lead_time_days].to_i.between?(0, 3650)
+          input[:lead_time_days].to_i
+        else
+          raise ArgumentError, "Lead time must be a whole number from 0 to 3650 days."
+        end
+
+        offer = ApplicationRecord.transaction do
+          Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") do
+            row = SupplierProduct.create!(
+              practice: current_practice, supplier: supplier, product: product, ndc: ndc,
+              supplier_sku: required_string!(input[:supplier_sku], field: :supplier_sku, maximum: 120),
+              description: required_string!(input[:description], field: :description, maximum: 400),
+              ordering_unit: "package", package_quantity: Quantity.parse(input[:package_quantity].to_s, scale: 6),
+              wholesale_unit_cost: Quantity.parse(input[:wholesale_unit_cost].to_s, scale: 6, zero: true),
+              currency: currency, contract_status: contract_status, available: available, lead_time_days: lead_time,
+              effective_date: quoted_on, imported_at: Time.current, price_source: "manual_quote",
+              quote_reference: reference, quoted_on: quoted_on
+            )
+            Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+              action_code: "inventory.supplier_offer.create_manual_quote", outcome: :committed,
+              resource_version_ref: "supplier_product:#{row.id}")
+            row
+          end
+        end
+        render json: { acknowledged: true, id: offer.id.to_s }, status: :created
       end
 
       private

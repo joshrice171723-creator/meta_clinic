@@ -6,6 +6,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Stack,
   TextField,
 } from "@mui/material";
@@ -45,6 +46,13 @@ type PricePreview = {
   rows: PreviewRow[];
   errors: PreviewError[];
   unmatched_ndcs: string[];
+};
+type CatalogOfferProduct = {
+  id: string;
+  name: string;
+  ndc: string;
+  package_quantity: string;
+  stock_unit: string;
 };
 
 function price(value: string, currency = "USD") {
@@ -96,6 +104,24 @@ export function SupplierPricingScreen({
   const [quotedOn, setQuotedOn] = useState("");
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteCurrency, setQuoteCurrency] = useState("");
+  const [manualOfferOpen, setManualOfferOpen] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalogProducts, setCatalogProducts] = useState<CatalogOfferProduct[]>(
+    [],
+  );
+  const [catalogProduct, setCatalogProduct] =
+    useState<CatalogOfferProduct | null>(null);
+  const [manualOfferError, setManualOfferError] = useState("");
+  const [offerSku, setOfferSku] = useState("");
+  const [offerDescription, setOfferDescription] = useState("");
+  const [offerPackageQuantity, setOfferPackageQuantity] = useState("");
+  const [offerQuoteReference, setOfferQuoteReference] = useState("");
+  const [offerQuotedOn, setOfferQuotedOn] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerCurrency, setOfferCurrency] = useState("");
+  const [offerContractStatus, setOfferContractStatus] = useState("unknown");
+  const [offerAvailability, setOfferAvailability] = useState("unknown");
+  const [offerLeadTime, setOfferLeadTime] = useState("");
   const writeBlocked = loading || Boolean(readError) || readBlocked;
 
   useEffect(() => {
@@ -152,6 +178,93 @@ export function SupplierPricingScreen({
       setQuoteOffer(null);
       setError(
         `${friendlyError(reason)} Review the refreshed offer before retrying.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const searchCatalogProducts = async () => {
+    if (writeBlocked || busy) return;
+    setBusy("catalog-products");
+    setManualOfferError("");
+    try {
+      const query = new URLSearchParams({ q: catalogQuery.trim() });
+      const response = await api<{ products: CatalogOfferProduct[] }>(
+        `/api/clinic/inventory/supplier-catalog-products?${query}`,
+      );
+      setCatalogProducts(response.products);
+      setCatalogProduct(null);
+      setOfferDescription("");
+      setOfferPackageQuantity("");
+    } catch (reason) {
+      setManualOfferError(friendlyError(reason));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const openManualOffer = () => {
+    setCatalogQuery("");
+    setCatalogProducts([]);
+    setCatalogProduct(null);
+    setManualOfferError("");
+    setOfferSku("");
+    setOfferDescription("");
+    setOfferPackageQuantity("");
+    setOfferQuoteReference("");
+    setOfferQuotedOn("");
+    setOfferPrice("");
+    setOfferCurrency("");
+    setOfferContractStatus("unknown");
+    setOfferAvailability("unknown");
+    setOfferLeadTime("");
+    setManualOfferOpen(true);
+  };
+
+  const saveManualOffer = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedSupplier || !catalogProduct || writeBlocked || busy) return;
+    setBusy("manual-offer");
+    setManualOfferError("");
+    setNotice("");
+    try {
+      const response = await api<{ acknowledged?: boolean; id?: string }>(
+        "/api/clinic/inventory/supplier-products/manual-quote?response=ack",
+        {
+          method: "POST",
+          body: {
+            offer: {
+              supplier_id: selectedSupplier.id,
+              product_id: catalogProduct.id,
+              supplier_sku: offerSku,
+              description: offerDescription,
+              package_quantity: offerPackageQuantity,
+              quote_reference: offerQuoteReference,
+              quoted_on: offerQuotedOn,
+              wholesale_unit_cost: offerPrice,
+              currency: offerCurrency,
+              contract_status: offerContractStatus,
+              available: offerAvailability,
+              lead_time_days: offerLeadTime,
+            },
+          },
+        },
+      );
+      requireAck(response);
+      if (!response.id)
+        throw new Error(
+          "The saved offer could not be identified. Reload supplier pricing before retrying.",
+        );
+      await refresh();
+      setManualOfferOpen(false);
+      setNotice(
+        "Dated quote saved on the supplier offer. Review its eligibility before ordering.",
+      );
+    } catch (reason) {
+      await refresh();
+      setManualOfferError(
+        `${friendlyError(reason)} Close this form and check the refreshed offer list before retrying.`,
       );
     } finally {
       setBusy("");
@@ -361,6 +474,16 @@ export function SupplierPricingScreen({
           </span>
         </div>
       </div>
+      {canManage && selectedSupplier && (
+        <Button
+          variant="contained"
+          type="button"
+          disabled={writeBlocked || Boolean(busy)}
+          onClick={openManualOffer}
+        >
+          Record a quote for a catalog item
+        </Button>
+      )}
       <div className="supplier-pricing-workbench">
         <section className="inventory-card supplier-directory">
           <div className="supplier-panel-heading">
@@ -863,6 +986,196 @@ export function SupplierPricingScreen({
           </nav>
         )}
       </section>
+      <Dialog
+        open={manualOfferOpen}
+        onClose={() => {
+          if (!busy) setManualOfferOpen(false);
+        }}
+        fullWidth
+        maxWidth="md"
+      >
+        <form onSubmit={(event) => void saveManualOffer(event)}>
+          <DialogTitle>
+            Record quote · {selectedSupplier?.name ?? "supplier"}
+          </DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              {manualOfferError && (
+                <p role="alert" className="supplier-pricing-message error">
+                  {manualOfferError}
+                </p>
+              )}
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField
+                  label="Search active catalog items"
+                  value={catalogQuery}
+                  onChange={(event) => setCatalogQuery(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 100 } }}
+                  fullWidth
+                />
+                <Button
+                  variant="outlined"
+                  type="button"
+                  disabled={Boolean(busy) || writeBlocked}
+                  onClick={() => void searchCatalogProducts()}
+                >
+                  {busy === "catalog-products" ? "Searching…" : "Search"}
+                </Button>
+              </Stack>
+              <TextField
+                select
+                label="Matched clinic catalog item"
+                value={catalogProduct?.id ?? ""}
+                onChange={(event) => {
+                  const selected = catalogProducts.find(
+                    (item) => item.id === event.target.value,
+                  );
+                  setCatalogProduct(selected ?? null);
+                  setOfferDescription(selected?.name ?? "");
+                  setOfferPackageQuantity(selected?.package_quantity ?? "");
+                }}
+                required
+                disabled={!catalogProducts.length || Boolean(busy)}
+                helperText="Only active clinic items with a valid National Drug Code can have supplier offers."
+              >
+                <MenuItem value="" disabled>
+                  Search and choose a catalog item
+                </MenuItem>
+                {catalogProducts.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name} · {item.ndc}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {catalogProduct && (
+                <p>
+                  Offer NDC {catalogProduct.ndc}; catalog stock unit{" "}
+                  {catalogProduct.stock_unit}.
+                </p>
+              )}
+              <TextField
+                label="Supplier SKU"
+                value={offerSku}
+                onChange={(event) => setOfferSku(event.target.value)}
+                required
+                slotProps={{ htmlInput: { maxLength: 120 } }}
+              />
+              <TextField
+                label="Supplier item description"
+                value={offerDescription}
+                onChange={(event) => setOfferDescription(event.target.value)}
+                required
+                slotProps={{ htmlInput: { maxLength: 400 } }}
+              />
+              <TextField
+                label="Units per supplier package"
+                value={offerPackageQuantity}
+                onChange={(event) =>
+                  setOfferPackageQuantity(event.target.value)
+                }
+                required
+                inputMode="decimal"
+              />
+              <TextField
+                label="Quoted package price"
+                value={offerPrice}
+                onChange={(event) => setOfferPrice(event.target.value)}
+                required
+                inputMode="decimal"
+              />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField
+                  label="Currency"
+                  value={offerCurrency}
+                  onChange={(event) =>
+                    setOfferCurrency(event.target.value.toUpperCase())
+                  }
+                  required
+                  slotProps={{ htmlInput: { maxLength: 3 } }}
+                  fullWidth
+                />
+                <TextField
+                  label="Quote reference"
+                  value={offerQuoteReference}
+                  onChange={(event) =>
+                    setOfferQuoteReference(event.target.value)
+                  }
+                  required
+                  slotProps={{ htmlInput: { maxLength: 120 } }}
+                  fullWidth
+                />
+                <TextField
+                  label="Quoted on"
+                  type="date"
+                  value={offerQuotedOn}
+                  onChange={(event) => setOfferQuotedOn(event.target.value)}
+                  required
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  fullWidth
+                />
+              </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField
+                  select
+                  label="Supplier contract status"
+                  value={offerContractStatus}
+                  onChange={(event) =>
+                    setOfferContractStatus(event.target.value)
+                  }
+                  fullWidth
+                >
+                  <MenuItem value="unknown">Unknown</MenuItem>
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </TextField>
+                <TextField
+                  select
+                  label="Availability"
+                  value={offerAvailability}
+                  onChange={(event) => setOfferAvailability(event.target.value)}
+                  fullWidth
+                >
+                  <MenuItem value="unknown">Unknown</MenuItem>
+                  <MenuItem value="true">Confirmed available</MenuItem>
+                  <MenuItem value="false">Unavailable</MenuItem>
+                </TextField>
+                <TextField
+                  label="Lead time in days (optional)"
+                  value={offerLeadTime}
+                  onChange={(event) => setOfferLeadTime(event.target.value)}
+                  inputMode="numeric"
+                  fullWidth
+                />
+              </Stack>
+              <p>
+                Ordering is enabled only when an active contract and
+                availability are confirmed. Saving records this quote locally;
+                it does not contact the supplier.
+              </p>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setManualOfferOpen(false)}
+              disabled={Boolean(busy)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={
+                Boolean(busy) ||
+                writeBlocked ||
+                !selectedSupplier ||
+                !catalogProduct
+              }
+            >
+              {busy === "manual-offer" ? "Saving…" : "Save dated quote"}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
       <Dialog
         open={Boolean(quoteOffer)}
         onClose={() => {
