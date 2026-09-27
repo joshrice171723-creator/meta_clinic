@@ -256,7 +256,10 @@ export function OperationsReportsCatalog({
       </Alert>
       {((siteId && capabilities.appointments_read === true) ||
         capabilities.billing_read === true ||
-        capabilities.inventory === true) && (
+        capabilities.inventory === true ||
+        capabilities.billing_payment_record === true ||
+        capabilities.billing_cash_reconcile === true ||
+        capabilities.billing_write === true) && (
         <DailyVisitsByState siteId={siteId} capabilities={capabilities} />
       )}
       {siteId && capabilities.patients && capabilities.encounters && (
@@ -570,6 +573,11 @@ function DailyVisitsByState({
             Download visit counts CSV
           </Button>
         </Stack>
+      )}
+      {(capabilities.billing_payment_record ||
+        capabilities.billing_cash_reconcile ||
+        capabilities.billing_write) && (
+        <DailyCashDrawers key={loadedDate} date={loadedDate} />
       )}
       {capabilities.billing_read && (
         <DailyInvoices key={loadedDate} date={loadedDate} />
@@ -1019,6 +1027,114 @@ function ReportPageControls({
       <Typography variant="caption" color="text.secondary">
         Live rows; new activity can shift pages.
       </Typography>
+    </Stack>
+  );
+}
+
+type CashDrawerReport = {
+  definition: { source: string; date_basis: string; exclusions: string };
+  date: string;
+  timezone: string;
+  as_of: string;
+  open_count: number;
+  awaiting_reconciliation_count: number;
+  variance_count: number;
+  pagination: ReportPagination;
+  records: {
+    id: number;
+    site_name: string;
+    status: string;
+    reconciliation_status: string;
+    payment_currencies: string[];
+    opening_float: string;
+    cash_received: string;
+    cash_refunded: string;
+    expected_cash: string;
+    counted_cash: string | null;
+    discrepancy: string | null;
+    expected_at_close: string | null;
+    opened_at: string;
+    closed_at: string | null;
+  }[];
+};
+
+function DailyCashDrawers({ date }: { date: string }) {
+  const [page, setPage] = useState(1);
+  const result = useResource<{ report: CashDrawerReport }>(
+    `/api/clinic/reports/daily_cash_drawers?date=${encodeURIComponent(date)}&page=${page}`,
+    { enabled: Boolean(date) },
+  );
+  if (!date) return null;
+  const report = result.data?.report;
+  return (
+    <Stack spacing={1}>
+      <Divider />
+      <Typography variant="subtitle1" component="h4">
+        Cash drawer sessions opened
+      </Typography>
+      {!report ? (
+        <LoadState error={result.error} onRetry={result.refresh} />
+      ) : (
+        <>
+          <Typography>
+            {report.open_count} still open;{" "}
+            {report.awaiting_reconciliation_count} closed awaiting
+            reconciliation; {report.variance_count} closed with a variance.
+          </Typography>
+          {report.records.map((row) => (
+            <Stack key={row.id} spacing={0.5}>
+              <Typography variant="body2">
+                Drawer {row.id} - {row.site_name} - {row.status} /{" "}
+                {row.reconciliation_status}
+              </Typography>
+              <Typography variant="caption">
+                Opened {row.opened_at}; closed {row.closed_at ?? "not yet"}.
+                Payment currencies:{" "}
+                {row.payment_currencies.join(", ") || "none recorded"}. Drawer
+                currency is not recorded.
+              </Typography>
+              {row.payment_currencies.length > 1 ? (
+                <Alert severity="warning">
+                  Mixed payment currencies: monetary comparison withheld. Review
+                  this drawer in billing.
+                </Alert>
+              ) : (
+                <Typography variant="body2">
+                  Opening float {row.opening_float}; received{" "}
+                  {row.cash_received}; refunded {row.cash_refunded}; current
+                  expected {row.expected_cash}.
+                  {row.status === "closed" &&
+                    ` At close: expected ${row.expected_at_close ?? "unavailable"}; counted ${row.counted_cash ?? "unavailable"}; variance ${row.discrepancy ?? "unavailable"}.`}
+                </Typography>
+              )}
+            </Stack>
+          ))}
+          <ReportPageControls
+            label="drawer sessions"
+            pagination={report.pagination}
+            onPage={setPage}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.definition.source}. Date basis:{" "}
+            {report.definition.date_basis}; {report.timezone}. As of{" "}
+            {report.as_of}. {report.definition.exclusions}
+          </Typography>
+          <Button
+            size="small"
+            href="/clinic/billing"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open billing cash drawers
+          </Button>
+          <Button
+            size="small"
+            onClick={result.refresh}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Refresh cash report
+          </Button>
+        </>
+      )}
     </Stack>
   );
 }

@@ -11,6 +11,11 @@ module Clinic
         population: "One appointment whose start falls on the selected local date; includes cancelled and no-show appointments.",
         exclusions: "Appointment requests, schedule holds, and encounter-derived calendar states are excluded."
       }.freeze
+      DAILY_CASH_DRAWERS = {
+        id: "daily_cash_drawers", revision: 1, source: "clinic_cash_drawer_sessions, clinic_cash_tenders and linked refunds",
+        date_basis: "drawer created_at", population: "Sessions opened on the clinic-local date, including sessions closed later.",
+        exclusions: "Current session activity is not daily cash flow. No combined money total; drawer currency is not recorded. Payment currencies are evidence only."
+      }.freeze
       DAILY_INVOICES = {
         id: "daily_invoices", revision: 3, source: "clinic_invoices, clinic_invoice_lines, clinic_payment_allocations and clinic_credit_notes",
         date_basis: "invoice created_at", state_basis: "current invoice status at query time",
