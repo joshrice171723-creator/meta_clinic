@@ -5,7 +5,8 @@ module Clinic
     include Auditable
 
     belongs_to :service_offering, class_name: "Clinic::ServiceOffering"
-    encrypts :display_name, :email_address, :phone_number
+    encrypts :display_name, :email_address, :phone_number, :follow_up_note
+    validates :follow_up_note, length: { maximum: 2000 }, allow_nil: true
 
     validates :request_key, presence: true, length: { maximum: 160 }, uniqueness: { scope: :practice_id }
     validates :request_digest, format: { with: /\A[0-9a-f]{64}\z/ }

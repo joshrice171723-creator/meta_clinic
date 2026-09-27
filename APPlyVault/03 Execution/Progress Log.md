@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — Coding preparation and inquiry follow-up
+
+The tracker now owns five source-scoped build-ready workflows, existing-code exclusions and separate validation/external lanes. The live atlas renders that queue from the tracker. [Working commands](../../docs/development/focused-coding-workflow.md) avoid repeated setup and discovery. MC-02 inquiry notes/next-contact dates and the due queue are implemented, with local migration and scoped non-test checks. Build estimates unchanged; the autonomous goal is paused until Joshua resumes it.
+
 ## 2026-09-27 — MC-04 closed-site recovery and MC-08 migration follow-up
 
 [Closure recovery](../../records/implementation/2026-09-27-mc04-closed-site-recovery.md) adds a cross-date queue using the existing appointment editor, rejects inactive destinations and checks destination telehealth settings. MC-04 Build moves 86→88%; validation remains unchanged. The prior MC-08 contact-snapshot migration is now applied locally through the documented database wrapper; its generated structure diff is retained. No tests ran.

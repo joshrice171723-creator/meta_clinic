@@ -9436,6 +9436,9 @@ CREATE TABLE public.clinic_service_inquiries (
     lock_version bigint DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    follow_up_on date,
+    follow_up_note text,
+    CONSTRAINT clinic_service_inquiries_closed_follow_up CHECK ((((status)::text <> 'closed'::text) OR (follow_up_on IS NULL))),
     CONSTRAINT clinic_service_inquiries_values CHECK ((((status)::text = ANY ((ARRAY['new'::character varying, 'contacted'::character varying, 'closed'::character varying])::text[])) AND (lock_version >= 0) AND ((request_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((char_length(TRIM(BOTH FROM request_key)) >= 1) AND (char_length(TRIM(BOTH FROM request_key)) <= 160))))
 );
 
@@ -18782,6 +18785,13 @@ CREATE UNIQUE INDEX clinic_scribe_sources_practice_id ON public.clinic_scribe_so
 --
 
 CREATE UNIQUE INDEX clinic_scribe_sources_scope ON public.clinic_scribe_sources USING btree (practice_id, encounter_id, id);
+
+
+--
+-- Name: clinic_service_inquiries_follow_up; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_service_inquiries_follow_up ON public.clinic_service_inquiries USING btree (practice_id, follow_up_on, id) WHERE (((status)::text <> 'closed'::text) AND (follow_up_on IS NOT NULL));
 
 
 --
@@ -31816,6 +31826,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927211000'),
 ('20260927195400'),
 ('20260927193500'),
 ('20260927192000'),
