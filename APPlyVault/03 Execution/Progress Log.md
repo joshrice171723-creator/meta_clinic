@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14/15 populated Operations browser checkpoint
+
+In a setup-complete synthetic clinic, five local proof slices covered selected-day Schedule counts, an invoice/payment allocation, five stock receipts, and the current local payment and prescription integration states. A limited same-practice account hid restricted data, and the report date survived navigation. The [dated browser record](../../records/implementation/2026-09-27-mc14-mc15-populated-browser-proof.md) separates these observations from missing server denial, CSV, exception-branch and external evidence. No application code changed or tests ran; tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14/15 exact source-record recovery
 
 Operations now carries invoice, payment, refund, collection-intent and prescription-attempt identities into their owning workspaces. Current state and missing-record messages avoid silently substituting another record. The [dated source record](../../records/implementation/2026-09-27-mc14-mc15-source-record-recovery.md) names the five slices, checks and still-open browser, reconciliation and external gates. Tracker percentages remain unchanged.

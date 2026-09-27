@@ -1,0 +1,19 @@
+# MC-14/15 populated Operations browser checkpoint — 2026-09-27
+
+## Local scope
+
+The managed web/API stack in `C:/Users/joshr/Desktop/meta_clinic` passed `ruby bin/dev status` with current migrations and ready HTTP endpoints. In the in-app browser, a development account with synthetic clinic permissions entered Sandbox Primary Care (practice 69), Guided Clinic (site 185), without the Clinic Setup redirect seen in earlier checkpoints. This was a read-only walkthrough of persisted synthetic records. No source code, clinic record or external connection was changed.
+
+## Five independently observed proof slices
+
+1. **MC-14 visit count and source:** On clinic-local 2026-09-27, Operations reported two appointments, one `scheduled` and one `confirmed`, with an `as_of` timestamp. Its source link opened the selected-site day Schedule, which showed two booked appointments. The Schedule displayed one as Confirmed and the other as Checked in; those are different screen projections, so this comparison proves the count, not identical status labels.
+2. **MC-14 invoice and payment reconciliation:** On 2026-09-26, Operations reported one posted USD 79 invoice and one USD 79 payment, with no refund recorded that day. The exact invoice link opened patient 4059's ledger with invoice 5862 selected. Its recorded line total was USD 79, payment allocation was USD 79, credit was USD 0 and remaining balance was USD 0. The same ledger displayed payment 4415 with one allocation and USD 0 unapplied. This reconciles this one source pair, not all clinic cash or settlement.
+3. **MC-14 stock movement reconciliation:** Operations reported five pharmacy receipt entries totaling 900 in the `each` stock unit on 2026-09-26. The source movement ledger displayed the five dated receipt rows at 80, 120, 200, 300 and 200 in that unit, totaling 900. The ledger also displayed older and other-location movements; this check does not prove a site-specific on-hand balance or all inventory history.
+4. **MC-15 local payment state inventory:** Operations displayed one current online collection intent in `succeeded`, zero pending/processing and zero needing reconciliation. Its source and latest-state timestamp remained visible after returning to Operations. The exact intent-to-invoice relationship, a failure/unknown branch and external settlement were not exercised.
+5. **MC-15 local prescription state inventory:** Operations displayed one recorded simulator attempt, `accepted`, and zero latest unknown outcomes, with adapter and latest-submission timestamps. The state remained visible after returning to Operations. No exact encounter attempt, pharmacy response or safe retry was exercised.
+
+## Access and limits
+
+Switching through the development sign-in controls to a same-practice account with only staff-messaging permissions removed billing, inventory and clinical activity from Operations. The page displayed access-required text for payment and prescription details, and no daily source-report controls. That is browser projection evidence only. A direct browser navigation to the protected report API was blocked by the browser client before an HTTP response, so server-side denial was not observed here.
+
+The selected report date survived navigation away and back in the URL and the populated reports reloaded. Attempted capture of a payment CSV download timed out in browser tooling; its contents and download behavior are unverified. No tests ran under the repository's current no-tests instruction. No code was implemented in this checkpoint, so it does not satisfy the hourly target of five new implementation slices. The five items above are local acceptance evidence for already implemented source. Remaining MC-14/15 work includes populated refund, unknown/recovery outcomes, exact integration-record recovery, server-side denial, CSV inspection, broader reconciliation, named ownership, retention/hold decisions and external acceptance.
