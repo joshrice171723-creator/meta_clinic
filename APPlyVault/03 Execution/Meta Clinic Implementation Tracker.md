@@ -345,6 +345,25 @@ Older navigation may also route here from guidance-portal, mentoring or historic
 
 **2026-09-27 MC-04 closure recovery checkpoint:** [Dated source evidence](../../records/implementation/2026-09-27-mc04-closed-site-recovery.md) adds a paginated upcoming closed-site queue, active-destination enforcement shared by scheduling flows, and destination telehealth checks on reschedule. Reuses the existing editor, permissions, stale-write and reminder handling. TypeScript and scoped Ruby lint passed; no tests or browser mutation ran. Build moves 86→88%; Validation stays 68%. MC-08 migration follow-up successfully applied the contact-snapshot migration through the documented local database wrapper and reviewed its generated structure diff, resolving the earlier connection blocker without implying browser acceptance.
 
+## Current work
+
+The atlas reads this section directly. Record meaningful task changes and hourly checkpoints here; do not log individual tool calls or tiny edits. The activity feed is a tracker log, not direct telemetry from the coding session.
+
+| Field | Value |
+| --- | --- |
+| Now | Resume the active >90% build goal by confirming the next concrete MC-11 shipment-recovery gap. |
+| State | Atlas activity panel delivered; source implementation is the next meaningful update. |
+| Updated (UTC) | 2026-09-27 23:13 UTC |
+| Up next | Confirm the exact shipment-recovery behavior before changing code; hold the 69.6% build average until source evidence supports a score change. |
+
+### Activity log
+
+| Time (UTC) | Speaker | Meaningful update |
+| --- | --- | --- |
+| 23:08 UTC | Codex | Started adding a tracker-fed current-work panel after Joshua asked for visible activity in the atlas. |
+| 23:10 UTC | Codex | Added the chat-style panel, current focus and next step; connecting it to this section with a 30-second tracker poll. |
+| 23:13 UTC | Codex | Panel is delivered and visible in the local atlas. HTML script syntax, scoped diff, and vault checks passed; no tests ran. Next source work is MC-11 shipment recovery discovery. |
+
 ## Build-ready queue — 2026-09-27 preparation
 
 The autonomous >90% build goal resumed after Joshua started it; the separate hourly worker remains paused. This is a rolling queue targeting five build-ready workflows, not another roadmap. Rank reflects connected staff value and reuse, not expected percentage gain. Open rows below are **missing code**; delivered rows are explicitly labeled. Use [working commands and execution rules](../../docs/development/focused-coding-workflow.md). Refresh this section at material hourly checkpoints; preserve completed evidence elsewhere in this tracker. One next workflow is source-scoped below; four replacement candidates still require targeted code discovery rather than invented finish lines.
