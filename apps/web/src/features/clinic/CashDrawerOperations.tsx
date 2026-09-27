@@ -440,7 +440,9 @@ export function CashDrawerOperations({
         },
       );
       setNotice(
-        `Drawer closed with a ${money(result.drawer.discrepancy ?? "0", "USD")} discrepancy. It remains recorded for manager reconciliation.`,
+        result.drawer.currency
+          ? `Drawer closed with a ${money(result.drawer.discrepancy ?? "0", result.drawer.currency)} discrepancy. It remains recorded for manager reconciliation.`
+          : `Drawer closed with a ${result.drawer.discrepancy ?? "0"} discrepancy; its currency is not recorded. It remains recorded for manager reconciliation.`,
       );
       closeAttempt.current = null;
       setCountedCash("");
