@@ -115,6 +115,27 @@ type DailyPaymentReport = {
   }[];
 };
 
+type OpenClinicalWorkReport = {
+  definition: { revision: number; source: string; exclusions: string };
+  site_id: number | null;
+  as_of: string;
+  total: number;
+  overdue_count: number;
+  kinds: { kind: string; total: number; counts: Record<string, number> }[];
+};
+
+type ConfigurationManifest = {
+  format: number;
+  purpose: string;
+  generated_at: string;
+  source_digest: string;
+  configuration: {
+    practice: { name: string; features: { revision: number } };
+    sites: unknown[];
+    service_offerings: unknown[];
+  };
+};
+
 type ReportDestination = {
   title: string;
   href: string;
@@ -231,7 +252,128 @@ export function OperationsReportsCatalog({
         capabilities.inventory === true) && (
         <DailyVisitsByState siteId={siteId} capabilities={capabilities} />
       )}
+      {siteId && capabilities.patients && capabilities.encounters && (
+        <OpenClinicalWork siteId={siteId} />
+      )}
+      {capabilities.configuration_manifest_read && (
+        <ConfigurationManifestDownload />
+      )}
     </Card>
+  );
+}
+
+function OpenClinicalWork({ siteId }: { siteId?: number }) {
+  const path = `/api/clinic/reports/open_clinical_work${siteId ? `?site_id=${siteId}` : ""}`;
+  const result = useResource<{ report: OpenClinicalWorkReport }>(path);
+  const report = result.data?.report;
+
+  return (
+    <Stack spacing={1} sx={{ mt: 3 }}>
+      <Divider />
+      <Typography variant="h6" component="h3">
+        Current clinical follow-up work
+      </Typography>
+      {!report && <LoadState error={result.error} onRetry={result.refresh} />}
+      {report && (
+        <Stack spacing={1} aria-live="polite">
+          <Typography>
+            {report.total} active tasks · {report.overdue_count} past due
+          </Typography>
+          {report.kinds.map((item) => (
+            <Typography key={item.kind} variant="body2">
+              {item.kind.replaceAll("_", " ")}: {item.total} (
+              {Object.entries(item.counts)
+                .filter(([, count]) => count > 0)
+                .map(
+                  ([state, count]) => `${state.replaceAll("_", " ")} ${count}`,
+                )
+                .join(", ")}
+              )
+            </Typography>
+          ))}
+          <Button
+            href="/clinic/operations"
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open follow-up worklist
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.definition.source} · Revision{" "}
+            {report.definition.revision} · As of {report.as_of}.{" "}
+            {report.definition.exclusions}
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={result.refresh}
+          >
+            Refresh current work
+          </Button>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+function ConfigurationManifestDownload() {
+  const result = useResource<{ manifest: ConfigurationManifest }>(
+    "/api/clinic/operations/configuration_manifest",
+  );
+  const manifest = result.data?.manifest;
+  const download = () => {
+    if (!manifest) return;
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(manifest, null, 2)], {
+        type: "application/json",
+      }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `clinic-configuration-${manifest.configuration.practice.features.revision}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  return (
+    <Stack spacing={1} sx={{ mt: 3 }}>
+      <Divider />
+      <Typography variant="h6" component="h3">
+        Clinic configuration snapshot
+      </Typography>
+      {!manifest && <LoadState error={result.error} onRetry={result.refresh} />}
+      {manifest && (
+        <>
+          <Typography variant="body2">
+            {manifest.configuration.practice.name} ·{" "}
+            {manifest.configuration.sites.length} locations ·{" "}
+            {manifest.configuration.service_offerings.length} service offerings
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Read at {manifest.generated_at} · Format {manifest.format} · Source
+            digest {manifest.source_digest}. {manifest.purpose}.
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={download}
+          >
+            Download configuration JSON
+          </Button>
+          <Button
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={result.refresh}
+          >
+            Refresh snapshot
+          </Button>
+        </>
+      )}
+    </Stack>
   );
 }
 

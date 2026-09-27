@@ -27,6 +27,11 @@ module Clinic
         date_basis: "event created_at", population: "Payments and refunds recorded on the clinic-local date, grouped by currency.",
         exclusions: "Payment amount is not invoice allocation or drawer cash. Refunds may relate to payments from another day. This is not a net cash or processor settlement report."
       }.freeze
+      OPEN_CLINICAL_WORK = {
+        id: "open_clinical_work", revision: 1, source: "clinic_clinical_tasks",
+        date_basis: "current state at query time", population: "Active clinical tasks in the selected clinic or site.",
+        exclusions: "Completed and cancelled tasks, encounter follow-ups, messages, and billing work are excluded. This is not a historical daily census."
+      }.freeze
     end
   end
 end

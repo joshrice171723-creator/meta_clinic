@@ -109,10 +109,12 @@ Rails.application.routes.draw do
     get "reports/daily_invoices", to: "reports/daily_invoices#show"
     get "reports/daily_stock_movements", to: "reports/daily_stock_movements#show"
     get "reports/daily_payment_activity", to: "reports/daily_payment_activity#show"
+    get "reports/open_clinical_work", to: "reports/open_clinical_work#show"
     get "reports/payment_collection_activity", to: "reports/payment_collection_activity#show"
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
+      get "configuration_manifest", to: "configuration_manifest#show"
       patch "encounter_follow_ups/:id", to: "encounter_follow_ups#update"
     end
     get "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#show"

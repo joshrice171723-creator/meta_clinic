@@ -977,6 +977,7 @@ export type ClinicCapabilities = {
   facilities_read?: boolean;
   facilities_write?: boolean;
   clinic_setup_write?: boolean;
+  configuration_manifest_read?: boolean;
   patient_identity_read?: boolean;
   patient_portal_invite?: boolean;
   appointments_read?: boolean;

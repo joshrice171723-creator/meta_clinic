@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14/15 clinical work and configuration snapshot
+
+Operations gained a current, site-scoped clinical-task summary and a practice-admin configuration JSON snapshot for human review. [Dated source evidence](../../records/implementation/2026-09-27-mc14-mc15-clinical-work-and-configuration.md) records authorized/denied synthetic reads and remaining browser, import and migration gaps. Build estimates moved to 40% for MC-14 and MC-15; validation and external gates did not change.
+
 ## 2026-09-27 — MC-02 public clinic services and tracker starting point
 
 The existing public membership page now has an opt-in, published-service section backed by the clinic's service-offering configuration. [Dated source evidence](../../records/implementation/2026-09-27-mc02-public-service-visibility.md) records default-hidden migration, limited anonymous fields and unverified positive browser paths. MC-02 build moved to 65%; validation and external gates did not change. The [live register](../../records/implementation/2026-09-27-meta-clinic-tracker-atlas.html) pins MC-01–MC-15 at main `5de7a041` and shows later build/evidence changes separately.

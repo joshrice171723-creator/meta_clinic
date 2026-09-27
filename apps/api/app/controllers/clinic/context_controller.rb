@@ -47,6 +47,7 @@ module Clinic
           facilities_read: allowed?("facilities.read") || allowed?("appointments.book"),
           facilities_write: allowed?("facilities.write") || allowed?("appointments.write"),
           clinic_setup_write: allowed?("facilities.write"),
+          configuration_manifest_read: current_ability.practice_scope_for?("facilities.write"),
           inventory: allowed?("inventory.read"),
           appointments: allowed?("appointments.write"),
           appointments_read: allowed?("appointments.read"),
