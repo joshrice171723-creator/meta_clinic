@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-10/15 unknown-attempt worklist reconciliation
+
+The Operations worklist now removes a current prescription attempt after its linked cancellation or confirmed-not-sent event, while historical outcome counts remain intact. This is one local source slice; runtime and browser reconciliation remain unverified, and tracker percentages are unchanged.
+
 ## 2026-09-27 — MC-14/15 current-record visibility
 
 Five bounded source changes add invoice-level current balances and stock source IDs to daily reports, and pending/processing collection recovery plus current-revision prescription outcome and record views to Operations. The [dated implementation record](../../records/implementation/2026-09-27-mc14-mc15-current-record-visibility.md) separates source checks from browser, permission, CSV and external proof gaps. Tracker percentages remain unchanged.

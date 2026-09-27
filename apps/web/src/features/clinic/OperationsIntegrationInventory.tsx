@@ -254,9 +254,9 @@ export function OperationsIntegrationInventory({
                 outcome historically ·{" "}
                 {activity.latest_per_revision_unknown_count} medication request
                 revisions have an unknown latest recorded attempt ·{" "}
-                {activity.current_revision_unknown_count} are the current
-                revision in their request series. Review each current request
-                before retrying; this is not a count of unresolved patient work.
+                {activity.current_revision_unknown_count} current revisions have
+                an unreconciled unknown attempt. Review each request before
+                retrying.
               </Typography>
               <Typography variant="body2">
                 Recorded outcomes:{" "}
@@ -311,8 +311,9 @@ export function OperationsIntegrationInventory({
               ))}
               {activity.current_revision_unknown_records_capped && (
                 <Typography variant="caption">
-                  Showing the latest 25 current request revisions with unknown
-                  attempts. Open patient records for the rest.
+                  Showing the latest 25 current request revisions with
+                  unreconciled unknown attempts. Open patient records for the
+                  rest.
                 </Typography>
               )}
               {activity.current_revision_records.map((record) => (

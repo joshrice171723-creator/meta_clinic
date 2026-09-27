@@ -11,6 +11,7 @@ module Clinic
         current_attempts = latest_attempts.joins("INNER JOIN clinic_medication_request_revisions revisions ON revisions.id = clinic_prescription_transmission_attempts.medication_request_revision_id AND revisions.practice_id = clinic_prescription_transmission_attempts.practice_id")
           .where("NOT EXISTS (SELECT 1 FROM clinic_medication_request_revisions newer WHERE newer.practice_id = revisions.practice_id AND newer.series_id = revisions.series_id AND newer.version_number > revisions.version_number)")
         current_unknown = current_attempts.where(outcome: %w[unknown outcome_unknown])
+          .where("NOT EXISTS (SELECT 1 FROM clinic_prescription_events resolution WHERE resolution.practice_id = clinic_prescription_transmission_attempts.practice_id AND resolution.prior_event_id = clinic_prescription_transmission_attempts.prescription_event_id AND resolution.kind IN ('cancelled', 'confirmed_not_sent'))")
         {
           source: "clinic_prescription_transmission_attempts", adapter: Clinic::Care::PrescriptionTransmissionAttempt::ADAPTER,
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
