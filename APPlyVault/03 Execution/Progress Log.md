@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — Hourly source and tracker checkpoint
+
+Nine pushed source commits since the prior checkpoint advance MC-02, MC-08, MC-11, MC-13, MC-14 and MC-15. The [tracker](Meta%20Clinic%20Implementation%20Tracker.md) now reflects a 69.2% equal-weight MC-01–15 Build estimate; validation and human gates are unchanged. The [exact per-file Git line-count ledger](../../records/implementation/2026-09-27-hourly-source-line-counts.md) is linked from the live atlas. BR-05 is source-delivered and BR-06 names the next confirmed missing-code workflow. Scoped source checks passed on each commit; no tests or populated browser acceptance ran for these changes.
+
 ## 2026-09-27 - MC-14 complete daily source lists
 
 [BR-04 source delivery](../../records/implementation/2026-09-27-report-detail-pagination.md) adds bounded pagination to invoices, payments, refunds and stock detail rows while retaining full-day summaries. MC-14 Build moves 43 to 46%; validation unchanged. TypeScript and scoped Ruby lint passed; no tests or browser acceptance ran. Autonomous build goal is active; hourly worker remains paused to avoid overlap.
