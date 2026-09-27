@@ -492,11 +492,17 @@ export function DemoJourney() {
       )}
       {run.lesson_key && (activeLesson || sandbox) ? (
         <>
-          <Paper variant="outlined" sx={{ px: { xs: 1.25, sm: 2 }, py: 0.5 }}>
-            <Stack spacing={sandbox ? 0.5 : 1.5}>
+          <Paper
+            variant="outlined"
+            sx={{
+              px: sandbox ? 1 : { xs: 1.25, sm: 2 },
+              py: sandbox ? 0 : 0.5,
+            }}
+          >
+            <Stack spacing={sandbox ? 0 : 1.5}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
-                spacing={sandbox ? 0.5 : 1}
+                spacing={sandbox ? 0 : 1}
                 sx={{
                   alignItems: { sm: "center" },
                   justifyContent: "space-between",
@@ -505,25 +511,16 @@ export function DemoJourney() {
                 <Box>
                   <Typography
                     component="h1"
-                    variant={sandbox ? "subtitle1" : "h5"}
+                    variant={sandbox ? "body2" : "h5"}
+                    sx={
+                      sandbox ? { lineHeight: 1.5, fontWeight: 600 } : undefined
+                    }
                   >
                     {sandbox ? "Sandbox" : activeLesson?.title}
                   </Typography>
-                  <Typography
-                    variant={sandbox ? "caption" : "body2"}
-                    color="text.secondary"
-                  >
-                    {sandbox
-                      ? "Full synthetic clinic workspace"
-                      : `${roleLabel(activeLesson?.role ?? "administrator")} workspace`}
-                  </Typography>
-                  {sandbox && lastSandboxDuration !== null && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: { xs: "none", md: "block" } }}
-                    >
-                      Last preparation: {durationLabel(lastSandboxDuration)}
+                  {!sandbox && (
+                    <Typography variant="body2" color="text.secondary">
+                      {`${roleLabel(activeLesson?.role ?? "administrator")} workspace`}
                     </Typography>
                   )}
                 </Box>
@@ -536,16 +533,7 @@ export function DemoJourney() {
                   Back to lessons
                 </Button>
               </Stack>
-              {sandbox ? (
-                <Alert
-                  severity="info"
-                  icon={false}
-                  sx={{ py: 0, "& .MuiAlert-message": { py: 0.5 } }}
-                >
-                  Shared editable workspace · synthetic clinic data · changes
-                  visible to everyone.
-                </Alert>
-              ) : (
+              {!sandbox && (
                 <Box
                   component="section"
                   aria-labelledby="lesson-guide-title"
@@ -590,62 +578,58 @@ export function DemoJourney() {
                   </Stack>
                 </Box>
               )}
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{
-                  alignItems: { sm: "center" },
-                  justifyContent: "space-between",
-                }}
-              >
-                <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
-                  {(sandbox
-                    ? [
-                        "All workspaces populated",
-                        "Two locations, patients & inventory",
-                      ]
-                    : activeLesson!.prepared
-                  ).map((item) => (
-                    <Chip key={item} label={item} size="small" />
-                  ))}
-                </Stack>
-                <Button
-                  color={sandbox ? "info" : "warning"}
-                  size="small"
-                  disabled={busy}
-                  onClick={() => setRestartOpen(true)}
+              {!sandbox && (
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{
+                    alignItems: { sm: "center" },
+                    justifyContent: "space-between",
+                  }}
                 >
-                  {sandbox ? "Reset sandbox" : "Restart lesson"}
-                </Button>
-                {activeLesson && isNavigationTour(activeLesson.id) && (
+                  <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+                    {activeLesson!.prepared.map((item) => (
+                      <Chip key={item} label={item} size="small" />
+                    ))}
+                  </Stack>
                   <Button
-                    variant="contained"
+                    color="warning"
                     size="small"
                     disabled={busy}
-                    onClick={() =>
-                      void completeLesson(
-                        "The navigation tour could not be completed.",
-                      )
-                    }
+                    onClick={() => setRestartOpen(true)}
                   >
-                    Finish tour
+                    Restart lesson
                   </Button>
-                )}
-                {activeStep?.review && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    disabled={busy}
-                    onClick={() =>
-                      void completeLesson(
-                        "This review lesson could not be completed.",
-                      )
-                    }
-                  >
-                    Finish lesson
-                  </Button>
-                )}
-              </Stack>
+                  {activeLesson && isNavigationTour(activeLesson.id) && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={busy}
+                      onClick={() =>
+                        void completeLesson(
+                          "The navigation tour could not be completed.",
+                        )
+                      }
+                    >
+                      Finish tour
+                    </Button>
+                  )}
+                  {activeStep?.review && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={busy}
+                      onClick={() =>
+                        void completeLesson(
+                          "This review lesson could not be completed.",
+                        )
+                      }
+                    >
+                      Finish lesson
+                    </Button>
+                  )}
+                </Stack>
+              )}
             </Stack>
           </Paper>
           <Paper
