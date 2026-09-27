@@ -11,6 +11,11 @@ module Clinic
           current_practice.sites.find(requested_id!(params[:site_id], :site_id))
         end
         appointments = appointments.where(site_id: site.id) if site
+        if params[:closed_site] == "true"
+          appointments = appointments.where(site_id: current_practice.sites.where(status: %w[temporarily_closed retired]).select(:id))
+            .where(status: %w[scheduled confirmed]).where("starts_at > ?", Current.business_time)
+            .where.missing(:encounter)
+        end
         if params[:date].present?
           date = date_param!(params[:date], field: :date)
           zone = appointment_timezone(site)

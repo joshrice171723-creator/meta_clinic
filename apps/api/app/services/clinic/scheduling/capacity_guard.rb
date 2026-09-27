@@ -6,9 +6,11 @@ module Clinic
       # Call inside the booking transaction. The shared clinician row serializes
       # offers, bookings and changes to capacity for this provider across sites.
       def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, room: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil, overbook: false)
-        return unless clinician && site
-        clinician.lock!
+        return unless site
+        clinician&.lock!
         site.lock!
+        raise ArgumentError, "Choose an active site before scheduling this appointment." unless site.status == "active"
+        return unless clinician
         if room
           raise ArgumentError, "The room must belong to the selected site." unless room.practice_id == practice.id && room.site_id == site.id
           raise ArgumentError, "Choose a physical room for an in-person appointment." unless room.kind == "physical"

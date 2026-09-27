@@ -2726,6 +2726,8 @@ CREATE TABLE public.clinic_cash_pay_estimates (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     correction_reason character varying(500),
+    clinic_contact_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT clinic_cash_pay_estimates_contact_snapshot_object CHECK ((jsonb_typeof(clinic_contact_snapshot) = 'object'::text)),
     CONSTRAINT clinic_cash_pay_estimates_correction_reason CHECK ((((supersedes_id IS NULL) AND (correction_reason IS NULL)) OR ((supersedes_id IS NOT NULL) AND (correction_reason IS NOT NULL) AND (length(TRIM(BOTH FROM correction_reason)) > 0)))),
     CONSTRAINT clinic_cash_pay_estimates_values CHECK ((((classification)::text = ANY ((ARRAY['general_estimate'::character varying, 'gfe_candidate'::character varying, 'issued_gfe'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'issued'::character varying, 'superseded'::character varying, 'void'::character varying])::text[])) AND ((currency)::text ~ '^[A-Z]{3}$'::text) AND (revision >= 1) AND (lock_version >= 0)))
 );
@@ -31814,6 +31816,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927195400'),
 ('20260927193500'),
 ('20260927192000'),
 ('20260927182000'),

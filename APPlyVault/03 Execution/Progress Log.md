@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-04 closed-site recovery and MC-08 migration follow-up
+
+[Closure recovery](../../records/implementation/2026-09-27-mc04-closed-site-recovery.md) adds a cross-date queue using the existing appointment editor, rejects inactive destinations and checks destination telehealth settings. MC-04 Build moves 86→88%; validation remains unchanged. The prior MC-08 contact-snapshot migration is now applied locally through the documented database wrapper; its generated structure diff is retained. No tests ran.
+
 ## 2026-09-27 — MC-08 issued estimate contact snapshot
 
 Issued GFEs now retain clinic/site contact values from the patient's primary practice location for their printable copy. The [dated source record](../../records/implementation/2026-09-27-mc08-estimate-contact-snapshot.md) records the additive migration and preserves historic issues without reconstructing their contact details. MC-08 Build moved 81→84%; validation and external/human gates are unchanged.

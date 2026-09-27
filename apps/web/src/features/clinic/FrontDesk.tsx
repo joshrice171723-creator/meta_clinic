@@ -229,6 +229,7 @@ function AppointmentDayQueue({
     currentSiteId === null ? "" : String(currentSiteId),
   );
   const [query, setQuery] = useState("");
+  const [closedSite, setClosedSite] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
   const [busyAction, setBusyAction] = useState("");
@@ -252,6 +253,7 @@ function AppointmentDayQueue({
     useState(false);
   const path = buildAppointmentQueuePath({
     date,
+    closedSite,
     siteId,
     query: deferredQuery,
     page,
@@ -292,6 +294,7 @@ function AppointmentDayQueue({
   useEffect(() => {
     if (
       checkedDemoDay.current ||
+      closedSite ||
       !isDemoFrame() ||
       new URLSearchParams(window.location.search).has("date") ||
       date !== today ||
@@ -332,7 +335,7 @@ function AppointmentDayQueue({
     return () => {
       active = false;
     };
-  }, [appointments.data, date, query, siteId, timezone, today]);
+  }, [appointments.data, closedSite, date, query, siteId, timezone, today]);
 
   useEffect(() => {
     if (appointmentRequestRevision) appointments.refresh();
@@ -617,10 +620,12 @@ function AppointmentDayQueue({
       <div className="front-desk-toolbar">
         <div>
           <Typography component="h2" variant="h2">
-            Day queue
+            {closedSite ? "Closed-site recovery" : "Day queue"}
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            {queueDateLabel(date, timezone)}
+            {closedSite
+              ? "Upcoming visits needing a new location"
+              : queueDateLabel(date, timezone)}
             {refreshedAt
               ? ` · Updated ${freshnessLabel(refreshedAt, timezone)}`
               : ""}
@@ -638,7 +643,23 @@ function AppointmentDayQueue({
 
       <div className="front-desk-filters">
         <TextField
+          select
+          label="Queue"
+          size="small"
+          value={closedSite ? "closed" : "day"}
+          onChange={(event) => {
+            setClosedSite(event.target.value === "closed");
+            setSiteId("");
+            setPage(1);
+            setDemoDayMessage("");
+          }}
+        >
+          <MenuItem value="day">Day queue</MenuItem>
+          <MenuItem value="closed">Closed-site recovery</MenuItem>
+        </TextField>
+        <TextField
           label="Appointment date"
+          disabled={closedSite}
           type="date"
           size="small"
           value={date}
@@ -658,7 +679,7 @@ function AppointmentDayQueue({
             setDemoDayMessage("");
             setPage(1);
           }}
-          disabled={date === today}
+          disabled={closedSite || date === today}
         >
           Today
         </Button>
@@ -772,7 +793,9 @@ function AppointmentDayQueue({
             No appointments found
           </Typography>
           <Typography color="text.secondary">
-            Try another date, site, or search term.
+            {closedSite
+              ? "No matching upcoming visits at closed or retired sites."
+              : "Try another date, site, or search term."}
           </Typography>
           {(query || siteId || date !== today) && (
             <Button
@@ -808,7 +831,8 @@ function AppointmentDayQueue({
                 canPatients={canPatients}
                 canBilling={canBilling}
                 canTransition={canTransition}
-                canStartVisit={canStartVisit}
+                canStartVisit={!closedSite && canStartVisit}
+                showDate={closedSite}
                 canReschedule={canReschedule}
                 canScheduleReplacement={canScheduleReplacement}
                 busyAction={busyAction}
@@ -952,6 +976,7 @@ function AppointmentRow({
   onTransition,
   onStartVisit,
   onReschedule,
+  showDate = false,
 }: {
   appointment: FrontDeskAppointment;
   sites: ClinicSite[];
@@ -960,6 +985,7 @@ function AppointmentRow({
   canBilling: boolean;
   canTransition: boolean;
   canStartVisit: boolean;
+  showDate?: boolean;
   canReschedule: boolean;
   canScheduleReplacement: boolean;
   busyAction: string;
@@ -998,6 +1024,14 @@ function AppointmentRow({
   return (
     <Box component="li" className="front-desk-row">
       <div className="front-desk-time" data-label="Time">
+        {showDate && (
+          <span>
+            {queueDateLabel(
+              clinicDateValue(new Date(appointment.starts_at), timezone),
+              timezone,
+            )}
+          </span>
+        )}
         <strong>{appointmentTimeRange(appointment, timezone)}</strong>
       </div>
       <div className="front-desk-patient" data-label="Patient">
@@ -1275,8 +1309,13 @@ function RescheduleDialog({
               Select a site
             </MenuItem>
             {sites.map((site) => (
-              <MenuItem key={site.id} value={String(site.id)}>
+              <MenuItem
+                key={site.id}
+                value={String(site.id)}
+                disabled={site.status !== "active"}
+              >
                 {site.name || site.code}
+                {site.status !== "active" ? " (unavailable)" : ""}
               </MenuItem>
             ))}
           </TextField>

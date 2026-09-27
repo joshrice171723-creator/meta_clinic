@@ -43,18 +43,21 @@ export function buildAppointmentQueuePath({
   query,
   page,
   perPage = 25,
+  closedSite = false,
 }: {
   date: string;
   siteId: string;
   query: string;
   page: number;
   perPage?: number;
+  closedSite?: boolean;
 }) {
   const params = new URLSearchParams({
-    date,
     page: String(page),
     per_page: String(perPage),
   });
+  if (closedSite) params.set("closed_site", "true");
+  else params.set("date", date);
   if (siteId) params.set("site_id", siteId);
   if (query.trim()) params.set("q", query.trim());
   return `/api/clinic/appointments?${params}`;
