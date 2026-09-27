@@ -6,10 +6,25 @@ import { IntegrationStatusBadge } from "./IntegrationStatusBadge";
 export function OperationsIntegrationInventory({
   canReadBilling,
   canReadClinical,
+  canReadReminders,
 }: {
   canReadBilling: boolean;
   canReadClinical: boolean;
+  canReadReminders: boolean;
 }) {
+  const reminders = useResource<{
+    report: {
+      source: string;
+      as_of: string;
+      total: number;
+      state_counts: Record<string, number>;
+      needs_attention_count: number;
+      latest_state_change_at: string | null;
+    };
+  }>("/api/clinic/reports/reminder_delivery_activity", {
+    enabled: canReadReminders,
+  });
+  const reminderActivity = reminders.data?.report;
   const payment = useResource<StripeConnectionStatus>(
     "/api/clinic/stripe_connect",
     {
@@ -220,6 +235,48 @@ export function OperationsIntegrationInventory({
               >
                 Open payment setup and recovery
               </Button>
+            </>
+          )}
+        </Stack>
+        <Divider />
+        <Stack spacing={0.75}>
+          <Typography variant="h6" component="h3">
+            Reminders
+          </Typography>
+          {!canReadReminders ? (
+            <Typography variant="body2">
+              Reminder delivery details require reminder access.
+            </Typography>
+          ) : !reminderActivity ? (
+            <LoadState error={reminders.error} onRetry={reminders.refresh} />
+          ) : (
+            <>
+              <Typography variant="body2">
+                {reminderActivity.total} recorded reminders ·{" "}
+                {reminderActivity.state_counts.delivered ?? 0} delivered ·{" "}
+                {reminderActivity.state_counts.failed ?? 0} failed ·{" "}
+                {reminderActivity.state_counts.delivery_unknown ?? 0} with
+                unknown delivery. Review failed or unknown outcomes before
+                retrying.
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Source: {reminderActivity.source} · As of{" "}
+                {reminderActivity.as_of}
+                {reminderActivity.latest_state_change_at
+                  ? ` · Latest state change ${reminderActivity.latest_state_change_at}`
+                  : " · No reminder recorded"}
+                . These are local record states, not provider delivery proof.
+              </Typography>
+              {reminderActivity.needs_attention_count > 0 && (
+                <Button
+                  href="/clinic/reminders?view=attention"
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Review {reminderActivity.needs_attention_count} failed or
+                  unknown reminders
+                </Button>
+              )}
             </>
           )}
         </Stack>

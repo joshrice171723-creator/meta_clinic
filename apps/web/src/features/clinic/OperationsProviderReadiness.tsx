@@ -132,9 +132,8 @@ export function OperationsProviderReadiness({
         label the connection live.
       </Typography>
       <Alert severity="info">
-        Payment, reminder, and Scribe workflows expose record-level outcomes,
-        but no comparable operations-level readiness response. They are not
-        summarized here.
+        Scribe workflows expose record-level outcomes but no comparable
+        operations-level readiness response. They are not summarized here.
       </Alert>
       <Button
         component="a"
