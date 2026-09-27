@@ -1,13 +1,15 @@
 module Clinic
   module Reports
     class DailyPaymentActivity
-      def self.call(practice:, actor:, date:)
+      def self.call(practice:, actor:, date:, payment_page: 1, refund_page: 1)
         Clinic::Authorization.authorize_with_legacy!(actor:, practice:, action: "billing.read", legacy_action: "billing.write")
         zone = ActiveSupport::TimeZone[practice.timezone] || raise(ArgumentError, "The clinic timezone is unavailable.")
         starts_at = zone.local(date.year, date.month, date.day)
         ends_at = zone.local(date.next_day.year, date.next_day.month, date.next_day.day)
         payments = Clinic::PaymentEvent.where(practice:, created_at: starts_at...ends_at)
         refunds = Clinic::RefundEvent.where(practice:, created_at: starts_at...ends_at)
+        payment_records, payment_pagination = SourcePage.call(scope: payments, page: payment_page)
+        refund_records, refund_pagination = SourcePage.call(scope: refunds, page: refund_page)
         payment_counts = payments.group(:currency).count
         payment_amounts = payments.group(:currency).sum(:amount)
         refund_counts = refunds.group(:currency).count
@@ -17,18 +19,20 @@ module Clinic
           definition: Catalog::DAILY_PAYMENT_ACTIVITY, practice_id: practice.id, date: date.iso8601,
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
-          payment_records: payments.order(created_at: :desc, id: :desc).limit(25)
+          payment_records: payment_records.order(created_at: :desc, id: :desc)
             .pluck(:id, :patient_id, :currency, :amount, :created_at)
             .map { |id, patient_id, currency, amount, created_at|
               { id:, patient_id:, currency:, amount: amount.to_d.to_s("F"), created_at: created_at.iso8601(6) }
             },
-          payment_records_capped: payments.count > 25,
-          refund_records: refunds.order(created_at: :desc, id: :desc).limit(25)
+          payment_records_capped: payment_pagination[:total_pages] > 1,
+          payment_pagination:,
+          refund_records: refund_records.order(created_at: :desc, id: :desc)
             .pluck(:id, :patient_id, :payment_event_id, :currency, :amount, :created_at)
             .map { |id, patient_id, payment_event_id, currency, amount, created_at|
               { id:, patient_id:, payment_event_id:, currency:, amount: amount.to_d.to_s("F"), created_at: created_at.iso8601(6) }
             },
-          refund_records_capped: refunds.count > 25,
+          refund_records_capped: refund_pagination[:total_pages] > 1,
+          refund_pagination:,
           currencies: currencies.map do |currency|
             {
               currency:, payment_count: payment_counts.fetch(currency, 0),

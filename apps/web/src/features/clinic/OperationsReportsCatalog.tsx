@@ -11,6 +11,13 @@ import { useState, type FormEvent } from "react";
 import type { ClinicCapabilities } from "../../api/contracts";
 import { Card, LoadState, useResource } from "../../shared/ui";
 
+type ReportPagination = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+};
+
 type DailyVisitsReport = {
   definition: { revision: number; source: string; date_basis: string };
   date: string;
@@ -40,7 +47,7 @@ type DailyInvoicesReport = {
     created_at: string;
     current_outstanding_balance: string;
   }[];
-  records_capped: boolean;
+  pagination: ReportPagination;
   currencies: {
     currency: string;
     counts: Record<string, number>;
@@ -69,7 +76,7 @@ type DailyStockReport = {
     item_id: number | null;
     batch_id: number | null;
   }[];
-  records_capped: boolean;
+  pagination: ReportPagination;
   movements: {
     stock_type: string;
     stock_unit: string;
@@ -96,7 +103,7 @@ type DailyPaymentReport = {
     amount: string;
     created_at: string;
   }[];
-  payment_records_capped: boolean;
+  payment_pagination: ReportPagination;
   refund_records: {
     id: number;
     patient_id: number;
@@ -105,7 +112,7 @@ type DailyPaymentReport = {
     amount: string;
     created_at: string;
   }[];
-  refund_records_capped: boolean;
+  refund_pagination: ReportPagination;
   currencies: {
     currency: string;
     payment_count: number;
@@ -564,9 +571,15 @@ function DailyVisitsByState({
           </Button>
         </Stack>
       )}
-      {capabilities.billing_read && <DailyInvoices date={loadedDate} />}
-      {capabilities.billing_read && <DailyPaymentActivity date={loadedDate} />}
-      {capabilities.inventory && <DailyStockMovements date={loadedDate} />}
+      {capabilities.billing_read && (
+        <DailyInvoices key={loadedDate} date={loadedDate} />
+      )}
+      {capabilities.billing_read && (
+        <DailyPaymentActivity key={loadedDate} date={loadedDate} />
+      )}
+      {capabilities.inventory && (
+        <DailyStockMovements key={loadedDate} date={loadedDate} />
+      )}
     </Stack>
   );
 }
@@ -618,8 +631,10 @@ function downloadCsv(rows: string[][], filename: string) {
 }
 
 function DailyPaymentActivity({ date }: { date: string }) {
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [refundPage, setRefundPage] = useState(1);
   const result = useResource<{ report: DailyPaymentReport }>(
-    `/api/clinic/reports/daily_payment_activity?date=${encodeURIComponent(date)}`,
+    `/api/clinic/reports/daily_payment_activity?date=${encodeURIComponent(date)}&payment_page=${paymentPage}&refund_page=${refundPage}`,
     { enabled: Boolean(date) },
   );
   if (!date) return null;
@@ -663,11 +678,11 @@ function DailyPaymentActivity({ date }: { date: string }) {
               Payment {record.id} · {record.currency} {record.amount}
             </Button>
           ))}
-          {report.payment_records_capped && (
-            <Typography variant="caption">
-              Showing the latest 25 payments for this date.
-            </Typography>
-          )}
+          <ReportPageControls
+            label="payments"
+            pagination={report.payment_pagination}
+            onPage={setPaymentPage}
+          />
           {report.refund_records.map((record) => (
             <Button
               key={`refund-${record.id}`}
@@ -679,11 +694,11 @@ function DailyPaymentActivity({ date }: { date: string }) {
               {record.currency} {record.amount}
             </Button>
           ))}
-          {report.refund_records_capped && (
-            <Typography variant="caption">
-              Showing the latest 25 refunds for this date.
-            </Typography>
-          )}
+          <ReportPageControls
+            label="refunds"
+            pagination={report.refund_pagination}
+            onPage={setRefundPage}
+          />
           <Button
             size="small"
             variant="outlined"
@@ -733,8 +748,9 @@ function DailyPaymentActivity({ date }: { date: string }) {
 }
 
 function DailyInvoices({ date }: { date: string }) {
+  const [page, setPage] = useState(1);
   const result = useResource<{ report: DailyInvoicesReport }>(
-    `/api/clinic/reports/daily_invoices?date=${encodeURIComponent(date)}`,
+    `/api/clinic/reports/daily_invoices?date=${encodeURIComponent(date)}&page=${page}`,
     { enabled: Boolean(date) },
   );
   if (!date) return null;
@@ -786,11 +802,11 @@ function DailyInvoices({ date }: { date: string }) {
               current balance {record.current_outstanding_balance}
             </Button>
           ))}
-          {report.records_capped && (
-            <Typography variant="caption">
-              Showing the latest 25 invoices for this date.
-            </Typography>
-          )}
+          <ReportPageControls
+            label="invoices"
+            pagination={report.pagination}
+            onPage={setPage}
+          />
           <Button
             size="small"
             variant="outlined"
@@ -850,8 +866,9 @@ function DailyInvoices({ date }: { date: string }) {
 }
 
 function DailyStockMovements({ date }: { date: string }) {
+  const [page, setPage] = useState(1);
   const result = useResource<{ report: DailyStockReport }>(
-    `/api/clinic/reports/daily_stock_movements?date=${encodeURIComponent(date)}`,
+    `/api/clinic/reports/daily_stock_movements?date=${encodeURIComponent(date)}&page=${page}`,
     { enabled: Boolean(date) },
   );
   if (!date) return null;
@@ -909,11 +926,11 @@ function DailyStockMovements({ date }: { date: string }) {
               </Typography>
             ),
           )}
-          {report.records_capped && (
-            <Typography variant="caption">
-              Showing the latest 25 stock entries for this date.
-            </Typography>
-          )}
+          <ReportPageControls
+            label="stock entries"
+            pagination={report.pagination}
+            onPage={setPage}
+          />
           <Button
             size="small"
             variant="outlined"
@@ -959,6 +976,49 @@ function DailyStockMovements({ date }: { date: string }) {
           </Button>
         </>
       )}
+    </Stack>
+  );
+}
+
+function ReportPageControls({
+  label,
+  pagination,
+  onPage,
+}: {
+  label: string;
+  pagination: ReportPagination;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      useFlexGap
+      sx={{ flexWrap: "wrap", alignItems: "center" }}
+    >
+      <Typography variant="caption" aria-live="polite">
+        {pagination.total} {label} � Page {pagination.page} of{" "}
+        {Math.max(1, pagination.total_pages)}
+      </Typography>
+      <Button
+        size="small"
+        aria-label={`Previous ${label} page`}
+        disabled={pagination.page <= 1}
+        onClick={() => onPage(pagination.page - 1)}
+      >
+        Previous
+      </Button>
+      <Button
+        size="small"
+        aria-label={`Next ${label} page`}
+        disabled={pagination.page >= pagination.total_pages}
+        onClick={() => onPage(pagination.page + 1)}
+      >
+        Next
+      </Button>
+      <Typography variant="caption" color="text.secondary">
+        Live rows; new activity can shift pages.
+      </Typography>
     </Stack>
   );
 }

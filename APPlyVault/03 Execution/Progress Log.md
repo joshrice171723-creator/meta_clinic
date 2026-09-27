@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 - MC-14 complete daily source lists
+
+[BR-04 source delivery](../../records/implementation/2026-09-27-report-detail-pagination.md) adds bounded pagination to invoices, payments, refunds and stock detail rows while retaining full-day summaries. MC-14 Build moves 43 to 46%; validation unchanged. TypeScript and scoped Ruby lint passed; no tests or browser acceptance ran. Autonomous build goal is active; hourly worker remains paused to avoid overlap.
+
 ## 2026-09-27 — Coding preparation and inquiry follow-up
 
 The tracker now owns five source-scoped build-ready workflows, existing-code exclusions and separate validation/external lanes. The live atlas renders that queue from the tracker. [Working commands](../../docs/development/focused-coding-workflow.md) avoid repeated setup and discovery. MC-02 inquiry notes/next-contact dates and the due queue are implemented, with local migration and scoped non-test checks. Build estimates unchanged; the autonomous goal is paused until Joshua resumes it.
