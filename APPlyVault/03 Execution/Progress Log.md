@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14 exports and MC-15 state visibility
+
+Five scoped Operations source changes add invoice and stock movement CSV, a formula guard for exported cells, and full collection and prescription-attempt outcome breakdowns. The [dated evidence](../../records/implementation/2026-09-27-mc14-mc15-export-state-visibility.md) names the sources and remaining browser, permission, reconciliation and record-level recovery proof. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14 payment activity and MC-15 recovery-state source checkpoint
 
 Five source slices add recorded payment and refund date totals, a provenance-bearing payment activity CSV, current online collection-intent state counts, and latest local prescription-attempt outcomes per request revision. The [dated record](../../records/implementation/2026-09-27-mc14-mc15-payment-recovery-source.md) separates those source outcomes from unverified runtime, browser, reconciliation, external, and release gates. Tracker percentages remain unchanged.

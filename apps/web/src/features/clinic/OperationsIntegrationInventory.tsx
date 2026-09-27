@@ -38,6 +38,8 @@ export function OperationsIntegrationInventory({
       as_of: string;
       total: number;
       unknown_outcome_count: number;
+      outcome_counts: Record<string, number>;
+      latest_per_revision_outcome_counts: Record<string, number>;
       latest_per_revision_unknown_count: number;
       latest_submitted_at: string | null;
     };
@@ -99,6 +101,16 @@ export function OperationsIntegrationInventory({
                     need reconciliation. Review those records before another
                     collection.
                   </Typography>
+                  <Typography variant="body2">
+                    Current states:{" "}
+                    {Object.entries(collectionActivity.state_counts)
+                      .map(
+                        ([state, count]) =>
+                          `${state.replaceAll("_", " ")} ${count}`,
+                      )
+                      .join(" · ")}
+                    .
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     Source: {collectionActivity.source} · As of{" "}
                     {collectionActivity.as_of}
@@ -152,6 +164,27 @@ export function OperationsIntegrationInventory({
                 revisions have an unknown latest recorded attempt. Review each
                 current request before retrying; this is not a count of
                 unresolved patient work.
+              </Typography>
+              <Typography variant="body2">
+                Recorded outcomes:{" "}
+                {Object.entries(activity.outcome_counts)
+                  .map(
+                    ([outcome, count]) =>
+                      `${outcome.replaceAll("_", " ")} ${count}`,
+                  )
+                  .join(" · ") || "none"}
+                . These include earlier attempts and do not identify current
+                requests.
+              </Typography>
+              <Typography variant="body2">
+                Latest attempt per request revision:{" "}
+                {Object.entries(activity.latest_per_revision_outcome_counts)
+                  .map(
+                    ([outcome, count]) =>
+                      `${outcome.replaceAll("_", " ")} ${count}`,
+                  )
+                  .join(" · ") || "none"}
+                . Revisions may have been superseded.
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Source: {activity.source} · Adapter: {activity.adapter} · As of{" "}

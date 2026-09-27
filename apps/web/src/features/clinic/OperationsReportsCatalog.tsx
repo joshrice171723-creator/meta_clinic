@@ -336,7 +336,15 @@ function downloadVisitCsv(report: DailyVisitsReport) {
 function downloadCsv(rows: string[][], filename: string) {
   const csv = rows
     .map((row) =>
-      row.map((value) => `"${value.replaceAll('"', '""')}"`).join(","),
+      row
+        .map((value) => {
+          const safe =
+            /^\s*[=+@-]/.test(value) && !/^-?\d+(?:\.\d+)?$/.test(value)
+              ? `'${value}`
+              : value;
+          return `"${safe.replaceAll('"', '""')}"`;
+        })
+        .join(","),
     )
     .join("\r\n");
   const url = URL.createObjectURL(
@@ -474,6 +482,37 @@ function DailyInvoices({ date }: { date: string }) {
             {report.definition.exclusions}
           </Typography>
           <Button
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={() =>
+              downloadCsv(
+                [
+                  ["report", "daily_invoices"],
+                  ["definition_revision", String(report.definition.revision)],
+                  ["source", report.definition.source],
+                  ["date_basis", report.definition.date_basis],
+                  ["exclusions", report.definition.exclusions],
+                  ["clinic_date", report.date],
+                  ["timezone", report.timezone],
+                  ["as_of", report.as_of],
+                  ["currency", "state", "count", "posted_line_total"],
+                  ...report.currencies.flatMap((row) =>
+                    Object.entries(row.counts).map(([state, count]) => [
+                      row.currency,
+                      state,
+                      String(count),
+                      state === "posted" ? row.posted_line_total : "",
+                    ]),
+                  ),
+                ],
+                `daily-invoices-${report.date}.csv`,
+              )
+            }
+          >
+            Download invoice counts CSV
+          </Button>
+          <Button
             href="/clinic/billing"
             size="small"
             sx={{ alignSelf: "flex-start" }}
@@ -524,6 +563,42 @@ function DailyStockMovements({ date }: { date: string }) {
             {report.timezone} · As of {report.as_of}.{" "}
             {report.definition.exclusions}
           </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={() =>
+              downloadCsv(
+                [
+                  ["report", "daily_stock_movements"],
+                  ["definition_revision", String(report.definition.revision)],
+                  ["source", report.definition.source],
+                  ["date_basis", report.definition.date_basis],
+                  ["exclusions", report.definition.exclusions],
+                  ["clinic_date", report.date],
+                  ["timezone", report.timezone],
+                  ["as_of", report.as_of],
+                  [
+                    "stock_type",
+                    "stock_unit",
+                    "kind",
+                    "count",
+                    "signed_quantity",
+                  ],
+                  ...report.movements.map((row) => [
+                    row.stock_type,
+                    row.stock_unit,
+                    row.kind,
+                    String(row.count),
+                    row.signed_quantity,
+                  ]),
+                ],
+                `daily-stock-movements-${report.date}.csv`,
+              )
+            }
+          >
+            Download stock movements CSV
+          </Button>
           <Button
             href="/clinic/inventory/activity"
             size="small"
