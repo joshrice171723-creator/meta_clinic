@@ -4,7 +4,7 @@ module Clinic
       SLUG_PATTERN = /\A[a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9])\z/
 
       def self.call(practice:, actor:, slug_provided:, slug:, enabled_provided:, enabled:,
-        headline_provided: false, headline: nil, intro_provided: false, intro: nil)
+        headline_provided: false, headline: nil, intro_provided: false, intro: nil, accent_provided: false, accent: nil)
         Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.publish")
 
         ApplicationRecord.transaction do
@@ -17,6 +17,7 @@ module Clinic
           attributes[:membership_storefront_enabled] = requested_enabled if enabled_provided
           attributes[:public_page_headline] = page_copy(headline, 160, "Headline") if headline_provided
           attributes[:public_page_intro] = page_copy(intro, 500, "Introduction") if intro_provided
+          attributes[:public_page_accent] = accent.to_s.strip.downcase.presence if accent_provided
           raise ArgumentError, "Provide a storefront setting to update." if attributes.empty?
 
           practice.update!(attributes)

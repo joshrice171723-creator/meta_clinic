@@ -21,6 +21,7 @@ import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { MembershipCatalog } from "../patientPortal/MembershipCatalog";
 import { PackageCard } from "../clinic/subscriptions/PackageCard";
+import { publicPageTheme } from "./publicPageTheme";
 import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
 import type { PublishedPackage } from "../clinic/subscriptions/contracts";
 import type { PublicMembershipStorefrontResponse } from "./types";
@@ -348,7 +349,7 @@ export function PublicMembershipStorefront({
   }
 
   return (
-    <ThemeProvider theme={membershipTheme}>
+    <ThemeProvider theme={publicPageTheme(resource.data?.practice.accent)}>
       <Box
         component="main"
         aria-label={`${resource.data?.practice.name || "Clinic"} memberships`}

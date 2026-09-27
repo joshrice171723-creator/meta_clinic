@@ -12,6 +12,7 @@ module Clinic
             id: practice.id, name: practice.name, timezone: practice.timezone,
             public_page_headline: practice.public_page_headline,
             public_page_intro: practice.public_page_intro,
+            public_page_accent: practice.public_page_accent,
             features: feature_summary(Clinic::Configuration::PracticeFeatures.snapshot(practice:))
           },
           sites: practice.sites.order(:id).map do |site|

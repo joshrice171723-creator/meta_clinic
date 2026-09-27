@@ -25,7 +25,7 @@ module Public
 
       render json: {
         practice: { name: practice.name, slug: slug,
-          headline: practice.public_page_headline, intro: practice.public_page_intro },
+          headline: practice.public_page_headline, intro: practice.public_page_intro, accent: practice.public_page_accent },
         membership_path: practice.membership_storefront_enabled? ? "/memberships/#{slug}" : nil,
         services: offerings.map { |offering|
           { id: offering.id, name: offering.name, description: offering.description, duration_minutes: offering.duration_minutes, modality: offering.modality }

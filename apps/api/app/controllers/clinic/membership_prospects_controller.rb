@@ -119,6 +119,7 @@ module Clinic
         enabled: current_practice.membership_storefront_enabled,
         headline: current_practice.public_page_headline,
         intro: current_practice.public_page_intro,
+        accent: current_practice.public_page_accent,
         public_path: current_practice.public_membership_slug &&
           "/memberships/#{current_practice.public_membership_slug}",
         service_page_path: service_page_available ? "/clinics/#{current_practice.public_membership_slug}/services" : nil

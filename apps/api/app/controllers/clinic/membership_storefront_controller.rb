@@ -17,7 +17,8 @@ module Clinic
         enabled_provided: input.key?(:enabled),
         enabled: input[:enabled],
         headline_provided: input.key?(:headline), headline: input[:headline],
-        intro_provided: input.key?(:intro), intro: input[:intro]
+        intro_provided: input.key?(:intro), intro: input[:intro],
+        accent_provided: input.key?(:accent), accent: input[:accent]
       )
       render json: { storefront: storefront_payload(practice) }
     end
@@ -25,7 +26,7 @@ module Clinic
     private
 
     def storefront_input
-      parameter_hash!(:storefront, %i[slug enabled headline intro])
+      parameter_hash!(:storefront, %i[slug enabled headline intro accent])
     end
 
     def storefront_payload(practice)
@@ -36,6 +37,7 @@ module Clinic
         enabled: practice.membership_storefront_enabled,
         headline: practice.public_page_headline,
         intro: practice.public_page_intro,
+        accent: practice.public_page_accent,
         public_path: practice.public_membership_slug && "/memberships/#{practice.public_membership_slug}",
         service_page_path: service_page_available ? "/clinics/#{practice.public_membership_slug}/services" : nil
       }

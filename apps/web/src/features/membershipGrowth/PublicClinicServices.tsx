@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
-import { membershipTheme } from "../clinic/subscriptions/membershipTheme";
+import { publicPageTheme } from "./publicPageTheme";
 
 type ClinicServicesResponse = {
   practice: {
@@ -23,6 +23,7 @@ type ClinicServicesResponse = {
     slug: string;
     headline: string | null;
     intro: string | null;
+    accent: string | null;
   };
   membership_path: string | null;
   services: Array<{
@@ -93,7 +94,7 @@ export function PublicClinicServices({ slug }: { slug: string }) {
   }, [resource.data]);
 
   return (
-    <ThemeProvider theme={membershipTheme}>
+    <ThemeProvider theme={publicPageTheme(resource.data?.practice.accent)}>
       <Box
         component="main"
         sx={{

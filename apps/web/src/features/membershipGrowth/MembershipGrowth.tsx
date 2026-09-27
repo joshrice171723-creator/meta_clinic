@@ -11,6 +11,7 @@ import {
   FormControlLabel,
   Checkbox,
   Paper,
+  MenuItem,
   Stack,
   Switch,
   Tab,
@@ -25,6 +26,7 @@ import {
   Typography,
 } from "@mui/material";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import { publicPageAccents } from "./publicPageTheme";
 import { ServiceInquiries } from "./ServiceInquiries";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
@@ -141,6 +143,7 @@ export function MembershipGrowth() {
   const [enabled, setEnabled] = useState(false);
   const [headline, setHeadline] = useState("");
   const [intro, setIntro] = useState("");
+  const [accent, setAccent] = useState("");
   const [configurationBusy, setConfigurationBusy] = useState(false);
   const [configurationError, setConfigurationError] = useState("");
   const [configurationNotice, setConfigurationNotice] = useState("");
@@ -169,6 +172,7 @@ export function MembershipGrowth() {
     setEnabled(storefront.enabled);
     setHeadline(storefront.headline || "");
     setIntro(storefront.intro || "");
+    setAccent(storefront.accent || "");
   }, [storefront]);
 
   const counts = useMemo(() => {
@@ -189,7 +193,8 @@ export function MembershipGrowth() {
     slug !== (storefront?.slug || "") ||
     enabled !== (storefront?.enabled || false) ||
     headline !== (storefront?.headline || "") ||
-    intro !== (storefront?.intro || "");
+    intro !== (storefront?.intro || "") ||
+    accent !== (storefront?.accent || "");
 
   async function saveStorefront() {
     if (!canConfigure || configurationBusy || !slugValid) return;
@@ -201,13 +206,14 @@ export function MembershipGrowth() {
         "/api/clinic/membership_storefront",
         {
           method: "PATCH",
-          body: { storefront: { slug, enabled, headline, intro } },
+          body: { storefront: { slug, enabled, headline, intro, accent } },
         },
       );
       setSlug(result.storefront.slug || "");
       setEnabled(result.storefront.enabled);
       setHeadline(result.storefront.headline || "");
       setIntro(result.storefront.intro || "");
+      setAccent(result.storefront.accent || "");
       setConfigurationNotice(
         result.storefront.enabled
           ? "Public membership page saved and enabled."
@@ -406,6 +412,21 @@ export function MembershipGrowth() {
                   />
                 </Stack>
                 <Stack spacing={1.5} sx={{ maxWidth: 720 }}>
+                  <TextField
+                    select
+                    label="Public page accent"
+                    value={accent}
+                    disabled={!canConfigure || configurationBusy}
+                    onChange={(event) => setAccent(event.target.value)}
+                    helperText="Used for buttons and controls on both public pages."
+                  >
+                    <MenuItem value="">Default</MenuItem>
+                    {publicPageAccents.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <TextField
                     label="Public page headline"
                     value={headline}
