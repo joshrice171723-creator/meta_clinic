@@ -30,6 +30,7 @@ module Development
           DemoLesson.where(lesson_key:, visitor_id: nil).lock.first || create_lesson!(definition)
         end
         lesson.lock!
+        lesson.update!(visitor:) if sandbox && lesson.visitor_id.nil?
         if sandbox && !restart
           existing_run = DemoRun.active.find_by(lesson_key:, practice: lesson.practice)
           if existing_run

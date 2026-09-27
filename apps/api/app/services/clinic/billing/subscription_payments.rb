@@ -29,10 +29,10 @@ module Clinic
         end
       end
 
-      # Only an explicitly selected local fixture provider exists. This is never
+      # Only an explicitly selected demo fixture provider exists. This is never
       # an incoming browser payment callback or a production processor endpoint.
       def self.deliver_fixture(agreement:, actor:, outcome:, request_key:)
-        raise ArgumentError, "The fixture processor is local development only." unless Rails.env.development? || Rails.env.test?
+        raise ArgumentError, "The fixture processor is demo-only." unless GuidedDemoAccess.enabled?
         Authorization.authorize_with_legacy!(practice: agreement.practice, actor: actor, action: "billing.payment_record", legacy_action: "billing.write")
         key = Care::SubscriptionDefinition.request_key(request_key)
         type = { "succeeded" => "payment_intent.succeeded", "failed" => "payment_intent.payment_failed", "unknown" => "payment_intent.unknown" }.fetch(outcome) { raise ArgumentError, "Unknown fixture outcome." }
@@ -49,7 +49,7 @@ module Clinic
       end
 
       def self.reconcile(agreement:, actor:, raw_body:, signature_header:, secret:, expected_account:)
-        raise ArgumentError, "Subscription processor activation is local development only." unless Rails.env.development? || Rails.env.test?
+        raise ArgumentError, "Subscription processor activation is demo-only." unless GuidedDemoAccess.enabled?
         Authorization.authorize_with_legacy!(practice: agreement.practice, actor: actor, action: "billing.payment_record", legacy_action: "billing.write")
         ProcessorWebhookVerifier::Stripe.verify!(raw_body: raw_body, signature_header: signature_header, secret: secret)
         payload = JSON.parse(raw_body)
