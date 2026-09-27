@@ -419,6 +419,59 @@ export function PublicMembershipStorefront({
                 </Button>
               </Box>
             </Box>
+            {resource.data.services.length > 0 && (
+              <Box component="section" aria-labelledby="clinic-services">
+                <Typography id="clinic-services" component="h2" variant="h4">
+                  Services at this clinic
+                </Typography>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "repeat(2, minmax(0, 1fr))",
+                    },
+                    gap: 2,
+                    mt: 2,
+                  }}
+                >
+                  {resource.data.services.map((service, index) => (
+                    <Box
+                      key={`${service.name}-${index}`}
+                      sx={{
+                        border: 1,
+                        borderColor: "divider",
+                        borderRadius: 2,
+                        p: 2.5,
+                      }}
+                    >
+                      <Typography component="h3" variant="h6">
+                        {service.name}
+                      </Typography>
+                      {service.description && (
+                        <Typography color="text.secondary" sx={{ mt: 1 }}>
+                          {service.description}
+                        </Typography>
+                      )}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 1.5 }}
+                      >
+                        {service.modality === "either"
+                          ? "In person or video"
+                          : service.modality === "video"
+                            ? "Video visit"
+                            : "In-person visit"}
+                        {service.duration_minutes
+                          ? ` · ${service.duration_minutes} minutes`
+                          : ""}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
             {paymentOutcome === "return" && returnState === "preparing" && (
               <Alert severity="info">
                 We are checking the payment result and preparing your patient

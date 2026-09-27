@@ -13,6 +13,7 @@ module Clinic
         modality: offering.modality,
         booking_required: offering.booking_required,
         requires_room: offering.requires_room,
+        public_visible: offering.public_visible,
         status: offering.status,
         eligible_site_ids: offering.sites.map(&:id).sort,
         eligible_clinician_ids: offering.clinicians.map(&:id).sort,

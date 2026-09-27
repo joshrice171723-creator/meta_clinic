@@ -108,6 +108,7 @@ module Clinic
         values[:modality] = enum(attributes[:modality], field: "modality", allowed: %w[in_person video either]) if attributes.key?(:modality)
         values[:booking_required] = boolean(attributes[:booking_required], field: "booking_required") if attributes.key?(:booking_required)
         values[:requires_room] = boolean(attributes[:requires_room], field: "requires_room") if attributes.key?(:requires_room)
+        values[:public_visible] = boolean(attributes[:public_visible], field: "public_visible") if attributes.key?(:public_visible)
         if attributes.key?(:status) && (!creating || attributes[:status] != "draft")
           raise ArgumentError, "Use the publish or retire action to change service offering status."
         end

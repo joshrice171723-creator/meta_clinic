@@ -9501,6 +9501,7 @@ CREATE TABLE public.clinic_service_offerings (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    public_visible boolean DEFAULT false NOT NULL,
     CONSTRAINT clinic_service_offerings_code_value CHECK (((code IS NULL) OR (length(TRIM(BOTH FROM code)) > 0))),
     CONSTRAINT clinic_service_offerings_duration CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 5) AND (duration_minutes <= 1440)))),
     CONSTRAINT clinic_service_offerings_values CHECK (((length(TRIM(BOTH FROM name)) > 0) AND ((modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying, 'either'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'retired'::character varying])::text[])) AND (lock_version >= 0)))
@@ -18769,6 +18770,13 @@ CREATE INDEX clinic_service_offerings_name ON public.clinic_service_offerings US
 --
 
 CREATE UNIQUE INDEX clinic_service_offerings_practice_id ON public.clinic_service_offerings USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_service_offerings_public_catalog; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_service_offerings_public_catalog ON public.clinic_service_offerings USING btree (practice_id, status, public_visible);
 
 
 --
@@ -31710,6 +31718,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260927182000'),
 ('20260926030100'),
 ('20260926030000'),
 ('20260926020000'),

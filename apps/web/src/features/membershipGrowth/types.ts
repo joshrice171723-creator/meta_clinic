@@ -16,6 +16,12 @@ export type PublicMembershipStorefrontResponse = {
     slug: string;
   };
   catalog: PublishedPackage[];
+  services: Array<{
+    name: string;
+    description: string | null;
+    duration_minutes: number | null;
+    modality: "in_person" | "video" | "either";
+  }>;
   payment: {
     checkout_available: boolean;
     mode: "test" | "local_simulator";

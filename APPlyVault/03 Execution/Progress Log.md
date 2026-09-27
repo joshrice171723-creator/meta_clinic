@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-02 public clinic services and tracker starting point
+
+The existing public membership page now has an opt-in, published-service section backed by the clinic's service-offering configuration. [Dated source evidence](../../records/implementation/2026-09-27-mc02-public-service-visibility.md) records default-hidden migration, limited anonymous fields and unverified positive browser paths. MC-02 build moved to 65%; validation and external gates did not change. The [live register](../../records/implementation/2026-09-27-meta-clinic-tracker-atlas.html) pins MC-01–MC-15 at main `5de7a041` and shows later build/evidence changes separately.
+
 ## 2026-09-27 — MC-10/11 source closure follow-up
 
 Four scoped safeguards tighten prescription reconciliation and attempt pairing, and prevent empty order submission or closure with unresolved shipments. The [dated record](../../records/implementation/2026-09-27-mc10-mc11-source-closure.md) lists source checks, the one-slice hourly shortfall, and still-open browser/recovery evidence. Tracker percentages remain unchanged.

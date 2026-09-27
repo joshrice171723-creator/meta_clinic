@@ -44,6 +44,7 @@ type ServiceOffering = {
   modality: "in_person" | "video" | "either";
   booking_required: boolean;
   requires_room: boolean;
+  public_visible: boolean;
   status: "draft" | "published" | "retired";
   eligible_site_ids: number[];
   eligible_clinician_ids: number[];
@@ -69,6 +70,7 @@ function emptyForm(visitType?: VisitType, siteIds: number[] = []): FormState {
     modality: "in_person",
     booking_required: true,
     requires_room: false,
+    public_visible: false,
     eligible_site_ids: siteIds,
     eligible_clinician_ids: [],
     status: "draft",
@@ -189,6 +191,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       modality: form.modality,
       booking_required: form.booking_required,
       requires_room: form.requires_room,
+      public_visible: form.public_visible,
       site_ids: form.eligible_site_ids,
       clinician_ids: form.eligible_clinician_ids,
       ...(creating
@@ -381,7 +384,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   <Chip
                     size="small"
                     variant="outlined"
-                    label={offering.status}
+                    label={`${offering.status}${offering.public_visible ? " · Public page" : ""}`}
                   />
                 </TableCell>
                 {canManage && (
@@ -643,6 +646,22 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   />
                 ))}
               </Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.public_visible}
+                    disabled={controlsDisabled}
+                    onChange={(event) =>
+                      update({ public_visible: event.target.checked })
+                    }
+                  />
+                }
+                label="Show on public clinic page when published"
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                Only the name, description, duration, and visit format appear
+                publicly. Draft and retired offerings stay hidden.
+              </Typography>
               <FormControlLabel
                 control={
                   <Checkbox
