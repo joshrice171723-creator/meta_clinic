@@ -33,15 +33,24 @@ export function ServiceInquiries() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<ServiceInquiry | null>(null);
   const [note, setNote] = useState("");
   const [due, setDue] = useState("");
   const [saveError, setSaveError] = useState("");
   const resource = useResource<{
     inquiries: ServiceInquiry[];
-    capped: boolean;
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+    };
     clinic_date: string;
-  }>(`/api/clinic/service_inquiries?follow_up=${filter}`);
+  }>(
+    `/api/clinic/service_inquiries?follow_up=${filter}&status=${status}&page=${page}`,
+  );
 
   const closeEditor = () => {
     if (busyId !== null) return;
@@ -123,11 +132,33 @@ export function ServiceInquiries() {
           select
           label="Show inquiries"
           value={filter}
-          onChange={(event) => setFilter(event.target.value)}
+          onChange={(event) => {
+            setFilter(event.target.value);
+            setPage(1);
+          }}
           size="small"
         >
           <MenuItem value="all">Latest inquiries</MenuItem>
           <MenuItem value="due">Follow-up due today or earlier</MenuItem>
+        </TextField>
+        <TextField
+          select
+          label="Inquiry status"
+          size="small"
+          value={status}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
+          slotProps={{
+            select: { displayEmpty: true },
+            inputLabel: { shrink: true },
+          }}
+        >
+          <MenuItem value="">All statuses</MenuItem>
+          <MenuItem value="new">New</MenuItem>
+          <MenuItem value="contacted">Contacted</MenuItem>
+          <MenuItem value="closed">Closed</MenuItem>
         </TextField>
         {!resource.data && (
           <LoadState error={resource.error} onRetry={resource.refresh} />
@@ -195,12 +226,38 @@ export function ServiceInquiries() {
                 )}
               </Box>
             ))}
-            {resource.data.capped && (
-              <Typography variant="caption">
-                Showing the first 100 matching inquiries; due follow-ups are
-                ordered oldest first.
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center" }}
+              component="nav"
+              aria-label="Inquiry pages"
+            >
+              <Button
+                disabled={resource.data.pagination.page <= 1}
+                onClick={() =>
+                  setPage((resource.data?.pagination.page || 1) - 1)
+                }
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                {resource.data.pagination.total} inquiries · Page{" "}
+                {resource.data.pagination.page} of{" "}
+                {Math.max(1, resource.data.pagination.total_pages)}
               </Typography>
-            )}
+              <Button
+                disabled={
+                  resource.data.pagination.page >=
+                  resource.data.pagination.total_pages
+                }
+                onClick={() =>
+                  setPage((resource.data?.pagination.page || 1) + 1)
+                }
+              >
+                Next
+              </Button>
+            </Stack>
             <Button
               size="small"
               onClick={resource.refresh}

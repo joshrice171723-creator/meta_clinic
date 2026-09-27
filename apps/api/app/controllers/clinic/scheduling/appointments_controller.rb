@@ -12,9 +12,7 @@ module Clinic
         end
         appointments = appointments.where(site_id: site.id) if site
         if params[:closed_site] == "true"
-          appointments = appointments.where(site_id: current_practice.sites.where(status: %w[temporarily_closed retired]).select(:id))
-            .where(status: %w[scheduled confirmed]).where("starts_at > ?", Current.business_time)
-            .where.missing(:encounter)
+          appointments = ClosureRecovery.call(scope: appointments, practice: current_practice)
         end
         if params[:date].present?
           date = date_param!(params[:date], field: :date)
@@ -48,9 +46,13 @@ module Clinic
           )
           appointments = appointments.where(patient_id: matching_patients.select(:id))
         end
-        paginate(appointments.includes(:encounter, :room, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
+        paginate(appointments.includes(:site, :encounter, :room, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
           patient: :communication_endpoints), key: :appointments,
-          serializer: ->(appointment) { AppointmentSerializer.call(appointment, actor: current_user) }, order: { starts_at: :asc, id: :asc })
+          serializer: ->(appointment) {
+            payload = AppointmentSerializer.call(appointment, actor: current_user)
+            payload[:closure_reason] = ClosureRecovery.reason(appointment, practice: current_practice) if params[:closed_site] == "true"
+            payload
+          }, order: { starts_at: :asc, id: :asc })
       end
 
       def show

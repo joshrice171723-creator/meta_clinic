@@ -2,6 +2,7 @@ import type { Appointment, ClinicSite } from "../../api/contracts";
 
 export type FrontDeskAppointment = Appointment & {
   room_code?: string | null;
+  closure_reason?: string;
   updated_at?: string;
   encounter_status?: "open" | "completed" | null;
   encounter_started_at?: string | null;

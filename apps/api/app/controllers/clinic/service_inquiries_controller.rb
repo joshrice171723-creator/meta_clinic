@@ -4,21 +4,32 @@ module Clinic
 
     def index
       inquiries = current_practice.service_inquiries.includes(:service_offering)
+      if params[:status].present?
+        inquiries = inquiries.where(status: enum_param!(params[:status], field: :status, allowed: %w[new contacted closed]))
+      end
+      follow_up = params[:follow_up].presence || "all"
+      enum_param!(follow_up, field: :follow_up, allowed: %w[all due])
       today = Current.business_time.in_time_zone(current_practice.timezone).to_date
-      if params[:follow_up] == "due"
+      if follow_up == "due"
         inquiries = inquiries.where.not(status: "closed").where(follow_up_on: ..today)
           .order(:follow_up_on, :id)
       else
         inquiries = inquiries.order(created_at: :desc, id: :desc)
       end
-      records = inquiries.limit(100).to_a
+      page = params[:page].present? ? bounded_integer!(params[:page], field: :page, min: 1, max: 1_000_000) : 1
+      per_page = 25
+      total = inquiries.count
+      total_pages = (total.to_f / per_page).ceil
+      page = [ page, [ total_pages, 1 ].max ].min
+      records = inquiries.limit(per_page).offset((page - 1) * per_page).to_a
       Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
         action_code: "service_inquiries.index", outcome: :released)
       render json: {
         inquiries: records.map { |inquiry|
           payload(inquiry)
         },
-        capped: inquiries.count > records.size,
+        capped: false,
+        pagination: { page: page, per_page: per_page, total: total, total_pages: total_pages },
         clinic_date: today.iso8601
       }
     end

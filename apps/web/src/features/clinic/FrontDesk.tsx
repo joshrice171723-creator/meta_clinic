@@ -831,7 +831,7 @@ function AppointmentDayQueue({
           </Typography>
           <Typography color="text.secondary">
             {closedSite
-              ? "No matching upcoming visits at closed or retired sites."
+              ? "No matching upcoming visits affected by a location closure."
               : "Try another date, site, or search term."}
           </Typography>
           {(query || siteId || date !== today) && (
@@ -1084,6 +1084,11 @@ function AppointmentRow({
       </div>
       <div data-label="Location">
         <strong>{siteLabel(sites, appointment.site_id)}</strong>
+        {appointment.closure_reason && (
+          <Typography variant="body2" color="warning.main">
+            {appointment.closure_reason}
+          </Typography>
+        )}
         {appointment.room_code && <span>Room {appointment.room_code}</span>}
       </div>
       <div data-label="Status">
