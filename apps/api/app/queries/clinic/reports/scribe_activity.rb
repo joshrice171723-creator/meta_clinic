@@ -10,6 +10,17 @@ module Clinic
         drafts = Clinic::Scribe::Draft.where(practice:, encounter_id: encounter_ids, id: documents.select(:current_draft_id))
         sources = Clinic::Scribe::Source.where(practice:, encounter_id: encounter_ids)
         recordings = Clinic::Scribe::Recording.where(practice:, encounter_id: encounter_ids)
+        recovery_items = recordings.where(status: %w[recording interrupted]).order(updated_at: :desc).limit(25)
+          .pluck(:id, :encounter_id, :status, :updated_at).map do |id, encounter_id, status, updated_at|
+            { record_type: "recording", id:, encounter_id:, status:, updated_at: }
+          end
+        recovery_items.concat(sources.where(status: "incomplete").order(updated_at: :desc).limit(25)
+          .pluck(:id, :encounter_id, :status, :updated_at).map do |id, encounter_id, status, updated_at|
+            { record_type: "source", id:, encounter_id:, status:, updated_at: }
+          end)
+        recovery_items = recovery_items.sort_by { |item| item[:updated_at] }.reverse.first(25).map do |item|
+          item.merge(updated_at: item[:updated_at].iso8601(6))
+        end
         Clinic::AuditRecorder.record!(practice:, actor:, action_code: "scribe.read", outcome: :released)
         {
           source: "current_scribe_documents_sources_recordings", as_of: Time.current.iso8601(6),
@@ -19,7 +30,8 @@ module Clinic
           source_counts: sources.group(:status).count,
           recording_counts: recordings.group(:status).count,
           documents_without_draft: documents.where(current_draft_id: nil).count,
-          latest_recording_update_at: recordings.maximum(:updated_at)&.iso8601(6)
+          latest_recording_update_at: recordings.maximum(:updated_at)&.iso8601(6),
+          recovery_items:
         }
       end
     end

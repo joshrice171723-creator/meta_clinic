@@ -422,6 +422,13 @@ type ScribeActivityReport = {
   recording_counts: Record<string, number>;
   documents_without_draft: number;
   latest_recording_update_at: string | null;
+  recovery_items: Array<{
+    record_type: "recording" | "source";
+    id: number;
+    encounter_id: number;
+    status: string;
+    updated_at: string;
+  }>;
 };
 
 function ScribeActivitySummary() {
@@ -461,6 +468,24 @@ function ScribeActivitySummary() {
             {report.current_draft_counts.exported ?? 0}. Superseded drafts are
             excluded.
           </Typography>
+          {report.recovery_items.length > 0 && (
+            <Stack spacing={0.25}>
+              <Typography variant="subtitle2">
+                Unfinished records (latest 25)
+              </Typography>
+              {report.recovery_items.map((item) => (
+                <Button
+                  key={`${item.record_type}-${item.id}`}
+                  size="small"
+                  href={`/clinic/scribe?encounter_id=${item.encounter_id}`}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  {item.record_type} #{item.id}: {item.status} · updated{" "}
+                  {new Date(item.updated_at).toLocaleString()}
+                </Button>
+              ))}
+            </Stack>
+          )}
           <Typography variant="caption" color="text.secondary">
             Your authorized encounters only. As of {report.as_of}. Last
             recording change: {report.latest_recording_update_at ?? "none"}.
