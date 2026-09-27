@@ -58,6 +58,25 @@ type DailyStockReport = {
   }[];
 };
 
+type DailyPaymentReport = {
+  definition: {
+    revision: number;
+    source: string;
+    date_basis: string;
+    exclusions: string;
+  };
+  date: string;
+  timezone: string;
+  as_of: string;
+  currencies: {
+    currency: string;
+    payment_count: number;
+    payment_amount: string;
+    refund_count: number;
+    refund_amount: string;
+  }[];
+};
+
 type ReportDestination = {
   title: string;
   href: string;
@@ -215,8 +234,9 @@ function DailyVisitsByState({
         Daily source reports
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        Select a clinic-local date to review source-owned visit, invoice and
-        stock activity. Each report follows its own access permission.
+        Select a clinic-local date to review source-owned visit, invoice,
+        payment, refund and stock activity. Each report follows its own access
+        permission.
       </Typography>
       <Stack
         component="form"
@@ -287,6 +307,7 @@ function DailyVisitsByState({
         </Stack>
       )}
       {capabilities.billing_read && <DailyInvoices date={loadedDate} />}
+      {capabilities.billing_read && <DailyPaymentActivity date={loadedDate} />}
       {capabilities.inventory && <DailyStockMovements date={loadedDate} />}
     </Stack>
   );
@@ -309,6 +330,10 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ["unknown_state", String(report.unknown_state_count)],
     ["total", String(report.total)],
   ];
+  downloadCsv(rows, `daily-visits-${report.date}.csv`);
+}
+
+function downloadCsv(rows: string[][], filename: string) {
   const csv = rows
     .map((row) =>
       row.map((value) => `"${value.replaceAll('"', '""')}"`).join(","),
@@ -319,11 +344,95 @@ function downloadVisitCsv(report: DailyVisitsReport) {
   );
   const link = document.createElement("a");
   link.href = url;
-  link.download = `daily-visits-${report.date}.csv`;
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function DailyPaymentActivity({ date }: { date: string }) {
+  const result = useResource<{ report: DailyPaymentReport }>(
+    `/api/clinic/reports/daily_payment_activity?date=${encodeURIComponent(date)}`,
+    { enabled: Boolean(date) },
+  );
+  if (!date) return null;
+  const report = result.data?.report;
+  return (
+    <Stack spacing={0.75}>
+      <Divider />
+      <Typography variant="subtitle1" component="h4">
+        Payments and refunds recorded
+      </Typography>
+      {!report ? (
+        <LoadState error={result.error} onRetry={result.refresh} />
+      ) : (
+        <>
+          {report.currencies.length === 0 ? (
+            <Typography variant="body2">
+              No payments or refunds were recorded on this date.
+            </Typography>
+          ) : (
+            report.currencies.map((row) => (
+              <Typography variant="body2" key={row.currency}>
+                {row.currency}: {row.payment_count} payments totaling{" "}
+                {row.payment_amount} · {row.refund_count} refunds totaling{" "}
+                {row.refund_amount}
+              </Typography>
+            ))
+          )}
+          <Typography variant="caption" color="text.secondary">
+            Source: {report.definition.source} · Definition revision{" "}
+            {report.definition.revision} · {report.definition.date_basis} ·{" "}
+            {report.timezone} · As of {report.as_of}.{" "}
+            {report.definition.exclusions}
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+            onClick={() =>
+              downloadCsv(
+                [
+                  ["report", "daily_payment_activity"],
+                  ["definition_revision", String(report.definition.revision)],
+                  ["source", report.definition.source],
+                  ["date_basis", report.definition.date_basis],
+                  ["clinic_date", report.date],
+                  ["timezone", report.timezone],
+                  ["as_of", report.as_of],
+                  [
+                    "currency",
+                    "payment_count",
+                    "payment_amount",
+                    "refund_count",
+                    "refund_amount",
+                  ],
+                  ...report.currencies.map((row) => [
+                    row.currency,
+                    String(row.payment_count),
+                    row.payment_amount,
+                    String(row.refund_count),
+                    row.refund_amount,
+                  ]),
+                ],
+                `daily-payment-activity-${report.date}.csv`,
+              )
+            }
+          >
+            Download payment activity CSV
+          </Button>
+          <Button
+            href="/clinic/billing"
+            size="small"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Open source billing ledger
+          </Button>
+        </>
+      )}
+    </Stack>
+  );
 }
 
 function DailyInvoices({ date }: { date: string }) {

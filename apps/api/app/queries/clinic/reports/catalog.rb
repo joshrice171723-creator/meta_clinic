@@ -22,6 +22,11 @@ module Clinic
         date_basis: "entry occurred_at", population: "Recorded office and pharmacy inventory entries on the clinic-local date, including migrated entries.",
         exclusions: "Quantities with different stock types or units are never combined."
       }.freeze
+      DAILY_PAYMENT_ACTIVITY = {
+        id: "daily_payment_activity", revision: 1, source: "clinic_payment_events and clinic_refund_events",
+        date_basis: "event created_at", population: "Payments and refunds recorded on the clinic-local date, grouped by currency.",
+        exclusions: "Payment amount is not invoice allocation or drawer cash. Refunds may relate to payments from another day. This is not a net cash or processor settlement report."
+      }.freeze
     end
   end
 end

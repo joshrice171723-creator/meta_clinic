@@ -108,6 +108,8 @@ Rails.application.routes.draw do
     get "reports/daily_visits_by_state", to: "reports/daily_visits_by_state#show"
     get "reports/daily_invoices", to: "reports/daily_invoices#show"
     get "reports/daily_stock_movements", to: "reports/daily_stock_movements#show"
+    get "reports/daily_payment_activity", to: "reports/daily_payment_activity#show"
+    get "reports/payment_collection_activity", to: "reports/payment_collection_activity#show"
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"

@@ -18,6 +18,19 @@ export function OperationsIntegrationInventory({
   );
   const connection = payment.data;
   const simulated = connection?.source === "local_membership_payment_simulator";
+  const collections = useResource<{
+    report: {
+      source: string;
+      as_of: string;
+      total: number;
+      state_counts: Record<string, number>;
+      needs_reconciliation_count: number;
+      latest_updated_at: string | null;
+    };
+  }>("/api/clinic/reports/payment_collection_activity", {
+    enabled: canReadBilling,
+  });
+  const collectionActivity = collections.data?.report;
   const prescriptions = useResource<{
     report: {
       source: string;
@@ -25,6 +38,7 @@ export function OperationsIntegrationInventory({
       as_of: string;
       total: number;
       unknown_outcome_count: number;
+      latest_per_revision_unknown_count: number;
       latest_submitted_at: string | null;
     };
   }>("/api/clinic/reports/prescription_simulator_activity", {
@@ -70,6 +84,31 @@ export function OperationsIntegrationInventory({
                   : " · No check time recorded"}
                 . Status does not prove a live charge or payout.
               </Typography>
+              {!collectionActivity ? (
+                <LoadState
+                  error={collections.error}
+                  onRetry={collections.refresh}
+                />
+              ) : (
+                <>
+                  <Typography variant="body2">
+                    {collectionActivity.total} recorded online collection
+                    intents · {collectionActivity.state_counts.pending ?? 0}{" "}
+                    pending · {collectionActivity.state_counts.processing ?? 0}{" "}
+                    processing · {collectionActivity.needs_reconciliation_count}{" "}
+                    need reconciliation. Review those records before another
+                    collection.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Source: {collectionActivity.source} · As of{" "}
+                    {collectionActivity.as_of}
+                    {collectionActivity.latest_updated_at
+                      ? ` · Latest state change ${collectionActivity.latest_updated_at}`
+                      : " · No collection intent recorded"}
+                    .
+                  </Typography>
+                </>
+              )}
               <Button
                 href="/clinic/billing"
                 size="small"
@@ -108,8 +147,11 @@ export function OperationsIntegrationInventory({
               <Typography variant="body2">
                 {activity.total} recorded local attempts ·{" "}
                 {activity.unknown_outcome_count} attempts recorded an unknown
-                outcome. Review each current medication request before retrying;
-                this historical count is not an open-work total.
+                outcome historically ·{" "}
+                {activity.latest_per_revision_unknown_count} medication request
+                revisions have an unknown latest recorded attempt. Review each
+                current request before retrying; this is not a count of
+                unresolved patient work.
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Source: {activity.source} · Adapter: {activity.adapter} · As of{" "}

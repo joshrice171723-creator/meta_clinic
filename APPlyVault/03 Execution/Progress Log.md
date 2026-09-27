@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14 payment activity and MC-15 recovery-state source checkpoint
+
+Five source slices add recorded payment and refund date totals, a provenance-bearing payment activity CSV, current online collection-intent state counts, and latest local prescription-attempt outcomes per request revision. The [dated record](../../records/implementation/2026-09-27-mc14-mc15-payment-recovery-source.md) separates those source outcomes from unverified runtime, browser, reconciliation, external, and release gates. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14 and MC-15 local source checkpoint
 
 Five bounded reporting and integration-inventory source slices were added to Operations. TypeScript, changed-file formatting, Ruby syntax/lint and Rails eager loading passed; tests and browser acceptance were not run. The [dated record](../../records/implementation/2026-09-27-mc14-mc15-reporting-integration-inventory.md) identifies each owner, data source and remaining runtime/external proof. Tracker percentages and release gates remain unchanged.
