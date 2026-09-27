@@ -36,6 +36,15 @@ export function OperationsIntegrationInventory({
         updated_at: string;
       }[];
       reconciliation_records_capped: boolean;
+      in_flight_count: number;
+      in_flight_records: {
+        id: number;
+        patient_id: number;
+        invoice_id: number;
+        state: string;
+        updated_at: string;
+      }[];
+      in_flight_records_capped: boolean;
       latest_updated_at: string | null;
     };
   }>("/api/clinic/reports/payment_collection_activity", {
@@ -53,6 +62,16 @@ export function OperationsIntegrationInventory({
       latest_per_revision_outcome_counts: Record<string, number>;
       latest_per_revision_unknown_count: number;
       current_revision_unknown_count: number;
+      current_revision_outcome_counts: Record<string, number>;
+      current_revision_records: {
+        id: number;
+        patient_id: number;
+        medication_request_revision_id: number;
+        encounter_id: number;
+        outcome: string;
+        submitted_at: string;
+      }[];
+      current_revision_records_capped: boolean;
       current_revision_unknown_records: {
         id: number;
         patient_id: number;
@@ -170,6 +189,28 @@ export function OperationsIntegrationInventory({
                       for the rest.
                     </Typography>
                   )}
+                  <Typography variant="body2">
+                    {collectionActivity.in_flight_count} pending or processing
+                    collections. Check the owning invoice before starting
+                    another payment.
+                  </Typography>
+                  {collectionActivity.in_flight_records.map((record) => (
+                    <Button
+                      key={`in-flight-${record.id}`}
+                      href={`/clinic/billing/patients?patient_id=${record.patient_id}&invoice_id=${record.invoice_id}&collection_intent_id=${record.id}`}
+                      size="small"
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Review {record.state} collection {record.id} · invoice{" "}
+                      {record.invoice_id}
+                    </Button>
+                  ))}
+                  {collectionActivity.in_flight_records_capped && (
+                    <Typography variant="caption">
+                      Showing the latest 25 pending or processing collections.
+                      Open Billing for the rest.
+                    </Typography>
+                  )}
                 </>
               )}
               <Button
@@ -238,6 +279,16 @@ export function OperationsIntegrationInventory({
                   .join(" · ") || "none"}
                 . Revisions may have been superseded.
               </Typography>
+              <Typography variant="body2">
+                Current request revisions by latest outcome:{" "}
+                {Object.entries(activity.current_revision_outcome_counts)
+                  .map(
+                    ([outcome, count]) =>
+                      `${outcome.replaceAll("_", " ")} ${count}`,
+                  )
+                  .join(" · ") || "none"}
+                . These are local simulator records, not pharmacy responses.
+              </Typography>
               <Typography variant="caption" color="text.secondary">
                 Source: {activity.source} · Adapter: {activity.adapter} · As of{" "}
                 {activity.as_of}
@@ -262,6 +313,25 @@ export function OperationsIntegrationInventory({
                 <Typography variant="caption">
                   Showing the latest 25 current request revisions with unknown
                   attempts. Open patient records for the rest.
+                </Typography>
+              )}
+              {activity.current_revision_records.map((record) => (
+                <Button
+                  key={`current-${record.id}`}
+                  href={`/clinic/patients/${record.patient_id}/encounters/${record.encounter_id}?medication_request_revision_id=${record.medication_request_revision_id}&prescription_attempt_id=${record.id}`}
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Current request revision{" "}
+                  {record.medication_request_revision_id}
+                  {" · "}
+                  {record.outcome.replaceAll("_", " ")}
+                </Button>
+              ))}
+              {activity.current_revision_records_capped && (
+                <Typography variant="caption">
+                  Showing the latest 25 current request attempts. Open patient
+                  records for the rest.
                 </Typography>
               )}
             </>

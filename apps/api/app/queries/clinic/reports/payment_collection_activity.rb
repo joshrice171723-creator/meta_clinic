@@ -7,6 +7,7 @@ module Clinic
         counts = intents.group(:state).count
         amounts = intents.group(:currency, :state).sum(:amount)
         reconciliation = intents.where(state: "needs_reconciliation")
+        in_flight = intents.where(state: %w[pending processing])
         {
           source: "clinic_payment_collection_intents", as_of: Time.current.iso8601(6),
           freshness: "live_source_query_no_cache", total: counts.values.sum,
@@ -21,6 +22,13 @@ module Clinic
               { id:, patient_id:, invoice_id:, updated_at: updated_at.iso8601(6) }
             },
           reconciliation_records_capped: reconciliation.count > 25,
+          in_flight_count: in_flight.count,
+          in_flight_records: in_flight.order(updated_at: :desc, id: :desc).limit(25)
+            .pluck(:id, :patient_id, :invoice_id, :state, :updated_at)
+            .map { |id, patient_id, invoice_id, state, updated_at|
+              { id:, patient_id:, invoice_id:, state:, updated_at: updated_at.iso8601(6) }
+            },
+          in_flight_records_capped: in_flight.count > 25,
           latest_updated_at: intents.maximum(:updated_at)&.iso8601(6)
         }
       end

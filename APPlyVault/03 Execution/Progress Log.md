@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-27 — MC-14/15 current-record visibility
+
+Five bounded source changes add invoice-level current balances and stock source IDs to daily reports, and pending/processing collection recovery plus current-revision prescription outcome and record views to Operations. The [dated implementation record](../../records/implementation/2026-09-27-mc14-mc15-current-record-visibility.md) separates source checks from browser, permission, CSV and external proof gaps. Tracker percentages remain unchanged.
+
 ## 2026-09-27 — MC-14/15 current report recovery source checkpoint
 
 Five source changes add current invoice-cohort balances, bounded stock entry identities, exact pharmacy-entry ledger filtering, requested online collection amounts and current-revision unknown prescription recovery. Read-only managed-PostgreSQL queries and an authorized synthetic browser path showed the zero-balance invoice, USD 79 requested intent, five receipts and exact entry 296 in Activity. The [dated record](../../records/implementation/2026-09-27-mc14-mc15-current-report-recovery.md) separates this proof from missing CSV, server denial, exception-branch and external evidence. No tests ran; tracker percentages remain unchanged.

@@ -38,6 +38,7 @@ type DailyInvoicesReport = {
     currency: string;
     status: string;
     created_at: string;
+    current_outstanding_balance: string;
   }[];
   records_capped: boolean;
   currencies: {
@@ -65,6 +66,8 @@ type DailyStockReport = {
     kind: string;
     signed_quantity: string;
     occurred_at: string;
+    item_id: number | null;
+    batch_id: number | null;
   }[];
   records_capped: boolean;
   movements: {
@@ -559,7 +562,8 @@ function DailyInvoices({ date }: { date: string }) {
               href={`/clinic/billing/patients?patient_id=${record.patient_id}&invoice_id=${record.id}`}
               sx={{ alignSelf: "flex-start" }}
             >
-              Invoice {record.id} · {record.status} · {record.currency}
+              Invoice {record.id} · {record.status} · {record.currency} ·
+              current balance {record.current_outstanding_balance}
             </Button>
           ))}
           {report.records_capped && (
@@ -671,12 +675,15 @@ function DailyStockMovements({ date }: { date: string }) {
                 href={`/clinic/inventory/activity?q=entry%3A${record.id}`}
                 sx={{ alignSelf: "flex-start" }}
               >
-                Entry {record.id} · pharmacy · {record.kind} ·{" "}
-                {record.signed_quantity} {record.stock_unit}
+                Entry {record.id} · pharmacy batch{" "}
+                {record.batch_id ?? "unknown"}
+                {" · "}
+                {record.kind} · {record.signed_quantity} {record.stock_unit}
               </Button>
             ) : (
               <Typography variant="body2" key={record.id}>
-                Entry {record.id} · {record.stock_type} · {record.kind} ·{" "}
+                Entry {record.id} · {record.stock_type} item{" "}
+                {record.item_id ?? "unknown"} · {record.kind} ·{" "}
                 {record.signed_quantity} {record.stock_unit} (no direct office
                 entry view)
               </Typography>

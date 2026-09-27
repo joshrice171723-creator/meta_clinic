@@ -14,9 +14,11 @@ module Clinic
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
           records: invoices.order(created_at: :desc, id: :desc).limit(25)
-            .pluck(:id, :patient_id, :currency, :status, :created_at)
-            .map { |id, patient_id, currency, status, created_at|
-              { id:, patient_id:, currency:, status:, created_at: created_at.iso8601(6) }
+            .pluck(:id, :patient_id, :currency, :status, :created_at,
+              Arel.sql(Clinic::Billing::Dashboard::OUTSTANDING_BALANCE_SQL))
+            .map { |id, patient_id, currency, status, created_at, balance|
+              { id:, patient_id:, currency:, status:, created_at: created_at.iso8601(6),
+                current_outstanding_balance: balance.to_d.to_s("F") }
             },
           records_capped: invoices.count > 25,
           currencies: currencies.map do |currency|
