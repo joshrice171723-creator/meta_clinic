@@ -109,6 +109,12 @@ function localInput(value: string) {
     .toISOString()
     .slice(0, 16);
 }
+function localDatePart(value: string) {
+  return value.slice(0, 10);
+}
+function localTimePart(value: string) {
+  return value.slice(11, 16);
+}
 function clock(value: number | null) {
   return value === null
     ? ""
@@ -136,8 +142,10 @@ export function WaitlistWorkspace() {
   const [reason, setReason] = useState("");
   const [offer, setOffer] = useState<{
     entry: WaitlistItem;
-    starts: string;
-    expires: string;
+    startsDate: string;
+    startsTime: string;
+    expiresDate: string;
+    expiresTime: string;
   } | null>(null);
   const [kind, setKind] = useState("weekly");
   const [weekday, setWeekday] = useState("1");
@@ -297,8 +305,14 @@ export function WaitlistWorkspace() {
       : defaultExpiration;
     setOffer({
       entry,
-      starts: starts ? localInput(starts) : "",
-      expires: localInput(new Date(expiration).toISOString()),
+      startsDate: starts ? localDatePart(localInput(starts)) : "",
+      startsTime: starts ? localTimePart(localInput(starts)) : "",
+      expiresDate: localDatePart(
+        localInput(new Date(expiration).toISOString()),
+      ),
+      expiresTime: localTimePart(
+        localInput(new Date(expiration).toISOString()),
+      ),
     });
   }
   const selector = (
@@ -617,37 +631,69 @@ export function WaitlistWorkspace() {
                   Offer to {offer.entry.patient_name}
                 </Typography>
                 <TextField
-                  type="datetime-local"
-                  label="Offer starts"
-                  value={offer.starts}
+                  type="date"
+                  label="Offer date"
+                  value={offer.startsDate}
                   disabled={disabled}
                   onChange={(event) =>
-                    setOffer({ ...offer, starts: event.target.value })
+                    setOffer({ ...offer, startsDate: event.target.value })
                   }
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <TextField
-                  type="datetime-local"
-                  label="Accept before"
-                  value={offer.expires}
+                  type="time"
+                  label="Offer time"
+                  value={offer.startsTime}
                   disabled={disabled}
                   onChange={(event) =>
-                    setOffer({ ...offer, expires: event.target.value })
+                    setOffer({ ...offer, startsTime: event.target.value })
+                  }
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <TextField
+                  type="date"
+                  label="Accept-before date"
+                  value={offer.expiresDate}
+                  disabled={disabled}
+                  onChange={(event) =>
+                    setOffer({ ...offer, expiresDate: event.target.value })
+                  }
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <TextField
+                  type="time"
+                  label="Accept-before time"
+                  value={offer.expiresTime}
+                  disabled={disabled}
+                  onChange={(event) =>
+                    setOffer({ ...offer, expiresTime: event.target.value })
                   }
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <Typography variant="body2">
                   The offer appears in the patient's portal. Staff can also
                   record the patient's acceptance. No email or text is sent by
-                  this action.
+                  this action. Accept before is the deadline for responding; it
+                  must be after the current time and no later than the offered
+                  start.
                 </Typography>
                 <Button
                   variant="contained"
-                  disabled={disabled || !offer.starts || !offer.expires}
+                  disabled={
+                    disabled ||
+                    !offer.startsDate ||
+                    !offer.startsTime ||
+                    !offer.expiresDate ||
+                    !offer.expiresTime
+                  }
                   onClick={() =>
                     void transition(offer.entry, "offer", {
-                      starts_at: new Date(offer.starts).toISOString(),
-                      expires_at: new Date(offer.expires).toISOString(),
+                      starts_at: new Date(
+                        `${offer.startsDate}T${offer.startsTime}`,
+                      ).toISOString(),
+                      expires_at: new Date(
+                        `${offer.expiresDate}T${offer.expiresTime}`,
+                      ).toISOString(),
                     })
                   }
                 >
