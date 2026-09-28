@@ -29,7 +29,7 @@ export type RuntimeEnvironment =
 export type DevelopmentAccount = {
   id: string;
   label: string;
-  account_type: "employee" | "patient" | "omni";
+  account_type: "employee" | "pending_employee" | "patient" | "omni";
   destination: string;
   organization?: { id: number; name: string } | null;
   clinic?: { id: number; name: string };

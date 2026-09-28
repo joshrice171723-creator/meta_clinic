@@ -248,6 +248,7 @@ export function EmploymentAdminPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [activationToken, setActivationToken] = useState<string | null>(null);
+  const [activationPath, setActivationPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (roleVersionId || !data) return;
@@ -279,6 +280,7 @@ export function EmploymentAdminPage() {
     setSaving(true);
     setFeedback(null);
     setActivationToken(null);
+    setActivationPath(null);
     try {
       const isoEffectiveFrom = new Date(effectiveFrom).toISOString();
       if (accountMode === "existing") {
@@ -301,7 +303,11 @@ export function EmploymentAdminPage() {
         });
       } else {
         const result = await api<{
-          invitation: { activation_token_once: string; expires_at: string };
+          invitation: {
+            activation_token_once: string;
+            activation_path: string;
+            expires_at: string;
+          };
         }>("/api/clinic/workforce/onboarding", {
           method: "POST",
           body: {
@@ -316,6 +322,7 @@ export function EmploymentAdminPage() {
           },
         });
         setActivationToken(result.invitation.activation_token_once);
+        setActivationPath(result.invitation.activation_path);
         setFeedback({
           severity: "success",
           text: `Invitation created. The token expires ${new Date(result.invitation.expires_at).toLocaleString()}.`,
@@ -339,6 +346,7 @@ export function EmploymentAdminPage() {
     setSaving(true);
     setFeedback(null);
     setActivationToken(null);
+    setActivationPath(null);
     try {
       await api(`/api/clinic/workforce/onboarding/${id}`, {
         method: "PATCH",
@@ -378,16 +386,34 @@ export function EmploymentAdminPage() {
       {activationToken && (
         <Alert severity="warning">
           <Typography sx={{ fontWeight: 700 }}>
-            Share this activation token securely now.
+            Share this activation link securely now.
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
             It is shown only in this response. Meta Clinic does not send it by
-            email.
+            email. The employee will use it to set a password and activate their
+            clinic login.
           </Typography>
+          <Button
+            component="a"
+            href={activationPath ?? undefined}
+            target="_blank"
+            rel="noreferrer"
+            sx={{ mb: 1 }}
+          >
+            Open employee activation
+          </Button>
           <TextField
             fullWidth
             value={activationToken}
             label="One-time activation token"
+            slotProps={{ htmlInput: { readOnly: true } }}
+          />
+          <TextField
+            fullWidth
+            value={
+              activationPath ? `${window.location.origin}${activationPath}` : ""
+            }
+            label="One-time activation link"
             slotProps={{ htmlInput: { readOnly: true } }}
           />
         </Alert>

@@ -26,7 +26,8 @@ module Clinic
             staff_member_id: invitation.staff_member_id,
             email_address: invitation.email_address,
             expires_at: invitation.expires_at.iso8601,
-            activation_token_once: result.fetch(:token)
+            activation_token_once: result.fetch(:token),
+            activation_path: "/workforce/activate#token=#{ERB::Util.url_encode(result.fetch(:token))}"
           }
         }, status: :created
       end

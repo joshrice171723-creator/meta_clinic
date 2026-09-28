@@ -53,7 +53,7 @@ const DEVELOPMENT_PORTALS: Record<
     label: "Patient",
   },
   clinic: {
-    accountTypes: ["employee", "omni"],
+    accountTypes: ["employee", "pending_employee", "omni"],
     accountLabel: "clinic team",
     label: "Clinic",
   },
@@ -510,6 +510,13 @@ export function DevelopmentControls({
       return;
     }
     if (!selectedId) return;
+    const selectedAccount = accounts.find(
+      (account) => account.id === selectedId,
+    );
+    if (selectedAccount?.account_type === "pending_employee") {
+      window.location.assign(selectedAccount.destination);
+      return;
+    }
     setSwitching(true);
     setError("");
     try {
@@ -599,6 +606,11 @@ export function DevelopmentControls({
         <Button href="/memberships" size="small" variant="outlined">
           Future patient
         </Button>
+        {portal === "clinic" && (
+          <Button href="/workforce/activate" size="small" variant="outlined">
+            Activate clinic account
+          </Button>
+        )}
         <Button
           className="development-login-button"
           variant="contained"

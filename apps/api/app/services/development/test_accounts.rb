@@ -83,7 +83,7 @@ module Development
 
     def self.preview_accounts
       ensure_local!
-      employee_accounts + patient_accounts + omni_account
+      employee_accounts + pending_employee_accounts + patient_accounts + omni_account
     end
 
     def self.preview_account_for(user, profile: nil)
@@ -253,6 +253,25 @@ module Development
         end
     end
     private_class_method :employee_accounts
+
+    def self.pending_employee_accounts
+      Clinic::Workforce::EmployeeInvitation.pending
+        .includes(:staff_member, practice: [ :organization, :sites ])
+        .order(:expires_at, :id).map do |invitation|
+          practice = invitation.practice
+          {
+            id: "employee-invitation-#{invitation.id}",
+            label: "Pending · #{invitation.email_address}",
+            account_type: "pending_employee",
+            destination: "/workforce/activate",
+            organization: practice.organization && { id: practice.organization.id, name: practice.organization.name },
+            clinic: { id: practice.id, name: practice.name },
+            locations: practice.sites.where(id: invitation.site_ids, status: "active")
+              .order(:name, :id).map { |site| { id: site.id, name: site.name, code: site.code } }
+          }
+        end
+    end
+    private_class_method :pending_employee_accounts
 
     def self.patient_accounts(user_id: nil)
       identities = Clinic::PatientPortal::Identity.available.joins(:user).where(users: { active: true })
