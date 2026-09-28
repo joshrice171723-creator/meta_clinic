@@ -655,14 +655,8 @@ export function ClinicSchedule({
               variant="contained"
               disabled={!siteId}
               onClick={() => {
-                const starts_at = calendarInstant(day, 9, timezone);
-                setBooking({
-                  site_id: Number(siteId),
-                  starts_at,
-                  ends_at: new Date(
-                    Date.parse(starts_at) + 30 * 60000,
-                  ).toISOString(),
-                });
+                // No slot was selected; let BookingForm use real-time defaults.
+                setBooking({ site_id: Number(siteId) });
               }}
             >
               {actionLabel}

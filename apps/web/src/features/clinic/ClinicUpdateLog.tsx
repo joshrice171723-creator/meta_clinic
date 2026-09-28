@@ -73,10 +73,14 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
-          Schedule booking: a past selected-day time no longer overrides the new
-          appointment default. Open Book from an earlier calendar day, confirm
-          the start and end are editable future times, and save a synthetic
-          appointment. Existing saved drafts still require review.
+          Booking defaults (#21): Schedule &gt; Book appointment uses the current
+          real time rounded up to the next 15-minute interval, with a 30-minute
+          duration. Retest while viewing September 1, 2026, and today; choose
+          Start new appointment if a saved draft appears. Confirm the fresh
+          times follow the current clock, then close without booking. Held slots,
+          clicked slots, and Schedule another at this time retain their selected
+          times. Existing saved drafts still require review and remain unchanged
+          until cleared. This default does not guarantee slot availability.
         </li>
         <li>
           Location setup: a new location becomes the selected site after it is
