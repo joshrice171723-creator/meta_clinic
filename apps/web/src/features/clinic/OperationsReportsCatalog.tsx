@@ -588,8 +588,8 @@ function DailyVisitsByState({
       )}
       <Alert severity="info">
         These are live source reports, not a saved day-end balance. Invoice
-        balances are current, and the drawer report lists sessions opened on
-        the selected practice date plus unresolved earlier drawers. Visit dates
+        balances are current, and the drawer report lists sessions opened on the
+        selected practice date plus unresolved earlier drawers. Visit dates
         follow the selected site's time zone.
       </Alert>
       {loadedDate && siteId && capabilities.appointments_read && !report && (
@@ -668,8 +668,8 @@ function DailyVisitsByState({
       )}
       {capabilities.billing_read &&
         (capabilities.billing_cash_reconcile || capabilities.billing_write) && (
-        <DayEndReviews key={loadedDate} date={loadedDate} />
-      )}
+          <DayEndReviews date={loadedDate} />
+        )}
       {capabilities.inventory && (
         <DailyStockMovements key={loadedDate} date={loadedDate} />
       )}
@@ -1218,7 +1218,9 @@ function DailyCashDrawers({ date }: { date: string }) {
             <Stack key={row.id} spacing={0.5}>
               <Typography variant="body2">
                 Drawer {row.id} · {row.site_name} · opened {row.opened_at} ·{" "}
-                {row.status === "open" ? "still open" : "awaiting reconciliation"}
+                {row.status === "open"
+                  ? "still open"
+                  : "awaiting reconciliation"}
               </Typography>
               <Button
                 size="small"
@@ -1302,16 +1304,22 @@ function DayEndReviews({ date }: { date: string }) {
   const [unknownOutcome, setUnknownOutcome] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const pendingAttempt = useRef<{ note: string; key: string } | null>(null);
+  const pendingAttempt = useRef<{
+    date: string;
+    note: string;
+    key: string;
+  } | null>(null);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const reviewNote = note.trim();
     if (!reviewNote || busy) return;
+    if (unknownOutcome && pendingAttempt.current?.date !== date) return;
     const attempt =
-      pendingAttempt.current?.note === reviewNote
+      pendingAttempt.current?.date === date &&
+      pendingAttempt.current.note === reviewNote
         ? pendingAttempt.current
-        : { note: reviewNote, key: crypto.randomUUID() };
+        : { date, note: reviewNote, key: crypto.randomUUID() };
     pendingAttempt.current = attempt;
     setBusy(true);
     setError("");
@@ -1321,7 +1329,7 @@ function DayEndReviews({ date }: { date: string }) {
         method: "POST",
         body: {
           day_end_review: {
-            date,
+            date: attempt.date,
             review_note: attempt.note,
             request_key: attempt.key,
           },
@@ -1330,7 +1338,7 @@ function DayEndReviews({ date }: { date: string }) {
       pendingAttempt.current = null;
       setUnknownOutcome(false);
       setNote("");
-      setNotice("Review checkpoint recorded for this clinic date.");
+      setNotice(`Review checkpoint recorded for ${attempt.date}.`);
       reviews.refresh();
     } catch (reason) {
       const unknown =
@@ -1377,18 +1385,30 @@ function DayEndReviews({ date }: { date: string }) {
         <Button
           type="submit"
           variant="outlined"
-          disabled={busy || !note.trim()}
+          disabled={
+            busy ||
+            !note.trim() ||
+            (unknownOutcome && pendingAttempt.current?.date !== date)
+          }
           sx={{ alignSelf: "flex-start" }}
         >
           {unknownOutcome ? "Retry same review" : "Record review checkpoint"}
         </Button>
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
+      {unknownOutcome && pendingAttempt.current?.date !== date && (
+        <Alert severity="warning">
+          Return to {pendingAttempt.current?.date} to retry the unconfirmed
+          review.
+        </Alert>
+      )}
       {notice && <Alert severity="success">{notice}</Alert>}
       {!reviews.data ? (
         <LoadState error={reviews.error} onRetry={reviews.refresh} />
       ) : reviews.data.reviews.length === 0 ? (
-        <Typography variant="body2">No review checkpoint recorded for this date.</Typography>
+        <Typography variant="body2">
+          No review checkpoint recorded for this date.
+        </Typography>
       ) : (
         <Stack spacing={1.5}>
           {reviews.data.reviews.map((review) => (
@@ -1399,9 +1419,10 @@ function DayEndReviews({ date }: { date: string }) {
               <Typography variant="body2">{review.review_note}</Typography>
               <Typography variant="body2">
                 Drawers: {review.snapshot.drawers.open_count} opened that date
-                still open; {review.snapshot.drawers.awaiting_reconciliation_count}
-                {" "}awaiting reconciliation; {review.snapshot.drawers.carried_count}
-                {" "}earlier unresolved.
+                still open;{" "}
+                {review.snapshot.drawers.awaiting_reconciliation_count} awaiting
+                reconciliation; {review.snapshot.drawers.carried_count} earlier
+                unresolved.
               </Typography>
               {review.snapshot.invoices.currencies.map((row) => (
                 <Typography variant="body2" key={`invoice-${row.currency}`}>
@@ -1411,14 +1432,14 @@ function DayEndReviews({ date }: { date: string }) {
               ))}
               {review.snapshot.payments.currencies.map((row) => (
                 <Typography variant="body2" key={`payment-${row.currency}`}>
-                  {row.currency} activity: payments {row.payment_amount}; refunds
-                  {" "}{row.refund_amount}.
+                  {row.currency} activity: payments {row.payment_amount};
+                  refunds {row.refund_amount}.
                 </Typography>
               ))}
               <Typography variant="caption" color="text.secondary">
                 Source snapshots: invoices {review.snapshot.invoices.as_of};
-                payments {review.snapshot.payments.as_of}; drawers
-                {" "}{review.snapshot.drawers.as_of} · {review.timezone}.
+                payments {review.snapshot.payments.as_of}; drawers{" "}
+                {review.snapshot.drawers.as_of} · {review.timezone}.
               </Typography>
             </Stack>
           ))}
