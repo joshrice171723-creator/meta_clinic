@@ -1170,3 +1170,21 @@ The controlled session-duration test passed 6 runs / 24 assertions for the
 two-hour idle and twelve-hour absolute limits. This does not replace human
 screen-reader/contrast/zoom review, full domain mutation walkthroughs, or a
 wall-clock two-hour observation.
+
+## 2026-09-28 — Workforce revocation respects clinic access boundaries
+
+MC-13 source now leaves the shared user account active when another clinic
+membership, an active patient-portal identity, or platform-owner access remains
+after one clinic employment is revoked. The clinic membership callback continues
+to revoke telehealth access scoped to that membership. Ruby syntax and scoped
+RuboCop passed; focused permission tests and cross-clinic browser proof remain
+unverified under Joshua's hold. Source: [employee access lifecycle](../../apps/api/app/services/clinic/workforce/employee_access_lifecycle.rb).
+
+## 2026-09-28 — Reconciliation CSVs include current-page detail
+
+The daily visit, payment/refund, invoice, and stock movement CSVs now include
+the record rows already loaded by their permission-gated reports, plus explicit
+page, page-size, and total-count metadata. Aggregate totals and existing source
+provenance remain included. TypeScript, scoped Prettier, and diff checks passed;
+all-pages export and browser CSV inspection remain unverified under Joshua's
+hold. Source: [operations report exports](../../apps/web/src/features/clinic/OperationsReportsCatalog.tsx).

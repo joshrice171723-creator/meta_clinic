@@ -21,7 +21,7 @@ module Clinic
           delivery.attempt_count += 1
           delivery.last_attempted_at = Current.business_time
           identity = Identity.available.find_by(practice:, patient: current.patient)
-          if identity
+          if identity&.user&.active?
             current.update!(identity:) unless current.identity_id == identity.id
             delivery.assign_attributes(state: "delivered", delivered_at: Current.business_time, failure_code: nil)
           else

@@ -5506,6 +5506,10 @@ CREATE TABLE public.clinic_inventory_supplier_quote_requests (
     quoted_on date,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    package_quantity_at_request numeric(20,6),
+    stock_unit_at_request character varying,
+    CONSTRAINT inventory_supplier_quote_request_package_quantity CHECK (((package_quantity_at_request IS NULL) OR (package_quantity_at_request > (0)::numeric))),
+    CONSTRAINT inventory_supplier_quote_request_stock_unit CHECK (((stock_unit_at_request IS NULL) OR ((stock_unit_at_request)::text = ANY (ARRAY[('package'::character varying)::text, ('each'::character varying)::text, ('tablet'::character varying)::text, ('capsule'::character varying)::text, ('vial'::character varying)::text, ('mL'::character varying)::text, ('g'::character varying)::text])))),
     CONSTRAINT inventory_supplier_quote_request_values CHECK (((requested_packages > (0)::numeric) AND (requested_packages = round(requested_packages, 0)) AND ((length(TRIM(BOTH FROM note)) >= 1) AND (length(TRIM(BOTH FROM note)) <= 1000)) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND ((((status)::text = 'open'::text) AND (quote_reference IS NULL) AND (quoted_on IS NULL)) OR (((status)::text = 'quoted'::text) AND ((length(TRIM(BOTH FROM quote_reference)) >= 1) AND (length(TRIM(BOTH FROM quote_reference)) <= 120)) AND (quoted_on IS NOT NULL)))))
 );
 
@@ -32111,6 +32115,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928000400'),
+('20260928000300'),
 ('20260928000200'),
 ('20260928000100'),
 ('20260927233500'),

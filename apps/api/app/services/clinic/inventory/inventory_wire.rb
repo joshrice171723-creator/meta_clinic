@@ -324,7 +324,9 @@ module Clinic
       def supplier_quote_request_wire(request)
         { id: request.id.to_s, supplier_product_id: request.supplier_product_id.to_s, supplier_id: request.supplier_id.to_s,
           supplier_name: request.supplier.name, product_id: request.product_id.to_s, product_name: request.product.name,
-          requested_packages: request.requested_packages.to_d.to_s("F"), note: request.note,
+          requested_packages: request.requested_packages.to_d.to_s("F"),
+          package_quantity_at_request: request.package_quantity_at_request&.to_d&.to_s("F"),
+          stock_unit_at_request: request.stock_unit_at_request, note: request.note,
           status: request.status, request_key: request.request_key, created_at: request.created_at.iso8601,
           quote_reference: request.quote_reference, quoted_on: request.quoted_on&.iso8601 }
       end
