@@ -561,35 +561,10 @@ export function CashDrawerOperations({
               <span>
                 Cash payment outcome is pending confirmation for invoice #
                 {cashAttempt.invoiceId}. Its drawer and amounts are locked.
-                Review activity or retry the same payment.
+                Review activity, then retry this same payment if it is missing.
+                Retrying uses the same request key, so it cannot create a
+                duplicate payment.
               </span>
-              <Button
-                color="inherit"
-                disabled={busy !== null}
-                onClick={() =>
-                  void (async () => {
-                    if (durableRecoveryEnabled && !(await recovery.clear())) {
-                      setError(
-                        recovery.error ||
-                          "The verified payment's saved recovery details could not be cleared. Try again before another action.",
-                      );
-                      return;
-                    }
-                    persistCashAttempt(clinic, null);
-                    setCashAttempt(null);
-                    setTenderedAmount("");
-                    setAllocationAmount("");
-                    setError("");
-                    setNotice(
-                      "Pending payment cleared after operator verification. No additional cash payment was submitted.",
-                    );
-                  })()
-                }
-                size="small"
-                sx={{ alignSelf: "flex-start" }}
-              >
-                I verified it is recorded
-              </Button>
             </Stack>
           </Alert>
         )}

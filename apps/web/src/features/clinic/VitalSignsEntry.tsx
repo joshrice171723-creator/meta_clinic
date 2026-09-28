@@ -668,6 +668,7 @@ export function VitalSignsEntry({
                   label="Observed time (device local)"
                   type="datetime-local"
                   value={observedAt}
+                  error={error === "Record when these measurements were observed."}
                   onChange={(event) => setObservedAt(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
                   disabled={
@@ -676,7 +677,11 @@ export function VitalSignsEntry({
                     outcomeUnknown ||
                     !draftReady
                   }
-                  helperText={`Enter device-local time; review shows clinic time (${practice.timezone}).`}
+                  helperText={
+                    error === "Record when these measurements were observed."
+                      ? error
+                      : `Enter device-local time; review shows clinic time (${practice.timezone}).`
+                  }
                   fullWidth
                 />
                 <Button

@@ -1781,6 +1781,10 @@ function BookingFormEditor({
               );
             if (!bookingAttempt && offeringIssue)
               return setSubmitError(offeringIssue);
+            if (!bookingAttempt && firstAvailable && serviceOfferingId)
+              return setSubmitError(
+                "First available cannot use a service offering. Add a clinician or choose visit-type booking.",
+              );
             if (!bookingAttempt && overbookRequested) {
               if (!schedulingPolicy.data?.policy.overbook_enabled ||
                   !schedulingPolicy.data.can_overbook)
@@ -2038,7 +2042,6 @@ function BookingFormEditor({
                 if (format === "video") setRoomId("");
               }}
             />
-            <Typography variant="subtitle2">Appointment setup</Typography>
             <Box
               sx={{
                 display: "grid",

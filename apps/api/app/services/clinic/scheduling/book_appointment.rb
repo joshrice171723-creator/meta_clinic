@@ -18,6 +18,7 @@ module Clinic
           raise ArgumentError, "Choose a clinician because providers are now available." if practice.clinician_profiles.exists?
           raise ArgumentError, "First available cannot use a held slot, video visit, or overbook exception." if
             schedule_hold || visit_modality.to_s == "video" || overbook_reason.present?
+          raise ArgumentError, "First available cannot use a service offering. Add a clinician or choose visit-type booking." if service_offering
         elsif !booked_clinician
           raise ArgumentError, "Choose a clinician before scheduling this appointment."
         end

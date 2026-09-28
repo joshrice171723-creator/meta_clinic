@@ -223,8 +223,8 @@ export function BadgeAdminPage() {
         </Typography>
         <Typography variant="h1">Badges and kiosks</Typography>
         <Typography color="text.secondary">
-          Issue one active clock badge per employee and control enrolled
-          clock-only devices.
+          Issue one active clock badge per employee and manage clock-only device
+          enrollment.
         </Typography>
       </Box>
       {feedback && <Alert severity={feedback.type}>{feedback.text}</Alert>}

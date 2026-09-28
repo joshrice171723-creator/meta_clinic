@@ -478,9 +478,9 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
             </Stack>
             <Typography variant="body2" color="text.secondary">
               Pay cadence records your location's payroll cycle; it does not
-              schedule payments. Timecards use the configured workweek. Choose
-              approved timecards, file headings, and employee payroll IDs in
-              Payroll exports.
+              schedule payments. Timecards use the configured workweek. Payroll
+              exports use approved timecards, file headings, and employee
+              payroll IDs.
             </Typography>
           </Stack>
 
