@@ -99,7 +99,8 @@ both image commit labels and web Nginx syntax, restore-checks
 the ordinary and guided-demo PostgreSQL dumps, and bundles both dumps with
 the existing host secrets. The wrapper downloads that bundle, checks its SHA-256,
 encrypts it with Windows DPAPI CurrentUser in `Desktop/06 - Secure Files`,
-verifies a decrypt/hash round trip, and removes its plaintext local copy.
+uploads and downloads the encrypted copy, verifies its decrypted SHA-256,
+and removes its plaintext local copy.
 Only then does it call `release.sh deploy` with the exact commit and bundle hash.
 The DPAPI archive requires this Windows user's profile to decrypt; retain the
 host backup and previous images for recovery.

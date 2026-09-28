@@ -34,10 +34,12 @@ try {
 $remoteScript = "/tmp/meta-clinic-release-$revision.sh"
 $remoteVerify = "/tmp/meta-clinic-verify-$revision.py"
 $remoteArchive = $null
+$remoteEncrypted = "/home/ubuntu/meta-clinic-recovery-$revision-$([guid]::NewGuid().ToString('N')).dpapi"
 $remoteImages = "/home/ubuntu/meta-clinic-images-$revision.tar"
 $localImages = Join-Path $env:TEMP "meta-clinic-images-$revision.tar"
 $plain = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision.tar.gz.partial"
 $encrypted = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision.tar.gz.dpapi"
+$roundTripCopy = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision-$([guid]::NewGuid().ToString('N')).roundtrip.partial"
 if (Test-Path -LiteralPath $plain) { throw "Remove or inspect existing partial download: $plain" }
 if (Test-Path -LiteralPath $encrypted) { throw "An encrypted recovery archive already exists: $encrypted" }
 if ($ImageSource -eq 'local' -and (Test-Path -LiteralPath $localImages)) {
@@ -121,8 +123,12 @@ try {
   $protected = [System.Security.Cryptography.ProtectedData]::Protect(
     $bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
   [System.IO.File]::WriteAllBytes($encrypted, $protected)
+  & scp -o BatchMode=yes -i $key $encrypted "${Server}:$remoteEncrypted"
+  if ($LASTEXITCODE -ne 0) { throw 'Could not upload the encrypted recovery archive.' }
+  & scp -o BatchMode=yes -i $key "${Server}:$remoteEncrypted" $roundTripCopy
+  if ($LASTEXITCODE -ne 0) { throw 'Could not download the encrypted recovery archive.' }
   $roundTrip = [System.Security.Cryptography.ProtectedData]::Unprotect(
-    [System.IO.File]::ReadAllBytes($encrypted), $null,
+    [System.IO.File]::ReadAllBytes($roundTripCopy), $null,
     [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
   $hash = [System.Security.Cryptography.SHA256]::HashData($roundTrip)
   if ([Convert]::ToHexString($hash).ToLowerInvariant() -ne $expectedHash) {
@@ -137,7 +143,9 @@ try {
   Write-Output "Release $revision completed. Encrypted recovery archive: $encrypted"
 } finally {
   if (Test-Path -LiteralPath $plain) { Remove-Item -LiteralPath $plain }
+  if (Test-Path -LiteralPath $roundTripCopy) { Remove-Item -LiteralPath $roundTripCopy }
   $cleanupPaths = "$remoteScript $remoteVerify"
   if ($remoteArchive) { $cleanupPaths += " $remoteArchive" }
+  $cleanupPaths += " $remoteEncrypted"
   & ssh -o BatchMode=yes -i $key $Server "rm -f $cleanupPaths" | Out-Null
 }

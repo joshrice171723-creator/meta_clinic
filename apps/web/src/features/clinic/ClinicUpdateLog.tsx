@@ -110,9 +110,10 @@ export function ClinicUpdateLog() {
         </li>
         <li>
           Release packaging: the low-memory BuildWebOnHost path was already
-          present on main. Confirm the locked web install, local build, small
-          Nginx image, and encrypted recovery round trip in the scheduled
-          release; no alternate build path is used.
+          present on main. The encrypted recovery copy now makes an upload and
+          download round trip before decryption and hash verification. Confirm
+          the locked web install, local build, small Nginx image, and recovery
+          gate in the scheduled release; no alternate build path is used.
         </li>
         <li>
           Record cash on a posted invoice. Confirm the invoice balance, drawer
