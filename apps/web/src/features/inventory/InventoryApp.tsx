@@ -2709,8 +2709,15 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "counts") query.set("view", "program");
         if (screen === "controlled") query.set("view", "queue");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
-        if (read.delivery_status)
-          query.set("delivery_status", read.delivery_status);
+        const routeQuery = new URLSearchParams(window.location.search);
+        if (
+          screen === "receiving" &&
+          (read.delivery_status || routeQuery.get("delivery_status"))
+        )
+          query.set(
+            "delivery_status",
+            read.delivery_status || routeQuery.get("delivery_status")!,
+          );
         if (read.order_status) query.set("order_status", read.order_status);
         if (read.supplier_id) query.set("supplier_id", read.supplier_id);
         if (read.location_status)
@@ -2732,7 +2739,6 @@ export function InventoryApp({ path }: { path: string }) {
         if (read.lot_q) query.set("lot_q", read.lot_q);
         if (read.lot_page) query.set("lot_page", String(read.lot_page));
         if (read.product_id) query.set("product_id", read.product_id);
-        const routeQuery = new URLSearchParams(window.location.search);
         const shipmentId =
           read.shipment_id === undefined
             ? routeQuery.get("shipment_id")
@@ -5592,14 +5598,19 @@ function PurchaseOrderDetails({
           <div className="inventory-stack" aria-label="Recorded deliveries">
             {orderShipments.map((shipment) => {
               const events = shipment.events ?? [];
-              const allowedStatuses = shipment.allowed_next_statuses ?? [];
+              const allowedStatuses = capability(data, "inventory.receive")
+                ? (shipment.allowed_next_statuses ?? [])
+                : [];
               const draft = shipmentEventDrafts[shipment.id] ?? {
                 status: allowedStatuses[0] ?? "",
                 note: "",
               };
-              const canReceive = ["delivered", "exception"].includes(
-                shipment.status,
-              );
+              const canOpenReceiving = [
+                "delivered",
+                "exception",
+                "received",
+                "reconciled_with_discrepancy",
+              ].includes(shipment.status);
               return (
                 <section
                   className="inventory-stack compact"
@@ -5698,12 +5709,12 @@ function PurchaseOrderDetails({
                       </Button>
                     </form>
                   )}
-                  {canReceive ? (
+                  {canOpenReceiving ? (
                     <a
                       className="inventory-info"
-                      href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}
+                      href={`/clinic/inventory/receiving?shipment_id=${shipment.id}&delivery_status=all`}
                     >
-                      Open receiving
+                      Open receiving record
                     </a>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
@@ -6294,6 +6305,20 @@ export function ReceivingScreen({
               : (receipt?.status ?? shipment.status)}
           </Badge>
         </div>
+        {!!shipment.events?.length && (
+          <div
+            className="inventory-stack compact"
+            aria-label="Shipment status history"
+          >
+            {shipment.events.map((event) => (
+              <Typography variant="body2" key={event.id}>
+                {event.status.replaceAll("_", " ")} ·{" "}
+                {inventoryDateTime(event.recorded_at, data.timezone)} ·{" "}
+                {event.note}
+              </Typography>
+            ))}
+          </div>
+        )}
         <InventoryScanInput
           context="receiving"
           productId={item.id}
@@ -7223,7 +7248,7 @@ function InventoryExceptionsScreen({
   const sourceHref = (entry: InventoryException) => {
     if (entry.source_kind === "reconciliation")
       return entry.shipment_id
-        ? `/clinic/inventory/receiving?shipment_id=${entry.shipment_id}`
+        ? `/clinic/inventory/receiving?shipment_id=${entry.shipment_id}&delivery_status=all`
         : "/clinic/inventory/receiving";
     return entry.product_id
       ? `/clinic/inventory/lots?product_id=${entry.product_id}`

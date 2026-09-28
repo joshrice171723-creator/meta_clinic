@@ -16,6 +16,7 @@ import type { MedicationRequestRevision } from "../../api/contracts";
 type Event = {
   id: number;
   medication_request_revision_id: number;
+  prior_event_id: number | null;
   kind: string;
   source: string;
   note: string | null;
@@ -426,12 +427,16 @@ export function PrescriptionFulfillmentPanel({
               Confirm the previous prescription outcome before changing or
               repeating fulfillment.
             </Alert>
-            <Button
-              disabled={disabled || !note.trim()}
-              onClick={() => event("confirmed_not_sent", latest.source, latest)}
-            >
-              Record confirmed not sent
-            </Button>
+            {!["acknowledged", "accepted"].includes(latest.kind) && (
+              <Button
+                disabled={disabled || !note.trim()}
+                onClick={() =>
+                  event("confirmed_not_sent", latest.source, latest)
+                }
+              >
+                Record confirmed not sent
+              </Button>
+            )}
             <Button
               disabled={disabled || !note.trim()}
               onClick={() => event("cancelled", latest.source, latest)}
@@ -615,6 +620,10 @@ export function PrescriptionFulfillmentPanel({
             {item.kind.replaceAll("_", " ")} · version record{" "}
             {item.medication_request_revision_id} ·{" "}
             {new Date(item.recorded_at).toLocaleString()}
+            {item.prior_event_id
+              ? ` · Reconciles event #${item.prior_event_id}`
+              : ""}
+            {item.note ? ` · ${item.note}` : ""}
           </Typography>
         ))}
         {order?.fulfillment_route === "take_home" && (
