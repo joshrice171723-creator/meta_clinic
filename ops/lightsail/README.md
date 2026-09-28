@@ -60,6 +60,16 @@ same Git revision label, saves and transfers them together, then loads them on
 the host. No GitHub Actions job or GHCR credential is needed. A cold build or a
 large image transfer can still exceed ten minutes.
 
+If the local Docker engine cannot fit the web TypeScript build, use
+`-BuildWebOnHost`. The wrapper runs the locked web install, typecheck, and Vite
+bundle on Windows, then packages that bundle into the same revision-labeled
+Nginx image. Host preparation, encrypted recovery, and deployment checks are
+unchanged.
+
+```powershell
+./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>' -BuildWebOnHost
+```
+
 Optional prebuilt mode: first run **Publish portable containers** on `main`
 and wait for both API and web jobs to pass for its exact commit. Give host root
 a GitHub Container Registry credential with `read:packages` only. Keep it in

@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory = $true)][string]$KeyPath,
   [string]$Server = 'ubuntu@aimetaclinic.com',
   [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files'),
-  [ValidateSet('local', 'registry')][string]$ImageSource = 'local'
+  [ValidateSet('local', 'registry')][string]$ImageSource = 'local',
+  [switch]$BuildWebOnHost
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +11,9 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $key = (Resolve-Path -LiteralPath $KeyPath).Path
 if (-not (Test-Path -LiteralPath $RecoveryDirectory -PathType Container)) {
   throw "Recovery directory does not exist: $RecoveryDirectory"
+}
+if ($BuildWebOnHost -and $ImageSource -ne 'local') {
+  throw 'BuildWebOnHost requires local image transfer.'
 }
 
 Push-Location $root
@@ -47,8 +51,35 @@ if ($ImageSource -eq 'local') {
     $webImage = "meta-clinic-web:$revision"
     & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $apiImage apps/api
     if ($LASTEXITCODE -ne 0) { throw 'API image build failed.' }
-    & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
-    if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+    if ($BuildWebOnHost) {
+      Push-Location (Join-Path $root 'apps\web')
+      try {
+        & pnpm.cmd install --frozen-lockfile --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw 'Web locked install failed.' }
+        & pnpm.cmd run build
+        if ($LASTEXITCODE -ne 0) { throw 'Web host build failed.' }
+      } finally {
+        Pop-Location
+      }
+      $webContext = Join-Path $env:TEMP "meta-clinic-web-$revision-$([guid]::NewGuid().ToString('N'))"
+      $tempRoot = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+      if (-not [System.IO.Path]::GetFullPath($webContext).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Web build context escaped the temporary directory.'
+      }
+      try {
+        New-Item -ItemType Directory -Path $webContext | Out-Null
+        Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
+        Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
+        Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
+        & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
+        if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
+      } finally {
+        if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
+      }
+    } else {
+      & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
+      if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+    }
     & docker save -o $localImages $apiImage $webImage
     if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
   } finally {
