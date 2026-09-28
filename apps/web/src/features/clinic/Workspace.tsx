@@ -554,6 +554,7 @@ export function Workspace({
     data?.current_site?.id,
     setupFeatures,
   );
+  const staffSetupPath = path === "/clinic/workforce/employees";
   const landingDestination =
     data && !setupRequired
       ? clinicLandingDestination(data.capabilities, path, homeView)
@@ -562,9 +563,9 @@ export function Workspace({
     if (landingDestination) navigate(landingDestination, { replace: true });
   }, [landingDestination, navigate]);
   useEffect(() => {
-    if (setupRequired && path !== "/clinic/setup")
+    if (setupRequired && path !== "/clinic/setup" && !staffSetupPath)
       navigate("/clinic/setup", { replace: true });
-  }, [navigate, path, setupRequired]);
+  }, [navigate, path, setupRequired, staffSetupPath]);
   useEffect(() => {
     document.getElementById("main")?.focus({ preventScroll: true });
   }, [path, homeView]);
@@ -652,7 +653,7 @@ export function Workspace({
     ...data,
     refreshWorkspace,
   };
-  if (setupRequired)
+  if (setupRequired && !staffSetupPath)
     return (
       <ClinicAppearanceScope {...appearance}>
         <AppearanceContext value={appearance}>

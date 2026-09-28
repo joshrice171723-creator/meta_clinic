@@ -410,10 +410,13 @@ export function EmploymentAdminPage() {
           />
           <TextField
             fullWidth
+            multiline
+            minRows={2}
             value={
               activationPath ? `${window.location.origin}${activationPath}` : ""
             }
             label="One-time activation link"
+            sx={{ "& textarea": { overflowWrap: "anywhere" } }}
             slotProps={{ htmlInput: { readOnly: true } }}
           />
         </Alert>

@@ -220,6 +220,7 @@ export function Facilities() {
             }
           : { tone: "success", text: "Facility profile saved." },
       );
+      if (creating) refreshWorkspace();
       setCreating(false);
       setSelectedId(result.site.id);
       setDraft(siteForm(result.site));
@@ -305,7 +306,7 @@ export function Facilities() {
           {feedback.text}
           {feedback.created && (
             <Button href="#location-setup" size="small" sx={{ ml: 1 }}>
-              Complete clinic setup
+              Finalize location setup
             </Button>
           )}
         </Alert>

@@ -9,6 +9,8 @@ module Clinic
       "clinic/practice_features" => %w[show update],
       "clinic/visit_types" => %w[create update],
       "clinic/clinicians" => %w[index create],
+      "clinic/workforce/employments" => %w[index create update],
+      "clinic/workforce/onboarding" => %w[create update],
       "clinic/scheduling/site_policies" => %w[show update]
     }.freeze
 
