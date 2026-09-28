@@ -30,6 +30,18 @@ within the batch so its own attempt count and retest outcome remain visible.
    requests them. Application Ruby, frontend source, existing test paths and a
    version-only `apps/web/package.json` change are eligible. Infrastructure,
    dependencies, schema, migrations and policy changes need explicit review.
+   Immediately after starting the task, comment on the lowest-numbered issue
+   with this marker and JSON (actual issue numbers and task link; no Markdown
+   fences in the comment):
+
+```text
+<!-- muse-qa-batch-start-v1 -->
+{"issues":[123,124],"task":"https://chatgpt.com/codex/cloud/tasks/ACTUAL_TASK"}
+```
+
+   If no PR for the same issue set appears within two hours, the local reviewer
+   posts one stall notice on that issue. Reuse the issues and inspect the cloud
+   task before retrying.
 4. Click Create pull request, target `main`, mark ready, apply `muse-qa`, and use
    this body (repeat the Notes section for every issue):
 
@@ -58,10 +70,13 @@ Git at `$CODEX_HOME/automations/meta-clinic-muse-qa-review/state.sqlite3` (defau
 to `~/.codex`). Preserve this database. Losing it is an escalation: recover the
 ledger from its backup and GitHub candidate comments before resuming old defects.
 
-Run `python ops/qa/handoff.py scan`, `status`, and `sync` on every review wakeup.
+Run `python ops/qa/handoff.py scan`, `status`, `sync`, and `watch` on every review wakeup.
 `sync` reads public build identity and owner retest comments, retains deployment
 observations, and posts an idempotent deployed-build comment on the PR. A missing
 identity endpoint blocks deployment claims; it does not mean the site is down.
+`watch` checks owner-authored batch-start comments and reports a cloud task that
+has not produced a matching PR within two hours. A stale batch notice does not
+authorize resetting its defect IDs or attempt counts.
 
 For one eligible PR, run `reserve --pr NUMBER` before repair/review. The printed
 record supplies the exact head, base and merge candidate. Each distinct repair
