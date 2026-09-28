@@ -237,7 +237,8 @@ def sync(db):
             data = json.loads(c["body"][len(RETEST):].strip())
             if data.get("revision") != deployed:
                 continue
-            require(data.get("head") == row["head"], "Retest head does not match candidate")
+            if data.get("head") != row["head"]:
+                continue
             for result in data.get("defects", []):
                 require(result.get("issue") in json.loads(row["issues"]) and result.get("status") in ("passed", "failed")
                         and result.get("evidence"), "Retest needs issue, status and observed browser evidence")
