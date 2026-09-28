@@ -19,25 +19,25 @@ This is the single current Meta Clinic implementation tracker. Individual tasks 
 
 ## Founder friction batch — 2026-09-28
 
-Track these requested workflow improvements here; mark an item complete only after its implementation and final evidence are recorded. **Automated tests are intentionally held until all 14 workflow items are implemented.** Then add focused tests, run one consolidated verification pass, push the completed revision, and publish it to `aimetaclinic.com` as explicitly requested. The linked version/update log is a release companion to item 14.
+Track these requested workflow improvements here; mark an item complete only after its implementation and final evidence are recorded. At the founder's request, the current QA preview was published to `aimetaclinic.com` at revision `d3768227` before all 14 items were complete. The release runbook passed its encrypted recovery round trip and live route/login checks. **Final focused tests and browser acceptance remain open**; the earlier source-level test run had 132 passes and 6 failures across 20 files. The linked version/update log is a release companion to item 14.
 
 | # | Requested outcome | Status |
 | --- | --- | --- |
-| 1 | Cash tender: enter one amount, calculate applied balance and change due, then record once; retain safe same-request recovery for unknown outcomes. | Source implemented; final verification/publish pending |
-| 2 | Pair the “Clinician not assigned to this site” warning with an authorized action to assign that clinician to the appointment site for this slot. | Source implemented; final verification/publish pending |
-| 3 | Default vitals observed time to now in device-local time, including restored blank drafts. | Source implemented; final verification/publish pending |
-| 4 | Read back selected booking time in the user's time and clinic time before confirmation. | Source implemented; final verification/publish pending |
-| 5 | Suggest a suitable role while inviting staff, with the role and resulting permissions visible before sending. | Source implemented; final verification/publish pending |
-| 6 | Guide inventory setup through supplier, offer, purchase order, receipt and bins in one first-run path. | Source implemented; final verification/publish pending |
-| 7 | Offer encounter follow-up/recall creation at chart close. | Source implemented; final verification/publish pending |
-| 8 | Preselect all eligible staff at the selected location in the message composer. | Source implemented; final verification/publish pending |
-| 9 | Assign an appropriate owner automatically when a patient checks in on the tracking board. | Source implemented; final verification/publish pending |
-| 10 | Make the FUTURE PATIENT destination useful or remove its dead-end navigation link. | Source implemented; final verification/publish pending |
-| 11 | Give owners one morning view of today's schedule, drawer status, open invoices and staffing gaps. | Source implemented; final verification/publish pending |
-| 12 | Reconcile drawer, invoices and visits in one end-of-day closeout flow. | QA preview includes the three live reports and source actions; saved reconciliation remains open |
-| 13 | Match cancellations to eligible waitlisted patients and create the next slot offer through the existing waitlist workflow. | Portal offer implemented; proactive patient notice remains open |
-| 14 | Turn setup into a progress checklist with a visible progress bar. | Source implemented; final verification/publish pending |
-| Release companion | Show a clearly labeled clickable version number that opens the QA update log. | Version 0.1.1 source implemented; publish pending |
+| 1 | Cash tender: enter one amount, calculate applied balance and change due, then record once; retain safe same-request recovery for unknown outcomes. | Published for QA in `d3768227`; acceptance pending |
+| 2 | Pair the “Clinician not assigned to this site” warning with an authorized action to assign that clinician to the appointment site for this slot. | Published for QA in `d3768227`; acceptance pending |
+| 3 | Default vitals observed time to now in device-local time, including restored blank drafts. | Published for QA in `d3768227`; acceptance pending |
+| 4 | Read back selected booking time in the user's time and clinic time before confirmation. | Published for QA in `d3768227`; acceptance pending |
+| 5 | Suggest a suitable role while inviting staff, with the role and resulting permissions visible before sending. | Published for QA in `d3768227`; acceptance pending |
+| 6 | Guide inventory setup through supplier, offer, purchase order, receipt and bins in one first-run path. | Published for QA in `d3768227`; connected path acceptance pending |
+| 7 | Offer encounter follow-up/recall creation at chart close. | Published for QA in `d3768227`; acceptance pending |
+| 8 | Preselect all eligible staff at the selected location in the message composer. | Published for QA in `d3768227`; acceptance pending |
+| 9 | Assign an appropriate owner automatically when a patient checks in on the tracking board. | Published for QA in `d3768227`; acceptance pending |
+| 10 | Make the FUTURE PATIENT destination useful or remove its dead-end navigation link. | Published for QA in `d3768227`; navigation acceptance pending |
+| 11 | Give owners one morning view of today's schedule, drawer status, open invoices and staffing gaps. | Published for QA in `d3768227`; acceptance pending |
+| 12 | Reconcile drawer, invoices and visits in one end-of-day closeout flow. | Published review preview in `d3768227`; saved reconciliation remains open |
+| 13 | Match cancellations to eligible waitlisted patients and create the next slot offer through the existing waitlist workflow. | Published portal offer in `d3768227`; proactive patient notice remains open |
+| 14 | Turn setup into a progress checklist with a visible progress bar. | Published for QA in `d3768227`; acceptance pending |
+| Release companion | Show a clearly labeled clickable version number that opens the QA update log. | Version 0.1.1 published in `d3768227`; click-through acceptance pending |
 
 Consolidated 2026-09-13 around the founder-approved strategy. Older records supply dated implementation evidence only: they do not add requirements, features, exclusions or approval steps. Historical row baselines remain dated; the current revision-4 assignment below links fresh local runtime/browser evidence. “Dated local evidence” means a linked record reports scoped passing checks; “reconcile” means inspect current source against current direction before deciding what remains. Owners and deadlines are unassigned unless explicitly agreed.
 
