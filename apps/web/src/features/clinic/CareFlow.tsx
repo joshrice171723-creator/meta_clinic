@@ -800,14 +800,17 @@ function BookingFormEditor({
   const clinic = useClinic();
   const defaultDraft = useMemo<BookingDraft>(() => {
     const defaults = appointmentDefaults();
+    const slotStart = initialSlot?.starts_at;
+    const useSlotTime = !!slotStart && Date.parse(slotStart) > Date.now();
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
-      startsAt: initialSlot?.starts_at
-        ? localDateTimeValue(new Date(initialSlot.starts_at))
+      startsAt: useSlotTime
+        ? localDateTimeValue(new Date(slotStart))
         : defaults.startsAt,
-      endsAt: initialSlot?.ends_at
-        ? localDateTimeValue(new Date(initialSlot.ends_at))
-        : defaults.endsAt,
+      endsAt:
+        useSlotTime && initialSlot?.ends_at
+          ? localDateTimeValue(new Date(initialSlot.ends_at))
+          : defaults.endsAt,
       siteId: initialSlot ? String(initialSlot.site_id) : "",
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
       clinicianId: initialSlot?.clinician_id

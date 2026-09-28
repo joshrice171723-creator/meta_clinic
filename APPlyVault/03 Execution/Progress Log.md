@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — Atlas Build reconciliation for 0.1.8 candidate
+
+[Dated source evidence](../../records/implementation/2026-09-28-atlas-build-reconciliation.md) maps the published founder workflow preview and subsequent repairs to eleven MC Build rows. The equal-weight MC-01–15 Build estimate moves 70.1→72.1%; Validation and External / human scores remain unchanged. The 0.1.8 candidate also carries a shared booking default fix for Muse GH #21 and selected-site recovery for unfinalized locations. TypeScript, the web production build, Ruby syntax, vault structure and vault audit checks passed. The changed-file formatter reports three files that also failed at `HEAD`; no broad reformat was applied. Exact-revision hosted retest, deployment and all founder workflow acceptance remain open at this checkpoint.
+
 ## 2026-09-28 — Incomplete location setup recovery released
 
 Commit `1829d8ad5b352a534a5a1abb3d00bf3cc92f51c5` adds a post-creation setup notice and link, a Sites-list "Setup incomplete" badge, and a permission-aware recovery message for eligible unfinalized locations. The two-step creation/finalization model remains. Focused frontend checks passed 23 tests, focused Rails checks passed 14 runs/111 assertions in an isolated test database, and TypeScript plus the web production build passed. A broader frontend run had 14 failures across eight unrelated test files; no full-suite pass is claimed. The matched API/web Lightsail release completed at that revision with restore-checked backups, an encrypted off-host recovery archive, and passing hosted HTTPS, health, authentication, authorization, and synthetic Sandbox checks. Docker Desktop's 1.9 GB limit killed the ordinary web image build, so the already verified host-built bundle was packaged with the same Nginx final stage. A fresh new-administrator browser walkthrough remains open. Separate staff eligibility and clinician invitation defects remain open.

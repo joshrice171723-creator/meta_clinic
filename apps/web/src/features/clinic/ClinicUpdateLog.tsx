@@ -73,6 +73,17 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
+          Schedule booking: a past selected-day time no longer overrides the new
+          appointment default. Open Book from an earlier calendar day, confirm
+          the start and end are editable future times, and save a synthetic
+          appointment. Existing saved drafts still require review.
+        </li>
+        <li>
+          Location setup: a new location becomes the selected site after it is
+          created. The location picker labels unfinished sites so a setup
+          administrator can return to finalization.
+        </li>
+        <li>
           Encounter signing: completed encounters open their chart workspace so
           the Signing destination contains the draft, signing, or correction
           controls, loading state, or access state instead of an empty anchor.
