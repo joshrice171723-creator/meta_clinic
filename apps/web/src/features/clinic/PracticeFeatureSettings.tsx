@@ -314,7 +314,7 @@ export function PracticeFeatureSettings({
 }: {
   canWrite: boolean;
   siteId?: number | null;
-  onProfileSaved?: () => void;
+  onProfileSaved?: (finalized: boolean) => void;
 }) {
   const siteQuery = siteId ? `?site_id=${siteId}` : "";
   const { data, error, refresh } = useResource<{ features: PracticeFeatures }>(
@@ -418,7 +418,7 @@ export function PracticeFeatureSettings({
           ? "Setup finalized. Clinic-managed settings remain available."
           : "Clinic profile saved. The selected starter forms and visit types are ready to configure.",
       });
-      onProfileSaved?.();
+      onProfileSaved?.(finalize);
       refresh();
     } catch (reason) {
       setFeedback({

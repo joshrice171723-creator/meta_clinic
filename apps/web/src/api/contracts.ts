@@ -1301,6 +1301,7 @@ export type ClinicSite = {
   code: string;
   clinic_type?: ClinicType | null;
   specialty_configured?: boolean;
+  finalized?: boolean;
   name?: string;
   status?: "draft" | "active" | "temporarily_closed" | "retired";
   timezone_override: string | null;

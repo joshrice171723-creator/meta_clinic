@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Alert,
   Button,
   Dialog,
   DialogContent,
@@ -90,12 +91,14 @@ function LocationSelectionDialog({
   error,
   onSelect,
   scopeSelector,
+  setupNotice,
 }: {
   sites: ClinicWorkspaceContext["sites"];
   selectingSiteId: number | null;
   error: string;
   onSelect: (siteId: number) => void;
   scopeSelector?: ReactNode;
+  setupNotice?: ReactNode;
 }) {
   return (
     <Dialog
@@ -106,6 +109,7 @@ function LocationSelectionDialog({
       <DialogTitle id="location-picker-title">Choose your location</DialogTitle>
       <DialogContent>
         {scopeSelector}
+        {setupNotice}
         <Typography
           color="text.secondary"
           id="location-picker-description"
@@ -132,6 +136,39 @@ function LocationSelectionDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function LocationSetupNotice({
+  sites,
+  canSetup,
+  onSelect,
+}: {
+  sites: ClinicWorkspaceContext["sites"];
+  canSetup: boolean;
+  onSelect?: (siteId: number) => void;
+}) {
+  const location = sites[0];
+  if (!location) return null;
+  return (
+    <Alert severity="warning" sx={{ my: 2 }}>
+      {location.name || location.code} isn&apos;t finalized yet — complete
+      clinic setup to open its workspaces.
+      {sites.length > 1 &&
+        ` ${sites.length - 1} other eligible location(s) also need setup.`}
+      {canSetup ? (
+        <Button
+          href={onSelect ? undefined : "/clinic/setup"}
+          onClick={onSelect ? () => onSelect(location.id) : undefined}
+          size="small"
+          sx={{ ml: 1 }}
+        >
+          Complete clinic setup
+        </Button>
+      ) : (
+        " Ask a clinic administrator to complete setup."
+      )}
+    </Alert>
   );
 }
 
@@ -517,9 +554,10 @@ export function Workspace({
     data?.current_site?.id,
     setupFeatures,
   );
-  const landingDestination = data && !setupRequired
-    ? clinicLandingDestination(data.capabilities, path, homeView)
-    : null;
+  const landingDestination =
+    data && !setupRequired
+      ? clinicLandingDestination(data.capabilities, path, homeView)
+      : null;
   useEffect(() => {
     if (landingDestination) navigate(landingDestination, { replace: true });
   }, [landingDestination, navigate]);
@@ -537,6 +575,10 @@ export function Workspace({
   const scribePage = path.startsWith("/clinic/scribe");
   const locationName =
     data?.current_site?.name || data?.current_site?.code || null;
+  const incompleteSites =
+    data?.sites.filter((site) => site.finalized !== true) ?? [];
+  const onlyIncompleteSites =
+    !!data?.sites.length && incompleteSites.length === data.sites.length;
   if (!data)
     return (
       <ClinicAppearanceScope {...appearance}>
@@ -581,6 +623,15 @@ export function Workspace({
                 onPracticeChange={(id) => void selectPractice(id)}
               />
             }
+            setupNotice={
+              onlyIncompleteSites && (
+                <LocationSetupNotice
+                  sites={incompleteSites}
+                  canSetup={data.capabilities.clinic_setup_write === true}
+                  onSelect={(siteId) => void selectSite(siteId)}
+                />
+              )
+            }
             error={locationPickerError}
             onSelect={(siteId) => void selectSite(siteId)}
             selectingSiteId={selectingSiteId}
@@ -608,6 +659,12 @@ export function Workspace({
           <ClinicContext value={clinicContext}>
             <ClinicOverviewContext value={overview.data ?? null}>
               <main id="main" className="wrap inner-page">
+                {onlyIncompleteSites && (
+                  <LocationSetupNotice
+                    sites={incompleteSites}
+                    canSetup={data.capabilities.clinic_setup_write === true}
+                  />
+                )}
                 {data.sites.length > 1 && (
                   <Button onClick={() => setLocationSelectionMade(false)}>
                     Choose another location
