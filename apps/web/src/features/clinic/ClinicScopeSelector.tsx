@@ -147,6 +147,7 @@ export function ClinicScopeSelector({
           {context.sites.map((site) => (
             <MenuItem key={site.id} value={site.id}>
               {site.name || site.code}
+              {site.finalized === false ? " — Setup incomplete" : ""}
             </MenuItem>
           ))}
         </TextField>

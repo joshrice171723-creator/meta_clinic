@@ -826,6 +826,7 @@ export function PracticeFeatureSettings({
           </Button>
           {!features.finalized && features.configured && (
             <Button
+              id="clinic-setup-finalize"
               data-demo-next
               disabled={!canWrite || saving || changed}
               onClick={() => void save(true)}

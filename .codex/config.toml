@@ -3,9 +3,9 @@ model_reasoning_summary = "auto"
 
 [agents]
 # Economical defaults for assistant-spawned workers only.
-default_subagent_model = "gpt-5.6-luna"
-default_subagent_reasoning_effort = "medium"
-max_concurrent_threads_per_session = 2
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "high"
+max_concurrent_threads_per_session = 5
 
 # Official Material UI documentation and published component examples.
 [mcp_servers.mui-mcp]
