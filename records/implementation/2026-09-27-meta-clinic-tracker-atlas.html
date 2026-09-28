@@ -144,165 +144,32 @@
       <section class="hero" aria-labelledby="title"><div><span class="eyebrow">A map of the work</span><h1 id="title">What is built.<br><em>What is proved.</em><br>What is left.</h1><p class="lead">Explore the core milestones and the plans that cross them. Select a milestone to see recorded progress and the next gaps, then filter the full inventory below.</p></div><aside class="hero-note"><strong>No single “done” percentage</strong><p>The tracker scores build, local validation and external or human acceptance separately. It says the lowest applicable dimension controls readiness; averaging the three would hide unfinished gates.</p><a href="../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md">Open canonical tracker ↗</a></aside></section>
       <section class="facts" aria-label="Current tracker facts"><div class="fact"><span class="eyebrow">Core milestones</span><strong class="value" id="core-count">16</strong><p>Core work areas in the tracker.</p></div><div class="fact"><span class="eyebrow">Build range</span><strong class="value" id="build-range">35–86<span style="font-size:.46em">%</span></strong><p>Tracker estimates across the core rows.</p></div><div class="fact"><span class="eyebrow">Validation range</span><strong class="value" id="proof-range">15–68<span style="font-size:.46em">%</span></strong><p>Local evidence is narrower than source coverage.</p></div><div class="fact gate"><span class="eyebrow">External / human</span><strong class="value" id="gate-range">0<span style="font-size:.46em">%</span></strong><p>Shown separately; never averaged into readiness.</p></div></section>
       <section class="baseline" aria-labelledby="baseline-title"><div class="baseline-head"><div><span class="eyebrow">Pinned starting point</span><h2 id="baseline-title">What changed while you were away</h2></div><p>Core milestones 1–15 · 27 Sep 2026 · main <code>5de7a041</code></p></div><div class="baseline-metrics"><div><span>Starting build average</span><strong>63.9%</strong></div><div><span>Current build average</span><strong id="baseline-current">Reading…</strong></div><div><span>Change</span><strong id="baseline-delta">—</strong></div><div><span>Goal</span><strong>&gt;90%</strong></div></div><p id="baseline-summary">Connecting to the tracker for a comparison.</p><ul class="baseline-list" id="baseline-changes"></ul><p style="color:var(--muted);font-size:.84rem;margin:16px 0 0">This is an average of build estimates only. Evidence-text changes are shown separately and do not imply acceptance.</p></section>
-      <section class="chapter" aria-labelledby="ready-title"><div class="chapter-head"><div><span class="eyebrow">Ready for coding</span><h2 id="ready-title">Build-ready workflow queue</h2></div><p>Open rows identify missing code; delivered rows are labeled separately from browser proof and external gates. Ordered by staff value and reuse.</p></div><p><a href="../../docs/development/focused-coding-workflow.md">Working commands and execution rules ↗</a> · <a href="#line-ledger">Latest file and line counts ↓</a> · <a href="../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md#build-ready-queue--2026-09-27-preparation">Canonical queue and already-built exclusions ↗</a></p><div id="ready-queue" style="overflow-x:auto">Reading build-ready rows from the tracker…</div><details id="line-ledger" style="margin:20px 0"><summary style="cursor:pointer;font-weight:700">Hourly source changes by commit and file</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:540px;overflow:auto;padding:16px;background:var(--card);border:1px solid var(--line)"># 2026-09-27 hourly source checkpoint — exact Git line counts
+      <section class="chapter" aria-labelledby="ready-title"><div class="chapter-head"><div><span class="eyebrow">Ready for coding</span><h2 id="ready-title">Build-ready workflow queue</h2></div><p>Open rows identify missing code; delivered rows are labeled separately from browser proof and external gates. Ordered by staff value and reuse.</p></div><p><a href="../../docs/development/focused-coding-workflow.md">Working commands and execution rules ↗</a> · <a href="#line-ledger">Latest file and line counts ↓</a> · <a href="../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md#build-ready-queue--2026-09-27-preparation">Canonical queue and already-built exclusions ↗</a></p><div id="ready-queue" style="overflow-x:auto">Reading build-ready rows from the tracker…</div><details id="line-ledger" style="margin:20px 0"><summary style="cursor:pointer;font-weight:700">Hourly source changes by commit and file</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:540px;overflow:auto;padding:16px;background:var(--card);border:1px solid var(--line)"># 2026-09-28 03:09 UTC hourly source checkpoint — exact Git line counts
 
-These are committed source changes since the preceding 20:51 UTC tracker checkpoint. Counts come from `git show --format= --numstat` for each commit. Binary files show as binary instead of a line count. No tests or browser acceptance are inferred.
+Four source-tree commits since the 02:14 UTC checkpoint. Counts are from `git show --format= --numstat` for each commit. The Atlas fallback and workforce activation commits came from separate interactive tasks; this checkpoint claims only the MC-11 quote-request slice as its new milestone work.
 
-## ae0aab5f feat(storefront): save shared public page accent
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/membership_prospects_controller.rb` | 1 | 0 |
-| `apps/api/app/controllers/clinic/membership_storefront_controller.rb` | 4 | 2 |
-| `apps/api/app/controllers/public/clinic_services_controller.rb` | 1 | 1 |
-| `apps/api/app/controllers/public/membership_storefronts_controller.rb` | 1 | 1 |
-| `apps/api/app/models/clinic/practice.rb` | 1 | 0 |
-| `apps/api/app/queries/clinic/operations/configuration_manifest.rb` | 1 | 0 |
-| `apps/api/app/services/clinic/membership_growth/storefront_configuration.rb` | 2 | 1 |
-| `apps/api/db/migrate/20260927215500_add_public_page_accent.rb` | 8 | 0 |
-| `apps/api/db/structure.sql` | 3 | 0 |
-| `apps/web/src/features/membershipGrowth/MembershipGrowth.tsx` | 23 | 2 |
-| `apps/web/src/features/membershipGrowth/PublicClinicServices.tsx` | 3 | 2 |
-| `apps/web/src/features/membershipGrowth/PublicMembershipStorefront.tsx` | 2 | 1 |
-| `apps/web/src/features/membershipGrowth/publicPageTheme.ts` | 25 | 0 |
-| `apps/web/src/features/membershipGrowth/types.ts` | 2 | 0 |
-| `records/implementation/2026-09-27-public-page-accent.md` | 19 | 0 |
-| **Commit total (15 files)** | **+96** | **-10** |
-
-## fcbc1b45 feat(operations): summarize authorized scribe activity
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/reports/scribe_activity_controller.rb` | 9 | 0 |
-| `apps/api/app/queries/clinic/reports/scribe_activity.rb` | 27 | 0 |
-| `apps/api/config/routes.rb` | 1 | 0 |
-| `apps/web/src/features/clinic/Operations.tsx` | 1 | 0 |
-| `apps/web/src/features/clinic/OperationsIntegrationInventory.tsx` | 77 | 0 |
-| `apps/web/src/features/clinic/OperationsProviderReadiness.tsx` | 3 | 2 |
-| `records/implementation/2026-09-27-scribe-operations-inventory.md` | 9 | 0 |
-| **Commit total (7 files)** | **+127** | **-2** |
-
-## 3e142ce3 feat(reports): add daily cash drawer reconciliation view
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/reports/daily_cash_drawers_controller.rb` | 11 | 0 |
-| `apps/api/app/queries/clinic/reports/catalog.rb` | 5 | 0 |
-| `apps/api/app/queries/clinic/reports/daily_cash_drawers.rb` | 31 | 0 |
-| `apps/api/config/routes.rb` | 1 | 0 |
-| `apps/web/src/features/clinic/OperationsReportsCatalog.tsx` | 117 | 1 |
-| `records/implementation/2026-09-27-daily-cash-drawer-report.md` | 11 | 0 |
-| **Commit total (6 files)** | **+176** | **-1** |
-
-## b5575405 feat(billing): bind cash drawers to an explicit currency
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/billing/cash_drawers_controller.rb` | 2 | 1 |
-| `apps/api/app/models/clinic/cash_drawer_session.rb` | 3 | 0 |
-| `apps/api/app/models/clinic/cash_tender.rb` | 10 | 0 |
-| `apps/api/app/queries/clinic/billing/cash_drawer.rb` | 1 | 1 |
-| `apps/api/app/queries/clinic/reports/catalog.rb` | 2 | 2 |
-| `apps/api/app/queries/clinic/reports/daily_cash_drawers.rb` | 1 | 1 |
-| `apps/api/app/services/clinic/billing/record_cash_payment.rb` | 2 | 0 |
-| `apps/api/app/services/clinic/billing/record_cash_refund.rb` | 1 | 0 |
-| `apps/api/db/migrate/20260927221000_add_cash_drawer_currency.rb` | 7 | 0 |
-| `apps/api/db/structure.sql` | 3 | 0 |
-| `apps/web/src/api/contracts.ts` | 1 | 0 |
-| `apps/web/src/features/clinic/CashDrawerOperations.tsx` | 53 | 9 |
-| `apps/web/src/features/clinic/OperationsReportsCatalog.tsx` | 2 | 1 |
-| `records/implementation/2026-09-27-cash-drawer-currency.md` | 11 | 0 |
-| **Commit total (14 files)** | **+99** | **-15** |
-
-## 96f32c1b feat(reports): add current stock balances and attention view
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/reports/current_stock_controller.rb` | 12 | 0 |
-| `apps/api/app/queries/clinic/reports/current_stock.rb` | 38 | 0 |
-| `apps/api/config/routes.rb` | 1 | 0 |
-| `apps/web/src/features/clinic/OperationsReportsCatalog.tsx` | 147 | 0 |
-| `records/implementation/2026-09-27-current-stock-report.md` | 11 | 0 |
-| **Commit total (5 files)** | **+209** | **-0** |
-
-## 4caff5ed feat(public-pages): add saved clinic logo
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/membership_prospects_controller.rb` | 2 | 0 |
-| `apps/api/app/controllers/clinic/membership_storefront_controller.rb` | 6 | 2 |
-| `apps/api/app/controllers/public/clinic_services_controller.rb` | 12 | 1 |
-| `apps/api/app/controllers/public/membership_storefronts_controller.rb` | 3 | 1 |
-| `apps/api/app/models/clinic/practice.rb` | 12 | 0 |
-| `apps/api/app/queries/clinic/operations/configuration_manifest.rb` | 2 | 1 |
-| `apps/api/app/services/clinic/membership_growth/storefront_configuration.rb` | 17 | 1 |
-| `apps/api/config/routes.rb` | 1 | 0 |
-| `apps/api/db/migrate/20260927224000_add_public_page_logo.rb` | 6 | 0 |
-| `apps/api/db/structure.sql` | 3 | 0 |
-| `apps/web/src/features/membershipGrowth/MembershipGrowth.tsx` | 83 | 2 |
-| `apps/web/src/features/membershipGrowth/PublicClinicServices.tsx` | 14 | 0 |
-| `apps/web/src/features/membershipGrowth/PublicMembershipStorefront.tsx` | 14 | 0 |
-| `apps/web/src/features/membershipGrowth/types.ts` | 2 | 0 |
-| **Commit total (14 files)** | **+177** | **-8** |
-
-## db7618d3 feat(reports): page daily visit source appointments
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/reports/daily_visits_by_state_controller.rb` | 2 | 1 |
-| `apps/api/app/queries/clinic/reports/catalog.rb` | 1 | 1 |
-| `apps/api/app/queries/clinic/reports/daily_visits_by_state.rb` | 7 | 1 |
-| `apps/web/src/features/clinic/OperationsReportsCatalog.tsx` | 30 | 2 |
-| **Commit total (4 files)** | **+40** | **-5** |
-
-## 25259f5c feat(workforce): surface paged work after account revocation
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/operations/follow_ups_controller.rb` | 3 | 1 |
-| `apps/api/app/services/clinic/operations/follow_up_worklist.rb` | 22 | 10 |
-| `apps/web/src/features/clinic/WorkInbox.tsx` | 103 | 29 |
-| `apps/web/src/features/workforce/EmploymentAdminPage.tsx` | 9 | 0 |
-| **Commit total (4 files)** | **+137** | **-40** |
-
-## f1065b82 feat(procurement): retain dated supplier quotes on draft orders
-
-| File | Added | Deleted |
-| --- | ---: | ---: |
-| `apps/api/app/controllers/clinic/inventory/management_controller.rb` | 15 | 2 |
-| `apps/api/app/controllers/clinic/inventory/supplier_pricing_controller.rb` | 30 | 1 |
-| `apps/api/app/models/clinic/inventory/supplier_product.rb` | 3 | 0 |
-| `apps/api/app/services/clinic/inventory/ingest_price_sheet.rb` | 3 | 0 |
-| `apps/api/app/services/clinic/inventory/inventory_wire.rb` | 4 | 2 |
-| `apps/api/app/services/clinic/inventory/purchase_cart_checkout.rb` | 3 | 1 |
-| `apps/api/config/routes.rb` | 1 | 0 |
-| `apps/api/db/migrate/20260927225000_add_manual_supplier_quote_provenance.rb` | 14 | 0 |
-| `apps/api/db/structure.sql` | 7 | 0 |
-| `apps/web/src/features/inventory/InventoryApp.tsx` | 22 | 1 |
-| `apps/web/src/features/inventory/SupplierPricing.tsx` | 154 | 1 |
-| `apps/web/src/features/inventory/inventoryContracts.ts` | 6 | 0 |
-| **Commit total (12 files)** | **+262** | **-8** |
-
-**All nine commits: +1323 / -89 lines.**
-# 2026-09-27 22:47 UTC hourly source checkpoint — exact Git line counts
-
-Five pushed source commits since the 21:46 UTC tracker checkpoint. Full report: [per-file source line counts](2026-09-27-hourly-source-line-counts-2247.md). Counts below come from `git show --format= --numstat`.
-
-| Commit / tracker slice | File | Added | Deleted |
+| Commit | File | Added | Deleted |
 | --- | --- | ---: | ---: |
-| `1ad3637a` MC-11 / BR-06 | `apps/api/app/controllers/clinic/inventory/supplier_pricing_controller.rb` | 77 | 1 |
-| `1ad3637a` MC-11 / BR-06 | `apps/api/config/routes.rb` | 2 | 0 |
-| `1ad3637a` MC-11 / BR-06 | `apps/web/src/features/inventory/SupplierPricing.tsx` | 313 | 0 |
-| `7e1c71b6` MC-15 | `apps/api/app/queries/clinic/reports/scribe_activity.rb` | 13 | 1 |
-| `7e1c71b6` MC-15 | `apps/web/src/features/clinic/OperationsIntegrationInventory.tsx` | 25 | 0 |
-| `bbe1e866` MC-08 | `apps/api/app/controllers/clinic/billing/cash_drawers_controller.rb` | 27 | 8 |
-| `bbe1e866` MC-08 | `apps/web/src/features/clinic/CashDrawerOperations.tsx` | 16 | 0 |
-| `8599c710` MC-14 | `apps/web/src/features/clinic/CashDrawerOperations.tsx` | 10 | 1 |
-| `8599c710` MC-14 | `apps/web/src/features/clinic/OperationsReportsCatalog.tsx` | 7 | 0 |
-| `c21cdc59` MC-08 correctness fix | `apps/web/src/features/clinic/CashDrawerOperations.tsx` | 3 | 1 |
-| **Five source commits (10 file entries)** |  | **+493** | **-12** |
+| `4cce023d4050582249801fd25a72bb5894f7a27f` | `records/implementation/2026-09-27-meta-clinic-tracker-atlas.html` | 9 | 1 |
+| `9610b0723eed204e2701a3c2a6578cfea4e2f7ac` | `apps/api/app/controllers/clinic/workforce/onboarding_controller.rb` | 2 | 1 |
+| `9610b0723eed204e2701a3c2a6578cfea4e2f7ac` | `apps/api/app/services/development/test_accounts.rb` | 20 | 1 |
+| `9610b0723eed204e2701a3c2a6578cfea4e2f7ac` | `apps/web/src/api/contracts.ts` | 1 | 1 |
+| `9610b0723eed204e2701a3c2a6578cfea4e2f7ac` | `apps/web/src/features/identity/DevelopmentAccountSwitcher.tsx` | 13 | 1 |
+| `9610b0723eed204e2701a3c2a6578cfea4e2f7ac` | `apps/web/src/features/workforce/EmploymentAdminPage.tsx` | 29 | 3 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/api/app/controllers/clinic/inventory/supplier_pricing_controller.rb` | 46 | 2 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/api/app/models/clinic/inventory/supplier_product.rb` | 1 | 0 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/api/app/models/clinic/inventory/supplier_quote_request.rb` | 32 | 0 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/api/app/services/clinic/inventory/inventory_wire.rb` | 15 | 1 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/api/config/routes.rb` | 1 | 0 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/api/db/migrate/20260928000200_create_inventory_supplier_quote_requests.rb` | 28 | 0 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/web/src/features/inventory/SupplierPricing.tsx` | 210 | 0 |
+| `00916fa6f236595e645740967f79c1b8f4be6d35` | `apps/web/src/features/inventory/inventoryContracts.ts` | 17 | 0 |
+| `2ba6d8fa1597073382a332b1c36c97b496200c6a` | `apps/api/app/services/development/backend_samples.rb` | 1 | 1 |
+| `2ba6d8fa1597073382a332b1c36c97b496200c6a` | `apps/api/db/structure.sql` | 103 | 0 |
 
-Four commits are substantive implementation slices across four milestones; the currency-label correction is included for completeness but does not count as a separate substantive slice.
+Totals: `4cce023d` +9/-1; `9610b072` +65/-7; `00916fa6` +350/-3; `2ba6d8fa` +104/-1. All four: **+528/-12**.
+
+The local quote request does not contact a supplier. Migration and synthetic seed ran only against the isolated `apply_mc11_quote_development` database. Browser request/response/reload, denied role and connected receiving-to-stock-use evidence remain open; no tests were added or run.
 </pre></details></section>
       <section class="chapter" aria-labelledby="milestones-title"><div class="chapter-head"><div><span class="eyebrow">01 / Milestone landscape</span><h2 id="milestones-title">16 open rows</h2></div><p>Each bar is the tracker’s dated planning estimate for that dimension. Click a row for its concrete evidence and remaining work.</p></div><div class="legend" aria-label="Progress legend"><span><i class="swatch build"></i>Build</span><span><i class="swatch proof"></i>Local validation</span><span><i class="swatch gate-color"></i>External / human</span></div><div id="progress" class="progress-list"></div><article id="detail" class="milestone-detail" aria-live="polite"></article></section>
       <section class="chapter" aria-labelledby="relations-title"><div class="chapter-head"><div><span class="eyebrow">02 / Relationship map</span><h2 id="relations-title">Which plans cover each milestone?</h2></div><p>Each column is a core milestone from the list above. Each row is a separate plan or review. A colored square means that plan includes work related to that milestone; a pale square means it does not. Plans overlap, so their rows are not extra milestones or completion percentages.</p></div><div class="relation-wrap"><div class="relation-guide"><span class="mono">Plan or review</span><div id="relation-head" class="nodes"></div></div><div id="relations"></div><p class="relation-caption">Select a plan to see its detailed work items below. A colored square shows a connection, not that the work is complete.</p></div></section>
