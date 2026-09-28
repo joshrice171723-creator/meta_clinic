@@ -73,6 +73,16 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
+          Booking defaults (#21): Schedule &gt; Book appointment now uses the
+          current real time rounded up to the next 15-minute interval, with a
+          30-minute duration. Retest while viewing September 1, 2026, and today;
+          choose Start new appointment if a saved draft appears. Confirm the
+          fresh times follow the current clock, then close without booking.
+          Held slots, clicked slots, and Schedule another at this time retain
+          their selected times. Recovered drafts remain unchanged until cleared;
+          the default time does not guarantee slot availability.
+        </li>
+        <li>
           Encounter signing: completed encounters open their chart workspace so
           the Signing destination contains the draft, signing, or correction
           controls, loading state, or access state instead of an empty anchor.
