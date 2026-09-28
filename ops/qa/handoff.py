@@ -73,9 +73,11 @@ def contract(number):
         marker = f"### Notes for QA: #{number}\n"
         require(body.count(marker) == 1, f"Missing unique Notes for QA for #{number}")
         section = body.split(marker)[1].split("\n### ")[0]
+        fields = re.split(r"(?m)^(?:- )?(What changed|What to retest(?: \([^\n)]+\))?|Intentional trade-offs):[ \t]*", section)
         for title in ("What changed", "What to retest", "Intentional trade-offs"):
-            detail = re.findall(rf"^{title}: (.+)$", section, re.M)
-            require(len(detail) == 1 and detail[0].strip().lower() not in {"todo", "tbd", "..."},
+            detail = [fields[i + 1].strip() for i in range(1, len(fields) - 1, 2)
+                      if fields[i] == title or fields[i].startswith(title + " (")]
+            require(len(detail) == 1 and detail[0].lower() not in {"todo", "tbd", "..."} and detail[0],
                     f"Defect #{number} needs substantive {title}")
         tickets.append((number, int(prior[0])))
     files = pages(f"pulls/{pr['number']}/files")
