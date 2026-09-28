@@ -351,10 +351,10 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 
 | Field | Value |
 | --- | --- |
-| Now | Sandbox visitors can submit demo feedback from the top bar; platform owners can review it in the owner command center. |
-| State | Additive local source and schema are in place; focused non-test checks passed. Browser acceptance and hosted release remain open. |
-| Updated (UTC) | 2026-09-27 23:42 UTC |
-| Up next | Resume the >90% build goal with the next confirmed MC-11 shipment-recovery gap; do not change the Build average for this unscored feature. |
+| Now | MC-10 prescription recovery and MC-11 purchase-order delivery recovery have five scoped source improvements. |
+| State | TypeScript, Ruby syntax, scoped RuboCop, formatting and diff checks passed. No tests or connected browser acceptance ran; Build estimates remain unchanged. |
+| Updated (UTC) | 2026-09-28 00:15 UTC |
+| Up next | Walk through exact prescription retries, role denial, multiple deliveries, receiving/reload and quantity allocation in a synthetic clinic; carrier events and external pharmacy/supplier outcomes remain open. |
 
 ### Activity log
 
@@ -364,6 +364,8 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 | 23:10 UTC | Codex | Added the chat-style panel, current focus and next step; connecting it to this section with a 30-second tracker poll. |
 | 23:13 UTC | Codex | Panel is delivered and visible in the local atlas. HTML script syntax, scoped diff, and vault checks passed; no tests ran. Next source work is MC-11 shipment recovery discovery. |
 | 23:42 UTC | Codex | Added sandbox feedback submission and a platform-owner-only review inbox; local migration and focused source checks passed. No tests or browser submission ran. Build scoring is unchanged; resume MC-11 next. |
+| 00:10 UTC | Codex | Purchase-order details now list every recorded delivery with its effective receiving status. Browser acceptance remains open; continue with carrier identifiers and manual event history. Build scoring is unchanged. |
+| 00:15 UTC | Codex | Integrated five MC-10/11 source slices: retained exact prescription and pharmacy-save retries, unresolved-attempt worklist, all delivery links and available-package counts. Focused non-test checks passed; browser proof remains. |
 
 **2026-09-27 demo feedback source checkpoint:** [Dated evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records the sandbox form, visitor/session binding, owner-only review surface, local migration and checks. This is outside MC-01–MC-15 scoring; browser acceptance and hosted release remain open.
 
@@ -404,3 +406,5 @@ Existing browser denial, reload, concurrent allocation and two-party media gaps 
 
 **2026-09-27 21:46 UTC hourly source checkpoint:** [Exact per-file Git line counts for nine pushed commits](../../records/implementation/2026-09-27-hourly-source-line-counts.md) cover public accent/logo (MC-02), currency-bound cash drawers (MC-08), dated supplier quote provenance (MC-11), paged revoked-owner work (MC-13), cash/current-stock/daily-visit source reports (MC-14), and scribe activity summary (MC-15). These changed Build estimates to MC-02 86%, MC-08 86%, MC-11 73%, MC-13 65%, MC-14 52%, MC-15 50%; MC-01–15 equal-weight Build average was 69.2%, from 67.8%. Scores are bounded engineering estimates, not acceptance. Validation and external/human scores are unchanged; no tests or populated browser acceptance ran for these source changes. BR-05 is delivered; BR-06 is the next confirmed missing-code workflow. Exact supplier quote submission, revoked-owner claim and report source rows still need browser proof.
 **2026-09-27 22:47 UTC hourly source checkpoint:** [Per-file Git line counts for five pushed source commits](../../records/implementation/2026-09-27-hourly-source-line-counts-2247.md) record BR-06 (MC-11), unfinished scribe recovery links (MC-15), exact cash-drawer close retry (MC-08), report-to-drawer navigation (MC-14), and the related currency-label correction (MC-08). Four commits are substantive independent slices across four milestones; the currency-label correction is a small correctness fix, leaving this hourly run one substantive slice short of five. Build estimates are MC-08 88%, MC-11 75%, MC-14 53%, MC-15 51%; MC-01–15 equal-weight Build average is 69.6%. Validation and external/human scores are unchanged. No tests or browser acceptance ran for these five commits; BR-06 browser reload/role denial and the other documented proof gates remain open.
+
+**2026-09-28 00:15 UTC MC-10/11 source checkpoint:** Five independently reviewable local outcomes are source-delivered in `7c9f9691f589b5a88c52551865535cb3e6c23917`. MC-10 retains an uncertain prescription event/submission request across evidence refresh for exact retry; retains the same pharmacy-destination create key and form across an uncertain response; and lists current request revisions whose latest simulated attempt still requires recorded reconciliation, beyond the unknown-only list. MC-11 exposes every shipment for each paged purchase order with its receiving state and exact receiving link; it also shows open allocated packages and the quantity still available to record, matching the server's unreceived-delivery reservation rule. Practice-scoped Rails reads and existing write permissions remain the authority; no pharmacy or supplier connection was added. TypeScript, Ruby syntax, scoped RuboCop, formatting and diff checks passed. Tests, browser mutation/reload, role denial, external outcomes and carrier event history remain open. Build, Validation and external/human percentages are unchanged pending connected evidence. [The hourly line-count record](../../records/implementation/2026-09-28-hourly-source-line-counts-0015.md) lists exact per-file counts for all three source commits since the prior checkpoint: +490/-32 total, including this MC-10/11 commit's +128/-25.

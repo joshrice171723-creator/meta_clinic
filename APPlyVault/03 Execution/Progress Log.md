@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — MC-10/11 prescription and delivery recovery
+
+Five source slices across MC-10/11 improve local recovery: exact prescription retry survives evidence refresh; pharmacy destination creation retains the exact key and form after an uncertain response; current unresolved simulated attempts appear as an exact-record worklist; every purchase-order delivery has a receiving-state link; and open allocations reduce the packages shown as available to record. [The canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the bounded evidence. TypeScript, Ruby syntax, scoped RuboCop, formatting and diff checks passed; no tests or connected browser walkthrough ran. Role denial, reload, carrier event history and external pharmacy/supplier outcomes remain open. Build estimates are unchanged.
+
 ## 2026-09-27 — Public sandbox demo feedback
 
 Visitors can submit up to 2,000 characters from the sandbox header, tied to the existing demo visitor and active sandbox session. Platform owners can review paginated submissions in the owner command center. [Dated source evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records boundaries and checks. The local additive migration and focused non-test checks passed; browser acceptance and hosted release remain open. No MC Build score changed.
