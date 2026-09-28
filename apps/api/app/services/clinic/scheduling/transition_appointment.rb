@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class TransitionAppointment
       def self.call(appointment:, actor:, to:, site: nil, expected_status: nil)
-        appointment.with_lock do
+        updated = appointment.with_lock do
           raise ArgumentError, "The appointment belongs to a different site." if site && site.id != appointment.site_id
 
           Authorization.authorize_with_legacy!(actor: actor, practice: appointment.practice,
@@ -22,11 +22,15 @@ module Clinic
           assert_ready_for_confirmation!(appointment) if to.to_s == "confirmed"
 
           appointment.transition_to!(to)
-          Waitlist.offer_cancelled_slot!(appointment: appointment, actor: actor) if to.to_s == "cancelled"
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor)
           Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)
           appointment
         end
+        # A best-effort waitlist offer must not roll back the requested
+        # appointment cancellation. Capacity can change independently after
+        # the cancellation commits.
+        Waitlist.offer_cancelled_slot!(appointment: updated, actor: actor) if to.to_s == "cancelled"
+        updated
       end
 
       def self.ready_for_confirmation?(appointment)
