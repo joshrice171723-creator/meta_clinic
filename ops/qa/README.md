@@ -48,6 +48,8 @@ What to retest: Give the exact original reproduction and persisted outcome.
 Intentional trade-offs: Describe deliberate limits, or state none.
 ```
 
+The three fields may also be Markdown bullets (`- What changed:`, and so on).
+
 ## Local review heartbeat
 
 Use the trusted `ops/qa/handoff.py` from current main, never a PR-supplied policy.
