@@ -657,7 +657,7 @@ function clinicDateForBooking(value: string, timezone: string) {
   }
 }
 
-export function appointmentDefaults(now = businessNow()) {
+export function appointmentDefaults(now = new Date()) {
   const start = new Date(now);
   start.setSeconds(0, 0);
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
@@ -2037,7 +2037,7 @@ function BookingFormEditor({
             >
               <TextField
                 label="Starts"
-                type="datetime-local"
+                type="text"
                 required
                 disabled={
                   busy ||
@@ -2060,11 +2060,19 @@ function BookingFormEditor({
                       ),
                     );
                 }}
-                slotProps={{ inputLabel: { shrink: true } }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                slotProps={{
+                  htmlInput: {
+                    inputMode: "numeric",
+                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
+                    spellCheck: false,
+                  },
+                  inputLabel: { shrink: true },
+                }}
               />
               <TextField
                 label="Ends"
-                type="datetime-local"
+                type="text"
                 required
                 disabled={
                   busy ||
@@ -2078,7 +2086,15 @@ function BookingFormEditor({
                   intervalError || "End time must follow the start time."
                 }
                 onChange={(event) => setEndsAt(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                slotProps={{
+                  htmlInput: {
+                    inputMode: "numeric",
+                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
+                    spellCheck: false,
+                  },
+                  inputLabel: { shrink: true },
+                }}
               />
             </Box>
             <Stack
