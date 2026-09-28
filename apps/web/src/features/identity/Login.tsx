@@ -99,6 +99,13 @@ export function Login({
               initialPortal={developmentPortalFor(returnTo)}
               ownerPinRequired={ownerPinRequired}
             />
+            <Button href="/demo" variant="outlined">
+              Open visitor demo
+            </Button>
+            <Typography color="text.secondary" variant="caption">
+              Enter an isolated synthetic clinic workspace. The demo includes a
+              reset action for restoring its baseline.
+            </Typography>
             {ownerPinRequired && (
               <p className="page-fine-print">
                 <a href="/login?credentials=1&next=%2Fowner">
