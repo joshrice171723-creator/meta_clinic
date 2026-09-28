@@ -10,7 +10,9 @@ import {
 } from "@mui/material";
 import { useState, type FormEvent } from "react";
 import type { ClinicCapabilities } from "../../api/contracts";
+import { businessNow } from "../../shared/businessDate";
 import { Card, LoadState, useResource } from "../../shared/ui";
+import { clinicDateValue } from "./frontDeskModel";
 
 type ReportPagination = {
   page: number;
@@ -210,9 +212,11 @@ function destinations(capabilities: ClinicCapabilities): ReportDestination[] {
 export function OperationsReportsCatalog({
   capabilities,
   siteId,
+  timezone,
 }: {
   capabilities: ClinicCapabilities;
   siteId?: number;
+  timezone?: string;
 }) {
   return (
     <Card title="Reports and exports">
@@ -269,7 +273,11 @@ export function OperationsReportsCatalog({
         capabilities.billing_payment_record === true ||
         capabilities.billing_cash_reconcile === true ||
         capabilities.billing_write === true) && (
-        <DailyVisitsByState siteId={siteId} capabilities={capabilities} />
+        <DailyVisitsByState
+          siteId={siteId}
+          capabilities={capabilities}
+          timezone={timezone}
+        />
       )}
       {siteId && capabilities.patients && capabilities.encounters && (
         <OpenClinicalWork siteId={siteId} />
@@ -478,15 +486,19 @@ function ConfigurationManifestDownload() {
 function DailyVisitsByState({
   siteId,
   capabilities,
+  timezone,
 }: {
   siteId?: number;
   capabilities: ClinicCapabilities;
+  timezone?: string;
 }) {
   const requestedDate = new URLSearchParams(window.location.search).get("date");
   const initialDate =
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
       ? requestedDate
-      : "";
+      : timezone
+        ? clinicDateValue(businessNow(), timezone)
+        : "";
   const [inputDate, setInputDate] = useState(initialDate);
   const [loadedDate, setLoadedDate] = useState(initialDate);
   const [page, setPage] = useState(1);
@@ -510,15 +522,14 @@ function DailyVisitsByState({
   };
 
   return (
-    <Stack spacing={1.5} sx={{ mt: 3 }}>
+    <Stack id="end-of-day-closeout" spacing={1.5} sx={{ mt: 3 }}>
       <Divider />
       <Typography variant="h6" component="h3">
-        Daily source reports
+        End-of-day closeout
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        Select a clinic-local date to review source-owned visit, invoice,
-        payment, refund and stock activity. Each report follows its own access
-        permission.
+        Review one report date across visits, invoices and cash drawers. Each
+        action opens the source record and keeps its own permission check.
       </Typography>
       <Stack
         component="form"
@@ -541,11 +552,51 @@ function DailyVisitsByState({
             : "Show report"}
         </Button>
       </Stack>
+      {loadedDate && (
+        <Stack component="ol" spacing={1} sx={{ pl: 2.5, my: 0 }}>
+          {siteId && capabilities.appointments_read && (
+            <li>
+              <Typography variant="subtitle2">Review visits</Typography>
+              <Button href="#closeout-visits" size="small">
+                Check visit states
+              </Button>
+            </li>
+          )}
+          {capabilities.billing_read && (
+            <li>
+              <Typography variant="subtitle2">Review invoices</Typography>
+              <Button href="#closeout-invoices" size="small">
+                Check invoices and balances
+              </Button>
+            </li>
+          )}
+          {(capabilities.billing_payment_record ||
+            capabilities.billing_cash_reconcile ||
+            capabilities.billing_write) && (
+            <li>
+              <Typography variant="subtitle2">Review cash drawers</Typography>
+              <Button href="#closeout-drawers" size="small">
+                Check drawer sessions
+              </Button>
+              <Button href="/clinic/billing?tab=cash" size="small">
+                Close or reconcile in billing
+              </Button>
+            </li>
+          )}
+        </Stack>
+      )}
+      <Alert severity="info">
+        These are live source reports, not a saved day-end balance. Invoice
+        balances are current, and the drawer report lists sessions opened on
+        the selected practice date. Visit dates follow the selected site's time
+        zone. Check the billing cash tab for drawers carried over from an
+        earlier date.
+      </Alert>
       {loadedDate && siteId && capabilities.appointments_read && !report && (
         <LoadState error={result.error} onRetry={result.refresh} />
       )}
       {report && (
-        <Stack spacing={1} aria-live="polite">
+        <Stack id="closeout-visits" spacing={1} aria-live="polite">
           <Typography variant="subtitle1" component="h4">
             Visits by current state
           </Typography>
@@ -794,7 +845,7 @@ function DailyInvoices({ date }: { date: string }) {
   if (!date) return null;
   const report = result.data?.report;
   return (
-    <Stack spacing={0.75}>
+    <Stack id="closeout-invoices" spacing={0.75}>
       <Divider />
       <Typography variant="subtitle1" component="h4">
         Invoices created
@@ -1098,7 +1149,7 @@ function DailyCashDrawers({ date }: { date: string }) {
   if (!date) return null;
   const report = result.data?.report;
   return (
-    <Stack spacing={1}>
+    <Stack id="closeout-drawers" spacing={1}>
       <Divider />
       <Typography variant="subtitle1" component="h4">
         Cash drawer sessions opened
@@ -1140,7 +1191,7 @@ function DailyCashDrawers({ date }: { date: string }) {
               )}
               <Button
                 size="small"
-                href={`/clinic/billing?cash_drawer_id=${row.id}`}
+                href={`/clinic/billing?tab=cash&cash_drawer_id=${row.id}`}
                 sx={{ alignSelf: "flex-start" }}
               >
                 Review drawer {row.id} in billing
@@ -1159,7 +1210,7 @@ function DailyCashDrawers({ date }: { date: string }) {
           </Typography>
           <Button
             size="small"
-            href="/clinic/billing"
+            href="/clinic/billing?tab=cash"
             sx={{ alignSelf: "flex-start" }}
           >
             Open billing cash drawers

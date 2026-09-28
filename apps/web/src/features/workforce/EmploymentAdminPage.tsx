@@ -260,6 +260,10 @@ export function EmploymentAdminPage() {
 
   if (!data) return <LoadState error={error} />;
 
+  const frontDeskRole = data.role_options.find(
+    (role) => role.role_code === "front-desk-coordinator",
+  );
+  const frontDeskTitle = /front[\s-]*desk/i.test(jobTitle);
   const reset = () => {
     setDisplayName("");
     setJobTitle("");
@@ -508,6 +512,23 @@ export function EmploymentAdminPage() {
               ))}
             </Select>
           </FormControl>
+          {frontDeskTitle && frontDeskRole &&
+            roleVersionId !== String(frontDeskRole.id) && (
+              <Alert
+                severity="info"
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => setRoleVersionId(String(frontDeskRole.id))}
+                  >
+                    Use suggested role
+                  </Button>
+                }
+              >
+                Hiring for front desk? Start them as Front Desk Coordinator.
+              </Alert>
+            )}
           {data.role_options.length === 0 && (
             <Alert severity="warning">
               Your account cannot assign a workforce role. Ask a clinic access

@@ -79,6 +79,20 @@ describe("inventory integration", () => {
       packages: [],
       can_create_purchase_order: true,
       attention_count: 25,
+      first_run: {
+        supplier: false,
+        product: true,
+        offer: false,
+        purchase_order: false,
+        received: false,
+        binned: false,
+        supplier_id: null,
+        product_id: "21",
+        product_name: "Catalog fixture liquid",
+        purchase_order_id: null,
+        purchase_order_status: null,
+        shipment_id: null,
+      },
       attention: [
         {
           id: "1",

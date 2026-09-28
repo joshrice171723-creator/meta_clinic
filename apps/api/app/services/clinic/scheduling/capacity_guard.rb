@@ -19,7 +19,8 @@ module Clinic
         end
         raise ArgumentError, "Choose an end after the start." unless starts_at && ends_at && ends_at > starts_at
         check_site_hours!(practice: practice, site: site, starts_at: starts_at, ends_at: ends_at)
-        check_clinician_assignment!(practice: practice, clinician: clinician, site: site, starts_at: starts_at)
+        check_clinician_assignment!(practice: practice, clinician: clinician, site: site,
+          starts_at: starts_at, ends_at: ends_at)
         rules = CapacityRule.where(practice: practice, clinician: clinician, active: true)
         if rules.where(kind: "block").where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
           raise ArgumentError, "The clinician has blocked time in this interval."
@@ -100,10 +101,11 @@ module Clinic
       # assignment that is active for the selected site and appointment time.
       # This keeps legacy unassigned development records usable while failing
       # closed for an explicitly configured clinician/site mismatch.
-      def check_clinician_assignment!(practice:, clinician:, site:, starts_at:)
+      def check_clinician_assignment!(practice:, clinician:, site:, starts_at:, ends_at:)
         assignments = clinician.assignments.where(practice: practice)
         return unless assignments.exists?
-        return if assignments.current(starts_at).where(site_id: site.id).exists?
+        return if assignments.current(starts_at).where(site_id: site.id)
+          .where("effective_until IS NULL OR effective_until >= ?", ends_at).exists?
 
         raise ArgumentError, "The clinician is not assigned to this site for the selected time."
       end

@@ -129,7 +129,6 @@ export function Login({
               >
                 Launch &amp; onboarding
               </a>
-              <a href="/memberships">Future patient</a>
               <a
                 aria-current={patientPortal ? "page" : undefined}
                 href="/login?next=%2Fpatient-portal"

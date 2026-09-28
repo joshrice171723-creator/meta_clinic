@@ -71,6 +71,7 @@ import {
   requiresLocationSelection,
 } from "./locationSelection";
 import { PatientContextBar } from "./PatientContextBar";
+import { version as clinicVersion } from "../../../package.json";
 
 type ClinicContextValue = ClinicWorkspaceContext & {
   refreshWorkspace: () => void;
@@ -282,7 +283,8 @@ export function ClinicNavigation({
         },
         {
           href: "/clinic/operations",
-          label: "Operations overview",
+          label: "Morning view",
+          description: "Schedule, drawer, invoices, staffing",
           Icon: StorefrontIcon,
           allowed: true,
         },
@@ -836,6 +838,14 @@ export function Workspace({
                               data.practice.name}
                           </span>
                           <a href="/clinic/settings">My settings</a>
+                          <a
+                            href="/clinic/updates"
+                            aria-current={
+                              path === "/clinic/updates" ? "page" : undefined
+                            }
+                          >
+                            Version {clinicVersion} · Update log
+                          </a>
                         </span>
                       </header>
                     )}

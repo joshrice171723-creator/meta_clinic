@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import type { EncounterDetail, Patient } from "../../api/contracts";
+import { businessNow } from "../../shared/businessDate";
 import { LoadState, useResource } from "../../shared/ui";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
@@ -73,6 +74,12 @@ type FollowUpDraft = {
   expectedVersion: number;
   pendingRequest?: FollowUpRequest | null;
 };
+type FollowUpDraftOverrides = Partial<
+  Pick<
+    FollowUpDraft,
+    "status" | "plan" | "dueAt" | "appointmentId" | "assigneeId"
+  >
+> & { statusConfirmed?: boolean };
 
 function sameInstant(left: string | null, right: string | null) {
   if (!left || !right) return left === right;
@@ -294,12 +301,14 @@ export function EncounterFollowUpPanel({
 
   if (!resource.data) return <LoadState error={resource.error} />;
 
-  const editableDraft = (): FollowUpDraft => ({
-    status,
-    plan,
-    dueAt,
-    appointmentId,
-    assigneeId,
+  const editableDraft = (
+    overrides: FollowUpDraftOverrides = {},
+  ): FollowUpDraft => ({
+    status: overrides.status ?? status,
+    plan: overrides.plan ?? plan,
+    dueAt: overrides.dueAt ?? dueAt,
+    appointmentId: overrides.appointmentId ?? appointmentId,
+    assigneeId: overrides.assigneeId ?? assigneeId,
     baselineFollowUpId: followUp?.id ?? null,
     requestKey: null,
     expectedVersion: baseVersionRef.current,
@@ -379,7 +388,7 @@ export function EncounterFollowUpPanel({
     }
   };
 
-  const save = async () => {
+  const save = async (overrides: FollowUpDraftOverrides = {}) => {
     if (!canWrite || busyRef.current || !recovery.ready) return;
     busyRef.current = true;
     setBusy(true);
@@ -390,15 +399,20 @@ export function EncounterFollowUpPanel({
     try {
       let snapshot = pendingDraftRef.current;
       if (!snapshot) {
-        if (!statusConfirmed) {
+        const nextStatus = overrides.status ?? status;
+        const nextPlan = overrides.plan ?? plan;
+        const nextDueAt = overrides.dueAt ?? dueAt;
+        const nextAppointmentId = overrides.appointmentId ?? appointmentId;
+        const nextAssigneeId = overrides.assigneeId ?? assigneeId;
+        if (!(overrides.statusConfirmed ?? statusConfirmed)) {
           setError("Choose the follow-up disposition.");
           return;
         }
-        if (status !== "not_required" && !plan.trim()) {
+        if (nextStatus !== "not_required" && !nextPlan.trim()) {
           setError("Enter the follow-up plan.");
           return;
         }
-        if (status === "arranged" && !appointmentId) {
+        if (nextStatus === "arranged" && !nextAppointmentId) {
           setError("Choose the arranged appointment.");
           return;
         }
@@ -410,22 +424,26 @@ export function EncounterFollowUpPanel({
             follow_up: {
               request_key: requestKey,
               expected_version: baseVersionRef.current,
-              status,
-              plan: status === "not_required" ? "" : plan.trim(),
-              ...(status === "needed" && dueAt
-                ? { due_at: new Date(dueAt).toISOString() }
+              status: nextStatus,
+              plan: nextStatus === "not_required" ? "" : nextPlan.trim(),
+              ...(nextStatus === "needed" && nextDueAt
+                ? { due_at: new Date(nextDueAt).toISOString() }
                 : {}),
-              ...(status === "arranged"
-                ? { follow_up_appointment_id: Number(appointmentId) }
+              ...(nextStatus === "arranged"
+                ? { follow_up_appointment_id: Number(nextAppointmentId) }
                 : {}),
               assigned_to_membership_id:
-                status === "not_required" || !assigneeId
+                nextStatus === "not_required" || !nextAssigneeId
                   ? null
-                  : Number(assigneeId),
+                  : Number(nextAssigneeId),
             },
           },
         };
-        snapshot = { ...editableDraft(), requestKey, pendingRequest: request };
+        snapshot = {
+          ...editableDraft(overrides),
+          requestKey,
+          pendingRequest: request,
+        };
         if (!(await recovery.save(snapshot))) {
           setError(
             recovery.error || "The follow-up could not be saved for recovery.",
@@ -442,6 +460,22 @@ export function EncounterFollowUpPanel({
       busyRef.current = false;
       setBusy(false);
     }
+  };
+
+  const quickScheduleSixMonthFollowUp = () => {
+    const due = businessNow();
+    const day = due.getDate();
+    due.setDate(1);
+    due.setMonth(due.getMonth() + 6);
+    due.setDate(
+      Math.min(day, new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate()),
+    );
+    void save({
+      status: "needed",
+      statusConfirmed: true,
+      plan: "Follow up in 6 months",
+      dueAt: localDateTime(due.toISOString()),
+    });
   };
 
   const reopen = async () => {
@@ -562,6 +596,16 @@ export function EncounterFollowUpPanel({
             also appear in Operations.
           </Typography>
         </Box>
+        {canWrite && (!followUp || followUp.status === "completed") && (
+          <Button
+            variant="outlined"
+            onClick={quickScheduleSixMonthFollowUp}
+            disabled={busy || pending || !recovery.ready}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Follow up in 6 months
+          </Button>
+        )}
         {resource.error && <Alert severity="error">{resource.error}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="info">{notice}</Alert>}

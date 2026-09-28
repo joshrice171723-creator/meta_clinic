@@ -94,7 +94,9 @@ Rails.application.routes.draw do
     get "practice_features/history", to: "practice_features#history"
     resource :practice_features, only: %i[show update]
     resources :visit_types, only: %i[create update]
-    resources :clinicians, controller: "clinicians", only: %i[index create]
+    resources :clinicians, controller: "clinicians", only: %i[index create] do
+      post :assign_site, on: :member
+    end
     resources :role_versions, controller: "role_versions", only: :index
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do
       post :transition, on: :member

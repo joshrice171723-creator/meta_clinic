@@ -180,7 +180,7 @@ export function VitalSignsEntry({
   const [loading, setLoading] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [units, setUnits] = useState<Record<string, string>>({});
-  const [observedAt, setObservedAt] = useState("");
+  const [observedAt, setObservedAt] = useState(localDateTime());
   const [reviewing, setReviewing] = useState(false);
   const [confirmedPatient, setConfirmedPatient] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -214,7 +214,6 @@ export function VitalSignsEntry({
   const hasDraft =
     reviewing ||
     confirmedPatient ||
-    Boolean(observedAt) ||
     Object.values(values).some((value) => value.trim()) ||
     Object.values(units).some(Boolean);
   const blocked = open && (hasDraft || outcomeUnknown);
@@ -269,7 +268,16 @@ export function VitalSignsEntry({
     skipNextAutosave.current = true;
     setValues(saved.values ?? {});
     setUnits(saved.units ?? {});
-    setObservedAt(saved.observed_at ?? "");
+    const hasRestoredEntry =
+      saved.reviewing === true ||
+      Boolean(saved.pending_attempt) ||
+      Object.values(saved.values ?? {}).some((value) => String(value).trim()) ||
+      Object.values(saved.units ?? {}).some(Boolean);
+    setObservedAt(
+      hasRestoredEntry && saved.observed_at
+        ? saved.observed_at
+        : localDateTime(),
+    );
     setReviewing(saved.reviewing === true);
     attempt.current = saved.pending_attempt ?? null;
     if (saved.pending_attempt) {
@@ -328,7 +336,7 @@ export function VitalSignsEntry({
     setLoading(false);
     setValues({});
     setUnits({});
-    setObservedAt("");
+    setObservedAt(localDateTime());
     setReviewing(false);
     setConfirmedPatient(false);
     setBusy(false);
@@ -362,6 +370,7 @@ export function VitalSignsEntry({
     }
   };
   const openDialog = () => {
+    if (!hasDraft && !attempt.current) setObservedAt(localDateTime());
     setOpen(true);
     void load();
   };
@@ -668,7 +677,9 @@ export function VitalSignsEntry({
                   label="Observed time (device local)"
                   type="datetime-local"
                   value={observedAt}
-                  error={error === "Record when these measurements were observed."}
+                  error={
+                    error === "Record when these measurements were observed."
+                  }
                   onChange={(event) => setObservedAt(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
                   disabled={

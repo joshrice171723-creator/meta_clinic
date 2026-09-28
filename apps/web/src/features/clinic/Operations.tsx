@@ -8,6 +8,7 @@ import { OperationsProviderReadiness } from "./OperationsProviderReadiness";
 import { OperationsIntegrationInventory } from "./OperationsIntegrationInventory";
 import { OperationsReportsCatalog } from "./OperationsReportsCatalog";
 import { OperationsWorkflowGuide } from "./OperationsWorkflowGuide";
+import { OwnerMorningView } from "./OwnerMorningView";
 import { useClinic, useClinicOverview } from "./Workspace";
 
 export function OperationsView({
@@ -27,10 +28,10 @@ export function OperationsView({
   return (
     <>
       <p className="eyebrow">PRACTICE OPERATIONS</p>
-      <h1>Operations</h1>
+      <h1>Morning view</h1>
       <p className="clinic-lead">
-        Keep follow-ups moving, review supplies, and manage the clinic's daily
-        work.
+        Review the day's schedule, cash drawer, invoices, and staffing before
+        opening the rest of operations.
       </p>
       {readinessAndReports}
       {followUps}
@@ -169,6 +170,7 @@ export function Operations() {
         billingRead={context.capabilities.billing_read === true}
         readinessAndReports={
           <>
+            <OwnerMorningView />
             <OperationsWorkflowGuide capabilities={context.capabilities} />
             <div className="clinic-grid">
               <OperationsProviderReadiness
@@ -187,6 +189,7 @@ export function Operations() {
               <OperationsReportsCatalog
                 capabilities={context.capabilities}
                 siteId={context.current_site?.id}
+                timezone={context.practice.timezone}
               />
             </div>
           </>

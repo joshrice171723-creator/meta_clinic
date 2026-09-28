@@ -486,6 +486,20 @@ export type InventoryCatalogData = InventoryReadContext &
       InventoryLot,
       "id" | "product_id" | "lot_number" | "expiration_date" | "status"
     > & { product_name: string })[];
+    first_run: {
+      supplier: boolean;
+      product: boolean;
+      offer: boolean;
+      purchase_order: boolean;
+      received: boolean;
+      binned: boolean;
+      supplier_id: string | null;
+      product_id: string | null;
+      product_name: string | null;
+      purchase_order_id: string | null;
+      purchase_order_status: string | null;
+      shipment_id: string | null;
+    };
   };
 
 export type InventoryPlanRead = {

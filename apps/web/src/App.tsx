@@ -58,6 +58,10 @@ const WorkInbox = lazyNamed(
   () => import("./features/clinic/WorkInbox"),
   (m) => m.WorkInbox,
 );
+const ClinicUpdateLog = lazyNamed(
+  () => import("./features/clinic/ClinicUpdateLog"),
+  (m) => m.ClinicUpdateLog,
+);
 const DemoJourney = lazyNamed(
   () => import("./features/demo/DemoJourney"),
   (m) => m.DemoJourney,
@@ -588,6 +592,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         />
       ) : path === "/clinic/work" ? (
         <WorkInbox />
+      ) : path === "/clinic/updates" ? (
+        <ClinicUpdateLog />
       ) : path === "/clinic/waitlist" ? (
         <WaitlistWorkspace />
       ) : path === "/clinic/recalls" ? (

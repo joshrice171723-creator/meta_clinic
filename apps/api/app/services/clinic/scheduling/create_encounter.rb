@@ -13,7 +13,10 @@ module Clinic
 
             Authorization.authorize!(actor: actor, practice: practice, action: "encounters.write", site: appointment.site)
             existing = practice.encounters.find_by(appointment_id: appointment.id)
-            next existing if existing
+            if existing
+              auto_assign_intake_owner!(existing, actor)
+              next existing
+            end
             if appointment.site_id.blank? || appointment.visit_type_id.blank?
               raise ArgumentError, "Choose a site and visit type before starting this scheduled visit."
             end
@@ -23,6 +26,7 @@ module Clinic
 
             encounter = practice.encounters.create!(patient: patient, appointment: appointment,
               site: appointment.site, room: appointment.room, started_at: started_at, status: "open")
+            auto_assign_intake_owner!(encounter, actor)
             Clinic::Telehealth::ReconcileAppointment.bind_encounter!(appointment: appointment, encounter: encounter)
             encounter
           end
@@ -30,7 +34,7 @@ module Clinic
 
         Authorization.authorize!(actor: actor, practice: practice, action: "encounters.write", site: site)
 
-        practice.encounters.create!(
+        encounter = practice.encounters.create!(
           patient: patient,
           appointment: appointment,
           site: site,
@@ -38,9 +42,37 @@ module Clinic
           started_at: started_at,
           status: "open"
         )
+        auto_assign_intake_owner!(encounter, actor)
+        encounter
       rescue ActiveRecord::RecordNotUnique
         raise ArgumentError, "That appointment already has an encounter."
       end
+
+      def self.auto_assign_intake_owner!(encounter, actor)
+        return unless encounter.site
+        return if encounter.participants.intake_owners.current.exists?
+
+        operator = encounter.practice.memberships.active.find_by(user_id: actor.id)
+        scheduled_membership = encounter.appointment&.booked_clinician&.membership
+        scheduled_clinician = if scheduled_membership
+          encounter.practice.memberships.active.find_by(id: scheduled_membership.id)
+        end
+        membership = [ operator, scheduled_clinician ].compact.uniq.find do |candidate|
+          ::Ability.new(candidate.user, practice: encounter.practice)
+            .allowed_permission?("intake.write", site: encounter.site)
+        end
+        return unless membership
+
+        encounter.participants.create!(
+          practice: encounter.practice,
+          patient: encounter.patient,
+          membership: membership,
+          participation_role: Clinic::Scheduling::IntakeOwnership::ROLE,
+          effective_from: Current.business_time,
+          effective_until: Current.business_time + Clinic::Scheduling::IntakeOwnership::LEASE_DURATION
+        )
+      end
+      private_class_method :auto_assign_intake_owner!
     end
   end
 end

@@ -34,6 +34,30 @@ function isPositiveDecimal(value: string) {
   );
 }
 
+function decimalUnits(value: string) {
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value.trim());
+  if (!match) return null;
+  return BigInt(match[1]) * 1_000_000n + BigInt((match[2] ?? "").padEnd(6, "0"));
+}
+
+function decimalFromUnits(value: bigint) {
+  const whole = value / 1_000_000n;
+  const fraction = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function cashAmounts(tenderedAmount: string, balance: string) {
+  const tendered = decimalUnits(tenderedAmount);
+  const due = decimalUnits(balance);
+  if (tendered === null || due === null || tendered <= 0n || due <= 0n)
+    return null;
+  const allocation = tendered < due ? tendered : due;
+  return {
+    allocationAmount: decimalFromUnits(allocation),
+    changeAmount: decimalFromUnits(tendered - allocation),
+  };
+}
+
 function requestKey() {
   return typeof crypto?.randomUUID === "function"
     ? crypto.randomUUID()
@@ -118,7 +142,6 @@ export function CashDrawerOperations({
     invoice?.currency ?? "USD",
   );
   const [tenderedAmount, setTenderedAmount] = useState("");
-  const [allocationAmount, setAllocationAmount] = useState("");
   const [countedCash, setCountedCash] = useState("");
   const [explanation, setExplanation] = useState("");
   const [busy, setBusy] = useState<
@@ -150,7 +173,6 @@ export function CashDrawerOperations({
   const consumedRestoration = useRef("");
   onRecordedRef.current = onRecorded;
   onPendingChangeRef.current = onPendingChange;
-  const allocationInvoiceSelection = useRef("");
   const drawerRefreshVersion = useRef(refreshVersion);
   const closeAttempt = useRef<{ signature: string; requestKey: string } | null>(
     null,
@@ -197,7 +219,6 @@ export function CashDrawerOperations({
     setCashAttempt(restored);
     setSelectedDrawerId(String(restored.drawerId));
     setTenderedAmount(restored.tenderedAmount);
-    setAllocationAmount(restored.allocationAmount);
     setError(
       "A saved cash payment attempt was restored. Refresh payment activity before retrying the same payment.",
     );
@@ -240,17 +261,11 @@ export function CashDrawerOperations({
     ) ?? null;
   const payable =
     invoice?.status === "posted" && !/^0+(?:\.0+)?$/.test(invoice.balance);
-  useEffect(() => {
-    const selection = `${invoice?.id ?? "none"}:${payable ? "payable" : "not-payable"}`;
-    if (cashAttempt) {
-      allocationInvoiceSelection.current = selection;
-      return;
-    }
-    if (allocationInvoiceSelection.current === selection) return;
-
-    allocationInvoiceSelection.current = selection;
-    setAllocationAmount(payable && invoice ? invoice.balance : "");
-  }, [cashAttempt, invoice, payable]);
+  const tenderSummary = cashAttempt
+    ? cashAmounts(cashAttempt.tenderedAmount, cashAttempt.allocationAmount)
+    : invoice
+      ? cashAmounts(tenderedAmount, invoice.balance)
+      : null;
 
   const reportError = (reason: unknown, fallback: string) =>
     setError(reason instanceof Error ? reason.message : fallback);
@@ -299,16 +314,19 @@ export function CashDrawerOperations({
 
   const recordCash = async () => {
     if (!permitted || busy !== null) return;
+    const amounts = cashAttempt
+      ? cashAmounts(cashAttempt.tenderedAmount, cashAttempt.allocationAmount)
+      : invoice
+        ? cashAmounts(tenderedAmount, invoice.balance)
+        : null;
     if (
       !cashAttempt &&
       (!invoice ||
         !drawer ||
         !isPositiveDecimal(tenderedAmount) ||
-        !isPositiveDecimal(allocationAmount))
+        !amounts)
     ) {
-      setError(
-        "Enter positive tendered and allocated amounts before recording cash.",
-      );
+      setError("Enter the cash amount tendered before recording payment.");
       return;
     }
     if (
@@ -325,7 +343,7 @@ export function CashDrawerOperations({
       drawerId: drawer!.id,
       currency: invoice!.currency,
       tenderedAmount,
-      allocationAmount,
+      allocationAmount: amounts!.allocationAmount,
       requestKey: requestKey(),
     };
     setBusy("cash");
@@ -374,7 +392,6 @@ export function CashDrawerOperations({
       setCashAttempt(null);
       setReceiptPaymentId(result.payment_allocation.payment_event_id);
       setTenderedAmount("");
-      setAllocationAmount("");
       setNotice(
         `Cash payment recorded. Change due: ${money(result.cash_tender.change_amount, attempt.currency)}.`,
       );
@@ -781,17 +798,10 @@ export function CashDrawerOperations({
                   value={cashAttempt?.tenderedAmount ?? tenderedAmount}
                   onChange={(event) => setTenderedAmount(event.target.value)}
                   disabled={cashAttempt !== null}
-                />
-                <TextField
-                  label={`Apply to invoice #${cashAttempt?.invoiceId ?? invoice?.id}`}
-                  inputMode="decimal"
-                  value={cashAttempt?.allocationAmount ?? allocationAmount}
-                  onChange={(event) => setAllocationAmount(event.target.value)}
-                  disabled={cashAttempt !== null}
                   helperText={
-                    cashAttempt
-                      ? `Locked pending amount: ${money(cashAttempt.allocationAmount, cashAttempt.currency)}`
-                      : `Due: ${money(invoice?.balance ?? "0", invoice?.currency ?? "USD")}`
+                    tenderSummary
+                      ? `Change due: ${money(tenderSummary.changeAmount, cashAttempt?.currency ?? invoice?.currency ?? "USD")}`
+                      : `Invoice balance: ${money(invoice?.balance ?? "0", invoice?.currency ?? "USD")}`
                   }
                 />
                 <Button

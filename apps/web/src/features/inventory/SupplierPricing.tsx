@@ -113,8 +113,13 @@ export function SupplierPricingScreen({
   const [requestNote, setRequestNote] = useState("");
   const [requestKey, setRequestKey] = useState("");
   const [requestSubmitted, setRequestSubmitted] = useState(false);
-  const [manualOfferOpen, setManualOfferOpen] = useState(false);
-  const [catalogQuery, setCatalogQuery] = useState("");
+  const wizardQuery = new URLSearchParams(window.location.search);
+  const [manualOfferOpen, setManualOfferOpen] = useState(
+    wizardQuery.get("wizard") === "offer" && canManage,
+  );
+  const [catalogQuery, setCatalogQuery] = useState(
+    wizardQuery.get("product_name") ?? "",
+  );
   const [catalogProducts, setCatalogProducts] = useState<CatalogOfferProduct[]>(
     [],
   );
@@ -495,6 +500,11 @@ export function SupplierPricingScreen({
 
   return (
     <div className="supplier-pricing-page">
+      {wizardQuery.has("wizard") && (
+        <Button href="/clinic/inventory/catalog" size="small">
+          Continue first inventory run
+        </Button>
+      )}
       {!canManage && (
         <div className="inventory-warning" role="status">
           <strong>Supplier pricing is read-only for this account.</strong>

@@ -184,7 +184,7 @@ export function LiveStaffMessagingWorkspace() {
   const [createOpen, setCreateOpen] = useState(false);
   const [participants, setParticipants] = useState<ApiParticipant[]>([]);
   const [createKind, setCreateKind] =
-    useState<StaffConversation["kind"]>("direct");
+    useState<StaffConversation["kind"]>("team");
   const [createTitle, setCreateTitle] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [creating, setCreating] = useState(false);
@@ -242,7 +242,7 @@ export function LiveStaffMessagingWorkspace() {
     setCreating(false);
     setCreateOpen(false);
     setParticipants([]);
-    setCreateKind("direct");
+    setCreateKind("team");
     setCreateTitle("");
     setRecipientId("");
     setActionError(null);
@@ -694,7 +694,7 @@ export function LiveStaffMessagingWorkspace() {
     setActionError(null);
     try {
       const result = await api<{ participants: ApiParticipant[] }>(
-        "/api/clinic/staff-messaging/participants",
+        `/api/clinic/staff-messaging/participants${current_site?.id ? `?site_id=${current_site.id}` : ""}`,
       );
       if (!isCurrentScope(requestScope)) return;
       setParticipants(
@@ -703,6 +703,7 @@ export function LiveStaffMessagingWorkspace() {
             participant.active && participant.id !== membership_id,
         ),
       );
+      setCreateKind("team");
       setCreateOpen(true);
     } catch (reason) {
       if (isCurrentScope(requestScope))
@@ -877,11 +878,14 @@ export function LiveStaffMessagingWorkspace() {
 
   const createConversation = async () => {
     if (creatingRef.current) return;
-    const memberId = Number(recipientId);
+    const memberIds =
+      createKind === "team"
+        ? participants.map((participant) => participant.id)
+        : [Number(recipientId)];
     const title = createTitle.trim();
-    if (!Number.isInteger(memberId) || memberId < 1) {
+    if (memberIds.length === 0 || memberIds.some((id) => !Number.isInteger(id) || id < 1)) {
       setActionError(
-        "Choose a staff participant before creating the conversation.",
+        "No active staff members are available at this location.",
       );
       return;
     }
@@ -894,7 +898,7 @@ export function LiveStaffMessagingWorkspace() {
       kind: createKind,
       title,
       siteId: current_site?.id ?? null,
-      memberIds: [memberId],
+      memberIds,
     });
     if (!createAttempt.current || createAttempt.current.signature !== signature)
       createAttempt.current = { signature, key: crypto.randomUUID() };
@@ -913,7 +917,7 @@ export function LiveStaffMessagingWorkspace() {
               kind: createKind,
               title: title || undefined,
               site_id: current_site?.id,
-              member_ids: [memberId],
+              member_ids: memberIds,
             },
           },
         },
@@ -1144,23 +1148,30 @@ export function LiveStaffMessagingWorkspace() {
                 slotProps={{ htmlInput: { maxLength: 120 } }}
               />
             )}
-            <FormControl fullWidth disabled={creating}>
-              <InputLabel id="conversation-recipient-label">
-                Staff participant
-              </InputLabel>
-              <Select
-                labelId="conversation-recipient-label"
-                label="Staff participant"
-                value={recipientId}
-                onChange={(event) => setRecipientId(event.target.value)}
-              >
-                {participants.map((participant) => (
-                  <MenuItem key={participant.id} value={String(participant.id)}>
-                    {participant.email}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {createKind === "team" ? (
+              <Alert severity="info">
+                All {participants.length} active staff members at this location
+                will be included.
+              </Alert>
+            ) : (
+              <FormControl fullWidth disabled={creating}>
+                <InputLabel id="conversation-recipient-label">
+                  Staff participant
+                </InputLabel>
+                <Select
+                  labelId="conversation-recipient-label"
+                  label="Staff participant"
+                  value={recipientId}
+                  onChange={(event) => setRecipientId(event.target.value)}
+                >
+                  {participants.map((participant) => (
+                    <MenuItem key={participant.id} value={String(participant.id)}>
+                      {participant.email}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

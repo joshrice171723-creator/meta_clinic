@@ -323,12 +323,14 @@ export function BillingDashboard() {
   const canRecordPayment = context.capabilities.billing_payment_record === true;
   const canUseCashDrawer =
     canRecordPayment || context.capabilities.billing_cash_reconcile === true;
-  const [activeTab, setActiveTab] = useState(() =>
-    stripeSetupReturnMarker() ||
-    new URLSearchParams(window.location.search).get("tab") === "subscriptions"
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return stripeSetupReturnMarker() || tab === "subscriptions"
       ? "subscriptions"
-      : "invoices",
-  );
+      : tab === "cash" && canUseCashDrawer
+        ? "cash"
+        : "invoices";
+  });
   const [invoiceOpen, setInvoiceOpen] = useState(
     Boolean(new URLSearchParams(window.location.search).get("invoice_id")),
   );

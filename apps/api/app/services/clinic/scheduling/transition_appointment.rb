@@ -22,6 +22,7 @@ module Clinic
           assert_ready_for_confirmation!(appointment) if to.to_s == "confirmed"
 
           appointment.transition_to!(to)
+          Waitlist.offer_cancelled_slot!(appointment: appointment, actor: actor) if to.to_s == "cancelled"
           Clinic::Telehealth::ReconcileAppointment.call(appointment: appointment, actor: actor)
           Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)
           appointment

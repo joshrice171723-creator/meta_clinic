@@ -603,6 +603,34 @@ function localDateTimeValue(value: Date) {
   return local.toISOString().slice(0, 16);
 }
 
+function bookingTimePreview(value: string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.valueOf())) return null;
+  const local = date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const clinic = date.toLocaleTimeString([], {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const localDate = date.toLocaleDateString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const clinicDate = date.toLocaleDateString([], {
+    timeZone: timezone,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const datePrefix =
+    localDate === clinicDate ? "" : `${localDate} → ${clinicDate} · `;
+  return `${datePrefix}${local} your time → ${clinic} clinic time`;
+}
+
 function clinicDateForBooking(value: string, timezone: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.valueOf())) return null;
@@ -933,6 +961,8 @@ function BookingFormEditor({
   const [changingPatient, setChangingPatient] = useState(false);
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
+  const [assignmentNotice, setAssignmentNotice] = useState("");
+  const [siteAssignmentBusy, setSiteAssignmentBusy] = useState(false);
   const [created, setCreated] = useState<Appointment>();
   const onHoldChangedRef = useRef(onHoldChanged);
   onHoldChangedRef.current = onHoldChanged;
@@ -1204,6 +1234,51 @@ function BookingFormEditor({
   const selectedPatient = selectablePatients.find(
     (patient) => String(patient.id) === patientId,
   );
+  const selectedClinician = clinicians.data.clinicians.find(
+    (clinician) => String(clinician.id) === clinicianId,
+  );
+  const selectedSite = facilities.data.sites.find(
+    (site) => String(site.id) === siteId,
+  );
+  const clinicianSiteWarning =
+    /not assigned to this site for the selected time/i.test(submitError);
+  const bookingTimezone = selectedSite?.timezone_override || timezone;
+  const createdTimezone =
+    facilities.data.sites.find((site) => site.id === created?.site_id)
+      ?.timezone_override || timezone;
+  const timePreview = bookingTimePreview(startsAt, bookingTimezone);
+  useEffect(() => {
+    setAssignmentNotice("");
+  }, [startsAt, endsAt, siteId, clinicianId, visitTypeId]);
+  const assignClinicianToSlot = async () => {
+    if (siteAssignmentBusy || !selectedClinician || !selectedSite) return;
+    setSiteAssignmentBusy(true);
+    setSubmitError("");
+    setAssignmentNotice("");
+    try {
+      await api(`/api/clinic/clinicians/${selectedClinician.id}/assign_site`, {
+        method: "POST",
+        body: {
+          assignment: {
+            site_id: siteId,
+            starts_at: new Date(startsAt).toISOString(),
+            ends_at: new Date(endsAt).toISOString(),
+          },
+        },
+      });
+      setAssignmentNotice(
+        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} for this slot. Retry booking.`,
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to assign this clinician to the selected slot.",
+      );
+    } finally {
+      setSiteAssignmentBusy(false);
+    }
+  };
   const availableRooms = siteId
     ? rooms.data.rooms.filter(
         (room) => room.site_id === Number(siteId) && room.kind === "physical",
@@ -1725,7 +1800,7 @@ function BookingFormEditor({
             }
           >
             Appointment #{created.id} scheduled for{" "}
-            {clinicDateTime(created.starts_at, timezone)}.
+            {clinicDateTime(created.starts_at, createdTimezone)}.
             {created.service_offering_snapshot?.name &&
               ` Service: ${created.service_offering_snapshot.name}.`}
             {created.telehealth?.clinic_href && (
@@ -1742,6 +1817,7 @@ function BookingFormEditor({
             event.preventDefault();
             if (inFlight.current) return;
             setSubmitError("");
+            setAssignmentNotice("");
             if (repeat === "weekly" || seriesAttempt) {
               if (firstAvailable) {
                 setSubmitError(
@@ -2022,12 +2098,11 @@ function BookingFormEditor({
                 </Button>
               ))}
             </Stack>
-            <Alert severity="info" variant="outlined">
-              Enter times using this device’s timezone (
-              {Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"}
-              ). Confirm the clinic time shown on the schedule in {timezone}{" "}
-              before finishing.
-            </Alert>
+            {timePreview && (
+              <Alert severity="info" variant="outlined">
+                {timePreview} — look right?
+              </Alert>
+            )}
             <TelehealthBookingFormat
               value={visitModality}
               disabled={
@@ -2462,8 +2537,33 @@ function BookingFormEditor({
                 </Box>
               )}
             </Box>
+            {assignmentNotice && (
+              <Alert severity="success" role="status">
+                {assignmentNotice}
+              </Alert>
+            )}
             {submitError && (
-              <Alert severity="error" role="alert">
+              <Alert
+                severity={clinicianSiteWarning ? "warning" : "error"}
+                role="alert"
+                action={
+                  clinicianSiteWarning &&
+                  clinic.capabilities.clinic_setup_write === true &&
+                  selectedClinician &&
+                  selectedSite ? (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => void assignClinicianToSlot()}
+                      disabled={siteAssignmentBusy}
+                    >
+                      {siteAssignmentBusy
+                        ? "Assigning…"
+                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} for this slot`}
+                    </Button>
+                  ) : undefined
+                }
+              >
                 {submitError}
               </Alert>
             )}
