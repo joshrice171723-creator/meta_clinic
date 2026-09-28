@@ -3284,6 +3284,44 @@ ALTER SEQUENCE public.clinic_credit_notes_id_seq OWNED BY public.clinic_credit_n
 
 
 --
+-- Name: clinic_day_end_reviews; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_day_end_reviews (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    reviewed_by_id bigint NOT NULL,
+    review_date date NOT NULL,
+    timezone character varying NOT NULL,
+    request_key character varying NOT NULL,
+    review_note text NOT NULL,
+    snapshot jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_day_end_reviews_values CHECK (((length(TRIM(BOTH FROM timezone)) > 0) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND ((length(TRIM(BOTH FROM review_note)) >= 1) AND (length(TRIM(BOTH FROM review_note)) <= 500)) AND (jsonb_typeof(snapshot) = 'object'::text)))
+);
+
+
+--
+-- Name: clinic_day_end_reviews_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_day_end_reviews_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_day_end_reviews_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_day_end_reviews_id_seq OWNED BY public.clinic_day_end_reviews.id;
+
+
+--
 -- Name: clinic_departments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13325,6 +13363,13 @@ ALTER TABLE ONLY public.clinic_credit_notes ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: clinic_day_end_reviews id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_day_end_reviews ALTER COLUMN id SET DEFAULT nextval('public.clinic_day_end_reviews_id_seq'::regclass);
+
+
+--
 -- Name: clinic_departments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15225,6 +15270,14 @@ ALTER TABLE ONLY public.clinic_coverage_versions
 
 ALTER TABLE ONLY public.clinic_credit_notes
     ADD CONSTRAINT clinic_credit_notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_day_end_reviews clinic_day_end_reviews_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_day_end_reviews
+    ADD CONSTRAINT clinic_day_end_reviews_pkey PRIMARY KEY (id);
 
 
 --
@@ -17620,6 +17673,20 @@ CREATE UNIQUE INDEX clinic_coverage_versions_practice_id ON public.clinic_covera
 --
 
 CREATE UNIQUE INDEX clinic_credit_notes_practice_id ON public.clinic_credit_notes USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_day_end_reviews_by_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinic_day_end_reviews_by_date ON public.clinic_day_end_reviews USING btree (practice_id, review_date, created_at, id);
+
+
+--
+-- Name: clinic_day_end_reviews_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_day_end_reviews_request_key ON public.clinic_day_end_reviews USING btree (practice_id, request_key);
 
 
 --
@@ -28403,6 +28470,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_products
 
 
 --
+-- Name: clinic_day_end_reviews fk_rails_3cfbd429a4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_day_end_reviews
+    ADD CONSTRAINT fk_rails_3cfbd429a4 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_invoice_stripe_checkouts fk_rails_3d79852221; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30408,6 +30483,14 @@ ALTER TABLE ONLY public.development_demo_lessons
 
 ALTER TABLE ONLY public.clinic_capacity_rules
     ADD CONSTRAINT fk_rails_d215c39f68 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_day_end_reviews fk_rails_d2e140109f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_day_end_reviews
+    ADD CONSTRAINT fk_rails_d2e140109f FOREIGN KEY (reviewed_by_id) REFERENCES public.users(id);
 
 
 --

@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — Atlas day-end review source checkpoint
+
+[Dated source evidence](../../records/implementation/2026-09-28-atlas-day-end-review.md) records a practice-date review note with captured invoice, payment/refund and drawer summaries, exact retry behavior, and a paged earlier-drawer worklist. MC-08/14/15 Build estimates move 91→92%, 58→66% and 55→57%; the equal-weight MC-01–15 Build average moves 72.1→72.8%. Validation and External / human remain unchanged. The isolated migration, Ruby syntax/lint, Rails loading/routes and TypeScript passed; a queued production bundle completed but its wrapper then failed to update metadata. Tests and browser acceptance did not run. This is an unpublished 0.1.9 branch checkpoint, below the 74% Muse QA request and 75% publication gates.
+
 ## 2026-09-28 — Atlas Build reconciliation for 0.1.8 candidate
 
 [Dated source evidence](../../records/implementation/2026-09-28-atlas-build-reconciliation.md) maps the published founder workflow preview and subsequent repairs to eleven MC Build rows. The equal-weight MC-01–15 Build estimate moves 70.1→72.1%; Validation and External / human scores remain unchanged. The 0.1.8 candidate also carries a shared booking default fix for Muse GH #21 and selected-site recovery for unfinalized locations. TypeScript, the web production build, Ruby syntax, vault structure and vault audit checks passed. The changed-file formatter reports three files that also failed at `HEAD`; no broad reformat was applied. Exact-revision hosted retest, deployment and all founder workflow acceptance remain open at this checkpoint.

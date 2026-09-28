@@ -122,6 +122,7 @@ Rails.application.routes.draw do
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     get "reports/current_stock", to: "reports/current_stock#show"
     get "reports/daily_cash_drawers", to: "reports/daily_cash_drawers#show"
+    resources :day_end_reviews, controller: "reports/day_end_reviews", only: %i[index create]
     get "reports/scribe_activity", to: "reports/scribe_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
