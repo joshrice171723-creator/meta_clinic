@@ -1,5 +1,19 @@
 # Meta Clinic Lightsail synthetic demo
 
+## Local QA handoff and deployed identity
+
+The local Codex publisher uses this release path. The Muse review handoff is
+documented in [the QA runbook](../qa/README.md); it does not install a second
+publisher. `/build.json` returns the exact web image's Git revision and package
+version with `Cache-Control: no-store`. The release verifies that revision before
+recording success, within the existing image-rollback boundary. QA notes are at
+`/clinic/updates`. Semantic version alone is insufficient to identify a retest.
+
+Notes for QA: after release, open `/build.json`, confirm its revision matches the
+local deployment report, and hard-reload `/clinic/updates` before retesting. The
+intentional trade-off is that build identity is public metadata, while browser
+acceptance remains an independent Muse result recorded on the PR.
+
 ## Workspace tools and investor demo entry
 
 On `aimetaclinic.com`, `/login` and ordinary workspace pages use `/api/` with

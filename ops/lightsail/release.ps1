@@ -71,6 +71,9 @@ if ($ImageSource -eq 'local') {
       try {
         New-Item -ItemType Directory -Path $webContext | Out-Null
         Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
+        $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
+        @{ revision = $revision; version = $version } | ConvertTo-Json -Compress |
+          Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
         Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
         Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
         & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
@@ -79,7 +82,7 @@ if ($ImageSource -eq 'local') {
         if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
       }
     } else {
-      & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
+      & docker build --platform linux/amd64 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
       if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
     }
     & docker save -o $localImages $apiImage $webImage

@@ -167,6 +167,8 @@ done
 status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 https://aimetaclinic.com/api/clinic/context)
 [[ $status == 401 || $status == 403 || $status == 404 ]] || { echo "Anonymous clinic access returned $status." >&2; false; }
 python3 "/tmp/meta-clinic-verify-$revision.py"
+curl --fail --silent --show-error --max-time 15 https://aimetaclinic.com/build.json |
+  python3 -c 'import json,sys; data=json.load(sys.stdin); assert data.get("revision") == sys.argv[1], "Public build revision mismatch"; assert data.get("version"), "Missing public version"' "$revision"
 printf '%s\n' "$revision" > /opt/meta-clinic/deploy/current-revision
 echo "RELEASED=$revision"
 echo "API_IMAGE=$(sed -n 's/^API_IMAGE=//p' "$release_file")"
