@@ -56,7 +56,7 @@ def contract(number):
     require(pr["user"]["login"] == OWNER and labeled(pr), "PR needs owner author and muse-qa label")
     require(pr["base"]["ref"] == "main" and pr["head"]["repo"]["full_name"] == REPO,
             "Only same-repository PRs into main are eligible")
-    require(pr["head"]["ref"].startswith("codex/muse-qa-"), "Branch must start codex/muse-qa-")
+    require(pr["head"]["ref"].startswith("codex/"), "Branch must be a Codex repair branch")
     body = (pr.get("body") or "").replace("\r\n", "\n")
     require("<!-- muse-qa-v1 -->" in body, "Missing Muse QA protocol marker")
     issue_lines = re.findall(r"^QA-Issues: (#[1-9][0-9]*(?:, #[1-9][0-9]*)*)$", body, re.M)

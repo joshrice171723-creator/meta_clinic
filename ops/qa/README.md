@@ -23,8 +23,10 @@ within the batch so its own attempt count and retest outcome remain visible.
    new defect. For existing defects use the number of cloud repair candidates
    already attempted (0–3). Unknown history requires clarification, not zero.
    Reuse the same issue for retries; do not reset the count by creating new IDs.
-3. Give the full related batch to one cloud Codex task. Use a branch beginning
-   `codex/muse-qa-`, fix only those issues and maintain the existing Notes for QA page. No new tests unless Joshua
+3. Give the full related batch to one cloud Codex task. Prefer a branch beginning
+   `codex/muse-qa-`; a portal-generated `codex/` branch is also accepted when the
+   owner, `muse-qa` label, marker, issue IDs and QA notes all match. Fix only those
+   issues and maintain the existing Notes for QA page. No new tests unless Joshua
    requests them. Application Ruby, frontend source, existing test paths and a
    version-only `apps/web/package.json` change are eligible. Infrastructure,
    dependencies, schema, migrations and policy changes need explicit review.
