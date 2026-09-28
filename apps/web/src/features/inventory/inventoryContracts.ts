@@ -541,6 +541,21 @@ export type InventorySupplierRead = {
   supplier_id?: string;
   page?: number;
 };
+export type InventorySupplierQuoteRequest = {
+  id: string;
+  supplier_product_id: string;
+  supplier_id: string;
+  supplier_name?: string;
+  product_id: string;
+  product_name?: string;
+  requested_packages: string;
+  note: string;
+  status: "open" | "quoted";
+  request_key: string;
+  created_at: string;
+  quote_reference: string | null;
+  quoted_on: string | null;
+};
 export type InventorySupplierData = InventoryReadContext & {
   supplier_page: {
     query: string;
@@ -556,6 +571,8 @@ export type InventorySupplierData = InventoryReadContext & {
     eligible: boolean;
     eligibility_reason: string | null;
   })[];
+  quote_requests: InventorySupplierQuoteRequest[];
+  quote_requests_capped?: boolean;
   products: Pick<
     InventoryProduct,
     "id" | "name" | "ndc" | "preferred_supplier_id"

@@ -311,6 +311,7 @@ Rails.application.routes.draw do
       patch "suppliers/:id", to: "inventory/supplier_pricing#update"
       post "suppliers/preview", to: "inventory/supplier_pricing#preview"
       post "suppliers/import", to: "inventory/supplier_pricing#import"
+      post "supplier-quote-requests", to: "inventory/supplier_pricing#create_quote_request"
       patch "supplier-products/:id/manual-quote", to: "inventory/supplier_pricing#record_quote"
       get "supplier-catalog-products", to: "inventory/supplier_pricing#catalog_products"
       post "supplier-products/manual-quote", to: "inventory/supplier_pricing#create_manual_quote"

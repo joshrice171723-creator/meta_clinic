@@ -10,6 +10,7 @@ module Clinic
 
       belongs_to :supplier, class_name: "Clinic::Inventory::Supplier"
       belongs_to :product, class_name: "Clinic::Inventory::PharmacyProduct", optional: true
+      has_many :quote_requests, class_name: "Clinic::Inventory::SupplierQuoteRequest", dependent: :restrict_with_error
 
       validates :ndc, format: { with: /\A\d{11}\z/ }
       validates :supplier_sku, :description, :ordering_unit, :currency, :contract_status, presence: true

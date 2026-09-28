@@ -307,12 +307,26 @@ module Clinic
 
       def supplier_pricing(practice:, actor:, **filters)
         result = SupplierPricingQuery.call(practice: practice, **filters)
+        quote_requests = SupplierQuoteRequest.where(practice_id: practice.id).includes(:supplier, :product)
+        quote_requests = quote_requests.where(supplier_id: result.supplier_id) if result.supplier_id.present?
+        quote_requests = quote_requests.order(created_at: :desc, id: :desc).limit(26).to_a
+        quote_requests_capped = quote_requests.length > 25
         context(practice: practice, actor: actor).merge(
           supplier_page: { query: result.query, supplier_id: result.supplier_id, page: result.page, page_count: result.page_count,
             page_size: SupplierPricingQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
           products: result.offers.filter_map(&:product).uniq(&:id).map { |product| { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, preferred_supplier_id: product.preferred_supplier_id&.to_s } },
           suppliers: Supplier.where(practice_id: practice.id).order(:name, :id).map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
-          supplier_products: result.offers.map { |row| supplier_product_wire(row, on: practice.inventory_date) })
+          supplier_products: result.offers.map { |row| supplier_product_wire(row, on: practice.inventory_date) },
+          quote_requests: quote_requests.first(25).map { |request| supplier_quote_request_wire(request) },
+          quote_requests_capped: quote_requests_capped)
+      end
+
+      def supplier_quote_request_wire(request)
+        { id: request.id.to_s, supplier_product_id: request.supplier_product_id.to_s, supplier_id: request.supplier_id.to_s,
+          supplier_name: request.supplier.name, product_id: request.product_id.to_s, product_name: request.product.name,
+          requested_packages: request.requested_packages.to_d.to_s("F"), note: request.note,
+          status: request.status, request_key: request.request_key, created_at: request.created_at.iso8601,
+          quote_reference: request.quote_reference, quoted_on: request.quoted_on&.iso8601 }
       end
 
       def supplier_product_wire(row, on:)

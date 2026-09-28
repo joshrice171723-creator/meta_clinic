@@ -13,6 +13,7 @@ import {
 import type {
   InventorySupplierData,
   InventorySupplierProduct,
+  InventorySupplierQuoteRequest,
   InventorySupplierRead,
 } from "./inventoryContracts";
 import { decimalMoney } from "./inventoryContracts";
@@ -104,6 +105,14 @@ export function SupplierPricingScreen({
   const [quotedOn, setQuotedOn] = useState("");
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteCurrency, setQuoteCurrency] = useState("");
+  const [quoteForRequest, setQuoteForRequest] =
+    useState<InventorySupplierQuoteRequest | null>(null);
+  const [requestOffer, setRequestOffer] =
+    useState<InventorySupplierProduct | null>(null);
+  const [requestPackages, setRequestPackages] = useState("1");
+  const [requestNote, setRequestNote] = useState("");
+  const [requestKey, setRequestKey] = useState("");
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
   const [manualOfferOpen, setManualOfferOpen] = useState(false);
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogProducts, setCatalogProducts] = useState<CatalogOfferProduct[]>(
@@ -132,6 +141,9 @@ export function SupplierPricingScreen({
 
   const selectedSupplier = data.suppliers.find(
     (supplier) => supplier.id === supplierId,
+  );
+  const recordedRequest = data.quote_requests.find(
+    (request) => request.request_key === requestKey,
   );
   const applied: InventorySupplierRead = {
     q: page.query,
@@ -163,6 +175,9 @@ export function SupplierPricingScreen({
               wholesale_unit_cost: quotePrice,
               currency: quoteCurrency,
               expected_updated_at: quoteOffer.updated_at,
+              ...(quoteForRequest
+                ? { quote_request_id: quoteForRequest.id }
+                : {}),
             },
           },
         },
@@ -170,14 +185,64 @@ export function SupplierPricingScreen({
       requireAck(response);
       await refresh();
       setQuoteOffer(null);
+      setQuoteForRequest(null);
       setNotice(
         "Dated supplier quote saved. Review availability and contract status before ordering.",
       );
     } catch (reason) {
       await refresh();
       setQuoteOffer(null);
+      setQuoteForRequest(null);
       setError(
         `${friendlyError(reason)} Review the refreshed offer before retrying.`,
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const saveQuoteRequest = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!requestOffer || writeBlocked || busy) return;
+    if (recordedRequest) return;
+    setRequestSubmitted(true);
+    setBusy("quote-request");
+    setError("");
+    setNotice("");
+    try {
+      const response = await api<{ acknowledged?: boolean }>(
+        "/api/clinic/inventory/supplier-quote-requests?response=ack",
+        {
+          method: "POST",
+          body: {
+            quote_request: {
+              supplier_product_id: requestOffer.id,
+              requested_packages: requestPackages,
+              note: requestNote.trim(),
+              request_key: requestKey,
+            },
+          },
+        },
+      );
+      requireAck(response);
+      setRequestOffer(null);
+      setRequestKey("");
+      setRequestSubmitted(false);
+      await refresh();
+      setNotice(
+        "Quote request recorded locally. No message was sent to the supplier.",
+      );
+    } catch (reason) {
+      await refresh().catch(() => undefined);
+      if (
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 409].includes(reason.status)
+      )
+        setRequestSubmitted(false);
+      setError(
+        `${friendlyError(reason)} Check the request list before retrying the retained action.`,
       );
     } finally {
       setBusy("");
@@ -484,6 +549,67 @@ export function SupplierPricingScreen({
           Record a quote for a catalog item
         </Button>
       )}
+      <section className="inventory-card" aria-label="Local quote requests">
+        <h2>Quote requests</h2>
+        <p>These are staff records. No request is sent to a supplier.</p>
+        {data.quote_requests.length === 0 ? (
+          <p>No quote requests recorded for this view.</p>
+        ) : (
+          <Stack spacing={1}>
+            {data.quote_requests.map((request) => {
+              const offer = data.supplier_products.find(
+                (item) => item.id === request.supplier_product_id,
+              );
+              return (
+                <div key={request.id}>
+                  <strong>
+                    {request.supplier_name ??
+                      offer?.supplier_name ??
+                      "Supplier"}{" "}
+                    ·{" "}
+                    {request.product_name ??
+                      offer?.description ??
+                      `Offer ${request.supplier_product_id}`}
+                  </strong>
+                  <p>
+                    {request.requested_packages} packages ·{" "}
+                    {request.status === "open"
+                      ? "Awaiting a recorded response"
+                      : `Quote ${request.quote_reference ?? "recorded"}`}
+                    {request.quoted_on ? ` · ${request.quoted_on}` : ""}
+                  </p>
+                  <p>{request.note}</p>
+                  {request.status === "open" && offer && canManage && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={writeBlocked || Boolean(busy)}
+                      onClick={() => {
+                        setQuoteForRequest(request);
+                        setQuoteOffer(offer);
+                        setQuoteReference("");
+                        setQuotedOn("");
+                        setQuotePrice(offer.wholesale_unit_cost);
+                        setQuoteCurrency(
+                          offer.currency === "UNK" ? "" : offer.currency,
+                        );
+                      }}
+                    >
+                      Record response
+                    </Button>
+                  )}
+                  {request.status === "open" && !offer && (
+                    <p>
+                      Find this offer in the catalog to record its response.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </Stack>
+        )}
+        {data.quote_requests_capped && <p>Showing the latest 25 requests.</p>}
+      </section>
       <div className="supplier-pricing-workbench">
         <section className="inventory-card supplier-directory">
           <div className="supplier-panel-heading">
@@ -911,6 +1037,7 @@ export function SupplierPricingScreen({
                           Boolean(busy)
                         }
                         onClick={() => {
+                          setQuoteForRequest(null);
                           setQuoteOffer(offer);
                           setQuoteReference(offer.quote_reference || "");
                           setQuotedOn(offer.quoted_on || "");
@@ -922,6 +1049,24 @@ export function SupplierPricingScreen({
                       >
                         Record quote
                       </Button>
+                      {canManage && offer.product_id && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          type="button"
+                          disabled={writeBlocked || Boolean(busy)}
+                          onClick={() => {
+                            setError("");
+                            setRequestOffer(offer);
+                            setRequestPackages("1");
+                            setRequestNote("");
+                            setRequestKey(crypto.randomUUID());
+                            setRequestSubmitted(false);
+                          }}
+                        >
+                          Request quote
+                        </Button>
+                      )}
                       {product && (
                         <Button
                           variant="outlined"
@@ -986,6 +1131,71 @@ export function SupplierPricingScreen({
           </nav>
         )}
       </section>
+      <Dialog
+        open={Boolean(requestOffer)}
+        onClose={() => {
+          if (!busy) setRequestOffer(null);
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <form onSubmit={(event) => void saveQuoteRequest(event)}>
+          <DialogTitle>Record a quote request</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <p>
+                {requestOffer?.supplier_name} · {requestOffer?.description}
+              </p>
+              <p>
+                This records staff follow-up only. No supplier message is sent.
+              </p>
+              {error && <p role="alert">{error}</p>}
+              {recordedRequest && (
+                <p role="status">
+                  This request is already recorded. Close this form to review it
+                  above.
+                </p>
+              )}
+              <TextField
+                label="Requested packages"
+                type="number"
+                value={requestPackages}
+                onChange={(event) => setRequestPackages(event.target.value)}
+                required
+                disabled={requestSubmitted}
+                slotProps={{ htmlInput: { min: 1, step: 1 } }}
+              />
+              <TextField
+                label="Request note"
+                value={requestNote}
+                onChange={(event) => setRequestNote(event.target.value)}
+                required
+                disabled={requestSubmitted}
+                multiline
+                minRows={2}
+                slotProps={{ htmlInput: { maxLength: 1000 } }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setRequestOffer(null)}
+              disabled={Boolean(busy)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={
+                Boolean(busy) || writeBlocked || Boolean(recordedRequest)
+              }
+            >
+              Record request
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
       <Dialog
         open={manualOfferOpen}
         onClose={() => {

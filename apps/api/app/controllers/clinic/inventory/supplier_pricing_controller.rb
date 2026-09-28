@@ -3,7 +3,7 @@ module Clinic
     class SupplierPricingController < Clinic::BaseController
       before_action -> { require_capability(:inventory_access?) }
       before_action :require_supplier_pricing_role
-      before_action :require_catalog_access, only: %i[create update preview import set_preferred_supplier record_quote catalog_products create_manual_quote]
+      before_action :require_catalog_access, only: %i[create update preview import set_preferred_supplier record_quote catalog_products create_manual_quote create_quote_request]
 
       rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
         message = error.is_a?(ActiveRecord::RecordInvalid) ? error.record.errors.full_messages.to_sentence : error.message
@@ -63,7 +63,7 @@ module Clinic
       def record_quote
         offer = SupplierProduct.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
         raise ArgumentError, "Match this supplier offer to a clinic catalog item before recording a quote." unless offer.product_id.present?
-        input = parameter_hash!(:quote, %i[reference quoted_on wholesale_unit_cost currency expected_updated_at])
+        input = parameter_hash!(:quote, %i[reference quoted_on wholesale_unit_cost currency expected_updated_at quote_request_id])
         reference = required_string!(input[:reference], field: :reference, maximum: 120)
         quoted_on = date_param!(input[:quoted_on], field: :quoted_on)
         raise ArgumentError, "A supplier quote cannot be dated in the future." if quoted_on > current_practice.inventory_date
@@ -84,9 +84,40 @@ module Clinic
                 action_code: "inventory.supplier_quote.record", outcome: :committed,
                 resource_version_ref: "supplier_product:#{offer.id}")
             end
+            close_quote_request!(input[:quote_request_id], offer:, reference:, quoted_on:)
           end
         end
         render json: mutation_response
+      end
+
+      def create_quote_request
+        input = parameter_hash!(:quote_request, %i[supplier_product_id requested_packages note request_key])
+        offer = SupplierProduct.where(practice_id: current_practice.id).find(requested_id!(input[:supplier_product_id], :supplier_product_id))
+        raise ArgumentError, "Match this supplier offer to a clinic catalog item before requesting a quote." unless offer.product_id.present?
+        requested_packages = Quantity.parse(input[:requested_packages].to_s, scale: 0)
+        note = input[:note].to_s.strip
+        raise ArgumentError, "A request note is required and must be at most 1000 characters." if note.blank? || note.length > 1000
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
+
+        outcome = Clinic::Idempotency.execute(
+          practice: current_practice,
+          actor: current_user,
+          operation_code: "inventory.supplier_quote_request.create",
+          request_key: request_key,
+          payload: { supplier_product_id: offer.id, requested_packages: requested_packages.to_s("F"), note: note },
+          resource: offer,
+          authorization: -> { require_catalog_access },
+          authorization_action: "inventory.catalog",
+          result_resource: ->(request) { request },
+          resource_resolver: ->(practice:, receipt:) { SupplierQuoteRequest.where(practice_id: practice.id).find_by(id: receipt.resource_id) }
+        ) do
+          SupplierQuoteRequest.create!(practice: current_practice, supplier_product: offer, supplier: offer.supplier,
+            product: offer.product, requested_packages: requested_packages, note: note, request_key: request_key)
+        end
+        raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
+
+        request = outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed supplier quote request is unavailable.")
+        render json: mutation_response.merge(id: request.id.to_s), status: :created
       end
 
       def catalog_products
@@ -193,6 +224,19 @@ module Clinic
         return { acknowledged: true } if params[:response] == "ack"
 
         { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+      end
+
+      def close_quote_request!(value, offer:, reference:, quoted_on:)
+        return if value.blank?
+
+        request = SupplierQuoteRequest.where(practice_id: current_practice.id).lock.find(requested_id!(value, :quote_request_id))
+        raise ArgumentError, "This supplier quote request does not match the supplier offer." unless request.supplier_product_id == offer.id
+        raise ArgumentError, "This supplier quote request is already closed." unless request.status == "open"
+
+        request.update!(status: "quoted", quote_reference: reference, quoted_on: quoted_on)
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+          action_code: "inventory.supplier_quote_request.close", outcome: :committed,
+          resource_version_ref: "supplier_quote_request:#{request.id}")
       end
 
       def serialize_preview(preview, supplier:)
