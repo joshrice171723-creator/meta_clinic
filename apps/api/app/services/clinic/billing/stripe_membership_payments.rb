@@ -218,7 +218,6 @@ module Clinic
           event.created_at = paid_at
           event.updated_at = paid_at
         end
-        payment.lock!
         raise StripeGateway::Invalid, "Stripe payment has conflicting ledger activity." unless
           payment.patient_id == agreement.patient_id && payment.amount == agreement.amount && payment.currency == agreement.currency &&
           payment.allocations.empty? && invoice.payment_allocations.empty? && invoice.credit_notes.empty?

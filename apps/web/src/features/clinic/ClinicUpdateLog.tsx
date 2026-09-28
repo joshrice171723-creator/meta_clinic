@@ -73,6 +73,48 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
+          Cash payment: immutable payment rows no longer request a database
+          update lock. Retry the exact pending payment once, then confirm
+          invoice balance, ledger, drawer, receipt, and financial summary agree.
+          An uncertain request stays locked until its result is confirmed; it
+          is never replayed automatically.
+        </li>
+        <li>
+          Booking: the booking form now keeps a stable React hook order while
+          loading. Open Book appointment at both locations, including with the
+          new clinician, and complete one booking. Clinician site eligibility
+          still applies.
+        </li>
+        <li>
+          Registration: the final Register a separate patient action now submits
+          the reviewed form. Register a new synthetic patient and confirm the
+          chart opens after reload. Staff still must review possible identity
+          matches before creating a separate chart.
+        </li>
+        <li>
+          Credit adjustment: immutable credit rows no longer request a database
+          update lock. Record a USD 5 credit on a posted invoice, check the
+          ledger and balance, and confirm Close exits an uncertain dialog. The
+          exact request remains retained for safe retry after closing.
+        </li>
+        <li>
+          Vitals: Review measurements now focuses the empty Observed time field
+          and shows its error. Clear the time, review, and confirm the field is
+          identified; entering a time permits review. Time is not inferred.
+        </li>
+        <li>
+          Inventory setup: Omni now receives the current practice grant on login
+          or clinic switch, including an existing SIMT membership. Reopen the
+          Omni session and configure inventory at SIMT. Ordinary roles keep
+          their existing inventory permissions.
+        </li>
+        <li>
+          Release packaging: the low-memory BuildWebOnHost path was already
+          present on main. Confirm the locked web install, local build, small
+          Nginx image, and encrypted recovery round trip in the scheduled
+          release; no alternate build path is used.
+        </li>
+        <li>
           Record cash on a posted invoice. Confirm the invoice balance, drawer
           total, payment ledger, and receipt all show the same amount.
         </li>

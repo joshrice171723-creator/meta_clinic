@@ -181,6 +181,7 @@ export function VitalSignsEntry({
   const [values, setValues] = useState<Record<string, string>>({});
   const [units, setUnits] = useState<Record<string, string>>({});
   const [observedAt, setObservedAt] = useState(localDateTime());
+  const observedAtInput = useRef<HTMLInputElement>(null);
   const [reviewing, setReviewing] = useState(false);
   const [confirmedPatient, setConfirmedPatient] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -426,6 +427,7 @@ export function VitalSignsEntry({
     const message = validate();
     if (message) {
       setError(message);
+      if (!observedAt) observedAtInput.current?.focus();
       return;
     }
     setError("");
@@ -676,6 +678,7 @@ export function VitalSignsEntry({
                 <TextField
                   label="Observed time (device local)"
                   type="datetime-local"
+                  inputRef={observedAtInput}
                   value={observedAt}
                   error={
                     error === "Record when these measurements were observed."

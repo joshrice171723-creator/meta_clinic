@@ -28,7 +28,7 @@ module Clinic
           PaymentCollectionIntent.ensure_no_active_invoice_checkout!(current)
 
           charge_total = current.lines.sum(:posted_amount)
-          credited = current.credit_notes.lock.to_a.sum(&:amount)
+          credited = current.credit_notes.to_a.sum(&:amount)
           raise ArgumentError, "Credit exceeds the invoice's remaining charge total." if credited + amount > charge_total
 
           membership = Clinic::Membership.active.find_by!(practice: practice, user: actor)

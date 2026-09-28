@@ -261,10 +261,17 @@ export function PatientRegistrationPage() {
                     values={submittedIdentity}
                     onEdit={() => setSubmittedIdentity(null)}
                     onProceed={() => {
-                      setReviewedIdentity(
-                        registrationIdentitySignature(submittedIdentity),
-                      );
-                      setSubmittedIdentity(null);
+                      flushSync(() => {
+                        setReviewedIdentity(
+                          registrationIdentitySignature(submittedIdentity),
+                        );
+                        setSubmittedIdentity(null);
+                      });
+                      (
+                        document.getElementById(
+                          "patient-registration-form",
+                        ) as HTMLFormElement | null
+                      )?.requestSubmit();
                     }}
                   />
                 </Card>
@@ -1875,6 +1882,7 @@ function PatientRegistrationEditor({
   return (
     <Box
       component="form"
+      id={patient ? undefined : "patient-registration-form"}
       onInput={(event) => {
         setSectionsComplete(false);
         queueAutosave(event.currentTarget);

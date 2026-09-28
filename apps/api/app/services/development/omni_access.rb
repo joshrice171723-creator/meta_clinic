@@ -70,6 +70,7 @@ module Development
       else
         raise TestAccounts::Unavailable, "The Omni test identity has conflicting development grants. No access was changed."
       end
+      user.clinic_memberships.active.find_each { |member| ensure_practice_grant!(user, member) }
       BackendSamples.populate_practice!(practice: membership.practice, actor: user, label: "OMNI") if Rails.env.development? || Rails.env.test?
       seed_purchase_supplier_mix!(membership.practice)
       SubscriptionExamples.seed!(practice: membership.practice, actor: user)
@@ -110,6 +111,17 @@ module Development
       profile = grants.first.role_version.role_code.delete_prefix(ROLE_PREFIX)
       settings = PROFILES[profile]
       profile if settings && user.admin? == settings[:admin]
+    end
+
+    def self.ensure_practice_grant!(user, membership)
+      profile = profile_for(user)
+      raise TestAccounts::Unavailable, "The Omni development view could not be verified." unless profile
+
+      role = roles_by_profile.fetch(profile)
+      return if membership.role_grants.active.where(role_version: role, scope_kind: "practice").exists?
+
+      membership.role_grants.create!(practice: membership.practice, role_version: role,
+        scope_kind: "practice", effective_from: Time.current, revision: 1)
     end
 
     def self.settings_for(user)

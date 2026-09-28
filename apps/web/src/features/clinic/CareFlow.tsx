@@ -1201,6 +1201,9 @@ function BookingFormEditor({
       ),
     [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, seriesOutcomeUnconfirmed, registerBlocker],
   );
+  useEffect(() => {
+    setAssignmentNotice("");
+  }, [startsAt, endsAt, siteId, clinicianId, visitTypeId]);
   const resourceError =
     facilities.error || rooms.error || clinicians.error || visitTypes.error;
   if (!facilities.data || !rooms.data || !clinicians.data || !visitTypes.data)
@@ -1247,9 +1250,6 @@ function BookingFormEditor({
     facilities.data.sites.find((site) => site.id === created?.site_id)
       ?.timezone_override || timezone;
   const timePreview = bookingTimePreview(startsAt, bookingTimezone);
-  useEffect(() => {
-    setAssignmentNotice("");
-  }, [startsAt, endsAt, siteId, clinicianId, visitTypeId]);
   const assignClinicianToSlot = async () => {
     if (siteAssignmentBusy || !selectedClinician || !selectedSite) return;
     setSiteAssignmentBusy(true);

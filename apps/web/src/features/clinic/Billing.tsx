@@ -1633,7 +1633,7 @@ function ChargeAdjustmentDialog({
   }, [attemptKey, canCredit]);
 
   const close = () => {
-    if (!busy && !retryPending) setOpen(false);
+    if (!busy) setOpen(false);
   };
 
   const submit = async () => {
@@ -1794,8 +1794,8 @@ function ChargeAdjustmentDialog({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy || retryPending} onClick={close}>
-            Cancel
+          <Button disabled={busy} onClick={close}>
+            {retryPending ? "Close" : "Cancel"}
           </Button>
           <Button
             disabled={busy}
