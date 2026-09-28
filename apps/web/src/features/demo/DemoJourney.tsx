@@ -562,6 +562,16 @@ export function DemoJourney() {
                 </Button>
                 {sandbox && (
                   <Button
+                    color="warning"
+                    size="small"
+                    disabled={busy}
+                    onClick={() => setRestartOpen(true)}
+                  >
+                    Reset Sandbox
+                  </Button>
+                )}
+                {sandbox && (
+                  <Button
                     size="small"
                     onClick={() => {
                       setFeedbackError("");

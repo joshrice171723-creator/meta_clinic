@@ -128,9 +128,9 @@ export function ClinicUpdateLog() {
         </li>
         <li>
           Visitor demo: Development tools now includes an Open visitor demo
-          entry to the isolated synthetic clinic journey, where the sandbox can
-          be reset to its baseline. Open the visitor demo, enter the sandbox,
-          make a synthetic edit, and confirm Reset Sandbox restores it.
+          entry to the shared synthetic clinic journey. Open the visitor demo,
+          enter the sandbox, make a synthetic edit, and confirm Reset Sandbox
+          restores its baseline. Reset removes other visitors' changes too.
         </li>
         <li>
           Booking draft recovery: earlier-session drafts are explicit; drafts at

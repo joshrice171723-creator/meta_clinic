@@ -103,8 +103,8 @@ export function Login({
               Open visitor demo
             </Button>
             <Typography color="text.secondary" variant="caption">
-              Enter an isolated synthetic clinic workspace. The demo includes a
-              reset action for restoring its baseline.
+              Enter a shared synthetic clinic workspace. Visitors can reset it
+              to its baseline, which removes everyone's changes.
             </Typography>
             {ownerPinRequired && (
               <p className="page-fine-print">
