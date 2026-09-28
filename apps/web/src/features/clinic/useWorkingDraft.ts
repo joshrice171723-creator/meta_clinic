@@ -74,6 +74,7 @@ export function useWorkingDraft<T>({
     version: number;
     status: DraftStatus;
     error: string;
+    updatedAt: string | null;
   }>({
     endpoint,
     ready: false,
@@ -81,6 +82,7 @@ export function useWorkingDraft<T>({
     version: 0,
     status: "loading",
     error: "",
+    updatedAt: null,
   });
   const active = useRef({
     endpoint,
@@ -133,6 +135,7 @@ export function useWorkingDraft<T>({
         version: 0,
         status: "idle",
         error: "",
+        updatedAt: null,
       });
       return () => {
         active.current.generation += 1;
@@ -145,6 +148,7 @@ export function useWorkingDraft<T>({
       version: 0,
       status: "loading",
       error: "",
+      updatedAt: null,
     });
     api<DraftResponse<T>>(endpoint, { signal: abort.signal })
       .then((response) => {
@@ -160,6 +164,7 @@ export function useWorkingDraft<T>({
           version: response.version,
           status: response.payload ? "saved" : "idle",
           error: "",
+          updatedAt: response.updated_at,
         });
       })
       .catch((reason: unknown) => {
@@ -175,6 +180,7 @@ export function useWorkingDraft<T>({
             reason instanceof Error
               ? reason.message
               : "The working copy could not be recovered. Reconnect and try again.",
+          updatedAt: null,
         });
       });
     return () => {
@@ -294,6 +300,7 @@ export function useWorkingDraft<T>({
           version: 0,
           status: "loading" as DraftStatus,
           error: "",
+          updatedAt: null,
         };
   return { ...visible, save, clear, reload };
 }

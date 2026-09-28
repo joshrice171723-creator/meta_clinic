@@ -75,7 +75,8 @@ export function ClinicUpdateLog() {
         <li>
           Encounter signing: completed encounters open their chart workspace so
           the Signing destination contains the draft, signing, or correction
-          controls instead of an empty anchor.
+          controls, loading state, or access state instead of an empty anchor.
+          Retest Avery Example Encounter #1 and confirm the persisted-note state.
         </li>
         <li>
           Encounter navigation: Return to tracking board now performs a direct
@@ -95,13 +96,36 @@ export function ClinicUpdateLog() {
         </li>
         <li>
           Provider assignment: the tracking board now projects active clinician
-          accounts with a current site assignment and authority to sign notes at
-          the encounter location. Confirm the configured SIMT clinician appears
-          and can be assigned; an unassigned clinician stays unavailable.
+          accounts with a current site assignment at the encounter location.
+          Confirm QA Test Clinician appears, can be assigned, and remains after reload.
         </li>
         <li>
           Workforce badges: issuing a badge now validates the selected employee
-          and location and immediately shows the issued row or a visible error.
+          and location and keeps the confirmed issued row visible without an
+          immediate second list read. Retest Sim Frontdesk and reload the row.
+        </li>
+        <li>
+          Appointment cancellation: cancellation commits before its optional
+          waitlist follow-up. Retest Avery Example at 11:00 AM on September 29;
+          confirm Cancelled persists and any replacement offer is separate.
+        </li>
+        <li>
+          Waitlist offers: clinician eligibility now follows the active SIMT site
+          assignment used by scheduling. Retest the original Avery Example offer
+          and confirm Offered persists after reload or a capacity error is visible.
+        </li>
+        <li>
+          Inventory receiving: an empty Destination links to Storage locations.
+          Create an active leaf, return, and confirm the receipt destination persists.
+        </li>
+        <li>
+          Schedule cancellation: eligible appointment details again include Cancel
+          appointment. Cancel there and confirm the status persists after reload.
+        </li>
+        <li>
+          Booking draft recovery: earlier-session drafts are explicit; drafts at
+          least 24 hours old show their saved timestamp and a stale warning. Review
+          the recovered intent or choose Start new appointment.
         </li>
         <li>
           Payment times: cash payment, allocation, and receipt rows now share

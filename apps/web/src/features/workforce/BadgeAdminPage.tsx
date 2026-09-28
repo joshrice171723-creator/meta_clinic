@@ -136,7 +136,6 @@ export function BadgeAdminPage() {
         type: "success",
         text: "Badge issued. Print it now; the barcode cannot be retrieved later.",
       });
-      setRevision((value) => value + 1);
     } catch (reason) {
       setPin("");
       setFeedback({
