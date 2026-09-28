@@ -224,6 +224,7 @@ Rails.application.routes.draw do
         patch :draft, on: :member, action: :update_draft
         post :post, on: :member
         post :credits, on: :member, action: :credit
+        post :write_offs, on: :member, action: :write_off
         post :void, on: :member, action: :void_invoice
         post :payment_allocations, on: :member, action: :allocate_payment
         post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
@@ -374,6 +375,7 @@ Rails.application.routes.draw do
     get "lab_reports/follow_up_queue", to: "care/lab_reports#follow_up_queue"
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       get :lookup, on: :collection, to: "care/patients#lookup"
+      post :merge, on: :member
       get :billing_ledger, on: :member, to: "billing/patient_ledgers#show"
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"

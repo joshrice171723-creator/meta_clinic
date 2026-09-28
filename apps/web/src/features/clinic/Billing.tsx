@@ -97,7 +97,7 @@ type CashRefundScope = Pick<
 >;
 
 type ChargeAdjustmentAttempt = {
-  action: "credit" | "void";
+  action: "credit" | "write_off" | "void";
   amount?: string;
   invoiceId: number;
   reason: string;
@@ -1602,14 +1602,18 @@ function ChargeAdjustmentDialog({
   const [attempt, setAttempt] = useState<ChargeAdjustmentAttempt | null>(
     () => pendingChargeAdjustmentAttempts.get(attemptKey) ?? null,
   );
-  const [action, setAction] = useState<"credit" | "void">("credit");
+  const [action, setAction] = useState<"credit" | "write_off" | "void">(
+    "credit",
+  );
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const limits = invoice.adjustment_limits;
   const creditAvailable = limits.credit_available_amount;
+  const writeOffAvailable = invoice.balance_amount;
   const canCredit = !isZero(creditAvailable);
+  const canWriteOff = !isZero(writeOffAvailable);
   const canVoid = limits.void_eligible;
   const retryPending = attempt !== null;
 
@@ -1637,26 +1641,29 @@ function ChargeAdjustmentDialog({
   };
 
   const submit = async () => {
-    if (!canAdjust || busy || (!canCredit && !canVoid)) return;
+    if (!canAdjust || busy || (!canCredit && !canWriteOff && !canVoid)) return;
     if (!retryPending && reason.trim().length === 0) {
       setError("Enter a reason for this charge adjustment.");
       return;
     }
     if (
       !retryPending &&
-      action === "credit" &&
+      (action === "credit" || action === "write_off") &&
       (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
         isZero(amount) ||
-        !decimalNotGreaterThan(amount, creditAvailable))
+        !decimalNotGreaterThan(amount, action === "write_off" ? writeOffAvailable : creditAvailable))
     ) {
+      const available = action === "write_off" ? writeOffAvailable : creditAvailable;
       setError(
-        `Enter a positive credit up to ${money(creditAvailable, invoice.currency)} with up to six decimal places.`,
+        `Enter a positive ${action === "write_off" ? "write-off" : "credit"} up to ${money(available, invoice.currency)} with up to six decimal places.`,
       );
       return;
     }
     const nextAttempt = attempt ?? {
       action,
-      ...(action === "credit" ? { amount: amount.trim() } : {}),
+      ...(action === "credit" || action === "write_off"
+        ? { amount: amount.trim() }
+        : {}),
       invoiceId: invoice.id,
       reason: reason.trim(),
       requestKey: crypto.randomUUID(),
@@ -1666,11 +1673,18 @@ function ChargeAdjustmentDialog({
     setBusy(true);
     setError("");
     try {
-      if (nextAttempt.action === "credit") {
-        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/credits`, {
+      if (
+        nextAttempt.action === "credit" ||
+        nextAttempt.action === "write_off"
+      ) {
+        const parameter =
+          nextAttempt.action === "credit" ? "credit" : "write_off";
+        const endpoint =
+          nextAttempt.action === "credit" ? "credits" : "write_offs";
+        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/${endpoint}`, {
           method: "POST",
           body: {
-            credit: {
+            [parameter]: {
               amount: nextAttempt.amount,
               reason: nextAttempt.reason,
               request_key: nextAttempt.requestKey,
@@ -1720,7 +1734,7 @@ function ChargeAdjustmentDialog({
   return (
     <>
       <Button
-        disabled={!canCredit && !canVoid}
+        disabled={!canCredit && !canWriteOff && !canVoid}
         onClick={() => setOpen(true)}
         variant="outlined"
       >
@@ -1740,8 +1754,9 @@ function ChargeAdjustmentDialog({
               </Alert>
             ) : (
               <Alert severity="info">
-                A credit reduces recorded charges. It does not return money. Use
-                the separate cash refund workflow when money is returned.
+                {action === "write_off"
+                  ? "A write-off reduces unpaid bad debt, up to the remaining balance. It does not return money."
+                  : "A credit reduces recorded charges. It does not return money. Use the separate cash refund workflow when money is returned."}
               </Alert>
             )}
             {canCredit && (
@@ -1754,6 +1769,16 @@ function ChargeAdjustmentDialog({
                 {money(creditAvailable, invoice.currency)}
               </Button>
             )}
+            {canWriteOff && (
+              <Button
+                disabled={retryPending}
+                onClick={() => setAction("write_off")}
+                variant={action === "write_off" ? "contained" : "outlined"}
+              >
+                Write off bad debt · available{" "}
+                {money(writeOffAvailable, invoice.currency)}
+              </Button>
+            )}
             {canVoid && (
               <Button
                 color="warning"
@@ -1764,12 +1789,12 @@ function ChargeAdjustmentDialog({
                 Void untouched unpaid invoice
               </Button>
             )}
-            {action === "credit" && (
+            {(action === "credit" || action === "write_off") && (
               <TextField
                 autoFocus={!retryPending}
                 disabled={retryPending}
                 inputMode="decimal"
-                label="Credit amount"
+                label={action === "write_off" ? "Write-off amount" : "Credit amount"}
                 onChange={(event) => setAmount(event.target.value)}
                 value={amount}
               />
@@ -1914,7 +1939,7 @@ function InvoiceDetail({
             entries={invoice.allocations}
           />
           <LedgerAmount
-            label="Credits"
+            label="Credits and write-offs"
             value={invoice.credit_amount}
             currency={invoice.currency}
             entries={invoice.credits}
@@ -1948,6 +1973,7 @@ function LedgerAmount({
     id: number;
     amount: string;
     created_at: string;
+    adjustment_type?: "credit" | "write_off";
     reason?: string | null;
     issued_at?: string | null;
     issued_by?: string | null;
@@ -1969,6 +1995,7 @@ function LedgerAmount({
         entries.map((entry) => (
           <Box key={entry.id}>
             <Typography color="text.secondary" variant="body2">
+              {entry.adjustment_type === "write_off" ? "Write-off · " : entry.adjustment_type === "credit" ? "Credit · " : ""}
               {money(entry.amount, currency)} ·{" "}
               {date(entry.issued_at ?? entry.created_at, true)}
             </Typography>

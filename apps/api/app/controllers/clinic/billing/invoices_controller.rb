@@ -3,7 +3,7 @@ module Clinic
     class InvoicesController < Clinic::ApiController
       before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create update_draft]
-      before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: %i[post credit void_invoice]
+      before_action -> { require_capability_with_legacy("billing.invoice_post", "billing.write") }, only: %i[post credit write_off void_invoice]
       before_action -> { require_capability_with_legacy("billing.payment_record", "billing.write") }, only: %i[allocate_payment record_cash_payment]
 
       def index
@@ -73,6 +73,25 @@ module Clinic
         )
         render json: {
           credit: InvoiceSerializer.credit(result.credit),
+          invoice: InvoiceSerializer.call(result.invoice, detail: true),
+          replayed: result.replayed,
+          request_key: result.request_key
+        }, status: result.replayed ? :ok : :created
+      end
+
+      def write_off
+        input = parameter_hash!(:write_off, %i[amount reason request_key])
+        invoice = current_practice.invoices.find(requested_id!(params[:id], :id))
+        request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
+        result = InvoiceAdjustments.write_off(
+          invoice: invoice,
+          actor: current_user,
+          amount: decimal_string!(input[:amount], field: :amount),
+          reason: required_string!(input[:reason], field: :reason, maximum: 500),
+          request_key: request_key
+        )
+        render json: {
+          write_off: InvoiceSerializer.credit(result.credit),
           invoice: InvoiceSerializer.call(result.invoice, detail: true),
           replayed: result.replayed,
           request_key: result.request_key
