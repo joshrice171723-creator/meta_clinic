@@ -134,9 +134,11 @@ def candidate(db, number, head):
 
 
 def comment_once(number, marker, body):
-    if not any(c["user"]["login"] == OWNER and c["body"].startswith(marker)
-               for c in pages(f"issues/{number}/comments")):
-        api(f"issues/{number}/comments", "POST", {"body": marker + "\n" + body})
+    if any(c["user"]["login"] == OWNER and c["body"].startswith(marker)
+           for c in pages(f"issues/{number}/comments")):
+        return False
+    api(f"issues/{number}/comments", "POST", {"body": marker + "\n" + body})
+    return True
 
 
 def reserve(db, number):
@@ -269,17 +271,19 @@ def watch():
         for pr in prs:
             body = pr.get("body") or ""
             created = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
-            if created < started or "<!-- muse-qa-v1 -->" not in body:
+            if (created < started or pr["user"]["login"] != OWNER or
+                    (pr["head"].get("repo") or {}).get("full_name") != REPO or
+                    "<!-- muse-qa-v1 -->" not in body):
                 continue
             line = re.search(r"^QA-Issues: (#[1-9][0-9]*(?:, #[1-9][0-9]*)*)$", body, re.M)
             if line and set(int(i) for i in re.findall(r"[0-9]+", line[1])) == set(issues):
                 break
         else:
             if now - started >= timedelta(hours=2):
-                comment_once(anchor, f"<!-- muse-qa-stalled:{comment['id']} -->",
-                             "The QA batch started over two hours ago but has no matching GitHub PR. "
-                             "Check the cloud task and portal submission before retrying; reuse the same defect issues.")
-                print(json.dumps({"status": "stalled_before_pr", "issues": issues}))
+                if comment_once(anchor, f"<!-- muse-qa-stalled:{comment['id']} -->",
+                                "The QA batch started over two hours ago but has no matching GitHub PR. "
+                                "Check the cloud task and portal submission before retrying; reuse the same defect issues."):
+                    print(json.dumps({"status": "stalled_before_pr", "issues": issues}))
 
 
 def main():
