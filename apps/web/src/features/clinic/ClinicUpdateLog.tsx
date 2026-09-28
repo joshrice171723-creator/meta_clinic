@@ -110,17 +110,21 @@ export function ClinicUpdateLog() {
           confirm Cancelled persists and any replacement offer is separate.
         </li>
         <li>
-          Waitlist offers: clinician eligibility now follows the active SIMT site
-          assignment used by scheduling. Retest the original Avery Example offer
-          and confirm Offered persists after reload or a capacity error is visible.
+          Waitlist offers: offer start and accept-before values now use separate
+          date and time fields so each value commits before publishing.
+          Clinician eligibility still follows the active SIMT site assignment
+          used by scheduling. Retest the original Avery Example offer and
+          confirm Offered persists after reload or a capacity error is visible.
         </li>
         <li>
           Inventory receiving: an empty Destination links to Storage locations.
           Create an active leaf, return, and confirm the receipt destination persists.
         </li>
         <li>
-          Schedule cancellation: eligible appointment details again include Cancel
-          appointment. Cancel there and confirm the status persists after reload.
+          Schedule cancellation: appointment details consistently show Cancel
+          appointment. It is enabled only for eligible scheduled or confirmed
+          appointments without an encounter. Cancel an eligible appointment
+          there and confirm the status persists after reload.
         </li>
         <li>
           Booking draft recovery: earlier-session drafts are explicit; drafts at

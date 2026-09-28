@@ -1400,18 +1400,19 @@ export function ClinicSchedule({
             Close
           </Button>
           <Button href="/clinic/front-desk">Manage appointment</Button>
-          {selected &&
-            !selected.encounter_id &&
-            ["scheduled", "confirmed"].includes(selected.status) &&
-            context.capabilities.appointments_status_transition && (
-              <Button
-                color="error"
-                disabled={busy}
-                onClick={() => void cancelSelectedAppointment()}
-              >
-                Cancel appointment
-              </Button>
-            )}
+          {selected && context.capabilities.appointments_status_transition && (
+            <Button
+              color="error"
+              disabled={
+                busy ||
+                Boolean(selected.encounter_id) ||
+                !["scheduled", "confirmed"].includes(selected.status)
+              }
+              onClick={() => void cancelSelectedAppointment()}
+            >
+              Cancel appointment
+            </Button>
+          )}
           {selected &&
             data?.policy?.overbook === "configured" &&
             context.capabilities.appointments_overbook &&
