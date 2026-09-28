@@ -11,15 +11,22 @@ module Clinic
       belongs_to :supplier, class_name: "Clinic::Inventory::Supplier"
       belongs_to :product, class_name: "Clinic::Inventory::PharmacyProduct"
 
-      validates :requested_packages, numericality: { greater_than: 0, only_integer: true }
+      validates :requested_packages, numericality: { greater_than: 0 }
       validates :note, presence: true, length: { maximum: 1000 }
       validates :request_key, format: { with: Clinic::Idempotency::KEY_PATTERN }
       validates :status, inclusion: { in: %w[open quoted] }
       validates :quote_reference, presence: true, length: { maximum: 120 }, if: -> { status == "quoted" }
       validates :quoted_on, presence: true, if: -> { status == "quoted" }
       validate :matches_supplier_product
+      validate :whole_package_quantity
 
       private
+
+      def whole_package_quantity
+        return if requested_packages.nil? || requested_packages == requested_packages.to_i
+
+        errors.add(:requested_packages, "must be an integer")
+      end
 
       def matches_supplier_product
         return unless supplier_product
