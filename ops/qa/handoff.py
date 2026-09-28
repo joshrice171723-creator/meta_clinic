@@ -269,7 +269,7 @@ def watch():
                 and len(issues) == len(set(issues)) and anchor == min(issues),
                 f"Invalid batch-start comment on issue #{anchor}")
         for pr in prs:
-            body = pr.get("body") or ""
+            body = (pr.get("body") or "").replace("\r\n", "\n")
             created = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
             if (created < started or pr["user"]["login"] != OWNER or
                     (pr["head"].get("repo") or {}).get("full_name") != REPO or
