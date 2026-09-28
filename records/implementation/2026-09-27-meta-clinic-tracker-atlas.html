@@ -634,7 +634,15 @@ Four commits are substantive implementation slices across four milestones; the c
     });
     drawProgress();drawDetail();drawRelations();drawInventory();
     if (/^https?:$/.test(location.protocol)) loadLive();
-    else {document.getElementById('source-panel').dataset.state='error';document.getElementById('source-status').textContent='Dated fallback · choose the repository folder for live data';}
+    else {
+      document.getElementById('source-panel').dataset.state='error';
+      document.getElementById('source-status').textContent='Dated fallback · choose the repository folder for live data';
+      document.getElementById('work-window').dataset.state='error';
+      document.getElementById('work-now').textContent='Live activity is unavailable from a file tab.';
+      document.getElementById('work-next').textContent='Choose the repository folder or open this page through a local server.';
+      document.getElementById('work-check').textContent='Tracker not connected';
+      document.getElementById('work-feed').innerHTML='<div class="work-message"><small>Tracker</small><p>Connect to the repository to read current activity.</p></div>';
+    }
     setInterval(()=>{if (repositoryHandle||/^https?:$/.test(location.protocol)) loadLive();},3600000);
     setInterval(refreshWorkFeed,30000);
   </script>
