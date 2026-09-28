@@ -20,9 +20,11 @@ within the batch so its own attempt count and retest outcome remain visible.
    `joshrice171723-creator/meta_clinic`, using the repository owner's account.
    Include exact build revision, reproduction, expected/actual behavior and
    synthetic browser evidence. Include a line `Prior-Attempts: 0` for a genuinely
-   new defect. For existing defects use the number of cloud repair candidates
-   already attempted (0–3). Unknown history requires clarification, not zero.
-   Reuse the same issue for retries; do not reset the count by creating new IDs.
+   new defect. For existing defects use the number of distinct cloud repair
+   tasks already attempted (0–3), and update this line before submitting a
+   later task. Local reviewer commits on the same PR do not add cloud attempts.
+   Unknown history requires reconciliation, not zero. Reuse the same GitHub
+   issue for retries; internal Muse issue IDs are not GitHub issue numbers.
 3. Give the full related batch to one cloud Codex task. Prefer a branch beginning
    `codex/muse-qa-`; a portal-generated `codex/` branch is also accepted when the
    owner, `muse-qa` label, marker, issue IDs and QA notes all match. Fix only those
@@ -64,11 +66,13 @@ observations, and posts an idempotent deployed-build comment on the PR. A missin
 identity endpoint blocks deployment claims; it does not mean the site is down.
 
 For one eligible PR, run `reserve --pr NUMBER` before repair/review. The printed
-record supplies the exact head, base and merge candidate. Each distinct repair
-head consumes one of three attempts per defect; repeated polling does not. A
-changed base requires a fresh review but does not consume another repair attempt.
-The fourth candidate is refused. At the limit, report the defect, evidence and
-remaining failure to Joshua; do not start another cloud task or reset history.
+record supplies the exact head, base and merge candidate. Each distinct PR
+consumes one of three cloud repair tasks per defect; at most three distinct heads
+are reviewed within that PR. Polling and a changed base do not consume an
+attempt, though a changed base requires fresh review. The fourth cloud task or
+fourth head in one PR is refused. At the limit, continue QA on other defects and
+gather read-only diagnostic evidence; do not start another repair task or reset
+history. Escalate the unresolved defect with that evidence.
 
 Fetch `refs/pull/NUMBER/merge` into an isolated, clean worktree and detach at the
 recorded merge SHA. Inspect the whole scoped diff, including permissions, money,

@@ -142,16 +142,19 @@ def reserve(db, number):
     head = pr["head"]["sha"]
     with db:
         db.execute("BEGIN IMMEDIATE")
-        for issue, prior in tickets:
-            db.execute("INSERT OR IGNORE INTO defects VALUES (?,?)", (issue, prior))
-            require(db.execute("SELECT prior FROM defects WHERE issue=?", (issue,)).fetchone()[0] == prior,
-                    f"Prior attempts changed for #{issue}; inspect ledger")
         existing = db.execute("SELECT 1 FROM candidates WHERE pr=? AND head=?", (number, head)).fetchone()
         counts = {}
         for issue, prior in tickets:
-            used = db.execute("SELECT COUNT(*) FROM attempts WHERE issue=?", (issue,)).fetchone()[0]
-            require(existing or prior + used < 3, f"Defect #{issue} reached three repair candidates; escalate")
-            counts[issue] = prior + used + (0 if existing else 1)
+            db.execute("INSERT OR IGNORE INTO defects VALUES (?,?)", (issue, prior))
+            baseline = db.execute("SELECT prior FROM defects WHERE issue=?", (issue,)).fetchone()[0]
+            previous_tasks = db.execute("SELECT COUNT(DISTINCT pr) FROM attempts WHERE issue=? AND pr<>?",
+                                        (issue, number)).fetchone()[0]
+            require(prior == baseline + previous_tasks,
+                    f"Defect #{issue} needs Prior-Attempts: {baseline + previous_tasks}; reconcile its cloud tasks")
+            heads = db.execute("SELECT COUNT(*) FROM attempts WHERE issue=? AND pr=?", (issue, number)).fetchone()[0]
+            require(existing or (heads < 3 and (heads > 0 or prior < 3)),
+                    f"Defect #{issue} reached its cloud-task or three-head local limit; escalate")
+            counts[issue] = prior + 1
         if not existing:
             db.execute("INSERT INTO candidates(pr,head,base,merge_sha,issues,status) VALUES (?,?,?,?,?,?)",
                        (number, head, pr["base"]["sha"], pr["merge_commit_sha"], json.dumps([i for i, _ in tickets]), "reserved"))
@@ -163,7 +166,7 @@ def reserve(db, number):
                 db.execute("UPDATE candidates SET base=?,merge_sha=?,status='reserved',evidence=NULL WHERE pr=? AND head=?",
                            (pr["base"]["sha"], pr["merge_commit_sha"], number, head))
     comment_once(number, f"<!-- muse-qa-candidate:{head} -->",
-                 f"Local review reserved `{head}`. Repair attempts by defect: {json.dumps(counts)}. "
+                 f"Local review reserved `{head}`. Cloud repair tasks used by defect: {json.dumps(counts)}. "
                  "Merged, deployed and browser-verified remain separate states.")
     print(json.dumps(dict(candidate(db, number, head))))
 
