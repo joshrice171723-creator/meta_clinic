@@ -9,11 +9,11 @@ module Clinic
 
       before_action -> { require_capability("patients.read") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("patients.identity.read", "patients.read") }, only: :lookup
-      before_action -> { require_capability("patients.write") }, only: %i[create update]
+      before_action -> { require_capability("patients.write") }, only: %i[create update merge]
       before_action -> { require_capability("notes.write") }, only: :note
 
       def index
-        patients = current_practice.patients.accessible_by(current_ability, :read)
+        patients = current_practice.patients.where(merged_into_patient_id: nil).accessible_by(current_ability, :read)
           .includes(:demographics, :contacts)
         if params[:site_id].present?
           site = accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id))
@@ -30,7 +30,7 @@ module Clinic
       # Scheduler/front desk projection: identity and reference only. The
       # endpoint is deliberately separate from the patient detail surface.
       def lookup
-        patients = current_practice.patients.accessible_by(current_ability, :read_identity)
+        patients = current_practice.patients.where(merged_into_patient_id: nil).accessible_by(current_ability, :read_identity)
           .includes(:demographics, :contacts)
         query = query_param
         date_of_birth = params[:date_of_birth].present? ? date_param!(params[:date_of_birth], field: :date_of_birth) : nil
@@ -156,6 +156,31 @@ module Clinic
           }
         end
         render json: payload
+      end
+
+      def merge
+        source = current_practice.patients.find(integer_id!(params[:id], field: :id))
+        input = parameter_hash!(:merge, %i[target_patient_id reason])
+        target = current_practice.patients.find(integer_id!(input[:target_patient_id], field: :target_patient_id))
+        raise ArgumentError, "Choose a different canonical patient." if source.id == target.id
+        raise ArgumentError, "This patient is already merged." if source.merged_into_patient_id.present?
+        raise ArgumentError, "The canonical patient has already been merged." if target.merged_into_patient_id.present?
+
+        blocking = %i[appointments encounters encounter_notes observations documents payment_events invoices].select do |association|
+          source.public_send(association).exists?
+        end
+        if blocking.any?
+          raise ArgumentError, "This duplicate has clinical or financial activity. Reconcile #{blocking.join(', ')} before merging."
+        end
+
+        membership = current_practice.memberships.active.find_by!(user: current_user)
+        source.update!(merged_into_patient: target, merged_at: Time.current,
+          merged_by_membership: membership,
+          merge_reason: required_string!(input[:reason], field: :reason, maximum: 500))
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+          action_code: "patients.merge", outcome: :committed,
+          resource_version_ref: "Clinic::Care::Patient/#{source.id}")
+        render json: { canonical_patient_id: target.id, merged_patient_id: source.id }
       end
 
       def note

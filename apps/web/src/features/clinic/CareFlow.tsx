@@ -4784,7 +4784,11 @@ export function ProviderEncounterWorkflow({
   const displayedObservations = observations.filter(
     (observation) => observation.value_kind !== "group",
   );
-  const [chartConfirmed, setChartConfirmed] = useState(false);
+  const [chartConfirmed, setChartConfirmed] = useState(
+    () =>
+      encounter.status === "completed" &&
+      !encounterHasSignedSoapNote(encounter),
+  );
   const signedChart = encounterHasSignedSoapNote(encounter);
   const currentPhones = (patient.contacts ?? []).filter(
     (contact) => contact.contact_type === "phone" && !contact.effective_until,
@@ -5881,7 +5885,10 @@ function VisitWrapUp({
                 Reset completion attempt
               </Button>
             )}
-            <Button href="/clinic" variant="outlined">
+            <Button
+              variant="outlined"
+              onClick={() => window.location.assign("/clinic")}
+            >
               Return to tracking board
             </Button>
             {current.status === "completed" &&

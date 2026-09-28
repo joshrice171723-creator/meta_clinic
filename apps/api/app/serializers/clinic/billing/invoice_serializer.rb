@@ -59,6 +59,7 @@ module Clinic
           invoice_id: note.invoice_id,
           amount: note.amount.to_s("F"),
           currency: note.currency,
+          adjustment_type: note.adjustment_type,
           reason: note.reason,
           issued_at: (note.issued_at || note.created_at).iso8601,
           issued_by_membership_id: note.issued_by_membership_id

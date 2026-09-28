@@ -3257,6 +3257,8 @@ CREATE TABLE public.clinic_credit_notes (
     reason text,
     issued_by_membership_id bigint,
     issued_at timestamp(6) without time zone,
+    adjustment_type character varying DEFAULT 'credit'::character varying NOT NULL,
+    CONSTRAINT clinic_credit_notes_adjustment_type CHECK (((adjustment_type)::text = ANY ((ARRAY['credit'::character varying, 'write_off'::character varying])::text[]))),
     CONSTRAINT clinic_credit_notes_evidence_shape CHECK ((((reason IS NULL) AND (issued_by_membership_id IS NULL) AND (issued_at IS NULL)) OR ((reason IS NOT NULL) AND (issued_by_membership_id IS NOT NULL) AND (issued_at IS NOT NULL)))),
     CONSTRAINT clinic_credit_notes_values CHECK ((((currency)::text ~ '^[A-Z]{3}$'::text) AND (amount > (0)::numeric)))
 );
@@ -7961,6 +7963,12 @@ CREATE TABLE public.clinic_patients (
     name_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
     identity_search_tokens text[] DEFAULT '{}'::text[] NOT NULL,
     primary_site_id bigint,
+    merged_into_patient_id bigint,
+    merged_by_membership_id bigint,
+    merged_at timestamp(6) without time zone,
+    merge_reason text,
+    CONSTRAINT clinic_patients_cannot_merge_into_self CHECK (((merged_into_patient_id IS NULL) OR (merged_into_patient_id <> id))),
+    CONSTRAINT clinic_patients_merge_evidence_shape CHECK ((((merged_into_patient_id IS NULL) AND (merged_by_membership_id IS NULL) AND (merged_at IS NULL) AND (merge_reason IS NULL)) OR ((merged_into_patient_id IS NOT NULL) AND (merged_by_membership_id IS NOT NULL) AND (merged_at IS NOT NULL) AND (merge_reason IS NOT NULL)))),
     CONSTRAINT clinic_patients_birth_date_not_future CHECK (((date_of_birth IS NULL) OR (date_of_birth <= CURRENT_DATE))),
     CONSTRAINT clinic_patients_height_range CHECK (((height_cm IS NULL) OR ((height_cm >= (30)::numeric) AND (height_cm <= (300)::numeric)))),
     CONSTRAINT clinic_patients_weight_range CHECK (((weight_kg IS NULL) OR ((weight_kg >= 0.1) AND (weight_kg <= (500)::numeric))))
@@ -16114,6 +16122,12 @@ ALTER TABLE ONLY public.clinic_patient_social_histories
 ALTER TABLE ONLY public.clinic_patients
     ADD CONSTRAINT clinic_patients_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY public.clinic_patients
+    ADD CONSTRAINT clinic_patients_merged_into_patient_fk FOREIGN KEY (merged_into_patient_id) REFERENCES public.clinic_patients(id);
+
+ALTER TABLE ONLY public.clinic_patients
+    ADD CONSTRAINT clinic_patients_merged_by_membership_fk FOREIGN KEY (merged_by_membership_id) REFERENCES public.clinic_memberships(id);
+
 
 --
 -- Name: clinic_payment_allocations clinic_payment_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -20819,6 +20833,10 @@ CREATE INDEX index_clinic_patient_reminders_on_practice_id ON public.clinic_pati
 --
 
 CREATE INDEX index_clinic_patients_on_identity_search_tokens ON public.clinic_patients USING gin (identity_search_tokens);
+
+CREATE INDEX index_clinic_patients_on_merged_by_membership_id ON public.clinic_patients USING btree (merged_by_membership_id);
+
+CREATE INDEX index_clinic_patients_on_merged_into_patient_id ON public.clinic_patients USING btree (merged_into_patient_id);
 
 
 --
@@ -32111,6 +32129,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928000400'),
+('20260928000300'),
 ('20260928000200'),
 ('20260928000100'),
 ('20260927233500'),

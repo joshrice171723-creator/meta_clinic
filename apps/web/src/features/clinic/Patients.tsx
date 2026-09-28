@@ -159,12 +159,18 @@ export function Patients({ id }: { id?: string }) {
           </>
         )}
         {data.patients?.length === 0 ? (
-          <p>{selectedSite ? "No patients are assigned to this location yet." : "No patients are registered at this clinic yet."}</p>
+          <p>
+            {selectedSite
+              ? "No patients are assigned to this location yet."
+              : "No patients are registered at this clinic yet."}
+          </p>
         ) : (
           <div className="clinic-table-wrap">
             <table className="care-table">
               <caption className="sr-only">
-                {selectedSite ? `Patients assigned to ${selectedSite.name}` : "Patients registered at this clinic"}
+                {selectedSite
+                  ? `Patients assigned to ${selectedSite.name}`
+                  : "Patients registered at this clinic"}
               </caption>
               <thead>
                 <tr>
@@ -723,6 +729,11 @@ function PatientRecord({
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [registrationDirty, setRegistrationDirty] = useState(false);
   const [discardPending, setDiscardPending] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState("");
+  const [mergeReason, setMergeReason] = useState("");
+  const [mergeError, setMergeError] = useState("");
+  const [mergeBusy, setMergeBusy] = useState(false);
   const registrationDialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!registrationOpen || !registrationDirty) return;
@@ -760,9 +771,26 @@ function PatientRecord({
       )}
       {canEditRegistration && (
         <>
-          <Button onClick={() => setRegistrationOpen(true)} variant="outlined">
-            Edit registration
-          </Button>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ flexWrap: "wrap" }}
+          >
+            <Button
+              onClick={() => setRegistrationOpen(true)}
+              variant="outlined"
+            >
+              Edit registration
+            </Button>
+            <Button
+              color="warning"
+              onClick={() => setMergeOpen(true)}
+              variant="outlined"
+            >
+              Merge duplicate
+            </Button>
+          </Stack>
           <Dialog
             fullWidth
             maxWidth="md"
@@ -825,6 +853,81 @@ function PatientRecord({
             </DialogContent>
             <DialogActions>
               <Button onClick={closeRegistration}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+          <Dialog
+            fullWidth
+            maxWidth="sm"
+            open={mergeOpen}
+            onClose={() => !mergeBusy && setMergeOpen(false)}
+          >
+            <DialogTitle>Merge duplicate patient</DialogTitle>
+            <DialogContent>
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <Alert severity="warning">
+                  This hides {patient.display_name} as the duplicate. Confirm
+                  the canonical patient ID from the patient directory. A
+                  duplicate with clinical or financial activity must be
+                  reconciled before it can be merged.
+                </Alert>
+                <TextField
+                  label="Canonical patient ID"
+                  value={mergeTarget}
+                  onChange={(event) =>
+                    setMergeTarget(event.target.value.replace(/\D/g, ""))
+                  }
+                  required
+                />
+                <TextField
+                  label="Merge reason"
+                  value={mergeReason}
+                  onChange={(event) => setMergeReason(event.target.value)}
+                  multiline
+                  required
+                  slotProps={{ htmlInput: { maxLength: 500 } }}
+                />
+                {mergeError && <Alert severity="error">{mergeError}</Alert>}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button disabled={mergeBusy} onClick={() => setMergeOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={mergeBusy || !mergeTarget || !mergeReason.trim()}
+                color="warning"
+                variant="contained"
+                onClick={async () => {
+                  setMergeBusy(true);
+                  setMergeError("");
+                  try {
+                    const result = await api<{ canonical_patient_id: number }>(
+                      `/api/clinic/patients/${patient.id}/merge`,
+                      {
+                        method: "POST",
+                        body: {
+                          merge: {
+                            target_patient_id: mergeTarget,
+                            reason: mergeReason.trim(),
+                          },
+                        },
+                      },
+                    );
+                    window.location.assign(
+                      `/clinic/patients/${result.canonical_patient_id}`,
+                    );
+                  } catch (reason) {
+                    setMergeError(
+                      reason instanceof Error
+                        ? reason.message
+                        : "Unable to merge this duplicate patient.",
+                    );
+                    setMergeBusy(false);
+                  }
+                }}
+              >
+                {mergeBusy ? "Merging…" : "Merge duplicate"}
+              </Button>
             </DialogActions>
           </Dialog>
         </>

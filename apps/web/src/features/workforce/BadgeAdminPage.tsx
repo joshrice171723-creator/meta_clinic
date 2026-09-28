@@ -100,6 +100,13 @@ export function BadgeAdminPage() {
   );
 
   async function issueBadge() {
+    if (!employmentId || !siteId) {
+      setFeedback({
+        type: "error",
+        text: "Choose an active employee and location before issuing a badge.",
+      });
+      return;
+    }
     setBusy(true);
     setFeedback(null);
     try {
@@ -115,6 +122,15 @@ export function BadgeAdminPage() {
         },
       });
       setPrintable(result.printable);
+      setBadges((current) => [
+        {
+          ...result.badge,
+          employee_name:
+            employees.find((employee) => String(employee.id) === employmentId)
+              ?.employee_name ?? result.badge.employee_name,
+        },
+        ...current.filter((badge) => badge.id !== result.badge.id),
+      ]);
       setPin("");
       setFeedback({
         type: "success",

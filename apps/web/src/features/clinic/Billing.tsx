@@ -97,7 +97,7 @@ type CashRefundScope = Pick<
 >;
 
 type ChargeAdjustmentAttempt = {
-  action: "credit" | "void";
+  action: "credit" | "write_off" | "void";
   amount?: string;
   invoiceId: number;
   reason: string;
@@ -1602,7 +1602,9 @@ function ChargeAdjustmentDialog({
   const [attempt, setAttempt] = useState<ChargeAdjustmentAttempt | null>(
     () => pendingChargeAdjustmentAttempts.get(attemptKey) ?? null,
   );
-  const [action, setAction] = useState<"credit" | "void">("credit");
+  const [action, setAction] = useState<"credit" | "write_off" | "void">(
+    "credit",
+  );
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
@@ -1644,7 +1646,7 @@ function ChargeAdjustmentDialog({
     }
     if (
       !retryPending &&
-      action === "credit" &&
+      (action === "credit" || action === "write_off") &&
       (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
         isZero(amount) ||
         !decimalNotGreaterThan(amount, creditAvailable))
@@ -1656,7 +1658,9 @@ function ChargeAdjustmentDialog({
     }
     const nextAttempt = attempt ?? {
       action,
-      ...(action === "credit" ? { amount: amount.trim() } : {}),
+      ...(action === "credit" || action === "write_off"
+        ? { amount: amount.trim() }
+        : {}),
       invoiceId: invoice.id,
       reason: reason.trim(),
       requestKey: crypto.randomUUID(),
@@ -1666,11 +1670,18 @@ function ChargeAdjustmentDialog({
     setBusy(true);
     setError("");
     try {
-      if (nextAttempt.action === "credit") {
-        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/credits`, {
+      if (
+        nextAttempt.action === "credit" ||
+        nextAttempt.action === "write_off"
+      ) {
+        const parameter =
+          nextAttempt.action === "credit" ? "credit" : "write_off";
+        const endpoint =
+          nextAttempt.action === "credit" ? "credits" : "write_offs";
+        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/${endpoint}`, {
           method: "POST",
           body: {
-            credit: {
+            [parameter]: {
               amount: nextAttempt.amount,
               reason: nextAttempt.reason,
               request_key: nextAttempt.requestKey,
@@ -1754,6 +1765,16 @@ function ChargeAdjustmentDialog({
                 {money(creditAvailable, invoice.currency)}
               </Button>
             )}
+            {canCredit && (
+              <Button
+                disabled={retryPending}
+                onClick={() => setAction("write_off")}
+                variant={action === "write_off" ? "contained" : "outlined"}
+              >
+                Write off bad debt · available{" "}
+                {money(creditAvailable, invoice.currency)}
+              </Button>
+            )}
             {canVoid && (
               <Button
                 color="warning"
@@ -1764,7 +1785,7 @@ function ChargeAdjustmentDialog({
                 Void untouched unpaid invoice
               </Button>
             )}
-            {action === "credit" && (
+            {(action === "credit" || action === "write_off") && (
               <TextField
                 autoFocus={!retryPending}
                 disabled={retryPending}

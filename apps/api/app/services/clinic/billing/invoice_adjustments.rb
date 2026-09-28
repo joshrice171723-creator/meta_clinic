@@ -5,6 +5,14 @@ module Clinic
       BLOCKING_COLLECTION_STATES = %w[pending processing needs_reconciliation succeeded].freeze
 
       def self.credit(invoice:, actor:, amount:, reason:, request_key:)
+        reduce_charges(invoice:, actor:, amount:, reason:, request_key:, adjustment_type: "credit")
+      end
+
+      def self.write_off(invoice:, actor:, amount:, reason:, request_key:)
+        reduce_charges(invoice:, actor:, amount:, reason:, request_key:, adjustment_type: "write_off")
+      end
+
+      def self.reduce_charges(invoice:, actor:, amount:, reason:, request_key:, adjustment_type:)
         practice = invoice.practice
         authorize!(practice, actor)
         amount = Money.currency_amount(amount, name: "credit", positive: true)
@@ -12,9 +20,9 @@ module Clinic
         outcome = Clinic::Idempotency.execute(
           practice: practice,
           actor: actor,
-          operation_code: "billing.invoice_credit",
+          operation_code: "billing.invoice_#{adjustment_type}",
           request_key: request_key,
-          payload: { invoice_id: invoice.id, amount: amount.to_s("F"), reason: reason },
+          payload: { invoice_id: invoice.id, amount: amount.to_s("F"), reason: reason, adjustment_type: adjustment_type },
           resource: invoice,
           authorization: -> { authorize!(practice, actor) },
           authorization_action: "billing.invoice_post",
@@ -39,10 +47,11 @@ module Clinic
             amount: amount,
             reason: reason,
             issued_by_membership: membership,
-            issued_at: Time.current
+            issued_at: Time.current,
+            adjustment_type: adjustment_type
           )
           Clinic::AuditRecorder.record!(practice: practice, actor: actor,
-            action_code: "billing.invoice_credit", outcome: :committed,
+            action_code: "billing.invoice_#{adjustment_type}", outcome: :committed,
             resource_version_ref: "Clinic::CreditNote/#{credit_note.id}")
           credit_note
         end
@@ -51,6 +60,7 @@ module Clinic
         credit_note = outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed invoice credit is unavailable.")
         Result.new(invoice: credit_note.invoice.reload, credit: credit_note, replayed: outcome.replayed, request_key: request_key)
       end
+      private_class_method :reduce_charges
 
       def self.void(invoice:, actor:, reason:, request_key:)
         practice = invoice.practice

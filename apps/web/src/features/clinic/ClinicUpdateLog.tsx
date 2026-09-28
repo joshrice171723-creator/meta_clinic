@@ -73,11 +73,50 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
+          Encounter signing: completed encounters open their chart workspace so
+          the Signing destination contains the draft, signing, or correction
+          controls instead of an empty anchor.
+        </li>
+        <li>
+          Encounter navigation: Return to tracking board now performs a direct
+          route navigation from the completion review.
+        </li>
+        <li>
+          Bad debt: Adjust charges now records a write-off separately from an
+          ordinary credit, with an amount, reason, actor, timestamp, audit
+          event, and exact-retry key.
+        </li>
+        <li>
+          Duplicate patients: authorized staff can merge an empty duplicate into
+          a canonical patient. Records with clinical or financial activity are
+          blocked for reconciliation rather than silently moved.
+        </li>
+        <li>
+          Provider assignment: the tracking board now projects active clinician
+          accounts authorized to sign notes at the encounter location, matching
+          the assignment operation. Confirm the configured SIMT clinician
+          appears and can be assigned.
+        </li>
+        <li>
+          Workforce badges: issuing a badge now validates the selected employee
+          and location and immediately shows the issued row or a visible error.
+        </li>
+        <li>
+          Payment times: cash payment, allocation, and receipt rows now share
+          one server-captured recording instant. Compare the ledger and receipt
+          in the clinic timezone.
+        </li>
+        <li>
+          Development tools: the invitation activation shortcut is now labeled
+          Activate with invitation code; Log in remains the selected
+          test-account sign-in action.
+        </li>
+        <li>
           Cash payment: immutable payment rows no longer request a database
           update lock. Retry the exact pending payment once, then confirm
           invoice balance, ledger, drawer, receipt, and financial summary agree.
-          An uncertain request stays locked until its result is confirmed; it
-          is never replayed automatically.
+          An uncertain request stays locked until its result is confirmed; it is
+          never replayed automatically.
         </li>
         <li>
           Booking: the booking form now keeps a stable React hook order while
@@ -120,9 +159,9 @@ export function ClinicUpdateLog() {
           total, payment ledger, and receipt all show the same amount.
         </li>
         <li>
-          Book with a clinician who is missing the site assignment. An authorized
-          setup user should be able to assign the slot from the warning and then
-          save the booking.
+          Book with a clinician who is missing the site assignment. An
+          authorized setup user should be able to assign the slot from the
+          warning and then save the booking.
         </li>
         <li>
           Start inventory from the catalog's first-run guide. Check that the
