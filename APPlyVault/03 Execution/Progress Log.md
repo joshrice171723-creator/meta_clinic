@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — MC-11 quote request browser recovery
+
+An isolated synthetic clinic browser recorded a three-package supplier quote request, closed it with a dated manual response and recovered the closed status after reload. The first request exposed a whole-package decimal-validation defect; fix `e37c5de7` (+8/-1 in `supplier_quote_request.rb`) was pushed to main before the successful retry. A same-practice account without the supplier-pricing role was denied that screen; exact replay and cross-practice mutation denial remain open. A future-dated quote was rejected. MC-11 Validation moves 45→47%; Build remains 82% and no external supplier action occurred. No tests ran.
+
 ## 2026-09-28 — MC-11 local supplier quote requests
 
 Staff can record a local quote request against a catalog-linked supplier offer and close it with a dated manual quote response. [The hourly source ledger](../../records/implementation/2026-09-28-hourly-source-line-counts-0309.md) records exact Git file counts. Commits `00916fa6` and `2ba6d8fa` reached origin/main; the additive migration and synthetic seed passed in an isolated database. Scoped non-test source checks passed. Browser request/response/reload and denied-role acceptance remain open; no supplier communication occurred. MC-11 Build is 82% and the equal-weight MC-01–15 Build estimate is 70.1%; Validation and external/human scores did not change. This checkpoint supplied one substantive MC-11 slice against the hourly five-slice/two-milestone target.
