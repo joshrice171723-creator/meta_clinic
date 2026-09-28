@@ -2529,9 +2529,9 @@ function BookingFormEditor({
                       schedule.
                     </Alert>
                   ) : (
-                    <Alert severity="warning" variant="outlined">
+                    <Alert severity="info" variant="outlined">
                       <Typography component="div" variant="body2">
-                        The selected resource is already scheduled on{" "}
+                        The selected resource has other appointments on{" "}
                         {resourceDate}:
                       </Typography>
                       <Stack
@@ -2557,7 +2557,8 @@ function BookingFormEditor({
                         variant="body2"
                         sx={{ mt: 0.5 }}
                       >
-                        Choose another time or resource before scheduling.
+                        Scheduling checks whether the appointment times
+                        overlap.
                       </Typography>
                     </Alert>
                   )}

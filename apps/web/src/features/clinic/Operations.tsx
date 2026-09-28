@@ -79,7 +79,7 @@ export function OperationsView({
             )}
             {c.inventory_access && (
               <li>
-                <a className="text-link" href="/clinic/inventory">
+                <a className="text-link" href="/clinic/inventory/locations">
                   Inventory locations →
                 </a>
                 <p>

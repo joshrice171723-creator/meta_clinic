@@ -1388,7 +1388,7 @@ export function ClinicSchedule({
           <Button disabled={busy} onClick={() => setSelected(undefined)}>
             Close
           </Button>
-          <Button href="/clinic/front-desk">Manage appointment</Button>
+          <Button href="/clinic/front-desk">Open front desk</Button>
           {selected && context.capabilities.appointments_status_transition && (
             <Button
               color="error"

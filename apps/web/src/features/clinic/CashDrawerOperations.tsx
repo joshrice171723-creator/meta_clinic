@@ -278,6 +278,12 @@ export function CashDrawerOperations({
     ) ?? null;
   const payable =
     invoice?.status === "posted" && !/^0+(?:\.0+)?$/.test(invoice.balance);
+  const countedCashUnits = decimalUnits(countedCash);
+  const expectedCashUnits = drawer ? decimalUnits(drawer.expected_cash) : null;
+  const cashCountNeedsReview =
+    countedCashUnits !== null &&
+    expectedCashUnits !== null &&
+    (countedCashUnits === 0n || countedCashUnits !== expectedCashUnits);
   const tenderSummary = cashAttempt
     ? cashAmounts(cashAttempt.tenderedAmount, cashAttempt.allocationAmount)
     : invoice
@@ -849,6 +855,13 @@ export function CashDrawerOperations({
             {drawer.status === "open" && (
               <>
                 <Divider />
+                {cashCountNeedsReview && (
+                  <Alert severity="warning">
+                    {countedCashUnits === 0n
+                      ? `You entered ${money(countedCash, drawer.currency ?? "Unspecified")} as the physical count. Confirm the drawer is empty before closing.`
+                      : "Counted cash differs from the server-calculated expected amount. Review the physical count before closing."}
+                  </Alert>
+                )}
                 <Stack
                   component="form"
                   direction={{ xs: "column", md: "row" }}

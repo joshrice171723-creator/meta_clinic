@@ -19,7 +19,6 @@ import {
   Typography,
 } from "@mui/material";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
-import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
@@ -599,10 +598,9 @@ export function BillingDashboard() {
           </Button>
           <Button
             variant="outlined"
-            startIcon={<PrintOutlinedIcon />}
             onClick={() => setActiveTab("payments")}
           >
-            Print a receipt
+            View payments & receipts
           </Button>
           {context.capabilities.billing_catalog_manage === true && (
             <Button variant="outlined" href="/clinic/billing/services">

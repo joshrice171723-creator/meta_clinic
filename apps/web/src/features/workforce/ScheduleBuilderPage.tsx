@@ -24,7 +24,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import { LoadState } from "../../shared/ui";
 import { useClinic } from "../clinic/Workspace";
 import {
@@ -37,7 +37,7 @@ import {
 
 export function ScheduleBuilderPage() {
   const fieldId = useId();
-  const { current_site: currentSite } = useClinic();
+  const { current_site: currentSite, capabilities } = useClinic();
   const currentSiteId = String(currentSite?.id ?? "");
   const currentSiteIdRef = useRef(currentSiteId);
   const loadRevision = useRef(0);
@@ -45,6 +45,8 @@ export function ScheduleBuilderPage() {
   const [data, setData] = useState<ScheduleBootstrap>();
   const [draft, setDraft] = useState<ScheduleDraft>();
   const [error, setError] = useState<string>();
+  const [workforceSettingsUnconfigured, setWorkforceSettingsUnconfigured] =
+    useState(false);
   const [notice, setNotice] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -82,6 +84,7 @@ export function ScheduleBuilderPage() {
     draftLoadRevision.current += 1;
     setLoading(true);
     setError(undefined);
+    setWorkforceSettingsUnconfigured(false);
     setNotice(undefined);
     setData(undefined);
     setDraft(undefined);
@@ -111,12 +114,20 @@ export function ScheduleBuilderPage() {
       if (
         revision === loadRevision.current &&
         currentSiteIdRef.current === expectedSiteId
-      )
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Unable to load schedules.",
-        );
+      ) {
+        if (
+          reason instanceof ApiError &&
+          reason.code === "workforce_settings_unconfigured"
+        ) {
+          setWorkforceSettingsUnconfigured(true);
+        } else {
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Unable to load schedules.",
+          );
+        }
+      }
     } finally {
       if (
         revision === loadRevision.current &&
@@ -136,7 +147,20 @@ export function ScheduleBuilderPage() {
       </Alert>
     );
   if (!data || data.site.id !== currentSiteId)
-    return <LoadState error={error} />;
+    return workforceSettingsUnconfigured ? (
+      <Alert severity="info">
+        Workforce settings are not configured for this location.{" "}
+        {capabilities.workforce_settings === true ? (
+          <Button href="/clinic/workforce/settings" size="small">
+            Configure workforce settings
+          </Button>
+        ) : (
+          "Ask a clinic administrator to configure them."
+        )}
+      </Alert>
+    ) : (
+      <LoadState error={error} />
+    );
   const createDraft = async () => {
     if (loading || data.site.id !== currentSiteId) return;
     setBusy(true);
