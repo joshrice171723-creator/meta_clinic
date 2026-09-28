@@ -1756,7 +1756,9 @@ function ChargeAdjustmentDialog({
               <Alert severity="info">
                 {action === "write_off"
                   ? "A write-off reduces unpaid bad debt, up to the remaining balance. It does not return money."
-                  : "A credit reduces recorded charges. It does not return money. Use the separate cash refund workflow when money is returned."}
+                  : action === "void"
+                    ? "Voiding cancels an untouched unpaid invoice. The server checks eligibility again before saving."
+                    : "A credit reduces recorded charges. It does not return money. Use the separate cash refund workflow when money is returned."}
               </Alert>
             )}
             {canCredit && (
@@ -1833,7 +1835,9 @@ function ChargeAdjustmentDialog({
                 ? "Retry exact adjustment"
                 : action === "credit"
                   ? "Record credit"
-                  : "Void invoice"}
+                  : action === "write_off"
+                    ? "Write off bad debt"
+                    : "Void invoice"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1169,7 +1169,8 @@ function DailyCashDrawers({ date }: { date: string }) {
           <Typography>
             {report.open_count} still open;{" "}
             {report.awaiting_reconciliation_count} closed awaiting
-            reconciliation; {report.variance_count} closed with a variance.
+            reconciliation; {report.variance_count} closed with a variance
+            (this count can overlap with reconciliation).
           </Typography>
           {report.records.map((row) => (
             <Stack key={row.id} spacing={0.5}>

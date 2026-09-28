@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   BillingInvoiceSummary,
   CashDrawer,
@@ -154,6 +154,17 @@ export function CashDrawerOperations({
   const [cashAttempt, setCashAttempt] = useState<CashAttempt | null>(() =>
     storedCashAttempt(clinic),
   );
+  const selectDrawer = useCallback((drawerId: number | string) => {
+    const id = String(drawerId);
+    setSelectedDrawerId(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set("cash_drawer_id", id);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, []);
   const permitted = capabilities.billing_payment_record === true;
   const exactInvoiceId = recoveryInvoiceId ?? invoice?.id;
   const durableRecoveryEnabled =
@@ -217,12 +228,18 @@ export function CashDrawerOperations({
     }
     consumedRestoration.current = identity;
     setCashAttempt(restored);
-    setSelectedDrawerId(String(restored.drawerId));
+    selectDrawer(restored.drawerId);
     setTenderedAmount(restored.tenderedAmount);
     setError(
       "A saved cash payment attempt was restored. Refresh payment activity before retrying the same payment.",
     );
-  }, [cashAttempt, exactInvoiceId, recovery.ready, recovery.restored]);
+  }, [
+    cashAttempt,
+    exactInvoiceId,
+    recovery.ready,
+    recovery.restored,
+    selectDrawer,
+  ]);
   useEffect(() => {
     if (drawerRefreshVersion.current === refreshVersion) return;
 
@@ -299,7 +316,7 @@ export function CashDrawerOperations({
         },
       );
       setOpeningFloat("");
-      setSelectedDrawerId(result.drawer.id.toString());
+      selectDrawer(result.drawer.id);
       setNewDrawerMode(false);
       setNotice(
         "Cash drawer opened. Record every cash payment through this drawer.",
@@ -464,7 +481,7 @@ export function CashDrawerOperations({
       closeAttempt.current = null;
       setCountedCash("");
       setExplanation("");
-      setSelectedDrawerId(result.drawer.id.toString());
+      selectDrawer(result.drawer.id);
       setNewDrawerMode(false);
       drawers.refresh();
     } catch (reason) {
@@ -628,7 +645,7 @@ export function CashDrawerOperations({
                   select
                   label="Choose available open drawer"
                   onChange={(event) => {
-                    setSelectedDrawerId(event.target.value);
+                    selectDrawer(event.target.value);
                     setNewDrawerMode(false);
                   }}
                   sx={{ minWidth: 240 }}
@@ -740,7 +757,7 @@ export function CashDrawerOperations({
                 select
                 label="Cash drawer location"
                 value={selectedDrawerId}
-                onChange={(event) => setSelectedDrawerId(event.target.value)}
+                onChange={(event) => selectDrawer(event.target.value)}
                 disabled={cashAttempt !== null}
                 helperText="Choose the physical site receiving this cash."
               >
