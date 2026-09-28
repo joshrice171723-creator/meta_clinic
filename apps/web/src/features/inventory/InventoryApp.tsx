@@ -6593,6 +6593,13 @@ export function ReceivingScreen({
               {recall
                 ? "Create an active quarantine leaf location before receiving this recalled lot."
                 : "Create an active leaf location before receiving stock."}
+              <Button
+                href="/clinic/inventory/locations?return_to=/clinic/inventory/receiving"
+                color="inherit"
+                sx={{ ml: 1 }}
+              >
+                Manage storage locations
+              </Button>
             </Alert>
           )}
           {destination && destination.areas.length > 0 && (

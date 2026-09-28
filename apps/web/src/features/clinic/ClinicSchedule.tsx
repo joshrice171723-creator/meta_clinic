@@ -491,6 +491,52 @@ export function ClinicSchedule({
       setBusy(false);
     }
   }
+  async function cancelSelectedAppointment() {
+    if (!selected || busy) return;
+    if (
+      !window.confirm(
+        "Cancel this appointment? I understand that no cancellation message will be sent automatically.",
+      )
+    )
+      return;
+    setBusy(true);
+    setMutationError("");
+    try {
+      const result = await api<{ appointment: { id: number; status: string } }>(
+        `/api/clinic/appointments/${selected.id}/transition`,
+        {
+          method: "POST",
+          body: {
+            transition: {
+              to: "cancelled",
+              expected_status: selected.status,
+              cancellation_message_acknowledged: true,
+            },
+          },
+        },
+      );
+      if (
+        result.appointment.id !== selected.id ||
+        result.appointment.status !== "cancelled"
+      )
+        throw new Error(
+          "The cancellation response did not match this appointment. Refresh before trying again.",
+        );
+      setSelected(undefined);
+      setNotice(
+        "Appointment cancelled. No cancellation message was sent by this action.",
+      );
+      calendar.refresh();
+    } catch (error) {
+      setMutationError(
+        error instanceof Error
+          ? error.message
+          : "The appointment could not be cancelled. Refresh before trying again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function releaseHold(hold: CalendarHold) {
     if (busy) return;
     const prior = releaseAttempt.current;
@@ -1354,6 +1400,18 @@ export function ClinicSchedule({
             Close
           </Button>
           <Button href="/clinic/front-desk">Manage appointment</Button>
+          {selected &&
+            !selected.encounter_id &&
+            ["scheduled", "confirmed"].includes(selected.status) &&
+            context.capabilities.appointments_status_transition && (
+              <Button
+                color="error"
+                disabled={busy}
+                onClick={() => void cancelSelectedAppointment()}
+              >
+                Cancel appointment
+              </Button>
+            )}
           {selected &&
             data?.policy?.overbook === "configured" &&
             context.capabilities.appointments_overbook &&

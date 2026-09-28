@@ -268,6 +268,7 @@ type AppointmentWorkingDraft = {
 
 export function appointmentDraftRecoveryMessage(
   draft: AppointmentWorkingDraft | null,
+  updatedAt?: string | null,
 ): string | null {
   if (
     !draft ||
@@ -279,7 +280,11 @@ export function appointmentDraftRecoveryMessage(
     draft.seriesOutcomeUnconfirmed
   )
     return null;
-  return "Recovered appointment draft: its patient, time, and scheduling details are from your earlier work. Review them before scheduling, or start a new appointment to clear this saved draft.";
+  const age = updatedAt ? Date.now() - Date.parse(updatedAt) : Number.NaN;
+  const stale = Number.isFinite(age) && age >= 24 * 60 * 60 * 1_000;
+  return stale
+    ? `Recovered stale appointment draft saved ${new Date(updatedAt!).toLocaleString()}. Its patient, time, and scheduling details are from an earlier session; review them before scheduling, or start a new appointment.`
+    : "Recovered appointment draft from an earlier session: review its patient, time, and scheduling details before scheduling, or start a new appointment to clear it.";
 }
 
 /**
@@ -841,7 +846,10 @@ function BookingFormEditor({
     initialPatientId,
   );
   const effectiveDraft = boundBooking.draft;
-  const draftRecoveryMessage = appointmentDraftRecoveryMessage(initialDraft);
+  const draftRecoveryMessage = appointmentDraftRecoveryMessage(
+    initialDraft,
+    workingDraft.updatedAt,
+  );
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
@@ -4251,7 +4259,6 @@ export function SoapNoteForm({
         </Alert>
       )}
       <Stack
-        id="chart-signing"
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
         sx={{ scrollMarginTop: 16 }}
@@ -4624,7 +4631,7 @@ function SoapNoteWorkspace({
   if (!templates.data) return <LoadState error={templates.error} />;
   const existing = encounter.notes.find((note) => note.note_kind === "soap");
   const noteId = created?.id ?? existing?.id;
-  return noteId ? (
+  const workspace = noteId ? (
     <ExistingSoapNote
       patientId={encounter.patient_id}
       patientName={patientName}
@@ -4650,6 +4657,11 @@ function SoapNoteWorkspace({
       <strong>No SOAP note recorded</strong>
       <span>You can review existing notes but cannot create a draft.</span>
     </div>
+  );
+  return (
+    <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
+      {workspace}
+    </Box>
   );
 }
 

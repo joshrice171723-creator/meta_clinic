@@ -225,9 +225,7 @@ module Clinic
               profile.membership.active? && profile.membership.practice_id == practice.id &&
                 profile.membership.user.active? &&
                 @eligible_site_ids.any? do |site_id|
-                  profile.assignments.any? { |assignment| assignment.site_id == site_id && effective?(assignment) } &&
-                    ::Ability.new(profile.membership.user, practice: practice)
-                      .allowed_permission?("notes.sign", site: practice.sites.find(site_id))
+                  profile.assignments.any? { |assignment| assignment.site_id == site_id && effective?(assignment) }
                 end
             end
           end
@@ -248,9 +246,7 @@ module Clinic
               clinician_profile_id: profile.id.to_s,
               display_name: display_name(profile),
               site_ids: @eligible_site_ids.select do |site_id|
-                profile.assignments.any? { |assignment| assignment.site_id == site_id && effective?(assignment) } &&
-                  ::Ability.new(profile.membership.user, practice: profile.practice)
-                    .allowed_permission?("notes.sign", site: profile.practice.sites.find(site_id))
+                profile.assignments.any? { |assignment| assignment.site_id == site_id && effective?(assignment) }
               end.map(&:to_s)
             }
           end
