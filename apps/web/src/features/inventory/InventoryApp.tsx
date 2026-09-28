@@ -5207,7 +5207,32 @@ function PurchaseOrderDetails({
         <p>This purchase order has no lines.</p>
       </Card>
     );
-  const shipment = data.shipments.find((record) => record.po_id === order.id);
+  const orderShipments = data.shipments.filter(
+    (record) => record.po_id === order.id,
+  );
+  const allocatedPackages = (lineId: string) =>
+    decimalSum(
+      orderShipments
+        .filter(
+          (shipment) =>
+            !["received", "reconciled_with_discrepancy"].includes(
+              shipment.status,
+            ),
+        )
+        .flatMap((shipment) => shipment.allocations ?? [])
+        .filter((allocation) => allocation.purchase_order_line_id === lineId)
+        .map((allocation) => allocation.expected_packages),
+    );
+  const hasAvailable = order.lines.some(
+    (line) =>
+      decimalCompare(
+        decimalSubtract(
+          decimalSubtract(line.ordered_packages, line.received_packages),
+          allocatedPackages(line.id),
+        ),
+        "0",
+      ) > 0,
+  );
   const hasRemaining = order.lines.some(
     (record) =>
       decimalCompare(
@@ -5391,6 +5416,10 @@ function PurchaseOrderDetails({
                     line.received_packages,
                   ),
                 );
+                const allocated = allocatedPackages(line.id);
+                const available = nonNegative(
+                  decimalSubtract(remaining, allocated),
+                );
                 return (
                   <tr key={line.id}>
                     <td>
@@ -5407,6 +5436,10 @@ function PurchaseOrderDetails({
                       <small>
                         {number(line.received_packages)} received ·{" "}
                         {number(remaining)} remaining
+                      </small>
+                      <small>
+                        {number(allocated)} awaiting receiving ·{" "}
+                        {number(available)} available to record
                       </small>
                       <small>
                         {number(line.ordered_units)} {baseUnit} total
@@ -5429,7 +5462,7 @@ function PurchaseOrderDetails({
         <div className="inventory-order-footer">
           <div className="inventory-order-actions">
             {["sent", "partially_received"].includes(order.status) &&
-              hasRemaining && (
+              hasAvailable && (
                 <a
                   className="inventory-button outline"
                   href={`/clinic/inventory/shipments/new?purchase_order_id=${order.id}`}
@@ -5518,13 +5551,19 @@ function PurchaseOrderDetails({
             </div>
           </div>
         </div>
-        {shipment && (
-          <a
-            className="inventory-info"
-            href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}
-          >
-            Delivery {shipment.supplier_reference} recorded · View receiving
-          </a>
+        {orderShipments.length > 0 && (
+          <div className="inventory-stack" aria-label="Recorded deliveries">
+            {orderShipments.map((shipment) => (
+              <a
+                className="inventory-info"
+                href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}
+                key={shipment.id}
+              >
+                Delivery {shipment.supplier_reference} ·{" "}
+                {shipment.status.replaceAll("_", " ")} · View receiving
+              </a>
+            ))}
+          </div>
         )}
         <PermissionNote
           allowed={capability(data, "procurement.approve")}

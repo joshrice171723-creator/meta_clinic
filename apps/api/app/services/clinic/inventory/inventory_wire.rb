@@ -416,13 +416,16 @@ module Clinic
         result = PurchaseOrdersQuery.call(practice: practice, **filters)
         products = result.orders.flat_map { |order| order.lines.map(&:product) }.uniq(&:id)
         deliveries = Shipment.where(practice_id: practice.id, purchase_order_id: result.orders.map(&:id))
-          .select("DISTINCT ON (purchase_order_id) id, purchase_order_id, supplier_reference").order(:purchase_order_id, id: :desc)
+          .includes(:receipts, :reconciliation, :shipment_lines).order(:purchase_order_id, id: :desc)
         context(practice: practice, actor: actor).merge(
           order_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count, page_size: PurchaseOrdersQuery::PAGE_SIZE,
             total_groups: result.total_groups, filtered_groups: result.filtered_groups, total_orders: result.total_orders, matching_orders: result.matching_orders },
           purchase_orders: result.orders.map { |order| purchase_order_wire(order) },
           products: products.map { |product| { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, base_unit: product.stock_unit } },
-          shipments: deliveries.map { |shipment| { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference } })
+          shipments: deliveries.map { |shipment| { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s,
+            supplier_reference: shipment.supplier_reference, status: shipment.effective_status,
+            allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s,
+              expected_packages: line.expected_packages.to_d.to_s("F") } } } })
       end
 
       def positions(practice:, actor:, **filters)

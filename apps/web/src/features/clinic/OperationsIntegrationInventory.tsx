@@ -79,6 +79,7 @@ export function OperationsIntegrationInventory({
       latest_per_revision_outcome_counts: Record<string, number>;
       latest_per_revision_unknown_count: number;
       current_revision_unknown_count: number;
+      current_revision_unresolved_count: number;
       current_revision_outcome_counts: Record<string, number>;
       current_revision_records: {
         id: number;
@@ -98,6 +99,15 @@ export function OperationsIntegrationInventory({
         submitted_at: string;
       }[];
       current_revision_unknown_records_capped: boolean;
+      current_revision_unresolved_records: {
+        id: number;
+        patient_id: number;
+        medication_request_revision_id: number;
+        encounter_id: number;
+        outcome: string;
+        submitted_at: string;
+      }[];
+      current_revision_unresolved_records_capped: boolean;
       latest_submitted_at: string | null;
     };
   }>("/api/clinic/reports/prescription_simulator_activity", {
@@ -349,6 +359,11 @@ export function OperationsIntegrationInventory({
                   .join(" · ") || "none"}
                 . These are local simulator records, not pharmacy responses.
               </Typography>
+              <Typography variant="body2">
+                {activity.current_revision_unresolved_count} current request
+                revisions need recorded outcome reconciliation before another
+                attempt.
+              </Typography>
               <Typography variant="caption" color="text.secondary">
                 Source: {activity.source} · Adapter: {activity.adapter} · As of{" "}
                 {activity.as_of}
@@ -357,7 +372,7 @@ export function OperationsIntegrationInventory({
                   : " · No attempt recorded"}
                 .
               </Typography>
-              {activity.current_revision_unknown_records.map((record) => (
+              {activity.current_revision_unresolved_records.map((record) => (
                 <Button
                   key={record.id}
                   href={`/clinic/patients/${record.patient_id}/encounters/${record.encounter_id}?medication_request_revision_id=${record.medication_request_revision_id}&prescription_attempt_id=${record.id}`}
@@ -369,11 +384,10 @@ export function OperationsIntegrationInventory({
                   {record.outcome.replaceAll("_", " ")}
                 </Button>
               ))}
-              {activity.current_revision_unknown_records_capped && (
+              {activity.current_revision_unresolved_records_capped && (
                 <Typography variant="caption">
-                  Showing the latest 25 current request revisions with
-                  unreconciled unknown attempts. Open patient records for the
-                  rest.
+                  Showing the latest 25 current request revisions needing
+                  outcome reconciliation. Open patient records for the rest.
                 </Typography>
               )}
               {activity.current_revision_records.map((record) => (

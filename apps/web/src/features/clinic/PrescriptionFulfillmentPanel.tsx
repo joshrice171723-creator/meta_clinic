@@ -10,7 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import type { MedicationRequestRevision } from "../../api/contracts";
 
 type Event = {
@@ -116,6 +116,10 @@ export function PrescriptionFulfillmentPanel({
     state_code: "",
     postal_code: "",
   });
+  const [destinationAttempt, setDestinationAttempt] = useState<{
+    form: typeof destinationForm;
+    requestKey: string;
+  } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -126,6 +130,7 @@ export function PrescriptionFulfillmentPanel({
   const generation = useRef(0);
   const order = orders.find((row) => row.id === orderId);
   const path = `/api/clinic/patients/${patientId}/medication_requests/${orderId}`;
+  const pendingPath = useRef(path);
   useEffect(() => {
     if (preferredOrderId && orders.some((row) => row.id === preferredOrderId)) {
       setOrderId(preferredOrderId);
@@ -138,7 +143,10 @@ export function PrescriptionFulfillmentPanel({
     generation.current += 1;
     setEvidence(undefined);
     setError("");
-    setPending(null);
+    if (pendingPath.current !== path) {
+      pendingPath.current = path;
+      setPending(null);
+    }
     setNote("");
     setBatch(null);
     setQuantity("");
@@ -254,6 +262,11 @@ export function PrescriptionFulfillmentPanel({
   }
   async function createDestination() {
     const started = generation.current;
+    const attempt = destinationAttempt ?? {
+      form: { ...destinationForm },
+      requestKey: crypto.randomUUID(),
+    };
+    setDestinationAttempt(attempt);
     setBusy(true);
     setError("");
     try {
@@ -263,14 +276,19 @@ export function PrescriptionFulfillmentPanel({
           method: "POST",
           body: {
             pharmacy_destination: {
-              ...destinationForm,
-              request_key: crypto.randomUUID(),
+              ...attempt.form,
+              request_key: attempt.requestKey,
             },
           },
         },
       );
       if (started === generation.current) {
-        setDestinations((current) => [...current, result.pharmacy_destination]);
+        setDestinationAttempt(null);
+        setDestinations((current) =>
+          current.some((item) => item.id === result.pharmacy_destination.id)
+            ? current
+            : [...current, result.pharmacy_destination],
+        );
         setDestination(result.pharmacy_destination);
         setDestinationForm({
           name: "",
@@ -281,12 +299,19 @@ export function PrescriptionFulfillmentPanel({
         });
       }
     } catch (reason) {
-      if (started === generation.current)
+      if (started === generation.current) {
+        if (
+          reason instanceof ApiError &&
+          reason.status >= 400 &&
+          reason.status < 500
+        )
+          setDestinationAttempt(null);
         setError(
           reason instanceof Error
             ? reason.message
             : "The pharmacy destination could not be saved.",
         );
+      }
     } finally {
       if (started === generation.current) setBusy(false);
     }
@@ -434,6 +459,7 @@ export function PrescriptionFulfillmentPanel({
               <TextField
                 label="Pharmacy name"
                 value={destinationForm.name}
+                disabled={destinationAttempt !== null}
                 onChange={(event) =>
                   setDestinationForm((current) => ({
                     ...current,
@@ -444,6 +470,7 @@ export function PrescriptionFulfillmentPanel({
               <TextField
                 label="Address"
                 value={destinationForm.address_line1}
+                disabled={destinationAttempt !== null}
                 onChange={(event) =>
                   setDestinationForm((current) => ({
                     ...current,
@@ -454,6 +481,7 @@ export function PrescriptionFulfillmentPanel({
               <TextField
                 label="City"
                 value={destinationForm.city}
+                disabled={destinationAttempt !== null}
                 onChange={(event) =>
                   setDestinationForm((current) => ({
                     ...current,
@@ -464,6 +492,7 @@ export function PrescriptionFulfillmentPanel({
               <TextField
                 label="State"
                 value={destinationForm.state_code}
+                disabled={destinationAttempt !== null}
                 onChange={(event) =>
                   setDestinationForm((current) => ({
                     ...current,
@@ -474,6 +503,7 @@ export function PrescriptionFulfillmentPanel({
               <TextField
                 label="Postal code"
                 value={destinationForm.postal_code}
+                disabled={destinationAttempt !== null}
                 onChange={(event) =>
                   setDestinationForm((current) => ({
                     ...current,
@@ -486,11 +516,15 @@ export function PrescriptionFulfillmentPanel({
               disabled={
                 busy ||
                 !canWrite ||
-                Object.values(destinationForm).some((value) => !value.trim())
+                Object.values(destinationAttempt?.form ?? destinationForm).some(
+                  (value) => !value.trim(),
+                )
               }
               onClick={() => void createDestination()}
             >
-              Save pharmacy destination
+              {destinationAttempt
+                ? "Retry exact pharmacy save"
+                : "Save pharmacy destination"}
             </Button>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <TextField

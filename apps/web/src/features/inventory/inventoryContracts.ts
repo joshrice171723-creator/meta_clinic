@@ -925,7 +925,10 @@ export type InventoryOrderData = InventoryReadContext & {
   };
   purchase_orders: InventoryPurchaseOrder[];
   products: Pick<InventoryProduct, "id" | "name" | "ndc" | "base_unit">[];
-  shipments: Pick<InventoryShipment, "id" | "po_id" | "supplier_reference">[];
+  shipments: Pick<
+    InventoryShipment,
+    "id" | "po_id" | "supplier_reference" | "status" | "allocations"
+  >[];
 };
 
 export type InventoryReceivingRecall = Pick<
