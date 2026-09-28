@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — MC-10/11 recovery source checkpoint
+
+Five source behaviors across prescription reconciliation and shipment receiving were pushed to origin/main as `b7ed490b`: valid recovery choices and saved evidence context for MC-10; permissioned manual status controls, closed-record navigation and status history at receiving for MC-11. [Exact per-file source counts since the prior hourly checkpoint](../../records/implementation/2026-09-28-hourly-source-line-counts-0214.md) include this commit and three already-on-main source-tree commits. TypeScript, formatting and diff checks passed. No tests or connected browser acceptance ran; scores remain unchanged.
+
 ## 2026-09-28 — MC-11 manual shipment tracking
 
 [Dated source evidence](../../records/implementation/2026-09-28-manual-shipment-tracking.md) records expected shipments, optional carrier identifiers, immutable manual events and purchase-order history, and receiving limited to delivered or exception shipments. The source and tracker commits were fast-forwarded to main at `0634158e`. Focused source checks and a synthetic development migration passed in the delivery checkout; tests and browser acceptance did not run. MC-11 Build is 79%; Validation remains 45%. Carrier access and supplier transactions remain external.

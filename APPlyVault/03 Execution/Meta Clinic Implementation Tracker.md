@@ -355,10 +355,10 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 
 | Field | Value |
 | --- | --- |
-| Now | MC-11 manual shipment tracking is integrated on main; MC-10 prescription recovery remains the next connected workflow. |
-| State | Source checks and the synthetic development migration passed in the delivery checkout. Browser acceptance has not run; MC-11 Build is 79%, Validation remains 45%. |
-| Updated (UTC) | 2026-09-28 01:12 UTC |
-| Up next | Walk through shipment registration, manual events, receiving/reload and role denial, then exact MC-10 prescription retries in a synthetic clinic. |
+| Now | MC-10 prescription reconciliation and MC-11 shipment receiving recovery are the current focus. |
+| State | Five scoped source behaviors are pushed to origin/main at `b7ed490b`; TypeScript, formatting and diff checks passed. Connected browser acceptance has not run; MC-10/11 scores are unchanged. |
+| Updated (UTC) | 2026-09-28 02:16 UTC |
+| Up next | Walk through authorized/denied prescription reconciliation and shipment receiving after reload in an owned synthetic runtime. |
 
 ### Activity log
 
@@ -371,6 +371,9 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 | 00:10 UTC | Codex | Purchase-order details now list every recorded delivery with its effective receiving status. Browser acceptance remains open; continue with carrier identifiers and manual event history. Build scoring is unchanged. |
 | 00:15 UTC | Codex | Integrated five MC-10/11 source slices: retained exact prescription and pharmacy-save retries, unresolved-attempt worklist, all delivery links and available-package counts. Focused non-test checks passed; browser proof remains. |
 | 01:12 UTC | Codex | Fast-forwarded the reviewed MC-11 shipment-tracking delivery onto main and verified the pushed revision. A browser-control timeout left the connected journey unverified; no new source slice was claimed. |
+| 02:16 UTC | Codex | Pushed five MC-10/11 recovery and permission behaviors to main at `b7ed490b` and verified the remote revision. Source checks passed; connected browser proof remains open. |
+
+**2026-09-28 MC-10/11 recovery source checkpoint:** `b7ed490b` closes five independently visible local behaviors: accepted/acknowledged prescription attempts no longer offer an invalid not-sent action; saved reconciliation notes and prior-event links are visible; shipment status editing is hidden without receive permission; purchase-order and exception links recover closed receiving records; and Receiving displays the recorded manual status history. [The hourly line-count ledger](../../records/implementation/2026-09-28-hourly-source-line-counts-0214.md) includes this source commit (`PrescriptionFulfillmentPanel.tsx` +15/-6; `InventoryApp.tsx` +36/-11; total +51/-17) and all source-tree commits since the prior checkpoint. TypeScript, changed-file Prettier and diff checks passed. No tests or connected browser acceptance ran; MC-10/11 Build and Validation percentages remain unchanged. Source revision `b7ed490b` was pushed and verified on origin/main.
 
 **2026-09-27 demo feedback source checkpoint:** [Dated evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records the sandbox form, visitor/session binding, owner-only review surface, local migration and checks. This is outside MC-01–MC-15 scoring; browser acceptance and hosted release remain open.
 
