@@ -18918,14 +18918,14 @@ CREATE UNIQUE INDEX clinic_role_grants_practice_id ON public.clinic_role_grants 
 -- Name: clinic_role_grants_practice_scope_identity; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_role_grants_practice_scope_identity ON public.clinic_role_grants USING btree (practice_id, membership_id, role_version_id, scope_kind) WHERE (site_id IS NULL);
+CREATE UNIQUE INDEX clinic_role_grants_practice_scope_identity ON public.clinic_role_grants USING btree (practice_id, membership_id, role_version_id, scope_kind) WHERE ((site_id IS NULL) AND (revoked_at IS NULL));
 
 
 --
 -- Name: clinic_role_grants_site_scope_identity; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX clinic_role_grants_site_scope_identity ON public.clinic_role_grants USING btree (practice_id, membership_id, role_version_id, scope_kind, site_id) WHERE (site_id IS NOT NULL);
+CREATE UNIQUE INDEX clinic_role_grants_site_scope_identity ON public.clinic_role_grants USING btree (practice_id, membership_id, role_version_id, scope_kind, site_id) WHERE ((site_id IS NOT NULL) AND (revoked_at IS NULL));
 
 
 --
@@ -32212,6 +32212,8 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928000600'),
+('20260928000500'),
 ('20260928000400'),
 ('20260928000300'),
 ('20260928000200'),
