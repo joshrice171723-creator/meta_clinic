@@ -56,7 +56,7 @@ def contract(number):
     require(pr["user"]["login"] == OWNER and labeled(pr), "PR needs owner author and muse-qa label")
     require(pr["base"]["ref"] == "main" and pr["head"]["repo"]["full_name"] == REPO,
             "Only same-repository PRs into main are eligible")
-    require(pr["head"]["ref"].startswith("codex/muse-qa-"), "Branch must start codex/muse-qa-")
+    require(pr["head"]["ref"].startswith("codex/"), "Branch must be a Codex repair branch")
     body = (pr.get("body") or "").replace("\r\n", "\n")
     require("<!-- muse-qa-v1 -->" in body, "Missing Muse QA protocol marker")
     issue_lines = re.findall(r"^QA-Issues: (#[1-9][0-9]*(?:, #[1-9][0-9]*)*)$", body, re.M)
@@ -73,9 +73,11 @@ def contract(number):
         marker = f"### Notes for QA: #{number}\n"
         require(body.count(marker) == 1, f"Missing unique Notes for QA for #{number}")
         section = body.split(marker)[1].split("\n### ")[0]
+        fields = re.split(r"(?m)^(?:- )?(What changed|What to retest(?: \([^\n)]+\))?|Intentional trade-offs):[ \t]*", section)
         for title in ("What changed", "What to retest", "Intentional trade-offs"):
-            detail = re.findall(rf"^{title}: (.+)$", section, re.M)
-            require(len(detail) == 1 and detail[0].strip().lower() not in {"todo", "tbd", "..."},
+            detail = [fields[i + 1].strip() for i in range(1, len(fields) - 1, 2)
+                      if fields[i] == title or fields[i].startswith(title + " (")]
+            require(len(detail) == 1 and detail[0].lower() not in {"todo", "tbd", "..."} and detail[0],
                     f"Defect #{number} needs substantive {title}")
         tickets.append((number, int(prior[0])))
     files = pages(f"pulls/{pr['number']}/files")
