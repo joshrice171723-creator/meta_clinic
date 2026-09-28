@@ -7,6 +7,12 @@ host poller from PR #4 or give Muse server credentials.
 
 ## Muse: submit a defect batch
 
+Default to one coherent batch of related outstanding findings: one cloud coding
+task, one PR, one merge and release, then one retest of the whole batch. Group
+by workflow or shared cause instead of opening a task or release for every
+defect. An urgent blocker may proceed alone. Track each defect separately
+within the batch so its own attempt count and retest outcome remain visible.
+
 1. Read `https://aimetaclinic.com/build.json` before and after QA. Record its full
    `revision` and `version`. If the revision changes during QA, repeat the affected
    checks. The actual Notes for QA page is `/clinic/updates`.
@@ -17,8 +23,8 @@ host poller from PR #4 or give Muse server credentials.
    new defect. For existing defects use the number of cloud repair candidates
    already attempted (0–3). Unknown history requires clarification, not zero.
    Reuse the same issue for retries; do not reset the count by creating new IDs.
-3. Tell cloud Codex to use a branch beginning `codex/muse-qa-`, fix only those
-   issues and maintain the existing Notes for QA page. No new tests unless Joshua
+3. Give the full related batch to one cloud Codex task. Use a branch beginning
+   `codex/muse-qa-`, fix only those issues and maintain the existing Notes for QA page. No new tests unless Joshua
    requests them. Application Ruby, frontend source, existing test paths and a
    version-only `apps/web/package.json` change are eligible. Infrastructure,
    dependencies, schema, migrations and policy changes need explicit review.

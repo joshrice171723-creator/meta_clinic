@@ -62,7 +62,7 @@ def contract(number):
     issue_lines = re.findall(r"^QA-Issues: (#[1-9][0-9]*(?:, #[1-9][0-9]*)*)$", body, re.M)
     require(len(issue_lines) == 1, "Use exactly one QA-Issues: #123, #124 line")
     issues = list(dict.fromkeys(int(x) for x in re.findall(r"[0-9]+", issue_lines[0])))
-    require(1 <= len(issues) <= 8, "Batch must contain 1-8 stable defect issues")
+    require(issues, "Batch must contain stable defect issues")
     tickets = []
     for number in issues:
         ticket = api(f"issues/{number}")
