@@ -309,6 +309,7 @@ export function ClinicSchedule({
   );
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   const [seriesId, setSeriesId] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [mutationError, setMutationError] = useState("");
@@ -493,12 +494,6 @@ export function ClinicSchedule({
   }
   async function cancelSelectedAppointment() {
     if (!selected || busy) return;
-    if (
-      !window.confirm(
-        "Cancel this appointment? I understand that no cancellation message will be sent automatically.",
-      )
-    )
-      return;
     setBusy(true);
     setMutationError("");
     try {
@@ -1408,7 +1403,7 @@ export function ClinicSchedule({
                 Boolean(selected.encounter_id) ||
                 !["scheduled", "confirmed"].includes(selected.status)
               }
-              onClick={() => void cancelSelectedAppointment()}
+              onClick={() => setCancelConfirmationOpen(true)}
             >
               Cancel appointment
             </Button>
@@ -1449,6 +1444,39 @@ export function ClinicSchedule({
               Open Tracking Board
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={cancelConfirmationOpen && Boolean(selected)}
+        onClose={() => !busy && setCancelConfirmationOpen(false)}
+        aria-labelledby="cancel-appointment-title"
+        aria-describedby="cancel-appointment-description"
+        role="alertdialog"
+      >
+        <DialogTitle id="cancel-appointment-title">
+          Cancel appointment?
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="cancel-appointment-description">
+            This updates the schedule and cancels pending reminders. No
+            cancellation message will be sent to the patient.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setCancelConfirmationOpen(false)}>
+            Go back
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={busy}
+            onClick={() => {
+              setCancelConfirmationOpen(false);
+              void cancelSelectedAppointment();
+            }}
+          >
+            Confirm cancellation
+          </Button>
         </DialogActions>
       </Dialog>
       <SeriesManagement

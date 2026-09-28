@@ -127,6 +127,12 @@ export function ClinicUpdateLog() {
           there and confirm the status persists after reload.
         </li>
         <li>
+          Visitor demo: Development tools now includes an Open visitor demo
+          entry to the shared synthetic clinic journey. Open the visitor demo,
+          enter the sandbox, make a synthetic edit, and confirm Reset Sandbox
+          restores its baseline. Reset removes other visitors' changes too.
+        </li>
+        <li>
           Booking draft recovery: earlier-session drafts are explicit; drafts at
           least 24 hours old show their saved timestamp and a stale warning. Review
           the recovered intent or choose Start new appointment.
