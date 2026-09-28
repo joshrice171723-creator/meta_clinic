@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — Incomplete location setup recovery released
+
+Commit `1829d8ad5b352a534a5a1abb3d00bf3cc92f51c5` adds a post-creation setup notice and link, a Sites-list "Setup incomplete" badge, and a permission-aware recovery message for eligible unfinalized locations. The two-step creation/finalization model remains. Focused frontend checks passed 23 tests, focused Rails checks passed 14 runs/111 assertions in an isolated test database, and TypeScript plus the web production build passed. A broader frontend run had 14 failures across eight unrelated test files; no full-suite pass is claimed. The matched API/web Lightsail release completed at that revision with restore-checked backups, an encrypted off-host recovery archive, and passing hosted HTTPS, health, authentication, authorization, and synthetic Sandbox checks. Docker Desktop's 1.9 GB limit killed the ordinary web image build, so the already verified host-built bundle was packaged with the same Nginx final stage. A fresh new-administrator browser walkthrough remains open. Separate staff eligibility and clinician invitation defects remain open.
+
 ## 2026-09-28 — MC-11 quote request browser recovery
 
 An isolated synthetic clinic browser recorded a three-package supplier quote request, closed it with a dated manual response and recovered the closed status after reload. The first request exposed a whole-package decimal-validation defect; fix `e37c5de7` (+8/-1 in `supplier_quote_request.rb`) was pushed to main before the successful retry. A same-practice account without the supplier-pricing role was denied that screen; exact replay and cross-practice mutation denial remain open. A future-dated quote was rejected. MC-11 Validation moves 45→47%; Build remains 82% and no external supplier action occurred. No tests ran.

@@ -50,6 +50,7 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_response :created
     site = response.parsed_body.fetch("site")
     assert_equal "North clinic", site.fetch("name")
+    assert_equal false, site.fetch("finalized")
     assert_equal ["Room 1", "Room 2"], site.fetch("rooms").map { |room| room.fetch("code") }
     assert_equal "75090", site.fetch("postal_code")
     monday = site.fetch("operating_hours").find { |row| row.fetch("day_of_week") == 1 }

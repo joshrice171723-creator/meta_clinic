@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Checkbox,
+  Chip,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -137,6 +138,7 @@ export function Facilities() {
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     text: string;
+    created?: boolean;
   } | null>(null);
   const previousCurrentSiteId = useRef(currentSite?.id);
   const selected = useMemo(
@@ -209,7 +211,15 @@ export function Facilities() {
           : "/api/clinic/facilities",
         { method: selectedId && !creating ? "PATCH" : "POST", body },
       );
-      setFeedback({ tone: "success", text: "Facility profile saved." });
+      setFeedback(
+        creating
+          ? {
+              tone: "success",
+              text: "Location created. Complete clinic setup (Finalize location setup) before staff can access its workspaces.",
+              created: true,
+            }
+          : { tone: "success", text: "Facility profile saved." },
+      );
       setCreating(false);
       setSelectedId(result.site.id);
       setDraft(siteForm(result.site));
@@ -293,16 +303,28 @@ export function Facilities() {
       {feedback && (
         <Alert severity={feedback.tone} sx={{ mb: 2 }}>
           {feedback.text}
+          {feedback.created && (
+            <Button href="#location-setup" size="small" sx={{ ml: 1 }}>
+              Complete clinic setup
+            </Button>
+          )}
         </Alert>
       )}
-      <PracticeFeatureSettings
-        canWrite={capabilities.clinic_setup_write === true}
-        siteId={currentSite?.id ?? null}
-        onProfileSaved={() => {
-          setVisitTypeRefreshKey((current) => current + 1);
-          refreshWorkspace();
-        }}
-      />
+      {!creating && (
+        <div id="location-setup">
+          <PracticeFeatureSettings
+            key={selectedId ?? currentSite?.id ?? "clinic"}
+            canWrite={capabilities.clinic_setup_write === true}
+            siteId={selectedId ?? currentSite?.id ?? null}
+            onProfileSaved={(finalized) => {
+              setVisitTypeRefreshKey((current) => current + 1);
+              if (finalized) setFeedback(null);
+              refreshWorkspace();
+              refresh();
+            }}
+          />
+        </div>
+      )}
       <VisitTypeSettings canWrite={canWrite} refreshKey={visitTypeRefreshKey} />
       {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
@@ -364,6 +386,14 @@ export function Facilities() {
                 >
                   <span>
                     <strong>{site.name ?? site.code}</strong>
+                    {site.finalized !== true && (
+                      <Chip
+                        label="Setup incomplete"
+                        color="warning"
+                        size="small"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
                     <br />
                     <small>
                       {site.code} · {(site.status ?? "draft").replace("_", " ")}

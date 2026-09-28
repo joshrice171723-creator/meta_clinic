@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ClinicScopeSelector } from "../src/features/clinic/ClinicScopeSelector";
+import { LocationSetupNotice } from "../src/features/clinic/Workspace";
 import type { ClinicWorkspaceContext } from "../src/api/contracts";
 
 describe("clinic scope selector", () => {
@@ -74,5 +75,36 @@ describe("clinic scope selector", () => {
     );
     expect(source).toContain("#f3f4f6");
     expect(source).toContain("#111827");
+  });
+});
+
+describe("incomplete location recovery", () => {
+  const sites = [
+    { id: 7, name: "North location", code: "NORTH", finalized: false },
+  ] as ClinicWorkspaceContext["sites"];
+
+  it("names the blocked location and links administrators to setup", () => {
+    const html = renderToStaticMarkup(
+      <LocationSetupNotice sites={sites} canSetup />,
+    );
+    expect(html).toContain("North location");
+    expect(html).toContain("isn&#x27;t finalized yet");
+    expect(html).toContain('href="/clinic/setup"');
+  });
+
+  it("does not offer a setup link to staff without permission", () => {
+    const html = renderToStaticMarkup(
+      <LocationSetupNotice sites={sites} canSetup={false} />,
+    );
+    expect(html).toContain("Ask a clinic administrator");
+    expect(html).not.toContain('href="/clinic/setup"');
+  });
+
+  it("selects a location before opening setup when a location choice is required", () => {
+    const html = renderToStaticMarkup(
+      <LocationSetupNotice sites={sites} canSetup onSelect={() => {}} />,
+    );
+    expect(html).toContain("Complete clinic setup");
+    expect(html).not.toContain('href="/clinic/setup"');
   });
 });
