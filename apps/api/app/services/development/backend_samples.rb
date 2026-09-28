@@ -234,7 +234,7 @@ module Development
         "ANNEX" => %w[ANNEX-1 ANNEX-2]
       }
       rooms_by_site.map do |code, room_codes|
-        site = practice.sites.find_or_create_by!(code: code)
+        site = practice.sites.find_or_create_by!(code: code) { |record| record.status = "active" }
         7.times do |day_of_week|
           site.operating_hours.find_or_create_by!(practice:, day_of_week:) do |hours|
             hours.closed = [0, 6].include?(day_of_week)

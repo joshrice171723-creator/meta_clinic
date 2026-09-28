@@ -5489,6 +5489,47 @@ ALTER SEQUENCE public.clinic_inventory_supplier_products_id_seq OWNED BY public.
 
 
 --
+-- Name: clinic_inventory_supplier_quote_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_supplier_quote_requests (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    supplier_product_id bigint CONSTRAINT clinic_inventory_supplier_quote_re_supplier_product_id_not_null NOT NULL,
+    supplier_id bigint NOT NULL,
+    product_id bigint NOT NULL,
+    requested_packages numeric(20,6) CONSTRAINT clinic_inventory_supplier_quote_req_requested_packages_not_null NOT NULL,
+    note text DEFAULT ''::text NOT NULL,
+    status character varying DEFAULT 'open'::character varying NOT NULL,
+    request_key character varying NOT NULL,
+    quote_reference character varying,
+    quoted_on date,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_supplier_quote_request_values CHECK (((requested_packages > (0)::numeric) AND (requested_packages = round(requested_packages, 0)) AND ((length(TRIM(BOTH FROM note)) >= 1) AND (length(TRIM(BOTH FROM note)) <= 1000)) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND ((((status)::text = 'open'::text) AND (quote_reference IS NULL) AND (quoted_on IS NULL)) OR (((status)::text = 'quoted'::text) AND ((length(TRIM(BOTH FROM quote_reference)) >= 1) AND (length(TRIM(BOTH FROM quote_reference)) <= 120)) AND (quoted_on IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_inventory_supplier_quote_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_supplier_quote_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_supplier_quote_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_supplier_quote_requests_id_seq OWNED BY public.clinic_inventory_supplier_quote_requests.id;
+
+
+--
 -- Name: clinic_inventory_suppliers; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13647,6 +13688,13 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_products ALTER COLUMN id SET D
 
 
 --
+-- Name: clinic_inventory_supplier_quote_requests id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_supplier_quote_requests_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_suppliers id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15609,6 +15657,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_invoices
 
 ALTER TABLE ONLY public.clinic_inventory_supplier_products
     ADD CONSTRAINT clinic_inventory_supplier_products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_supplier_quote_requests clinic_inventory_supplier_quote_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
+    ADD CONSTRAINT clinic_inventory_supplier_quote_requests_pkey PRIMARY KEY (id);
 
 
 --
@@ -21925,6 +21981,20 @@ CREATE UNIQUE INDEX inventory_shipment_retry ON public.clinic_inventory_shipment
 --
 
 CREATE UNIQUE INDEX inventory_supplier_product_identity ON public.clinic_inventory_supplier_products USING btree (practice_id, supplier_id, ndc, supplier_sku);
+
+
+--
+-- Name: inventory_supplier_quote_requests_listing; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_supplier_quote_requests_listing ON public.clinic_inventory_supplier_quote_requests USING btree (practice_id, status, created_at, id);
+
+
+--
+-- Name: inventory_supplier_quote_requests_offer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_supplier_quote_requests_offer ON public.clinic_inventory_supplier_quote_requests USING btree (practice_id, supplier_product_id, status);
 
 
 --
@@ -28995,6 +29065,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
 
 
 --
+-- Name: clinic_inventory_supplier_quote_requests fk_rails_70c86ba9d5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
+    ADD CONSTRAINT fk_rails_70c86ba9d5 FOREIGN KEY (practice_id, product_id) REFERENCES public.clinic_pharmacy_products(practice_id, id);
+
+
+--
 -- Name: clinic_service_options fk_rails_715983834e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29024,6 +29102,14 @@ ALTER TABLE ONLY public.clinic_patient_reminder_actions
 
 ALTER TABLE ONLY public.clinic_workforce_kiosk_enrollments
     ADD CONSTRAINT fk_rails_732019edfb FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_inventory_supplier_quote_requests fk_rails_733fe3002a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
+    ADD CONSTRAINT fk_rails_733fe3002a FOREIGN KEY (practice_id, supplier_id) REFERENCES public.clinic_inventory_suppliers(practice_id, id);
 
 
 --
@@ -30467,6 +30553,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_credits
 
 
 --
+-- Name: clinic_inventory_supplier_quote_requests fk_rails_df496d6a03; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
+    ADD CONSTRAINT fk_rails_df496d6a03 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_workforce_adjustment_requests fk_rails_df65e14823; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30928,6 +31022,14 @@ ALTER TABLE ONLY public.clinic_inventory_recall_dispositions
 
 ALTER TABLE ONLY public.clinic_workforce_time_off_requests
     ADD CONSTRAINT fk_rails_fd9725aff5 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_supplier_quote_requests fk_rails_fe3c522ac7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
+    ADD CONSTRAINT fk_rails_fe3c522ac7 FOREIGN KEY (practice_id, supplier_product_id) REFERENCES public.clinic_inventory_supplier_products(practice_id, id);
 
 
 --
@@ -32009,6 +32111,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928000200'),
 ('20260928000100'),
 ('20260927233500'),
 ('20260927225000'),
