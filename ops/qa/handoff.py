@@ -74,7 +74,7 @@ def contract(number):
         require(body.count(marker) == 1, f"Missing unique Notes for QA for #{number}")
         section = body.split(marker)[1].split("\n### ")[0]
         for title in ("What changed", "What to retest", "Intentional trade-offs"):
-            detail = re.findall(rf"^{title}: (.+)$", section, re.M)
+            detail = re.findall(rf"^(?:- )?{title}: (.+)$", section, re.M)
             require(len(detail) == 1 and detail[0].strip().lower() not in {"todo", "tbd", "..."},
                     f"Defect #{number} needs substantive {title}")
         tickets.append((number, int(prior[0])))
