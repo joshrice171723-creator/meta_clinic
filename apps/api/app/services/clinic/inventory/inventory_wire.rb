@@ -27,7 +27,7 @@ module Clinic
           :supplier,
           :receipts,
           { lines: :product },
-          { shipments: [ :receipts, :shipment_lines, :reconciliation ] }
+          { shipments: [ :receipts, :shipment_lines, :reconciliation, { shipment_events: :recorded_by_membership } ] }
         ).order(id: :desc).limit(100).to_a
         receipts = Receipt.where(practice_id: practice.id).includes(
           :actor,
@@ -390,7 +390,9 @@ module Clinic
 
       def receiving(practice:, actor:, **filters)
         result = ReceivingQuery.call(practice: practice, **filters)
-        selected = result.selected && Shipment.where(practice_id: practice.id).includes(:reconciliation, :shipment_lines, { receipts: { lines: { batch: :lot } } }, { purchase_order: [ :supplier, { lines: :product } ] }).find(result.selected.id)
+        selected = result.selected && Shipment.where(practice_id: practice.id).includes(:reconciliation, :shipment_lines,
+          { shipment_events: :recorded_by_membership }, { receipts: { lines: { batch: :lot } } },
+          { purchase_order: [ :supplier, { lines: :product } ] }).find(result.selected.id)
         order = selected&.purchase_order
         products = order ? order.lines.map(&:product).uniq(&:id) : []
         receipts = selected ? selected.receipts.to_a : []
@@ -416,16 +418,14 @@ module Clinic
         result = PurchaseOrdersQuery.call(practice: practice, **filters)
         products = result.orders.flat_map { |order| order.lines.map(&:product) }.uniq(&:id)
         deliveries = Shipment.where(practice_id: practice.id, purchase_order_id: result.orders.map(&:id))
-          .includes(:receipts, :reconciliation, :shipment_lines).order(:purchase_order_id, id: :desc)
+          .includes(:receipts, :reconciliation, :shipment_lines, { shipment_events: :recorded_by_membership })
+          .order(:purchase_order_id, id: :desc)
         context(practice: practice, actor: actor).merge(
           order_page: { query: result.query, status: result.status, page: result.page, page_count: result.page_count, page_size: PurchaseOrdersQuery::PAGE_SIZE,
             total_groups: result.total_groups, filtered_groups: result.filtered_groups, total_orders: result.total_orders, matching_orders: result.matching_orders },
           purchase_orders: result.orders.map { |order| purchase_order_wire(order) },
           products: products.map { |product| { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, base_unit: product.stock_unit } },
-          shipments: deliveries.map { |shipment| { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s,
-            supplier_reference: shipment.supplier_reference, status: shipment.effective_status,
-            allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s,
-              expected_packages: line.expected_packages.to_d.to_s("F") } } } })
+          shipments: deliveries.map { |shipment| shipment_wire(shipment) })
       end
 
       def positions(practice:, actor:, **filters)
@@ -552,7 +552,18 @@ module Clinic
       end
 
       def shipment_wire(shipment)
-        { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference, status: shipment.effective_status, package_count: shipment.package_count, delivered_at: shipment.delivered_at&.iso8601, expected_units: shipment.expected_units.to_d.to_s("F"), reconciliation: shipment.reconciliation&.then { |record| { id: record.id.to_s, accepted_packages: record.accepted_packages.to_d.to_s("F"), missing_packages: record.missing_packages.to_d.to_s("F"), rejected_packages: record.rejected_packages.to_d.to_s("F"), excess_packages: record.excess_packages.to_d.to_s("F"), exception: record.exception, reason: record.reason, observations: record.observations, actor_id: record.actor_id.to_s, recorded_at: record.created_at.iso8601 } }, allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s, expected_packages: line.expected_packages.to_d.to_s("F") } } }
+        { id: shipment.id.to_s, po_id: shipment.purchase_order_id.to_s, supplier_reference: shipment.supplier_reference,
+          carrier: shipment.carrier, tracking_number: shipment.tracking_number, status: shipment.effective_status,
+          allowed_next_statuses: shipment.allowed_next_statuses, package_count: shipment.package_count,
+          delivered_at: shipment.effective_delivered_at&.iso8601, expected_units: shipment.expected_units.to_d.to_s("F"),
+          events: shipment.shipment_events.map { |event| shipment_event_wire(event) },
+          reconciliation: shipment.reconciliation&.then { |record| { id: record.id.to_s, accepted_packages: record.accepted_packages.to_d.to_s("F"), missing_packages: record.missing_packages.to_d.to_s("F"), rejected_packages: record.rejected_packages.to_d.to_s("F"), excess_packages: record.excess_packages.to_d.to_s("F"), exception: record.exception, reason: record.reason, observations: record.observations, actor_id: record.actor_id.to_s, recorded_at: record.created_at.iso8601 } },
+          allocations: shipment.shipment_lines.map { |line| { purchase_order_line_id: line.purchase_order_line_id.to_s, expected_packages: line.expected_packages.to_d.to_s("F") } } }
+      end
+
+      def shipment_event_wire(event)
+        { id: event.id.to_s, status: event.status, note: event.note, recorded_at: event.recorded_at.iso8601,
+          recorded_by_membership_id: event.recorded_by_membership_id.to_s }
       end
 
       def receipt_wire(receipt)

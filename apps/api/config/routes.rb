@@ -341,6 +341,7 @@ Rails.application.routes.draw do
       post "purchase-orders/:id/transition", to: "inventory/management#transition_purchase_order"
       post "purchase-orders/:id/cancel-remainder", to: "inventory/management#cancel_remainder"
       post "shipments", to: "inventory/management#create_shipment"
+      post "shipments/:id/events", to: "inventory/management#create_shipment_event"
       get "receiving", to: "inventory/management#receiving"
       post "receipts", to: "inventory/management#create_receipt"
       get "lots", to: "inventory/management#lots"

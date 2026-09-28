@@ -5,7 +5,7 @@ module Clinic
       GROUP_SQL = "COALESCE(clinic_inventory_purchase_orders.checkout_group_id::text, 'order:' || clinic_inventory_purchase_orders.id::text)".freeze
       Result = Data.define(:orders, :query, :status, :page, :page_count, :total_groups, :filtered_groups, :total_orders, :matching_orders)
 
-      def self.call(practice:, query: nil, status: nil, page: nil)
+      def self.call(practice:, query: nil, status: nil, page: nil, purchase_order_id: nil)
         query = query.to_s.strip
         status = status.presence || "all"
         raise ArgumentError, "Search must be 100 characters or fewer." if query.length > 100
@@ -13,6 +13,11 @@ module Clinic
         page = page.presence || "1"
         raise ArgumentError, "Choose a valid purchase page." unless /\A[1-9][0-9]{0,5}\z/.match?(page.to_s)
         scope = PurchaseOrder.where(practice_id: practice.id)
+        selected_order = if purchase_order_id.present?
+          raise ArgumentError, "Choose a valid purchase order." unless /\A[1-9][0-9]*\z/.match?(purchase_order_id.to_s)
+
+          scope.includes(:supplier, lines: :product).find(purchase_order_id)
+        end
         filtered = scope.left_joins(:supplier)
         filtered = filtered.where(status: status) unless status == "all"
         if query.present?
@@ -30,6 +35,11 @@ module Clinic
         # Select complete groups after matching; otherwise supplier totals and
         # group status would silently describe only the matching supplier.
         orders = scope.where("#{GROUP_SQL} IN (?)", keys).includes(:supplier, lines: :product).order(id: :desc).to_a
+        if selected_order
+          selected_group = scope.where(id: selected_order.id).pick(Arel.sql(GROUP_SQL))
+          related = scope.where("#{GROUP_SQL} = ?", selected_group).includes(:supplier, lines: :product).order(id: :desc)
+          orders.concat(related.reject { |order| orders.any? { |current| current.id == order.id } })
+        end
         Result.new(orders: orders, query: query, status: status, page: page, page_count: page_count,
           total_groups: scope.distinct.count(Arel.sql(GROUP_SQL)), filtered_groups: filtered_groups, total_orders: scope.count, matching_orders: filtered.count)
       end

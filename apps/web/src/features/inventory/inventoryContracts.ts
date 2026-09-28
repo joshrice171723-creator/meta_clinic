@@ -302,9 +302,19 @@ export type InventoryShipment = {
   id: string;
   po_id: string;
   supplier_reference: string;
+  carrier?: string | null;
+  tracking_number?: string | null;
   status: string;
+  allowed_next_statuses?: string[];
+  events?: {
+    id: string;
+    status: string;
+    note: string;
+    recorded_at: string;
+    recorded_by_membership_id: string;
+  }[];
   package_count: number;
-  delivered_at: string;
+  delivered_at: string | null;
   expected_units: Decimal;
   reconciliation?: {
     id: string;
@@ -910,6 +920,7 @@ export type InventoryOrderRead = {
   q?: string;
   order_status?: string;
   page?: number;
+  purchase_order_id?: string | null;
 };
 export type InventoryOrderData = InventoryReadContext & {
   order_page: {
@@ -927,7 +938,16 @@ export type InventoryOrderData = InventoryReadContext & {
   products: Pick<InventoryProduct, "id" | "name" | "ndc" | "base_unit">[];
   shipments: Pick<
     InventoryShipment,
-    "id" | "po_id" | "supplier_reference" | "status" | "allocations"
+    | "id"
+    | "po_id"
+    | "supplier_reference"
+    | "carrier"
+    | "tracking_number"
+    | "status"
+    | "allowed_next_statuses"
+    | "events"
+    | "delivered_at"
+    | "allocations"
   >[];
 };
 

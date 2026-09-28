@@ -5183,6 +5183,45 @@ ALTER SEQUENCE public.clinic_inventory_receiving_sessions_id_seq OWNED BY public
 
 
 --
+-- Name: clinic_inventory_shipment_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_inventory_shipment_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    shipment_id bigint NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_inventory_shipment_ev_recorded_by_membership_id_not_null NOT NULL,
+    status character varying NOT NULL,
+    request_key character varying NOT NULL,
+    payload_digest character varying NOT NULL,
+    note text NOT NULL,
+    recorded_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT inventory_shipment_event_values CHECK ((((status)::text = ANY ((ARRAY['expected'::character varying, 'in_transit'::character varying, 'delayed'::character varying, 'out_for_delivery'::character varying, 'delivered'::character varying, 'exception'::character varying])::text[])) AND ((length(TRIM(BOTH FROM note)) >= 1) AND (length(TRIM(BOTH FROM note)) <= 1000)) AND ((length(TRIM(BOTH FROM request_key)) >= 1) AND (length(TRIM(BOTH FROM request_key)) <= 160)) AND ((payload_digest)::text ~ '^[0-9a-f]{64}$'::text)))
+);
+
+
+--
+-- Name: clinic_inventory_shipment_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_inventory_shipment_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_inventory_shipment_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_inventory_shipment_events_id_seq OWNED BY public.clinic_inventory_shipment_events.id;
+
+
+--
 -- Name: clinic_inventory_shipment_lines; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5285,6 +5324,8 @@ CREATE TABLE public.clinic_inventory_shipments (
     delivered_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    carrier character varying(80),
+    tracking_number character varying(120),
     CONSTRAINT inventory_shipment_values CHECK ((((status)::text = ANY ((ARRAY['expected'::character varying, 'delivered'::character varying, 'received'::character varying, 'exception'::character varying])::text[])) AND (package_count > 0) AND (expected_units > (0)::numeric) AND ((length(TRIM(BOTH FROM reference)) >= 1) AND (length(TRIM(BOTH FROM reference)) <= 80)) AND ((length(TRIM(BOTH FROM supplier_reference)) >= 1) AND (length(TRIM(BOTH FROM supplier_reference)) <= 120))))
 );
 
@@ -13557,6 +13598,13 @@ ALTER TABLE ONLY public.clinic_inventory_receiving_sessions ALTER COLUMN id SET 
 
 
 --
+-- Name: clinic_inventory_shipment_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_inventory_shipment_events_id_seq'::regclass);
+
+
+--
 -- Name: clinic_inventory_shipment_lines id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15505,6 +15553,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipts
 
 ALTER TABLE ONLY public.clinic_inventory_receiving_sessions
     ADD CONSTRAINT clinic_inventory_receiving_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_inventory_shipment_events clinic_inventory_shipment_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_events
+    ADD CONSTRAINT clinic_inventory_shipment_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -21816,6 +21872,20 @@ CREATE UNIQUE INDEX inventory_release_retry ON public.clinic_inventory_hold_rele
 
 
 --
+-- Name: inventory_shipment_events_chronology; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX inventory_shipment_events_chronology ON public.clinic_inventory_shipment_events USING btree (practice_id, shipment_id, recorded_at, id);
+
+
+--
+-- Name: inventory_shipment_events_retry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_shipment_events_retry ON public.clinic_inventory_shipment_events USING btree (practice_id, request_key);
+
+
+--
 -- Name: inventory_shipment_identity; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -24018,6 +24088,13 @@ CREATE CONSTRAINT TRIGGER inventory_reconciliation_complete AFTER INSERT ON publ
 --
 
 CREATE TRIGGER inventory_reconciliation_guard BEFORE INSERT ON public.clinic_inventory_shipment_reconciliations FOR EACH ROW EXECUTE FUNCTION public.inventory_reconciliation_guard();
+
+
+--
+-- Name: clinic_inventory_shipment_events inventory_shipment_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER inventory_shipment_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_inventory_shipment_events FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -28774,6 +28851,14 @@ ALTER TABLE ONLY public.clinic_scribe_drafts
 
 
 --
+-- Name: clinic_inventory_shipment_events fk_rails_62b491fbb0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_events
+    ADD CONSTRAINT fk_rails_62b491fbb0 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_purchase_cart_items fk_rails_62d7a23a8c; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31790,6 +31875,22 @@ ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
 
 
 --
+-- Name: clinic_inventory_shipment_events inventory_shipment_event_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_events
+    ADD CONSTRAINT inventory_shipment_event_actor FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_inventory_shipment_events inventory_shipment_event_context; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_inventory_shipment_events
+    ADD CONSTRAINT inventory_shipment_event_context FOREIGN KEY (practice_id, shipment_id) REFERENCES public.clinic_inventory_shipments(practice_id, id);
+
+
+--
 -- Name: clinic_lab_report_actions lab_action_actor_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31908,6 +32009,7 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928000100'),
 ('20260927233500'),
 ('20260927225000'),
 ('20260927224000'),

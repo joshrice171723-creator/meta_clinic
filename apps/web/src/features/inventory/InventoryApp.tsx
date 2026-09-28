@@ -17,6 +17,7 @@ import {
   Tab,
   Tabs,
   TextField,
+  Typography,
 } from "@mui/material";
 import { api, ApiError } from "../../api/client";
 import { Form as InventoryForm, LoadState } from "../../shared/ui";
@@ -2652,6 +2653,10 @@ export function InventoryApp({ path }: { path: string }) {
                               q: data.order_page.query,
                               order_status: data.order_page.status,
                               page: data.order_page.page,
+                              purchase_order_id:
+                                new URLSearchParams(window.location.search).get(
+                                  "purchase_order_id",
+                                ) ?? undefined,
                             }
                           : screen === "receiving" &&
                               data &&
@@ -2738,7 +2743,7 @@ export function InventoryApp({ path }: { path: string }) {
           read.purchase_order_id === undefined
             ? routeQuery.get("purchase_order_id")
             : read.purchase_order_id;
-        if (screen === "shipment_new" && purchaseOrderId)
+        if (["shipment_new", "purchasing"].includes(screen) && purchaseOrderId)
           query.set("purchase_order_id", purchaseOrderId);
         if (screen === "lots" && routeQuery.get("product_id"))
           query.set("product_id", routeQuery.get("product_id")!);
@@ -4653,6 +4658,8 @@ function ShipmentCreateScreen({
   const [packages, setPackages] = useState("");
   const [reference, setReference] = useState("");
   const [supplierReference, setSupplierReference] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
   useEffect(() => setQuery(result.query), [result.query]);
   useEffect(() => {
     const firstAvailable = order?.lines.find(
@@ -4714,17 +4721,17 @@ function ShipmentCreateScreen({
           purchase_order_line_id: line.id,
           reference: reference.trim(),
           supplier_reference: supplierReference.trim(),
+          carrier: carrier.trim(),
+          tracking_number: trackingNumber.trim(),
           package_count: packages,
         },
       },
-      "Delivery recorded",
-      `${number(packages)} packages are ready for receiving and put-away.`,
+      "Shipment registered",
+      `${number(packages)} packages are reserved for this purchase order. No inventory is added until receiving.`,
       (payload) => {
         const shipmentId = payload.id;
         window.location.assign(
-          shipmentId
-            ? `/clinic/inventory/receiving?shipment_id=${encodeURIComponent(String(shipmentId))}`
-            : "/clinic/inventory/receiving",
+          `/clinic/inventory/purchasing?purchase_order_id=${encodeURIComponent(order.id)}${shipmentId ? `#shipment-${encodeURIComponent(String(shipmentId))}` : ""}`,
         );
       },
     );
@@ -4735,11 +4742,11 @@ function ShipmentCreateScreen({
         ← Back to orders & delivery
       </a>
       <div className="inventory-two-col wide-left">
-        <Card title="Delivery intake">
+        <Card title="Register shipment">
           <p className="inventory-lead">
-            Record what arrived from the supplier. This marks the shipment
-            delivered; inventory is not available until Receiving confirms the
-            lot and put-away details.
+            Record a supplier shipment and track staff-entered status updates.
+            No carrier is contacted and inventory is not added until Receiving
+            confirms the lot and put-away details.
           </p>
           <form className="inventory-toolbar" onSubmit={submitSearch}>
             <TextField
@@ -4840,7 +4847,7 @@ function ShipmentCreateScreen({
                   ))}
                 </TextField>
                 <TextField
-                  label="Packages delivered"
+                  label="Packages in shipment"
                   type="number"
                   value={packages}
                   disabled={
@@ -4882,6 +4889,20 @@ function ShipmentCreateScreen({
                   helperText="Use the packing slip, tracking, or delivery number."
                   required
                 />
+                <TextField
+                  label="Carrier (optional)"
+                  value={carrier}
+                  disabled={writeDisabled}
+                  onChange={(event) => setCarrier(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 80 } }}
+                />
+                <TextField
+                  label="Tracking number (optional)"
+                  value={trackingNumber}
+                  disabled={writeDisabled}
+                  onChange={(event) => setTrackingNumber(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 120 } }}
+                />
               </>
             )}
             {!order && (
@@ -4902,7 +4923,7 @@ function ShipmentCreateScreen({
                   submit(fake);
                 }}
               >
-                Mark delivered → Receiving
+                Register shipment
               </ConfirmButton>
             </div>
           </form>
@@ -4926,8 +4947,8 @@ function ShipmentCreateScreen({
             />
             <DataPoint
               label="Next screen"
-              value="Receive & put away"
-              detail="Enter lot, expiry, and storage location"
+              value="Manual tracking"
+              detail="Record status changes; receive only after arrival"
               tone="success"
             />
           </div>
@@ -5012,12 +5033,7 @@ function PurchasingScreen({
   error: string;
   onRead: (read: InventoryOrderRead) => Promise<void>;
   onReconciliationBlocked: (blocked: boolean) => void;
-  run: (
-    endpoint: string,
-    body: Record<string, unknown>,
-    title: string,
-    detail: string,
-  ) => Promise<void>;
+  run: InventoryRun;
 }) {
   const page = data.order_page;
   const [query, setQuery] = useState(page.query);
@@ -5167,18 +5183,20 @@ function PurchaseOrderDetails({
   busy: boolean;
   onChanged: () => void;
   onBlockedChange: (blocked: boolean) => void;
-  run: (
-    endpoint: string,
-    body: Record<string, unknown>,
-    title: string,
-    detail: string,
-  ) => Promise<void>;
+  run: InventoryRun;
 }) {
   const orderGroups = useMemo(
     () => purchaseOrderGroups(data.purchase_orders),
     [data.purchase_orders],
   );
-  const [orderId, setOrderId] = useState(data.purchase_orders[0]?.id ?? "");
+  const requestedOrderId = new URLSearchParams(window.location.search).get(
+    "purchase_order_id",
+  );
+  const [orderId, setOrderId] = useState(
+    data.purchase_orders.some((record) => record.id === requestedOrderId)
+      ? requestedOrderId!
+      : (data.purchase_orders[0]?.id ?? ""),
+  );
   const [expandedGroupId, setExpandedGroupId] = useState(
     orderGroups[0]?.id ?? "",
   );
@@ -5186,6 +5204,9 @@ function PurchaseOrderDetails({
   const [confirmationAction, setConfirmationAction] = useState<
     "transition" | "cancel" | null
   >(null);
+  const [shipmentEventDrafts, setShipmentEventDrafts] = useState<
+    Record<string, { status: string; note: string }>
+  >({});
   const order =
     data.purchase_orders.find((record) => record.id === orderId) ??
     data.purchase_orders[0];
@@ -5210,6 +5231,22 @@ function PurchaseOrderDetails({
   const orderShipments = data.shipments.filter(
     (record) => record.po_id === order.id,
   );
+  const updateShipmentDraft = (
+    shipmentId: string,
+    patch: Partial<{ status: string; note: string }>,
+  ) =>
+    setShipmentEventDrafts((current) => ({
+      ...current,
+      [shipmentId]: {
+        status:
+          patch.status ??
+          current[shipmentId]?.status ??
+          orderShipments.find((shipment) => shipment.id === shipmentId)
+            ?.allowed_next_statuses?.[0] ??
+          "",
+        note: patch.note ?? current[shipmentId]?.note ?? "",
+      },
+    }));
   const allocatedPackages = (lineId: string) =>
     decimalSum(
       orderShipments
@@ -5553,16 +5590,130 @@ function PurchaseOrderDetails({
         </div>
         {orderShipments.length > 0 && (
           <div className="inventory-stack" aria-label="Recorded deliveries">
-            {orderShipments.map((shipment) => (
-              <a
-                className="inventory-info"
-                href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}
-                key={shipment.id}
-              >
-                Delivery {shipment.supplier_reference} ·{" "}
-                {shipment.status.replaceAll("_", " ")} · View receiving
-              </a>
-            ))}
+            {orderShipments.map((shipment) => {
+              const events = shipment.events ?? [];
+              const allowedStatuses = shipment.allowed_next_statuses ?? [];
+              const draft = shipmentEventDrafts[shipment.id] ?? {
+                status: allowedStatuses[0] ?? "",
+                note: "",
+              };
+              const canReceive = ["delivered", "exception"].includes(
+                shipment.status,
+              );
+              return (
+                <section
+                  className="inventory-stack compact"
+                  id={`shipment-${shipment.id}`}
+                  key={shipment.id}
+                  aria-label={`Shipment ${shipment.supplier_reference}`}
+                >
+                  <Typography component="h3" variant="subtitle2">
+                    Shipment {shipment.supplier_reference} ·{" "}
+                    {shipment.status.replaceAll("_", " ")}
+                  </Typography>
+                  <Typography variant="body2">
+                    {shipment.carrier || "Carrier not recorded"}
+                    {shipment.tracking_number
+                      ? ` · Tracking ${shipment.tracking_number}`
+                      : " · Tracking number not recorded"}
+                    {shipment.delivered_at
+                      ? ` · Delivered ${new Date(shipment.delivered_at).toLocaleString()}`
+                      : ""}
+                  </Typography>
+                  {events.length > 0 ? (
+                    events.map((event) => (
+                      <Typography variant="body2" key={event.id}>
+                        {event.status.replaceAll("_", " ")} ·{" "}
+                        {new Date(event.recorded_at).toLocaleString()} · Staff #
+                        {event.recorded_by_membership_id} · {event.note}
+                      </Typography>
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No manual status updates yet.
+                    </Typography>
+                  )}
+                  {allowedStatuses.length > 0 && (
+                    <form
+                      className="inventory-form-grid"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!draft.status || !draft.note.trim()) return;
+                        void run(
+                          `/api/clinic/inventory/shipments/${shipment.id}/events`,
+                          {
+                            shipment_event: {
+                              status: draft.status,
+                              note: draft.note.trim(),
+                            },
+                          },
+                          "Shipment update recorded",
+                          `${shipment.supplier_reference} is now ${draft.status.replaceAll("_", " ")}.`,
+                          () =>
+                            setShipmentEventDrafts((current) => {
+                              const next = { ...current };
+                              delete next[shipment.id];
+                              return next;
+                            }),
+                        );
+                      }}
+                    >
+                      <TextField
+                        select
+                        label={`Next status for shipment ${shipment.supplier_reference}`}
+                        value={draft.status}
+                        disabled={busy}
+                        onChange={(event) =>
+                          updateShipmentDraft(shipment.id, {
+                            status: event.target.value,
+                          })
+                        }
+                      >
+                        {allowedStatuses.map((status) => (
+                          <MenuItem value={status} key={status}>
+                            {status.replaceAll("_", " ")}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        label="Status update note"
+                        value={draft.note}
+                        required
+                        multiline
+                        minRows={2}
+                        disabled={busy}
+                        onChange={(event) =>
+                          updateShipmentDraft(shipment.id, {
+                            note: event.target.value,
+                          })
+                        }
+                        slotProps={{ htmlInput: { maxLength: 1000 } }}
+                      />
+                      <Button
+                        type="submit"
+                        variant="outlined"
+                        disabled={busy || !draft.status || !draft.note.trim()}
+                      >
+                        Record status update
+                      </Button>
+                    </form>
+                  )}
+                  {canReceive ? (
+                    <a
+                      className="inventory-info"
+                      href={`/clinic/inventory/receiving?shipment_id=${shipment.id}`}
+                    >
+                      Open receiving
+                    </a>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Receiving opens after the shipment is marked delivered or
+                      exception.
+                    </Typography>
+                  )}
+                </section>
+              );
+            })}
           </div>
         )}
         <PermissionNote
@@ -6131,8 +6282,10 @@ export function ReceivingScreen({
           <div>
             <h2>Shipment {shipment.supplier_reference}</h2>
             <p className="inventory-lead">
-              {order.number} · delivered{" "}
-              {inventoryDateTime(shipment.delivered_at, data.timezone)}
+              {order.number} · {shipment.status.replaceAll("_", " ")}
+              {shipment.delivered_at
+                ? ` · ${inventoryDateTime(shipment.delivered_at, data.timezone)}`
+                : ""}
             </p>
           </div>
           <Badge tone={receipt?.status === "quarantined" ? "warning" : "blue"}>

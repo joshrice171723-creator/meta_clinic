@@ -94,7 +94,7 @@ module Clinic
       def purchase_orders
         return bootstrap unless params[:view] == "batches"
 
-        render json: { data: InventoryWire.purchasing(practice: current_practice, actor: current_user, query: params[:q], status: params[:order_status], page: params[:page]) }
+        render json: { data: InventoryWire.purchasing(practice: current_practice, actor: current_user, query: params[:q], status: params[:order_status], page: params[:page], purchase_order_id: params[:purchase_order_id]) }
       end
       def receiving
         if params[:view] == "intake"
@@ -359,7 +359,7 @@ module Clinic
 
       def create_shipment
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.receive")
-        input = (params[:shipment].presence || params).permit(:purchase_order_id, :purchase_order_line_id, :reference, :supplier_reference, :package_count, :delivered_at, :request_key)
+        input = (params[:shipment].presence || params).permit(:purchase_order_id, :purchase_order_line_id, :reference, :supplier_reference, :carrier, :tracking_number, :package_count, :request_key)
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         payload_digest = Digest::SHA256.hexdigest(JSON.generate({ actor_id: current_user.id, payload: input.to_h.deep_stringify_keys.sort.to_h }))
@@ -383,16 +383,16 @@ module Clinic
             supplier_reference = input.require(:supplier_reference).to_s.strip
             raise ArgumentError, "Shipment reference is required." if reference.blank?
             raise ArgumentError, "Supplier delivery reference is required." if supplier_reference.blank?
-            delivered_at = input[:delivered_at].present? ? Time.iso8601(input[:delivered_at].to_s) : Current.business_time
             shipment = current_practice.inventory_shipments.create!(
               actor: current_user,
               purchase_order: order,
               reference: reference,
               supplier_reference: supplier_reference,
-              status: "delivered",
+              carrier: input[:carrier].to_s.strip.presence,
+              tracking_number: input[:tracking_number].to_s.strip.presence,
+              status: "expected",
               package_count: packages,
               expected_units: packages * line.conversion_factor,
-              delivered_at: delivered_at,
               request_key: request_key,
               payload_digest: payload_digest
             )
@@ -402,6 +402,21 @@ module Clinic
         end
         payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
         render json: payload.merge(id: shipment.id), status: :created
+      end
+
+      def create_shipment_event
+        Authorization.authorize!(actor: current_user, practice: current_practice, action: "inventory.receive")
+        input = (params[:shipment_event].presence || params).permit(:status, :note, :request_key)
+        request_key = input.require(:request_key).to_s
+        validate_request_key!(request_key)
+        shipment = current_practice.inventory_shipments.find(params[:id])
+        event = Access.with(current_practice.id, current_user, "receive") do |_profile|
+          Access.retry_lock(current_practice.id, request_key)
+          ShipmentEvent.record!(shipment:, actor: current_user, status: input.require(:status),
+            note: input.require(:note), request_key:)
+        end
+        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: payload.merge(id: event.id), status: :created
       end
 
       def create_receipt

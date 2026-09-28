@@ -132,7 +132,7 @@ module Clinic
 
       def self.validate_shipment!(shipment, purchase_order, lines, reconciliation)
         raise ArgumentError, "A receipt shipment must belong to its purchase order." unless purchase_order && shipment.purchase_order_id == purchase_order.id
-        raise ArgumentError, "Only delivered shipments can be received." unless shipment.status == "delivered"
+        raise ArgumentError, "Only delivered or exception shipments can be received." unless %w[delivered exception].include?(shipment.effective_status)
         allocations = shipment.shipment_lines.includes(purchase_order_line: :product).index_by { |line| line.purchase_order_line_id.to_s }
         raise ArgumentError, "A shipment needs immutable purchase-order allocation evidence." if allocations.empty?
         package_total = lines.sum do |line|
