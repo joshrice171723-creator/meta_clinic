@@ -20,9 +20,11 @@ within the batch so its own attempt count and retest outcome remain visible.
    `joshrice171723-creator/meta_clinic`, using the repository owner's account.
    Include exact build revision, reproduction, expected/actual behavior and
    synthetic browser evidence. Include a line `Prior-Attempts: 0` for a genuinely
-   new defect. For existing defects use the number of cloud repair candidates
-   already attempted (0–3). Unknown history requires clarification, not zero.
-   Reuse the same issue for retries; do not reset the count by creating new IDs.
+   new defect. For existing defects use the number of distinct cloud repair
+   tasks already attempted (0–3), and update this line before submitting a
+   later task. Local reviewer commits on the same PR do not add cloud attempts.
+   Unknown history requires reconciliation, not zero. Reuse the same GitHub
+   issue for retries; internal Muse issue IDs are not GitHub issue numbers.
 3. Give the full related batch to one cloud Codex task. Prefer a branch beginning
    `codex/muse-qa-`; a portal-generated `codex/` branch is also accepted when the
    owner, `muse-qa` label, marker, issue IDs and QA notes all match. Fix only those
@@ -30,6 +32,18 @@ within the batch so its own attempt count and retest outcome remain visible.
    requests them. Application Ruby, frontend source, existing test paths and a
    version-only `apps/web/package.json` change are eligible. Infrastructure,
    dependencies, schema, migrations and policy changes need explicit review.
+   Immediately after starting the task, comment on the lowest-numbered issue
+   with this marker and JSON (actual issue numbers and task link; no Markdown
+   fences in the comment):
+
+```text
+<!-- muse-qa-batch-start-v1 -->
+{"issues":[123,124],"task":"https://chatgpt.com/codex/cloud/tasks/ACTUAL_TASK"}
+```
+
+   If no PR for the same issue set appears within two hours, the local reviewer
+   posts one stall notice on that issue. Reuse the issues and inspect the cloud
+   task before retrying.
 4. Click Create pull request, target `main`, mark ready, apply `muse-qa`, and use
    this body (repeat the Notes section for every issue):
 
@@ -58,17 +72,22 @@ Git at `$CODEX_HOME/automations/meta-clinic-muse-qa-review/state.sqlite3` (defau
 to `~/.codex`). Preserve this database. Losing it is an escalation: recover the
 ledger from its backup and GitHub candidate comments before resuming old defects.
 
-Run `python ops/qa/handoff.py scan`, `status`, and `sync` on every review wakeup.
+Run `python ops/qa/handoff.py scan`, `status`, `sync`, and `watch` on every review wakeup.
 `sync` reads public build identity and owner retest comments, retains deployment
 observations, and posts an idempotent deployed-build comment on the PR. A missing
 identity endpoint blocks deployment claims; it does not mean the site is down.
+`watch` checks owner-authored batch-start comments and reports a cloud task that
+has not produced a matching PR within two hours. A stale batch notice does not
+authorize resetting its defect IDs or attempt counts.
 
 For one eligible PR, run `reserve --pr NUMBER` before repair/review. The printed
-record supplies the exact head, base and merge candidate. Each distinct repair
-head consumes one of three attempts per defect; repeated polling does not. A
-changed base requires a fresh review but does not consume another repair attempt.
-The fourth candidate is refused. At the limit, report the defect, evidence and
-remaining failure to Joshua; do not start another cloud task or reset history.
+record supplies the exact head, base and merge candidate. Each distinct PR
+consumes one of three cloud repair tasks per defect; at most three distinct heads
+are reviewed within that PR. Polling and a changed base do not consume an
+attempt, though a changed base requires fresh review. The fourth cloud task or
+fourth head in one PR is refused. At the limit, continue QA on other defects and
+gather read-only diagnostic evidence; do not start another repair task or reset
+history. Escalate the unresolved defect with that evidence.
 
 Fetch `refs/pull/NUMBER/merge` into an isolated, clean worktree and detach at the
 recorded merge SHA. Inspect the whole scoped diff, including permissions, money,

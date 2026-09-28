@@ -1,6 +1,7 @@
 """Local Muse QA ledger and guarded merge. No deployment or model invocation."""
 import argparse
 import base64
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -15,6 +16,7 @@ OWNER = "joshrice171723-creator"
 LABEL = "muse-qa"
 SHA = re.compile(r"[0-9a-f]{40}")
 RETEST = "<!-- muse-qa-retest-v1 -->"
+BATCH_START = "<!-- muse-qa-batch-start-v1 -->"
 
 
 def require(condition, message):
@@ -132,9 +134,11 @@ def candidate(db, number, head):
 
 
 def comment_once(number, marker, body):
-    if not any(c["user"]["login"] == OWNER and c["body"].startswith(marker)
-               for c in pages(f"issues/{number}/comments")):
-        api(f"issues/{number}/comments", "POST", {"body": marker + "\n" + body})
+    if any(c["user"]["login"] == OWNER and c["body"].startswith(marker)
+           for c in pages(f"issues/{number}/comments")):
+        return False
+    api(f"issues/{number}/comments", "POST", {"body": marker + "\n" + body})
+    return True
 
 
 def reserve(db, number):
@@ -142,16 +146,19 @@ def reserve(db, number):
     head = pr["head"]["sha"]
     with db:
         db.execute("BEGIN IMMEDIATE")
-        for issue, prior in tickets:
-            db.execute("INSERT OR IGNORE INTO defects VALUES (?,?)", (issue, prior))
-            require(db.execute("SELECT prior FROM defects WHERE issue=?", (issue,)).fetchone()[0] == prior,
-                    f"Prior attempts changed for #{issue}; inspect ledger")
         existing = db.execute("SELECT 1 FROM candidates WHERE pr=? AND head=?", (number, head)).fetchone()
         counts = {}
         for issue, prior in tickets:
-            used = db.execute("SELECT COUNT(*) FROM attempts WHERE issue=?", (issue,)).fetchone()[0]
-            require(existing or prior + used < 3, f"Defect #{issue} reached three repair candidates; escalate")
-            counts[issue] = prior + used + (0 if existing else 1)
+            db.execute("INSERT OR IGNORE INTO defects VALUES (?,?)", (issue, prior))
+            baseline = db.execute("SELECT prior FROM defects WHERE issue=?", (issue,)).fetchone()[0]
+            previous_tasks = db.execute("SELECT COUNT(DISTINCT pr) FROM attempts WHERE issue=? AND pr<>?",
+                                        (issue, number)).fetchone()[0]
+            require(prior == baseline + previous_tasks,
+                    f"Defect #{issue} needs Prior-Attempts: {baseline + previous_tasks}; reconcile its cloud tasks")
+            heads = db.execute("SELECT COUNT(*) FROM attempts WHERE issue=? AND pr=?", (issue, number)).fetchone()[0]
+            require(existing or (heads < 3 and (heads > 0 or prior < 3)),
+                    f"Defect #{issue} reached its cloud-task or three-head local limit; escalate")
+            counts[issue] = prior + 1
         if not existing:
             db.execute("INSERT INTO candidates(pr,head,base,merge_sha,issues,status) VALUES (?,?,?,?,?,?)",
                        (number, head, pr["base"]["sha"], pr["merge_commit_sha"], json.dumps([i for i, _ in tickets]), "reserved"))
@@ -163,7 +170,7 @@ def reserve(db, number):
                 db.execute("UPDATE candidates SET base=?,merge_sha=?,status='reserved',evidence=NULL WHERE pr=? AND head=?",
                            (pr["base"]["sha"], pr["merge_commit_sha"], number, head))
     comment_once(number, f"<!-- muse-qa-candidate:{head} -->",
-                 f"Local review reserved `{head}`. Repair attempts by defect: {json.dumps(counts)}. "
+                 f"Local review reserved `{head}`. Cloud repair tasks used by defect: {json.dumps(counts)}. "
                  "Merged, deployed and browser-verified remain separate states.")
     print(json.dumps(dict(candidate(db, number, head))))
 
@@ -249,9 +256,42 @@ def sync(db):
     print(json.dumps([dict(r) for r in db.execute("SELECT * FROM candidates")]))
 
 
+def watch():
+    """Flag a cloud QA batch that never produced its GitHub PR."""
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    prs = pages("pulls?state=all&base=main")
+    for comment in pages(f"issues/comments?since={since}"):
+        if comment["user"]["login"] != OWNER or not comment["body"].startswith(BATCH_START):
+            continue
+        batch = json.loads(comment["body"][len(BATCH_START):].strip())
+        issues = batch.get("issues")
+        anchor = int(comment["issue_url"].rsplit("/", 1)[1])
+        started = datetime.fromisoformat(comment["created_at"].replace("Z", "+00:00"))
+        require(isinstance(issues, list) and issues and all(type(i) is int and i > 0 for i in issues)
+                and len(issues) == len(set(issues)) and anchor == min(issues),
+                f"Invalid batch-start comment on issue #{anchor}")
+        for pr in prs:
+            body = (pr.get("body") or "").replace("\r\n", "\n")
+            created = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
+            if (created < started or pr["user"]["login"] != OWNER or
+                    (pr["head"].get("repo") or {}).get("full_name") != REPO or
+                    "<!-- muse-qa-v1 -->" not in body):
+                continue
+            line = re.search(r"^QA-Issues: (#[1-9][0-9]*(?:, #[1-9][0-9]*)*)$", body, re.M)
+            if line and set(int(i) for i in re.findall(r"[0-9]+", line[1])) == set(issues):
+                break
+        else:
+            if now - started >= timedelta(hours=2):
+                if comment_once(anchor, f"<!-- muse-qa-stalled:{comment['id']} -->",
+                                "The QA batch started over two hours ago but has no matching GitHub PR. "
+                                "Check the cloud task and portal submission before retrying; reuse the same defect issues."):
+                    print(json.dumps({"status": "stalled_before_pr", "issues": issues}))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["scan", "reserve", "approve", "reject", "merge", "sync", "status"])
+    parser.add_argument("command", choices=["scan", "reserve", "approve", "reject", "merge", "sync", "status", "watch"])
     parser.add_argument("--pr", type=int)
     parser.add_argument("--head")
     parser.add_argument("--evidence")
@@ -277,6 +317,8 @@ def main():
                         print(json.dumps({"pr": item["number"], "head": item["head"]["sha"], "issues": tickets}))
                     except ValueError as error:
                         print(f"BLOCKED PR #{pr['number']}: {error}")
+        elif args.command == "watch":
+            watch()
         elif args.command == "status":
             print(json.dumps([dict(r) for r in db.execute("SELECT * FROM candidates")]))
         elif args.command == "sync":
