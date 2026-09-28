@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-27
+updated: 2026-09-28
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-28 — MC-11 manual shipment tracking
+
+[Dated source evidence](../../records/implementation/2026-09-28-manual-shipment-tracking.md) records expected shipments, optional carrier identifiers, immutable manual events and purchase-order history, and receiving limited to delivered or exception shipments. The source and tracker commits were fast-forwarded to main at `0634158e`. Focused source checks and a synthetic development migration passed in the delivery checkout; tests and browser acceptance did not run. MC-11 Build is 79%; Validation remains 45%. Carrier access and supplier transactions remain external.
 
 ## 2026-09-28 — MC-10/11 prescription and delivery recovery
 

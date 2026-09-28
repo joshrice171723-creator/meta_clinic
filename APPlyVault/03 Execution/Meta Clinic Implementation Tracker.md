@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-27
+updated: 2026-09-28
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -351,10 +351,10 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 
 | Field | Value |
 | --- | --- |
-| Now | MC-10 prescription recovery and MC-11 purchase-order delivery recovery have five scoped source improvements. |
-| State | TypeScript, Ruby syntax, scoped RuboCop, formatting and diff checks passed. No tests or connected browser acceptance ran; Build estimates remain unchanged. |
-| Updated (UTC) | 2026-09-28 00:15 UTC |
-| Up next | Walk through exact prescription retries, role denial, multiple deliveries, receiving/reload and quantity allocation in a synthetic clinic; carrier events and external pharmacy/supplier outcomes remain open. |
+| Now | MC-11 manual shipment tracking is integrated on main; MC-10 prescription recovery remains the next connected workflow. |
+| State | Source checks and the synthetic development migration passed in the delivery checkout. Browser acceptance has not run; MC-11 Build is 79%, Validation remains 45%. |
+| Updated (UTC) | 2026-09-28 01:12 UTC |
+| Up next | Walk through shipment registration, manual events, receiving/reload and role denial, then exact MC-10 prescription retries in a synthetic clinic. |
 
 ### Activity log
 
@@ -366,6 +366,7 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 | 23:42 UTC | Codex | Added sandbox feedback submission and a platform-owner-only review inbox; local migration and focused source checks passed. No tests or browser submission ran. Build scoring is unchanged; resume MC-11 next. |
 | 00:10 UTC | Codex | Purchase-order details now list every recorded delivery with its effective receiving status. Browser acceptance remains open; continue with carrier identifiers and manual event history. Build scoring is unchanged. |
 | 00:15 UTC | Codex | Integrated five MC-10/11 source slices: retained exact prescription and pharmacy-save retries, unresolved-attempt worklist, all delivery links and available-package counts. Focused non-test checks passed; browser proof remains. |
+| 01:12 UTC | Codex | Fast-forwarded the reviewed MC-11 shipment-tracking delivery onto main and verified the pushed revision. A browser-control timeout left the connected journey unverified; no new source slice was claimed. |
 
 **2026-09-27 demo feedback source checkpoint:** [Dated evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records the sandbox form, visitor/session binding, owner-only review surface, local migration and checks. This is outside MC-01–MC-15 scoring; browser acceptance and hosted release remain open.
 
