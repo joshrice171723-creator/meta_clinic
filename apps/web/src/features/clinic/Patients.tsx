@@ -867,8 +867,9 @@ function PatientRecord({
                 <Alert severity="warning">
                   This hides {patient.display_name} as the duplicate. Confirm
                   the canonical patient ID from the patient directory. A
-                  duplicate with clinical or financial activity must be
-                  reconciled before it can be merged.
+                  duplicate with linked activity must be reconciled before it
+                  can be merged. Registration details stay on the hidden record;
+                  copy anything needed to the canonical chart first.
                 </Alert>
                 <TextField
                   label="Canonical patient ID"

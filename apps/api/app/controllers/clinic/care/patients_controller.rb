@@ -3,6 +3,8 @@ require "uri"
 module Clinic
   module Care
     class PatientsController < Clinic::ApiController
+      REGISTRATION_ASSOCIATIONS = %i[versions demographics contacts emergency_contacts address_versions communication_preference social_histories].freeze
+
       rescue_from ArgumentError do |error|
         render_error(error.message, :unprocessable_entity)
       end
@@ -163,23 +165,33 @@ module Clinic
         input = parameter_hash!(:merge, %i[target_patient_id reason])
         target = current_practice.patients.find(integer_id!(input[:target_patient_id], field: :target_patient_id))
         raise ArgumentError, "Choose a different canonical patient." if source.id == target.id
-        raise ArgumentError, "This patient is already merged." if source.merged_into_patient_id.present?
-        raise ArgumentError, "The canonical patient has already been merged." if target.merged_into_patient_id.present?
-
-        blocking = %i[appointments encounters encounter_notes observations documents payment_events invoices].select do |association|
-          source.public_send(association).exists?
-        end
-        if blocking.any?
-          raise ArgumentError, "This duplicate has clinical or financial activity. Reconcile #{blocking.join(', ')} before merging."
-        end
-
+        reason = required_string!(input[:reason], field: :reason, maximum: 500)
         membership = current_practice.memberships.active.find_by!(user: current_user)
-        source.update!(merged_into_patient: target, merged_at: Time.current,
-          merged_by_membership: membership,
-          merge_reason: required_string!(input[:reason], field: :reason, maximum: 500))
-        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
-          action_code: "patients.merge", outcome: :committed,
-          resource_version_ref: "Clinic::Care::Patient/#{source.id}")
+
+        Clinic::Care::Patient.transaction do
+          locked = current_practice.patients.where(id: [ source.id, target.id ]).order(:id).lock.index_by(&:id)
+          source = locked.fetch(source.id)
+          target = locked.fetch(target.id)
+          raise ArgumentError, "This patient is already merged." if source.merged_into_patient_id.present?
+          raise ArgumentError, "The canonical patient has already been merged." if target.merged_into_patient_id.present?
+
+          blocking = Clinic::Care::Patient.reflect_on_all_associations.find do |association|
+            next unless %i[has_many has_one].include?(association.macro)
+            next if REGISTRATION_ASSOCIATIONS.include?(association.name)
+
+            records = source.public_send(association.name)
+            association.collection? ? records.exists? : records.present?
+          end
+          if blocking || Clinic::PatientPortal::Identity.exists?(practice_id: current_practice.id, patient_id: source.id)
+            raise ArgumentError, "This duplicate has linked activity. Reconcile it before merging."
+          end
+
+          source.update!(merged_into_patient: target, merged_at: Time.current,
+            merged_by_membership: membership, merge_reason: reason)
+          Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+            action_code: "patients.merge", outcome: :committed,
+            resource_version_ref: "Clinic::Care::Patient/#{source.id}")
+        end
         render json: { canonical_patient_id: target.id, merged_patient_id: source.id }
       end
 

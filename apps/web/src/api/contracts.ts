@@ -1158,6 +1158,7 @@ export type BillingPatientLedger = {
       id: number;
       amount: Decimal;
       created_at: string;
+      adjustment_type?: "credit" | "write_off";
       reason?: string | null;
       issued_at?: string | null;
       issued_by?: string | null;

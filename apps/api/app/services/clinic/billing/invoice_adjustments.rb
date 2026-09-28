@@ -15,7 +15,7 @@ module Clinic
       def self.reduce_charges(invoice:, actor:, amount:, reason:, request_key:, adjustment_type:)
         practice = invoice.practice
         authorize!(practice, actor)
-        amount = Money.currency_amount(amount, name: "credit", positive: true)
+        amount = Money.currency_amount(amount, name: adjustment_type == "write_off" ? "write-off" : "credit", positive: true)
         reason = normalized_reason(reason)
         outcome = Clinic::Idempotency.execute(
           practice: practice,
@@ -38,6 +38,9 @@ module Clinic
           charge_total = current.lines.sum(:posted_amount)
           credited = current.credit_notes.to_a.sum(&:amount)
           raise ArgumentError, "Credit exceeds the invoice's remaining charge total." if credited + amount > charge_total
+          if adjustment_type == "write_off" && credited + current.payment_allocations.sum(:amount) + amount > charge_total
+            raise ArgumentError, "Write-off exceeds the invoice's unpaid balance."
+          end
 
           membership = Clinic::Membership.active.find_by!(practice: practice, user: actor)
           credit_note = current.credit_notes.create!(

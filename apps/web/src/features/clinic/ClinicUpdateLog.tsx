@@ -84,18 +84,20 @@ export function ClinicUpdateLog() {
         <li>
           Bad debt: Adjust charges now records a write-off separately from an
           ordinary credit, with an amount, reason, actor, timestamp, audit
-          event, and exact-retry key.
+          event, and exact-retry key. Retest a partly paid invoice: write-offs
+          stop at the unpaid balance and appear as write-offs in the ledger.
         </li>
         <li>
           Duplicate patients: authorized staff can merge an empty duplicate into
-          a canonical patient. Records with clinical or financial activity are
-          blocked for reconciliation rather than silently moved.
+          a canonical patient. Records with linked activity or portal identity
+          are blocked for reconciliation rather than silently moved. Registration
+          details remain on the hidden record and must be copied manually.
         </li>
         <li>
           Provider assignment: the tracking board now projects active clinician
-          accounts authorized to sign notes at the encounter location, matching
-          the assignment operation. Confirm the configured SIMT clinician
-          appears and can be assigned.
+          accounts with a current site assignment and authority to sign notes at
+          the encounter location. Confirm the configured SIMT clinician appears
+          and can be assigned; an unassigned clinician stays unavailable.
         </li>
         <li>
           Workforce badges: issuing a badge now validates the selected employee
