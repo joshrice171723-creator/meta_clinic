@@ -281,6 +281,14 @@ export function Facilities() {
           types, locations, and operating hours for implementation handoff.
           Storage cabinets, quarantine, and returns remain in Inventory.
         </Typography>
+        {capabilities.workforce_admin && (
+          <Button
+            href="/clinic/workforce/employees"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Employees and roles
+          </Button>
+        )}
       </Stack>
       {feedback && (
         <Alert severity={feedback.tone} sx={{ mb: 2 }}>

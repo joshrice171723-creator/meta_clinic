@@ -607,9 +607,6 @@ export function DevelopmentControls({
             switching ||
             (!entryDestination &&
               (!selectedId ||
-                (ownerPinRequired &&
-                  portal === "owner" &&
-                  ownerPin.length !== 4) ||
                 (newOrganization
                   ? Object.values(newOrganization).some((name) => !name.trim())
                   : requiresClinicScope && !scope.practiceId)))

@@ -312,6 +312,16 @@ export function OwnerCommandCenter() {
     }
   };
 
+  if (!data && error === "This page is for Meta Clinic platform owners.")
+    return (
+      <Alert severity="info">
+        Owner access is required. Choose Owner on the demo login page and enter
+        the owner demo PIN.
+        <Button href="/login?next=%2Fowner" color="inherit">
+          Open Owner sign in
+        </Button>
+      </Alert>
+    );
   if (!data) return <LoadState error={error} />;
 
   return (

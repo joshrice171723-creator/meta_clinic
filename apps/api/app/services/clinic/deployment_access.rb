@@ -3,6 +3,7 @@ module Clinic
     def self.available_to?(user)
       return true if Current.workspace_tools_owner_session && user&.active?
       return true unless Rails.env.production?
+      return true if DevelopmentAccess.public_staging_demo? && Development::TestAccounts.omni?(user)
       return true if Staging::DemoClinic.available_to?(user)
 
       !!(user&.active? && user.clinic_memberships.active.any? { |membership| practice_enabled?(membership.practice_id) })

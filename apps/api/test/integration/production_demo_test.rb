@@ -110,10 +110,10 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       get "/api/clinic/context"
       assert_response :success
       capabilities = response.parsed_body.fetch("capabilities")
-      %w[patients patients_write appointments encounters notes_write documents billing billing_payment_record].each do |capability|
+      %w[patients patients_write appointments encounters notes_write documents billing billing_payment_record workforce_admin].each do |capability|
         assert_equal true, capabilities.fetch(capability), "Expected staging demo capability #{capability}"
       end
-      %w[workforce_admin telehealth_host scribe_approve subscription_catalog_read billing_cash_reconcile].each do |capability|
+      %w[telehealth_host scribe_approve subscription_catalog_read billing_cash_reconcile].each do |capability|
         assert_equal false, capabilities.fetch(capability), "Unexpected staging demo capability #{capability}"
       end
       get "/api/inquiries"
@@ -200,7 +200,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
   test "provisioning refuses a preexisting expanded role" do
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("staging") do
-      role = RoleVersion.create!(role_code: Staging::DemoClinic::ROLE_CODE, version: 1)
+      role = RoleVersion.create!(role_code: Staging::DemoClinic::ROLE_CODE, version: Staging::DemoClinic::ROLE_VERSION)
       extra = Permission.create!(action_code: "synthetic.unmanaged")
       RoleVersionPermission.create!(role_version: role, permission: extra)
       assert_raises(Staging::DemoClinic::Unavailable) { Staging::DemoClinic.seed_authorization! }

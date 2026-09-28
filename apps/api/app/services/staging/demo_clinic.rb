@@ -6,7 +6,8 @@ module Staging
     LEGACY_ORGANIZATION_NAME = "APPly Staging Demo Organization [Synthetic]".freeze
     LEGACY_PRACTICE_NAME = "APPly Staging Demo Clinic [Synthetic]".freeze
     ROLE_CODE = "staging-demo-clinic-administrator".freeze
-    PERMISSIONS = Development::TestClinic::DEFAULT_PERMISSIONS
+    ROLE_VERSION = 2
+    PERMISSIONS = (Development::TestClinic::DEFAULT_PERMISSIONS + %w[workforce.admin]).freeze
 
     class Unavailable < StandardError; end
 
@@ -26,7 +27,7 @@ module Staging
 
       ApplicationRecord.transaction do
         lock_demo!
-        role = RoleVersion.find_or_initialize_by(role_code: ROLE_CODE, version: 1)
+        role = RoleVersion.find_or_initialize_by(role_code: ROLE_CODE, version: ROLE_VERSION)
         if role.new_record?
           role.save!
           PERMISSIONS.each do |action_code|
@@ -93,7 +94,7 @@ module Staging
     private_class_method :lock_demo!
 
     def self.administrator_role!
-      role = RoleVersion.find_by(role_code: ROLE_CODE, version: 1)
+      role = RoleVersion.find_by(role_code: ROLE_CODE, version: ROLE_VERSION)
       raise Unavailable, "The staging demo administrator role is unavailable." unless role
 
       verify_administrator_role!(role)
@@ -110,6 +111,9 @@ module Staging
 
     def self.ensure_administrator_grant!(membership)
       role = administrator_role!
+      membership.role_grants.active.joins(:role_version)
+        .where(role_versions: { role_code: ROLE_CODE }).where.not(role_version: role)
+        .find_each { |grant| grant.update!(revoked_at: Time.current, revision: grant.revision + 1) }
       grant = membership.role_grants.find_by(role_version: role, scope_kind: "practice", site_id: nil)
       if grant
         raise Unavailable, "The staging demo administrator grant was revoked." unless
@@ -124,6 +128,15 @@ module Staging
     def self.seed_dataset!(membership)
       practice = membership.practice
       user = membership.user
+      if practice.sites.empty?
+        site = practice.sites.create!(code: "MAIN", name: "Main location", status: "active")
+        practice.visit_types.find_or_create_by!(code: "Initial visit")
+        Clinic::Configuration::PracticeFeatures.revise(
+          practice:, site:, actor: membership, request_key: "staging-main-site-profile-#{site.id}",
+          expected_revision: 0, insurance_workflows_enabled: false,
+          clinic_type: "primary_care", service_scope: [], assessment_scope: [], finalize: true
+        )
+      end
       PaperTrail.request(whodunnit: user.id.to_s,
         controller_info: { causal_id: "staging-demo-clinic-seed-v1" }) do
         patients = [

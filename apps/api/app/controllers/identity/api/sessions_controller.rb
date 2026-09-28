@@ -82,7 +82,11 @@ module Identity
         if portal && (!portal_definition || !portal_definition.fetch(:account_types).include?(preview&.fetch(:account_type)))
           return render json: { error: "The selected account cannot enter that portal." }, status: :unprocessable_entity
         end
-        site_id = params[:site_id].presence || preview&.fetch(:locations, [])&.one? && preview.fetch(:locations).first.fetch(:id).to_s
+        site_id = params[:site_id].presence
+        if site_id.blank? && (profile != "omni" || params[:practice_id].blank? ||
+            preview&.dig(:clinic, :id).to_s == params[:practice_id].to_s) && preview&.fetch(:locations, [])&.one?
+          site_id = preview.fetch(:locations).first.fetch(:id).to_s
+        end
         if portal == "clinic" && !valid_development_clinic_scope?(preview, site_id: site_id)
           return render json: { error: "Choose an authorized organization, clinic, and location." }, status: :unprocessable_entity
         end
@@ -217,10 +221,6 @@ module Identity
           membership.assign_attributes(active: true, patients_access: source.patients_access,
             inventory_access: source.inventory_access, staff_access: source.staff_access)
           membership.save!
-          source.role_grants.active.find_each do |grant|
-            membership.role_grants.create!(practice:, role_version: grant.role_version,
-              scope_kind: grant.scope_kind, site_id: grant.site_id, effective_from: Time.current, revision: 1)
-          end
         end
 
         session[:clinic_membership_id] = membership.id

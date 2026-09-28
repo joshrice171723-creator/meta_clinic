@@ -120,7 +120,7 @@ module Clinic
       else
         Practice.where(id: Membership.active.where(user: current_user).select(:practice_id))
       end
-      return practices unless Rails.env.production?
+      return practices if !Rails.env.production? || development_omni?
 
       practices.where(id: practices.select { |practice| DeploymentAccess.practice_enabled?(practice.id) }.map(&:id))
     end

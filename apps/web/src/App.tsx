@@ -612,6 +612,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         <InventoryApp path={path} />
       ) : path === "/clinic/staff" ? (
         <ClinicLegacyRedirect to="/clinic/workforce/employees" />
+      ) : path === "/clinic/setup/settings" ? (
+        <ClinicLegacyRedirect to="/clinic/workforce/employees" />
       ) : path.startsWith("/clinic/workforce") ? (
         <WorkforceApp path={path} />
       ) : path === "/clinic/front-desk" ? (

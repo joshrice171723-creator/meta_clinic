@@ -137,7 +137,7 @@ module Clinic
     end
 
     def require_clinic
-      unless clinic_membership && DeploymentAccess.practice_enabled?(current_practice.id)
+      unless clinic_membership && (development_omni? || DeploymentAccess.practice_enabled?(current_practice.id))
         render_error("No active clinic assignment. Contact your clinic administrator.", :forbidden)
       end
     end
