@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — 0.2.0 deployment verified
+
+The guarded Lightsail release completed at `bf3c787f38a9c987195cbf0784def55f1b0b53b1` with matched API/web images and verified encrypted off-host recovery. Public `/build.json` independently reports 0.2.0 at that revision; `/up` and `/clinic/updates` return HTTP 200. This supersedes the deployment blocker below: an existing authorized key recovered the SSH transfer, without changing host access. Atlas and canonical release status are updated; scores remain 73.2% Build, 46.3% Validation and 0% external/human acceptance. Muse exact-build retest remains unverified. Open PR #4 and draft PR #3 remain excluded; dirty root/worktree changes are preserved. This assisted release does not count as an unattended cycle.
+
 ## 2026-09-29 — QA / Atlas inventory reconciliation
 
 The [checkpoint](../../records/audits/2026-09-29-qa-inventory-reconciliation.md) separates the 81-row implementation Atlas, the recovered 2026-09-28 PDF (historical 0.1.8; 188 defect entries, 6 pending verification, 28 marked fixed/verified, 54 non-bug ideas), 272 historical imported QA records, 70 historical retest findings, and 9 currently open GitHub `muse-qa` issues. Their identifiers are not reconciled, so the scopes must not be added into a unique-defect count or treated as current-build retest evidence. At the original checkpoint, the live site and `origin/main` were both verified at 0.1.9 / `e8a24e4e32c174c14fc32f0d0b51541cfcb56e94`; subsequent 0.2.0 merge and release status are recorded below. Atlas scores remain 73.2% Build, 46.3% local Validation, 0% external/human acceptance; fixing every application defect remains unfinished.
