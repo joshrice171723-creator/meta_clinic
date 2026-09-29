@@ -192,14 +192,25 @@ export function CashDrawerOperations({
   const closeAttempt = useRef<{ signature: string; requestKey: string } | null>(
     null,
   );
+  const cashRecoveryLoading = durableRecoveryEnabled && !recovery.ready;
+  const restoredCashAttempt =
+    recovery.ready &&
+    exactInvoiceId !== undefined &&
+    recovery.restored !== null &&
+    recovery.restored.invoiceId === exactInvoiceId &&
+    consumedRestoration.current !==
+      `${recovery.restored.invoiceId}:${recovery.restored.requestKey}`
+      ? recovery.restored
+      : null;
+  const pendingCashAttempt = cashAttempt ?? restoredCashAttempt;
   useEffect(() => {
     persistCashAttempt(clinic, cashAttempt);
-    const pending = cashAttempt !== null;
+    const pending = cashRecoveryLoading || pendingCashAttempt !== null;
     if (lastPendingNotification.current !== pending) {
       lastPendingNotification.current = pending;
       onPendingChangeRef.current?.(pending);
     }
-  }, [clinic, cashAttempt]);
+  }, [clinic, cashAttempt, cashRecoveryLoading, pendingCashAttempt]);
   useEffect(() => {
     if (
       !cashAttempt ||
@@ -340,14 +351,17 @@ export function CashDrawerOperations({
   };
 
   const recordCash = async () => {
-    if (!permitted || busy !== null) return;
-    const amounts = cashAttempt
-      ? cashAmounts(cashAttempt.tenderedAmount, cashAttempt.allocationAmount)
+    if (!permitted || busy !== null || cashRecoveryLoading) return;
+    const amounts = pendingCashAttempt
+      ? cashAmounts(
+          pendingCashAttempt.tenderedAmount,
+          pendingCashAttempt.allocationAmount,
+        )
       : invoice
         ? cashAmounts(tenderedAmount, invoice.balance)
         : null;
     if (
-      !cashAttempt &&
+      !pendingCashAttempt &&
       (!invoice ||
         !drawer ||
         !isPositiveDecimal(tenderedAmount) ||
@@ -357,7 +371,7 @@ export function CashDrawerOperations({
       return;
     }
     if (
-      !cashAttempt &&
+      !pendingCashAttempt &&
       (!drawer?.currency || drawer.currency !== invoice?.currency)
     ) {
       setError(
@@ -365,7 +379,7 @@ export function CashDrawerOperations({
       );
       return;
     }
-    const attempt = cashAttempt ?? {
+    const attempt = pendingCashAttempt ?? {
       invoiceId: invoice!.id,
       drawerId: drawer!.id,
       currency: invoice!.currency,
@@ -584,7 +598,23 @@ export function CashDrawerOperations({
         {drawers.error && <Alert severity="error">{drawers.error}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
-        {cashAttempt && (
+        {cashRecoveryLoading && (
+          <Alert
+            severity={recovery.status === "error" ? "warning" : "info"}
+            action={
+              recovery.status === "error" ? (
+                <Button color="inherit" onClick={recovery.reload} size="small">
+                  Retry check
+                </Button>
+              ) : undefined
+            }
+          >
+            {recovery.status === "error"
+              ? `The existing cash payment status could not be checked. Resolve the recovery issue before recording another payment. ${recovery.error}`
+              : "Checking for an unconfirmed cash payment before enabling another payment…"}
+          </Alert>
+        )}
+        {pendingCashAttempt && (
           <Alert
             severity="warning"
             action={
@@ -604,7 +634,7 @@ export function CashDrawerOperations({
             <Stack spacing={1}>
               <span>
                 Cash payment outcome is pending confirmation for invoice #
-                {cashAttempt.invoiceId}. Its drawer and amounts are locked.
+                {pendingCashAttempt.invoiceId}. Its drawer and amounts are locked.
                 Review activity, then retry this same payment if it is missing.
                 Retrying uses the same request key, so it cannot create a
                 duplicate payment.
@@ -644,7 +674,7 @@ export function CashDrawerOperations({
             </Alert>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button
-                disabled={cashAttempt !== null || busy !== null}
+                disabled={pendingCashAttempt !== null || cashRecoveryLoading || busy !== null}
                 onClick={() => setNewDrawerMode(true)}
                 variant="outlined"
               >
@@ -688,14 +718,14 @@ export function CashDrawerOperations({
                     label="Manager reconciliation note"
                     required
                     value={reconciliationNote}
-                    disabled={cashAttempt !== null || busy !== null}
+                    disabled={pendingCashAttempt !== null || cashRecoveryLoading || busy !== null}
                     onChange={(event) =>
                       setReconciliationNote(event.target.value)
                     }
                     sx={{ flex: 1 }}
                   />
                   <Button
-                    disabled={busy !== null || cashAttempt !== null}
+                    disabled={busy !== null || pendingCashAttempt !== null || cashRecoveryLoading}
                     type="submit"
                     variant="contained"
                   >
@@ -712,7 +742,7 @@ export function CashDrawerOperations({
             Refreshing the drawer for the locked cash payment. The pending
             request remains unchanged.
           </Alert>
-        ) : !drawer || (newDrawerMode && !cashAttempt) ? (
+        ) : !drawer || (newDrawerMode && !pendingCashAttempt) ? (
           <Stack
             component="form"
             direction={{ xs: "column", md: "row" }}
@@ -753,7 +783,7 @@ export function CashDrawerOperations({
               onChange={(event) => setOpeningFloat(event.target.value)}
             />
             <Button
-              disabled={!permitted || busy !== null}
+              disabled={!permitted || cashRecoveryLoading || pendingCashAttempt !== null || busy !== null}
               type="submit"
               variant="contained"
             >
@@ -768,7 +798,7 @@ export function CashDrawerOperations({
                 label="Cash drawer location"
                 value={selectedDrawerId}
                 onChange={(event) => selectDrawer(event.target.value)}
-                disabled={cashAttempt !== null}
+                disabled={pendingCashAttempt !== null || cashRecoveryLoading}
                 helperText="Choose the physical site receiving this cash."
               >
                 {(cashAttempt
@@ -809,7 +839,7 @@ export function CashDrawerOperations({
                 </Box>
               ))}
             </Box>
-            {((drawer.status === "open" && payable) || cashAttempt) && (
+            {((drawer.status === "open" && payable) || pendingCashAttempt) && (
               <Stack
                 component="form"
                 direction={{ xs: "column", md: "row" }}
@@ -822,23 +852,23 @@ export function CashDrawerOperations({
                 <TextField
                   label="Tendered cash"
                   inputMode="decimal"
-                  value={cashAttempt?.tenderedAmount ?? tenderedAmount}
+                  value={pendingCashAttempt?.tenderedAmount ?? tenderedAmount}
                   onChange={(event) => setTenderedAmount(event.target.value)}
-                  disabled={cashAttempt !== null}
+                  disabled={pendingCashAttempt !== null || cashRecoveryLoading}
                   helperText={
                     tenderSummary
-                      ? `Change due: ${money(tenderSummary.changeAmount, cashAttempt?.currency ?? invoice?.currency ?? "USD")}`
+                      ? `Change due: ${money(tenderSummary.changeAmount, pendingCashAttempt?.currency ?? invoice?.currency ?? "USD")}`
                       : `Invoice balance: ${money(invoice?.balance ?? "0", invoice?.currency ?? "USD")}`
                   }
                 />
                 <Button
-                  disabled={!permitted || busy !== null}
+                  disabled={!permitted || cashRecoveryLoading || busy !== null}
                   type="submit"
                   variant="contained"
                 >
                   {busy === "cash"
                     ? "Recording…"
-                    : cashAttempt
+                    : pendingCashAttempt
                       ? "Retry same payment"
                       : "Record cash payment"}
                 </Button>
@@ -889,7 +919,7 @@ export function CashDrawerOperations({
                   />
                   <Button
                     disabled={
-                      !permitted || busy !== null || cashAttempt !== null
+                      !permitted || busy !== null || pendingCashAttempt !== null || cashRecoveryLoading
                     }
                     type="submit"
                     variant="outlined"
