@@ -854,6 +854,17 @@ function BookingFormEditor({
     Boolean(initialDraft?.attempt),
     initialPatientId,
   );
+  const resumedAttempt = boundBooking.attempt?.body.appointment;
+  const resumedAttemptDiffersFromSlot = Boolean(
+    initialSlot?.starts_at &&
+      resumedAttempt &&
+      (Date.parse(initialSlot.starts_at) !==
+        Date.parse(resumedAttempt.starts_at) ||
+        (initialSlot.ends_at &&
+          Date.parse(initialSlot.ends_at) !==
+            Date.parse(resumedAttempt.ends_at)) ||
+        initialSlot.site_id !== Number(resumedAttempt.site_id)),
+  );
   const effectiveDraft = boundBooking.draft;
   const draftRecoveryMessage = appointmentDraftRecoveryMessage(
     initialDraft,
@@ -1805,6 +1816,15 @@ function BookingFormEditor({
             {draftRecoveryMessage}
           </Alert>
         )}
+        {resumedAttemptDiffersFromSlot && resumedAttempt && (
+          <Alert severity="warning">
+            This form is resuming a saved request for {clinicDateTime(
+              resumedAttempt.starts_at,
+              bookingTimezone,
+            )}, not the slot you selected. Retry the exact saved request to
+            reconcile it, then select the new slot again.
+          </Alert>
+        )}
         {initialHoldDeferred && hasWorkingDraft && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             A saved appointment draft is open. Resolve its pending request or
@@ -1872,6 +1892,10 @@ function BookingFormEditor({
         <Box
           component="form"
           noValidate
+          onChange={() => {
+            if (!outcomeUnconfirmed && !seriesOutcomeUnconfirmed)
+              setSubmitError("");
+          }}
           onSubmit={async (event) => {
             event.preventDefault();
             if (inFlight.current) return;
@@ -1998,6 +2022,18 @@ function BookingFormEditor({
                   body: attempt.body,
                 },
               );
+              const requested = attempt.body.appointment;
+              if (
+                result.appointment.patient_id !== Number(requested.patient_id) ||
+                result.appointment.site_id !== Number(requested.site_id) ||
+                Date.parse(result.appointment.starts_at) !==
+                  Date.parse(requested.starts_at) ||
+                Date.parse(result.appointment.ends_at) !==
+                  Date.parse(requested.ends_at)
+              )
+                throw new Error(
+                  "The saved appointment did not match the submitted patient, site, or time. Its outcome is unconfirmed; retry the exact request before leaving scheduling.",
+                );
               if (
                 attempt.body.appointment.schedule_hold_id &&
                 (result.appointment.schedule_hold_id !==
@@ -2838,6 +2874,9 @@ function BookingFormEditor({
                   variant="contained"
                   disabled={
                     busy ||
+                    (!outcomeUnconfirmed &&
+                      !seriesOutcomeUnconfirmed &&
+                      Boolean(submitError)) ||
                     (repeat === "weekly" && !seriesAttempt &&
                       (!seriesPreview || seriesPreview.some((row) => Boolean(row.conflict)) ||
                         seriesPreviewPayload !== seriesPreviewKey())) ||

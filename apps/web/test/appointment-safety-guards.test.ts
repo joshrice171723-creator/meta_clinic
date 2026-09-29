@@ -32,6 +32,50 @@ describe("appointment safety guards", () => {
     expect(source).toContain("!startsAt || !endsAt || !intervalValid");
   });
 
+  it("keeps mismatched booking responses unconfirmed with the exact attempt", () => {
+    const source = featureSource("clinic/CareFlow.tsx");
+    const responseStart = source.indexOf(
+      "const requested = attempt.body.appointment;",
+    );
+    const responseCheck = source.slice(
+      responseStart,
+      source.indexOf("if (attempt.body.appointment.schedule_hold_id"),
+    );
+    const failureStart = source.indexOf("if (unknown) {", responseStart);
+    const unknownHandling = source.slice(
+      failureStart,
+      source.indexOf("} else {", failureStart),
+    );
+
+    for (const field of ["patient_id", "site_id", "starts_at", "ends_at"])
+      expect(responseCheck).toContain(`requested.${field}`);
+    expect(responseCheck).toContain("Its outcome is unconfirmed");
+    expect(source).toContain("body: attempt.body");
+    expect(source).toContain("!(reason instanceof ApiError)");
+    expect(unknownHandling).toContain("...pendingDraft");
+    expect(unknownHandling).toContain("await workingDraft.save(unresolved)");
+    expect(unknownHandling).not.toContain("setBookingAttempt(null)");
+  });
+
+  it("blocks a definite booking rejection until the form changes", () => {
+    const source = featureSource("clinic/CareFlow.tsx");
+    const formStart = source.indexOf('component="form"');
+    const form = source.slice(
+      formStart,
+      source.indexOf("<Stack spacing={2.5}>", formStart),
+    );
+    const unresolvedStart = source.indexOf("const unresolved =");
+    const rejectionHandling = source.slice(
+      source.indexOf("} else {", unresolvedStart),
+      source.indexOf("setSubmitError(", unresolvedStart),
+    );
+
+    expect(form).toContain('setSubmitError("")');
+    expect(source).toContain("Boolean(submitError)");
+    expect(rejectionHandling).toContain("setBookingAttempt(null)");
+    expect(rejectionHandling).toContain("outcomeUnconfirmed: false");
+  });
+
   it("uses a non-identifying reminder result fallback", () => {
     const source = featureSource("clinic/AppointmentReminderBatch.tsx");
 

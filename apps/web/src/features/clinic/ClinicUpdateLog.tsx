@@ -3,6 +3,14 @@ import { version as clinicVersion } from "../../../package.json";
 
 const changes = [
   [
+    "Booking attempt reconciliation",
+    "Recovered booking requests identify when their saved site or time differs from the selected slot, and a mismatched server result remains unconfirmed instead of appearing successful.",
+  ],
+  [
+    "Booking rejection recovery",
+    "A rejected booking stays blocked until the form changes, while an unknown outcome keeps the exact idempotent request available for safe reconciliation.",
+  ],
+  [
     "Recurring booking recovery",
     "An authorized setup user can assign the selected clinician to the previewed series period, then refresh the preview before scheduling.",
   ],
@@ -109,18 +117,39 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
-          Version 0.1.9 review: read /build.json before and after QA and record
-          its full revision and version. Hard-reload this page. The repository
-          audit at records/audits/2026-09-28-muse-qa-70-disposition.md covers
-          every BUG-001 through BUG-070 finding with code evidence, the reason
-          for a fix or no change, and the remaining proof. Repeat affected
-          checks if the revision changes during QA.
+          Version 2.0.0 review: read /build.json before and after QA and record
+          its full revision and version. Hard-reload this page. Two independent
+          GPT-6 Luna high audits reviewed the 276-item handoff inventory and
+          selected #179, #168, and related #181 for source tracing. The
+          repository record at
+          records/audits/2026-09-28-qa-handoff-value-selection.md preserves the
+          scores, implementation boundary, and remaining browser proof. Repeat
+          affected checks if the revision changes during QA.
         </li>
         <li>
-          Retest the original steps for all 70 findings against this exact
-          revision. Record actor, clinic, site, input, visible result, relevant
-          API response, and state after reload. A source fix is not a browser
-          pass; record a pass only after observing the expected outcome.
+          Retest #179 and #181 together. Recover a saved booking request from a
+          different selected slot and confirm the form names the saved request
+          time rather than silently substituting the clicked slot. Retry the
+          exact saved request. Confirm the response patient, site, start, and
+          end match the submitted values; any mismatch must remain unconfirmed.
+          After a definite rejection, confirm Schedule stays blocked until a
+          form change clears the error. An unknown outcome must remain safely
+          retryable with the same request key.
+        </li>
+        <li>
+          Recheck #168 without merging two clinical meanings. A medication
+          entered in encounter Intake must persist in the saved questionnaire
+          and reappear there after reload. The chart's Current medicines list
+          is a separate reconciled medication-statement record. Intake does not
+          automatically create that record in 2.0.0. Record a defect only if
+          the intake answer itself disappears; a future reconciliation flow
+          requires separate product and clinical direction.
+        </li>
+        <li>
+          Retest the original steps for the prior 70-finding audit against this
+          exact revision. Record actor, clinic, site, input, visible result,
+          relevant API response, and state after reload. A source fix is not a
+          browser pass; record a pass only after observing the expected outcome.
         </li>
         <li>
           Highest-value scheduling checks: BUG-002 nonoverlapping same-day
