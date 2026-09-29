@@ -26,7 +26,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import type { EncounterNoteSummary } from "../../api/contracts";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
@@ -681,7 +681,15 @@ export function LiveScribeReviewWorkspace() {
         setActionError(
           errorMessage(reason, "The scribe action could not be completed."),
         );
-        if (uncertainMessage) setOutcomeUnknown(uncertainMessage);
+        if (
+          uncertainMessage &&
+          !(reason instanceof ApiError &&
+            reason.status >= 400 &&
+            reason.status < 500 &&
+            reason.status !== 408 &&
+            reason.code !== "outcome_unconfirmed")
+        )
+          setOutcomeUnknown(uncertainMessage);
       }
       throw reason;
     } finally {
@@ -1454,27 +1462,21 @@ export function LiveScribeReviewWorkspace() {
                 <Button
                   variant="contained"
                   disabled={!canWrite || !selectedPatient || pendingAction !== null}
-                  onClick={() => void createEncounter().catch(() => undefined)}
+                  onClick={() =>
+                    void (isDemoFrame() && !contextualClinicalEncounterId
+                      ? createSyntheticEncounter()
+                      : createEncounter()).catch(() => undefined)
+                  }
                   sx={{ height: 36 }}
                 >
                   {contextualClinicalEncounterId
                     ? "Start linked session"
                     : "Start session"}
                 </Button>
-                {isDemoFrame() && !contextualClinicalEncounterId && (
-                  <Button
-                    variant="outlined"
-                    disabled={!canWrite || !selectedPatient || pendingAction !== null}
-                    onClick={() => void createSyntheticEncounter().catch(() => undefined)}
-                    sx={{ height: 36 }}
-                  >
-                    Create sample encounter
-                  </Button>
-                )}
               </Stack>
               {isDemoFrame() && !contextualClinicalEncounterId && (
                 <Typography variant="caption" color="text.secondary">
-                  Creates local sample facts and an open visit for the Scribe SOAP workflow.
+                  Starts a sample visit session. Recording is unavailable in this demo.
                 </Typography>
               )}
             </Stack>

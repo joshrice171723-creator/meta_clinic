@@ -7,9 +7,9 @@ module Development
       definition = DemoLessonCatalog.definition!(lesson_key)
       template_key = definition.fetch(:template_key, TEMPLATE_KEY)
       sandbox = lesson_key == DemoLessonCatalog::SANDBOX_KEY
-      raise ActiveRecord::RecordNotFound if sandbox && visitor.nil?
+      raise ActiveRecord::RecordNotFound if visitor.nil? && lesson_key != "navigation_tour"
       raise ActiveRecord::RecordNotFound if previous_run &&
-        !DemoLessonCatalog.sandbox?(previous_run.lesson_key) && previous_run.visitor_id != visitor.id
+        !DemoLessonCatalog.sandbox?(previous_run.lesson_key) && previous_run.visitor_id != visitor&.id
       ApplicationRecord.transaction do
         if sandbox
           ApplicationRecord.connection.execute(
