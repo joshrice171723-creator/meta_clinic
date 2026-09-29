@@ -92,8 +92,12 @@ function storedCashAttempt(scope: CashScope): CashAttempt | null {
   return pendingCashAttempts.get(cashScopeKey(scope)) ?? null;
 }
 
+export function pendingCashAttemptInvoiceId(scope: CashScope) {
+  return storedCashAttempt(scope)?.invoiceId ?? null;
+}
+
 export function hasPendingCashAttempt(scope: CashScope) {
-  return storedCashAttempt(scope) !== null;
+  return pendingCashAttemptInvoiceId(scope) !== null;
 }
 
 function deterministicCashError(reason: unknown) {
