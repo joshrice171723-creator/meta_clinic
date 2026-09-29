@@ -651,7 +651,7 @@ function DailyVisitsByState({
             sx={{ alignSelf: "flex-start" }}
             onClick={() => downloadVisitCsv(report)}
           >
-            Download visit counts CSV
+            Download visit report CSV
           </Button>
         </Stack>
       )}
@@ -693,6 +693,18 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ]),
     ["unknown_state", String(report.unknown_state_count)],
     ["total", String(report.total)],
+    [],
+    ["record_page", String(report.pagination.page)],
+    ["records_per_page", String(report.pagination.per_page)],
+    ["records_total", String(report.pagination.total)],
+    ["visit_id", "site_id", "status", "visit_modality", "local_start"],
+    ...report.records.map((record) => [
+      String(record.id),
+      record.site_id === null ? "" : String(record.site_id),
+      record.status,
+      record.visit_modality,
+      record.local_start,
+    ]),
   ];
   downloadCsv(rows, `daily-visits-${report.date}.csv`);
 }
@@ -820,6 +832,55 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     String(row.refund_count),
                     row.refund_amount,
                   ]),
+                  [],
+                  [
+                    "payment_record_page",
+                    String(report.payment_pagination.page),
+                  ],
+                  [
+                    "payment_records_per_page",
+                    String(report.payment_pagination.per_page),
+                  ],
+                  [
+                    "payment_records_total",
+                    String(report.payment_pagination.total),
+                  ],
+                  ["refund_record_page", String(report.refund_pagination.page)],
+                  [
+                    "refund_records_per_page",
+                    String(report.refund_pagination.per_page),
+                  ],
+                  [
+                    "refund_records_total",
+                    String(report.refund_pagination.total),
+                  ],
+                  [
+                    "record_type",
+                    "id",
+                    "payment_event_id",
+                    "patient_id",
+                    "currency",
+                    "amount",
+                    "created_at",
+                  ],
+                  ...report.payment_records.map((record) => [
+                    "payment",
+                    String(record.id),
+                    "",
+                    String(record.patient_id),
+                    record.currency,
+                    record.amount,
+                    record.created_at,
+                  ]),
+                  ...report.refund_records.map((record) => [
+                    "refund",
+                    String(record.id),
+                    String(record.payment_event_id),
+                    String(record.patient_id),
+                    record.currency,
+                    record.amount,
+                    record.created_at,
+                  ]),
                 ],
                 `daily-payment-activity-${report.date}.csv`,
               )
@@ -938,12 +999,32 @@ function DailyInvoices({ date }: { date: string }) {
                       row.current_outstanding_balance,
                     ],
                   ]),
+                  [],
+                  ["record_page", String(report.pagination.page)],
+                  ["records_per_page", String(report.pagination.per_page)],
+                  ["records_total", String(report.pagination.total)],
+                  [
+                    "invoice_id",
+                    "patient_id",
+                    "currency",
+                    "status",
+                    "created_at",
+                    "current_outstanding_balance",
+                  ],
+                  ...report.records.map((record) => [
+                    String(record.id),
+                    String(record.patient_id),
+                    record.currency,
+                    record.status,
+                    record.created_at,
+                    record.current_outstanding_balance,
+                  ]),
                 ],
                 `daily-invoices-${report.date}.csv`,
               )
             }
           >
-            Download invoice counts CSV
+            Download invoice report CSV
           </Button>
           <Button
             href="/clinic/billing"
@@ -1052,6 +1133,30 @@ function DailyStockMovements({ date }: { date: string }) {
                     row.kind,
                     String(row.count),
                     row.signed_quantity,
+                  ]),
+                  [],
+                  ["record_page", String(report.pagination.page)],
+                  ["records_per_page", String(report.pagination.per_page)],
+                  ["records_total", String(report.pagination.total)],
+                  [
+                    "entry_id",
+                    "stock_type",
+                    "item_id",
+                    "batch_id",
+                    "kind",
+                    "stock_unit",
+                    "signed_quantity",
+                    "occurred_at",
+                  ],
+                  ...report.records.map((record) => [
+                    String(record.id),
+                    record.stock_type,
+                    record.item_id === null ? "" : String(record.item_id),
+                    record.batch_id === null ? "" : String(record.batch_id),
+                    record.kind,
+                    record.stock_unit,
+                    record.signed_quantity,
+                    record.occurred_at,
                   ]),
                 ],
                 `daily-stock-movements-${report.date}.csv`,

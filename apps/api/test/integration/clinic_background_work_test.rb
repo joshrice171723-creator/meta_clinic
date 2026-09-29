@@ -93,7 +93,15 @@ class ClinicBackgroundWorkTest < ActionDispatch::IntegrationTest
 
   def create_staff_member(email)
     user = User.create!(email_address: email, password: SecureRandom.hex(20))
-    @practice.memberships.create!(user: user)
+    membership = @practice.memberships.create!(user: user)
+    grant_permissions!(membership, "staff_messaging.read")
+    staff = @practice.staff_members.create!(display_name: "Synthetic recipient",
+      job_title: "Clinic coordinator", active: true)
+    employment = Clinic::Workforce::Employment.create!(practice: @practice,
+      staff_member: staff, membership: membership, status: "active", effective_from: 1.day.ago)
+    employment.employment_sites.create!(practice: @practice, site: @site,
+      active: true, effective_from: 1.day.ago)
+    membership
   end
 
   def with_actor(actor)

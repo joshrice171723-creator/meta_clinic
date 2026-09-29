@@ -84,7 +84,8 @@ module Clinic
                 action_code: "inventory.supplier_quote.record", outcome: :committed,
                 resource_version_ref: "supplier_product:#{offer.id}")
             end
-            close_quote_request!(input[:quote_request_id], offer:, reference:, quoted_on:)
+            product = PharmacyProduct.where(practice_id: current_practice.id).lock.find(offer.product_id)
+            close_quote_request!(input[:quote_request_id], offer:, product:, reference:, quoted_on:)
           end
         end
         render json: mutation_response
@@ -93,7 +94,6 @@ module Clinic
       def create_quote_request
         input = parameter_hash!(:quote_request, %i[supplier_product_id requested_packages note request_key])
         offer = SupplierProduct.where(practice_id: current_practice.id).find(requested_id!(input[:supplier_product_id], :supplier_product_id))
-        raise ArgumentError, "Match this supplier offer to a clinic catalog item before requesting a quote." unless offer.product_id.present?
         requested_packages = Quantity.parse(input[:requested_packages].to_s, scale: 0)
         note = input[:note].to_s.strip
         raise ArgumentError, "A request note is required and must be at most 1000 characters." if note.blank? || note.length > 1000
@@ -111,8 +111,13 @@ module Clinic
           result_resource: ->(request) { request },
           resource_resolver: ->(practice:, receipt:) { SupplierQuoteRequest.where(practice_id: practice.id).find_by(id: receipt.resource_id) }
         ) do
-          SupplierQuoteRequest.create!(practice: current_practice, supplier_product: offer, supplier: offer.supplier,
-            product: offer.product, requested_packages: requested_packages, note: note, request_key: request_key)
+          offer.with_lock do
+            product = PharmacyProduct.where(practice_id: current_practice.id).lock.find_by(id: offer.product_id)
+            raise ArgumentError, "Match this supplier offer to a clinic catalog item before requesting a quote." unless product
+            SupplierQuoteRequest.create!(practice: current_practice, supplier_product: offer, supplier: offer.supplier,
+              product:, requested_packages: requested_packages, package_quantity_at_request: offer.package_quantity,
+              stock_unit_at_request: product.stock_unit, note: note, request_key: request_key)
+          end
         end
         raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
 
@@ -226,11 +231,16 @@ module Clinic
         { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
-      def close_quote_request!(value, offer:, reference:, quoted_on:)
+      def close_quote_request!(value, offer:, product:, reference:, quoted_on:)
         return if value.blank?
 
         request = SupplierQuoteRequest.where(practice_id: current_practice.id).lock.find(requested_id!(value, :quote_request_id))
         raise ArgumentError, "This supplier quote request does not match the supplier offer." unless request.supplier_product_id == offer.id
+        unless request.supplier_id == offer.supplier_id && request.product_id == offer.product_id &&
+            (request.package_quantity_at_request.nil? || request.package_quantity_at_request == offer.package_quantity) &&
+            (request.stock_unit_at_request.nil? || request.stock_unit_at_request == product.stock_unit)
+          raise ArgumentError, "The supplier offer's product or package units changed. Record a new quote request for the current offer."
+        end
         raise ArgumentError, "This supplier quote request is already closed." unless request.status == "open"
 
         request.update!(status: "quoted", quote_reference: reference, quoted_on: quoted_on)

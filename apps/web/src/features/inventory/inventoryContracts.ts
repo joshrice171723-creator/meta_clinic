@@ -563,6 +563,8 @@ export type InventorySupplierQuoteRequest = {
   product_id: string;
   product_name?: string;
   requested_packages: string;
+  package_quantity_at_request: string | null;
+  stock_unit_at_request: string | null;
   note: string;
   status: "open" | "quoted";
   request_key: string;

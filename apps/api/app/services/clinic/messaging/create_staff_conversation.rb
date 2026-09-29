@@ -51,13 +51,8 @@ module Clinic
         raise ActiveRecord::RecordNotFound unless memberships.keys.sort == ids.sort
 
         all_eligible = memberships.values.all? do |membership|
-          if membership.id == creator_membership_id
-            StaffPolicy.authorize!(practice: practice, actor: membership.user,
-              action: "staff_messaging.read", site_id: site&.id)
-            true
-          else
+          membership.id == creator_membership_id ||
             ParticipantIndex.eligible?(practice: practice, membership: membership, site: site)
-          end
         end
         unless all_eligible
           raise Clinic::Authorization::Denied,

@@ -92,8 +92,6 @@ describe("development account preview", () => {
     expect(html).toContain(">Launch<");
     expect(html).toContain(">Patient<");
     expect(html).toContain(">Clinic<");
-    expect(html).toContain(">Future patient<");
-    expect(html).toContain('href="/memberships"');
     expect(html).toContain("Log in");
     expect(html).toContain("Development tools");
     expect(html).toContain(
@@ -107,7 +105,8 @@ describe("development account preview", () => {
     expect(html).not.toContain("Email address");
     expect(html).not.toContain("Password");
     expect(html).not.toContain(">Sign in<");
-    expect(html).not.toContain('href="/workforce/activate"');
+    expect(html).toContain('href="/workforce/activate"');
+    expect(html).toContain("Activate with invitation code");
     expect(html).not.toContain("clinician1@test.com");
   });
 
@@ -125,6 +124,7 @@ describe("development account preview", () => {
     );
     expect(html).toContain("Development tools");
     expect(html).toContain("Owner demo PIN");
+    expect(html).toContain('href="/login?credentials=1&amp;next=%2Fclinic"');
     expect(html).not.toContain("Email address");
     expect(html).not.toContain("Password");
   });
@@ -189,7 +189,7 @@ describe("development account preview", () => {
     expect(html).not.toContain("App date");
     expect(html).not.toContain('href="/workforce/activate"');
     expect(html).toContain("Email address");
-    expect(html).toContain("Future patient");
+    expect(html).toContain("New to a clinic?");
     expect(html).toContain('href="/memberships"');
     expect(html).toContain("without an account");
   });
