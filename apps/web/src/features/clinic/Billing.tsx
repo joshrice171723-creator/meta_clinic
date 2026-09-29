@@ -551,9 +551,10 @@ function LedgerDetails({
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const clinic = useClinic();
-  const [pendingCashInvoiceId, setPendingCashInvoiceId] = useState(() =>
-    pendingCashAttemptInvoiceId(clinic),
-  );
+  const [pendingCashState, setPendingCashState] = useState(() => {
+    const invoiceId = pendingCashAttemptInvoiceId(clinic);
+    return { pending: invoiceId !== null, invoiceId };
+  });
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
   const actionableInvoice =
     checkoutEncounterId && checkoutInvoice.active?.id !== selectedInvoice?.id
@@ -815,7 +816,11 @@ function LedgerDetails({
       {actionableInvoice && (
         <ChargeAdjustmentDialog
           canAdjust={canAdjust}
-          cashPaymentPending={pendingCashInvoiceId === actionableInvoice.id}
+          cashPaymentPending={
+            pendingCashState.pending &&
+            (pendingCashState.invoiceId === null ||
+              pendingCashState.invoiceId === actionableInvoice.id)
+          }
           invoice={actionableInvoice}
           onFinancialChange={onFinancialChange}
         />
@@ -836,7 +841,7 @@ function LedgerDetails({
           encounterId={checkoutEncounterId}
           canPost={canPost}
           financialRevision={financialRevision}
-          onPendingCashAttemptChange={setPendingCashInvoiceId}
+          onPendingCashAttemptChange={setPendingCashState}
           onFinancialChange={onFinancialChange}
         />
       </Box>
@@ -889,7 +894,10 @@ function CheckoutSettlement({
   encounterId: number | null;
   canPost: boolean;
   financialRevision: number;
-  onPendingCashAttemptChange: (invoiceId: number | null) => void;
+  onPendingCashAttemptChange: (state: {
+    pending: boolean;
+    invoiceId: number | null;
+  }) => void;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const clinic = useClinic();
@@ -905,11 +913,12 @@ function CheckoutSettlement({
   const [cashPending, setCashPending] = useState(() =>
     hasPendingCashAttempt(clinic),
   );
-  const updateCashPending = (pending: boolean) => {
-    setCashPending(pending);
-    onPendingCashAttemptChange(
-      pending ? pendingCashAttemptInvoiceId(clinic) : null,
-    );
+  const updateCashPending = (state: {
+    pending: boolean;
+    invoiceId: number | null;
+  }) => {
+    setCashPending(state.pending);
+    onPendingCashAttemptChange(state);
   };
   const [postedInvoiceId, setPostedInvoiceId] = useState<number | null>(null);
   const [postAttempt, setPostAttempt] = useState<{
