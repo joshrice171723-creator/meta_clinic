@@ -1193,6 +1193,12 @@ export function QaWorkspace() {
         maxWidth="md"
       >
         <form
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: "calc(100dvh - 64px)",
+            minHeight: 0,
+          }}
           onSubmit={(event) => {
             event.preventDefault();
             const form = new FormData(event.currentTarget);
@@ -1214,32 +1220,56 @@ export function QaWorkspace() {
           <DialogTitle>Review agent evidence · {reviewTask?.title}</DialogTitle>
           <DialogContent className="qa-dialog-fields">
             <code>{reviewTask?.revision}</code>
-            <pre>{JSON.stringify(reviewTask?.result, null, 2)}</pre>
+            <p>{value(reviewTask?.result.summary)}</p>
+            {reviewDefects.map((defect, index) => (
+              <article key={index}>
+                <strong>{value(defect.id)} · </strong>
+                <Status status={value(defect.verdict)} />
+                <p>{value(defect.observed)}</p>
+              </article>
+            ))}
+            <details>
+              <summary>Machine-readable agent result</summary>
+              <pre>{JSON.stringify(reviewTask?.result, null, 2)}</pre>
+            </details>
             {reviewEvidenceIds.map((id) => {
               const item = data?.evidence.find(
                 (evidence) => evidence.id === id,
               );
               return (
-                <figure className="qa-image" key={id}>
-                  <img
-                    src={`/api/qa/evidence/${id}`}
-                    alt={item?.caption ?? `Referenced screenshot ${id}`}
-                  />
-                  <figcaption>
-                    {item?.phase} · {item?.caption ?? `Stored evidence #${id}`}
-                    <small>
-                      {stamp(item?.created_at)} · {item?.tester}
-                    </small>
-                    <a
-                      href={`/api/qa/evidence/${id}.json`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Reproduction and browser context ↗
-                    </a>
-                    {item && <pre>{JSON.stringify(item.context, null, 2)}</pre>}
-                  </figcaption>
-                </figure>
+                <details key={id} open={item?.phase === "after"}>
+                  <summary>
+                    {item?.phase ?? "Evidence"} ·{" "}
+                    {item?.caption ?? `Stored screenshot #${id}`}
+                  </summary>
+                  <figure className="qa-image">
+                    <img
+                      src={`/api/qa/evidence/${id}`}
+                      alt={item?.caption ?? `Referenced screenshot ${id}`}
+                    />
+                    <figcaption>
+                      {item?.phase} ·{" "}
+                      {item?.caption ?? `Stored evidence #${id}`}
+                      <small>
+                        {stamp(item?.created_at)} · {item?.tester}
+                      </small>
+                      <a
+                        href={`/api/qa/evidence/${id}.json`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Reproduction and browser context ↗
+                      </a>
+                      <code>{item?.revision}</code>
+                      {item && (
+                        <details>
+                          <summary>Recorded reproduction details</summary>
+                          <pre>{JSON.stringify(item.context, null, 2)}</pre>
+                        </details>
+                      )}
+                    </figcaption>
+                  </figure>
+                </details>
               );
             })}
             <TextField
