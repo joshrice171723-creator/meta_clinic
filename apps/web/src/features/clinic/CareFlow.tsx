@@ -122,6 +122,8 @@ type BookingDraft = {
   reason?: string;
   overbookReason?: string;
   overbookRequested?: boolean;
+  walkInReason?: string;
+  walkInRequested?: boolean;
   repeat?: "none" | "weekly";
   repeatIntervalWeeks?: number;
   repeatCount?: number;
@@ -232,6 +234,8 @@ type BookingAttempt = {
       schedule_hold_id?: number;
       reason?: string;
       overbook_reason?: string;
+      walk_in?: boolean;
+      capacity_override_reason?: string;
       expected_policy_revision?: number;
       request_key: string;
       visit_modality?: VisitModality;
@@ -657,7 +661,7 @@ function clinicDateForBooking(value: string, timezone: string) {
   }
 }
 
-export function appointmentDefaults(now = businessNow()) {
+export function appointmentDefaults(now = new Date()) {
   const start = new Date(now);
   start.setSeconds(0, 0);
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
@@ -800,14 +804,17 @@ function BookingFormEditor({
   const clinic = useClinic();
   const defaultDraft = useMemo<BookingDraft>(() => {
     const defaults = appointmentDefaults();
+    const slotStart = initialSlot?.starts_at;
+    const useSlotTime = !!slotStart && Date.parse(slotStart) > Date.now();
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
-      startsAt: initialSlot?.starts_at
-        ? localDateTimeValue(new Date(initialSlot.starts_at))
+      startsAt: useSlotTime
+        ? localDateTimeValue(new Date(slotStart))
         : defaults.startsAt,
-      endsAt: initialSlot?.ends_at
-        ? localDateTimeValue(new Date(initialSlot.ends_at))
-        : defaults.endsAt,
+      endsAt:
+        useSlotTime && initialSlot?.ends_at
+          ? localDateTimeValue(new Date(initialSlot.ends_at))
+          : defaults.endsAt,
       siteId: initialSlot ? String(initialSlot.site_id) : "",
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
       clinicianId: initialSlot?.clinician_id
@@ -817,6 +824,8 @@ function BookingFormEditor({
       serviceOfferingId: "",
       reason: "",
       overbookReason: "",
+      walkInReason: "",
+      walkInRequested: false,
       repeat: "none",
       repeatIntervalWeeks: 1,
       repeatCount: 2,
@@ -872,13 +881,22 @@ function BookingFormEditor({
   );
   const [reason, setReason] = useState(restoredDraft.reason ?? "");
   const [overbookReason, setOverbookReason] = useState(
-    restoredDraft.overbookReason ?? "",
+    restoredDraft.walkInRequested || restoredDraft.walkInReason
+      ? ""
+      : restoredDraft.overbookReason ?? "",
   );
   const [overbookRequested, setOverbookRequested] = useState(
-    Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+    !Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason) &&
+      Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+  );
+  const [walkInReason, setWalkInReason] = useState(restoredDraft.walkInReason ?? "");
+  const [walkInRequested, setWalkInRequested] = useState(
+    Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason),
   );
   const [repeat, setRepeat] = useState<"none" | "weekly">(
-    restoredDraft.repeat ?? "none",
+    restoredDraft.walkInRequested || restoredDraft.walkInReason
+      ? "none"
+      : restoredDraft.repeat ?? "none",
   );
   const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(
     restoredDraft.repeatIntervalWeeks ?? 1,
@@ -1015,6 +1033,8 @@ function BookingFormEditor({
       reason,
       overbookReason,
       overbookRequested,
+      walkInReason,
+      walkInRequested,
       repeat,
       repeatIntervalWeeks,
       repeatCount,
@@ -1031,8 +1051,10 @@ function BookingFormEditor({
       visitTypeId,
       serviceOfferingId,
       reason,
-    overbookReason,
-    overbookRequested,
+      overbookReason,
+      overbookRequested,
+      walkInReason,
+      walkInRequested,
       repeat,
       repeatIntervalWeeks,
       repeatCount,
@@ -1074,6 +1096,7 @@ function BookingFormEditor({
   const schedulingPolicy = useResource<{
     policy: import("../../api/contracts").SiteSchedulingPolicy;
     can_overbook: boolean;
+    can_capacity_override: boolean;
   }>(`/api/clinic/facilities/${siteId}/scheduling_policy`, {
     enabled: Boolean(siteId),
   });
@@ -1260,22 +1283,38 @@ function BookingFormEditor({
   const timePreview = bookingTimePreview(startsAt, bookingTimezone);
   const assignClinicianToSlot = async () => {
     if (siteAssignmentBusy || !selectedClinician || !selectedSite) return;
+    if (
+      repeat === "weekly" &&
+      (!seriesPreview || seriesPreviewPayload !== seriesPreviewKey())
+    )
+      return;
     setSiteAssignmentBusy(true);
     setSubmitError("");
     setAssignmentNotice("");
+    const seriesAppointments =
+      repeat === "weekly"
+        ? (seriesPreview ?? []).filter(
+            (row) => row.state === "booked" && row.starts_at && row.ends_at,
+          )
+        : [];
+    const assignmentStartsAt =
+      seriesAppointments[0]?.starts_at ?? new Date(startsAt).toISOString();
+    const assignmentEndsAt =
+      seriesAppointments[seriesAppointments.length - 1]?.ends_at ??
+      new Date(endsAt).toISOString();
     try {
       await api(`/api/clinic/clinicians/${selectedClinician.id}/assign_site`, {
         method: "POST",
         body: {
           assignment: {
             site_id: siteId,
-            starts_at: new Date(startsAt).toISOString(),
-            ends_at: new Date(endsAt).toISOString(),
+            starts_at: assignmentStartsAt,
+            ends_at: assignmentEndsAt,
           },
         },
       });
       setAssignmentNotice(
-        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} for this slot. Retry booking.`,
+        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} ${repeat === "weekly" ? "for this series period. Preview again before scheduling." : "for this slot. Retry booking."}`,
       );
     } catch (error) {
       setSubmitError(
@@ -1326,6 +1365,8 @@ function BookingFormEditor({
     setReason("");
     setOverbookReason("");
     setOverbookRequested(Boolean(initialSlot?.overbook));
+    setWalkInReason("");
+    setWalkInRequested(false);
     setRepeat("none");
     setRepeatIntervalWeeks(1);
     setRepeatCount(2);
@@ -1593,6 +1634,8 @@ function BookingFormEditor({
     },
   });
   const seriesPreviewKey = () => JSON.stringify(seriesBody("preview").body.series);
+  const seriesPreviewIsCurrent =
+    Boolean(seriesPreview) && seriesPreviewPayload === seriesPreviewKey();
   const previewSeries = async () => {
     if (!patientId || !siteId || !clinicianId || !visitTypeId || intervalError || offeringIssue) {
       setSubmitError("Complete the patient, site, clinician, visit type, and valid time before previewing visits.");
@@ -1604,6 +1647,7 @@ function BookingFormEditor({
     }
     setBusy(true);
     setSubmitError("");
+    setAssignmentNotice("");
     try {
       const attempt = seriesBody("preview");
       const result = await api<{ occurrences: SeriesPreviewRow[] }>(
@@ -1612,6 +1656,13 @@ function BookingFormEditor({
       );
       setSeriesPreview(result.occurrences);
       setSeriesPreviewPayload(JSON.stringify(attempt.body.series));
+      const assignmentConflict = result.occurrences.find((row) =>
+        /not assigned to this site for the selected time/i.test(
+          row.conflict ?? "",
+        ),
+      );
+      if (assignmentConflict?.conflict)
+        setSubmitError(assignmentConflict.conflict);
     } catch (error) {
       setSeriesPreview(null);
       setSeriesPreviewPayload(null);
@@ -1878,6 +1929,16 @@ function BookingFormEditor({
               if (!overbookReason.trim())
                 return setSubmitError("Enter a reason for this clinician exception.");
             }
+            if (!bookingAttempt && walkInRequested) {
+              if (!schedulingPolicy.data?.can_capacity_override)
+                return setSubmitError("Walk-in capacity exceptions are unavailable to this account at this site.");
+              if (firstAvailable || visitModality !== "in_person")
+                return setSubmitError("Choose a clinician and in-person visit format for a walk-in appointment.");
+              if (heldSlot)
+                return setSubmitError("A walk-in cannot use a held appointment slot.");
+              if (!walkInReason.trim())
+                return setSubmitError("Enter a reason for this walk-in capacity exception.");
+            }
             inFlight.current = true;
             if (autosaveTimer.current) {
               window.clearTimeout(autosaveTimer.current);
@@ -1904,6 +1965,10 @@ function BookingFormEditor({
                     ...(overbookRequested ? {
                       overbook_reason: overbookReason.trim(),
                       expected_policy_revision: schedulingPolicy.data?.policy.revision,
+                    } : {}),
+                    ...(walkInRequested ? {
+                      walk_in: true,
+                      capacity_override_reason: walkInReason.trim(),
                     } : {}),
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
@@ -2037,7 +2102,7 @@ function BookingFormEditor({
             >
               <TextField
                 label="Starts"
-                type="datetime-local"
+                type="text"
                 required
                 disabled={
                   busy ||
@@ -2060,11 +2125,19 @@ function BookingFormEditor({
                       ),
                     );
                 }}
-                slotProps={{ inputLabel: { shrink: true } }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                slotProps={{
+                  htmlInput: {
+                    inputMode: "numeric",
+                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
+                    spellCheck: false,
+                  },
+                  inputLabel: { shrink: true },
+                }}
               />
               <TextField
                 label="Ends"
-                type="datetime-local"
+                type="text"
                 required
                 disabled={
                   busy ||
@@ -2078,7 +2151,15 @@ function BookingFormEditor({
                   intervalError || "End time must follow the start time."
                 }
                 onChange={(event) => setEndsAt(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                slotProps={{
+                  htmlInput: {
+                    inputMode: "numeric",
+                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
+                    spellCheck: false,
+                  },
+                  inputLabel: { shrink: true },
+                }}
               />
             </Box>
             <Stack
@@ -2122,7 +2203,11 @@ function BookingFormEditor({
               canConfigure={clinic.capabilities.telehealth_configure === true}
               onChange={(format) => {
                 setVisitModality(format);
-                if (format === "video") setRoomId("");
+                if (format === "video") {
+                  setRoomId("");
+                  setWalkInRequested(false);
+                  setWalkInReason("");
+                }
               }}
             />
             <Box
@@ -2157,7 +2242,7 @@ function BookingFormEditor({
                   </MenuItem>
                   {facilities.data.sites.map((site) => (
                     <MenuItem key={site.id} value={site.id.toString()}>
-                      {site.code}
+                      {site.name || site.code}
                     </MenuItem>
                   ))}
                 </Select>
@@ -2338,11 +2423,15 @@ function BookingFormEditor({
                   control={<Checkbox checked={overbookRequested}
                     disabled={busy || Boolean(bookingAttempt)}
                     onChange={(event) => {
-                      setOverbookRequested(event.target.checked);
+                      const requested = event.target.checked;
+                      setOverbookRequested(requested);
                       if (!event.target.checked) setOverbookReason("");
                       if (event.target.checked) {
+                        setWalkInRequested(false);
+                        setWalkInReason("");
                         setRepeat("none");
                         setSeriesPreview(null);
+                        setSeriesPreviewPayload(null);
                       }
                     }} />}
                   label="Request a clinician overbook exception" />
@@ -2366,26 +2455,74 @@ function BookingFormEditor({
                   />
                 </Stack>
               )}
-              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
-                <TextField
-                  select
-                  label="Repeat"
-                  value={repeat}
-                  onChange={(event) => {
-                    setRepeat(event.target.value as "none" | "weekly");
-                    if (event.target.value === "weekly") {
-                      setOverbookRequested(false);
-                      setOverbookReason("");
+              {schedulingPolicy.data?.can_capacity_override && (
+                <Stack spacing={1} sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={walkInRequested}
+                        disabled={busy || Boolean(bookingAttempt) || Boolean(seriesAttempt) || Boolean(holdAttempt) || Boolean(heldSlot) || firstAvailable || visitModality === "video"}
+                        onChange={(event) => {
+                          const requested = event.target.checked;
+                          setWalkInRequested(requested);
+                          setWalkInReason("");
+                          if (requested) {
+                            setOverbookRequested(false);
+                            setOverbookReason("");
+                            setRepeat("none");
+                            setSeriesPreview(null);
+                            setSeriesPreviewPayload(null);
+                            const start = businessNow();
+                            start.setSeconds(0, 0);
+                            setStartsAt(localDateTimeValue(start));
+                            setEndsAt(localDateTimeValue(new Date(start.getTime() + (selectedOffering?.duration_minutes ?? 30) * 60_000)));
+                          }
+                        }}
+                      />
                     }
-                    setSeriesPreview(null);
-                    setSeriesPreviewPayload(null);
-                  }}
-                  disabled={busy || Boolean(seriesAttempt)}
-                >
-                  <MenuItem value="none">Does not repeat</MenuItem>
-                  <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
-                    Weekly
-                  </MenuItem>
+                    label="Book as a walk-in"
+                  />
+                  {walkInRequested && (
+                    <>
+                      <Alert severity="warning">
+                        This walk-in may bypass the clinician's weekly capacity template. Site hours, clinician assignment, blocked time, patient and room conflicts, and active holds are still checked.
+                      </Alert>
+                      <TextField
+                        fullWidth
+                        required
+                        label="Walk-in reason"
+                        value={walkInReason}
+                        onChange={(event) => setWalkInReason(event.target.value)}
+                        disabled={busy || outcomeUnconfirmed}
+                        slotProps={{ htmlInput: { maxLength: 500 } }}
+                        helperText="Saved with the appointment and the authorizing staff member."
+                      />
+                    </>
+                  )}
+                </Stack>
+              )}
+              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
+              <TextField
+                select
+                label="Repeat"
+                value={repeat}
+                onChange={(event) => {
+                  setRepeat(event.target.value as "none" | "weekly");
+                  if (event.target.value === "weekly") {
+                    setOverbookRequested(false);
+                    setOverbookReason("");
+                    setWalkInRequested(false);
+                    setWalkInReason("");
+                  }
+                  setSeriesPreview(null);
+                  setSeriesPreviewPayload(null);
+                }}
+                disabled={walkInRequested || busy || Boolean(bookingAttempt) || Boolean(seriesAttempt)}
+              >
+                <MenuItem value="none">Does not repeat</MenuItem>
+                <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
+                  Weekly
+                </MenuItem>
                 </TextField>
                 {repeat === "weekly" && (
                   <>
@@ -2510,9 +2647,9 @@ function BookingFormEditor({
                       schedule.
                     </Alert>
                   ) : (
-                    <Alert severity="warning" variant="outlined">
+                    <Alert severity="info" variant="outlined">
                       <Typography component="div" variant="body2">
-                        The selected resource is already scheduled on{" "}
+                        The selected resource has other appointments on{" "}
                         {resourceDate}:
                       </Typography>
                       <Stack
@@ -2538,7 +2675,8 @@ function BookingFormEditor({
                         variant="body2"
                         sx={{ mt: 0.5 }}
                       >
-                        Choose another time or resource before scheduling.
+                        Scheduling checks whether the appointment times
+                        overlap.
                       </Typography>
                     </Alert>
                   )}
@@ -2556,6 +2694,7 @@ function BookingFormEditor({
                 role="alert"
                 action={
                   clinicianSiteWarning &&
+                  (repeat !== "weekly" || seriesPreviewIsCurrent) &&
                   clinic.capabilities.clinic_setup_write === true &&
                   selectedClinician &&
                   selectedSite ? (
@@ -2567,7 +2706,7 @@ function BookingFormEditor({
                     >
                       {siteAssignmentBusy
                         ? "Assigning…"
-                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} for this slot`}
+                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
                     </Button>
                   ) : undefined
                 }
@@ -2719,7 +2858,7 @@ function BookingFormEditor({
                     : outcomeUnconfirmed || seriesOutcomeUnconfirmed
                       ? "Retry same request"
                       : repeat === "weekly" ? "Schedule series" :
-                        overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
+                        walkInRequested ? "Schedule walk-in" : overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
                 </Button>
               </Stack>
             </Stack>
@@ -4631,7 +4770,7 @@ function SoapNoteWorkspace({
   if (!templates.data) return <LoadState error={templates.error} />;
   const existing = encounter.notes.find((note) => note.note_kind === "soap");
   const noteId = created?.id ?? existing?.id;
-  const workspace = noteId ? (
+  return noteId ? (
     <ExistingSoapNote
       patientId={encounter.patient_id}
       patientName={patientName}
@@ -4657,11 +4796,6 @@ function SoapNoteWorkspace({
       <strong>No SOAP note recorded</strong>
       <span>You can review existing notes but cannot create a draft.</span>
     </div>
-  );
-  return (
-    <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
-      {workspace}
-    </Box>
   );
 }
 
@@ -5773,23 +5907,31 @@ function VisitWrapUp({
               </Stack>
               <Alert
                 severity={
-                  completion.evidence.signed_instruction ? "info" : "warning"
+                  completion.evidence.signed_instruction ||
+                  instructionsStatus === "not_required"
+                    ? "info"
+                    : "warning"
                 }
               >
                 {completion.evidence.signed_instruction
                   ? `Signed written instructions are available from note revision ${completion.evidence.signed_instruction.revision_no}.`
-                  : "No signed note revision with written patient instructions is available."}
+                  : instructionsStatus === "not_required"
+                    ? "Written instructions are not required for this visit."
+                    : "No signed note revision with written patient instructions is available."}
               </Alert>
               <Alert
                 severity={
-                  completion.evidence.education_events.length
+                  completion.evidence.education_events.length ||
+                  educationStatus === "not_required"
                     ? "info"
                     : "warning"
                 }
               >
                 {completion.evidence.education_events.length
                   ? `${completion.evidence.education_events.length} education record${completion.evidence.education_events.length === 1 ? "" : "s"} will be linked to this completion review.`
-                  : "No education or teach-back record is available for this encounter."}
+                  : educationStatus === "not_required"
+                    ? "Education and teach-back are not required for this visit."
+                    : "No education or teach-back record is available for this encounter."}
               </Alert>
               <Box>
                 <Stack
@@ -6110,11 +6252,13 @@ export function EncounterPage({
           nurseWorkspaceResource={nurseWorkspace}
           facilityRoomsResource={facilityRooms}
           noteWorkspace={
-            <SoapNoteWorkspace
-              encounter={encounter.data.encounter}
-              patientName={patient.data.patient.display_name}
-              onChanged={encounter.refresh}
-            />
+            <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
+              <SoapNoteWorkspace
+                encounter={encounter.data.encounter}
+                patientName={patient.data.patient.display_name}
+                onChanged={encounter.refresh}
+              />
+            </Box>
           }
         />
       }

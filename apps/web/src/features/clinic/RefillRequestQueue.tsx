@@ -51,8 +51,13 @@ export function RefillRequestQueue() {
     capabilities.patients === true &&
     capabilities.medication_requests_write === true;
   const canDecide = canManage && clinicianProfileId !== null;
-  const requests = useResource<{ refill_requests: ClinicRefillRequest[] }>(
-    "/api/clinic/refill_requests",
+  const [requestPage, setRequestPage] = useState(1);
+  const [deliveryFilter, setDeliveryFilter] = useState<"all" | "failed">("all");
+  const requests = useResource<{
+    refill_requests: ClinicRefillRequest[];
+    pagination: { page: number; per_page: number; total: number };
+  }>(
+    `/api/clinic/refill_requests?page=${requestPage}&per_page=25${deliveryFilter === "failed" ? "&delivery=failed" : ""}`,
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [patientOptions, setPatientOptions] = useState<Patient[]>([]);
@@ -319,6 +324,7 @@ export function RefillRequestQueue() {
           ? `Refill response #${request.id} was delivered in the patient portal.`
           : `Refill response #${request.id} still has no active portal destination.`,
       );
+      if (deliveryFilter === "failed") setRequestPage(1);
       requests.refresh();
     } catch (reason) {
       setMutationError(reason, "The refill response could not be delivered.");
@@ -437,7 +443,8 @@ export function RefillRequestQueue() {
             />
           </Stack>
           <Typography variant="caption" color="text.secondary">
-            Counts reflect the requests returned for this queue (up to 100).
+            Counts reflect this page of {requests.data.pagination.total}{" "}
+            matching requests.
           </Typography>
         </>
       )}
@@ -574,6 +581,19 @@ export function RefillRequestQueue() {
               Refresh
             </Button>
           </Stack>
+          <TextField
+            select
+            label="Show requests"
+            value={deliveryFilter}
+            onChange={(event) => {
+              setDeliveryFilter(event.target.value as "all" | "failed");
+              setRequestPage(1);
+            }}
+            sx={{ maxWidth: 280 }}
+          >
+            <MenuItem value="all">All refill requests</MenuItem>
+            <MenuItem value="failed">Portal delivery follow-up</MenuItem>
+          </TextField>
           {!requests.data && !requests.error && (
             <Typography role="status">Loading refill requests…</Typography>
           )}
@@ -590,7 +610,37 @@ export function RefillRequestQueue() {
             </Alert>
           )}
           {sortedRequests.length === 0 && requests.data && (
-            <Typography color="text.secondary">No refill requests.</Typography>
+            <Typography color="text.secondary">
+              No matching refill requests.
+            </Typography>
+          )}
+          {requests.data && requests.data.pagination.total > 25 && (
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Button
+                size="small"
+                disabled={requestPage <= 1}
+                onClick={() => setRequestPage((page) => page - 1)}
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                Page {requests.data.pagination.page} of{" "}
+                {Math.ceil(
+                  requests.data.pagination.total /
+                    requests.data.pagination.per_page,
+                )}
+              </Typography>
+              <Button
+                size="small"
+                disabled={
+                  requestPage * requests.data.pagination.per_page >=
+                  requests.data.pagination.total
+                }
+                onClick={() => setRequestPage((page) => page + 1)}
+              >
+                Next
+              </Button>
+            </Stack>
           )}
           {sortedRequests.map((request) => {
             const terminal =

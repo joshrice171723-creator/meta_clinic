@@ -4,7 +4,7 @@ import type {
   RuntimeEnvironment,
 } from "../../api/contracts";
 import { Field, Form } from "../../shared/ui";
-import { Alert, Button, Typography } from "@mui/material";
+import { Alert, Button, Stack, Typography } from "@mui/material";
 import {
   DevelopmentControls,
   EnvironmentLabel,
@@ -93,19 +93,48 @@ export function Login({
             <Typography color="text.secondary" variant="body2">
               Choose an organization and account, or create a new organization.
             </Typography>
+            {ownerPinRequired && (
+              <div>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ alignItems: "flex-start" }}
+                >
+                  <Button
+                    href="/login?credentials=1&next=%2Fowner"
+                    variant="outlined"
+                  >
+                    Sign in with owner account
+                  </Button>
+                  <Button
+                    href="/login?credentials=1&next=%2Fclinic"
+                    variant="outlined"
+                  >
+                    Sign in with clinic team account
+                  </Button>
+                </Stack>
+                <Typography
+                  color="text.secondary"
+                  variant="caption"
+                  sx={{ display: "block" }}
+                >
+                  Use your owner account email and password.
+                </Typography>
+              </div>
+            )}
             <DevelopmentControls
               accounts={developmentAccounts}
               businessDate={businessDate}
               initialPortal={developmentPortalFor(returnTo)}
               ownerPinRequired={ownerPinRequired}
             />
-            {ownerPinRequired && (
-              <p className="page-fine-print">
-                <a href="/login?credentials=1&next=%2Fowner">
-                  Owner account sign in
-                </a>
-              </p>
-            )}
+            <Button href="/demo" variant="outlined">
+              Open visitor demo
+            </Button>
+            <Typography color="text.secondary" variant="caption">
+              Enter a shared synthetic clinic workspace. Visitors can reset it
+              to its baseline, which removes everyone's changes.
+            </Typography>
           </div>
         ) : (
           <>

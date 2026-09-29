@@ -3,6 +3,30 @@ import { version as clinicVersion } from "../../../package.json";
 
 const changes = [
   [
+    "Recurring booking recovery",
+    "An authorized setup user can assign the selected clinician to the previewed series period, then refresh the preview before scheduling.",
+  ],
+  [
+    "Staff conversations",
+    "An authorized administrator can create a conversation without a workforce employment row; invited staff still need eligible access.",
+  ],
+  [
+    "Location selection",
+    "The selected site remains selected after reload, and site-scoped workforce access no longer expands the location list to every site.",
+  ],
+  [
+    "Clinic sign-in",
+    "The public demo sign-in page now has a direct clinic-team credential entry alongside the owner entry.",
+  ],
+  [
+    "Visit completion",
+    "Instructions and education marked not required now show an informational state instead of missing-evidence warnings.",
+  ],
+  [
+    "Labels and appearance",
+    "Booking sites show names, appearance settings use plain language, and the note template uses Meta Clinic casing.",
+  ],
+  [
     "Cash payments",
     "Enter cash tendered, see change due, and record with one action.",
   ],
@@ -22,6 +46,18 @@ const changes = [
   [
     "Inventory",
     "Follow one first-run path from supplier to offer, purchase order, receipt, and bins.",
+  ],
+  [
+    "Supplier quote snapshots",
+    "Quote requests retain the requested package quantity and stock unit, and closing an offer checks for later catalog changes.",
+  ],
+  [
+    "Cash estimate retries",
+    "An exact retry can return the original estimate after its catalog offering is retired.",
+  ],
+  [
+    "Report exports",
+    "Visit, payment, invoice, and stock CSV exports include the current page's detail rows and pagination context.",
   ],
   ["Encounter recalls", "Create a six-month follow-up from chart close."],
   [
@@ -73,6 +109,97 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
+          Version 0.1.9 review: read /build.json before and after QA and record
+          its full revision and version. Hard-reload this page. The repository
+          audit at records/audits/2026-09-28-muse-qa-70-disposition.md covers
+          every BUG-001 through BUG-070 finding with code evidence, the reason
+          for a fix or no change, and the remaining proof. Repeat affected
+          checks if the revision changes during QA.
+        </li>
+        <li>
+          Retest the original steps for all 70 findings against this exact
+          revision. Record actor, clinic, site, input, visible result, relevant
+          API response, and state after reload. A source fix is not a browser
+          pass; record a pass only after observing the expected outcome.
+        </li>
+        <li>
+          Highest-value scheduling checks: BUG-002 nonoverlapping same-day
+          visits, BUG-004 recurring clinician assignment and fresh preview,
+          BUG-005 walk-in reason and conflict guards, and BUG-007 eligible and
+          ineligible no-show actions. Check that denied roles cannot use the
+          assignment or exception paths.
+        </li>
+        <li>
+          Access and recovery checks: BUG-022 create a staff conversation as
+          Omni Administrator, then verify participant access and an ineligible
+          recipient denial; BUG-025 regrant the Front Desk Coordinator role
+          after revocation and reload; BUG-037 reload a selected clinic site;
+          BUG-039 compare site-scoped and practice-scoped location choices and
+          confirm an unauthorized site switch is denied.
+        </li>
+        <li>
+          Patient and workforce journey checks: BUG-013 opt out of written
+          instructions and education without a false warning; BUG-015 submit
+          vitals with an empty observed time and confirm visible feedback;
+          BUG-026 and BUG-028 complete workforce setup and retry timecard,
+          payroll, and schedule actions. Recheck public membership and portal
+          entry for BUG-032 with published synthetic data and an activated
+          synthetic patient account.
+        </li>
+        <li>
+          Inspect BUG-044, BUG-045, BUG-049, BUG-052, BUG-055, BUG-057,
+          BUG-058, BUG-069, and BUG-070 on their original screens. Confirm the
+          new clinic credential link, permission matrix, palette/site/template
+          wording, and distinct write-off, void, and credit explanations.
+        </li>
+        <li>
+          Open runtime questions: BUG-036 Reset Sandbox previously returned
+          404; repeat the reset and check restored baseline and visitor
+          isolation. BUG-067 previously locked the QA Gate Test session on a
+          clinic switch; capture the context response and session state before
+          and after. For BUG-003, BUG-032, and BUG-051, include the exact
+          synthetic actor, profile, location assignment, and service state.
+          Preserve authorization and session guards while investigating.
+        </li>
+        <li>
+          Release gate follow-up: the first 0.1.9 candidate failed while
+          opening a newly prepared Sandbox and rolled back automatically. The
+          shared prepared Sandbox behavior was restored for this revision.
+          Open it after registering a visitor, switch location, reset it, and
+          verify a second visitor can enter the prepared Sandbox. A reset also
+          replaces another visitor's synthetic changes.
+        </li>
+        <li>
+          The audit records 23 source-backed fixes, implementations, or
+          clarified recovery paths and 47 findings with specific current-source
+          explanations, missing reproduction evidence, or product/authority
+          decisions. Those counts are dispositions, not 70 browser passes.
+        </li>
+        <li>
+          Supplier pricing: create a quote request, change the underlying
+          package quantity or stock unit, and confirm a stale offer cannot
+          close. Older requests without a snapshot should remain reviewable.
+          Cash estimates: repeat the exact request after retiring the offering
+          and confirm the original result returns. In each paged operations
+          report, export CSV and compare the detail rows and page metadata to
+          the visible page.
+        </li>
+        <li>
+          Booking defaults (#21): Schedule &gt; Book appointment uses the current
+          real time rounded up to the next 15-minute interval, with a 30-minute
+          duration. Retest while viewing September 1, 2026, and today; choose
+          Start new appointment if a saved draft appears. Confirm the fresh
+          times follow the current clock, then close without booking. Held slots,
+          clicked slots, and Schedule another at this time retain their selected
+          times. Existing saved drafts still require review and remain unchanged
+          until cleared. This default does not guarantee slot availability.
+        </li>
+        <li>
+          Location setup: a new location becomes the selected site after it is
+          created. The location picker labels unfinished sites so a setup
+          administrator can return to finalization.
+        </li>
+        <li>
           Encounter signing: completed encounters open their chart workspace so
           the Signing destination contains the draft, signing, or correction
           controls, loading state, or access state instead of an empty anchor.
@@ -110,17 +237,27 @@ export function ClinicUpdateLog() {
           confirm Cancelled persists and any replacement offer is separate.
         </li>
         <li>
-          Waitlist offers: clinician eligibility now follows the active SIMT site
-          assignment used by scheduling. Retest the original Avery Example offer
-          and confirm Offered persists after reload or a capacity error is visible.
+          Waitlist offers: offer start and accept-before values now use separate
+          date and time fields so each value commits before publishing.
+          Clinician eligibility still follows the active SIMT site assignment
+          used by scheduling. Retest the original Avery Example offer and
+          confirm Offered persists after reload or a capacity error is visible.
         </li>
         <li>
           Inventory receiving: an empty Destination links to Storage locations.
           Create an active leaf, return, and confirm the receipt destination persists.
         </li>
         <li>
-          Schedule cancellation: eligible appointment details again include Cancel
-          appointment. Cancel there and confirm the status persists after reload.
+          Schedule cancellation: appointment details consistently show Cancel
+          appointment. It is enabled only for eligible scheduled or confirmed
+          appointments without an encounter. Cancel an eligible appointment
+          there and confirm the status persists after reload.
+        </li>
+        <li>
+          Visitor demo: Development tools now includes an Open visitor demo
+          entry to the shared synthetic clinic journey. Open the visitor demo,
+          enter the sandbox, make a synthetic edit, and confirm Reset Sandbox
+          restores its baseline. Reset removes other visitors' changes too.
         </li>
         <li>
           Booking draft recovery: earlier-session drafts are explicit; drafts at
@@ -199,8 +336,9 @@ export function ClinicUpdateLog() {
           patient alert is not sent yet.
         </li>
         <li>
-          Day-end currently combines live reports and links to the source
-          actions. Saving a reconciled closeout is still in progress.
+          Day-end combines live reports and source-action links and now saves an
+          attributed closeout review. Save one, reload, and inspect its
+          captured totals and discrepancy notes.
         </li>
       </Box>
     </Stack>

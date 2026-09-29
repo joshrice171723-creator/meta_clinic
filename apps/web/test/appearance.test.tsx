@@ -169,7 +169,7 @@ describe("system appearance and UI scope", () => {
     expect(html).toContain("synthetic@example.invalid");
     expect(html).not.toContain("Save appearance");
     expect(html).toContain('name="appearance[version]"');
-    expect(html).toContain("reload saved settings");
+    expect(html).toContain("reload the page");
     expect(html).toContain("Surface");
     expect(html).toContain("Text");
     expect(html).toContain("Action");

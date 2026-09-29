@@ -84,6 +84,11 @@ check(sandbox.post(base + '/demo/visitor', json=visitor, timeout=20).status_code
 csrf = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
 sandbox.headers['X-CSRF-Token'] = csrf
 opened = sandbox.post(base + '/demo/lesson', json={'lesson_key': 'sandbox'}, timeout=600)
+if opened.status_code != 201:
+    try:
+        print('Sandbox open response:', opened.status_code, opened.json().get('error', 'no error detail'))
+    except ValueError:
+        print('Sandbox open response:', opened.status_code, 'non-JSON response')
 check(opened.status_code == 201 and opened.json()['run']['sandbox'], 'Sandbox available')
 clinic_id = opened.json()['run']['clinic']['id']
 context = sandbox.get(base + '/clinic/context', timeout=20).json()

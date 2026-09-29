@@ -24,6 +24,8 @@ export function PatientWaitlistOffers() {
   const [notice, setNotice] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const attempt = useRef<Reply | null>(null);
+  const [callbackKey, setCallbackKey] = useState(() => crypto.randomUUID());
+  const [callbackRequested, setCallbackRequested] = useState(false);
   async function reply(next: Reply) {
     if (busy) return;
     const current = attempt.current ?? next;
@@ -90,6 +92,39 @@ export function PatientWaitlistOffers() {
       setBusy(false);
     }
   }
+
+  async function requestWaitlistCallback() {
+    if (busy || callbackRequested) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await api("/api/patient_portal/requests", {
+        method: "POST",
+        body: {
+          patient_portal_request: {
+            request_key: callbackKey,
+            request_type: "callback",
+            content:
+              "Please contact me about joining the waitlist for an earlier appointment.",
+          },
+        },
+      });
+      setCallbackRequested(true);
+      setCallbackKey(crypto.randomUUID());
+      setNotice(
+        "Your request was sent to the clinic front desk. The clinic will review it and contact you about joining the waitlist.",
+      );
+    } catch (value) {
+      setError(
+        value instanceof Error
+          ? value.message
+          : "Your request could not be confirmed. Retry the same request.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
       <Stack spacing={2}>
@@ -132,10 +167,21 @@ export function PatientWaitlistOffers() {
           <Typography role="status">Loading offers…</Typography>
         )}
         {resource.data?.entries.length === 0 && (
-          <Typography color="text.secondary">
-            No waitlist entries. Ask your clinic to add you if you would like an
-            earlier opening.
-          </Typography>
+          <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+            <Typography color="text.secondary">
+              No waitlist entries. Request a call and the clinic can review an
+              earlier-opening request with you.
+            </Typography>
+            <Button
+              variant="outlined"
+              disabled={busy || callbackRequested}
+              onClick={() => void requestWaitlistCallback()}
+            >
+              {callbackRequested
+                ? "Callback requested"
+                : "Request a call about an earlier opening"}
+            </Button>
+          </Stack>
         )}
         {resource.data?.entries.map((entry) => (
           <Stack key={entry.id} spacing={1}>

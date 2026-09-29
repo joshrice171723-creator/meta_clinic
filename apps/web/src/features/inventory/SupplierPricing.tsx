@@ -583,6 +583,10 @@ export function SupplierPricingScreen({
                   </strong>
                   <p>
                     {request.requested_packages} packages ·{" "}
+                    {request.package_quantity_at_request
+                      ? `Recorded package size: ${request.package_quantity_at_request} ${request.stock_unit_at_request ?? "units"} per package`
+                      : "Package size not recorded"}{" "}
+                    ·{" "}
                     {request.status === "open"
                       ? "Awaiting a recorded response"
                       : `Quote ${request.quote_reference ?? "recorded"}`}

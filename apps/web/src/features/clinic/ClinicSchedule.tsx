@@ -309,6 +309,7 @@ export function ClinicSchedule({
   );
   const [booking, setBooking] = useState<CalendarBooking>();
   const [selected, setSelected] = useState<CalendarAppointment>();
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   const [seriesId, setSeriesId] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [mutationError, setMutationError] = useState("");
@@ -493,12 +494,6 @@ export function ClinicSchedule({
   }
   async function cancelSelectedAppointment() {
     if (!selected || busy) return;
-    if (
-      !window.confirm(
-        "Cancel this appointment? I understand that no cancellation message will be sent automatically.",
-      )
-    )
-      return;
     setBusy(true);
     setMutationError("");
     try {
@@ -531,8 +526,10 @@ export function ClinicSchedule({
       setMutationError(
         error instanceof Error
           ? error.message
-          : "The appointment could not be cancelled. Refresh before trying again.",
+          : "Cancellation could not be verified. Review the refreshed schedule before trying again.",
       );
+      setSelected(undefined);
+      calendar.refresh();
     } finally {
       setBusy(false);
     }
@@ -660,14 +657,8 @@ export function ClinicSchedule({
               variant="contained"
               disabled={!siteId}
               onClick={() => {
-                const starts_at = calendarInstant(day, 9, timezone);
-                setBooking({
-                  site_id: Number(siteId),
-                  starts_at,
-                  ends_at: new Date(
-                    Date.parse(starts_at) + 30 * 60000,
-                  ).toISOString(),
-                });
+                // No slot was selected; let BookingForm use real-time defaults.
+                setBooking({ site_id: Number(siteId) });
               }}
             >
               {actionLabel}
@@ -704,6 +695,9 @@ export function ClinicSchedule({
         <Alert severity="success" onClose={() => setNotice("")}>
           {notice}
         </Alert>
+      )}
+      {!selected && mutationError && (
+        <Alert severity="error">{mutationError}</Alert>
       )}
       <Stack
         direction="row"
@@ -1287,6 +1281,9 @@ export function ClinicSchedule({
                             {appointment.overbooked && (
                               <Chip size="small" label="Overbooked" />
                             )}
+                            {appointment.walk_in && (
+                              <Chip size="small" color="warning" label="Walk-in" />
+                            )}
                             {appointment.series_id && (
                               <Chip size="small" label="Repeats weekly" />
                             )}
@@ -1375,6 +1372,11 @@ export function ClinicSchedule({
                     Overbooked · {selected.overbook_reason}
                   </Typography>
                 )}
+                {selected.walk_in && (
+                  <Typography variant="body2">
+                    Walk-in capacity exception · {selected.capacity_override_reason}
+                  </Typography>
+                )}
                 {selected.series_id && (
                   <Button
                     sx={{ alignSelf: "start" }}
@@ -1399,19 +1401,20 @@ export function ClinicSchedule({
           <Button disabled={busy} onClick={() => setSelected(undefined)}>
             Close
           </Button>
-          <Button href="/clinic/front-desk">Manage appointment</Button>
-          {selected &&
-            !selected.encounter_id &&
-            ["scheduled", "confirmed"].includes(selected.status) &&
-            context.capabilities.appointments_status_transition && (
-              <Button
-                color="error"
-                disabled={busy}
-                onClick={() => void cancelSelectedAppointment()}
-              >
-                Cancel appointment
-              </Button>
-            )}
+          <Button href="/clinic/front-desk">Open front desk</Button>
+          {selected && context.capabilities.appointments_status_transition && (
+            <Button
+              color="error"
+              disabled={
+                busy ||
+                Boolean(selected.encounter_id) ||
+                !["scheduled", "confirmed"].includes(selected.status)
+              }
+              onClick={() => setCancelConfirmationOpen(true)}
+            >
+              Cancel appointment
+            </Button>
+          )}
           {selected &&
             data?.policy?.overbook === "configured" &&
             context.capabilities.appointments_overbook &&
@@ -1448,6 +1451,39 @@ export function ClinicSchedule({
               Open Tracking Board
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={cancelConfirmationOpen && Boolean(selected)}
+        onClose={() => !busy && setCancelConfirmationOpen(false)}
+        aria-labelledby="cancel-appointment-title"
+        aria-describedby="cancel-appointment-description"
+        role="alertdialog"
+      >
+        <DialogTitle id="cancel-appointment-title">
+          Cancel appointment?
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="cancel-appointment-description">
+            This updates the schedule and cancels pending reminders. No
+            cancellation message will be sent to the patient.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setCancelConfirmationOpen(false)}>
+            Go back
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={busy}
+            onClick={() => {
+              setCancelConfirmationOpen(false);
+              void cancelSelectedAppointment();
+            }}
+          >
+            Confirm cancellation
+          </Button>
         </DialogActions>
       </Dialog>
       <SeriesManagement

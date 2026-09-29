@@ -281,6 +281,7 @@ export async function api<T>(
 
 export function loginDestination(value: string | null): string {
   if (!value) return "/portal";
+  if (value === "/qa") return value;
   if (value.includes("?")) {
     if (
       !value.startsWith("/") ||

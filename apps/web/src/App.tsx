@@ -142,6 +142,10 @@ const OwnerCommandCenter = lazyNamed(
   () => import("./features/owner/OwnerCommandCenter"),
   (m) => m.OwnerCommandCenter,
 );
+const QaWorkspace = lazyNamed(
+  () => import("./features/qa/QaWorkspace"),
+  (m) => m.QaWorkspace,
+);
 const OwnerActivationPage = lazyNamed(
   () => import("./features/owner/OwnerActivationPage"),
   (m) => m.OwnerActivationPage,
@@ -1121,6 +1125,19 @@ function Application() {
           businessDate={configuration.business_date}
           ownerPinRequired={configuration.public_demo_owner_pin_required}
         />
+      </SessionGuard>
+    );
+  }
+  if (path === "/qa" && user) {
+    return (
+      <SessionGuard
+        key={user.id}
+        expectedUserId={user.id}
+        initialSession={session}
+      >
+        <RouteBoundary root>
+          <QaWorkspace />
+        </RouteBoundary>
       </SessionGuard>
     );
   }

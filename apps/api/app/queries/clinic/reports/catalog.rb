@@ -12,9 +12,9 @@ module Clinic
         exclusions: "Appointment requests, schedule holds, and encounter-derived calendar states are excluded."
       }.freeze
       DAILY_CASH_DRAWERS = {
-        id: "daily_cash_drawers", revision: 2, source: "clinic_cash_drawer_sessions, clinic_cash_tenders and linked refunds",
-        date_basis: "drawer created_at", population: "Sessions opened on the clinic-local date, including sessions closed later.",
-        exclusions: "Current session activity is not daily cash flow. No combined money total. Older drawers can lack a recorded currency; payment currencies do not establish the denomination of their opening float."
+        id: "daily_cash_drawers", revision: 3, source: "clinic_cash_drawer_sessions, clinic_cash_tenders and linked refunds",
+        date_basis: "drawer created_at", population: "Sessions opened on the clinic-local date, plus a separate current worklist of earlier open or pending-reconciliation drawers.",
+        exclusions: "Current session activity is not daily cash flow. No combined money total. Older reconciled drawers are excluded from the carryover worklist. Older drawers can lack a recorded currency; payment currencies do not establish the denomination of their opening float."
       }.freeze
       DAILY_INVOICES = {
         id: "daily_invoices", revision: 3, source: "clinic_invoices, clinic_invoice_lines, clinic_payment_allocations and clinic_credit_notes",

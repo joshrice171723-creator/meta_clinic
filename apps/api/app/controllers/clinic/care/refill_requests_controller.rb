@@ -7,11 +7,19 @@ module Clinic
 
       def index
         requests = current_practice.patient_portal_requests.refill
-          .includes(:patient, :refill_response_delivery)
-          .order(requested_at: :asc, id: :asc)
-          .limit(100)
         requests = requests.where(status: status_param) if status_param
-        render json: { refill_requests: requests.map { |request| payload(request) } }
+        if params[:delivery].present?
+          enum_param!(params[:delivery], field: :delivery, allowed: %w[failed])
+          requests = requests.joins(:refill_response_delivery)
+            .where(clinic_refill_response_deliveries: { state: "failed" })
+        end
+        page = page_param
+        per_page = per_page_param(default: 100, maximum: 100)
+        total = requests.count
+        requests = requests.includes(:patient, :refill_response_delivery)
+          .order(requested_at: :asc, id: :asc)
+          .offset((page - 1) * per_page).limit(per_page)
+        render json: { refill_requests: requests.map { |request| payload(request) }, pagination: { page:, per_page:, total: } }
       end
 
       def create

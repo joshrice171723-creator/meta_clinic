@@ -1,0 +1,7 @@
+# Role regrant history — 2026-09-28
+
+The workforce role-save flow revokes its employment-sourced active grants, then calls the shared grant service to create replacements. The existing practice and site uniqueness indexes also covered revoked rows, so assigning the same role again could conflict with a historical grant. A forward migration keeps one unrevoked grant per practice/member/role/scope, while allowing a replacement after revocation. Existing grant rows, events and audit history remain intact. No role permissions or site scope are widened by the index change.
+
+This is a bounded MC-13 Build repair: 67→69% (+2 row points), taking the MC-01–15 equal-weight Build estimate from 73.1% to 73.2%. It is not a pass for the reported Front Desk Coordinator QA case; an independently active grant of the same role still conflicts, and the exact QA fixture and UI flow need Muse's 74% review and a connected retest.
+
+Ruby syntax and scoped RuboCop passed. Migration `20260928000600` applied to isolated synthetic database `apply_atlas_019_dev`; a read-only PostgreSQL catalog query confirmed both active-only index predicates. `db/structure.sql` was kept to the two generated index definitions and the 00500/00600 migration ledger entries, avoiding unrelated PostgreSQL 18 formatting changes. The previously omitted 00500 ledger entry was repaired. No tests or browser role save/denial ran. A rollback after new historical duplicate grants exist would fail to recreate the old unconditional unique index; recovery is forward by preserving the new indexes and history.

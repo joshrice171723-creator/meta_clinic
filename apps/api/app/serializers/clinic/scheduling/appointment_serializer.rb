@@ -25,6 +25,8 @@ module Clinic
           ends_at: appointment.ends_at&.iso8601(6),
           status: appointment.status,
           visit_modality: appointment.visit_modality,
+          walk_in: appointment.walk_in_exception.present?,
+          capacity_override_reason: appointment.walk_in_exception&.reason,
           overbooked: appointment.overbook_exception.present?,
           overbook_reason: appointment.overbook_exception&.reason,
           series_id: appointment.series_occurrence&.series_id,

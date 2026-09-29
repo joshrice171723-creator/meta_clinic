@@ -16,6 +16,9 @@ module Platform
       rescue_from Platform::InviteClinicOwner::Unavailable do |error|
         render json: { error: error.message }, status: :unprocessable_entity
       end
+      rescue_from Platform::HumanReview::Unavailable do |error|
+        render json: { error: error.message }, status: :unprocessable_entity
+      end
 
       def show
         render json: command_center_payload
@@ -70,6 +73,37 @@ module Platform
         }, status: :created
       end
 
+      def create_review_packet
+        input = parameter_hash!(:review_packet,
+          %i[title summary scope revision environment entry_path],
+          nested_arrays: { criteria: %i[label expected] })
+        packet = Platform::HumanReview.create_packet(
+          actor: current_user,
+          title: required_string!(input[:title], field: :title, maximum: 140),
+          summary: required_string!(input[:summary], field: :summary, maximum: 1_000),
+          scope: required_string!(input[:scope], field: :scope, maximum: 1_000),
+          revision: required_string!(input[:revision], field: :revision, maximum: 120),
+          environment: required_string!(input[:environment], field: :environment, maximum: 80),
+          entry_path: required_string!(input[:entry_path], field: :entry_path, maximum: 500),
+          criteria: Array(input[:criteria]).map { |criterion| criterion.to_h.symbolize_keys }
+        )
+        render json: review_packet_payload(packet), status: :created
+      end
+
+      def record_review_decision
+        input = parameter_hash!(:decision, %i[outcome note],
+          nested_arrays: { results: %i[criterion_id outcome evidence] })
+        packet = Platform::ReviewPacket.find(integer_id!(params[:id], field: :id))
+        Platform::HumanReview.record_decision(
+          actor: current_user,
+          packet:,
+          outcome: enum_param!(input[:outcome], field: :outcome, allowed: %w[approved changes_requested]),
+          note: required_string!(input[:note], field: :note, maximum: 1_000),
+          results: Array(input[:results]).map { |result| result.to_h.symbolize_keys }
+        )
+        render json: review_packet_payload(packet.reload)
+      end
+
       private
 
       def invitation_delivery_input!(input)
@@ -117,13 +151,14 @@ module Platform
         feedback_total = feedback.count
         feedback_page = page_param!(:feedback_page, feedback_total)
         {
-          schema_version: "owner-command-center-v1",
+          schema_version: "owner-command-center-v2",
           delivery_methods: { email: true, sms: Platform::ClinicOwnerInvitationSms.configured? },
           counts: {
             organizations: organization_total,
             clinics: Clinic::Practice.count,
             active_members: Clinic::Membership.active.joins(:user).where(users: { active: true }).count
           },
+          human_review: human_review_payload,
           organization_options: Organization.order(:name, :id).pluck(:id, :name).map { |id, name| { id:, name: } },
           demo_usage: demo_usage_payload(demo_visitors.limit(PAGE_SIZE).offset((demo_page - 1) * PAGE_SIZE)),
           demo_usage_pagination: page_metadata(demo_page, demo_total),
@@ -137,6 +172,47 @@ module Platform
           organization_pagination: page_metadata(organization_page, organization_total),
           unassigned_clinics: unassigned.map { |practice| clinic_payload(practice) },
           unassigned_clinic_pagination: page_metadata(unassigned_page, unassigned_total)
+        }
+      end
+
+      def human_review_payload
+        packets = Platform::ReviewPacket.includes(:created_by, decision: :reviewer)
+          .order(created_at: :desc, id: :desc).limit(50)
+        counts = Platform::ReviewPacket.group(:status).count
+        total = counts.values.sum
+        reviewed = counts.fetch("approved", 0) + counts.fetch("changes_requested", 0)
+        {
+          counts: {
+            total:,
+            awaiting_review: counts.fetch("awaiting_review", 0),
+            approved: counts.fetch("approved", 0),
+            changes_requested: counts.fetch("changes_requested", 0),
+            review_coverage_percent: total.zero? ? 0 : ((reviewed.to_f / total) * 100).round
+          },
+          packets: packets.map { |packet| review_packet_payload(packet) }
+        }
+      end
+
+      def review_packet_payload(packet)
+        {
+          id: packet.id,
+          title: packet.title,
+          summary: packet.summary,
+          scope: packet.scope,
+          revision: packet.revision,
+          environment: packet.environment,
+          entry_path: packet.entry_path,
+          status: packet.status,
+          criteria: packet.criteria,
+          created_at: packet.created_at.iso8601,
+          created_by: packet.created_by.email_address,
+          decision: packet.decision && {
+            outcome: packet.decision.outcome,
+            note: packet.decision.note,
+            results: packet.decision.results,
+            reviewed_at: packet.decision.created_at.iso8601,
+            reviewer: packet.decision.reviewer.email_address
+          }
         }
       end
 

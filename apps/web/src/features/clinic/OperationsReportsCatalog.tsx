@@ -8,8 +8,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import type { ClinicCapabilities } from "../../api/contracts";
+import { ApiError, api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { Card, LoadState, useResource } from "../../shared/ui";
 import { clinicDateValue } from "./frontDeskModel";
@@ -587,10 +588,9 @@ function DailyVisitsByState({
       )}
       <Alert severity="info">
         These are live source reports, not a saved day-end balance. Invoice
-        balances are current, and the drawer report lists sessions opened on
-        the selected practice date. Visit dates follow the selected site's time
-        zone. Check the billing cash tab for drawers carried over from an
-        earlier date.
+        balances are current, and the drawer report lists sessions opened on the
+        selected practice date plus unresolved earlier drawers. Visit dates
+        follow the selected site's time zone.
       </Alert>
       {loadedDate && siteId && capabilities.appointments_read && !report && (
         <LoadState error={result.error} onRetry={result.refresh} />
@@ -651,7 +651,7 @@ function DailyVisitsByState({
             sx={{ alignSelf: "flex-start" }}
             onClick={() => downloadVisitCsv(report)}
           >
-            Download visit counts CSV
+            Download visit report CSV
           </Button>
         </Stack>
       )}
@@ -666,6 +666,10 @@ function DailyVisitsByState({
       {capabilities.billing_read && (
         <DailyPaymentActivity key={loadedDate} date={loadedDate} />
       )}
+      {capabilities.billing_read &&
+        (capabilities.billing_cash_reconcile || capabilities.billing_write) && (
+          <DayEndReviews date={loadedDate} />
+        )}
       {capabilities.inventory && (
         <DailyStockMovements key={loadedDate} date={loadedDate} />
       )}
@@ -689,6 +693,18 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ]),
     ["unknown_state", String(report.unknown_state_count)],
     ["total", String(report.total)],
+    [],
+    ["record_page", String(report.pagination.page)],
+    ["records_per_page", String(report.pagination.per_page)],
+    ["records_total", String(report.pagination.total)],
+    ["visit_id", "site_id", "status", "visit_modality", "local_start"],
+    ...report.records.map((record) => [
+      String(record.id),
+      record.site_id === null ? "" : String(record.site_id),
+      record.status,
+      record.visit_modality,
+      record.local_start,
+    ]),
   ];
   downloadCsv(rows, `daily-visits-${report.date}.csv`);
 }
@@ -816,6 +832,55 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     String(row.refund_count),
                     row.refund_amount,
                   ]),
+                  [],
+                  [
+                    "payment_record_page",
+                    String(report.payment_pagination.page),
+                  ],
+                  [
+                    "payment_records_per_page",
+                    String(report.payment_pagination.per_page),
+                  ],
+                  [
+                    "payment_records_total",
+                    String(report.payment_pagination.total),
+                  ],
+                  ["refund_record_page", String(report.refund_pagination.page)],
+                  [
+                    "refund_records_per_page",
+                    String(report.refund_pagination.per_page),
+                  ],
+                  [
+                    "refund_records_total",
+                    String(report.refund_pagination.total),
+                  ],
+                  [
+                    "record_type",
+                    "id",
+                    "payment_event_id",
+                    "patient_id",
+                    "currency",
+                    "amount",
+                    "created_at",
+                  ],
+                  ...report.payment_records.map((record) => [
+                    "payment",
+                    String(record.id),
+                    "",
+                    String(record.patient_id),
+                    record.currency,
+                    record.amount,
+                    record.created_at,
+                  ]),
+                  ...report.refund_records.map((record) => [
+                    "refund",
+                    String(record.id),
+                    String(record.payment_event_id),
+                    String(record.patient_id),
+                    record.currency,
+                    record.amount,
+                    record.created_at,
+                  ]),
                 ],
                 `daily-payment-activity-${report.date}.csv`,
               )
@@ -934,12 +999,32 @@ function DailyInvoices({ date }: { date: string }) {
                       row.current_outstanding_balance,
                     ],
                   ]),
+                  [],
+                  ["record_page", String(report.pagination.page)],
+                  ["records_per_page", String(report.pagination.per_page)],
+                  ["records_total", String(report.pagination.total)],
+                  [
+                    "invoice_id",
+                    "patient_id",
+                    "currency",
+                    "status",
+                    "created_at",
+                    "current_outstanding_balance",
+                  ],
+                  ...report.records.map((record) => [
+                    String(record.id),
+                    String(record.patient_id),
+                    record.currency,
+                    record.status,
+                    record.created_at,
+                    record.current_outstanding_balance,
+                  ]),
                 ],
                 `daily-invoices-${report.date}.csv`,
               )
             }
           >
-            Download invoice counts CSV
+            Download invoice report CSV
           </Button>
           <Button
             href="/clinic/billing"
@@ -1049,6 +1134,30 @@ function DailyStockMovements({ date }: { date: string }) {
                     String(row.count),
                     row.signed_quantity,
                   ]),
+                  [],
+                  ["record_page", String(report.pagination.page)],
+                  ["records_per_page", String(report.pagination.per_page)],
+                  ["records_total", String(report.pagination.total)],
+                  [
+                    "entry_id",
+                    "stock_type",
+                    "item_id",
+                    "batch_id",
+                    "kind",
+                    "stock_unit",
+                    "signed_quantity",
+                    "occurred_at",
+                  ],
+                  ...report.records.map((record) => [
+                    String(record.id),
+                    record.stock_type,
+                    record.item_id === null ? "" : String(record.item_id),
+                    record.batch_id === null ? "" : String(record.batch_id),
+                    record.kind,
+                    record.stock_unit,
+                    record.signed_quantity,
+                    record.occurred_at,
+                  ]),
                 ],
                 `daily-stock-movements-${report.date}.csv`,
               )
@@ -1120,6 +1229,8 @@ type CashDrawerReport = {
   open_count: number;
   awaiting_reconciliation_count: number;
   variance_count: number;
+  carried_count: number;
+  carried_pagination: ReportPagination;
   pagination: ReportPagination;
   records: {
     id: number;
@@ -1138,12 +1249,14 @@ type CashDrawerReport = {
     opened_at: string;
     closed_at: string | null;
   }[];
+  carried_records: CashDrawerReport["records"];
 };
 
 function DailyCashDrawers({ date }: { date: string }) {
   const [page, setPage] = useState(1);
+  const [carriedPage, setCarriedPage] = useState(1);
   const result = useResource<{ report: CashDrawerReport }>(
-    `/api/clinic/reports/daily_cash_drawers?date=${encodeURIComponent(date)}&page=${page}`,
+    `/api/clinic/reports/daily_cash_drawers?date=${encodeURIComponent(date)}&page=${page}&carried_page=${carriedPage}`,
     { enabled: Boolean(date) },
   );
   if (!date) return null;
@@ -1161,7 +1274,8 @@ function DailyCashDrawers({ date }: { date: string }) {
           <Typography>
             {report.open_count} still open;{" "}
             {report.awaiting_reconciliation_count} closed awaiting
-            reconciliation; {report.variance_count} closed with a variance.
+            reconciliation; {report.variance_count} closed with a variance
+            (this count can overlap with reconciliation).
           </Typography>
           {report.records.map((row) => (
             <Stack key={row.id} spacing={0.5}>
@@ -1203,6 +1317,31 @@ function DailyCashDrawers({ date }: { date: string }) {
             pagination={report.pagination}
             onPage={setPage}
           />
+          <Typography variant="subtitle2" component="h5">
+            Earlier drawers still requiring action · {report.carried_count}
+          </Typography>
+          {report.carried_records.map((row) => (
+            <Stack key={row.id} spacing={0.5}>
+              <Typography variant="body2">
+                Drawer {row.id} · {row.site_name} · opened {row.opened_at} ·{" "}
+                {row.status === "open"
+                  ? "still open"
+                  : "awaiting reconciliation"}
+              </Typography>
+              <Button
+                size="small"
+                href={`/clinic/billing?tab=cash&cash_drawer_id=${row.id}`}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Review drawer {row.id} in billing
+              </Button>
+            </Stack>
+          ))}
+          <ReportPageControls
+            label="earlier drawers"
+            pagination={report.carried_pagination}
+            onPage={setCarriedPage}
+          />
           <Typography variant="caption" color="text.secondary">
             Source: {report.definition.source}. Date basis:{" "}
             {report.definition.date_basis}; {report.timezone}. As of{" "}
@@ -1223,6 +1362,197 @@ function DailyCashDrawers({ date }: { date: string }) {
             Refresh cash report
           </Button>
         </>
+      )}
+    </Stack>
+  );
+}
+
+type DayEndReview = {
+  id: number;
+  date: string;
+  timezone: string;
+  reviewed_at: string;
+  reviewed_by: string;
+  review_note: string;
+  snapshot: {
+    invoices: {
+      as_of: string;
+      currencies: {
+        currency: string;
+        posted_line_total: string;
+        current_outstanding_balance: string;
+      }[];
+    };
+    payments: {
+      as_of: string;
+      currencies: {
+        currency: string;
+        payment_amount: string;
+        refund_amount: string;
+      }[];
+    };
+    drawers: {
+      as_of: string;
+      open_count: number;
+      awaiting_reconciliation_count: number;
+      variance_count: number;
+      carried_count: number;
+    };
+  };
+};
+
+function DayEndReviews({ date }: { date: string }) {
+  const reviews = useResource<{ reviews: DayEndReview[] }>(
+    `/api/clinic/day_end_reviews?date=${encodeURIComponent(date)}`,
+  );
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [unknownOutcome, setUnknownOutcome] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const pendingAttempt = useRef<{
+    date: string;
+    note: string;
+    key: string;
+  } | null>(null);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const reviewNote = note.trim();
+    if (!reviewNote || busy) return;
+    if (unknownOutcome && pendingAttempt.current?.date !== date) return;
+    const attempt =
+      pendingAttempt.current?.date === date &&
+      pendingAttempt.current.note === reviewNote
+        ? pendingAttempt.current
+        : { date, note: reviewNote, key: crypto.randomUUID() };
+    pendingAttempt.current = attempt;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await api("/api/clinic/day_end_reviews", {
+        method: "POST",
+        body: {
+          day_end_review: {
+            date: attempt.date,
+            review_note: attempt.note,
+            request_key: attempt.key,
+          },
+        },
+      });
+      pendingAttempt.current = null;
+      setUnknownOutcome(false);
+      setNote("");
+      setNotice(`Review checkpoint recorded for ${attempt.date}.`);
+      reviews.refresh();
+    } catch (reason) {
+      const unknown =
+        reason instanceof ApiError &&
+        (reason.status === 408 ||
+          reason.status >= 500 ||
+          reason.code === "outcome_unconfirmed");
+      setUnknownOutcome(unknown);
+      if (!unknown) pendingAttempt.current = null;
+      setError(
+        unknown
+          ? "The save outcome is unconfirmed. Retry this same review note before changing it."
+          : reason instanceof Error
+            ? reason.message
+            : "The review checkpoint could not be recorded.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Stack spacing={1.5}>
+      <Divider />
+      <Typography variant="subtitle1" component="h4">
+        Saved review checkpoints
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Record who reviewed the practice-date invoice, payment and drawer
+        summaries. Each saved checkpoint preserves its source values and review
+        note. This is not a balanced ledger or payment settlement.
+      </Typography>
+      <Stack component="form" onSubmit={submit} spacing={1}>
+        <TextField
+          label="Review outcome or follow-up"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          disabled={busy || unknownOutcome}
+          slotProps={{ htmlInput: { maxLength: 500 } }}
+          required
+          multiline
+          minRows={2}
+        />
+        <Button
+          type="submit"
+          variant="outlined"
+          disabled={
+            busy ||
+            !note.trim() ||
+            (unknownOutcome && pendingAttempt.current?.date !== date)
+          }
+          sx={{ alignSelf: "flex-start" }}
+        >
+          {unknownOutcome ? "Retry same review" : "Record review checkpoint"}
+        </Button>
+      </Stack>
+      {error && <Alert severity="error">{error}</Alert>}
+      {unknownOutcome && pendingAttempt.current?.date !== date && (
+        <Alert severity="warning">
+          Return to {pendingAttempt.current?.date} to retry the unconfirmed
+          review.
+        </Alert>
+      )}
+      {notice && <Alert severity="success">{notice}</Alert>}
+      {!reviews.data ? (
+        <LoadState error={reviews.error} onRetry={reviews.refresh} />
+      ) : reviews.data.reviews.length === 0 ? (
+        <Typography variant="body2">
+          No review checkpoint recorded for this date.
+        </Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {reviews.data.reviews.map((review) => (
+            <Stack key={review.id} spacing={0.5}>
+              <Typography variant="subtitle2">
+                {review.reviewed_at} · {review.reviewed_by}
+              </Typography>
+              <Typography variant="body2">{review.review_note}</Typography>
+              <Typography variant="body2">
+                Drawers: {review.snapshot.drawers.open_count} opened that date
+                still open;{" "}
+                {review.snapshot.drawers.awaiting_reconciliation_count} awaiting
+                reconciliation; {review.snapshot.drawers.carried_count} earlier
+                unresolved.
+              </Typography>
+              {review.snapshot.invoices.currencies.map((row) => (
+                <Typography variant="body2" key={`invoice-${row.currency}`}>
+                  {row.currency} invoices: posted lines {row.posted_line_total};
+                  current outstanding {row.current_outstanding_balance}.
+                </Typography>
+              ))}
+              {review.snapshot.payments.currencies.map((row) => (
+                <Typography variant="body2" key={`payment-${row.currency}`}>
+                  {row.currency} activity: payments {row.payment_amount};
+                  refunds {row.refund_amount}.
+                </Typography>
+              ))}
+              <Typography variant="caption" color="text.secondary">
+                Source snapshots: invoices {review.snapshot.invoices.as_of};
+                payments {review.snapshot.payments.as_of}; drawers{" "}
+                {review.snapshot.drawers.as_of} · {review.timezone}.
+              </Typography>
+            </Stack>
+          ))}
+          <Typography variant="caption" color="text.secondary">
+            Showing the latest 20 checkpoints for {date}.
+          </Typography>
+        </Stack>
       )}
     </Stack>
   );

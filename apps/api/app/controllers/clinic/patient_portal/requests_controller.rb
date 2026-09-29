@@ -55,6 +55,7 @@ module Clinic
           id: request.id,
           request_key: request.request_key,
           request_type: request.request_type,
+          content: request.content,
           status: request.status,
           requested_at: request.requested_at.iso8601(6),
           reviewed_at: request.reviewed_at&.iso8601(6)

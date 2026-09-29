@@ -35,6 +35,9 @@ class CashPayEstimateTest < ActiveSupport::TestCase
       classification: "gfe_candidate", currency: "USD", request_key: "linked-offering", lines: lines)
     assert_equal estimate.id, replay.id
     offering.update!(status: "retired", retired_at: Time.current)
+    replay_after_retirement = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+      classification: "gfe_candidate", currency: "USD", request_key: "linked-offering", lines: lines)
+    assert_equal estimate.id, replay_after_retirement.id
     assert_raises(ArgumentError) do
       Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
         classification: "gfe_candidate", currency: "USD", request_key: "retired-offering", lines: lines)

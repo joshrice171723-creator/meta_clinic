@@ -9,6 +9,7 @@ import { OperationsIntegrationInventory } from "./OperationsIntegrationInventory
 import { OperationsReportsCatalog } from "./OperationsReportsCatalog";
 import { OperationsWorkflowGuide } from "./OperationsWorkflowGuide";
 import { OwnerMorningView } from "./OwnerMorningView";
+import { RolePermissionMatrix } from "./RolePermissionMatrix";
 import { useClinic, useClinicOverview } from "./Workspace";
 
 export function OperationsView({
@@ -79,7 +80,7 @@ export function OperationsView({
             )}
             {c.inventory_access && (
               <li>
-                <a className="text-link" href="/clinic/inventory">
+                <a className="text-link" href="/clinic/inventory/locations">
                   Inventory locations →
                 </a>
                 <p>
@@ -217,6 +218,7 @@ export function Operations() {
           )}
         </ul>
       </Card>
+      {context.capabilities.roles && <RolePermissionMatrix />}
     </>
   );
 }

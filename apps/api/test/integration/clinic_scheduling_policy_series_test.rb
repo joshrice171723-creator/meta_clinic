@@ -9,7 +9,7 @@ class ClinicSchedulingPolicySeriesTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "appointments.read", "appointments.book",
       "appointments.status_transition", "facilities.read", "facilities.write")
-    @site = @practice.sites.create!(code: "POLICY")
+    @site = @practice.sites.create!(code: "POLICY", status: "active")
     @room_one = @site.rooms.create!(practice: @practice, code: "Room 1", kind: "physical")
     @room_two = @site.rooms.create!(practice: @practice, code: "Room 2", kind: "physical")
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Clinician")
