@@ -118,7 +118,10 @@ export function CashDrawerOperations({
 }: {
   invoice: BillingInvoiceSummary | null;
   onRecorded: (invoiceId?: number) => void;
-  onPendingChange?: (pending: boolean) => void;
+  onPendingChange?: (state: {
+    pending: boolean;
+    invoiceId: number | null;
+  }) => void;
   patientId?: number;
   encounterId?: number;
   recoveryInvoiceId?: number;
@@ -183,7 +186,7 @@ export function CashDrawerOperations({
   });
   const onRecordedRef = useRef(onRecorded);
   const onPendingChangeRef = useRef(onPendingChange);
-  const lastPendingNotification = useRef<boolean | null>(null);
+  const lastPendingNotification = useRef<string | null>(null);
   const routedAttempt = useRef("");
   const consumedRestoration = useRef("");
   onRecordedRef.current = onRecorded;
@@ -206,11 +209,21 @@ export function CashDrawerOperations({
   useEffect(() => {
     persistCashAttempt(clinic, cashAttempt);
     const pending = cashRecoveryLoading || pendingCashAttempt !== null;
-    if (lastPendingNotification.current !== pending) {
-      lastPendingNotification.current = pending;
-      onPendingChangeRef.current?.(pending);
+    const invoiceId =
+      pendingCashAttempt?.invoiceId ??
+      (cashRecoveryLoading ? exactInvoiceId ?? null : null);
+    const notificationKey = `${pending}:${invoiceId ?? ""}`;
+    if (lastPendingNotification.current !== notificationKey) {
+      lastPendingNotification.current = notificationKey;
+      onPendingChangeRef.current?.({ pending, invoiceId });
     }
-  }, [clinic, cashAttempt, cashRecoveryLoading, pendingCashAttempt]);
+  }, [
+    clinic,
+    cashAttempt,
+    cashRecoveryLoading,
+    exactInvoiceId,
+    pendingCashAttempt,
+  ]);
   useEffect(() => {
     if (
       !cashAttempt ||
