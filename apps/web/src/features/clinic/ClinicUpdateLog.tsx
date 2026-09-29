@@ -162,6 +162,14 @@ export function ClinicUpdateLog() {
           Preserve authorization and session guards while investigating.
         </li>
         <li>
+          Release gate follow-up: the first 0.1.9 candidate failed while
+          opening a newly prepared Sandbox and rolled back automatically. The
+          shared prepared Sandbox behavior was restored for this revision.
+          Open it after registering a visitor, switch location, reset it, and
+          verify a second visitor can enter the prepared Sandbox. A reset also
+          replaces another visitor's synthetic changes.
+        </li>
+        <li>
           The audit records 23 source-backed fixes, implementations, or
           clarified recovery paths and 47 findings with specific current-source
           explanations, missing reproduction evidence, or product/authority
