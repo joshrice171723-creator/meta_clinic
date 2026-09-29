@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — 0.2.1 QA sign-in release and worktree reconciliation
+
+[Release receipt and exclusions](../../records/audits/2026-09-29-release-reconciliation.md) record verified 0.2.1 at `646a4384df0e3c19dcd0f439d88e82bebc87cbd0`, guarded recovery, passing hosted checks and the browser-observed QA credential form. Remaining dirty work is preserved and classified; platform-owner login acceptance and Muse exact-build retest remain open. Atlas percentages are unchanged.
+
 ## 2026-09-29 — 0.2.0 deployment verified
 
 The guarded Lightsail release completed at `bf3c787f38a9c987195cbf0784def55f1b0b53b1` with matched API/web images and verified encrypted off-host recovery. Public `/build.json` independently reports 0.2.0 at that revision; `/up` and `/clinic/updates` return HTTP 200. This supersedes the deployment blocker below: an existing authorized key recovered the SSH transfer, without changing host access. Atlas and canonical release status are updated; scores remain 73.2% Build, 46.3% Validation and 0% external/human acceptance. Muse exact-build retest remains unverified. Open PR #4 and draft PR #3 remain excluded; dirty root/worktree changes are preserved. This assisted release does not count as an unattended cycle.

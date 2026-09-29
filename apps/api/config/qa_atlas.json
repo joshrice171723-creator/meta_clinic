@@ -1,6 +1,6 @@
 {
   "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md",
-  "source_digest": "4821ab6709e0250bf2d6033c122ca4ae11c31971328c056db05919d32b24d5e9",
+  "source_digest": "ce82ac6f29940b5ac952584ec32ea2b339f2c5eb71ea78dccb27cf18c2848344",
   "tracker_updated_at": "2026-09-29 23:22 UTC",
   "scoring_basis": "Equal-weight MC-01–15 recorded estimates. Optional insurance (MC-16) is separate.",
   "averages": {
@@ -1222,11 +1222,11 @@
     }
   ],
   "source_digests": {
-    "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md": "4821ab6709e0250bf2d6033c122ca4ae11c31971328c056db05919d32b24d5e9",
+    "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md": "ce82ac6f29940b5ac952584ec32ea2b339f2c5eb71ea78dccb27cf18c2848344",
     "records/implementation/2026-09-19-weight-management-intake-audit.md": "762541e4cfa021d3cf24d4eced6a4ac1abf7ab3401af0aa5b82e4baf54a735a6",
     "docs/development/non-vendor-clinic-hardening-plan.md": "17292e2cc52525084e6749dfc2b4c137cf302f0141e15418be589cce546bc1f8",
     "PATIENT_JOURNEY_PLAN.md": "ac5d807442a45b5be4ef56d61641ae12d6cad93a207799caf53afd495884628f",
     "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md": "55301f63b2f4fc238adf94f7fa13f15d6eaaad6ddd7bb7f02a4169610784b78f",
-    "records/implementation/2026-09-27-meta-clinic-tracker-atlas.html": "87c44432cfd550b2c43e32faa75396875888a7ebd108aedb87cd4b7b1f3baf9d"
+    "records/implementation/2026-09-27-meta-clinic-tracker-atlas.html": "81d73c7a39ebefc509ed8e7e0e88b9353d0511127e3f0de485a0c416c6454763"
   }
 }
