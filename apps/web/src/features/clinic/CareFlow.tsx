@@ -1008,6 +1008,7 @@ function BookingFormEditor({
   const [changingPatient, setChangingPatient] = useState(false);
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
+  const [draftCloseFailed, setDraftCloseFailed] = useState(false);
   const [assignmentNotice, setAssignmentNotice] = useState("");
   const [siteAssignmentBusy, setSiteAssignmentBusy] = useState(false);
   const [created, setCreated] = useState<Appointment>();
@@ -1442,6 +1443,7 @@ function BookingFormEditor({
       window.clearTimeout(autosaveTimer.current);
       autosaveTimer.current = undefined;
     }
+    setDraftCloseFailed(false);
     if (!dirty && !saveBlankDraft) {
       onClose();
       return;
@@ -1457,8 +1459,9 @@ function BookingFormEditor({
     setSubmitError("");
     try {
       if (!(await workingDraft.save(snapshot))) {
+        setDraftCloseFailed(true);
         setSubmitError(
-          "The draft could not be saved. Keep this form open and retry.",
+          "The draft could not be saved. Retry, or discard the unsaved changes and close.",
         );
         return;
       }
@@ -1466,14 +1469,36 @@ function BookingFormEditor({
       setHasWorkingDraft(true);
       onClose();
     } catch {
+      setDraftCloseFailed(true);
       setSubmitError(
-        "The draft could not be saved. Keep this form open and retry.",
+        "The draft could not be saved. Retry, or discard the unsaved changes and close.",
       );
     } finally {
       inFlight.current = false;
       setDraftSaving(false);
       setBusy(false);
     }
+  };
+  const discardUnsavedDraftAndClose = () => {
+    if (
+      !draftCloseFailed ||
+      !onClose ||
+      inFlight.current ||
+      busy ||
+      outcomeUnconfirmed ||
+      holdOutcomeUnconfirmed ||
+      seriesOutcomeUnconfirmed ||
+      bookingAttempt ||
+      seriesAttempt ||
+      holdAttempt
+    )
+      return;
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    setDraftCloseFailed(false);
+    onClose();
   };
   const createHold = async () => {
     if (
@@ -2741,21 +2766,39 @@ function BookingFormEditor({
                 severity={clinicianSiteWarning ? "warning" : "error"}
                 role="alert"
                 action={
-                  clinicianSiteWarning &&
-                  (repeat !== "weekly" || seriesPreviewIsCurrent) &&
-                  clinic.capabilities.clinic_setup_write === true &&
-                  selectedClinician &&
-                  selectedSite ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => void assignClinicianToSlot()}
-                      disabled={siteAssignmentBusy}
-                    >
-                      {siteAssignmentBusy
-                        ? "Assigning…"
-                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
-                    </Button>
+                  (draftCloseFailed && onClose) ||
+                  (clinicianSiteWarning &&
+                    (repeat !== "weekly" || seriesPreviewIsCurrent) &&
+                    clinic.capabilities.clinic_setup_write === true &&
+                    selectedClinician &&
+                    selectedSite) ? (
+                    <Stack direction="row" spacing={1}>
+                      {draftCloseFailed && onClose && (
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={discardUnsavedDraftAndClose}
+                        >
+                          Discard and close
+                        </Button>
+                      )}
+                      {clinicianSiteWarning &&
+                        (repeat !== "weekly" || seriesPreviewIsCurrent) &&
+                        clinic.capabilities.clinic_setup_write === true &&
+                        selectedClinician &&
+                        selectedSite && (
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => void assignClinicianToSlot()}
+                            disabled={siteAssignmentBusy}
+                          >
+                            {siteAssignmentBusy
+                              ? "Assigning…"
+                              : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
+                          </Button>
+                        )}
+                    </Stack>
                   ) : undefined
                 }
               >
