@@ -477,7 +477,7 @@ export function PracticeFeatureSettings({
           <Typography color="text.secondary" variant="body2">
             {nextSetupStep
               ? `Next: ${nextSetupStep.label}.`
-              : "Setup complete. You can still update clinic-managed settings."}
+              : `${siteId ? "Location" : "Clinic"} profile setup is complete. Workforce settings are managed separately under Workforce.`}
           </Typography>
           <Stack
             component="ol"
