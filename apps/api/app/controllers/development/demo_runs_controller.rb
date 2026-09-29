@@ -30,11 +30,12 @@ module Development
     end
 
     def lesson
-      visitor = current_visitor || raise(ActiveRecord::RecordNotFound)
+      visitor = current_visitor
       input = demo_input!(%i[lesson_key restart])
       restart = boolean_input!(input, :restart, default: false)
       lesson_key = input[:lesson_key].presence
       return leave_lesson(visitor) unless lesson_key
+      raise ActiveRecord::RecordNotFound if visitor.nil? && lesson_key != "navigation_tour"
 
       DemoLessonCatalog.definition!(lesson_key)
       previous_run = current_run
@@ -251,7 +252,8 @@ module Development
         mode: view, view:,
         clinic: { id: run.practice_id, name: run.practice.name, slug: run.practice.public_membership_slug },
         patient: patient && { id: patient.id, name: patient.display_name },
-        lessons: DemoLessonCatalog.catalog, steps: DemoLessonCatalog.steps_for(run)
+        lessons: run.visitor_id ? DemoLessonCatalog.catalog : DemoLessonCatalog.catalog.select { |lesson| lesson[:id] == "navigation_tour" },
+        steps: DemoLessonCatalog.steps_for(run)
       } }
     end
   end
