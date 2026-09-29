@@ -3,6 +3,7 @@ import type { Plugin } from "vite";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { isAbsolute, relative, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 
 const apiPort = process.env.APPLY_API_PORT || "3001";
 const webPort = process.env.APPLY_WEB_PORT || "3000";
@@ -97,8 +98,53 @@ const joshuaPortfolio: Plugin = {
     });
   },
 };
+const localBuildIdentity: Plugin = {
+  name: "local-build-identity",
+  configureServer(server) {
+    server.middlewares.use(async (request, response, next) => {
+      if (request.url?.split("?")[0] !== "/build.json") return next();
+      const repository = fileURLToPath(new URL("../..", import.meta.url));
+      try {
+        const revision = execFileSync("git", ["rev-parse", "HEAD"], {
+          cwd: repository,
+          encoding: "utf8",
+          windowsHide: true,
+        }).trim();
+        const dirty = Boolean(
+          execFileSync("git", ["status", "--porcelain"], {
+            cwd: repository,
+            encoding: "utf8",
+            windowsHide: true,
+          }).trim(),
+        );
+        const manifest = JSON.parse(
+          await readFile(
+            fileURLToPath(new URL("package.json", import.meta.url)),
+            "utf8",
+          ),
+        );
+        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Cache-Control", "no-store");
+        response.end(
+          JSON.stringify({
+            revision,
+            version: manifest.version,
+            environment: "local-development",
+            dirty,
+            observed_at: new Date().toISOString(),
+          }),
+        );
+      } catch {
+        response.statusCode = 503;
+        response.end(
+          JSON.stringify({ error: "Local source identity unavailable" }),
+        );
+      }
+    });
+  },
+};
 export default defineConfig({
-  plugins: [joshuaPortfolio],
+  plugins: [joshuaPortfolio, localBuildIdentity],
   server: {
     host: "127.0.0.1",
     port: Number(webPort),
@@ -106,6 +152,26 @@ export default defineConfig({
     // Preserve Host and Origin so Rails remains the CSRF authority.
     proxy: {
       "/api": { target: "http://127.0.0.1:" + apiPort, changeOrigin: false },
+      "/qa/status.json": {
+        target: "http://127.0.0.1:" + apiPort,
+        changeOrigin: false,
+        rewrite: () => "/api/qa/status.json",
+      },
+      "/qa/issues.json": {
+        target: "http://127.0.0.1:" + apiPort,
+        changeOrigin: false,
+        rewrite: () => "/api/qa/issues.json",
+      },
+      "/qa/retest.json": {
+        target: "http://127.0.0.1:" + apiPort,
+        changeOrigin: false,
+        rewrite: () => "/api/qa/retest.json",
+      },
+      "/qa/batches.json": {
+        target: "http://127.0.0.1:" + apiPort,
+        changeOrigin: false,
+        rewrite: () => "/api/qa/batches.json",
+      },
     },
     headers: {
       "Cache-Control": "no-store",

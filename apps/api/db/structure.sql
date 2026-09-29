@@ -32446,7 +32446,431 @@ ALTER TABLE ONLY public.platform_review_decisions
     ADD CONSTRAINT fk_rails_fa5f13c72d FOREIGN KEY (review_packet_id) REFERENCES public.platform_review_packets(id);
 
 
+--
+-- Name: qa_reject_history_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.qa_reject_history_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN RAISE EXCEPTION 'QA history is append-only'; END; $$;
+
+
+--
+-- Name: qa_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_events (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    event_key character varying NOT NULL,
+    kind character varying NOT NULL,
+    summary character varying NOT NULL,
+    revision character varying,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: qa_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_events_id_seq OWNED BY public.qa_events.id;
+
+
+--
+-- Name: qa_evidence; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_evidence (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    issue_number integer NOT NULL,
+    revision character varying NOT NULL,
+    caption character varying NOT NULL,
+    content_type character varying NOT NULL,
+    image bytea NOT NULL,
+    digest character varying NOT NULL,
+    phase character varying DEFAULT 'after'::character varying NOT NULL,
+    context jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT qa_evidence_size CHECK (((issue_number > 0) AND ((octet_length(image) >= 1) AND (octet_length(image) <= 4194304))))
+);
+
+
+--
+-- Name: qa_evidence_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_evidence_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_evidence_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_evidence_id_seq OWNED BY public.qa_evidence.id;
+
+
+--
+-- Name: qa_service_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_service_tokens (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    name character varying NOT NULL,
+    recipient character varying NOT NULL,
+    digest character varying NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    last_used_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: qa_service_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_service_tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_service_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_service_tokens_id_seq OWNED BY public.qa_service_tokens.id;
+
+
+--
+-- Name: qa_snapshots; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_snapshots (
+    id bigint NOT NULL,
+    key character varying NOT NULL,
+    data jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: qa_snapshots_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_snapshots_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_snapshots_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_snapshots_id_seq OWNED BY public.qa_snapshots.id;
+
+
+--
+-- Name: qa_tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_tasks (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    claimed_by_id bigint,
+    request_key character varying NOT NULL,
+    kind character varying NOT NULL,
+    title character varying NOT NULL,
+    recipient character varying NOT NULL,
+    status character varying DEFAULT 'queued'::character varying NOT NULL,
+    revision character varying,
+    claim_run_id character varying,
+    claimed_at timestamp(6) without time zone,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    result jsonb DEFAULT '{}'::jsonb NOT NULL,
+    human_decision jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT qa_task_recipient CHECK (((recipient)::text = ANY ((ARRAY['muse'::character varying, 'codex'::character varying])::text[]))),
+    CONSTRAINT qa_task_status CHECK (((status)::text = ANY ((ARRAY['queued'::character varying, 'claimed'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
+);
+
+
+--
+-- Name: qa_tasks_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_tasks_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_tasks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_tasks_id_seq OWNED BY public.qa_tasks.id;
+
+
+--
+-- Name: qa_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_events ALTER COLUMN id SET DEFAULT nextval('public.qa_events_id_seq'::regclass);
+
+
+--
+-- Name: qa_evidence id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_evidence ALTER COLUMN id SET DEFAULT nextval('public.qa_evidence_id_seq'::regclass);
+
+
+--
+-- Name: qa_service_tokens id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_service_tokens ALTER COLUMN id SET DEFAULT nextval('public.qa_service_tokens_id_seq'::regclass);
+
+
+--
+-- Name: qa_snapshots id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_snapshots ALTER COLUMN id SET DEFAULT nextval('public.qa_snapshots_id_seq'::regclass);
+
+
+--
+-- Name: qa_tasks id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_tasks ALTER COLUMN id SET DEFAULT nextval('public.qa_tasks_id_seq'::regclass);
+
+
+--
+-- Name: qa_events qa_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_events
+    ADD CONSTRAINT qa_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: qa_evidence qa_evidence_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_evidence
+    ADD CONSTRAINT qa_evidence_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: qa_service_tokens qa_service_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_service_tokens
+    ADD CONSTRAINT qa_service_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: qa_snapshots qa_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_snapshots
+    ADD CONSTRAINT qa_snapshots_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: qa_tasks qa_tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_tasks
+    ADD CONSTRAINT qa_tasks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: index_qa_events_on_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_events_on_created_at ON public.qa_events USING btree (created_at);
+
+
+--
+-- Name: index_qa_events_on_event_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_events_on_event_key ON public.qa_events USING btree (event_key);
+
+
+--
+-- Name: index_qa_events_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_events_on_user_id ON public.qa_events USING btree (user_id);
+
+
+--
+-- Name: index_qa_evidence_on_issue_number_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_evidence_on_issue_number_and_created_at ON public.qa_evidence USING btree (issue_number, created_at);
+
+
+--
+-- Name: index_qa_evidence_on_issue_number_and_revision_and_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_evidence_on_issue_number_and_revision_and_digest ON public.qa_evidence USING btree (issue_number, revision, digest);
+
+
+--
+-- Name: index_qa_evidence_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_evidence_on_user_id ON public.qa_evidence USING btree (user_id);
+
+
+--
+-- Name: index_qa_service_tokens_on_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_service_tokens_on_digest ON public.qa_service_tokens USING btree (digest);
+
+
+--
+-- Name: index_qa_service_tokens_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_service_tokens_on_user_id ON public.qa_service_tokens USING btree (user_id);
+
+
+--
+-- Name: index_qa_snapshots_on_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_snapshots_on_key ON public.qa_snapshots USING btree (key);
+
+
+--
+-- Name: index_qa_tasks_on_claim_run_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_tasks_on_claim_run_id ON public.qa_tasks USING btree (claim_run_id);
+
+
+--
+-- Name: index_qa_tasks_on_claimed_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_tasks_on_claimed_by_id ON public.qa_tasks USING btree (claimed_by_id);
+
+
+--
+-- Name: index_qa_tasks_on_recipient_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_tasks_on_recipient_and_status ON public.qa_tasks USING btree (recipient, status);
+
+
+--
+-- Name: index_qa_tasks_on_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_tasks_on_request_key ON public.qa_tasks USING btree (request_key);
+
+
+--
+-- Name: index_qa_tasks_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_tasks_on_user_id ON public.qa_tasks USING btree (user_id);
+
+
+--
+-- Name: qa_events qa_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER qa_events_immutable BEFORE DELETE OR UPDATE ON public.qa_events FOR EACH ROW EXECUTE FUNCTION public.qa_reject_history_change();
+
+
+--
+-- Name: qa_evidence qa_evidence_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER qa_evidence_immutable BEFORE DELETE OR UPDATE ON public.qa_evidence FOR EACH ROW EXECUTE FUNCTION public.qa_reject_history_change();
+
+
+--
+-- Name: qa_tasks fk_rails_344f104b09; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_tasks
+    ADD CONSTRAINT fk_rails_344f104b09 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: qa_events fk_rails_4af2d414ec; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_events
+    ADD CONSTRAINT fk_rails_4af2d414ec FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: qa_evidence fk_rails_5c90b3ab39; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_evidence
+    ADD CONSTRAINT fk_rails_5c90b3ab39 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: qa_tasks fk_rails_66f541925e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_tasks
+    ADD CONSTRAINT fk_rails_66f541925e FOREIGN KEY (claimed_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: qa_service_tokens fk_rails_de1504344e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_service_tokens
+    ADD CONSTRAINT fk_rails_de1504344e FOREIGN KEY (user_id) REFERENCES public.users(id);
+
 INSERT INTO "schema_migrations" (version) VALUES
+('20260929000200'),
 ('20260929000100'),
 ('20260928001000'),
 ('20260928000900'),
