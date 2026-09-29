@@ -80,6 +80,23 @@ type Event = {
 };
 type Workspace = {
   build: Build;
+  atlas?: {
+    status: string;
+    inventory_status: string;
+    error?: string;
+    source: string;
+    tracker_updated_at?: string;
+    scoring_basis: string;
+    averages?: { build: number; validation: number; external: number };
+    inventory?: {
+      code: string;
+      title: string;
+      kind: string;
+      done: string;
+      remaining: string;
+      source: string;
+    }[];
+  };
   state: {
     last_qa_revision?: string;
     last_run_at?: string;
@@ -149,7 +166,21 @@ export function QaWorkspace() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [section, setSection] = useState("overview");
+  const [section, setSection] = useState(() => {
+    const view =
+      new URLSearchParams(window.location.search).get("view") ?? "overview";
+    return [
+      "overview",
+      "atlas",
+      "defects",
+      "retests",
+      "coverage",
+      "inbox",
+      "timeline",
+    ].includes(view)
+      ? view
+      : "overview";
+  });
   const [selected, setSelected] = useState<Issue | KnownIssue>();
   const [report, setReport] = useState(false);
   const [question, setQuestion] = useState(false);
@@ -158,6 +189,11 @@ export function QaWorkspace() {
   const [file, setFile] = useState<File>();
   const [pinDialog, setPinDialog] = useState(false);
   const [reviewTask, setReviewTask] = useState<Task>();
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", section);
+    window.history.replaceState(null, "", url);
+  }, [section]);
   const refresh = useCallback(async (github = false) => {
     try {
       const [workspace, response] = await Promise.all([
@@ -265,7 +301,7 @@ export function QaWorkspace() {
     live.revision !== (data?.pin?.revision ?? data?.state.last_qa_revision),
   );
   const pinReady = Boolean(
-    live?.revision && data?.pin?.revision === live.revision,
+    live?.revision && !live.dirty && data?.pin?.revision === live.revision,
   );
   const issueNumber =
     selected && "number" in selected ? selected.number : selected?.github_issue;
@@ -295,6 +331,7 @@ export function QaWorkspace() {
     )
     .sort((a, b) => Number(b.priority) - Number(a.priority));
   const nav = [
+    ["atlas", "Implementation Atlas"],
     ["overview", "Mission control"],
     ["defects", "Defect register"],
     ["retests", "Retest campaign"],
@@ -445,13 +482,15 @@ export function QaWorkspace() {
           <div className="qa-build-label">
             <span className="qa-dot" />
             <strong>
-              {mismatch
-                ? "BUILD CHANGED · QA PAUSED"
-                : pinReady
-                  ? "BUILD PIN CONFIRMED"
-                  : live?.revision
-                    ? "LIVE BUILD OBSERVED"
-                    : "BUILD UNAVAILABLE"}
+              {live?.dirty
+                ? "UNCOMMITTED SOURCE · QA PAUSED"
+                : mismatch
+                  ? "BUILD CHANGED · QA PAUSED"
+                  : pinReady
+                    ? "BUILD PIN CONFIRMED"
+                    : live?.revision
+                      ? "LIVE BUILD OBSERVED"
+                      : "BUILD UNAVAILABLE"}
             </strong>
             <small>{stamp(live?.observed_at)}</small>
             {live?.environment && (
@@ -480,7 +519,7 @@ export function QaWorkspace() {
               Observe this build and confirm its pin before requesting QA.
               Historical verdicts retain their original revision.{" "}
               <Button
-                disabled={!live?.revision || busy}
+                disabled={!live?.revision || live.dirty || busy}
                 onClick={() => setPinDialog(true)}
               >
                 Confirm live build pin
@@ -496,6 +535,29 @@ export function QaWorkspace() {
             {section === "overview" && (
               <>
                 <div className="qa-metrics">
+                  <Metric
+                    label="Atlas build"
+                    count={
+                      data.atlas?.averages
+                        ? `${data.atlas.averages.build}%`
+                        : "Unavailable"
+                    }
+                    detail="Recorded implementation estimate · MC-01–15"
+                  />
+                  <Metric
+                    label="Atlas local validation"
+                    count={
+                      data.atlas?.averages
+                        ? `${data.atlas.averages.validation}%`
+                        : "Unavailable"
+                    }
+                    detail="Not full browser acceptance"
+                  />
+                  <Metric
+                    label="Atlas work inventory"
+                    count={data.atlas?.inventory?.length ?? "Unavailable"}
+                    detail="Named work rows · separate from Muse retests"
+                  />
                   <Metric
                     label="GitHub open defects"
                     count={
@@ -543,7 +605,11 @@ export function QaWorkspace() {
                         <div>
                           <strong>{task.title}</strong>
                           <small>
-                            You · agent verdict and screenshots are ready
+                            You · agent verdict and screenshots are ready ·{" "}
+                            {task.revision === live?.revision
+                              ? "current revision"
+                              : "older revision"}{" "}
+                            {task.revision}
                           </small>
                         </div>
                         <Button onClick={() => setReviewTask(task)}>
@@ -567,6 +633,11 @@ export function QaWorkspace() {
                             {task.claimed_by
                               ? `Picked up by ${task.claimed_by} at ${stamp(task.claimed_at)}`
                               : "Awaiting pickup"}
+                            {" · "}
+                            {task.revision === live?.revision
+                              ? "current revision"
+                              : "older revision"}{" "}
+                            {task.revision}
                           </small>
                         </div>
                         <Button onClick={() => setSection("inbox")}>
@@ -585,7 +656,11 @@ export function QaWorkspace() {
                             Muse #{value(item.muse_qa_id ?? item.id)}
                           </strong>
                           <small>
-                            {value(item.owner)} · {item.evidence}
+                            Historical · {value(item.owner)} · {item.evidence}
+                            {" · "}
+                            {item.revision ??
+                              data.state.last_qa_revision ??
+                              "Revision not recorded"}
                           </small>
                         </div>
                         <Button onClick={() => setSection("retests")}>
@@ -692,6 +767,7 @@ export function QaWorkspace() {
                         disabled={
                           busy ||
                           !live?.revision ||
+                          live.dirty ||
                           tasks.some((task) => task.status === "claimed")
                         }
                         onClick={() =>
@@ -716,6 +792,108 @@ export function QaWorkspace() {
                   </div>
                 </section>
               </>
+            )}
+            {section === "atlas" && (
+              <section className="qa-panel">
+                <PanelTitle
+                  tag="IMPLEMENTATION"
+                  title="Full Atlas inventory"
+                  detail="Work requirements, not a count of unique open bugs"
+                />
+                {data.atlas?.averages ? (
+                  <>
+                    <div className="qa-metrics">
+                      <Metric
+                        label="Build"
+                        count={`${data.atlas.averages.build}%`}
+                        detail="Recorded source implementation estimate"
+                      />
+                      <Metric
+                        label="Local validation"
+                        count={`${data.atlas.averages.validation}%`}
+                        detail="Recorded scoped evidence"
+                      />
+                      <Metric
+                        label="External / human acceptance"
+                        count={`${data.atlas.averages.external}%`}
+                        detail="Separate from QA task approvals"
+                      />
+                    </div>
+                    <p>{data.atlas.scoring_basis}</p>
+                    <p>
+                      {data.atlas.source} · updated{" "}
+                      {data.atlas.tracker_updated_at ?? "not recorded"} ·{" "}
+                      {data.atlas.status.replaceAll("_", " ")}
+                    </p>
+                  </>
+                ) : (
+                  <Alert severity="warning">
+                    {data.atlas?.error ?? "Atlas unavailable"}
+                  </Alert>
+                )}
+                <Alert
+                  severity={
+                    data.atlas?.inventory_status === "snapshot_outdated"
+                      ? "warning"
+                      : "info"
+                  }
+                >
+                  {data.atlas?.inventory?.length ?? 0} Atlas rows ·{" "}
+                  {retests.length} Muse retest findings ·{" "}
+                  {issues.filter((issue) => issue.state === "open").length}{" "}
+                  GitHub open defects. These inventories overlap; do not add
+                  their counts as unique defects.
+                  {data.atlas?.inventory_status === "snapshot_outdated" &&
+                    " Atlas inventory snapshot is outdated; regenerate it before relying on its work descriptions."}
+                  {data.atlas?.inventory_status === "packaged_snapshot" &&
+                    " Packaged inventory snapshot; not a live repository read."}
+                </Alert>
+                <p>
+                  The older 140-case UI audit is not imported: its original
+                  ledger was not available at the recorded location. It is not
+                  silently counted as reviewed or fixed.
+                </p>
+                <TextField
+                  label="Search Atlas work or remaining gaps"
+                  size="small"
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                />
+                <div className="qa-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Work item</th>
+                        <th>Recorded evidence / state</th>
+                        <th>Still needed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.atlas?.inventory
+                        ?.filter((row) =>
+                          `${row.code} ${row.title} ${row.done} ${row.remaining}`
+                            .toLowerCase()
+                            .includes(filter.toLowerCase()),
+                        )
+                        .map((row) => (
+                          <tr key={row.code}>
+                            <td>
+                              <strong>{row.title}</strong>
+                              <small>
+                                {row.code} · {row.kind}
+                              </small>
+                            </td>
+                            <td>
+                              {row.done}
+                              <small>{row.source}</small>
+                            </td>
+                            <td>{row.remaining}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             )}
             {section === "defects" && (
               <section className="qa-panel">
@@ -1282,6 +1460,7 @@ export function QaWorkspace() {
                 value="approved"
                 disabled={
                   reviewTask?.status !== "completed" ||
+                  !pinReady ||
                   reviewTask.revision !== live?.revision
                 }
               >

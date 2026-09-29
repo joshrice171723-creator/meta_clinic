@@ -1,0 +1,1232 @@
+{
+  "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md",
+  "source_digest": "f6f33c290e71a9a62d375ba9c8e75f006f846e015ee84e544519a61588699f2a",
+  "tracker_updated_at": "2026-09-29 00:59 UTC",
+  "scoring_basis": "Equal-weight MC-01–15 recorded estimates. Optional insurance (MC-16) is separate.",
+  "averages": {
+    "build": 73.2,
+    "validation": 46.3,
+    "external": 0
+  },
+  "rows": [
+    {
+      "code": "MC-01",
+      "title": "Clinic setup",
+      "build": 86,
+      "validation": 61,
+      "external": 0,
+      "remaining": "Contact/referral requirements, cross-clinic browser denial and full historic-appointment browser comparison.",
+      "next_work": "Exercise configured clinician eligibility and denial in the browser, then complete cross-clinic and history checks without rewriting historic visits.",
+      "evidence": "A practice-scoped eligible-clinician list constrains linked booking and rescheduling; an empty list retains all otherwise schedulable clinicians. Local draft/publish/retire/reload, linked booking snapshot, and independent visit-type-only booking persisted. Estimate staff can read published offerings for same-practice price selection, with focused permission tests; browser denial and clinic service/policy choices remain open."
+    },
+    {
+      "code": "MC-02",
+      "title": "Digital front door / Growth",
+      "build": 86,
+      "validation": 45,
+      "external": 0,
+      "remaining": "Public accent and saved clinic logo are source-delivered; branding browser proof and connected account activation/payment failure/recovery remain. Lead notes, next-contact dates and paginated status/due filtering are source-delivered. The services page still uses the clinic's saved public slug.",
+      "next_work": "Browser-check public service submission, retry, staff access/denial, status change and reload; then continue account handoffs.",
+      "evidence": "Existing browser proof covers isolated clinic entry, contact-first and unpaid account request; focused source tests cover local payment/retry identity. Published opt-in offerings now have a clinic services page and a separate anonymous API response that omits membership catalog and payment data. The page can remain available with membership sales disabled when a saved slug and at least one published visible service exist. Staff receive its link only while that condition holds. Ruby syntax, route loading and TypeScript checks passed; positive listing, denial and reload browser paths remain unverified. Consented service inquiries now persist with encrypted contact, same-practice idempotent retry, a permission-gated staff inbox and versioned status transitions. Source checks passed; submission, role denial and reload are not browser-proved. Clinic staff can save bounded headline and introduction text for both public pages; existing clinics retain default copy. Configuration snapshots include these fields. Public accent and saved clinic logo are source-delivered; branding browser proof, connected account recovery and live email/payment remain separate."
+    },
+    {
+      "code": "MC-03",
+      "title": "Registration / walk-ins",
+      "build": 74,
+      "validation": 58,
+      "external": 0,
+      "remaining": "Telehealth return, identity correction and duplicate recovery proof.",
+      "next_work": "Exercise alternate-identity correction and duplicate recovery in the browser, then a telehealth return.",
+      "evidence": "Submitted identity recheck, portal invitation, activation and same-patient return survived a synthetic browser reload on 2026-09-24; focused role/practice denials remain separate evidence."
+    },
+    {
+      "code": "MC-04",
+      "title": "Scheduling / capacity",
+      "build": 93,
+      "validation": 68,
+      "external": 0,
+      "remaining": "Overbook booking, concurrent second-allocation race, older hold and waitlist recovery, service-resource compatibility and browser closure-recovery evidence remain; explicit offering substitution and date-specific closure queue are source-delivered.",
+      "next_work": "Use the site scheduling recurrence and overbooking assignment for overbook and recovery proof. Selected-site controls default off; eligible overbook visit types require an explicit site choice. PR-10 external sync and advanced recurrence remain separate.",
+      "evidence": "The MC-04 branch added policy, series and overbook code with focused Rails evidence (36 runs/354 assertions), TypeScript and 17 existing schedule/booking frontend tests. A site policy saved at revision 1. A later synthetic browser created, changed and cancelled a two-visit weekly series, with each state verified after reload; overbook submission remains unproved."
+    },
+    {
+      "code": "MC-05",
+      "title": "Intake / rooms / handoffs",
+      "build": 72,
+      "validation": 50,
+      "external": 0,
+      "remaining": "Changed psychiatry browser journey, selected instrument/license, safety-policy/coverage choice, and role/device acceptance.",
+      "next_work": "Re-run a worktree-owned browser mutation/return journey and retain the explicit unknown/review/task states.",
+      "evidence": "Browser persistence and handoff/closure proof, role/site denial, and separately approved instrument/safety policy where selected."
+    },
+    {
+      "code": "MC-06",
+      "title": "Encounters / clinical work",
+      "build": 67,
+      "validation": 40,
+      "external": 0,
+      "remaining": "Completion/exception browser proof, typed lab review/reopen paths, and external order/result mapping.",
+      "next_work": "Continue typed-lab Slice 4 and revalidate clinical-plan correction/fulfillment without treating received results as reviewed.",
+      "evidence": "Lab history separates differing code systems and UCUM unit codes. A corrected report enters the new-version review queue while unresolved earlier-version contact work remains completable. The patient report list now flags open prior-version follow-ups and links to their version history; one focused API case passed (27 assertions) and frontend typecheck passed on 2026-09-23. Browser provenance, terminology validation and any actual lab connection remain open."
+    },
+    {
+      "code": "MC-07",
+      "title": "Telehealth",
+      "build": 55,
+      "validation": 35,
+      "external": 0,
+      "remaining": "Current provider contract/status, connected patient-provider join, two-party media and browser disconnect/recovery continuity proof.",
+      "next_work": "Complete the connected local patient and staff visit path when browser acceptance resumes; confirm provider readiness separately.",
+      "evidence": "Audio-only join/rejoin and check-in device preference propagation have 25 focused frontend tests and TypeScript passing on 2026-09-23. Browser lifecycle, provider onboarding, credentials, live media, consent and release acceptance remain separate gates."
+    },
+    {
+      "code": "MC-08",
+      "title": "Cash billing",
+      "build": 92,
+      "validation": 60,
+      "external": 0,
+      "remaining": "GFE full-reload/retry, catalog-change create replay and actual delivery proof; cash collection/refund, card outcome/reconciliation, allocation, receipt and unknown-outcome journeys.",
+      "next_work": "Continue cash collection, refund, card-outcome reconciliation, allocation, receipt and unknown-outcome build paths.",
+      "evidence": "Issued and superseded GFE records now print saved clinic/site contact details captured at issue time, plus immutable service lines, exact server total, patient identity, policy version and correction lineage. Existing issues receive an empty new snapshot rather than a reconstruction from mutable site data. Printing remains separate from sending or delivery evidence. Prior browser proved create/issue/correct/reissue and supersession. A focused source pass proved published matched offering selection, retired-link correction, same-state create replay, and billing-only published catalog access (13 Rails runs/111 assertions; 2 frontend tests; TypeScript). API records a single audited staff delivery attestation with exact replay; no actual document was sent or external payment made. Cash drawer close now replays an exact retry, and report rows reopen the selected drawer. The daily report now separately pages earlier open or pending-reconciliation drawers with exact Billing links; its current-state worklist is not daily cash flow. No live payment was made; tax, MOTO/provider custody and live money remain human/external gates."
+    },
+    {
+      "code": "MC-09",
+      "title": "Memberships / packages",
+      "build": 65,
+      "validation": 50,
+      "external": 0,
+      "remaining": "Renewal/failure/cancellation and duplicate/unknown payment-outcome browser proof, package entitlements and signed provider outcomes.",
+      "next_work": "Exercise the source-proven local simulator lifecycle and recovery in the browser.",
+      "evidence": "Focused API proof covers paid entitlement, renewal failure, exact replay and period-end cancellation; browser recovery, signed provider events and actual charge operation remain separate."
+    },
+    {
+      "code": "MC-10",
+      "title": "Medication / refills / fulfillment",
+      "build": 66,
+      "validation": 45,
+      "external": 0,
+      "remaining": "Browser proof for current local workflow, response/reconciliation worklist, RxFill/cancellation extensions.",
+      "next_work": "Verify controlled-test prescription preparation and refill replacement in a browser; implement local response history only after its exact contract is chosen.",
+      "evidence": "The staff refill queue now pages beyond its former oldest-100 window and filters failed portal response deliveries for existing exact-key retry. Local authorization/idempotency/outcome-unknown evidence and browser recovery remain; prescribing-network mapping, transmission, response, dispensing, and credential acceptance are external."
+    },
+    {
+      "code": "MC-11",
+      "title": "Inventory / procurement",
+      "build": 85,
+      "validation": 47,
+      "external": 0,
+      "remaining": "Connected browser receiving-to-stock-use path, supplier product/unit mapping, exact quote-request retry and cross-practice mutation denial, and connected supplier proof. Manual shipment registration, carrier/tracking identifiers, append-only staff events, order links, receiving eligibility, and local quote-request/response lifecycle are source-delivered; live supplier and carrier access/events remain external.",
+      "next_work": "Complete receiving to stock use and linked reversal in one browser trace using existing ledger/lot/unit owners, then exercise exact quote-request replay and cross-practice denial.",
+      "evidence": "Focused API/frontend proof covers one linked removal reversal, exact retry and second-reversal denial; browser adjustment/reversal restored stock after reload. Shipment and quote-request migrations were applied locally with generated schema. An isolated synthetic browser saved a manual offer, recorded a three-package request, closed it with a dated response and recovered the closed record after reload. A same-practice administrator without the supplier-pricing role was denied the screen before an explicit synthetic role grant. The first whole-package request exposed a decimal validation defect, fixed in e37c5de7; future-dated quotes were rejected. Shipment browser/reload, quote exact replay and server-side cross-practice denial remain open. Supplier onboarding and actual transactions are external."
+    },
+    {
+      "code": "MC-12",
+      "title": "Portal / messaging / follow-up",
+      "build": 65,
+      "validation": 40,
+      "external": 0,
+      "remaining": "Desktop/tablet patient access, precise visibility, failed-message recovery, and return-visit browser proof.",
+      "next_work": "Exercise one scoped patient portal request/follow-up recovery journey with real API fixtures.",
+      "evidence": "Staff can page through refill requests and filter saved decisions with failed portal response delivery, then use the existing retry action. Browser patient/role visibility, failure/retry and open-task-after-closure evidence remain; actual delivery/content governance is separate."
+    },
+    {
+      "code": "MC-13",
+      "title": "Workforce / locations",
+      "build": 69,
+      "validation": 45,
+      "external": 0,
+      "remaining": "Administrator assignment, privilege/revocation, location isolation, coverage and staff-recovery mutation proof.",
+      "next_work": "Browser-check the location-by-location offboarding work summary, then verify eligible coverage can claim affected work after revocation.",
+      "evidence": "Role-grant uniqueness now preserves revoked history while allowing a later same-role replacement; an independently active duplicate still conflicts and the Front Desk Coordinator QA case requires exact-fixture retest. Permitted/denied mutation matrix and location isolation remain unverified. The authorized employment list counts active assigned tasks by site without patient details; the revoke confirmation explains eligible staff claim still-owned work."
+    },
+    {
+      "code": "MC-14",
+      "title": "Reporting / clinic ownership",
+      "build": 66,
+      "validation": 30,
+      "external": 0,
+      "remaining": "Reconcile remaining financial/stock/workflow reports, denied-role/reload browser proof, export provenance, named reconciliation owner, retention/hold policy.",
+      "next_work": "Walk through the reminder and daily reports with authorized and denied roles after reload, then complete remaining source-owned report definitions.",
+      "evidence": "Daily appointment-state aggregate has focused source/permission tests and a browser result of one scheduled visit on September 24; retention, legal hold, PHI handling and named owner require human approval. Current clinical-task counts by kind/state and overdue count are site-scoped and source-backed. A new permission-gated reminder report counts persisted current delivery states without patient or message content and links to the attention queue. Cash drawer report rows now open the exact billing drawer selected for reconciliation (8599c710). An unpublished practice-date review checkpoint captures invoice, payment/refund and drawer summaries with separate source times, reviewer and note; earlier unresolved drawers remain visible. It records review, not a balanced closeout. Ruby syntax/lint, route and TypeScript checks passed; connected browser proof remains open."
+    },
+    {
+      "code": "MC-15",
+      "title": "Onboarding / integrations / operations",
+      "build": 57,
+      "validation": 20,
+      "external": 0,
+      "remaining": "Scribe and remaining integration readiness inventory, cross-clinic configuration import/migration recovery, operating runbooks, and scoped acceptance.",
+      "next_work": "Use saved same-clinic feature revisions for bounded reapplication; complete remaining integration inventory and a separately specified migration recovery operation.",
+      "evidence": "Local adapter/simulator recovery tests and operational runbook review; customer authorization, data mapping, vendor onboarding, and cutover acceptance are external. Operations now displays payment, prescription and reminder record states alongside telehealth readiness, with source limits visible. The configuration snapshot can be compared with a saved same-clinic JSON file in the browser; comparison does not import or restore. Unfinished scribe records now link to their recovery workspace (7e1c71b6); no transcript or patient content is returned. TypeScript/format checks passed; browser walkthrough and migration recovery remain open. Clinic setup now loads earlier same-clinic, same-location feature choices into the existing editor; saving still runs permission, optimistic-revision and protected-profile checks. The unpublished Operations review checkpoint saves attributed aggregate-source evidence and exact retry history without claiming settlement or clinical acceptance. Ruby syntax/lint, route and TypeScript checks passed; role denial, reload and stale-save browser paths remain open."
+    },
+    {
+      "code": "MC-16",
+      "title": "Optional insurance",
+      "build": 35,
+      "validation": 15,
+      "external": 0,
+      "remaining": "Configured coverage/policyholder/payer workflow, eligibility/authorization/claim/reconciliation contracts, and UI proof.",
+      "next_work": "Select only a local preparation slice consistent with the optional-module boundary; preserve cash-pay independence.",
+      "evidence": "Local tenant/authorization/recovery evidence; payer/clearinghouse contracts, enrollment, transaction acceptance, and policy decisions are external."
+    }
+  ],
+  "inventory": [
+    {
+      "code": "MC-01",
+      "title": "Clinic setup",
+      "kind": "core",
+      "parents": [
+        "MC-01"
+      ],
+      "build": 86,
+      "validation": 61,
+      "external": 0,
+      "done": "D-064/D-065 dated baseline; D-075/078 require meaningful weight-loss configuration and tiered change authority. At 76c2b47, inspected practice-feature types lack weight loss; current design/creation path must be inspected, not automatically preserved. The 2026-09-22 non-vendor hardening plan now has a local Slice 1 implementation checkpoint: backend-owned draft/publish/retire service offerings link visit type, eligible sites, duration/modality, room/booking prerequisite and optional billable price reference. The current branch adds optional appointment linkage and a booking-time offering snapshot; focused API/frontend checks passed. The browser checkpoints below record a linked appointment retained after offering retirement and a separately booked independent visit-type-only appointment retained after reload. Estimate staff can now select a published offering matched to its billable price; a billing-only reader sees published offerings within their practice. Focused estimate/offering tests passed 13 runs/111 assertions on 2026-09-23.",
+      "remaining": "Contact/referral requirements, cross-clinic browser denial and full historic-appointment browser comparison.",
+      "fingerprint": "60da5f9c",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-02",
+      "title": "Digital front door / Growth",
+      "kind": "core",
+      "parents": [
+        "MC-02"
+      ],
+      "build": 86,
+      "validation": 45,
+      "external": 0,
+      "done": "D-069/D-070 and account-first enrollment document public memberships, prospects and account/payment handoffs. The isolated browser checkpoint below proves two clinic-specific catalogs, one contact-first prospect without a patient link, an unpaid account-first request, and underage account rejection. The merged branch adds account activation and payment retry identity recovery, with focused API and frontend checks described below. The 2026-09-24 two-scenario browser record now scores weight and behavioral membership entry at 16/16 each for the local synthetic walkthrough: published plans, public selection, account requests, unpaid Growth follow-up, guarded synthetic activation, signed simulated payments, separate paid patient/portal records, and persisted Patient Flow handoff were observed. Email ownership, password setup and portal terms were explicitly unverified in this path. A 2026-09-27 build adds a separately managed public visibility choice to service offerings and a service list on the existing clinic membership page; existing records default hidden, and only published opt-in offerings are returned without internal price/site/clinician fields. Source, type and lint checks passed; the public endpoint returned an empty list before opt-in, while a positive listing browser journey remains unverified. The public-service visibility checkpoint records default-hidden opt-in listings and an empty anonymous pre-opt-in response. The standalone services-page checkpoint records a separate public route that can remain available when membership sales are disabled; positive listing, removal, denial and reload remain unverified.",
+      "remaining": "Public accent and saved clinic logo are source-delivered; branding browser proof and connected account activation/payment failure/recovery remain. Lead notes, next-contact dates and paginated status/due filtering are source-delivered. The services page still uses the clinic's saved public slug.",
+      "fingerprint": "1db0642a",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-03",
+      "title": "Registration / walk-ins",
+      "kind": "core",
+      "parents": [
+        "MC-03"
+      ],
+      "build": 74,
+      "validation": 58,
+      "external": 0,
+      "done": "Clinic-day closeout reports bounded role-based journey evidence. Submitted identity is rechecked before registration, and the patient record exposes permission-gated portal linkage. A focused synthetic HTTP journey covered same-patient portal return and denials (1 run/28 assertions). The 2026-09-24 browser checkpoint registered a walk-in, issued a one-time invitation, activated the portal after a session-handoff fix, and confirmed the same patient/practice after reload.",
+      "remaining": "Telehealth return, identity correction and duplicate recovery proof.",
+      "fingerprint": "1196c627",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-04",
+      "title": "Scheduling / capacity",
+      "kind": "core",
+      "parents": [
+        "MC-04"
+      ],
+      "build": 93,
+      "validation": 68,
+      "external": 0,
+      "done": "Existing month/day Schedule, room view, holds, capacity and waitlist remain. Selected-site versioned scheduling policy, bounded weekly series, and reasoned same-clinician overbook exception are implemented. Patient and physical-room overlap constraints remain. The 2026-09-24 browser checkpoint created, changed, cancelled and reloaded a two-visit series.",
+      "remaining": "Overbook booking, concurrent second-allocation race, older hold and waitlist recovery, service-resource compatibility and browser closure-recovery evidence remain; explicit offering substitution and date-specific closure queue are source-delivered.",
+      "fingerprint": "e3b2f762",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-05",
+      "title": "Intake / rooms / handoffs",
+      "kind": "core",
+      "parents": [
+        "MC-05"
+      ],
+      "build": 72,
+      "validation": 50,
+      "external": 0,
+      "done": "Closeout items 2, 5 and 9 report reusable intake, explicit handoff and role-based local evidence. The 2026-09-22 psychiatry checkpoint reuses those owners, adds explicit assessment item/reviewer state, and keeps manually owned safety follow-up open after closure; focused API evidence is 18 runs/355 assertions across the changed psychiatry/profile contracts.",
+      "remaining": "Changed psychiatry browser journey, selected instrument/license, safety-policy/coverage choice, and role/device acceptance.",
+      "fingerprint": "73f40a14",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-06",
+      "title": "Encounters / clinical work",
+      "kind": "core",
+      "parents": [
+        "MC-06"
+      ],
+      "build": 67,
+      "validation": 40,
+      "external": 0,
+      "done": "Closeout items 1, 4, 6 and 8 report inbox, medication administration, immunization and linked order/result/referral work. Lab result history now matches the test code system and UCUM unit code as well as the source, name, code and display unit, so different coded measurements do not share one history; the focused lab integration checks passed.",
+      "remaining": "Completion/exception browser proof, typed lab review/reopen paths, and external order/result mapping.",
+      "fingerprint": "1feb51f3",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-07",
+      "title": "Telehealth",
+      "kind": "core",
+      "parents": [
+        "MC-07"
+      ],
+      "build": 55,
+      "validation": 35,
+      "external": 0,
+      "done": "D-063 telehealth selection and Twilio setup identify provider direction and setup. The patient device check's policy-permitted audio-only choice now reaches Twilio join and fresh-grant reconnection without requesting a camera. Selected microphone/camera preferences also reach the media adapter and survive reconnection, with browser-default fallback if a preferred device is unavailable. Focused frontend tests passed 25/25 across the adapter, session, and recovery paths; TypeScript passed on 2026-09-23.",
+      "remaining": "Current provider contract/status, connected patient-provider join, two-party media and browser disconnect/recovery continuity proof.",
+      "fingerprint": "3a7a7e5b",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-08",
+      "title": "Cash billing",
+      "kind": "core",
+      "parents": [
+        "MC-08"
+      ],
+      "build": 92,
+      "validation": 60,
+      "external": 0,
+      "done": "The current branch retains reasoned, linked correction drafts and patient-scoped estimate history. The prior synthetic browser created/issued/corrected a GFE with side-by-side $95/$190 snapshots. A separate staff-attested written-delivery action now timestamps the issued snapshot once, requires an existing planned method, audits the actor, rejects another delivery, and replays the exact request; focused billing integration checks passed. This action does not send or generate a document. A new estimate line may link only a published same-practice offering matched to its price; correction can retain the historical offering/price pair, and same-state exact create replay is covered. Focused estimate/offering tests passed 13 runs/111 assertions, one frontend estimate test file passed 2 tests, and TypeScript passed on 2026-09-23.",
+      "remaining": "GFE full-reload/retry, catalog-change create replay and actual delivery proof; cash collection/refund, card outcome/reconciliation, allocation, receipt and unknown-outcome journeys.",
+      "fingerprint": "8f927b2c",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-09",
+      "title": "Memberships / packages",
+      "kind": "core",
+      "parents": [
+        "MC-09"
+      ],
+      "build": 65,
+      "validation": 50,
+      "external": 0,
+      "done": "Account-first enrollment and telephone recurring payment record recent work. A focused local-simulator API journey passes account-first paid entitlement, wrong-practice denial without mutation, renewal failure with fresh /current, exact retry, and period-end cancellation preserving interval and identity (1 run/59 assertions after merge). Frontend retry identity checks and typecheck pass.",
+      "remaining": "Renewal/failure/cancellation and duplicate/unknown payment-outcome browser proof, package entitlements and signed provider outcomes.",
+      "fingerprint": "f1d8b3ad",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-10",
+      "title": "Medication / refills / fulfillment",
+      "kind": "core",
+      "parents": [
+        "MC-10"
+      ],
+      "build": 66,
+      "validation": 45,
+      "external": 0,
+      "done": "The prescription transmission brief has local synthetic evidence for pharmacy destination entry/selection, immutable destination snapshots and attempts, backend-only simulated outcomes, retry blocking after an unknown outcome, and prior-series refill replacement. The psychiatry checkpoint adds a configured controlledtest simulator mode with fake signer/reviewer snapshots and accepted, rejected, unavailable, revoked, duplicate, and outcome-unknown coverage in the 18-run/355-assertion focused API suite. The 2026-09-27 source checkpoint blocks direct simulated-outcome creation, requires matching event/attempt outcome and source, and limits simulated reconciliation to linked attempts; these additions have source checks only.",
+      "remaining": "Browser proof for current local workflow, response/reconciliation worklist, RxFill/cancellation extensions.",
+      "fingerprint": "b09e1618",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-11",
+      "title": "Inventory / procurement",
+      "kind": "core",
+      "parents": [
+        "MC-11"
+      ],
+      "build": 85,
+      "validation": 47,
+      "external": 0,
+      "done": "PostgreSQL and Inventory Foundation and Pharmacy Inventory Data Requirements distinguish implemented foundation and extensions. The current branch adds an immutable, single linked reversal for a stock removal and an Inventory Activity recovery control; focused inventory API checks passed 5 runs/97 assertions plus 1 run/22 assertions, with 17 frontend tests and typecheck. A local browser adjustment/removal and reversal restored the original balance after reload; see the checkpoint below. Catalog-linked supplier offers and dated package/currency quotes can now be attached to draft orders (1ad3637a); browser reload and role-denial proof remain open. The 2026-09-27 source checkpoint requires a supplier before marking an order sent and all ordered packages received before manual completion; browser proof is open. Catalog-linked supplier offers can now be created or matched and dated package/currency quotes selected on draft orders (1ad3637a); browser reload and role-denial proof remain open.",
+      "remaining": "Connected browser receiving-to-stock-use path, supplier product/unit mapping, exact quote-request retry and cross-practice mutation denial, and connected supplier proof. Manual shipment registration, carrier/tracking identifiers, append-only staff events, order links, receiving eligibility, and local quote-request/response lifecycle are source-delivered; live supplier and carrier access/events remain external.",
+      "fingerprint": "53d3ea10",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-12",
+      "title": "Portal / messaging / follow-up",
+      "kind": "core",
+      "parents": [
+        "MC-12"
+      ],
+      "build": 65,
+      "validation": 40,
+      "external": 0,
+      "done": "Portal proposal, workflow delivery and closeout describe intake/refills/waitlist/education/recalls.",
+      "remaining": "Desktop/tablet patient access, precise visibility, failed-message recovery, and return-visit browser proof.",
+      "fingerprint": "51cca086",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-13",
+      "title": "Workforce / locations",
+      "kind": "core",
+      "parents": [
+        "MC-13"
+      ],
+      "build": 69,
+      "validation": 45,
+      "external": 0,
+      "done": "Existing configured-role direction; closeout reports bounded wrong-role/context checks.",
+      "remaining": "Administrator assignment, privilege/revocation, location isolation, coverage and staff-recovery mutation proof.",
+      "fingerprint": "65e074f",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-14",
+      "title": "Reporting / clinic ownership",
+      "kind": "core",
+      "parents": [
+        "MC-14"
+      ],
+      "build": 66,
+      "validation": 30,
+      "external": 0,
+      "done": "Product strategy establishes connected reporting and clinic control as intended outcomes. The existing site-scoped daily visits report has earlier focused and synthetic browser evidence. The 2026-09-27 source checkpoint adds a provenance-bearing visit-count CSV, a daily invoice creation/current-state and posted-line report, and a unit-separated daily stock movement report, each behind its owning read permission. Dated source evidence records checks and limits. A later payment activity source checkpoint adds separate payment and refund date totals and a provenance-bearing CSV. Record-location source evidence adds capped invoice, payment and refund rows with owning-workspace links. Populated browser proof reconciles one selected-site visit count, one USD 79 invoice/payment pair and five receipt movements against their owning screens. Current report recovery source evidence adds current invoice-cohort balance, bounded stock entry IDs and exact pharmacy-entry Activity filtering; read-only database and one authorized populated browser path proved the zero-balance invoice and exact pharmacy entry; CSV, server denial and exception branches remain. A 2026-09-27 current clinical-work report now groups active tasks by kind/state and counts overdue work at the selected site without patient details; a synthetic site query returned one task and an unrelated role was denied. Dated source record records checks and browser gaps. The export/state checkpoint adds invoice and stock CSVs plus spreadsheet-formula guarding; exact source-record recovery adds invoice selection and payment/refund focus. Current-record visibility adds invoice-level balances and office-item/pharmacy-batch lineage; a local browser showed five batch-linked stock entries.",
+      "remaining": "Reconcile remaining financial/stock/workflow reports, denied-role/reload browser proof, export provenance, named reconciliation owner, retention/hold policy.",
+      "fingerprint": "59773669",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-15",
+      "title": "Onboarding / integrations / operations",
+      "kind": "core",
+      "parents": [
+        "MC-15"
+      ],
+      "build": 57,
+      "validation": 20,
+      "external": 0,
+      "done": "D-067 and CICD describe onboarding/migration and operating context. The 2026-09-27 source checkpoint adds billing-scoped payment readiness and a clinical-records-authorized local prescription-attempt aggregate to Operations, with simulator and unknown-outcome limits visible. Dated source evidence records checks and limits. The later payment and prescription checkpoint adds current collection-intent states and latest-attempt-per-revision counts. Record-location source evidence adds capped reconciliation-intent and latest unknown-attempt lists with owning-workspace links. Populated browser proof observed one succeeded collection intent and one accepted local prescription attempt; a messaging-only account did not see either aggregate. Current report recovery source evidence separates requested intent amounts from funds and prioritizes unknown attempts on current request revisions; read-only database and one authorized populated browser path showed requested USD 79.0 and zero current unknown attempts; nonzero/unknown branches, server denial and external outcomes remain. A 2026-09-27 practice-admin configuration manifest now projects clinic/site feature revisions and service offerings as a digest-bearing, human-review JSON download. A synthetic two-site query succeeded and an unrelated role was denied; import and migration recovery remain open. Dated source record records checks and limits. The export/state checkpoint exposes all returned collection and prescription outcomes; exact source-record recovery compares collection state and opens exact prescription-attempt review. Current-record visibility adds pending/processing collection recovery and current-revision attempt lists; a local browser showed one accepted current-revision attempt and zero in-flight collections. The prescription activity query excludes attempts resolved by linked cancelled or confirmednotsent events from the current unknown worklist while retaining historical counts.",
+      "remaining": "Scribe and remaining integration readiness inventory, cross-clinic configuration import/migration recovery, operating runbooks, and scoped acceptance.",
+      "fingerprint": "d99a7973",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "MC-16",
+      "title": "Optional insurance",
+      "kind": "core",
+      "parents": [
+        "MC-16"
+      ],
+      "build": 35,
+      "validation": 15,
+      "external": 0,
+      "done": "D-064 keeps insurance optional per clinic and off by default for cash-based care; D-072 directs local preparation before payer access. The dashboard and vendor-preparation section below identify this row, but current source and acceptance have not been fully reconciled.",
+      "remaining": "Configured coverage/policyholder/payer workflow, eligibility/authorization/claim/reconciliation contracts, and UI proof.",
+      "fingerprint": "643db0a2",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "M1",
+      "title": "shared shell and input rules",
+      "kind": "intake",
+      "parents": [
+        "MC-05"
+      ],
+      "done": "Encrypted append-only revisions; stable field IDs; form/version; explicit unanswered, negative, unknown, not asked, not applicable and declined states; draft/confirmation; server groups",
+      "remaining": "Item-level original question/version, answer source/time/confirmation and unresolved-item traceability are not fully modeled. Core/conditional/extended/clinician requiredness is not represented. Error/reload recovery needs a direct interactive regression, not only server-rendered markup.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M2",
+      "title": "A: profile/coordination",
+      "kind": "intake",
+      "parents": [
+        "MC-03",
+        "MC-05"
+      ],
+      "done": "Chart identity, contacts, address, emergency-contact name, language and communication preference displayed; room selector; video location text",
+      "remaining": "Provider/specialist and pharmacy references with address confirmation; complete emergency-contact relationship/phone in context; structured current encounter address plus confirmation; explicit no-provider/unknown; connected editing in owning profile, without duplicate medication/allergy lists.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M3",
+      "title": "B/C: goals, trajectory, measurements",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-06"
+      ],
+      "done": "Narrative goal; dated height/weight with units/source; existing clinical observation entry and calculated BMI",
+      "remaining": "Structured reasons/preferences, optional target weight/timeline, onset age, highest/lowest adult weights with dates/context, repeating historical weights, gain associations without inferred diagnosis. Waist/body-composition method, imported versus recalled versus staff measurement and verification need full capture and end-to-end proof. Do not require invented BP or unknown targets.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M4",
+      "title": "D: treatments/procedures",
+      "kind": "intake",
+      "parents": [
+        "MC-05"
+      ],
+      "done": "Repeating program/medicine/procedure records; dates, duration/result categories, maintenance, stop reason, adverse effects and complications",
+      "remaining": "Actual weight lost and maintenance duration; medicine product/dose; treatment start/end dates; multi-reason stopping with Other; facility/surgeon and pre/post-procedure weights; approximate month/year, not only year.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M5",
+      "title": "E: medical/symptom/family history",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-06"
+      ],
+      "done": "Repeating records with domains, current/past state, dates, managing clinician, details, family relative/certainty and review-route selections",
+      "remaining": "Specific coded condition selection and treatment/complications; symptom onset/frequency/severity/happening-now; family age-at-diagnosis and subtype detail. A review-route selection does not create owned triage work, acknowledgment, escalation or recovery. Clinic-approved triage thresholds remain a professional gate.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M6",
+      "title": "F: medicines/allergies",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-10"
+      ],
+      "done": "Local product-name search/Other; repeating medicines and supplements, actual-use state, dose/unit/frequency/source/uncertainty; allergy/intolerance/adverse-effect distinction",
+      "remaining": "Stable product/reference identifiers, ingredient/strength/concentration/formulation/route/device; separate prescribed vs actual dose; reason, prescriber/pharmacy; last dose, time on dose, gaps; linked label/document; specific allergy reaction/date. Preserve uncertainty and link clarification to existing clinician/pharmacist work—never infer syringe-unit conversions.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M7",
+      "title": "G/H: reproductive/product safety",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-10"
+      ],
+      "done": "Separate reproductive selections; product class; generic safety-review-context selection",
+      "remaining": "Pregnancy-plan timeframe, oral/nonoral contraception and menstrual details. Actual product-selected individual safety questions: personal/family MTC and subtype/relative; MEN2; exact product/reaction; GI severity; pancreatitis/gallbladder timing/symptoms; glucose medicines/hypoglycemia/eye disease; renal/dehydration; overlapping products/last dose; anesthesia/date/team. Distinct other-medication branches, owned uncertainty tasks and approved counseling. Generic reviewed is not this capability.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M8",
+      "title": "I/J: nutrition, behavior, mental health",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-12"
+      ],
+      "done": "Broad meal/beverage/eating/support/substance selections; instrument-status selection",
+      "remaining": "Repeating meal/24-hour recall and beverage quantities/time; usual frequency, patterns/restrictions distinguished from allergy, dining out, hunger/fullness/cravings, optional tracked nutrients, food preparation. Behavior recency/frequency/distress; eating-disorder and mental-health treatment/history; substance product/amount/frequency; stress/support; private presentation and approved urgent pathway. Selected instruments need original items/version/scorer, not a completed flag.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M9",
+      "title": "K/L: activity/sleep/barriers",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-12"
+      ],
+      "done": "Broad activity, sleep, food/transport/caregiving/support selections",
+      "remaining": "Repeating activity days/minutes; strength, workday activity and functional limitations; sleep hours/times, snoring/pauses, apnea/study and actual PAP use/barriers. Cooking/work/cost/portal/device barriers and preferred support. Support-route enum must connect to actual owned tasks, without punitive scoring.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M10",
+      "title": "records/admin/consent",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-06",
+        "MC-08"
+      ],
+      "done": "Separate context statuses for records, labs, consent, privacy, coverage, authorization, disclosures",
+      "remaining": "References to actual documents/results with date/source/value/unit/reference range/lab/version; clinician findings in their own workspace. Link payer/subscriber/card, membership/financial agreement and prior-auth evidence where applicable. Separate versioned treatment/telehealth/privacy/product counseling/AI-recording/marketing permissions. No universal lab panel; context confirmation cannot substitute for acceptance/signature.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M11",
+      "title": "confirmation/review",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-06"
+      ],
+      "done": "Staff confirmation differs from patient attestation; immutable revisions; handoff task and explicit acceptance",
+      "remaining": "Prioritized unresolved safety/current symptoms/actual medication/missing or stale evidence/changed facts before narrative; each item needs source/version, team or owner, reason, next action, acknowledgment and recovery. Role-name selection alone does not assign work. Correction history must reopen affected review without silently dropping existing responsibility.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "M12",
+      "title": "follow-up",
+      "kind": "intake",
+      "parents": [
+        "MC-05",
+        "MC-12"
+      ],
+      "done": "Separate follow-up form ID plus change/response/tolerability/access/support selections; no automatic refill action",
+      "remaining": "Truly shorter conditional follow-up; dated progress and goals, exact actual treatment and gaps, symptom impact on intake/function, health/reproductive/procedure changes, hydration/strength/access; linked longitudinal comparison and affected review reopening. Follow-up-specific fields were absent from server groups; this pass adds their group mapping. Clinical refill/dose decisions remain separate.",
+      "source": "records/implementation/2026-09-19-weight-management-intake-audit.md"
+    },
+    {
+      "code": "BH-01",
+      "title": "Behavioral-health visits and outpatient psychiatry",
+      "kind": "behavioral",
+      "parents": [
+        "MC-05",
+        "MC-10"
+      ],
+      "done": "Partially implemented with scoped local proof: initial/return synthetic visits, backend-owned intake, ordinary note/plan/goal continuity, open follow-up work, and a configured prescription test mode. The psychiatry API suite passed. A connected individual-therapy visit proves ordinary note signing, follow-up disposition, encounter completion and completed status after reload. The encounter follow-up editor now offers eligible responsible staff, preserves the choice in working-draft/retry requests, and rejects an owner without encounter-site write access; a focused API case passes.",
+      "remaining": "Complete psychiatry browser persistence, source-update, role/site denial, draft/retry and handoff proof; verify the selected follow-up owner in Operations after reload. A selected assessment instrument and safety/coverage policy are separate clinic decisions; no score or automatic safety clearance is implied.",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "BH-02",
+      "title": "Therapy delivery and psychotherapy-note boundary",
+      "kind": "behavioral",
+      "parents": [
+        "MC-05",
+        "MC-12"
+      ],
+      "done": "D-080 selects a separate protected-note feature. A synthetic behavioral-health clinic enabled individual therapy, booked and checked in a patient, signed an ordinary progress note, saved/reloaded/revised the separate private note, recorded needed follow-up, and completed the encounter with status retained after reload. The private record is encrypted, versioned and clinician-originator scoped; the focused API suite now includes exact retry, another-clinician denial and encounter-site denial. The ordinary note endpoint rejects the psychotherapy kind.",
+      "remaining": "Confirm private-content absence across portal/export paths with scoped evidence; direct group delivery remains unselected. Clinic-specific mental-health professional eligibility, consent/authorization, exceptional disclosure and retention require professional/privacy review before release. The synthetic walkthrough is development evidence, not clinical or disclosure-policy acceptance.",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-01",
+      "title": "Entry/session recovery",
+      "kind": "review",
+      "parents": [
+        "MC-13"
+      ],
+      "done": "Implemented: accepted-session navigation deadline and navigation-only recovery; fresh local clinic entry now completed in the current browser walkthrough; existing request timeout and session protections retained",
+      "remaining": "Fresh-entry error/timeout and no mutation auto-replay remain to be exercised",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-02",
+      "title": "Navigation, landing and canonical Schedule route",
+      "kind": "review",
+      "parents": [
+        "MC-03",
+        "MC-04",
+        "MC-13"
+      ],
+      "done": "Implemented: capability-filtered groups, role-oriented landing, canonical Schedule and explicit URL-derived patient strip",
+      "remaining": "Deep links, back/forward, draft blockers, distinct board/schedule",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-03",
+      "title": "Schedule and selected-patient context",
+      "kind": "review",
+      "parents": [
+        "MC-04"
+      ],
+      "done": "Calendar and picker delivered in 13accea/b53131f; current browser walkthrough populated Patient Flow → selected-patient month/day schedule → separate Tracking Board with synthetic records; 2026-09-17 repair binds the Patient Flow patient over recovered drafts and shows the clinic reference in the schedule context",
+      "remaining": "A newly created booking/check-in transition still needs a fresh mutation walkthrough; live clinic resource approval separate",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-04",
+      "title": "Record lifecycle and field ownership",
+      "kind": "review",
+      "parents": [
+        "MC-03",
+        "MC-05",
+        "MC-08",
+        "MC-09"
+      ],
+      "done": "Implemented: Operations workflow guide maps existing independent records, authorized writers and correction actions",
+      "remaining": "Persisted state, visible owner and next action; no universal invented field requirements",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-05",
+      "title": "Provider readiness and report discovery",
+      "kind": "review",
+      "parents": [
+        "MC-08",
+        "MC-11",
+        "MC-13",
+        "MC-15"
+      ],
+      "done": "Implemented: source-backed report catalog and telehealth health projection; absent cross-provider readiness explicitly unknown",
+      "remaining": "Permissions, source/freshness, honest unavailable/simulated states",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-06",
+      "title": "Communication lifecycle and cancellation follow-up",
+      "kind": "review",
+      "parents": [
+        "MC-10"
+      ],
+      "done": "Implemented: complete returned attempt history; cancellation-to-filtered-message-review handoff without automatic send",
+      "remaining": "Consent, delivery-unknown/no automatic resend, no implied cancellation notification",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-07",
+      "title": "Correction/provenance visibility",
+      "kind": "review",
+      "parents": [
+        "MC-05",
+        "MC-08",
+        "MC-11",
+        "MC-14"
+      ],
+      "done": "Implemented: bounded patient activity from existing versions, permission/site-filtered registration, appointments, notes, invoices and reminders; denied mutations retain one audit event after rollback",
+      "remaining": "Focused history isolation and denial/fail-closed tests passed; no protected-value snapshots or parallel ledger",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-08",
+      "title": "Scribe/clinical accountability",
+      "kind": "review",
+      "parents": [
+        "MC-05",
+        "MC-12"
+      ],
+      "done": "Existing exact-revision review, correction reasons and unsigned export retained; added recorded approving account reference/time. Clinical policy approval remains a human dependency",
+      "remaining": "Reviewer/signature/provenance boundaries; no agent-issued clinical approval",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-09",
+      "title": "Cross-domain workflow and accessibility proof",
+      "kind": "review",
+      "parents": [
+        "MC-01",
+        "MC-02",
+        "MC-03",
+        "MC-04",
+        "MC-05",
+        "MC-06",
+        "MC-07",
+        "MC-08",
+        "MC-09",
+        "MC-10",
+        "MC-11",
+        "MC-12",
+        "MC-13",
+        "MC-14",
+        "MC-15",
+        "MC-16"
+      ],
+      "done": "Shared loading/empty/stale/error/success/blocked contract implemented; four-role 1024px tablet and 1440px desktop route/action/site-boundary matrix passed on 2026-09-24",
+      "remaining": "Keyboard and screen-reader acceptance remains unverified; no phone-width check is required for this pass and no source-only completion claims",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "PR-10",
+      "title": "Later conditional enhancements",
+      "kind": "review",
+      "parents": [
+        "MC-04",
+        "MC-13",
+        "MC-15"
+      ],
+      "done": "Review retains later/conditional scope: external sync, advanced recurrence, personalized views, multi-clinic aggregates",
+      "remaining": "Source-specific gap and product/configuration decisions first; no guessed partner, reporting authority or overbooking policy",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "H0",
+      "title": "Establish the acceptance harness first",
+      "kind": "hardening",
+      "parents": [
+        "MC-01",
+        "MC-03",
+        "MC-04",
+        "MC-05",
+        "MC-06",
+        "MC-08",
+        "MC-11",
+        "MC-13",
+        "MC-14"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Before changing any domain slice, inspect its current route/API/model/test path with the source graph. Reuse apps/web/scripts/browser-acceptance.mjs and focused API/frontend test conventions rather than inventing a second browser harness. Add only the synthetic fixture setup necessary for the selected slice through real backend APIs.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H1",
+      "title": "Internal service-offering catalog and clinic setup",
+      "kind": "hardening",
+      "parents": [
+        "MC-01",
+        "MC-08"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Why first: downstream availability, estimate line items, reporting definitions, and booking must refer to one selected service instead of duplicated strings or billing prices.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H2",
+      "title": "Availability, capacity, holds, booking, and recovery",
+      "kind": "hardening",
+      "parents": [
+        "MC-04"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Add internal schedule/slot-like projections, not a universal recurrence engine:",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H3",
+      "title": "Cash-pay estimates and GFE workflow",
+      "kind": "hardening",
+      "parents": [
+        "MC-08"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Build two explicitly labelled records: a general internal/patient estimate and a GFE candidate/issued record. Neither is an invoice, receipt, payment authorization, clinical authorization, or promise of outcome.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H4",
+      "title": "Typed laboratory-result semantics",
+      "kind": "hardening",
+      "parents": [
+        "MC-06"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Add versioned result rows and source-faithful report metadata:",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H5",
+      "title": "Administration-grade immunization records",
+      "kind": "hardening",
+      "parents": [
+        "MC-06"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Dependency: keep administration unavailable for the initial clinic until a founder/clinical reviewer chooses actual service scope, sites, personnel, and state review. Historical immunization recording must stay available and must not be reclassified as administered-here.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H6",
+      "title": "Browser proof: registration and clinical-record journeys",
+      "kind": "hardening",
+      "parents": [
+        "MC-03",
+        "MC-05",
+        "MC-06"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Purpose: turn already-tested API contracts into reproducible visible synthetic workflows. This slice changes tests/harness or repairs found defects; it does not add new clinical policy.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H7",
+      "title": "Browser proof: inventory and workforce journeys",
+      "kind": "hardening",
+      "parents": [
+        "MC-11",
+        "MC-13"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "1. Receive synthetic inventory against a prepared purchase order; select lot/expiry/unit/location; create one movement; reject invalid unit/expired/held path without changing stock. 2. Execute an adjustment/count/approval or required two-person review through permitted and denied roles; show audit provenance and reload persistence. 3. Create/correct/approve a timecard; show the prior version and authorized reviewer; generate a synthetic payroll export preview/download only through the configured local path.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H8",
+      "title": "Accessibility acceptance pass",
+      "kind": "hardening",
+      "parents": [
+        "MC-01",
+        "MC-03",
+        "MC-04",
+        "MC-05",
+        "MC-06",
+        "MC-08",
+        "MC-11",
+        "MC-12",
+        "MC-13"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Use current staff desktop/tablet and patient phone flows selected above. The acceptance target is WCAG 2.2 AA-oriented engineering evidence, not an accessibility or legal certification.",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "H9",
+      "title": "Reporting, exports, audit, and retention catalog",
+      "kind": "hardening",
+      "parents": [
+        "MC-14",
+        "MC-15"
+      ],
+      "done": "Plan section; current implementation evidence is in the linked core milestones.",
+      "remaining": "Create a versioned report-definition catalog before adding reports:",
+      "source": "docs/development/non-vendor-clinic-hardening-plan.md"
+    },
+    {
+      "code": "T01",
+      "title": "Entry and identity",
+      "kind": "journey",
+      "parents": [
+        "MC-02",
+        "MC-09"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Age, account identity, changed terms, payment replay, effective membership, callback versus reservation, staff booking and capacity; verify blocked self-service with permitted alternatives and no duplicate conversion.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T02",
+      "title": "Scheduling and capacity",
+      "kind": "journey",
+      "parents": [
+        "MC-04"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Age, account identity, changed terms, payment replay, effective membership, callback versus reservation, staff booking and capacity; verify blocked self-service with permitted alternatives and no duplicate conversion.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T03",
+      "title": "Intake recovery",
+      "kind": "journey",
+      "parents": [
+        "MC-05",
+        "MC-12"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Draft versus submitted answers, absent states, source/correction history, scoped patient linkage, timezone, actual reservation versus request, walk-in and accepted handoff; protect against stale edits and false attendance.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T04",
+      "title": "Arrival and handoff",
+      "kind": "journey",
+      "parents": [
+        "MC-03",
+        "MC-05"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Draft versus submitted answers, absent states, source/correction history, scoped patient linkage, timezone, actual reservation versus request, walk-in and accepted handoff; protect against stale edits and false attendance.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T05",
+      "title": "Visit and Scribe",
+      "kind": "journey",
+      "parents": [
+        "MC-05",
+        "MC-06",
+        "MC-07",
+        "MC-12"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Visit-specific consent, participants and capture epoch; disconnected video intent, manual notes, reviewed/exported draft revision and explicit correction of an existing SOAP note. No simulated room state establishes live media.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T06",
+      "title": "Prescription events",
+      "kind": "journey",
+      "parents": [
+        "MC-10"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Review-current prescription, original-outcome reconciliation before destination switch or resend, backend simulation of unknown/duplicate/out-of-order events, lot/unit conservation, partial take-home fulfillment and reversal. Prepared work must not become false external success.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T07",
+      "title": "Lab result lifecycle",
+      "kind": "journey",
+      "parents": [
+        "MC-06"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "ServiceRequest/order separate from specimen/result; pending/partial/corrected versions, acknowledgment/review/contact and source-linked tasks remain distinct. An absent analyte blocks only a defined dependent action; scheduling and other permitted work continue.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T08",
+      "title": "Money and continuation",
+      "kind": "journey",
+      "parents": [
+        "MC-08",
+        "MC-09",
+        "MC-12"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Exact invoice and subscription evidence, failure, reversal, renewal and pending cancellation; failed outreach remains open. Billing status does not silently finish clinical work or revoke unrelated access.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T09",
+      "title": "Stock and external events",
+      "kind": "journey",
+      "parents": [
+        "MC-10",
+        "MC-11",
+        "MC-15"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Review-current prescription, original-outcome reconciliation before destination switch or resend, backend simulation of unknown/duplicate/out-of-order events, lot/unit conservation, partial take-home fulfillment and reversal. Prepared work must not become false external success.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "T10",
+      "title": "Parallel ownership",
+      "kind": "journey",
+      "parents": [
+        "MC-05",
+        "MC-06",
+        "MC-13",
+        "MC-15"
+      ],
+      "done": "Broader acceptance case; J0–J7 has separate bounded local proof.",
+      "remaining": "Simultaneous lab, Rx, billing and callback work; revoked actor, transfer coverage, dependency cycle, unavailable owner and encounter closure preserve task identity and next action.",
+      "source": "PATIENT_JOURNEY_PLAN.md"
+    },
+    {
+      "code": "SBX",
+      "title": "Multi-clinic sandbox",
+      "kind": "sandbox",
+      "parents": [
+        "MC-01",
+        "MC-02",
+        "MC-03",
+        "MC-04",
+        "MC-05",
+        "MC-06",
+        "MC-07",
+        "MC-08",
+        "MC-09",
+        "MC-10",
+        "MC-11",
+        "MC-12",
+        "MC-13",
+        "MC-14",
+        "MC-15"
+      ],
+      "done": "In progress: independent two-clinic, four-site visitor sandboxes have 300 patients/site, 12 added site staff, eight 60-visit completed weeks and two 60-visit upcoming weeks per site. This slice adds 10 cancelled/no-show bookings/site/week, distinct generated patient names between clinics, six visit types per clinic, type-specific bills with full/partial/unpaid balances, and eight dated weekly supply-use movements for each of five products/site. Four linked clinical stories include orders, care plans, a local prescription simulation and future follow-up bookings. Prior population/clinical/inventory checks passed (93 assertions); expanded date-shift reset passed (16 assertions, 159 seconds). The strict same-date business baseline fingerprint passed after mutation (5 assertions; first entry 81.6 seconds, reset 79.7 seconds), and the updated population case passed 109 assertions. Append-only first-time audit events and physical row IDs are outside that semantic comparison. Browser entry reached a clinic Tracking Board, while broader route coverage remains open. Imported visit/billing volume is not a workflow transition audit. Full refill/dispense and lab-result chains, clinically linked stock use, membership billing history, two-month forecast calibration and concurrent load remain open. Next proof: broad medication/allergy/encounter chart histories from the coverage matrix, then linked lab/refill/membership stories and browser walkthroughs.",
+      "remaining": "broad medication/allergy/encounter chart histories from the coverage matrix, then linked lab/refill/membership stories and browser walkthroughs.",
+      "source": "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md"
+    },
+    {
+      "code": "W00",
+      "title": "Visitor isolation and entry: demo visitors, lessons, runs, sessions",
+      "kind": "sandbox",
+      "parents": [
+        "MC-15"
+      ],
+      "done": "B: two practices per visitor; scoped reset and shell reuse.",
+      "remaining": "Measure concurrent entry/reset and ensure one visitor never changes another. Keep large workload.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W01",
+      "title": "Organization, clinic, site, address, hours, rooms, departments",
+      "kind": "sandbox",
+      "parents": [
+        "MC-01"
+      ],
+      "done": "B: two clinics and four sites with rooms/hours.",
+      "remaining": "Require an explicitly chosen location specialty before any patient can be assigned, then validate booked capacity, address and timezone.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W02",
+      "title": "Clinic profile, features, permissions, roles, service catalog",
+      "kind": "sandbox",
+      "parents": [
+        "MC-01",
+        "MC-13"
+      ],
+      "done": "B/S: prepared primary-care and weight-management practice profiles, operator access. Current clinictype is practice-wide.",
+      "remaining": "Move specialty selection to locations with a compatible practice fallback, then include a behavioral-health location and verify specialty-specific visit and form routing. Record selected capabilities and persona permissions before dependent clinical routes.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W03",
+      "title": "Workforce: staff, employment, site assignment, shifts/timecards",
+      "kind": "sandbox",
+      "parents": [
+        "MC-13"
+      ],
+      "done": "B: 12 added staff and three clinicians per site. Source-added: eight weekly site schedules, one approved leave request and one draft timecard per site; payroll export remains disabled. Runtime proof is pending.",
+      "remaining": "Broaden time activity and coverage exceptions only after the basic site flow works; do not imply payroll completion.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W04",
+      "title": "Patient identity and panels",
+      "kind": "sandbox",
+      "parents": [
+        "MC-03"
+      ],
+      "done": "B: 300 patients per site with demographics and stable clinic-distinct names; a primary site is persisted.",
+      "remaining": "Add deterministic age/language/contact/family variation; check cross-site search, duplicates and selected-site views.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W05",
+      "title": "Patient chart: problems, allergies, medication list and history",
+      "kind": "sandbox",
+      "parents": [
+        "MC-05",
+        "MC-06"
+      ],
+      "done": "Source-added: broad allergy and medication states, encounter reviews, signed retrospective notes, and paired dated measurements on existing encounters for eight patients/site. Runtime proof is pending.",
+      "remaining": "Add clinically coherent problem changes and prior chart revisions; review sampled charts in the browser.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W06",
+      "title": "Historical and future scheduling",
+      "kind": "sandbox",
+      "parents": [
+        "MC-04"
+      ],
+      "done": "B: 1,920 completed visits, 320 cancelled/no-show bookings and 480 upcoming bookings. Source-added: one reschedule and waitlist request per site, two local offers, and follow-up bookings; runtime proof is pending.",
+      "remaining": "Add supported walk-in, late-arrival, video-eligible and accepted waitlist outcomes; preserve 60 completed/site/week.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W07",
+      "title": "Patient Flow, intake, front desk and Tracking Board",
+      "kind": "sandbox",
+      "parents": [
+        "MC-05"
+      ],
+      "done": "Source-added: 16 more booked, confirmed, open visits across four sites, with waiting, incomplete intake, pending handoff and accepted handoff cases; four earlier story encounters remain. Runtime proof is pending.",
+      "remaining": "Exercise arrival and checkout on the same visit; inspect the queue stages in the browser.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W08",
+      "title": "Encounter and treatment note history",
+      "kind": "sandbox",
+      "parents": [
+        "MC-06"
+      ],
+      "done": "B: 1,920 completed encounter shells. Source-added: reviews across historical encounters, signed retrospective notes, and paired vital observations for 32 patients without adding visits; runtime proof is pending.",
+      "remaining": "Link selected plans and treatment changes to the historical cohort; keep other imported encounter shells labeled as lower fidelity.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W09",
+      "title": "Medication requests, review, prescription and refill",
+      "kind": "sandbox",
+      "parents": [
+        "MC-10"
+      ],
+      "done": "S: authorized orders and one local accepted attempt. Source-added: per-site rejected, unknown and failure-before-send simulator outcomes, one approved refill linked to an authorized order, and one request still in review; runtime proof is pending.",
+      "remaining": "Add changed/discontinued order history and resolve an uncertain attempt; keep outside-pharmacy orders separate from clinic stock.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W10",
+      "title": "Laboratory order, result and follow-up",
+      "kind": "sandbox",
+      "parents": [
+        "MC-06"
+      ],
+      "done": "Source-added: five current open-encounter cases per site for pending order, pending review, routine review, flagged follow-up and corrected review; an immutable not-reached local contact attempt with an owned retry task leaves the flagged follow-up open. Runtime proof is pending.",
+      "remaining": "Establish a broader dated result history and inspect the open contact task in the app.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W11",
+      "title": "Care plans, goals, recalls and care gaps",
+      "kind": "sandbox",
+      "parents": [
+        "MC-06",
+        "MC-12"
+      ],
+      "done": "Source-added: plan and goal revision cohorts per site with due, overdue and achieved states plus same-patient follow-up bookings; runtime proof is pending.",
+      "remaining": "Add direct plan-to-appointment links and care-gap closure if supported; inspect prior/current projections.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W12",
+      "title": "Inventory, procurement and stock use",
+      "kind": "sandbox",
+      "parents": [
+        "MC-11"
+      ],
+      "done": "B: five operations products/site, opening and refill receipts, 160 dated weekly stock-use movements. Source-added: one medication administration from same-site stock, extra gauze use to low-stock state, and a local draft reorder per clinic; runtime proof is pending.",
+      "remaining": "Add partial shipment and variance examples, then reconcile ledger and site/lot/expiry in the running app.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W13",
+      "title": "Historical billing, payment and receivables",
+      "kind": "sandbox",
+      "parents": [
+        "MC-08"
+      ],
+      "done": "B: 1,920 posted visit invoices, half fully paid, one quarter partial and one quarter unpaid. Source-added: one small local credit per site on an unpaid posted bill and local membership payment states; runtime proof is pending.",
+      "remaining": "Add supported refund/failure reconciliation and inspect net balance after credits; distinguish imported financial volume from workflow transitions.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W14",
+      "title": "Memberships, contracts, renewals and forecast",
+      "kind": "sandbox",
+      "parents": [
+        "MC-09"
+      ],
+      "done": "Source-added: five patient agreements per clinic with local paid, failed, canceled and pending payment states. Runtime proof is pending.",
+      "remaining": "Add supported dated renewal cycles, visit-to-agreement links and calibrate a two-month forecast without creating future invoices.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W15",
+      "title": "Messages, reminders and patient contact",
+      "kind": "sandbox",
+      "parents": [
+        "MC-12"
+      ],
+      "done": "Source-added: 12 suppressed appointment reminders and eight staff-origin refill requests; runtime proof is pending.",
+      "remaining": "Add local sent/failed and follow-up contact outcomes only with a valid identity or provider state; never dispatch externally during reset.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W16",
+      "title": "Telehealth and scribe",
+      "kind": "sandbox",
+      "parents": [
+        "MC-07"
+      ],
+      "done": "S: guided review workspace. Source-added: one roomless video booking per clinic under the enabled sandbox service scope, with provider setting explicitly disabled/unconfigured; runtime proof is pending.",
+      "remaining": "Add supported local preparation and wrap-up/documentation states when the provider policy permits; never imply a media session occurred.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W17",
+      "title": "Other connectors: pharmacy, lab, supplier, payment, payroll",
+      "kind": "sandbox",
+      "parents": [
+        "MC-15"
+      ],
+      "done": "S/C: local payment and prescription simulators; inventory supplier references.",
+      "remaining": "Map each provider boundary to stored local success, rejected/unknown or disconnected state only where the app supports it; do not fabricate external acceptance.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W18",
+      "title": "Analytics, organization switching and performance",
+      "kind": "sandbox",
+      "parents": [
+        "MC-14",
+        "MC-15"
+      ],
+      "done": "B: populated schedule, billing and stock queries; only one browser Tracking Board route viewed.",
+      "remaining": "Walk each priority route, verify query response and counts, profile entry/reset with large dataset and concurrent visitors.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    },
+    {
+      "code": "W19",
+      "title": "Reset and replay integrity",
+      "kind": "sandbox",
+      "parents": [
+        "MC-15"
+      ],
+      "done": "B: transactional two-clinic reset; strict same-date semantic fingerprint passed.",
+      "remaining": "Extend fingerprints to chart revisions and new linked stories as added. Preserve audit provenance rather than pretending generated record IDs or first-time shell audit events are identical.",
+      "source": "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md"
+    }
+  ],
+  "source_digests": {
+    "APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md": "f6f33c290e71a9a62d375ba9c8e75f006f846e015ee84e544519a61588699f2a",
+    "records/implementation/2026-09-19-weight-management-intake-audit.md": "762541e4cfa021d3cf24d4eced6a4ac1abf7ab3401af0aa5b82e4baf54a735a6",
+    "docs/development/non-vendor-clinic-hardening-plan.md": "17292e2cc52525084e6749dfc2b4c137cf302f0141e15418be589cce546bc1f8",
+    "PATIENT_JOURNEY_PLAN.md": "ac5d807442a45b5be4ef56d61641ae12d6cad93a207799caf53afd495884628f",
+    "docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md": "55301f63b2f4fc238adf94f7fa13f15d6eaaad6ddd7bb7f02a4169610784b78f",
+    "records/implementation/2026-09-27-meta-clinic-tracker-atlas.html": "efd126b60100fc57e2a36778655ea5bac62afab5cc86b405f0b891193b8a1ba2"
+  }
+}

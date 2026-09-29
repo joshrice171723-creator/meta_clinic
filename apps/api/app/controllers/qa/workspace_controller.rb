@@ -10,7 +10,7 @@ module Qa
     end
 
     def show
-      render json: { build: Workspace.build, state: Workspace.state, github: Workspace.github(refresh: params[:refresh] == "1"),
+      render json: { build: Workspace.build, atlas: Atlas.read, state: Workspace.state, github: Workspace.github(refresh: params[:refresh] == "1"),
         tasks: task_scope.order(created_at: :desc).limit(100).map { |task| task_json(task) },
         events: Event.order(created_at: :desc).limit(100), evidence: Evidence.order(created_at: :desc).limit(100).map { |item| evidence_json(item) },
         guardrails: Workspace::GUARDRAILS, baseline: Snapshot.find_by(key: "baseline")&.data,
@@ -21,16 +21,18 @@ module Qa
     def status
       state = Workspace.state
       issues = Workspace.github
-      render json: { build: Workspace.build, last_qa_revision: state["last_qa_revision"], last_qa_run_at: state["last_run_at"],
+      build = Workspace.build
+      render json: { build:, atlas: Atlas.read, last_qa_revision: state["last_qa_revision"], last_qa_run_at: state["last_run_at"],
         confirmed_pin: Snapshot.find_by(key: "pin")&.data,
         counts: { open: issues.fetch("issues", []).count { |issue| issue["state"] == "open" },
           closed: issues.fetch("issues", []).count { |issue| issue["state"] == "closed" },
           historical_passed: state.fetch("retest", []).count { |issue| issue["status"] == "passed" },
-          current_build_passed: Task.where(status: "completed", revision: Workspace.build["revision"]).count,
+          current_build_completed_tasks: build["revision"] ? Task.where(status: "completed", revision: build["revision"]).count : nil,
           queued: task_scope.where(status: "queued").count }, github_status: issues["status"], guardrails: Workspace::GUARDRAILS }
     end
 
     def issues = render(json: Workspace.github)
+    def atlas = render(json: Atlas.read)
     def retest = render(json: { retest: Workspace.state.fetch("retest", []), coverage: Workspace.state.fetch("coverage", []) })
     def batches = render(json: { batches: Workspace.state.fetch("batches", []), releases: Workspace.state.fetch("releases", []) })
     def tasks = render(json: { tasks: task_scope.order(created_at: :desc).limit(100).map { |task| task_json(task) } })
@@ -39,7 +41,7 @@ module Qa
       input = object!(:task)
       kind = string!(input, "kind", 30)
       revision = revision!(input["revision"])
-      raise ArgumentError, "Live revision changed; refresh before queuing." unless Workspace.build["revision"] == revision
+      raise ArgumentError, "Live revision changed; refresh before queuing." unless verified_build!["revision"] == revision
       raise ArgumentError, "Confirm the live build pin before queuing work." unless Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == revision
       payload = input.fetch("payload", {})
       raise ArgumentError, "Task payload must be an object." unless payload.is_a?(Hash) && payload.to_json.bytesize < 30_000
@@ -66,13 +68,14 @@ module Qa
       conflict = nil
       actor.with_lock do
         task.lock!
-        live = Workspace.build["revision"]
-        if live != revision || task.revision != revision || Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
+        build = Workspace.build
+        live = build["revision"]
+        if build["dirty"] || live != revision || task.revision != revision || Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
           if task.status == "claimed" && task.claim_run_id == run_id && task.claimed_by_id == actor.id
             task.update!(status: "queued", claimed_by: nil, claim_run_id: nil, claimed_at: nil)
             Workspace.event(user: actor, kind: "run_aborted", summary: "Build changed during #{run_id}; task returned to queue.", revision: live, payload: { task_id: task.id, run_id:, pinned_revision: task.revision })
           end
-          conflict = "Build identity changed or unavailable; re-pin before continuing."
+          conflict = "Build identity changed, unavailable, or has uncommitted changes; use a committed pinned build."
         elsif outcome == "claimed"
           if task.status != "queued" || Event.exists?(event_key: "claim:#{run_id}")
             conflict = "Task already claimed, or this run has already claimed its one task."
@@ -147,7 +150,7 @@ module Qa
 
     def baseline
       revision = revision!(params[:revision])
-      raise ArgumentError, "Live build changed." unless Workspace.build["revision"] == revision
+      raise ArgumentError, "Live build changed." unless verified_build!["revision"] == revision
       raise ArgumentError, "Finish the active run before preparing fixtures." if Task.where(status: "claimed").exists?
       actor.with_lock do
         Current.workspace_tools_owner_session = true
@@ -169,9 +172,10 @@ module Qa
 
     def pin
       revision = revision!(params[:revision])
-      raise ArgumentError, "Live build differs from the requested pin." unless Workspace.build["revision"] == revision
+      build = verified_build!
+      raise ArgumentError, "Live build differs from the requested pin." unless build["revision"] == revision
       reason = string!(params.to_unsafe_h, "reason", 500)
-      data = { revision:, version: Workspace.build["version"], confirmed_at: Time.current.iso8601, confirmed_by: actor.email_address, reason: }
+      data = { revision:, version: build["version"], confirmed_at: Time.current.iso8601, confirmed_by: actor.email_address, reason: }
       Snapshot.put("pin", data)
       Workspace.event(user: actor, kind: "build_pinned", summary: reason, revision:, payload: data)
       render json: data
@@ -190,7 +194,7 @@ module Qa
         validate_result!(task.result)
         if outcome == "approved"
           raise ArgumentError, "Every defect must pass with stored evidence before approval." unless task.status == "completed" && task.result.fetch("defects").all? { |defect| defect["verdict"] == "passed" }
-          raise ArgumentError, "Review the current pinned live revision." unless Workspace.build["revision"] == task.revision
+          raise ArgumentError, "Review the current pinned live revision." unless verified_build!["revision"] == task.revision && Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == task.revision
         end
         decision = { outcome:, note:, reviewer: actor.email_address, reviewed_at: Time.current.iso8601, revision: task.revision }
         task.update!(human_decision: decision)
@@ -234,6 +238,12 @@ module Qa
     end
 
     def actor = @service_token&.user || current_user
+    def verified_build!
+      build = Workspace.build
+      raise ArgumentError, "Commit source changes before pinning or running exact-build QA." if build["dirty"]
+      raise ArgumentError, "Live build identity is unavailable." unless build["revision"]
+      build
+    end
     def task_scope = @service_token ? Task.where(recipient: @service_token.recipient) : Task.all
     def object!(key)
       value = params.require(key)

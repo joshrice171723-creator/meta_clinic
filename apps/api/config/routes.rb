@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   get "qa", to: "qa/workspace#show"
   get "qa/status.json", to: "qa/workspace#status"
   get "qa/issues.json", to: "qa/workspace#issues"
+  get "qa/atlas.json", to: "qa/workspace#atlas"
   get "qa/retest.json", to: "qa/workspace#retest"
   get "qa/batches.json", to: "qa/workspace#batches"
   get "qa/tasks", to: "qa/workspace#tasks"

@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-28
+updated: 2026-09-29
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -57,6 +57,8 @@ Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked
 | Full application review | PR-01–10 below; [review and workflow-planning overlay](../../docs/product-review/meta-clinic-full-application-review.md) | The review uses the planning method; repository evidence does not identify it as a separate skill-produced assignment file. |
 
 **Companion implementation view:** [Implementation Atlas](../../records/implementation/2026-09-27-meta-clinic-tracker-atlas.html) renders the canonical MC dashboard and named overlay rows. It is a read-only visualization with dated fallback content; it does not replace this tracker or create completion evidence.
+
+**2026-09-29 inventory correction:** the integrated private `/qa?view=atlas` view now displays all **81** current named Atlas rows, separately from the **70** Muse retest findings. Historical references to an older **140-case UI audit** do not establish 140 additional unique open defects; its original ledger is currently unavailable. The [reconciliation checkpoint](../../records/audits/2026-09-29-qa-inventory-reconciliation.md) preserves that missing scope and the next proof. Joshua's current request is to fix every listed Meta Clinic defect, not only dashboard defects. Build **73.2%**, local Validation **46.3%**, and External / human **0%** remain unchanged.
 
 **2026-09-26 source update to the organization-wide sandbox row:** The reset sequence now includes chart allergy/medication states and encounter reviews, signed retrospective notes, current lab cases, in-office stock administration and billing, reschedule/waitlist cases, an open visit queue, care-plan/goal revisions, low-stock gauze with local draft reorders, billing credits, local prescription outcome variants, suppressed reminders, staff-origin refills, Growth prospects and local membership payment states. The [coverage matrix](../../docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md) marks the remaining workflow gaps. This code has source and syntax review only; its added rows, reset integrity, page visibility, authorization and runtime remain unverified. The earlier passing checks in the row above apply to the earlier population slice.
 

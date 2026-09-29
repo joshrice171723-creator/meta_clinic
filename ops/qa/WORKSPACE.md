@@ -25,6 +25,14 @@ python ops/qa/bridge.py context --output work/qa_context.md
 
 All `/qa/status.json`, `/qa/issues.json`, `/qa/retest.json`, and `/qa/batches.json` endpoints are private. GitHub is the defect source of truth, refreshed on demand with a one-minute cache. Imported Muse running-list/retest data is historical and retains its original revision. Collapsed or missing exports stay unassessed.
 
+### Atlas and distinct inventories
+
+`/qa?view=atlas` displays all 81 named Atlas work rows, separately from the 70 Muse retest findings and GitHub defects. `/api/qa/atlas.json` is private under the same owner/service-token gate. The Markdown implementation tracker remains the percentage authority; the Atlas's existing parsers supply the linked plan rows. These are overlapping work requirements, not 81 unique bugs. The older 140-case UI audit has not been imported because its original ledger is unavailable at the recorded location; do not invent its cases or add 140 to the defect count.
+
+After changing an Atlas input, run `node ops/qa/export_atlas.mjs` from the repository root and refresh `apps/api/config/qa_atlas.json` with its output. This is a derived deployment artifact. Local source digest differences display an outdated-inventory warning; packaged deployments explicitly label their snapshot. To check the parser, private access and dirty-build gate, run `bundle exec rails runner ../../ops/qa/check_workspace.rb` from `apps/api` with the isolated development database environment. Probe records roll back.
+
+Uncommitted source is not an exact revision: pinning, task creation/claim/verdict, baseline preparation and human approval are paused while `build.json` reports `dirty`. A claimed run returns to the queue if the build becomes dirty, just as it does on a SHA change. `status.json` uses `current_build_completed_tasks`, not a defect-pass count; individual verdicts remain in each task's result.
+
 Report-defect submissions are pending-triage tasks. Ask-Codex creates an inbox task; when `QA_GITHUB_TOKEN` is configured, it also posts a `qa-question` comment and label and retains the comment receipt. A queued task does not prove the portal carrier dispatched or executed it.
 
 Events and evidence are append-only in PostgreSQL. The timeline and endpoint payload are shared receipts. External phone/chat pings require a configured notification carrier. No external notification or portal scheduler is fabricated by the application.

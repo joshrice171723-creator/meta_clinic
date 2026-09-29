@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-28
+updated: 2026-09-29
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-29 — QA / Atlas inventory reconciliation
+
+The [checkpoint](../../records/audits/2026-09-29-qa-inventory-reconciliation.md) connects all 81 named Atlas work rows to the private QA workspace, separately from the 70 Muse retest findings and 8 observed open GitHub issues. Historical references to a 140-case audit were recovered, but its original ledger was not available at the recorded location; it is not counted as assessed or fixed. The exact-build gate now pauses on uncommitted source and returns interrupted claims to the queue. Ruby lint, TypeScript and scoped rollback-only request checks passed. Atlas scores remain 73.2% Build, 46.3% local Validation, 0% external/human acceptance; fixing every application defect remains unfinished.
 
 ## 2026-09-28 — Version 0.1.9 Muse QA disposition checkpoint
 
