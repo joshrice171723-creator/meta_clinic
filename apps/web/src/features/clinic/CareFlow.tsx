@@ -870,6 +870,17 @@ function BookingFormEditor({
     initialDraft,
     workingDraft.updatedAt,
   );
+  const recoveredDraftDiffersFromSlot = Boolean(
+    draftRecoveryMessage &&
+      initialDraft &&
+      initialSlot?.starts_at &&
+      Date.parse(initialSlot.starts_at) > Date.now() &&
+      (initialDraft.draft.startsAt !== defaultDraft.startsAt ||
+        initialDraft.draft.endsAt !== defaultDraft.endsAt ||
+        initialDraft.draft.siteId !== defaultDraft.siteId ||
+        initialDraft.draft.roomId !== defaultDraft.roomId ||
+        initialDraft.draft.clinicianId !== defaultDraft.clinicianId),
+  );
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
@@ -1813,7 +1824,9 @@ function BookingFormEditor({
               </Button>
             }
           >
-            {draftRecoveryMessage}
+            {recoveredDraftDiffersFromSlot
+              ? "This saved draft does not match the slot you selected. Start a new appointment to use the selected slot."
+              : draftRecoveryMessage}
           </Alert>
         )}
         {resumedAttemptDiffersFromSlot && resumedAttempt && (
