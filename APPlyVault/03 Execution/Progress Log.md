@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — 0.2.2 demo and scribe carryforward published
+
+PR #31 merged and the guarded Lightsail release completed at `1beddd8bd94b244d95b4cc721e9ac7281d953577`, version 0.2.2. Matched images, encrypted recovery and hosted checks passed; independent build.json matched and /up plus /clinic/updates returned HTTP 200. [Carryforward and release receipt](../../records/audits/2026-09-29-remaining-diff-carryforward.md) preserve the deferred timezone/permission drafts and QA-page follow-up. Atlas percentages are unchanged; Muse exact-build browser acceptance remains pending.
+
 ## 2026-09-29 — 0.2.1 QA sign-in release and worktree reconciliation
 
 [Release receipt and exclusions](../../records/audits/2026-09-29-release-reconciliation.md) record verified 0.2.1 at `646a4384df0e3c19dcd0f439d88e82bebc87cbd0`, guarded recovery, passing hosted checks and the browser-observed QA credential form. Remaining dirty work is preserved and classified; platform-owner login acceptance and Muse exact-build retest remain open. Atlas percentages are unchanged.

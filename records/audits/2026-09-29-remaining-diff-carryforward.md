@@ -18,3 +18,9 @@ Base: main `769fc07d4fda43acf93a16ecd9affa3950662d53`. Candidate version: 0.2.2.
 ## Verification
 
 TypeScript typecheck and syntax checks for both changed Ruby files passed. DemoJourney formatting and scoped diff checks passed. The scribe file has existing formatting drift; broad formatting was not included. Tests were not added or run, per repository policy. Browser acceptance, hosted publication and Muse exact-build retest remain pending. Atlas percentages are unchanged because this carryforward does not establish new implementation-row acceptance.
+
+## Publication receipt
+
+After that source checkpoint, PR #31 merged and version 0.2.2 at `1beddd8bd94b244d95b4cc721e9ac7281d953577` completed the guarded Lightsail release. Matched API/web image revisions, encrypted recovery round trip, hosted health, authentication/authorization and isolated Sandbox checks passed. An independent no-cache public build.json request returned that full revision and version; /up and /clinic/updates returned HTTP 200. This assisted publication does not prove Muse browser acceptance or an unattended cycle.
+
+The subsequent QA-page report still needs separate repair: frontend refresh discards a successful public build response when the protected workspace request fails. Demo Owner PIN sessions do not satisfy the API's intentional platform-owner gate; presentation should explain that distinction. No access guard was relaxed in this release.
