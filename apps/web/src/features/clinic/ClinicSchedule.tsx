@@ -296,7 +296,9 @@ export function ClinicSchedule({
     : today.slice(0, 7);
   const initialDay = isValidCalendarDay(routeParams.get("day"))
     ? routeParams.get("day")!
-    : `${initialMonth}-01`;
+    : initialMonth === today.slice(0, 7)
+      ? today
+      : `${initialMonth}-01`;
   const [month, setMonth] = useState(initialMonth);
   const [day, setDay] = useState(
     initialDay.startsWith(initialMonth) ? initialDay : `${initialMonth}-01`,
@@ -526,8 +528,10 @@ export function ClinicSchedule({
       setMutationError(
         error instanceof Error
           ? error.message
-          : "The appointment could not be cancelled. Refresh before trying again.",
+          : "Cancellation could not be verified. Review the refreshed schedule before trying again.",
       );
+      setSelected(undefined);
+      calendar.refresh();
     } finally {
       setBusy(false);
     }
@@ -655,8 +659,21 @@ export function ClinicSchedule({
               variant="contained"
               disabled={!siteId}
               onClick={() => {
-                // No slot was selected; let BookingForm use real-time defaults.
-                setBooking({ site_id: Number(siteId) });
+                const firstAvailableSlot =
+                  view === "day"
+                    ? selectedDay?.slots.find(
+                        (slot) => Date.parse(slot.starts_at) > businessNow().getTime(),
+                      )
+                    : undefined;
+                setBooking({
+                  site_id: Number(siteId),
+                  ...(firstAvailableSlot && {
+                    starts_at: firstAvailableSlot.starts_at,
+                    ends_at: firstAvailableSlot.ends_at,
+                    clinician_id: firstAvailableSlot.clinician_id,
+                    room_id: firstAvailableSlot.room_ids[0],
+                  }),
+                });
               }}
             >
               {actionLabel}
@@ -693,6 +710,9 @@ export function ClinicSchedule({
         <Alert severity="success" onClose={() => setNotice("")}>
           {notice}
         </Alert>
+      )}
+      {!selected && mutationError && (
+        <Alert severity="error">{mutationError}</Alert>
       )}
       <Stack
         direction="row"

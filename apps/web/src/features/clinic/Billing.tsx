@@ -45,6 +45,7 @@ import { LoadState, useResource } from "../../shared/ui";
 import {
   CashDrawerOperations,
   hasPendingCashAttempt,
+  pendingCashAttemptInvoiceId,
 } from "./CashDrawerOperations";
 import {
   customInvoiceLine,
@@ -549,6 +550,10 @@ function LedgerDetails({
   focusRefundId: number | null;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
+  const clinic = useClinic();
+  const [pendingCashInvoiceId, setPendingCashInvoiceId] = useState(() =>
+    pendingCashAttemptInvoiceId(clinic),
+  );
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
   const actionableInvoice =
     checkoutEncounterId && checkoutInvoice.active?.id !== selectedInvoice?.id
@@ -810,6 +815,7 @@ function LedgerDetails({
       {actionableInvoice && (
         <ChargeAdjustmentDialog
           canAdjust={canAdjust}
+          cashPaymentPending={pendingCashInvoiceId === actionableInvoice.id}
           invoice={actionableInvoice}
           onFinancialChange={onFinancialChange}
         />
@@ -830,6 +836,7 @@ function LedgerDetails({
           encounterId={checkoutEncounterId}
           canPost={canPost}
           financialRevision={financialRevision}
+          onPendingCashAttemptChange={setPendingCashInvoiceId}
           onFinancialChange={onFinancialChange}
         />
       </Box>
@@ -874,6 +881,7 @@ function CheckoutSettlement({
   encounterId,
   canPost,
   financialRevision,
+  onPendingCashAttemptChange,
   onFinancialChange,
 }: {
   invoice?: BillingPatientLedger["invoices"][number];
@@ -881,6 +889,7 @@ function CheckoutSettlement({
   encounterId: number | null;
   canPost: boolean;
   financialRevision: number;
+  onPendingCashAttemptChange: (invoiceId: number | null) => void;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const clinic = useClinic();
@@ -896,6 +905,12 @@ function CheckoutSettlement({
   const [cashPending, setCashPending] = useState(() =>
     hasPendingCashAttempt(clinic),
   );
+  const updateCashPending = (pending: boolean) => {
+    setCashPending(pending);
+    onPendingCashAttemptChange(
+      pending ? pendingCashAttemptInvoiceId(clinic) : null,
+    );
+  };
   const [postedInvoiceId, setPostedInvoiceId] = useState<number | null>(null);
   const [postAttempt, setPostAttempt] = useState<{
     invoiceId: number;
@@ -1122,7 +1137,7 @@ function CheckoutSettlement({
             encounterId={encounterId ?? undefined}
             recoveryInvoiceId={cashRecoveryInvoiceId.current}
             refreshVersion={financialRevision}
-            onPendingChange={setCashPending}
+            onPendingChange={updateCashPending}
             onRecorded={onFinancialChange}
           />
         )}
@@ -1589,10 +1604,12 @@ function DraftInvoiceEditor({
 
 function ChargeAdjustmentDialog({
   canAdjust,
+  cashPaymentPending,
   invoice,
   onFinancialChange,
 }: {
   canAdjust: boolean;
+  cashPaymentPending: boolean;
   invoice: BillingPatientLedger["invoices"][number];
   onFinancialChange: (invoiceId?: number) => void;
 }) {
@@ -1642,6 +1659,12 @@ function ChargeAdjustmentDialog({
 
   const submit = async () => {
     if (!canAdjust || busy || (!canCredit && !canWriteOff && !canVoid)) return;
+    if (action === "void" && cashPaymentPending) {
+      setError(
+        "Resolve the pending cash payment for this invoice before voiding it.",
+      );
+      return;
+    }
     if (!retryPending && reason.trim().length === 0) {
       setError("Enter a reason for this charge adjustment.");
       return;
@@ -1761,6 +1784,12 @@ function ChargeAdjustmentDialog({
                     : "A credit reduces recorded charges. It does not return money. Use the separate cash refund workflow when money is returned."}
               </Alert>
             )}
+            {cashPaymentPending && (
+              <Alert severity="warning">
+                Cash payment for invoice #{invoice.id} is pending confirmation.
+                Resolve it before voiding the invoice.
+              </Alert>
+            )}
             {canCredit && (
               <Button
                 disabled={retryPending}
@@ -1784,7 +1813,7 @@ function ChargeAdjustmentDialog({
             {canVoid && (
               <Button
                 color="warning"
-                disabled={retryPending}
+                disabled={retryPending || cashPaymentPending}
                 onClick={() => setAction("void")}
                 variant={action === "void" ? "contained" : "outlined"}
               >
@@ -1825,7 +1854,7 @@ function ChargeAdjustmentDialog({
             {retryPending ? "Close" : "Cancel"}
           </Button>
           <Button
-            disabled={busy}
+            disabled={busy || (action === "void" && cashPaymentPending)}
             onClick={() => void submit()}
             variant="contained"
           >

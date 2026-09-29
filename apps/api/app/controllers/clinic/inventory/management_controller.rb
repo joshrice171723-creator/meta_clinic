@@ -2,6 +2,9 @@ module Clinic
   module Inventory
     class ManagementController < Clinic::BaseController
       before_action -> { require_capability(:inventory_access?) }
+      before_action -> { require_capability("procurement.read") }, only: %i[replenishment purchase_cart purchase_orders purchase_order]
+      before_action -> { require_capability("recall.read") }, only: :recalls
+      before_action -> { require_capability("controlled.read") }, only: :controlled
 
       rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
         message = error.is_a?(ActiveRecord::RecordInvalid) ? error.record.errors.full_messages.to_sentence : error.message

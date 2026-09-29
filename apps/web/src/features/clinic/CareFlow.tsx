@@ -854,10 +854,31 @@ function BookingFormEditor({
     Boolean(initialDraft?.attempt),
     initialPatientId,
   );
+  const resumedAttempt = boundBooking.attempt?.body.appointment;
+  const resumedAttemptDiffersFromSlot = Boolean(
+    initialSlot?.starts_at &&
+      resumedAttempt &&
+      (Date.parse(initialSlot.starts_at) !==
+        Date.parse(resumedAttempt.starts_at) ||
+        (initialSlot.ends_at &&
+          Date.parse(initialSlot.ends_at) !==
+            Date.parse(resumedAttempt.ends_at)) ||
+        initialSlot.site_id !== Number(resumedAttempt.site_id)),
+  );
   const effectiveDraft = boundBooking.draft;
   const draftRecoveryMessage = appointmentDraftRecoveryMessage(
     initialDraft,
     workingDraft.updatedAt,
+  );
+  const recoveredDraftDiffersFromSlot = Boolean(
+      draftRecoveryMessage &&
+      initialDraft &&
+      initialSlot?.starts_at &&
+      (Date.parse(initialDraft.draft.startsAt) !==
+        Date.parse(initialSlot.starts_at) ||
+        (initialSlot.ends_at &&
+          Date.parse(initialDraft.draft.endsAt) !==
+            Date.parse(initialSlot.ends_at))),
   );
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
@@ -987,6 +1008,7 @@ function BookingFormEditor({
   const [changingPatient, setChangingPatient] = useState(false);
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
+  const [draftCloseFailed, setDraftCloseFailed] = useState(false);
   const [assignmentNotice, setAssignmentNotice] = useState("");
   const [siteAssignmentBusy, setSiteAssignmentBusy] = useState(false);
   const [created, setCreated] = useState<Appointment>();
@@ -1421,6 +1443,7 @@ function BookingFormEditor({
       window.clearTimeout(autosaveTimer.current);
       autosaveTimer.current = undefined;
     }
+    setDraftCloseFailed(false);
     if (!dirty && !saveBlankDraft) {
       onClose();
       return;
@@ -1436,8 +1459,9 @@ function BookingFormEditor({
     setSubmitError("");
     try {
       if (!(await workingDraft.save(snapshot))) {
+        setDraftCloseFailed(true);
         setSubmitError(
-          "The draft could not be saved. Keep this form open and retry.",
+          "The draft could not be saved. Retry, or discard the unsaved changes and close.",
         );
         return;
       }
@@ -1445,14 +1469,36 @@ function BookingFormEditor({
       setHasWorkingDraft(true);
       onClose();
     } catch {
+      setDraftCloseFailed(true);
       setSubmitError(
-        "The draft could not be saved. Keep this form open and retry.",
+        "The draft could not be saved. Retry, or discard the unsaved changes and close.",
       );
     } finally {
       inFlight.current = false;
       setDraftSaving(false);
       setBusy(false);
     }
+  };
+  const discardUnsavedDraftAndClose = () => {
+    if (
+      !draftCloseFailed ||
+      !onClose ||
+      inFlight.current ||
+      busy ||
+      outcomeUnconfirmed ||
+      holdOutcomeUnconfirmed ||
+      seriesOutcomeUnconfirmed ||
+      bookingAttempt ||
+      seriesAttempt ||
+      holdAttempt
+    )
+      return;
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    setDraftCloseFailed(false);
+    onClose();
   };
   const createHold = async () => {
     if (
@@ -1802,7 +1848,18 @@ function BookingFormEditor({
               </Button>
             }
           >
-            {draftRecoveryMessage}
+            {recoveredDraftDiffersFromSlot
+              ? "This saved draft's time differs from the slot you selected. Start a new appointment to clear it, then confirm the displayed time before scheduling."
+              : draftRecoveryMessage}
+          </Alert>
+        )}
+        {resumedAttemptDiffersFromSlot && resumedAttempt && (
+          <Alert severity="warning">
+            This form is resuming a saved request for {clinicDateTime(
+              resumedAttempt.starts_at,
+              bookingTimezone,
+            )}, not the slot you selected. Retry the exact saved request to
+            reconcile it, then select the new slot again.
           </Alert>
         )}
         {initialHoldDeferred && hasWorkingDraft && (
@@ -1872,6 +1929,10 @@ function BookingFormEditor({
         <Box
           component="form"
           noValidate
+          onChange={() => {
+            if (!outcomeUnconfirmed && !seriesOutcomeUnconfirmed)
+              setSubmitError("");
+          }}
           onSubmit={async (event) => {
             event.preventDefault();
             if (inFlight.current) return;
@@ -1998,6 +2059,18 @@ function BookingFormEditor({
                   body: attempt.body,
                 },
               );
+              const requested = attempt.body.appointment;
+              if (
+                result.appointment.patient_id !== Number(requested.patient_id) ||
+                result.appointment.site_id !== Number(requested.site_id) ||
+                Date.parse(result.appointment.starts_at) !==
+                  Date.parse(requested.starts_at) ||
+                Date.parse(result.appointment.ends_at) !==
+                  Date.parse(requested.ends_at)
+              )
+                throw new Error(
+                  "The saved appointment did not match the submitted patient, site, or time. Its outcome is unconfirmed; retry the exact request before leaving scheduling.",
+                );
               if (
                 attempt.body.appointment.schedule_hold_id &&
                 (result.appointment.schedule_hold_id !==
@@ -2693,21 +2766,39 @@ function BookingFormEditor({
                 severity={clinicianSiteWarning ? "warning" : "error"}
                 role="alert"
                 action={
-                  clinicianSiteWarning &&
-                  (repeat !== "weekly" || seriesPreviewIsCurrent) &&
-                  clinic.capabilities.clinic_setup_write === true &&
-                  selectedClinician &&
-                  selectedSite ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => void assignClinicianToSlot()}
-                      disabled={siteAssignmentBusy}
-                    >
-                      {siteAssignmentBusy
-                        ? "Assigning…"
-                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
-                    </Button>
+                  (draftCloseFailed && onClose) ||
+                  (clinicianSiteWarning &&
+                    (repeat !== "weekly" || seriesPreviewIsCurrent) &&
+                    clinic.capabilities.clinic_setup_write === true &&
+                    selectedClinician &&
+                    selectedSite) ? (
+                    <Stack direction="row" spacing={1}>
+                      {draftCloseFailed && onClose && (
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={discardUnsavedDraftAndClose}
+                        >
+                          Discard and close
+                        </Button>
+                      )}
+                      {clinicianSiteWarning &&
+                        (repeat !== "weekly" || seriesPreviewIsCurrent) &&
+                        clinic.capabilities.clinic_setup_write === true &&
+                        selectedClinician &&
+                        selectedSite && (
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => void assignClinicianToSlot()}
+                            disabled={siteAssignmentBusy}
+                          >
+                            {siteAssignmentBusy
+                              ? "Assigning…"
+                              : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
+                          </Button>
+                        )}
+                    </Stack>
                   ) : undefined
                 }
               >
@@ -2838,6 +2929,9 @@ function BookingFormEditor({
                   variant="contained"
                   disabled={
                     busy ||
+                    (!outcomeUnconfirmed &&
+                      !seriesOutcomeUnconfirmed &&
+                      Boolean(submitError)) ||
                     (repeat === "weekly" && !seriesAttempt &&
                       (!seriesPreview || seriesPreview.some((row) => Boolean(row.conflict)) ||
                         seriesPreviewPayload !== seriesPreviewKey())) ||
@@ -3376,7 +3470,15 @@ export function SoapNoteForm({
   onRefresh?: () => void;
 }) {
   const { registerBlocker } = useClinicNavigation();
-  const savedBody = note?.current_revision?.body;
+  const [savedNote, setSavedNote] = useState(note);
+  const currentNote =
+    savedNote &&
+    savedNote.id === note?.id &&
+    (savedNote.current_revision?.revision_no ?? 0) >
+      (note?.current_revision?.revision_no ?? 0)
+      ? savedNote
+      : note;
+  const savedBody = currentNote?.current_revision?.body;
   const workingDraft = useWorkingDraft<SoapWorkingDraft>({
     kind: "soap",
     patientId,
@@ -3384,9 +3486,9 @@ export function SoapNoteForm({
     enabled: canWrite,
   });
   const initialBaseline = (): SoapEditorBaseline => ({
-    noteId: note?.id ?? null,
-    revisionId: note?.current_revision?.id ?? null,
-    revisionNo: note?.current_revision?.revision_no ?? null,
+    noteId: currentNote?.id ?? null,
+    revisionId: currentNote?.current_revision?.id ?? null,
+    revisionNo: currentNote?.current_revision?.revision_no ?? null,
     sections: savedBody?.sections ?? EMPTY_SOAP_SECTIONS,
     patientInstructions: savedBody?.patient_instructions ?? "",
     sessionDurationMinutes: savedBody?.session_duration_minutes ?? null,
@@ -3440,7 +3542,7 @@ export function SoapNoteForm({
     patientInstructions !== baseline.patientInstructions ||
     sessionDurationMinutes !== baseline.sessionDurationMinutes ||
     templateChanged;
-  const signed = note?.current_revision?.signed === true;
+  const signed = currentNote?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
     !workingDraft.ready ||
@@ -3805,7 +3907,7 @@ export function SoapNoteForm({
     attempt: NoteSaveAttempt,
   ): Promise<EncounterNote> => {
     setSaveState("reconciling");
-    const exactPatientId = patientId ?? note?.patient_id;
+    const exactPatientId = patientId ?? currentNote?.patient_id;
     if (exactPatientId === undefined) {
       throw new NoteReconciliationError(
         "The saved draft cannot be reconciled without the selected patient.",
@@ -3885,6 +3987,7 @@ export function SoapNoteForm({
     reconciled: EncounterNote,
   ) => {
     cancelPendingDraftSave();
+    setSavedNote(reconciled);
     const body = reconciled.current_revision?.body;
     if (body) {
       setSections(body.sections);
@@ -4055,7 +4158,7 @@ export function SoapNoteForm({
   };
 
   const startCorrection = () => {
-    if (!note || !savedBody || !note.current_revision || !signed) return;
+    if (!currentNote || !savedBody || !currentNote.current_revision || !signed) return;
     if (!correctionReason.trim() || !correctionConfirmed) return;
     setSections(savedBody.sections);
     setPatientInstructions(savedBody.patient_instructions ?? "");
@@ -4064,14 +4167,14 @@ export function SoapNoteForm({
       version: savedBody.template_version,
     });
     setCorrectionTarget({
-      revisionId: note.current_revision.id,
-      revisionNo: note.current_revision.revision_no,
+      revisionId: currentNote.current_revision.id,
+      revisionNo: currentNote.current_revision.revision_no,
       reason: correctionReason.trim(),
     });
     setCorrectionDialogOpen(false);
     setCorrectionConfirmed(false);
     setNotice(
-      `Preparing a correction to signed revision ${note.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
+      `Preparing a correction to signed revision ${currentNote.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
     );
   };
 
@@ -4153,13 +4256,13 @@ export function SoapNoteForm({
 
   return (
     <Box className="soap-workspace">
-      {note && savedBody && (
+      {currentNote && savedBody && (
         <Alert severity={signed ? "info" : "warning"}>
           {signed
-            ? `Signed revision ${note.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
+            ? `Signed revision ${currentNote.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
             : correctionTarget
               ? `Correction in progress for signed revision ${correctionTarget.revisionNo}. Save creates an unsigned correction that must be reviewed and signed separately.`
-              : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
+              : `Draft revision ${currentNote.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
       {incomingNote && (
@@ -4176,18 +4279,18 @@ export function SoapNoteForm({
           save is blocked until you review both versions.
         </Alert>
       )}
-      {note?.revisions.length ? (
+      {currentNote?.revisions.length ? (
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             Saved revision history
           </Typography>
           <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", mt: 0.75 }}>
-            {note.revisions.map((revision) => (
+            {currentNote.revisions.map((revision) => (
               <Chip
                 key={revision.id}
                 size="small"
                 variant={
-                  revision.id === note.current_revision?.id
+                  revision.id === currentNote.current_revision?.id
                     ? "filled"
                     : "outlined"
                 }
@@ -4199,7 +4302,7 @@ export function SoapNoteForm({
         </Box>
       ) : null}
       <Stack spacing={1} className="soap-sections">
-        {!note && !signed && (
+        {!currentNote && !signed && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1.25}>
               <Box>
@@ -4360,9 +4463,9 @@ export function SoapNoteForm({
           Saving protected working note…
         </Typography>
       )}
-      {note?.current_revision?.created_at && !signed && (
+      {currentNote?.current_revision?.created_at && !signed && (
         <Typography variant="body2" color="text.secondary">
-          Draft last saved {new Date(note.current_revision.created_at).toLocaleString()}
+          Draft last saved {new Date(currentNote.current_revision.created_at).toLocaleString()}
           {dirty ? " · Current edits are unsaved" : ""}
         </Typography>
       )}
@@ -4421,7 +4524,7 @@ export function SoapNoteForm({
               ? "Saving…"
               : correctionTarget
                 ? "Save unsigned correction"
-                : note
+                : currentNote
                   ? "Save new revision"
                   : "Save draft"}
           </Button>
@@ -4456,9 +4559,9 @@ export function SoapNoteForm({
             Retry exact save
           </Button>
         )}
-        {note && patientId && canSign && (
+        {currentNote && patientId && canSign && (
           <EncounterNoteSigning
-            note={note}
+            note={currentNote}
             patientId={patientId}
             patientName={patientName}
             encounterId={encounterId}
@@ -4619,14 +4722,14 @@ export function SoapNoteForm({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info">
-              This keeps signed revision {note?.current_revision?.revision_no}{" "}
+              This keeps signed revision {currentNote?.current_revision?.revision_no}{" "}
               intact and creates a separate unsigned correction for review and
               signature.
             </Alert>
             <Typography color="text.secondary">
               {patientName || `Patient #${patientId ?? "unavailable"}`} ·
               Encounter #{encounterId} · Signed revision{" "}
-              {note?.current_revision?.revision_no}
+              {currentNote?.current_revision?.revision_no}
             </Typography>
             {SOAP_SECTION_LABELS.map(([key, label]) => (
               <Box key={key}>
@@ -4770,7 +4873,7 @@ function SoapNoteWorkspace({
   if (!templates.data) return <LoadState error={templates.error} />;
   const existing = encounter.notes.find((note) => note.note_kind === "soap");
   const noteId = created?.id ?? existing?.id;
-  const workspace = noteId ? (
+  return noteId ? (
     <ExistingSoapNote
       patientId={encounter.patient_id}
       patientName={patientName}
@@ -4796,11 +4899,6 @@ function SoapNoteWorkspace({
       <strong>No SOAP note recorded</strong>
       <span>You can review existing notes but cannot create a draft.</span>
     </div>
-  );
-  return (
-    <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
-      {workspace}
-    </Box>
   );
 }
 
@@ -6257,11 +6355,13 @@ export function EncounterPage({
           nurseWorkspaceResource={nurseWorkspace}
           facilityRoomsResource={facilityRooms}
           noteWorkspace={
-            <SoapNoteWorkspace
-              encounter={encounter.data.encounter}
-              patientName={patient.data.patient.display_name}
-              onChanged={encounter.refresh}
-            />
+            <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
+              <SoapNoteWorkspace
+                encounter={encounter.data.encounter}
+                patientName={patient.data.patient.display_name}
+                onChanged={encounter.refresh}
+              />
+            </Box>
           }
         />
       }

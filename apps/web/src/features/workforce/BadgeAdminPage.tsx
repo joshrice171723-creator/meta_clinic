@@ -132,6 +132,7 @@ export function BadgeAdminPage() {
         ...current.filter((badge) => badge.id !== result.badge.id),
       ]);
       setPin("");
+      setRevision((value) => value + 1);
       setFeedback({
         type: "success",
         text: "Badge issued. Print it now; the barcode cannot be retrieved later.",
@@ -289,7 +290,7 @@ export function BadgeAdminPage() {
                   inputMode: "numeric",
                   pattern: "[0-9]{4,12}",
                   maxLength: 12,
-                  autoComplete: "new-password",
+                  autoComplete: "off",
                 },
               }}
             />

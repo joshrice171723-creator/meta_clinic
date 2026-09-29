@@ -27,7 +27,16 @@ All `/qa/status.json`, `/qa/issues.json`, `/qa/retest.json`, and `/qa/batches.js
 
 ### Atlas and distinct inventories
 
-`/qa?view=atlas` displays all 81 named Atlas work rows, separately from the 70 Muse retest findings and GitHub defects. `/api/qa/atlas.json` is private under the same owner/service-token gate. The Markdown implementation tracker remains the percentage authority; the Atlas's existing parsers supply the linked plan rows. These are overlapping work requirements, not 81 unique bugs. The older 140-case UI audit has not been imported because its original ledger is unavailable at the recorded location; do not invent its cases or add 140 to the defect count.
+`/qa?view=atlas` displays all 81 named Atlas work rows, separately from defect evidence. `/api/qa/atlas.json` is private under the same owner/service-token gate. The Markdown implementation tracker remains the percentage authority; the Atlas's existing parsers supply the linked plan rows. These are overlapping work requirements, not 81 unique bugs.
+
+The sources below are separate and must not be summed as a unique-defect count:
+
+- The recovered `Meta-Clinic-QA-Handoff-2026-09-28.pdf` records a 100-workflow sweep on build `0.1.8` at revision `25a23e4bd47d5200a3f9ef51a9925aeca064f49c`: 188 defect entries (including 7 marked stricken in that audit), 6 pending verification, 28 marked fixed/verified, and 54 improvement ideas explicitly identified as not bugs. This is historical evidence, not a current-build verdict or a complete import into the current ledger.
+- `apps/api/config/qa_state.json` contains 272 imported historical records: 229 open, 37 passed, and 6 awaiting retest. Most lack a preserved numeric Muse ID; they are not a verified unique count or current-build result.
+- The separate Muse retest export contains 70 historical findings. Their build/revision and evidence remain attached to that run; do not represent them as a new retest of the current build.
+- GitHub currently contains 9 open `muse-qa` issues (checked 2026-09-29). This is the actionable issue queue, not the total historical inventory.
+
+Identifier-level reconciliation among the PDF, imported records, retest export, Atlas requirements, and GitHub issues remains open. Do not invent missing IDs, mark historical items passed, or claim current-build retest coverage from these totals.
 
 After changing an Atlas input, run `node ops/qa/export_atlas.mjs` from the repository root and refresh `apps/api/config/qa_atlas.json` with its output. This is a derived deployment artifact. Local source digest differences display an outdated-inventory warning; packaged deployments explicitly label their snapshot. To check the parser, private access and dirty-build gate, run `bundle exec rails runner ../../ops/qa/check_workspace.rb` from `apps/api` with the isolated development database environment. Probe records roll back.
 

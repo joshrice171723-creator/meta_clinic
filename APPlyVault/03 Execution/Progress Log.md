@@ -9,7 +9,7 @@ canonical_for: recent-progress-and-history-index
 
 ## 2026-09-29 — QA / Atlas inventory reconciliation
 
-The [checkpoint](../../records/audits/2026-09-29-qa-inventory-reconciliation.md) connects all 81 named Atlas work rows to the private QA workspace, separately from the 70 Muse retest findings and 8 observed open GitHub issues. Historical references to a 140-case audit were recovered, but its original ledger was not available at the recorded location; it is not counted as assessed or fixed. The exact-build gate now pauses on uncommitted source and returns interrupted claims to the queue. Ruby lint, TypeScript and scoped rollback-only request checks passed. Atlas scores remain 73.2% Build, 46.3% local Validation, 0% external/human acceptance; fixing every application defect remains unfinished.
+The [checkpoint](../../records/audits/2026-09-29-qa-inventory-reconciliation.md) separates the 81-row implementation Atlas, the recovered 2026-09-28 PDF (historical 0.1.8; 188 defect entries, 6 pending verification, 28 marked fixed/verified, 54 non-bug ideas), 272 historical imported QA records, 70 historical retest findings, and 9 currently open GitHub `muse-qa` issues. Their identifiers are not reconciled, so the scopes must not be added into a unique-defect count or treated as current-build retest evidence. The live site and `origin/main` were both verified at 0.1.9 / `e8a24e4e32c174c14fc32f0d0b51541cfcb56e94`; a 0.2.0 candidate remains unpublished. Atlas scores remain 73.2% Build, 46.3% local Validation, 0% external/human acceptance; fixing every application defect remains unfinished.
 
 ## 2026-09-28 — Version 0.1.9 Muse QA disposition checkpoint
 
