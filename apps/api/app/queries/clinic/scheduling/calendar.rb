@@ -140,7 +140,8 @@ module Clinic
 
       def serialize(appointment)
         AppointmentSerializer.call(appointment, actor: @actor).merge(
-          clinician_name: appointment.booked_clinician&.display_name.presence || appointment.booked_clinician&.reference,
+          clinician_name: appointment.booked_clinician&.display_name.presence || appointment.booked_clinician&.reference.presence ||
+            ("Clinician profile ##{appointment.booked_clinician.id}" if appointment.booked_clinician),
           visit_type_name: appointment.visit_type&.code, room_name: appointment.room&.code,
           calendar_status: calendar_status(appointment),
           conflict: conflict?(appointment)
