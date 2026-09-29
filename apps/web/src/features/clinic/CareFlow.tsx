@@ -3427,7 +3427,14 @@ export function SoapNoteForm({
   onRefresh?: () => void;
 }) {
   const { registerBlocker } = useClinicNavigation();
-  const savedBody = note?.current_revision?.body;
+  const [savedNote, setSavedNote] = useState(note);
+  const currentNote =
+    savedNote?.id === note?.id &&
+    (savedNote.current_revision?.revision_no ?? 0) >
+      (note?.current_revision?.revision_no ?? 0)
+      ? savedNote
+      : note;
+  const savedBody = currentNote?.current_revision?.body;
   const workingDraft = useWorkingDraft<SoapWorkingDraft>({
     kind: "soap",
     patientId,
@@ -3435,9 +3442,9 @@ export function SoapNoteForm({
     enabled: canWrite,
   });
   const initialBaseline = (): SoapEditorBaseline => ({
-    noteId: note?.id ?? null,
-    revisionId: note?.current_revision?.id ?? null,
-    revisionNo: note?.current_revision?.revision_no ?? null,
+    noteId: currentNote?.id ?? null,
+    revisionId: currentNote?.current_revision?.id ?? null,
+    revisionNo: currentNote?.current_revision?.revision_no ?? null,
     sections: savedBody?.sections ?? EMPTY_SOAP_SECTIONS,
     patientInstructions: savedBody?.patient_instructions ?? "",
     sessionDurationMinutes: savedBody?.session_duration_minutes ?? null,
@@ -3491,7 +3498,7 @@ export function SoapNoteForm({
     patientInstructions !== baseline.patientInstructions ||
     sessionDurationMinutes !== baseline.sessionDurationMinutes ||
     templateChanged;
-  const signed = note?.current_revision?.signed === true;
+  const signed = currentNote?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
     !workingDraft.ready ||
@@ -3856,7 +3863,7 @@ export function SoapNoteForm({
     attempt: NoteSaveAttempt,
   ): Promise<EncounterNote> => {
     setSaveState("reconciling");
-    const exactPatientId = patientId ?? note?.patient_id;
+    const exactPatientId = patientId ?? currentNote?.patient_id;
     if (exactPatientId === undefined) {
       throw new NoteReconciliationError(
         "The saved draft cannot be reconciled without the selected patient.",
@@ -3936,6 +3943,7 @@ export function SoapNoteForm({
     reconciled: EncounterNote,
   ) => {
     cancelPendingDraftSave();
+    setSavedNote(reconciled);
     const body = reconciled.current_revision?.body;
     if (body) {
       setSections(body.sections);
@@ -4106,7 +4114,7 @@ export function SoapNoteForm({
   };
 
   const startCorrection = () => {
-    if (!note || !savedBody || !note.current_revision || !signed) return;
+    if (!currentNote || !savedBody || !currentNote.current_revision || !signed) return;
     if (!correctionReason.trim() || !correctionConfirmed) return;
     setSections(savedBody.sections);
     setPatientInstructions(savedBody.patient_instructions ?? "");
@@ -4115,14 +4123,14 @@ export function SoapNoteForm({
       version: savedBody.template_version,
     });
     setCorrectionTarget({
-      revisionId: note.current_revision.id,
-      revisionNo: note.current_revision.revision_no,
+      revisionId: currentNote.current_revision.id,
+      revisionNo: currentNote.current_revision.revision_no,
       reason: correctionReason.trim(),
     });
     setCorrectionDialogOpen(false);
     setCorrectionConfirmed(false);
     setNotice(
-      `Preparing a correction to signed revision ${note.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
+      `Preparing a correction to signed revision ${currentNote.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
     );
   };
 
@@ -4204,13 +4212,13 @@ export function SoapNoteForm({
 
   return (
     <Box className="soap-workspace">
-      {note && savedBody && (
+      {currentNote && savedBody && (
         <Alert severity={signed ? "info" : "warning"}>
           {signed
-            ? `Signed revision ${note.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
+            ? `Signed revision ${currentNote.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
             : correctionTarget
               ? `Correction in progress for signed revision ${correctionTarget.revisionNo}. Save creates an unsigned correction that must be reviewed and signed separately.`
-              : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
+              : `Draft revision ${currentNote.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
       {incomingNote && (
@@ -4227,18 +4235,18 @@ export function SoapNoteForm({
           save is blocked until you review both versions.
         </Alert>
       )}
-      {note?.revisions.length ? (
+      {currentNote?.revisions.length ? (
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             Saved revision history
           </Typography>
           <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", mt: 0.75 }}>
-            {note.revisions.map((revision) => (
+            {currentNote.revisions.map((revision) => (
               <Chip
                 key={revision.id}
                 size="small"
                 variant={
-                  revision.id === note.current_revision?.id
+                  revision.id === currentNote.current_revision?.id
                     ? "filled"
                     : "outlined"
                 }
@@ -4250,7 +4258,7 @@ export function SoapNoteForm({
         </Box>
       ) : null}
       <Stack spacing={1} className="soap-sections">
-        {!note && !signed && (
+        {!currentNote && !signed && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1.25}>
               <Box>
@@ -4411,9 +4419,9 @@ export function SoapNoteForm({
           Saving protected working note…
         </Typography>
       )}
-      {note?.current_revision?.created_at && !signed && (
+      {currentNote?.current_revision?.created_at && !signed && (
         <Typography variant="body2" color="text.secondary">
-          Draft last saved {new Date(note.current_revision.created_at).toLocaleString()}
+          Draft last saved {new Date(currentNote.current_revision.created_at).toLocaleString()}
           {dirty ? " · Current edits are unsaved" : ""}
         </Typography>
       )}
@@ -4472,7 +4480,7 @@ export function SoapNoteForm({
               ? "Saving…"
               : correctionTarget
                 ? "Save unsigned correction"
-                : note
+                : currentNote
                   ? "Save new revision"
                   : "Save draft"}
           </Button>
@@ -4507,9 +4515,9 @@ export function SoapNoteForm({
             Retry exact save
           </Button>
         )}
-        {note && patientId && canSign && (
+        {currentNote && patientId && canSign && (
           <EncounterNoteSigning
-            note={note}
+            note={currentNote}
             patientId={patientId}
             patientName={patientName}
             encounterId={encounterId}
@@ -4670,14 +4678,14 @@ export function SoapNoteForm({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info">
-              This keeps signed revision {note?.current_revision?.revision_no}{" "}
+              This keeps signed revision {currentNote?.current_revision?.revision_no}{" "}
               intact and creates a separate unsigned correction for review and
               signature.
             </Alert>
             <Typography color="text.secondary">
               {patientName || `Patient #${patientId ?? "unavailable"}`} ·
               Encounter #{encounterId} · Signed revision{" "}
-              {note?.current_revision?.revision_no}
+              {currentNote?.current_revision?.revision_no}
             </Typography>
             {SOAP_SECTION_LABELS.map(([key, label]) => (
               <Box key={key}>
