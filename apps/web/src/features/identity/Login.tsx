@@ -35,29 +35,35 @@ export function Login({
   const returnTo = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("next");
+  const qaPortal = returnTo === "/qa" || returnTo?.startsWith("/qa?");
   const credentialMode =
-    ownerPinRequired &&
-    new URLSearchParams(
-      typeof window === "undefined" ? "" : window.location.search,
-    ).get("credentials") === "1";
-  const ownerPortal = returnTo?.startsWith("/owner");
+    qaPortal ||
+    (ownerPinRequired &&
+      new URLSearchParams(
+        typeof window === "undefined" ? "" : window.location.search,
+      ).get("credentials") === "1");
+  const ownerPortal = qaPortal || returnTo?.startsWith("/owner");
   const employeePortal = returnTo?.startsWith("/clinic");
   const membershipAccount = returnTo === "/memberships/account";
   const patientPortal =
     returnTo?.startsWith("/patient-portal") || membershipAccount;
-  const portalName = ownerPortal
-    ? "Owner Command Center"
-    : employeePortal
-      ? "Clinic team workspace"
-      : patientPortal
-        ? "Patient portal"
-        : "Launch & onboarding";
+  const portalName = qaPortal
+    ? "QA workspace"
+    : ownerPortal
+      ? "Owner Command Center"
+      : employeePortal
+        ? "Clinic team workspace"
+        : patientPortal
+          ? "Patient portal"
+          : "Launch & onboarding";
   const done = (result?: Record<string, unknown>) =>
     window.location.assign(
       loginDestination(
-        typeof result?.destination === "string"
-          ? result.destination
-          : new URLSearchParams(window.location.search).get("next"),
+        qaPortal
+          ? returnTo
+          : typeof result?.destination === "string"
+            ? result.destination
+            : new URLSearchParams(window.location.search).get("next"),
       ),
     );
   return (
