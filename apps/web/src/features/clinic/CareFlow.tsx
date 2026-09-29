@@ -3429,7 +3429,8 @@ export function SoapNoteForm({
   const { registerBlocker } = useClinicNavigation();
   const [savedNote, setSavedNote] = useState(note);
   const currentNote =
-    savedNote?.id === note?.id &&
+    savedNote &&
+    savedNote.id === note?.id &&
     (savedNote.current_revision?.revision_no ?? 0) >
       (note?.current_revision?.revision_no ?? 0)
       ? savedNote
