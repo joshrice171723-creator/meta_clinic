@@ -9,7 +9,7 @@ import {
   MenuItem,
   TextField,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import "./qa.css";
 
 type RecordData = Record<string, unknown>;
@@ -163,6 +163,7 @@ const verdictDone = (status: string) =>
 export function QaWorkspace() {
   const [data, setData] = useState<Workspace>();
   const [live, setLive] = useState<Build>();
+  const [buildError, setBuildError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -195,29 +196,51 @@ export function QaWorkspace() {
     window.history.replaceState(null, "", url);
   }, [section]);
   const refresh = useCallback(async (github = false) => {
-    try {
-      const [workspace, response] = await Promise.all([
-        api<Workspace>(`/api/qa${github ? "?refresh=1" : ""}`),
-        fetch(`/build.json?qa=${Date.now()}`, {
-          cache: "no-store",
-          credentials: "same-origin",
-        }),
-      ]);
-      if (!response.ok) throw new Error("Live build could not be observed.");
-      const build = (await response.json()) as Build;
-      if (!build.revision || !/^[0-9a-f]{40}$/.test(build.revision))
-        throw new Error(
-          "Live build has no full revision. QA actions are paused.",
-        );
-      setData(workspace);
-      setLive({ ...build, observed_at: new Date().toISOString() });
-      setError("");
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "QA workspace unavailable.",
-      );
-      setLive(undefined);
-    }
+    await Promise.all([
+      (async () => {
+        try {
+          const workspace = await api<Workspace>(
+            `/api/qa${github ? "?refresh=1" : ""}`,
+          );
+          setData(workspace);
+          setError("");
+        } catch (reason) {
+          setData(undefined);
+          setError(
+            reason instanceof ApiError &&
+              (reason.status === 401 || reason.status === 403)
+              ? "QA requires a platform-owner email and password. The demo Owner PIN session does not grant QA access."
+              : reason instanceof Error
+                ? reason.message
+                : "QA workspace unavailable.",
+          );
+        }
+      })(),
+      (async () => {
+        try {
+          const response = await fetch(`/build.json?qa=${Date.now()}`, {
+            cache: "no-store",
+            credentials: "same-origin",
+          });
+          if (!response.ok)
+            throw new Error("Live build could not be observed.");
+          const build = (await response.json()) as Build;
+          if (!build.revision || !/^[0-9a-f]{40}$/.test(build.revision))
+            throw new Error(
+              "Live build has no full revision. QA actions are paused.",
+            );
+          setLive({ ...build, observed_at: new Date().toISOString() });
+          setBuildError("");
+        } catch (reason) {
+          setBuildError(
+            reason instanceof Error
+              ? reason.message
+              : "Live build unavailable.",
+          );
+          setLive(undefined);
+        }
+      })(),
+    ]);
   }, []);
   useEffect(() => {
     const previousTitle = document.title;
@@ -297,6 +320,7 @@ export function QaWorkspace() {
         ...item,
       }));
   const mismatch = Boolean(
+    data &&
     live?.revision &&
     live.revision !== (data?.pin?.revision ?? data?.state.last_qa_revision),
   );
@@ -466,7 +490,7 @@ export function QaWorkspace() {
           <Alert severity="error">
             {error}
             {/sign|owner/i.test(error) && (
-              <a href="/login?next=%2Fqa"> Sign in to QA</a>
+              <a href="/login?next=%2Fqa"> Sign in as platform owner</a>
             )}
           </Alert>
         )}
@@ -504,7 +528,13 @@ export function QaWorkspace() {
           </div>
           <div>
             <span>LIVE {live?.version ?? "—"}</span>
-            <code>{live?.revision ?? "Waiting for build.json"}</code>
+            <code>
+              {live?.revision ??
+                (buildError
+                  ? "Build identity unavailable"
+                  : "Waiting for build.json")}
+            </code>
+            {buildError && <Alert severity="error">{buildError}</Alert>}
           </div>
           <div>
             <span>{data?.pin ? "CONFIRMED QA PIN" : "MUSE LAST PIN"}</span>
@@ -519,7 +549,7 @@ export function QaWorkspace() {
               Observe this build and confirm its pin before requesting QA.
               Historical verdicts retain their original revision.{" "}
               <Button
-                disabled={!live?.revision || live.dirty || busy}
+                disabled={!data || !live?.revision || live.dirty || busy}
                 onClick={() => setPinDialog(true)}
               >
                 Confirm live build pin
