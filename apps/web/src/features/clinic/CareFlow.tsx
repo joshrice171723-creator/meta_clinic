@@ -4770,7 +4770,7 @@ function SoapNoteWorkspace({
   if (!templates.data) return <LoadState error={templates.error} />;
   const existing = encounter.notes.find((note) => note.note_kind === "soap");
   const noteId = created?.id ?? existing?.id;
-  const workspace = noteId ? (
+  return noteId ? (
     <ExistingSoapNote
       patientId={encounter.patient_id}
       patientName={patientName}
@@ -4796,11 +4796,6 @@ function SoapNoteWorkspace({
       <strong>No SOAP note recorded</strong>
       <span>You can review existing notes but cannot create a draft.</span>
     </div>
-  );
-  return (
-    <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
-      {workspace}
-    </Box>
   );
 }
 
@@ -6257,11 +6252,13 @@ export function EncounterPage({
           nurseWorkspaceResource={nurseWorkspace}
           facilityRoomsResource={facilityRooms}
           noteWorkspace={
-            <SoapNoteWorkspace
-              encounter={encounter.data.encounter}
-              patientName={patient.data.patient.display_name}
-              onChanged={encounter.refresh}
-            />
+            <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
+              <SoapNoteWorkspace
+                encounter={encounter.data.encounter}
+                patientName={patient.data.patient.display_name}
+                onChanged={encounter.refresh}
+              />
+            </Box>
           }
         />
       }

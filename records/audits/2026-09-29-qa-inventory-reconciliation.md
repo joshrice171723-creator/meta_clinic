@@ -4,12 +4,15 @@ Joshua authorized fixing every listed Meta Clinic defect and clarified that the 
 
 | Inventory | Verified scope | Meaning |
 | --- | --- | --- |
-| Implementation Atlas | 81 unique named rows: 16 core, 12 intake, 2 behavioral health, 10 application review, 10 hardening, 10 journey, 21 sandbox | Overlapping requirements and acceptance work, not 81 unique defects. Current linked-source parsing was used, not the HTML's dated fallback. |
+| Implementation Atlas | 81 named rows: 16 core, 12 intake, 2 behavioral health, 10 application review, 10 hardening, 10 journey, 21 sandbox | Overlapping implementation requirements and acceptance work, not 81 unique defects. Current linked-source parsing was used, not the HTML's dated fallback. |
 | Atlas percentage dashboard | Build 73.2%, local Validation 46.3%, external/human acceptance 0% | Equal-weight MC-01–15 recorded estimates. Optional MC-16 is excluded. No score changed in this checkpoint. |
-| Muse full hand retest | 70 historical findings in the imported run | Separate from Atlas requirements. Original revisions and incomplete evidence remain intact. |
-| GitHub `muse-qa` | 8 open issues observed on 2026-09-29 | Current issue tracker state, not a count of all historical defects or proof of reproduction on this local build. |
-| Older 140-case UI audit | Historical references located; original case ledger unavailable | The recorded Desktop Astra-Reviews folder contains only scratch/stage-3 directories, not the referenced verdict/findings/disposition files. Its cases are not imported, marked passed, or counted as unique open defects. Recover its export and reconcile against current source and Muse IDs before reporting a combined total. |
+| Recovered QA handoff PDF | 100-workflow sweep on 0.1.8 at `25a23e4bd47d5200a3f9ef51a9925aeca064f49c`; 188 defect entries (7 marked stricken), 6 pending verification, 28 marked fixed/verified, 54 improvement ideas | Historical, revision-pinned source. The PDF says the ideas are not bugs. The inventory is not fully imported or mapped to current issues, and its verdicts are not current-build retests. |
+| Imported `qa_state.json` | 272 records: 229 open, 37 passed, 6 awaiting retest; all marked historical | Imported running-list data with original source-line references. Most records have no numeric Muse ID, so totals cannot be reliably deduplicated against other sources. |
+| Muse retest export | 70 historical findings | Separate from Atlas and the PDF. Its original revision/evidence remain attached; it does not establish a current-build retest. |
+| GitHub `muse-qa` | 9 open issues observed on 2026-09-29 | Actionable GitHub queue, not the total historical inventory or proof every issue reproduces on the live build. |
 | Muse workflow catalog | Expected 116; full coverage export absent | Workflow definitions/coverage are neither extra bugs nor acceptance evidence. Missing records remain unassessed. |
+
+These counts overlap. Do not sum them into a global defect total, import the improvement ideas as bugs, or close historical items from source changes alone. The next reconciliation needs stable IDs and evidence references across the PDF, imported records, retest export and GitHub; only then can duplicate, stricken, fixed and unresolved states be carried forward safely.
 
 ## Delivered local slice
 
@@ -23,4 +26,4 @@ An exact-build QA bug was repaired: uncommitted local source formerly retained t
 
 Scoped Ruby lint, route syntax, TypeScript, the full web production build, vault/harness checks, and the rollback-only runnable workspace check passed. That check covers invalid Atlas percentages, 81 unique rows, current source digests (normalized across Windows/Linux line endings), private access, and seven clean/dirty exact-build request assertions. Browser inspection confirmed all 81 rendered rows, the displayed percentages, the separate 70/8 counts, and disabled QA actions while source was dirty. No application-wide browser acceptance, recovered 140-case audit, or completion of every Meta Clinic defect is claimed.
 
-Recover the original 140-case ledger, retain its provenance, map overlap against the historical Muse and GitHub identifiers, then repair and retest current reproducible defects in bounded domain batches. Do not close historical findings merely because a source patch exists. Product decisions and missing reproduction evidence remain explicit; keep independent executable fixes moving when their evidence is available.
+Preserve the recovered PDF in its original location and retain its provenance. Reconcile its entries against the imported records, retest export and GitHub issues by stable identifier before importing or changing disposition. Then repair and retest current reproducible defects in bounded domain batches. Do not close historical findings merely because a source patch exists. Product decisions and missing reproduction evidence remain explicit; keep independent executable fixes moving when their evidence is available.

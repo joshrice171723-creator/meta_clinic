@@ -109,6 +109,18 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
+          Version 0.1.10: confirm the exact build revision in /build.json. The
+          separate private QA findings and retests are tracked at
+          /qa?view=atlas; Atlas Build coverage is not a QA pass rate.
+        </li>
+        <li>
+          Retest the carried-forward signing, cancellation-reconciliation, and
+          badge-list refresh fixes on their original screens. Confirm the
+          signing destination exists in every chart state, an uncertain cancel
+          refreshes the schedule before retry, and a newly issued badge appears
+          in the refreshed list.
+        </li>
+        <li>
           Version 0.1.9 review: read /build.json before and after QA and record
           its full revision and version. Hard-reload this page. The repository
           audit at records/audits/2026-09-28-muse-qa-70-disposition.md covers

@@ -849,9 +849,13 @@ export function QaWorkspace() {
                     " Packaged inventory snapshot; not a live repository read."}
                 </Alert>
                 <p>
-                  The older 140-case UI audit is not imported: its original
-                  ledger was not available at the recorded location. It is not
-                  silently counted as reviewed or fixed.
+                  The recovered 2026-09-28 PDF records a 100-workflow sweep on
+                  build 0.1.8: 188 defect entries, 6 pending verification, 28
+                  marked fixed/verified, and 54 improvement ideas. It is a
+                  separate historical source, not a current-build retest or a
+                  unique count across the 272 imported records, 70-item retest,
+                  Atlas rows, and GitHub issues. See the QA workspace protocol
+                  for provenance and reconciliation status.
                 </p>
                 <TextField
                   label="Search Atlas work or remaining gaps"

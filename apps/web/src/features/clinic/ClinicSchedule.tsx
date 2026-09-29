@@ -526,8 +526,10 @@ export function ClinicSchedule({
       setMutationError(
         error instanceof Error
           ? error.message
-          : "The appointment could not be cancelled. Refresh before trying again.",
+          : "Cancellation could not be verified. Review the refreshed schedule before trying again.",
       );
+      setSelected(undefined);
+      calendar.refresh();
     } finally {
       setBusy(false);
     }
@@ -693,6 +695,9 @@ export function ClinicSchedule({
         <Alert severity="success" onClose={() => setNotice("")}>
           {notice}
         </Alert>
+      )}
+      {!selected && mutationError && (
+        <Alert severity="error">{mutationError}</Alert>
       )}
       <Stack
         direction="row"
