@@ -1936,8 +1936,7 @@ function PatientRegistrationEditor({
     const values = formBody(new FormData(form))
       .clinic_patient as RegistrationValues;
     const structuredAddress = formatAddress(values);
-    const officialAddress =
-      structuredAddress || values.primary_address_original || "";
+    const officialAddress = structuredAddress;
     const officialValues = {
       ...values,
       primary_address: officialAddress,

@@ -277,7 +277,13 @@ module Clinic
 
         address = optional_string(input[:primary_address], field: :primary_address, maximum: 20_000)
         current = patient.primary_address_version
-        return false if address.blank? || current&.encrypted_address == address
+        if address.blank?
+          return false unless current
+
+          patient.update!(primary_address_version: nil)
+          return true
+        end
+        return false if current&.encrypted_address == address
 
         Clinic::Care::AddPatientAddress.call(
           practice: current_practice, actor: current_user, patient:, encrypted_address: address, make_primary: true

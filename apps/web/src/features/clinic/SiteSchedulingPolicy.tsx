@@ -109,7 +109,8 @@ export function SiteSchedulingPolicySettings({ siteId }: { siteId: number }) {
               label="Allow authorized staff overbook exceptions"
             />
             {overbook && (
-              <Autocomplete<VisitType, true>
+              <>
+                <Autocomplete<VisitType, true>
                   multiple
                   disableCloseOnSelect
                   disabled={!policyResource.data.can_write || saving}
@@ -120,6 +121,12 @@ export function SiteSchedulingPolicySettings({ siteId }: { siteId: number }) {
                   onChange={(_event, selected) => setEligibleIds(selected.map((type) => type.id))}
                   renderInput={(params) => <TextField {...params} label="Eligible visit types" />}
                 />
+                {eligibleIds.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    Choose at least one active visit type to enable saving overbooking.
+                  </Typography>
+                )}
+              </>
             )}
             <Typography variant="body2" color="text.secondary">
               Recurrence is limited to 2–12 weekly visits within 180 days.

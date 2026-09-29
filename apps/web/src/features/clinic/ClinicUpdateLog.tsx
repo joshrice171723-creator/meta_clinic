@@ -3,6 +3,14 @@ import { version as clinicVersion } from "../../../package.json";
 
 const changes = [
   [
+    "Booking attempt reconciliation",
+    "Recovered booking requests identify when their saved site or time differs from the selected slot, and a mismatched server result remains unconfirmed instead of appearing successful.",
+  ],
+  [
+    "Booking rejection recovery",
+    "A rejected booking stays blocked until the form changes, while an unknown outcome keeps the exact idempotent request available for safe reconciliation.",
+  ],
+  [
     "Recurring booking recovery",
     "An authorized setup user can assign the selected clinician to the previewed series period, then refresh the preview before scheduling.",
   ],
@@ -109,30 +117,53 @@ export function ClinicUpdateLog() {
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
         <li>
-          Version 0.1.10: confirm the exact build revision in /build.json. The
-          separate private QA findings and retests are tracked at
-          /qa?view=atlas; Atlas Build coverage is not a QA pass rate.
+          Version 0.2.0: confirm the exact build revision in /build.json.
+          The separate private QA findings and retests are tracked at
+          /qa?view=atlas; Atlas Build coverage is not a QA pass rate. The
+          repository record at
+          records/audits/2026-09-28-qa-handoff-value-selection.md preserves
+          source dispositions for the recovered historical handoff; those are
+          not browser acceptance.
         </li>
         <li>
           Retest the carried-forward signing, cancellation-reconciliation, and
           badge-list refresh fixes on their original screens. Confirm the
           signing destination exists in every chart state, an uncertain cancel
           refreshes the schedule before retry, and a newly issued badge appears
-          in the refreshed list.
+          in the refreshed list. Also verify booking recovery, cash-payment
+          reconciliation, authorization, and persistence on the exact build.
+          Repeat affected checks if the revision changes during QA.
         </li>
         <li>
-          Version 0.1.9 review: read /build.json before and after QA and record
-          its full revision and version. Hard-reload this page. The repository
-          audit at records/audits/2026-09-28-muse-qa-70-disposition.md covers
-          every BUG-001 through BUG-070 finding with code evidence, the reason
-          for a fix or no change, and the remaining proof. Repeat affected
-          checks if the revision changes during QA.
+          The 70-item Muse retest export and the recovered 100-workflow PDF are
+          separate historical sources. Retest the original actionable steps
+          against this exact revision; do not count a source fix as a browser
+          pass or treat these inventories as a deduplicated total.
         </li>
         <li>
-          Retest the original steps for all 70 findings against this exact
-          revision. Record actor, clinic, site, input, visible result, relevant
-          API response, and state after reload. A source fix is not a browser
-          pass; record a pass only after observing the expected outcome.
+          Retest #179 and #181 together. Recover a saved booking request from a
+          different selected slot and confirm the form names the saved request
+          time rather than silently substituting the clicked slot. Retry the
+          exact saved request. Confirm the response patient, site, start, and
+          end match the submitted values; any mismatch must remain unconfirmed.
+          After a definite rejection, confirm Schedule stays blocked until a
+          form change clears the error. An unknown outcome must remain safely
+          retryable with the same request key.
+        </li>
+        <li>
+          Recheck #168 without merging two clinical meanings. A medication
+          entered in encounter Intake must persist in the saved questionnaire
+          and reappear there after reload. The chart's Current medicines list
+          is a separate reconciled medication-statement record. Intake does not
+          automatically create that record in 0.2.0. Record a defect only if
+          the intake answer itself disappears; a future reconciliation flow
+          requires separate product and clinical direction.
+        </li>
+        <li>
+          Retest the original steps for the prior 70-finding audit against this
+          exact revision. Record actor, clinic, site, input, visible result,
+          relevant API response, and state after reload. A source fix is not a
+          browser pass; record a pass only after observing the expected outcome.
         </li>
         <li>
           Highest-value scheduling checks: BUG-002 nonoverlapping same-day

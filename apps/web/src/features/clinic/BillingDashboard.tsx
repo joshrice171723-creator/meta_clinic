@@ -1014,6 +1014,7 @@ export function BillingDashboard() {
                     <TableCell>Age</TableCell>
                     <TableCell>Total</TableCell>
                     <TableCell>Paid</TableCell>
+                    <TableCell>Credit</TableCell>
                     <TableCell>Balance</TableCell>
                   </TableRow>
                 </TableHead>
@@ -1088,6 +1089,9 @@ export function BillingDashboard() {
                         </TableCell>
                         <TableCell data-label="Paid">
                           {money(invoice.allocated, invoice.currency)}
+                        </TableCell>
+                        <TableCell data-label="Credit">
+                          {money(invoice.credited, invoice.currency)}
                         </TableCell>
                         <TableCell data-label="Balance">
                           {money(invoice.balance, invoice.currency)}

@@ -290,7 +290,7 @@ export function BadgeAdminPage() {
                   inputMode: "numeric",
                   pattern: "[0-9]{4,12}",
                   maxLength: 12,
-                  autoComplete: "new-password",
+                  autoComplete: "off",
                 },
               }}
             />

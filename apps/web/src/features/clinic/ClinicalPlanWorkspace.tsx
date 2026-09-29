@@ -1021,6 +1021,28 @@ export function ClinicalPlanWorkspace({
     );
   }
   const data = workspace.data;
+  const encounterWritable =
+    encounter.status === "open" &&
+    encounter.ended_at === null &&
+    Boolean(encounter.site_id);
+  const canCreateRecord = (targetKind: ResourceKind) =>
+    data.capabilities[targetKind] &&
+    data.new_work?.[targetKind] !== false &&
+    pendingAttempt === null &&
+    encounterWritable &&
+    (targetKind !== "assessments" || data.assessment_scope.length > 0);
+  const carePlanCreateBlockedReason =
+    encounter.status !== "open" || encounter.ended_at !== null
+      ? "Reopen the encounter before creating a care plan."
+      : !encounter.site_id
+        ? "Assign a facility to the encounter before creating a care plan."
+        : !data.capabilities.care_plans
+          ? "You do not have permission to create a care plan."
+          : pendingAttempt
+            ? "Resolve the pending clinical record save before creating a care plan."
+            : data.new_work?.care_plans === false
+              ? "Care plans are unavailable for new work in this encounter."
+              : null;
   const reviewedAttempt = attemptReview.data?.attempts.find(
     (item) => item.id === reviewAttemptId,
   );
@@ -1223,13 +1245,7 @@ export function ClinicalPlanWorkspace({
         >
           <Button
             variant="contained"
-            disabled={
-              !data.capabilities[kind] ||
-              data.new_work?.[kind] === false ||
-              pendingAttempt !== null ||
-              encounter.status !== "open" ||
-              (kind === "assessments" && data.assessment_scope.length === 0)
-            }
+            disabled={!canCreateRecord(kind)}
             onClick={() => openCreate()}
           >
             Add {meta.singular}
@@ -1254,12 +1270,16 @@ export function ClinicalPlanWorkspace({
           <Alert
             severity="info"
             action={
-              <Button onClick={() => openCreate("care_plans")}>
+              <Button
+                disabled={!canCreateRecord("care_plans")}
+                onClick={() => openCreate("care_plans")}
+              >
                 Create plan
               </Button>
             }
           >
-            Create a care plan before adding a goal.
+            {carePlanCreateBlockedReason ??
+              "Create a care plan before adding a goal."}
           </Alert>
         )}
         {kind === "assessments" && data.assessment_scope.length === 0 && (
