@@ -6,7 +6,8 @@ module Clinic
         require_capability_with_legacy("facilities.read", "appointments.read", site: site)
         render json: { policy: SitePolicy.snapshot(SitePolicy.current(practice: current_practice, site: site)),
           can_write: current_ability.allowed_permission?("facilities.write", site: site),
-          can_overbook: current_ability.allowed_permission?("appointments.overbook", site: site) }
+          can_overbook: current_ability.allowed_permission?("appointments.overbook", site: site),
+          can_capacity_override: current_ability.allowed_permission?("appointments.capacity_override", site: site) }
       end
 
       def update

@@ -46,7 +46,7 @@ module Clinic
           )
           appointments = appointments.where(patient_id: matching_patients.select(:id))
         end
-        paginate(appointments.includes(:site, :encounter, :room, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
+        paginate(appointments.includes(:site, :encounter, :room, :walk_in_exception, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
           patient: :communication_endpoints), key: :appointments,
           serializer: ->(appointment) {
             payload = AppointmentSerializer.call(appointment, actor: current_user)
@@ -57,14 +57,14 @@ module Clinic
 
       def show
         appointment_scope = atomic_appointment_reads? ? current_practice.appointments.accessible_by(current_ability, :read) : current_practice.appointments
-        appointment = appointment_scope.includes(:encounter, :room, :patient,
+        appointment = appointment_scope.includes(:encounter, :room, :patient, :walk_in_exception,
           telehealth_visit: [ :policy_version, :current_room_attempt, :participants ]).find(requested_id!(params[:id], :id))
         require_capability_with_legacy("appointments.read", "patients.read", site: appointment.site)
         render json: { appointment: AppointmentSerializer.call(appointment, actor: current_user) }
       end
 
       def create
-        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id first_available visit_type_id service_offering_id schedule_hold_id reason request_key visit_modality overbook_reason expected_policy_revision])
+        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id first_available visit_type_id service_offering_id schedule_hold_id reason request_key visit_modality overbook_reason expected_policy_revision walk_in capacity_override_reason])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = find_optional(current_practice.sites, input[:site_id], :site_id)
         room = find_optional(current_practice.rooms, input[:room_id], :room_id)
@@ -88,7 +88,9 @@ module Clinic
           request_key: request_key,
           visit_modality: input[:visit_modality].presence || "in_person",
           overbook_reason: optional_string(input[:overbook_reason], field: :overbook_reason, maximum: 500),
-          expected_policy_revision: input[:expected_policy_revision].present? ? Integer(input[:expected_policy_revision].to_s, 10) : nil
+          expected_policy_revision: input[:expected_policy_revision].present? ? Integer(input[:expected_policy_revision].to_s, 10) : nil,
+          walk_in: input[:walk_in] == true,
+          capacity_override_reason: optional_string(input[:capacity_override_reason], field: :capacity_override_reason, maximum: 500)
         )
         render json: { appointment: AppointmentSerializer.call(appointment, actor: current_user), request_key: request_key }, status: :created
       end

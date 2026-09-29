@@ -122,6 +122,8 @@ type BookingDraft = {
   reason?: string;
   overbookReason?: string;
   overbookRequested?: boolean;
+  walkInReason?: string;
+  walkInRequested?: boolean;
   repeat?: "none" | "weekly";
   repeatIntervalWeeks?: number;
   repeatCount?: number;
@@ -232,6 +234,8 @@ type BookingAttempt = {
       schedule_hold_id?: number;
       reason?: string;
       overbook_reason?: string;
+      walk_in?: boolean;
+      capacity_override_reason?: string;
       expected_policy_revision?: number;
       request_key: string;
       visit_modality?: VisitModality;
@@ -820,6 +824,8 @@ function BookingFormEditor({
       serviceOfferingId: "",
       reason: "",
       overbookReason: "",
+      walkInReason: "",
+      walkInRequested: false,
       repeat: "none",
       repeatIntervalWeeks: 1,
       repeatCount: 2,
@@ -875,13 +881,22 @@ function BookingFormEditor({
   );
   const [reason, setReason] = useState(restoredDraft.reason ?? "");
   const [overbookReason, setOverbookReason] = useState(
-    restoredDraft.overbookReason ?? "",
+    restoredDraft.walkInRequested || restoredDraft.walkInReason
+      ? ""
+      : restoredDraft.overbookReason ?? "",
   );
   const [overbookRequested, setOverbookRequested] = useState(
-    Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+    !Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason) &&
+      Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+  );
+  const [walkInReason, setWalkInReason] = useState(restoredDraft.walkInReason ?? "");
+  const [walkInRequested, setWalkInRequested] = useState(
+    Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason),
   );
   const [repeat, setRepeat] = useState<"none" | "weekly">(
-    restoredDraft.repeat ?? "none",
+    restoredDraft.walkInRequested || restoredDraft.walkInReason
+      ? "none"
+      : restoredDraft.repeat ?? "none",
   );
   const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(
     restoredDraft.repeatIntervalWeeks ?? 1,
@@ -1018,6 +1033,8 @@ function BookingFormEditor({
       reason,
       overbookReason,
       overbookRequested,
+      walkInReason,
+      walkInRequested,
       repeat,
       repeatIntervalWeeks,
       repeatCount,
@@ -1034,8 +1051,10 @@ function BookingFormEditor({
       visitTypeId,
       serviceOfferingId,
       reason,
-    overbookReason,
-    overbookRequested,
+      overbookReason,
+      overbookRequested,
+      walkInReason,
+      walkInRequested,
       repeat,
       repeatIntervalWeeks,
       repeatCount,
@@ -1077,6 +1096,7 @@ function BookingFormEditor({
   const schedulingPolicy = useResource<{
     policy: import("../../api/contracts").SiteSchedulingPolicy;
     can_overbook: boolean;
+    can_capacity_override: boolean;
   }>(`/api/clinic/facilities/${siteId}/scheduling_policy`, {
     enabled: Boolean(siteId),
   });
@@ -1329,6 +1349,8 @@ function BookingFormEditor({
     setReason("");
     setOverbookReason("");
     setOverbookRequested(Boolean(initialSlot?.overbook));
+    setWalkInReason("");
+    setWalkInRequested(false);
     setRepeat("none");
     setRepeatIntervalWeeks(1);
     setRepeatCount(2);
@@ -1881,6 +1903,16 @@ function BookingFormEditor({
               if (!overbookReason.trim())
                 return setSubmitError("Enter a reason for this clinician exception.");
             }
+            if (!bookingAttempt && walkInRequested) {
+              if (!schedulingPolicy.data?.can_capacity_override)
+                return setSubmitError("Walk-in capacity exceptions are unavailable to this account at this site.");
+              if (firstAvailable || visitModality !== "in_person")
+                return setSubmitError("Choose a clinician and in-person visit format for a walk-in appointment.");
+              if (heldSlot)
+                return setSubmitError("A walk-in cannot use a held appointment slot.");
+              if (!walkInReason.trim())
+                return setSubmitError("Enter a reason for this walk-in capacity exception.");
+            }
             inFlight.current = true;
             if (autosaveTimer.current) {
               window.clearTimeout(autosaveTimer.current);
@@ -1907,6 +1939,10 @@ function BookingFormEditor({
                     ...(overbookRequested ? {
                       overbook_reason: overbookReason.trim(),
                       expected_policy_revision: schedulingPolicy.data?.policy.revision,
+                    } : {}),
+                    ...(walkInRequested ? {
+                      walk_in: true,
+                      capacity_override_reason: walkInReason.trim(),
                     } : {}),
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
@@ -2141,7 +2177,11 @@ function BookingFormEditor({
               canConfigure={clinic.capabilities.telehealth_configure === true}
               onChange={(format) => {
                 setVisitModality(format);
-                if (format === "video") setRoomId("");
+                if (format === "video") {
+                  setRoomId("");
+                  setWalkInRequested(false);
+                  setWalkInReason("");
+                }
               }}
             />
             <Box
@@ -2357,11 +2397,15 @@ function BookingFormEditor({
                   control={<Checkbox checked={overbookRequested}
                     disabled={busy || Boolean(bookingAttempt)}
                     onChange={(event) => {
-                      setOverbookRequested(event.target.checked);
+                      const requested = event.target.checked;
+                      setOverbookRequested(requested);
                       if (!event.target.checked) setOverbookReason("");
                       if (event.target.checked) {
+                        setWalkInRequested(false);
+                        setWalkInReason("");
                         setRepeat("none");
                         setSeriesPreview(null);
+                        setSeriesPreviewPayload(null);
                       }
                     }} />}
                   label="Request a clinician overbook exception" />
@@ -2385,26 +2429,74 @@ function BookingFormEditor({
                   />
                 </Stack>
               )}
-              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
-                <TextField
-                  select
-                  label="Repeat"
-                  value={repeat}
-                  onChange={(event) => {
-                    setRepeat(event.target.value as "none" | "weekly");
-                    if (event.target.value === "weekly") {
-                      setOverbookRequested(false);
-                      setOverbookReason("");
+              {schedulingPolicy.data?.can_capacity_override && (
+                <Stack spacing={1} sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={walkInRequested}
+                        disabled={busy || Boolean(bookingAttempt) || Boolean(seriesAttempt) || Boolean(holdAttempt) || Boolean(heldSlot) || firstAvailable || visitModality === "video"}
+                        onChange={(event) => {
+                          const requested = event.target.checked;
+                          setWalkInRequested(requested);
+                          setWalkInReason("");
+                          if (requested) {
+                            setOverbookRequested(false);
+                            setOverbookReason("");
+                            setRepeat("none");
+                            setSeriesPreview(null);
+                            setSeriesPreviewPayload(null);
+                            const start = businessNow();
+                            start.setSeconds(0, 0);
+                            setStartsAt(localDateTimeValue(start));
+                            setEndsAt(localDateTimeValue(new Date(start.getTime() + (selectedOffering?.duration_minutes ?? 30) * 60_000)));
+                          }
+                        }}
+                      />
                     }
-                    setSeriesPreview(null);
-                    setSeriesPreviewPayload(null);
-                  }}
-                  disabled={busy || Boolean(seriesAttempt)}
-                >
-                  <MenuItem value="none">Does not repeat</MenuItem>
-                  <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
-                    Weekly
-                  </MenuItem>
+                    label="Book as a walk-in"
+                  />
+                  {walkInRequested && (
+                    <>
+                      <Alert severity="warning">
+                        This walk-in may bypass the clinician's weekly capacity template. Site hours, clinician assignment, blocked time, patient and room conflicts, and active holds are still checked.
+                      </Alert>
+                      <TextField
+                        fullWidth
+                        required
+                        label="Walk-in reason"
+                        value={walkInReason}
+                        onChange={(event) => setWalkInReason(event.target.value)}
+                        disabled={busy || outcomeUnconfirmed}
+                        slotProps={{ htmlInput: { maxLength: 500 } }}
+                        helperText="Saved with the appointment and the authorizing staff member."
+                      />
+                    </>
+                  )}
+                </Stack>
+              )}
+              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
+              <TextField
+                select
+                label="Repeat"
+                value={repeat}
+                onChange={(event) => {
+                  setRepeat(event.target.value as "none" | "weekly");
+                  if (event.target.value === "weekly") {
+                    setOverbookRequested(false);
+                    setOverbookReason("");
+                    setWalkInRequested(false);
+                    setWalkInReason("");
+                  }
+                  setSeriesPreview(null);
+                  setSeriesPreviewPayload(null);
+                }}
+                disabled={walkInRequested || busy || Boolean(bookingAttempt) || Boolean(seriesAttempt)}
+              >
+                <MenuItem value="none">Does not repeat</MenuItem>
+                <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
+                  Weekly
+                </MenuItem>
                 </TextField>
                 {repeat === "weekly" && (
                   <>
@@ -2739,7 +2831,7 @@ function BookingFormEditor({
                     : outcomeUnconfirmed || seriesOutcomeUnconfirmed
                       ? "Retry same request"
                       : repeat === "weekly" ? "Schedule series" :
-                        overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
+                        walkInRequested ? "Schedule walk-in" : overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
                 </Button>
               </Stack>
             </Stack>

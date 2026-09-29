@@ -2032,6 +2032,22 @@ CREATE TABLE public.clinic_appointment_overbook_exceptions (
 
 
 --
+-- Name: clinic_appointment_walk_in_exceptions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_appointment_walk_in_exceptions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    appointment_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    written_by_membership_id bigint NOT NULL,
+    reason text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
 -- Name: clinic_appointment_overbook_exceptions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -2048,6 +2064,25 @@ CREATE SEQUENCE public.clinic_appointment_overbook_exceptions_id_seq
 --
 
 ALTER SEQUENCE public.clinic_appointment_overbook_exceptions_id_seq OWNED BY public.clinic_appointment_overbook_exceptions.id;
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_appointment_walk_in_exceptions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_appointment_walk_in_exceptions_id_seq OWNED BY public.clinic_appointment_walk_in_exceptions.id;
 
 
 --
@@ -13160,6 +13195,13 @@ ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions ALTER COLUMN id S
 
 
 --
+-- Name: clinic_appointment_walk_in_exceptions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_walk_in_exceptions ALTER COLUMN id SET DEFAULT nextval('public.clinic_appointment_walk_in_exceptions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_appointment_series id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15022,6 +15064,14 @@ ALTER TABLE ONLY public.clinic_allergies
 
 ALTER TABLE ONLY public.clinic_appointment_overbook_exceptions
     ADD CONSTRAINT clinic_appointment_overbook_exceptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions clinic_appointment_walk_in_exceptions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_walk_in_exceptions
+    ADD CONSTRAINT clinic_appointment_walk_in_exceptions_pkey PRIMARY KEY (id);
 
 
 --
@@ -17309,6 +17359,13 @@ CREATE INDEX clinic_allergies_reviewed_by_membership_id_fk ON public.clinic_alle
 --
 
 CREATE UNIQUE INDEX clinic_appointment_overbook_exception_appointment ON public.clinic_appointment_overbook_exceptions USING btree (practice_id, appointment_id);
+
+
+--
+-- Name: clinic_appointment_walk_in_exception_appointment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_appointment_walk_in_exception_appointment ON public.clinic_appointment_walk_in_exceptions USING btree (practice_id, appointment_id);
 
 
 --
@@ -23109,6 +23166,13 @@ CREATE TRIGGER clinic_allergies_preserve_identity BEFORE UPDATE ON public.clinic
 --
 
 CREATE TRIGGER clinic_appointment_overbook_exceptions_immutable BEFORE DELETE OR UPDATE ON public.clinic_appointment_overbook_exceptions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions clinic_appointment_walk_in_exceptions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_appointment_walk_in_exceptions_immutable BEFORE DELETE OR UPDATE ON public.clinic_appointment_walk_in_exceptions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -31131,6 +31195,30 @@ ALTER TABLE ONLY public.clinic_workforce_time_off_requests
 
 ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
     ADD CONSTRAINT fk_rails_fe3c522ac7 FOREIGN KEY (practice_id, supplier_product_id) REFERENCES public.clinic_inventory_supplier_products(practice_id, id);
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions fk_walk_in_exception_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_walk_in_exceptions
+    ADD CONSTRAINT fk_walk_in_exception_appointment FOREIGN KEY (practice_id, appointment_id) REFERENCES public.clinic_appointments(practice_id, id);
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions fk_walk_in_exception_site; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_walk_in_exceptions
+    ADD CONSTRAINT fk_walk_in_exception_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_appointment_walk_in_exceptions fk_walk_in_exception_writer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_appointment_walk_in_exceptions
+    ADD CONSTRAINT fk_walk_in_exception_writer FOREIGN KEY (practice_id, written_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
 
 
 --

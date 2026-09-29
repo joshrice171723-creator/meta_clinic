@@ -1030,8 +1030,10 @@ export function Reminders() {
           Appointment reminders
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: "72ch" }}>
-          Choose upcoming appointments from the schedule, tailor a concise text,
-          and review the complete context of earlier delivery attempts.
+          Schedule the fixed appointment text 24 hours before each visit, or
+          compose a one-off message for review. Standard timing and copy are not
+          configurable here; the server rechecks consent, verified destination,
+          opt-outs, and quiet hours.
         </Typography>
       </Box>
 

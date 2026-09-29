@@ -22,15 +22,11 @@ module Development
           )
         end
         lesson = if sandbox
-          active_practice_id = DemoRun.active.where(lesson_key:).order(id: :desc).pick(:practice_id)
-          (DemoLesson.find_by(lesson_key:, practice_id: active_practice_id) if active_practice_id) ||
-            DemoLesson.where(lesson_key:).order(:id).first ||
-            create_lesson!(definition, visitor:)
+          DemoLesson.find_by(lesson_key:, visitor_id: visitor.id) || create_lesson!(definition, visitor:)
         else
           DemoLesson.where(lesson_key:, visitor_id: nil).lock.first || create_lesson!(definition)
         end
         lesson.lock!
-        lesson.update!(visitor:) if sandbox && lesson.visitor_id.nil?
         if sandbox && !restart
           existing_run = DemoRun.active.find_by(lesson_key:, practice: lesson.practice)
           if existing_run
@@ -50,6 +46,16 @@ module Development
             user.member_sessions.destroy_all
           end
           finish!(previous_run)
+        end
+        if sandbox && previous_run&.reload&.active? && DemoLessonCatalog.sandbox?(previous_run.lesson_key) &&
+            previous_run.visitor_id == visitor.id && previous_run.practice_id != lesson.practice_id
+          [ previous_run.operator_user, previous_run.patient_user ].compact.each do |user|
+            user.member_sessions.destroy_all
+          end
+          patient_user = previous_run.patient_user
+          finish!(previous_run)
+          previous_run.update!(patient_user: nil, membership_prospect: nil)
+          patient_user&.destroy! if patient_user&.reload&.member_sessions&.empty?
         end
         old_runs = DemoRun.where(lesson_key:)
         old_runs = old_runs.where(practice_id: lesson.practice_id) if sandbox

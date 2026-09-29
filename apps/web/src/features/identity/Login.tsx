@@ -93,6 +93,23 @@ export function Login({
             <Typography color="text.secondary" variant="body2">
               Choose an organization and account, or create a new organization.
             </Typography>
+            {ownerPinRequired && (
+              <div>
+                <Button
+                  href="/login?credentials=1&next=%2Fowner"
+                  variant="outlined"
+                >
+                  Sign in with owner account
+                </Button>
+                <Typography
+                  color="text.secondary"
+                  variant="caption"
+                  sx={{ display: "block" }}
+                >
+                  Use your owner account email and password.
+                </Typography>
+              </div>
+            )}
             <DevelopmentControls
               accounts={developmentAccounts}
               businessDate={businessDate}
@@ -106,13 +123,6 @@ export function Login({
               Enter a shared synthetic clinic workspace. Visitors can reset it
               to its baseline, which removes everyone's changes.
             </Typography>
-            {ownerPinRequired && (
-              <p className="page-fine-print">
-                <a href="/login?credentials=1&next=%2Fowner">
-                  Owner account sign in
-                </a>
-              </p>
-            )}
           </div>
         ) : (
           <>

@@ -1276,6 +1276,9 @@ export function ClinicSchedule({
                             {appointment.overbooked && (
                               <Chip size="small" label="Overbooked" />
                             )}
+                            {appointment.walk_in && (
+                              <Chip size="small" color="warning" label="Walk-in" />
+                            )}
                             {appointment.series_id && (
                               <Chip size="small" label="Repeats weekly" />
                             )}
@@ -1362,6 +1365,11 @@ export function ClinicSchedule({
                 {selected.overbooked && (
                   <Typography variant="body2">
                     Overbooked · {selected.overbook_reason}
+                  </Typography>
+                )}
+                {selected.walk_in && (
+                  <Typography variant="body2">
+                    Walk-in capacity exception · {selected.capacity_override_reason}
                   </Typography>
                 )}
                 {selected.series_id && (
