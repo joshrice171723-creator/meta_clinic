@@ -12963,6 +12963,82 @@ ALTER SEQUENCE public.platform_audit_events_id_seq OWNED BY public.platform_audi
 
 
 --
+-- Name: platform_review_decisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.platform_review_decisions (
+    id bigint NOT NULL,
+    review_packet_id bigint NOT NULL,
+    reviewer_id bigint NOT NULL,
+    outcome character varying NOT NULL,
+    note text NOT NULL,
+    results jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT platform_review_decisions_values CHECK ((((outcome)::text = ANY ((ARRAY['approved'::character varying, 'changes_requested'::character varying])::text[])) AND ((length(TRIM(BOTH FROM note)) >= 1) AND (length(TRIM(BOTH FROM note)) <= 1000)) AND (jsonb_typeof(results) = 'array'::text) AND ((jsonb_array_length(results) >= 1) AND (jsonb_array_length(results) <= 12))))
+);
+
+
+--
+-- Name: platform_review_decisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.platform_review_decisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: platform_review_decisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.platform_review_decisions_id_seq OWNED BY public.platform_review_decisions.id;
+
+
+--
+-- Name: platform_review_packets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.platform_review_packets (
+    id bigint NOT NULL,
+    created_by_id bigint NOT NULL,
+    title character varying NOT NULL,
+    summary text NOT NULL,
+    scope text NOT NULL,
+    revision character varying NOT NULL,
+    environment character varying NOT NULL,
+    entry_path character varying NOT NULL,
+    status character varying DEFAULT 'awaiting_review'::character varying NOT NULL,
+    criteria jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT platform_review_packets_values CHECK ((((status)::text = ANY ((ARRAY['awaiting_review'::character varying, 'approved'::character varying, 'changes_requested'::character varying])::text[])) AND ((length(TRIM(BOTH FROM title)) >= 1) AND (length(TRIM(BOTH FROM title)) <= 140)) AND ((length(TRIM(BOTH FROM summary)) >= 1) AND (length(TRIM(BOTH FROM summary)) <= 1000)) AND ((length(TRIM(BOTH FROM scope)) >= 1) AND (length(TRIM(BOTH FROM scope)) <= 1000)) AND ((length(TRIM(BOTH FROM revision)) >= 1) AND (length(TRIM(BOTH FROM revision)) <= 120)) AND ((length(TRIM(BOTH FROM environment)) >= 1) AND (length(TRIM(BOTH FROM environment)) <= 80)) AND ((length(TRIM(BOTH FROM entry_path)) >= 1) AND (length(TRIM(BOTH FROM entry_path)) <= 500)) AND ("left"((entry_path)::text, 1) = '/'::text) AND ("left"((entry_path)::text, 2) <> '//'::text) AND (jsonb_typeof(criteria) = 'array'::text) AND ((jsonb_array_length(criteria) >= 1) AND (jsonb_array_length(criteria) <= 12))))
+);
+
+
+--
+-- Name: platform_review_packets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.platform_review_packets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: platform_review_packets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.platform_review_packets_id_seq OWNED BY public.platform_review_packets.id;
+
+
+--
 -- Name: platform_owner_invitations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -15002,6 +15078,20 @@ ALTER TABLE ONLY public.permissions ALTER COLUMN id SET DEFAULT nextval('public.
 --
 
 ALTER TABLE ONLY public.platform_audit_events ALTER COLUMN id SET DEFAULT nextval('public.platform_audit_events_id_seq'::regclass);
+
+
+--
+-- Name: platform_review_decisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_decisions ALTER COLUMN id SET DEFAULT nextval('public.platform_review_decisions_id_seq'::regclass);
+
+
+--
+-- Name: platform_review_packets id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_packets ALTER COLUMN id SET DEFAULT nextval('public.platform_review_packets_id_seq'::regclass);
 
 
 --
@@ -17194,6 +17284,22 @@ ALTER TABLE ONLY public.permissions
 
 ALTER TABLE ONLY public.platform_audit_events
     ADD CONSTRAINT platform_audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: platform_review_decisions platform_review_decisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_decisions
+    ADD CONSTRAINT platform_review_decisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: platform_review_packets platform_review_packets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_packets
+    ADD CONSTRAINT platform_review_packets_pkey PRIMARY KEY (id);
 
 
 --
@@ -21665,6 +21771,19 @@ CREATE INDEX index_member_sessions_on_user_id ON public.member_sessions USING bt
 --
 
 CREATE INDEX index_paperworks_on_user_id ON public.paperworks USING btree (user_id);
+
+
+--
+-- Name: index_platform_review_decisions_on_review_packet_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_platform_review_decisions_on_review_packet_id ON public.platform_review_decisions USING btree (review_packet_id);
+
+
+-- Name: platform_review_packets_queue; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX platform_review_packets_queue ON public.platform_review_packets USING btree (status, created_at, id);
 
 
 --
@@ -32303,7 +32422,32 @@ ALTER TABLE ONLY public.clinic_subscription_packages
 
 SET search_path TO "$user", public;
 
+--
+-- Name: platform_review_decisions fk_rails_6567bb2ebd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_decisions
+    ADD CONSTRAINT fk_rails_6567bb2ebd FOREIGN KEY (reviewer_id) REFERENCES public.users(id);
+
+
+--
+-- Name: platform_review_packets fk_rails_bd4a8ea5ee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_packets
+    ADD CONSTRAINT fk_rails_bd4a8ea5ee FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: platform_review_decisions fk_rails_fa5f13c72d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_review_decisions
+    ADD CONSTRAINT fk_rails_fa5f13c72d FOREIGN KEY (review_packet_id) REFERENCES public.platform_review_packets(id);
+
+
 INSERT INTO "schema_migrations" (version) VALUES
+('20260929000100'),
 ('20260928001000'),
 ('20260928000900'),
 ('20260928000700'),

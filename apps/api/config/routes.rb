@@ -5,6 +5,8 @@ Rails.application.routes.draw do
   scope path: "api", as: "api" do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   get "owner/command_center", to: "platform/api/command_center#show"
+  post "owner/review_packets", to: "platform/api/command_center#create_review_packet"
+  post "owner/review_packets/:id/decision", to: "platform/api/command_center#record_review_decision"
   post "public/page_visits", to: "platform/api/page_visits#create"
   post "owner/clinics", to: "platform/api/command_center#create"
   post "owner/clinics/:id/owner_invitation", to: "platform/api/command_center#invite_owner"

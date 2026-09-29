@@ -31,6 +31,10 @@ import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { WebsiteTraffic, type WebsiteTrafficData } from "./WebsiteTraffic";
+import {
+  HumanReviewCommandCenter,
+  type HumanReviewData,
+} from "./HumanReviewCommandCenter";
 
 type ClinicSummary = {
   id: number;
@@ -50,7 +54,7 @@ type OrganizationSummary = {
 };
 
 type CommandCenterData = {
-  schema_version: "owner-command-center-v1";
+  schema_version: "owner-command-center-v2";
   delivery_methods: { email: boolean; sms: boolean };
   demo_usage: DemoUsage[];
   demo_feedback: DemoFeedback[];
@@ -59,6 +63,7 @@ type CommandCenterData = {
   unassigned_clinics: ClinicSummary[];
   organization_options: Array<{ id: number; name: string }>;
   counts: { organizations: number; clinics: number; active_members: number };
+  human_review: HumanReviewData;
   organization_pagination: PageMetadata;
   demo_usage_pagination: PageMetadata;
   demo_feedback_pagination: PageMetadata;
@@ -360,6 +365,9 @@ export function OwnerCommandCenter() {
       </Box>
 
       <Box component="nav" aria-label="Owner navigation">
+        <Button component="a" href="#human-review" variant="text">
+          Human review
+        </Button>
         <Button component="a" href="#website-traffic" variant="text">
           Website visitors
         </Button>
@@ -370,6 +378,11 @@ export function OwnerCommandCenter() {
           Demo feedback
         </Button>
       </Box>
+
+      <HumanReviewCommandCenter
+        review={data.human_review}
+        onRefresh={refresh}
+      />
 
       <WebsiteTraffic data={data.website_traffic} onRefresh={refresh} />
 
