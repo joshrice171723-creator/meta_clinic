@@ -320,7 +320,8 @@ export function QaWorkspace() {
         ...item,
       }));
   const mismatch = Boolean(
-    data && live?.revision &&
+    data &&
+    live?.revision &&
     live.revision !== (data?.pin?.revision ?? data?.state.last_qa_revision),
   );
   const pinReady = Boolean(
