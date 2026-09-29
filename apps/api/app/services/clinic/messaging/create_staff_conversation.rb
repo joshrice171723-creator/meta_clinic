@@ -13,7 +13,7 @@ module Clinic
         ids = [ member.id, *Array(member_ids).map(&:to_i) ].uniq
         raise ArgumentError, "A direct conversation needs exactly two staff members." if kind == "direct" && ids.length != 2
         raise ArgumentError, "A conversation needs at least two staff members." if ids.length < 2
-        eligible_memberships!(practice: practice, ids: ids, site: site)
+        eligible_memberships!(practice: practice, ids: ids, site: site, creator_membership_id: member.id)
 
         payload = { kind: kind, title: title, site_id: site&.id, member_ids: ids }
         outcome = Clinic::Idempotency.execute(
@@ -22,14 +22,14 @@ module Clinic
           authorization: -> {
             StaffPolicy.authorize!(practice: practice, actor: actor,
               action: "staff_messaging.create_conversation", site_id: site&.id)
-            eligible_memberships!(practice: practice, ids: ids, site: site)
+            eligible_memberships!(practice: practice, ids: ids, site: site, creator_membership_id: member.id)
           },
           authorization_action: "staff_messaging.create_conversation",
           result_resource: ->(conversation) { conversation },
           resource_resolver: ->(practice:, receipt:) { Clinic::StaffConversation.find_by(practice_id: practice.id, id: receipt.resource_id) }
         ) do
           ApplicationRecord.transaction do
-            eligible_memberships!(practice: practice, ids: ids, site: site)
+            eligible_memberships!(practice: practice, ids: ids, site: site, creator_membership_id: member.id)
             conversation = Clinic::StaffConversation.create!(
               practice: practice, site: site, kind: kind, title: title, created_by_membership: member,
               retention_class: "routine", last_message_at: nil
@@ -46,12 +46,18 @@ module Clinic
         outcome.value
       end
 
-      def self.eligible_memberships!(practice:, ids:, site:)
+      def self.eligible_memberships!(practice:, ids:, site:, creator_membership_id:)
         memberships = practice.memberships.active.where(id: ids).includes(:user).index_by(&:id)
         raise ActiveRecord::RecordNotFound unless memberships.keys.sort == ids.sort
 
         all_eligible = memberships.values.all? do |membership|
-          ParticipantIndex.eligible?(practice: practice, membership: membership, site: site)
+          if membership.id == creator_membership_id
+            StaffPolicy.authorize!(practice: practice, actor: membership.user,
+              action: "staff_messaging.read", site_id: site&.id)
+            true
+          else
+            ParticipantIndex.eligible?(practice: practice, membership: membership, site: site)
+          end
         end
         unless all_eligible
           raise Clinic::Authorization::Denied,

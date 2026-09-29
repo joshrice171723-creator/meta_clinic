@@ -1283,22 +1283,38 @@ function BookingFormEditor({
   const timePreview = bookingTimePreview(startsAt, bookingTimezone);
   const assignClinicianToSlot = async () => {
     if (siteAssignmentBusy || !selectedClinician || !selectedSite) return;
+    if (
+      repeat === "weekly" &&
+      (!seriesPreview || seriesPreviewPayload !== seriesPreviewKey())
+    )
+      return;
     setSiteAssignmentBusy(true);
     setSubmitError("");
     setAssignmentNotice("");
+    const seriesAppointments =
+      repeat === "weekly"
+        ? (seriesPreview ?? []).filter(
+            (row) => row.state === "booked" && row.starts_at && row.ends_at,
+          )
+        : [];
+    const assignmentStartsAt =
+      seriesAppointments[0]?.starts_at ?? new Date(startsAt).toISOString();
+    const assignmentEndsAt =
+      seriesAppointments[seriesAppointments.length - 1]?.ends_at ??
+      new Date(endsAt).toISOString();
     try {
       await api(`/api/clinic/clinicians/${selectedClinician.id}/assign_site`, {
         method: "POST",
         body: {
           assignment: {
             site_id: siteId,
-            starts_at: new Date(startsAt).toISOString(),
-            ends_at: new Date(endsAt).toISOString(),
+            starts_at: assignmentStartsAt,
+            ends_at: assignmentEndsAt,
           },
         },
       });
       setAssignmentNotice(
-        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} for this slot. Retry booking.`,
+        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} ${repeat === "weekly" ? "for this series period. Preview again before scheduling." : "for this slot. Retry booking."}`,
       );
     } catch (error) {
       setSubmitError(
@@ -1618,6 +1634,8 @@ function BookingFormEditor({
     },
   });
   const seriesPreviewKey = () => JSON.stringify(seriesBody("preview").body.series);
+  const seriesPreviewIsCurrent =
+    Boolean(seriesPreview) && seriesPreviewPayload === seriesPreviewKey();
   const previewSeries = async () => {
     if (!patientId || !siteId || !clinicianId || !visitTypeId || intervalError || offeringIssue) {
       setSubmitError("Complete the patient, site, clinician, visit type, and valid time before previewing visits.");
@@ -1629,6 +1647,7 @@ function BookingFormEditor({
     }
     setBusy(true);
     setSubmitError("");
+    setAssignmentNotice("");
     try {
       const attempt = seriesBody("preview");
       const result = await api<{ occurrences: SeriesPreviewRow[] }>(
@@ -1637,6 +1656,13 @@ function BookingFormEditor({
       );
       setSeriesPreview(result.occurrences);
       setSeriesPreviewPayload(JSON.stringify(attempt.body.series));
+      const assignmentConflict = result.occurrences.find((row) =>
+        /not assigned to this site for the selected time/i.test(
+          row.conflict ?? "",
+        ),
+      );
+      if (assignmentConflict?.conflict)
+        setSubmitError(assignmentConflict.conflict);
     } catch (error) {
       setSeriesPreview(null);
       setSeriesPreviewPayload(null);
@@ -2216,7 +2242,7 @@ function BookingFormEditor({
                   </MenuItem>
                   {facilities.data.sites.map((site) => (
                     <MenuItem key={site.id} value={site.id.toString()}>
-                      {site.code}
+                      {site.name || site.code}
                     </MenuItem>
                   ))}
                 </Select>
@@ -2668,6 +2694,7 @@ function BookingFormEditor({
                 role="alert"
                 action={
                   clinicianSiteWarning &&
+                  (repeat !== "weekly" || seriesPreviewIsCurrent) &&
                   clinic.capabilities.clinic_setup_write === true &&
                   selectedClinician &&
                   selectedSite ? (
@@ -2679,7 +2706,7 @@ function BookingFormEditor({
                     >
                       {siteAssignmentBusy
                         ? "Assigning…"
-                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} for this slot`}
+                        : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
                     </Button>
                   ) : undefined
                 }
@@ -5885,23 +5912,31 @@ function VisitWrapUp({
               </Stack>
               <Alert
                 severity={
-                  completion.evidence.signed_instruction ? "info" : "warning"
+                  completion.evidence.signed_instruction ||
+                  instructionsStatus === "not_required"
+                    ? "info"
+                    : "warning"
                 }
               >
                 {completion.evidence.signed_instruction
                   ? `Signed written instructions are available from note revision ${completion.evidence.signed_instruction.revision_no}.`
-                  : "No signed note revision with written patient instructions is available."}
+                  : instructionsStatus === "not_required"
+                    ? "Written instructions are not required for this visit."
+                    : "No signed note revision with written patient instructions is available."}
               </Alert>
               <Alert
                 severity={
-                  completion.evidence.education_events.length
+                  completion.evidence.education_events.length ||
+                  educationStatus === "not_required"
                     ? "info"
                     : "warning"
                 }
               >
                 {completion.evidence.education_events.length
                   ? `${completion.evidence.education_events.length} education record${completion.evidence.education_events.length === 1 ? "" : "s"} will be linked to this completion review.`
-                  : "No education or teach-back record is available for this encounter."}
+                  : educationStatus === "not_required"
+                    ? "Education and teach-back are not required for this visit."
+                    : "No education or teach-back record is available for this encounter."}
               </Alert>
               <Box>
                 <Stack

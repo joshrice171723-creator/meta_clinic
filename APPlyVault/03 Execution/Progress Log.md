@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-28 — Version 0.1.9 Muse QA disposition checkpoint
+
+The [70-finding audit](../../records/audits/2026-09-28-muse-qa-70-disposition.md) records one source-backed disposition per report finding against the 0.1.9 candidate branch, including reasons where no code change is justified. This batch repairs recurring-series assignment recovery, opt-out warning copy, staff-conversation creator eligibility, location selection on reload, site-scoped location options, clinic-account sign-in discovery, appearance wording, booking site labels and template casing. The source review is not a current-revision browser retest. TypeScript and Ruby syntax passed; tests were not run under the repository preference. Local API/database readiness and browser acceptance remain open, and no hosted 0.1.9 release is claimed at this checkpoint. The founder superseded the earlier 74% and 75% Atlas Build release thresholds with the all-70 disposition gate.
+
 ## 2026-09-28 — Atlas day-end review source checkpoint
 
 [Dated source evidence](../../records/implementation/2026-09-28-atlas-day-end-review.md) records a practice-date review note with captured invoice, payment/refund and drawer summaries, exact retry behavior, and a paged earlier-drawer worklist. MC-08/14/15 Build estimates move 91→92%, 58→66% and 55→57%; the equal-weight MC-01–15 Build average moves 72.1→72.8%. Validation and External / human remain unchanged. The isolated migration, Ruby syntax/lint, Rails loading/routes and TypeScript passed; a queued production bundle completed but its wrapper then failed to update metadata. Tests and browser acceptance did not run. This is an unpublished 0.1.9 branch checkpoint, below the 74% Muse QA request and 75% publication gates.

@@ -4,7 +4,7 @@ import type {
   RuntimeEnvironment,
 } from "../../api/contracts";
 import { Field, Form } from "../../shared/ui";
-import { Alert, Button, Typography } from "@mui/material";
+import { Alert, Button, Stack, Typography } from "@mui/material";
 import {
   DevelopmentControls,
   EnvironmentLabel,
@@ -95,12 +95,24 @@ export function Login({
             </Typography>
             {ownerPinRequired && (
               <div>
-                <Button
-                  href="/login?credentials=1&next=%2Fowner"
-                  variant="outlined"
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ alignItems: "flex-start" }}
                 >
-                  Sign in with owner account
-                </Button>
+                  <Button
+                    href="/login?credentials=1&next=%2Fowner"
+                    variant="outlined"
+                  >
+                    Sign in with owner account
+                  </Button>
+                  <Button
+                    href="/login?credentials=1&next=%2Fclinic"
+                    variant="outlined"
+                  >
+                    Sign in with clinic team account
+                  </Button>
+                </Stack>
                 <Typography
                   color="text.secondary"
                   variant="caption"

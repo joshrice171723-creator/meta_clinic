@@ -20,7 +20,7 @@ module Clinic
           version: 1,
           label: "Reviewed Scribe SOAP note",
           note_kind: "soap",
-          source_label: "APPly Scribe clinician-reviewed draft",
+          source_label: "Meta Clinic Scribe clinician-reviewed draft",
           source_url: "",
           caution: "Review every section before saving or signing this note.",
           sections: {

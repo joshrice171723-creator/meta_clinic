@@ -104,9 +104,8 @@ export function AppearanceSettings({
       </Card>
       <Card title="Appearance">
         <p>
-          Choose your colors and brightness. Your selection saves immediately
-          after the server accepts it. Follow system uses each device’s light or
-          dark setting.
+          Choose a color palette and display brightness. Follow system matches
+          this device’s light or dark setting.
         </p>
         <form
           className="settings-form appearance-form"
@@ -121,7 +120,6 @@ export function AppearanceSettings({
           <fieldset
             className="appearance-picker"
             disabled={saveState === "saving"}
-            aria-describedby="appearance-picker-description"
           >
             <legend className="appearance-picker-header">
               <span className="appearance-picker-title">
@@ -146,12 +144,6 @@ export function AppearanceSettings({
                 />
               </label>
             </legend>
-            <p
-              className="appearance-picker-description"
-              id="appearance-picker-description"
-            >
-              Choose a palette to apply it immediately to your workspace.
-            </p>
             <div className="appearance-preview-grid">
               {CLINIC_PALETTES.map(({ id, label }) => {
                 const scheme = resolveColorScheme(selection.mode, systemDark);
@@ -241,9 +233,9 @@ export function AppearanceSettings({
           )}
         </div>
         <p className="form-note">
-          If a save fails or another device changes your settings,{" "}
-          <a href="/clinic/settings">reload saved settings</a> before trying
-          again. Reloading discards unsaved selections.
+          If saving fails or another device changes your settings,{" "}
+          <a href="/clinic/settings">reload the page</a> before trying again.
+          Reloading discards unsaved selections.
         </p>
       </Card>
       {settings.development_access && (

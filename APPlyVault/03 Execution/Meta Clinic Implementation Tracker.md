@@ -385,10 +385,10 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 
 | Field | Value |
 | --- | --- |
-| Now | 0.1.9 source work is advancing the Atlas Build estimate toward the 74% Muse QA checkpoint; the current unpublished branch adds saved day-end review, earlier-drawer recovery and a paged failed-refill-delivery queue. |
-| State | 0.1.8 is live at `e5484889`; Muse found the GH #21 booking default corrected on that build and flagged separate patient search #111. The 0.1.9 branch has source-backed MC-08/10/12/13/14/15 changes; MC-01–15 Build average is 73.2%. Validation and External / human estimates are unchanged. |
-| Updated (UTC) | 2026-09-28 22:14 UTC |
-| Up next | Continue substantive source gaps to 74% Build, ask Muse for every flagged QA finding, repair the findings, then release 0.1.9 only when Build reaches at least 75%. |
+| Now | Audit all 70 findings in Muse's 2026-09-28 QA report against current 0.1.9 source. The [working disposition ledger](../../records/audits/2026-09-28-muse-qa-70-disposition.md) distinguishes fixes, existing behavior, missing reproduction evidence and product decisions. |
+| State | The 0.1.9 QA source branch is at `790429a8`, pushed but unpublished. Eight priority findings have source changes from that batch; none gained browser acceptance from the commit. The last recorded MC-01–15 Build average is 73.2%; Validation and External / human estimates are unchanged. |
+| Updated (UTC) | 2026-09-29 00:59 UTC |
+| Up next | Give every one of the 70 findings a source-backed fix or implementation, or a concrete reason for no code change; complete applicable runtime and browser checks, then follow the 0.1.9 release runbook. Joshua superseded the 74% Muse request and 75% Build publication threshold for this release. |
 
 ### Activity log
 

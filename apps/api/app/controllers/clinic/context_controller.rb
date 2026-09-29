@@ -143,7 +143,7 @@ module Clinic
       sites = accessible_clinic_sites
       return current_practice.sites if current_ability.practice_scope_for?("facilities.write")
 
-      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.allowed_permission?(permission) }
+      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.practice_scope_for?(permission) }
         sites = current_practice.sites
       end
       if workforce_employment
