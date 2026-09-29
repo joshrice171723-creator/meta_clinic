@@ -296,7 +296,9 @@ export function ClinicSchedule({
     : today.slice(0, 7);
   const initialDay = isValidCalendarDay(routeParams.get("day"))
     ? routeParams.get("day")!
-    : `${initialMonth}-01`;
+    : initialMonth === today.slice(0, 7)
+      ? today
+      : `${initialMonth}-01`;
   const [month, setMonth] = useState(initialMonth);
   const [day, setDay] = useState(
     initialDay.startsWith(initialMonth) ? initialDay : `${initialMonth}-01`,
