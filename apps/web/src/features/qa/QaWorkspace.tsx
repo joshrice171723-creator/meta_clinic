@@ -855,6 +855,8 @@ export function QaWorkspace() {
                 </p>
                 <TextField
                   label="Search Atlas work or remaining gaps"
+                  fullWidth
+                  margin="normal"
                   size="small"
                   value={filter}
                   onChange={(event) => setFilter(event.target.value)}
