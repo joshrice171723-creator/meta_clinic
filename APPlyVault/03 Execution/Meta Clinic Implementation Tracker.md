@@ -388,9 +388,9 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 | Field | Value |
 | --- | --- |
 | Now | Keep the 70 Muse report findings and the 81 named Atlas inventory rows distinct. The [70-finding disposition ledger](../../records/audits/2026-09-28-muse-qa-70-disposition.md) records 23 source-backed dispositions and 47 evidence-based no-code/decision dispositions; that is not 70 browser passes. The separate private QA findings/retest page is /qa?view=atlas. |
-| State | Live `/build.json` and `origin/main` both report version 0.1.9 at revision `e8a24e4e32c174c14fc32f0d0b51541cfcb56e94` (checked 2026-09-29 22:14 UTC). The 0.2.0 candidate is local and unpublished; it includes reviewed source repairs for scheduling/recovery, billing and cash safeguards, inventory permissions, patient address clearing, and QA findings, plus the pending signing, cancellation-refresh and badge-list fixes. MC-01–15 Build is 73.2% (16.8 points to 90%), Validation is 46.3%, External / human is 0%. Do not count historical QA sources as Atlas progress or current-build retest. |
-| Updated (UTC) | 2026-09-29 22:14 UTC |
-| Up next | Publish the reviewed QA-operations build from current main, verify its full revision on /build.json, and have Muse retest that exact build. Keep the independent 90% Build target separate from QA disposition counts and local/external proof. |
+| State | Public `/build.json` reports version 0.2.0 at revision `bf3c787f38a9c987195cbf0784def55f1b0b53b1` (verified 2026-09-29). The guarded release completed with matched API/web images and verified encrypted recovery; `/up` and `/clinic/updates` return HTTP 200. PRs #25–27 are merged. MC-01–15 Build is 73.2% (16.8 points to 90%), Validation is 46.3%, External / human is 0%. Exact-build Muse retest remains unverified; historical QA findings do not establish current acceptance. Open PR #4 is conflicting operations automation and draft PR #3 is historical tracker work; neither is included in this release. |
+| Updated (UTC) | 2026-09-29 23:22 UTC |
+| Up next | Record Muse’s live retest against the verified 0.2.0 revision; integrate further eligible work only after preserving its ownership and evidence. Keep the independent 90% Build target separate from QA disposition counts and local/external proof. |
 
 ### Activity log
 
