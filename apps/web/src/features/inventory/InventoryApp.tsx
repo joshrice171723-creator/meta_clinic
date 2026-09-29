@@ -3118,8 +3118,16 @@ export function InventoryApp({ path }: { path: string }) {
                         .filter(
                           (link) =>
                             link.group === group &&
-                            (link.screen !== "supplier_pricing" ||
-                              data.capabilities.supplier_pricing === true),
+                            (link.screen === "supplier_pricing"
+                              ? data.capabilities.supplier_pricing === true
+                              : link.screen === "replenishment" ||
+                                  link.screen === "purchasing"
+                                ? data.capabilities["procurement.read"] === true
+                                : link.screen === "recalls"
+                                  ? data.capabilities["recall.read"] === true
+                                  : link.screen === "controlled"
+                                    ? data.capabilities["controlled.read"] === true
+                                    : true),
                         )
                         .map((link) => (
                           <a

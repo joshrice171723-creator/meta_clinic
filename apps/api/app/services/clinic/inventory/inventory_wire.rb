@@ -45,7 +45,7 @@ module Clinic
           { batch: %i[product lot location_record] },
           { receipt_line: :receipt }
         ).order(id: :desc).limit(200).to_a
-        context(practice: practice, actor: actor).merge(
+        wire = context(practice: practice, actor: actor).merge(
           products: products.map { |product| product_wire(product, batches, active_holds_by_batch, inventory_date) },
           packages: products.map { |product| package_wire(product) },
           suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
@@ -63,6 +63,16 @@ module Clinic
           controlled_reconciliations: counts.map { |count| count_wire(count) },
           audit_events: practice.audit_events.includes(:resource_manifests).order(occurred_at: :desc, id: :desc).limit(100).map { |event| audit_wire(event) },
         )
+        ability = Ability.new(actor, practice: practice)
+        unless ability.allowed_permission?("procurement.read")
+          wire[:purchase_orders] = []
+          wire[:purchase_cart] = nil
+          wire[:shipments] = []
+        end
+        wire[:recalls] = [] unless ability.allowed_permission?("recall.read")
+        wire[:controlled_reconciliations] = [] unless ability.allowed_permission?("controlled.read")
+        wire[:supplier_products] = [] unless ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)
+        wire
       end
 
       def context(practice:, actor:)
