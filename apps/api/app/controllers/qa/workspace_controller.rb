@@ -70,7 +70,7 @@ module Qa
         if live != revision || task.revision != revision || Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
           if task.status == "claimed" && task.claim_run_id == run_id && task.claimed_by_id == actor.id
             task.update!(status: "queued", claimed_by: nil, claim_run_id: nil, claimed_at: nil)
-            Workspace.event(user: actor, kind: "run_aborted", summary: "Build changed during #{run_id}; task returned to queue.", revision: live, payload: { task_id: task.id, run_id:, pinned_revision: revision })
+            Workspace.event(user: actor, kind: "run_aborted", summary: "Build changed during #{run_id}; task returned to queue.", revision: live, payload: { task_id: task.id, run_id:, pinned_revision: task.revision })
           end
           conflict = "Build identity changed or unavailable; re-pin before continuing."
         elsif outcome == "claimed"
@@ -255,16 +255,19 @@ module Qa
         raise ArgumentError, "Each defect requires an id, pass/fail verdict, positive observed evidence, and stored evidence references." unless
           defect.is_a?(Hash) && defect["id"].present? && %w[passed failed blocked expected-config].include?(defect["verdict"]) &&
           defect["observed"].to_s.present? && defect["evidence_refs"].is_a?(Array) && defect["evidence_refs"].any? &&
-          defect["evidence_refs"].all? { |id| Evidence.exists?(id:, revision: params[:revision]) }
+          defect["evidence_refs"].all? { |id| Evidence.exists?(id:) } &&
+          Evidence.where(id: defect["evidence_refs"], revision: params[:revision]).exists?
         if defect["verdict"] == "passed"
-          phases = Evidence.where(id: defect["evidence_refs"], revision: params[:revision]).pluck(:phase)
-          raise ArgumentError, "A passed fix requires before and after screenshots." unless phases.include?("before") && phases.include?("after")
+          evidence = Evidence.where(id: defect["evidence_refs"])
+          raise ArgumentError, "A passed fix requires a before screenshot and an after screenshot on this revision." unless
+            evidence.where(phase: "before").exists? && evidence.where(phase: "after", revision: params[:revision]).exists?
         end
       end
     end
     def evidence_context!(context)
       raise ArgumentError, "Evidence context must be an object." unless context.is_a?(Hash)
       %w[steps expected actual viewport timezone observed_at].each { |key| string!(context, key, 5_000) }
+      raise ArgumentError, "Evidence timestamp must include its timezone." unless context["observed_at"].match?(/(?:Z|[+-]\d{2}:\d{2})\z/)
       Time.iso8601(context["observed_at"])
       context.merge("tester" => actor.email_address)
     end
