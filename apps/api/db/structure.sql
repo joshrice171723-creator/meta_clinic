@@ -2759,6 +2759,8 @@ CREATE TABLE public.clinic_cash_pay_estimate_lines (
     exclusions character varying(500),
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    source_price_revision integer,
+    CONSTRAINT cash_pay_estimate_lines_price_revision CHECK (((source_price_revision IS NULL) OR ((source_price_revision >= 0) AND (billing_service_id IS NOT NULL)))),
     CONSTRAINT clinic_cash_pay_estimate_lines_values CHECK (((quantity > (0)::numeric) AND (unit_amount >= (0)::numeric) AND (expected_amount >= (0)::numeric) AND (length(TRIM(BOTH FROM description_snapshot)) > 0)))
 );
 
@@ -33050,6 +33052,7 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
     ADD CONSTRAINT subscription_entitlement_reversal_scope FOREIGN KEY (practice_id, agreement_id, service_id, quantity, reversed_entry_id) REFERENCES public.clinic_subscription_entitlement_entries(practice_id, agreement_id, service_id, quantity, id);
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930230000'),
 ('20260930000900'),
 ('20260930000100'),
 ('20260929000200'),
