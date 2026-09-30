@@ -9,7 +9,7 @@ module Clinic
           .includes(:pharmacy_destination, :prescription_event).order(:id)
       end
 
-      def submit(practice:, actor:, order:, pharmacy_destination_id:, scenario:, request_key:, preparation_id:, mode: "standard", signer_state: nil, reviewer_state: nil)
+      def submit(practice:, actor:, order:, pharmacy_destination_id:, scenario:, request_key:, preparation_id: nil, mode: "standard", signer_state: nil, reviewer_state: nil)
         PrescriptionWorkflow.authorize!(practice, actor, order)
         outcome = scenario.to_s
         raise ArgumentError, "Choose a supported simulator outcome." unless PrescriptionTransmissionAttempt::OUTCOMES.include?(outcome)
@@ -17,7 +17,10 @@ module Clinic
         raise ArgumentError, "Choose a supported simulation mode." unless PrescriptionTransmissionAttempt::MODES.include?(mode)
         signer_snapshot, reviewer_snapshot = controlled_snapshots!(practice:, site: order.encounter.site,
           mode:, signer_state:, reviewer_state:, outcome:)
-        payload = { order_id: order.id, preparation_id:, pharmacy_destination_id:, scenario: outcome, mode:, signer_snapshot:, reviewer_snapshot: }
+        # Preserve the original canonical payload for receipt-only legacy replay.
+        # Omitting preparation never authorizes a new attempt.
+        payload = { order_id: order.id, pharmacy_destination_id:, scenario: outcome, mode:, signer_snapshot:, reviewer_snapshot: }
+        payload[:preparation_id] = preparation_id unless preparation_id.nil?
         result = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "prescription.transmission.submit", request_key:, payload:,
           authorization_action: "medication_requests.write",
@@ -25,6 +28,9 @@ module Clinic
           result_resource: ->(attempt) { attempt },
           resource_resolver: ->(practice:, receipt:) { PrescriptionTransmissionAttempt.find_by(practice_id: practice.id, id: receipt.resource_id) }
         ) do
+          # Idempotency checks an owned exact receipt before entering this new-write block.
+          raise ArgumentError, "Prepare this prescription before a new submission." if preparation_id.nil?
+
           PrescriptionPreparationWorkflow.lock_current!(practice:, order:)
           preparation = PrescriptionPreparation.where(practice:).find(preparation_id)
           destination = PharmacyDestination.where(practice:, active: true).lock.find(pharmacy_destination_id)
@@ -43,6 +49,8 @@ module Clinic
             source: "simulation", transaction_type: "NewRx", schema_version: PrescriptionTransmissionAttempt::SCHEMA_VERSION,
             payload_digest: digest, correlation_id: SecureRandom.uuid, review_event: review, prior_attempt:)
         end
+        raise Clinic::Idempotency::OutcomeUnconfirmed if result.receipt.outcome_outcome_unconfirmed?
+
         result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
