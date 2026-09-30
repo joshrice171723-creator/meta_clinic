@@ -1,9 +1,0 @@
-{
-  "origin": "https://aimetaclinic.com",
-  "github_token_file": "/etc/meta-clinic/github-read-token",
-  "backup_key_file": "/etc/meta-clinic/recovery-passphrase",
-  "offhost_backup_directory": "/mnt/meta-clinic-recovery/backups",
-  "offhost_mount_source": "REPLACE_WITH_FINDMNT_SOURCE",
-  "offhost_key_escrow_file": "/mnt/meta-clinic-key-escrow/recovery-passphrase",
-  "offhost_key_mount_source": "REPLACE_WITH_SEPARATE_KEY_ESCROW_FINDMNT_SOURCE"
-}

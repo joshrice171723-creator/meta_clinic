@@ -12,17 +12,7 @@ def check(condition, label):
         raise SystemExit('FAILED: ' + label)
     print('PASS: ' + label)
 
-deadline = time.monotonic() + 90
-while True:
-    try:
-        ready = session.get(origin + '/login', timeout=5).status_code == 200
-        ready = ready and session.get(origin + '/up', timeout=5).status_code == 200
-    except requests.RequestException:
-        ready = False
-    if ready or time.monotonic() >= deadline:
-        break
-    time.sleep(2)
-check(ready, 'HTTPS login and API ready')
+check(session.get(origin + '/login', timeout=20).status_code == 200, 'HTTPS login page')
 check(session.get(origin + '/up', timeout=20).status_code == 200, 'API health')
 configuration = session.get(origin + '/api/csrf', timeout=20).json()
 public_demo_enabled = 'APP_PUBLIC_DEVELOPMENT_LOGIN=1' in Path(
@@ -124,13 +114,3 @@ second_visitor.headers['X-CSRF-Token'] = second_visitor.get(base + '/csrf', time
 joined = second_visitor.post(base + '/demo/lesson', json={'lesson_key': 'sandbox'}, timeout=30)
 check(joined.status_code == 201 and joined.json()['run']['clinic']['id'] == clinic_id,
       'Second visitor joined prepared Sandbox')
-
-# Reset this verification session, not the shared Sandbox records or other visitors.
-sandbox.headers['X-CSRF-Token'] = sandbox.get(base + '/csrf', timeout=20).json()['csrf_token']
-reset = sandbox.post(base + '/demo/run/reset', json={'all': True}, timeout=20)
-check(reset.status_code == 200 and reset.json().get('active') is False
-      and reset.json().get('visitor_registered') is False, 'Sandbox session reset')
-check(sandbox.get(base + '/clinic/context', timeout=20).status_code in (401, 403, 404),
-      'Sandbox access denied after reset')
-remaining = second_visitor.get(base + '/clinic/context', timeout=20)
-check(remaining.status_code == 200, 'Other Sandbox visitor survives session reset')

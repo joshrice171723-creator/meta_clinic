@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run through release.ps1 or the installed auto_release.py recovery coordinator.
+# Run only through release.ps1: it copies and encrypts the recovery archive before deploy.
 set -Eeuo pipefail
 umask 077
 
@@ -13,16 +13,8 @@ revision=$2
 [[ $# -eq 3 ]] || usage
 
 cd /opt/meta-clinic/deploy
-if [[ -n ${META_CLINIC_RELEASE_LOCK_FD:-} ]]; then
-  [[ $META_CLINIC_RELEASE_LOCK_FD =~ ^[0-9]+$ ]] &&
-    [[ $(readlink "/proc/$$/fd/$META_CLINIC_RELEASE_LOCK_FD") == /opt/meta-clinic/release.lock ]] || {
-      echo "Invalid inherited release lock." >&2; exit 1;
-    }
-  flock -n "$META_CLINIC_RELEASE_LOCK_FD" || { echo "Another release is running." >&2; exit 1; }
-else
-  exec 9>/opt/meta-clinic/release.lock
-  flock -n 9 || { echo "Another release is running." >&2; exit 1; }
-fi
+exec 9>/opt/meta-clinic/release.lock
+flock -n 9 || { echo "Another release is running." >&2; exit 1; }
 
 repo=ghcr.io/joshrice171723-creator
 secrets=/opt/meta-clinic/secrets
@@ -102,13 +94,8 @@ if [[ $phase == prepare ]]; then
     "backups/release-$revision/previous.env" \
     "backups/release-$revision/candidate.env" \
     "backups/release-$revision/image-ids" secrets
-  handoff="$state/recovery.tar.gz"
-  if [[ ${META_CLINIC_RECOVERY_MODE:-windows} == windows ]]; then
-    handoff="/home/ubuntu/meta-clinic-recovery-$revision.tar.gz"
-    install -m 600 -o ubuntu -g ubuntu "$state/recovery.tar.gz" "$handoff"
-  elif [[ $META_CLINIC_RECOVERY_MODE != host ]]; then
-    echo "Unknown recovery handoff mode." >&2; exit 1
-  fi
+  handoff="/home/ubuntu/meta-clinic-recovery-$revision.tar.gz"
+  install -m 600 -o ubuntu -g ubuntu "$state/recovery.tar.gz" "$handoff"
   printf '%s\n' "$revision" > "$state/prepared"
   printf 'RECOVERY_ARCHIVE=%s\nRECOVERY_SHA256=%s\n' \
     "$handoff" "$(sha256sum "$state/recovery.tar.gz" | cut -d ' ' -f 1)"
@@ -179,7 +166,7 @@ for path in /login /up /api/demo-workspace/csrf /demo /clinic; do
 done
 status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 https://aimetaclinic.com/api/clinic/context)
 [[ $status == 401 || $status == 403 || $status == 404 ]] || { echo "Anonymous clinic access returned $status." >&2; false; }
-python3 "${META_CLINIC_VERIFY_SCRIPT:-/tmp/meta-clinic-verify-$revision.py}"
+python3 "/tmp/meta-clinic-verify-$revision.py"
 curl --fail --silent --show-error --max-time 15 https://aimetaclinic.com/build.json |
   python3 -c 'import json,sys; data=json.load(sys.stdin); assert data.get("revision") == sys.argv[1], "Public build revision mismatch"; assert data.get("version"), "Missing public version"' "$revision"
 printf '%s\n' "$revision" > /opt/meta-clinic/deploy/current-revision
