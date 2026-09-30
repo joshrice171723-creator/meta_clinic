@@ -147,17 +147,28 @@ function dateLabel(value: string, timezone: string) {
   }).format(new Date(value));
 }
 
-export function EncounterFollowUpPanel({
-  patient,
-  encounter,
-  timezone,
-  onChanged,
-}: {
+type EncounterFollowUpPanelProps = {
   patient: Patient;
   encounter: EncounterDetail;
   timezone: string;
   onChanged?: () => void;
-}) {
+};
+
+export function EncounterFollowUpPanel(props: EncounterFollowUpPanelProps) {
+  return (
+    <EncounterFollowUpEditor
+      key={`${props.patient.id}:${props.encounter.id}`}
+      {...props}
+    />
+  );
+}
+
+function EncounterFollowUpEditor({
+  patient,
+  encounter,
+  timezone,
+  onChanged,
+}: EncounterFollowUpPanelProps) {
   const { capabilities } = useClinic();
   const canWrite = capabilities.encounters === true;
   const resource = useResource<FollowUpResponse>(
@@ -179,6 +190,7 @@ export function EncounterFollowUpPanel({
   const baseVersionRef = useRef(0);
   const busyRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
+  const active = useRef(true);
   const followUp = resource.data?.follow_up ?? null;
   const recovery = useWorkingDraft<FollowUpDraft>({
     kind: "follow_up",
@@ -186,6 +198,13 @@ export function EncounterFollowUpPanel({
     encounterId: encounter.id,
     enabled: canWrite,
   });
+
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!resource.data || restored) return;
@@ -315,12 +334,26 @@ export function EncounterFollowUpPanel({
     pendingRequest: null,
   });
 
+  // Adopt the confirmed record together: advancing only the version would let
+  // stale fields overwrite the server's disposition on the next save.
+  const adoptConfirmed = (record: EncounterFollowUpRecord) => {
+    baseVersionRef.current = record.version;
+    pendingDraftRef.current = null;
+    setPending(false);
+    setStatus(record.status === "completed" ? "not_required" : record.status);
+    setStatusConfirmed(true);
+    setPlan(record.plan);
+    setDueAt(localDateTime(record.due_at));
+    setAppointmentId(String(record.follow_up_appointment?.id ?? ""));
+    setAssigneeId(String(record.assigned_to_membership_id ?? ""));
+  };
+
   const releasePending = async (version = baseVersionRef.current) => {
     baseVersionRef.current = version;
     pendingDraftRef.current = null;
     setPending(false);
     const editable = { ...editableDraft(), expectedVersion: version };
-    if (!(await recovery.save(editable)))
+    if (!(await recovery.save(editable)) && active.current)
       setError(
         recovery.error ||
           "The local follow-up edits are still on this page, but the recovery copy could not be updated.",
@@ -338,32 +371,22 @@ export function EncounterFollowUpPanel({
           body: request.body,
         },
       );
+      if (!active.current) return;
       if (
         result.follow_up.patient_id !== patient.id ||
         result.follow_up.encounter_id !== encounter.id
       )
         throw new Error("The saved follow-up did not match this encounter.");
-      if (!(await recovery.clear())) {
+      const cleared = await recovery.clear();
+      if (!active.current) return;
+      if (!cleared) {
         setError(
           recovery.error ||
             "The follow-up was saved, but its recovery record could not be cleared. Retry the same request to finish recovery.",
         );
         return;
       }
-      baseVersionRef.current = result.follow_up.version;
-      pendingDraftRef.current = null;
-      setPending(false);
-      setStatus(
-        result.follow_up.status === "completed"
-          ? "not_required"
-          : result.follow_up.status,
-      );
-      setPlan(result.follow_up.plan);
-      setDueAt(localDateTime(result.follow_up.due_at));
-      setAppointmentId(
-        String(result.follow_up.follow_up_appointment?.id ?? ""),
-      );
-      setAssigneeId(String(result.follow_up.assigned_to_membership_id ?? ""));
+      adoptConfirmed(result.follow_up);
       setNotice(
         request.kind === "record"
           ? "Follow-up plan saved."
@@ -372,12 +395,14 @@ export function EncounterFollowUpPanel({
       resource.refresh();
       onChanged?.();
     } catch (reason) {
+      if (!active.current) return;
       const unknown =
         !(reason instanceof ApiError) ||
         reason.status === 408 ||
         reason.status >= 500 ||
         reason.code === "outcome_unconfirmed";
       if (!unknown) await releasePending();
+      if (!active.current) return;
       setError(
         unknown
           ? "The follow-up outcome is unknown. Check the current record or retry this exact request."
@@ -444,7 +469,9 @@ export function EncounterFollowUpPanel({
           requestKey,
           pendingRequest: request,
         };
-        if (!(await recovery.save(snapshot))) {
+        const saved = await recovery.save(snapshot);
+        if (!active.current) return;
+        if (!saved) {
           setError(
             recovery.error || "The follow-up could not be saved for recovery.",
           );
@@ -457,8 +484,10 @@ export function EncounterFollowUpPanel({
       setNotice("");
       await submitPending(snapshot);
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (active.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
   };
 
@@ -468,7 +497,10 @@ export function EncounterFollowUpPanel({
     due.setDate(1);
     due.setMonth(due.getMonth() + 6);
     due.setDate(
-      Math.min(day, new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate()),
+      Math.min(
+        day,
+        new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate(),
+      ),
     );
     void save({
       status: "needed",
@@ -506,7 +538,9 @@ export function EncounterFollowUpPanel({
       pendingRequest: request,
     };
     try {
-      if (!(await recovery.save(snapshot))) {
+      const saved = await recovery.save(snapshot);
+      if (!active.current) return;
+      if (!saved) {
         setError(
           recovery.error ||
             "The reopen request could not be saved for recovery.",
@@ -518,8 +552,10 @@ export function EncounterFollowUpPanel({
       setError("");
       await submitPending(snapshot);
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (active.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
   };
 
@@ -534,6 +570,7 @@ export function EncounterFollowUpPanel({
       const current = await api<FollowUpResponse>(
         `/api/clinic/encounters/${encounter.id}/follow_up`,
       );
+      if (!active.current) return;
       if (
         current.follow_up &&
         (current.follow_up.patient_id !== patient.id ||
@@ -543,27 +580,29 @@ export function EncounterFollowUpPanel({
           "The refreshed follow-up did not match this encounter.",
         );
       if (
+        current.follow_up &&
         followUpMatchesRequest(
           current.follow_up,
           request,
           pendingDraft.baselineFollowUpId,
         )
       ) {
-        if (!(await recovery.clear())) {
+        const cleared = await recovery.clear();
+        if (!active.current) return;
+        if (!cleared) {
           setError(
             "The saved follow-up was confirmed, but its recovery copy could not be cleared. Retry the same request to finish recovery.",
           );
           return;
         }
-        baseVersionRef.current = current.follow_up?.version ?? 0;
-        pendingDraftRef.current = null;
-        setPending(false);
+        adoptConfirmed(current.follow_up);
         setNotice("The saved follow-up was confirmed.");
       } else if (
         current.follow_up &&
         current.follow_up.version !== request.body.follow_up.expected_version
       ) {
         await releasePending(current.follow_up.version);
+        if (!active.current) return;
         setNotice(
           "The follow-up changed while this request was unresolved. Your local edits were kept; review them before saving a new request.",
         );
@@ -575,14 +614,17 @@ export function EncounterFollowUpPanel({
       resource.refresh();
       onChanged?.();
     } catch (reason) {
+      if (!active.current) return;
       setError(
         reason instanceof Error
           ? reason.message
           : "The current follow-up status could not be checked.",
       );
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (active.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
   };
 

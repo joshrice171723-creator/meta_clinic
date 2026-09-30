@@ -1,11 +1,71 @@
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
 import {
+  PatientRegistrationForm,
   registrationApiValues,
   registrationContactError,
   registrationIdentityReviewRequired,
   registrationIdentitySearches,
   registrationIdentitySignature,
 } from "../src/features/clinic/Patients";
+
+const recovery = vi.hoisted(() => ({
+  restored: null as null | {
+    body: { clinic_patient: Record<string, string> };
+    requestKey: string;
+    pending: boolean;
+    outcomeUnconfirmed: boolean;
+  },
+}));
+vi.mock("../src/features/clinic/useWorkingDraft", () => ({
+  useWorkingDraft: () => ({
+    ready: true,
+    restored: recovery.restored,
+    status: "idle",
+    error: "",
+  }),
+}));
+
+describe("registration recovery controls", () => {
+  const draft = {
+    body: {
+      clinic_patient: {
+        display_name: "Synthetic First Patient",
+        reference: "SYNTHETIC-FIRST-001",
+        sex: "unknown",
+        request_key: "synthetic-registration-retry",
+      },
+    },
+    requestKey: "synthetic-registration-retry",
+    pending: true,
+    outcomeUnconfirmed: true,
+  };
+  const submitButton = (html: string) =>
+    html.match(/<button\b[^>]*type="submit"[^>]*>/)?.[0];
+
+  it.each([true, false])(
+    "lets staff retry a restored pending registration without repeating locked sections (unknown=%s)",
+    (outcomeUnconfirmed) => {
+      recovery.restored = { ...draft, outcomeUnconfirmed };
+      const html = renderToStaticMarkup(createElement(PatientRegistrationForm));
+      expect(html).toContain("Retry same request");
+      expect(html).toMatch(/<fieldset\b[^>]*disabled/);
+      expect(submitButton(html)).toBeDefined();
+      expect(submitButton(html)).not.toContain("disabled");
+    },
+  );
+
+  it.each([null, { ...draft, pending: false, outcomeUnconfirmed: false }])(
+    "keeps unfinished fresh and editable restored registrations behind section completion",
+    (restored) => {
+      recovery.restored = restored;
+      const html = renderToStaticMarkup(createElement(PatientRegistrationForm));
+      expect(html).not.toContain("Retry same request");
+      expect(submitButton(html)).toContain("disabled");
+    },
+  );
+});
 
 describe("patient registration request mapping", () => {
   it("keeps the structured address out of the strict API payload", () => {
