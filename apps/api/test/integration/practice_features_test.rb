@@ -79,6 +79,107 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_response :conflict
   end
 
+  test "saved site profile history can be restored before normal setup finalization" do
+    site = @membership.practice.sites.create!(code: "SETUP", status: "active")
+    @membership.practice.visit_types.create!(code: "Synthetic setup visit")
+    patch "/api/clinic/context", params: { site_id: site.id }, headers: csrf_headers, as: :json
+    assert_response :success
+
+    put "/api/clinic/practice_features", params: {
+      features: profile_payload(site_id: site.id, service_scope: %w[telehealth])
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    put "/api/clinic/practice_features", params: {
+      features: profile_payload(site_id: site.id, expected_revision: 1)
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal 2, response.parsed_body.dig("features", "revision")
+    assert_equal false, response.parsed_body.dig("features", "finalized")
+
+    assert_no_difference -> { Clinic::PracticeFeatureVersion.where(practice: @membership.practice, site: site).count } do
+      get "/api/clinic/practice_features/history", params: { site_id: site.id }, headers: @headers
+      assert_response :success
+    end
+    versions = response.parsed_body.fetch("versions")
+    assert_equal [ 2, 1 ], versions.map { |version| version.fetch("revision") }
+    assert_equal %w[telehealth external_lab_coordination], versions.first.fetch("service_scope")
+    saved = versions.last
+    assert_equal %w[telehealth], saved.fetch("service_scope")
+
+    restored = profile_payload(site_id: site.id, expected_revision: 2,
+      clinic_type: saved.fetch("clinic_type"), service_scope: saved.fetch("service_scope"),
+      assessment_scope: saved.fetch("assessment_scope"),
+      insurance_workflows_enabled: saved.fetch("insurance_workflows"))
+    put "/api/clinic/practice_features", params: { features: restored }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/practice_features", params: { site_id: site.id }, headers: @headers
+    assert_response :success
+    assert_equal 3, response.parsed_body.dig("features", "revision")
+    assert_equal %w[telehealth], response.parsed_body.dig("features", "service_scope")
+    assert_equal false, response.parsed_body.dig("features", "finalized")
+
+    get "/api/clinic/patients", headers: @headers
+    assert_response :conflict
+    assert_equal "clinic_setup_required", response.parsed_body.fetch("code")
+
+    put "/api/clinic/practice_features", params: {
+      features: restored.merge(expected_revision: 3, request_key: SecureRandom.uuid, finalize: true)
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.dig("features", "finalized")
+    assert_equal 4, response.parsed_body.dig("features", "revision")
+    get "/api/clinic/practice_features/history", params: { site_id: site.id }, headers: @headers
+    assert_response :success
+    assert_equal [ 4, 3, 2, 1 ], response.parsed_body.fetch("versions").map { |version| version.fetch("revision") }
+    get "/api/clinic/patients", headers: @headers
+    assert_response :success
+  end
+
+  test "unfinalized profile history still requires facilities write rather than legacy setup access" do
+    site = @membership.practice.sites.create!(code: "HISTORY", status: "active")
+    patch "/api/clinic/context", params: { site_id: site.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    put "/api/clinic/practice_features", params: {
+      features: profile_payload(site_id: site.id)
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    set_permission!(@membership, "facilities.write", false)
+
+    get "/api/clinic/practice_features", params: { site_id: site.id }, headers: @headers
+    assert_response :success
+    get "/api/clinic/practice_features/history", params: { site_id: site.id }, headers: @headers
+    assert_response :forbidden
+    assert_not response.parsed_body.key?("versions")
+  end
+
+  test "unfinalized profile history stays within the authorized site and practice" do
+    practice = @membership.practice
+    site = practice.sites.create!(code: "ALLOWED", status: "active")
+    other_site = practice.sites.create!(code: "OTHER", status: "active")
+    foreign_site = Clinic::Practice.create!(name: "Synthetic foreign history clinic").sites.create!(code: "FOREIGN")
+    patch "/api/clinic/context", params: { site_id: site.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    [ site, other_site ].each do |target|
+      put "/api/clinic/practice_features", params: {
+        features: profile_payload(site_id: target.id, service_scope: target == site ? %w[telehealth] : [])
+      }, headers: csrf_headers, as: :json
+      assert_response :success
+    end
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "facilities.read")
+    grant_permissions!(@membership, "facilities.write", scope_kind: "site", site: site)
+
+    get "/api/clinic/practice_features/history", params: { site_id: site.id }, headers: @headers
+    assert_response :success
+    assert_equal [ %w[telehealth] ], response.parsed_body.fetch("versions").map { |version| version.fetch("service_scope") }
+    get "/api/clinic/practice_features/history", params: { site_id: other_site.id }, headers: @headers
+    assert_response :forbidden
+    assert_not response.parsed_body.key?("versions")
+    get "/api/clinic/practice_features/history", params: { site_id: foreign_site.id }, headers: @headers
+    assert_response :not_found
+    assert_not response.parsed_body.key?("versions")
+  end
+
   test "unknown clinic types and services are rejected without creating a version" do
     put "/api/clinic/practice_features", params: {
       features: profile_payload(clinic_type: "hospital", request_key: "unsupported-type")
