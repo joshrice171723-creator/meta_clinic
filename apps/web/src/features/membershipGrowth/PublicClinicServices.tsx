@@ -31,6 +31,8 @@ type ClinicServicesResponse = {
     id: number;
     name: string;
     description: string | null;
+    contact_instructions: string | null;
+    referral_instructions: string | null;
     duration_minutes: number | null;
     modality: "in_person" | "video" | "either";
   }>;
@@ -166,6 +168,36 @@ export function PublicClinicServices({ slug }: { slug: string }) {
                         <Typography color="text.secondary" sx={{ mt: 1 }}>
                           {service.description}
                         </Typography>
+                      )}
+                      {service.contact_instructions && (
+                        <Box sx={{ mt: 1.5 }}>
+                          <Typography variant="subtitle2">
+                            Contact instructions
+                          </Typography>
+                          <Typography
+                            sx={{
+                              whiteSpace: "pre-wrap",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            {service.contact_instructions}
+                          </Typography>
+                        </Box>
+                      )}
+                      {service.referral_instructions && (
+                        <Box sx={{ mt: 1.5 }}>
+                          <Typography variant="subtitle2">
+                            Referral instructions
+                          </Typography>
+                          <Typography
+                            sx={{
+                              whiteSpace: "pre-wrap",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            {service.referral_instructions}
+                          </Typography>
+                        </Box>
                       )}
                       <Typography
                         variant="body2"
