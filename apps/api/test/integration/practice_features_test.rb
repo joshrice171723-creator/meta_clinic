@@ -152,7 +152,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_not response.parsed_body.key?("versions")
   end
 
-  test "unfinalized profile history stays within the authorized site and practice" do
+  test "unfinalized profile history requires practice write and isolates each site and practice" do
     practice = @membership.practice
     site = practice.sites.create!(code: "ALLOWED", status: "active")
     other_site = practice.sites.create!(code: "OTHER", status: "active")
@@ -169,12 +169,19 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     grant_permissions!(@membership, "facilities.read")
     grant_permissions!(@membership, "facilities.write", scope_kind: "site", site: site)
 
+    [ site, other_site ].each do |target|
+      get "/api/clinic/practice_features/history", params: { site_id: target.id }, headers: @headers
+      assert_response :forbidden
+      assert_not response.parsed_body.key?("versions")
+    end
+    grant_permissions!(@membership, "facilities.write")
+
     get "/api/clinic/practice_features/history", params: { site_id: site.id }, headers: @headers
     assert_response :success
     assert_equal [ %w[telehealth] ], response.parsed_body.fetch("versions").map { |version| version.fetch("service_scope") }
     get "/api/clinic/practice_features/history", params: { site_id: other_site.id }, headers: @headers
-    assert_response :forbidden
-    assert_not response.parsed_body.key?("versions")
+    assert_response :success
+    assert_equal [ [] ], response.parsed_body.fetch("versions").map { |version| version.fetch("service_scope") }
     get "/api/clinic/practice_features/history", params: { site_id: foreign_site.id }, headers: @headers
     assert_response :not_found
     assert_not response.parsed_body.key?("versions")
