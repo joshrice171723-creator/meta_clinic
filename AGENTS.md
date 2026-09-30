@@ -17,6 +17,9 @@ More-specific instructions may add safeguards or commands; they may not weaken t
 
 See [`agent-harness/README.md`](agent-harness/README.md) for the component map and skill catalog.
 
+For explicitly requested continuing or recurring engineering, use
+[`persistent engineering`](agent-harness/workflows/persistent-engineering.md).
+
 ## Non-negotiable boundaries
 
 - Use independently created synthetic data only. Never access, request, copy, upload, log, screenshot or commit patient information or real-derived examples.

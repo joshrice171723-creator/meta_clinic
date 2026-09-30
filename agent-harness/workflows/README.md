@@ -5,6 +5,7 @@ These procedures are loaded on demand. Repository-wide authority and safety rule
 | Task | Playbook |
 | --- | --- |
 | Ordinary application or tooling change | [`code-change.md`](code-change.md) |
+| Continuing or recurring engineering with bounded Goals | [`persistent-engineering.md`](persistent-engineering.md) |
 | Failure hypothesis, negative evidence and recovery | [`failure-first.md`](failure-first.md) |
 | Vault note or workflow-document change | [`vault-change.md`](vault-change.md) |
 | Vault/docs/records cleanup and archival | [`knowledge-maintenance.md`](knowledge-maintenance.md) |
