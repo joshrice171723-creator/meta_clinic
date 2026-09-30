@@ -26,6 +26,10 @@ unattended repair. The checkpoint helper records budgets; it does not enforce to
 2. Inspect exact-SHA CI metadata first. Read selected job annotations before logs.
    Pending CI is pending. Missing logs or zero executed steps are not code failures.
    Separate application, check/harness, environment and account/infrastructure causes.
+   If annotations confirm Actions did not start because of account billing, record
+   remote CI as unavailable and continue authorized local non-test verification.
+   This does not grant a passing CI status or bypass branch protections. Inspect the
+   owning app commands, prepare locked dependencies once, and queue local builds.
 3. Start the local pass marker from the clean owned worktree. It prevents cooperative
    overlapping passes across linked worktrees. Read the latest checkpoint before
    every continuation. Never replace an active marker because its timestamp is old.
@@ -54,10 +58,41 @@ new Goal. Skip overlapping work. If a previous pass was interrupted or exhausted
 its budget, report the preserved checkpoint for owner review; do not clear it silently
 or automatically grant another budget to continue the same unresolved repair.
 
-While an external blocker is unchanged, perform only a cheap metadata observation;
-do not repeat failed checks or reopen the same investigation. A new SHA with the
-same account-level blocker does not justify another repair attempt. Notify only on
-meaningful change, completion, failure or required human action.
+Do not repeatedly investigate an unchanged external blocker. GitHub Actions billing
+does not block independent local implementation or builds; use local evidence and
+leave remote CI explicitly unavailable. Other blocked paths remain parked while
+independent work continues. Notify only on meaningful changes or required action.
+
+## Development and independent QA coordination
+
+The development loop selects one feasible unfinished slice from the canonical
+tracker, checks active ownership, implements and verifies locally, then pushes an
+independently reviewable branch. Build health supports delivery. Preserve separate
+Build, Validation and external/human acceptance measures; source changes do not
+close browser findings.
+
+The existing QA reviewer/publisher loop owns eligible Muse repair batches, review,
+integration, the single release lock and exact-build retest handoff. Both loops wake
+every five minutes; existing Muse browser monitoring remains separately owned.
+Do not create duplicate QA runs, repairs or publishers. QA first checks issue IDs,
+PR reservations and current Muse activity; development chooses independent work
+when its tracker slice overlaps a QA batch.
+
+Development PRs use the `engineering-loop` label and state outcome, owned paths and
+local evidence. They form a separately reviewed owner-authorized integration lane;
+never invent Muse markers or defect IDs to make them eligible for automatic QA
+approval. QA handles their scoped review and ordinary Git integration explicitly.
+After integration, application changes may use the existing authorized publisher;
+documentation-only pilot changes do not require a deployment.
+
+For `aimetaclinic.com`, use the existing [Lightsail runbook](../../ops/lightsail/README.md)
+and `release.ps1 -BuildWebOnHost`: clean pushed main, exact revision, matched images,
+encrypted recovery round trip and live verification. Actions/GHCR are not required
+for its local-image mode. Keep release gates, permissions and rollback boundaries.
+The QA loop owns immediate publication; keep the separate scheduled publisher
+paused to avoid competition. A five-minute wake never interrupts an active release
+or active Muse run. Let a stale-build QA run finish, classify it as stale, and request
+current-build retest through the existing owner.
 
 Escalate uncertain intended behavior, conflicting ownership, two failed repair
 attempts, lack of new evidence, missing permissions, account/billing blockers,

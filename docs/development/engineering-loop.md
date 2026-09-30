@@ -4,7 +4,7 @@ This pilot uses Codex Goals for bounded continuation, the existing resource queu
 for heavy commands, and a shared checkpoint for recovery between turns. Follow
 [the persistent-engineering procedure](../../agent-harness/workflows/persistent-engineering.md)
 and [root policy](../../AGENTS.md). Existing Muse QA and release automations remain
-separate; this loop has no deployment authority.
+separate; development hands delivery to the existing QA reviewer/publisher.
 
 ## First guided pass
 
@@ -48,10 +48,22 @@ reading this file. Keep the user's selected main model and reasoning effort.
    preparation. `python bin/verify-agent-harness` checks this tooling structurally.
    Do not use `pnpm test`, Rails tests, browser test scripts, or broad `agent-check
    --run` selections without explicit test authorization. Never weaken checks.
-7. Finish with observed evidence. For an account-level CI blocker:
+7. When Actions cannot start because of account billing, continue local verification.
+   From `apps/web`, after one root `ruby bin/dev prewarm`, run:
 
    ```powershell
-   python bin/engineering-loop finish --pass-id PASS_ID --verdict blocked --evidence RUN_URL --next-action "Account owner reviews GitHub Actions billing; observe existing CI on the next wake"
+   python ../../bin/agent-resources run -- pnpm.cmd run build
+   ```
+
+   The build includes TypeScript and Vite, not tests. Bind its result to the exact
+   source revision and record remote CI as unavailable. On other operating systems
+   use `pnpm` instead of `pnpm.cmd`. A passing build does not prove browser behavior.
+   Do not repeatedly request account changes when local work can proceed.
+
+8. Finish with observed evidence. For a genuine local environment blocker:
+
+   ```powershell
+   python bin/engineering-loop finish --pass-id PASS_ID --verdict blocked --evidence RUN_URL --next-action "Record the local blocker and choose independent feasible tracker work"
    ```
 
    A blocked disposition finishes the investigation, not the build repair. Complete
@@ -66,10 +78,29 @@ known issue, name its tracker ID, observed failure and allowed paths. Request te
 explicitly if the pass needs them. Ask to pause five-minute follow-ups to stop scheduling;
 ask to pause the Goal to stop a currently continuing Goal. These are separate controls.
 
-The five-minute follow-up should check for meaningful change, resume from evidence, and
-remain quiet while the same external blocker persists. It should never create a
+The five-minute follow-up should select a feasible unfinished tracker slice, resume
+from evidence, and use local verification while Actions is unavailable. It should never create a
 fresh repair budget to evade an exhausted prior pass. Native Goal usage is the
 token accounting source; the local helper only stores the requested cap.
+
+## Two loops, one publication owner
+
+Development implements independent tracker slices. The existing QA reviewer and
+publisher processes Muse findings, repairs/reviews eligible PRs, integrates reviewed
+development PRs and publishes application changes through the existing Lightsail
+runbook. Both wake every five minutes; neither duplicates an active pass.
+
+Development PRs carry `engineering-loop` plus the outcome, owned files, revision and
+actual non-test evidence. QA reviews that separate integration lane explicitly;
+it must not invent Muse issue markers or use the Muse approval helper on those PRs.
+The existing Muse monitor owns independent browser QA and exact-build retesting.
+Read its active state before publishing; never interrupt its current browser run.
+
+The QA reviewer/publisher is the single release owner, using the existing exclusive
+release lock and [Lightsail procedure](../../ops/lightsail/README.md). The separate
+scheduled publisher remains paused. Local-image release does not depend on Actions
+or GHCR, but clean pushed main, matched images, encrypted recovery and live checks
+remain required. Documentation-only setup does not need deployment.
 
 ## Checkpoint mechanics and recovery
 
