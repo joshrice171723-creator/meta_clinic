@@ -32420,6 +32420,28 @@ ALTER TABLE ONLY public.clinic_subscription_packages
     ADD CONSTRAINT subscription_current_version FOREIGN KEY (practice_id, id, published_version_id) REFERENCES public.clinic_subscription_versions(practice_id, package_id, id);
 
 
+
+-- MC-15 source-only additive schema counterpart; regenerate with PostgreSQL at integration.
+CREATE TABLE public.clinic_offering_text_batches (
+    id bigserial PRIMARY KEY,
+    practice_id bigint NOT NULL,
+    actor_membership_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    site_id bigint,
+    authorization_generation bigint NOT NULL,
+    request_key character varying(160) NOT NULL,
+    plan_digest character varying(64) NOT NULL,
+    document text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT offering_text_batch_practice FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id),
+    CONSTRAINT offering_text_batch_actor FOREIGN KEY (actor_id) REFERENCES public.users(id),
+    CONSTRAINT offering_text_batch_membership FOREIGN KEY (practice_id, actor_membership_id) REFERENCES public.clinic_memberships(practice_id, id),
+    CONSTRAINT offering_text_batch_site FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id),
+    CONSTRAINT offering_text_batch_values CHECK (authorization_generation > 0 AND char_length(request_key) BETWEEN 1 AND 160 AND plan_digest ~ '^[a-f0-9]{64}$')
+);
+CREATE UNIQUE INDEX offering_text_batch_identity ON public.clinic_offering_text_batches USING btree (practice_id, actor_membership_id, request_key);
+
 --
 -- PostgreSQL database dump complete
 --
@@ -32874,6 +32896,7 @@ ALTER TABLE ONLY public.qa_service_tokens
     ADD CONSTRAINT fk_rails_de1504344e FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930234515'),
 ('20260930000100'),
 ('20260929000200'),
 ('20260929000100'),
