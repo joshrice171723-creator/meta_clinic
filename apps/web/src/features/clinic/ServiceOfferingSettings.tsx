@@ -31,10 +31,12 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { ClinicSite, VisitType } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { ServiceOfferingTextImport } from "./ServiceOfferingTextImport";
 
 type BillingService = { id: number; name: string; active: boolean };
 type ServiceOffering = {
   id: number;
+  practice_id: number;
   name: string;
   code: string | null;
   description: string | null;
@@ -53,7 +55,7 @@ type ServiceOffering = {
   lock_version: number;
 };
 
-type FormState = Omit<ServiceOffering, "id" | "lock_version">;
+type FormState = Omit<ServiceOffering, "id" | "practice_id" | "lock_version">;
 type Attempt = {
   method: "POST" | "PATCH";
   path: string;
@@ -487,6 +489,26 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   {feedback.text}
                 </Alert>
               )}
+              {dialog &&
+                dialog !== "new" &&
+                dialog.status === "draft" &&
+                canManage && (
+                  <ServiceOfferingTextImport
+                    key={`${dialog.id}-${dialog.lock_version}`}
+                    target={dialog}
+                    reservedCodes={data.service_offerings
+                      .filter(
+                        (offering) =>
+                          offering.id !== dialog.id && offering.code !== null,
+                      )
+                      .map((offering) => offering.code!)}
+                    disabled={
+                      controlsDisabled ||
+                      JSON.stringify(form) !== JSON.stringify(formFor(dialog))
+                    }
+                    onApply={(attempt) => void perform(attempt)}
+                  />
+                )}
               <FormControl fullWidth>
                 <InputLabel id="offering-visit-type">Visit type</InputLabel>
                 <Select
