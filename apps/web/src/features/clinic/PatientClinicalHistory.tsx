@@ -607,6 +607,36 @@ export function PatientClinicalHistory({
             );
           })}
         </Box>
+        <Paper component="section" variant="outlined">
+          <Stack
+            id="clinical-history-care_needs-review"
+            tabIndex={-1}
+            spacing={0.5}
+            sx={{ p: 1.25 }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Care needs
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Review communication, accessibility and other care needs shown in
+              the patient care summary.
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {data.reviews.care_needs
+                ? `${humanize(data.reviews.care_needs.outcome)} · ${displayTime(data.reviews.care_needs.reviewed_at)}`
+                : "Not reviewed in this encounter"}
+            </Typography>
+            {data.can_write && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => openReview("care_needs")}
+              >
+                Review care needs
+              </Button>
+            )}
+          </Stack>
+        </Paper>
       </Stack>
 
       <Dialog
