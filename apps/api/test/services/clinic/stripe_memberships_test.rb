@@ -175,6 +175,110 @@ class StripeMembershipsTest < ActiveSupport::TestCase
     assert_equal 1, @agreement.events.where(kind: "active").count
   end
 
+  test "a successful second cycle extends the paid period once across duplicate and older event replay" do
+    gateway = initial_paid_cycle
+    initial_ledger = recurring_ledger_snapshot
+    identity = @identity.attributes
+    agreement = @agreement.attributes
+    initial_end = Time.utc(2026, 2, 15, 12)
+    renewal_end = initial_end.advance(months: 1)
+
+    with_recurring_clock(initial_end) do
+      renewal = paid_invoice(id: "in_second", payment_id: "pi_second", reason: "subscription_cycle",
+        start_at: initial_end, paid_at: initial_end)
+      gateway.add_invoice(renewal, payment_id: "pi_second")
+      calls_before = gateway.calls.length
+      deliver_invoice(gateway, id: "evt_second_paid", invoice_id: "in_second")
+
+      renewed_ledger = recurring_ledger_snapshot
+      initial_ledger.each do |kind, rows|
+        assert_equal rows.length + 1, renewed_ledger.fetch(kind).length, "Exactly one new #{kind} row"
+        assert_equal rows, renewed_ledger.fetch(kind).first(rows.length), "Existing #{kind} must stay unchanged"
+      end
+      cycle = Clinic::Billing::StripeMembershipCycle.find_by!(checkout: stripe_checkout, provider_invoice_id: "in_second")
+      assert_equal [initial_end, renewal_end], [cycle.period_start, cycle.period_end]
+      assert_equal "pi_second", cycle.provider_payment_id
+      assert_not_equal @agreement.invoice_id, cycle.invoice_id
+      assert_equal BigDecimal("25.00"), cycle.invoice.lines.sum(:posted_amount)
+      assert_equal BigDecimal("25.00"), cycle.invoice.payment_allocations.sole.amount
+      assert_equal "USD", cycle.invoice.payment_allocations.sole.payment_event.currency
+      projection = Clinic::Care::SubscriptionProjection.agreement(@agreement.reload)
+      assert_equal "active", projection.fetch(:state)
+      assert_equal [initial_end.iso8601, renewal_end.iso8601], projection.values_at(:starts_at, :ends_at)
+      assert_equal ["paid", "0.0"], projection.values_at(:renewal_invoice_status, :renewal_amount_due)
+      assert_equal identity, @identity.reload.attributes
+      assert_equal agreement, @agreement.reload.attributes
+      assert gateway.calls.drop(calls_before).all? { |method, _, _| method == :get }
+
+      [
+        ["evt_second_paid", "in_second"],
+        ["evt_second_replayed", "in_second"],
+        ["evt_initial_late", "in_initial"]
+      ].each do |event_id, invoice_id|
+        deliver_invoice(gateway, id: event_id, invoice_id: invoice_id)
+        assert_equal renewed_ledger, recurring_ledger_snapshot, "Replay must not add or change ledger evidence"
+        current = Clinic::Care::SubscriptionProjection.agreement(@agreement.reload)
+        assert_equal projection.values_at(:state, :starts_at, :ends_at, :renewal_invoice_status, :renewal_amount_due),
+          current.values_at(:state, :starts_at, :ends_at, :renewal_invoice_status, :renewal_amount_due)
+      end
+    end
+  end
+
+  test "an unpaid second cycle cannot create paid evidence or extend the prior period" do
+    gateway = initial_paid_cycle
+    ledger = recurring_ledger_snapshot
+    prior_end = Clinic::Care::SubscriptionProjection.agreement(@agreement).fetch(:ends_at)
+    with_recurring_clock(Time.utc(2026, 2, 15, 12)) do
+      unpaid = paid_invoice(id: "in_secondunpaid", payment_id: "pi_secondunpaid", reason: "subscription_cycle",
+        start_at: Time.current, paid_at: Time.current).merge(
+          "status" => "open", "amount_paid" => 0, "amount_remaining" => 2500,
+          "status_transitions" => { "paid_at" => nil }
+        )
+      # No payment is registered: attempting to treat this as paid fails closed in the fake gateway.
+      gateway.add_invoice(unpaid)
+      deliver_invoice(gateway, id: "evt_second_unpaid", invoice_id: unpaid.fetch("id"), type: "invoice.payment_failed")
+      assert_equal ledger, recurring_ledger_snapshot
+      # An event name alone must not turn an unpaid invoice into verified payment.
+      deliver_invoice(gateway, id: "evt_second_unpaid_labeled_paid", invoice_id: unpaid.fetch("id"))
+      assert_equal ledger, recurring_ledger_snapshot
+      projection = Clinic::Care::SubscriptionProjection.agreement(@agreement.reload)
+      assert_equal prior_end, projection.fetch(:ends_at)
+      assert_equal ["open", "25.0"], projection.values_at(:renewal_invoice_status, :renewal_amount_due)
+      payment_lookup = gateway.calls.any? do |_, path, options|
+        path == "/v1/invoice_payments" && options.dig(:fields, "invoice") == unpaid.fetch("id")
+      end
+      refute payment_lookup
+    end
+  end
+
+  test "foreign account and subscription renewal events preserve both practices paid ledgers" do
+    gateway = initial_paid_cycle
+    foreign_practice = Clinic::Practice.create!(name: "Foreign Renewal Test Clinic")
+    Clinic::Billing::StripeConnection.create!(practice: foreign_practice, connected_by: @staff,
+      reference: "foreign-renewal-connection", account_id: "acct_foreign", charges_enabled: true, payouts_enabled: true)
+    ledger = recurring_ledger_snapshot(practices: [@practice, foreign_practice])
+    prior_end = Clinic::Care::SubscriptionProjection.agreement(@agreement).fetch(:ends_at)
+    with_recurring_clock(Time.utc(2026, 2, 15, 12)) do
+      renewal = paid_invoice(id: "in_secondforeign", payment_id: "pi_secondforeign", reason: "subscription_cycle",
+        start_at: Time.current, paid_at: Time.current)
+      gateway.add_invoice(renewal, payment_id: "pi_secondforeign")
+      assert_nil deliver_invoice(gateway, id: "evt_second_foreign_account", invoice_id: renewal.fetch("id"), account: "acct_foreign")
+      assert_equal ledger, recurring_ledger_snapshot(practices: [@practice, foreign_practice])
+      assert_equal prior_end, Clinic::Care::SubscriptionProjection.agreement(@agreement.reload).fetch(:ends_at)
+
+      foreign_subscription = renewal.deep_merge("parent" => { "subscription_details" => { "subscription" => "sub_foreign" } })
+      gateway.add_invoice(foreign_subscription, payment_id: "pi_secondforeign")
+      calls_before = gateway.calls.length
+      error = assert_raises(Clinic::Billing::StripeGateway::Invalid) do
+        deliver_invoice(gateway, id: "evt_second_foreign_subscription", invoice_id: renewal.fetch("id"))
+      end
+      assert_equal "Stripe invoice does not match this membership.", error.message
+      assert gateway.calls.drop(calls_before).any? { |method, path, _| method == :get && path == "/v1/invoices/in_secondforeign" }
+      assert_equal ledger, recurring_ledger_snapshot(practices: [@practice, foreign_practice])
+      assert_equal prior_end, Clinic::Care::SubscriptionProjection.agreement(@agreement.reload).fetch(:ends_at)
+    end
+  end
+
   test "an unpaid renewal records the amount due without extending membership dates" do
     gateway = begin_checkout
     initial = paid_invoice(id: "in_initial", payment_id: "pi_initial", reason: "subscription_create")
@@ -276,8 +380,7 @@ class StripeMembershipsTest < ActiveSupport::TestCase
     Clinic::Billing::StripeCheckout.find_by!(agreement: @agreement)
   end
 
-  def paid_invoice(id:, payment_id:, reason:)
-    start_at = 1.day.ago.change(usec: 0)
+  def paid_invoice(id:, payment_id:, reason:, start_at: 1.day.ago.change(usec: 0), paid_at: Time.current)
     end_at = start_at.advance(months: 1)
     {
       "id" => id, "livemode" => false, "status" => "paid", "amount_paid" => 2500,
@@ -287,8 +390,51 @@ class StripeMembershipsTest < ActiveSupport::TestCase
         "parent" => { "subscription_item_details" => { "proration" => false, "subscription" => "sub_membership" } },
         "period" => { "start" => start_at.to_i, "end" => end_at.to_i }
       }], "has_more" => false },
-      "status_transitions" => { "paid_at" => Time.current.to_i }, "test_payment_id" => payment_id
+      "status_transitions" => { "paid_at" => paid_at.to_i }, "test_payment_id" => payment_id
     }.except("test_payment_id")
+  end
+
+  def with_recurring_clock(time)
+    singleton = Clinic::Billing::StripeGateway.singleton_class
+    original = Clinic::Billing::StripeGateway.method(:new)
+    # A missing injection must fail before a provider adapter can be constructed.
+    singleton.define_method(:new) { raise "Use the closed-world renewal gateway" }
+    Current.set(business_date: time.to_date) { travel_to(time) { yield } }
+  ensure
+    singleton.define_method(:new, original)
+  end
+
+  def initial_paid_cycle
+    with_recurring_clock(Time.utc(2026, 1, 15, 12)) do
+      gateway = begin_checkout
+      initial = paid_invoice(id: "in_initial", payment_id: "pi_initial", reason: "subscription_create",
+        start_at: Time.current, paid_at: Time.current)
+      gateway.attach_subscription(invoice: initial)
+      gateway.add_invoice(initial, payment_id: "pi_initial")
+      deliver_invoice(gateway, id: "evt_initial_paid", invoice_id: "in_initial")
+      assert_equal 1, Clinic::Billing::StripeMembershipCycle.where(checkout: stripe_checkout).count
+      assert_equal 1, @agreement.events.where(kind: "active").count
+      gateway
+    end
+  end
+
+  def recurring_ledger_snapshot(practices: [@practice])
+    {
+      invoices: Clinic::Invoice.where(practice: practices).order(:id).map do |invoice|
+        [invoice.id, invoice.patient_id, invoice.status, invoice.currency,
+          invoice.lines.order(:id).pluck(:id, :quantity, :unit_amount, :posted_amount)]
+      end,
+      payments: Clinic::PaymentEvent.where(practice: practices).order(:id)
+        .pluck(:id, :patient_id, :amount, :currency, :external_event_reference),
+      allocations: Clinic::PaymentAllocation.where(practice: practices).order(:id)
+        .pluck(:id, :invoice_id, :payment_event_id, :patient_id, :amount),
+      cycles: Clinic::Billing::StripeMembershipCycle.where(practice: practices).order(:id)
+        .pluck(:id, :invoice_id, :provider_invoice_id, :provider_payment_id, :period_start, :period_end),
+      receipts: Clinic::BillingReceipt.where(practice: practices).order(:id)
+        .pluck(:id, :invoice_id, :payment_event_id, :kind, :issued_at, :payload),
+      activations: Clinic::Care::SubscriptionEvent.where(practice: practices, kind: "active").order(:id)
+        .pluck(:id, :agreement_id, :request_key, :details)
+    }
   end
 
   def deliver_invoice(gateway, id:, invoice_id:, type: "invoice.paid", account: "acct_membership")
