@@ -1,3 +1,4 @@
+import { OrderDeliveryPreparation } from "./OrderDeliveryPreparation";
 import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
 import {
   useEffect,
@@ -5303,6 +5304,7 @@ function PurchasingScreen({
           run={run}
           onChanged={() => void onRead(applied)}
           onBlockedChange={setReconciliationBlocked}
+          preparationBusy={busy || loading || readBlocked}
         />
       ) : (
         <Card title="Purchasing">
@@ -5319,18 +5321,26 @@ function PurchasingScreen({
 }
 
 function PurchaseOrderDetails({
+  preparationBusy,
   data,
   busy,
   run,
   onChanged,
   onBlockedChange,
 }: {
+  preparationBusy: boolean;
   data: InventoryOrderData;
   busy: boolean;
   onChanged: () => void;
   onBlockedChange: (blocked: boolean) => void;
   run: InventoryRun;
 }) {
+  const [deliveryBlocked, setDeliveryBlocked] = useState(false);
+  const [financeBlocked, setFinanceBlocked] = useState(false);
+  useEffect(() => {
+    onBlockedChange(deliveryBlocked || financeBlocked);
+    return () => onBlockedChange(false);
+  }, [deliveryBlocked, financeBlocked, onBlockedChange]);
   const orderGroups = useMemo(
     () => purchaseOrderGroups(data.purchase_orders),
     [data.purchase_orders],
@@ -5873,13 +5883,25 @@ function PurchaseOrderDetails({
           allowed={capability(data, "procurement.approve")}
           permission="procurement.approve"
         />
-        <OrderReconciliation
-          key={order.id}
-          order={order}
-          capabilities={data.capabilities}
-          onChanged={onChanged}
-          onBlockedChange={onBlockedChange}
+        <OrderDeliveryPreparation
+          key={`${data.practice.id}:${data.current_user_id}:${order.id}`}
+          orderId={order.id}
+          canSubmit={capability(data, "procurement.submit")}
+          externalBusy={preparationBusy || financeBlocked}
+          onBlockedChange={setDeliveryBlocked}
         />
+        <fieldset
+          disabled={deliveryBlocked || preparationBusy}
+          style={{ border: 0, padding: 0, minWidth: 0 }}
+        >
+          <OrderReconciliation
+            key={order.id}
+            order={order}
+            capabilities={data.capabilities}
+            onChanged={onChanged}
+            onBlockedChange={setFinanceBlocked}
+          />
+        </fieldset>
       </Card>
     </div>
   );
