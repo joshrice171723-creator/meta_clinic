@@ -245,7 +245,7 @@ module Qa
       return @actor if @actor
       return @actor = @service_token&.user || current_user if @service_token || current_user
 
-      visitor = User.create_or_find_by!(email_address: "qa-public-desk@example.test") do |user|
+      visitor = User.find_by(email_address: "qa-public-desk@example.test") || User.create_or_find_by!(email_address: "qa-public-desk@example.test") do |user|
         user.password = SecureRandom.urlsafe_base64(48)
         user.active = false
       end
