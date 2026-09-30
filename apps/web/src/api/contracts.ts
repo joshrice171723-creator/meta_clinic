@@ -1534,6 +1534,11 @@ export type CalendarSlot = {
   ends_at: string;
   clinician_id: number;
   room_ids: number[];
+  /** Read-only source metadata; booking still rechecks current capacity. */
+  provenance: {
+    generated_at: string;
+    source_rules: { id: number; version: number }[];
+  };
 };
 export type CalendarHold = {
   id: number;

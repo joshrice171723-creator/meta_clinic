@@ -33,6 +33,7 @@ module Clinic
       end
 
       def call
+        @generated_at = Current.business_time.iso8601(6)
         visible = @appointments.select { |a| a.site_id == @site.id }
         days = (@first..@last).map do |date|
           visits = visible.select { |a| a.starts_at.in_time_zone(@zone).to_date == date }
@@ -47,7 +48,7 @@ module Clinic
             appointments: visits.map { |a| serialize(a) }
           }
         end
-        { month: @first.strftime("%Y-%m"), as_of: Current.business_time.iso8601(6), timezone: @timezone_name, site_id: @site.id,
+        { month: @first.strftime("%Y-%m"), as_of: @generated_at, timezone: @timezone_name, site_id: @site.id,
           slot_minutes: SLOT_MINUTES, capacity_configured: configured?,
           policy: { recurrence: (SitePolicy.current(practice: @practice, site: @site)&.recurrence_enabled? ? "configured" : "not_configured"),
             overbook: (SitePolicy.current(practice: @practice, site: @site)&.overbook_enabled? ? "configured" : "not_configured"),
@@ -88,10 +89,16 @@ module Clinic
                 @holds.any? { |h| h.room_id == room.id && overlap?(start, finish, h.starts_at, h.ends_at) }
             end
             slots << { starts_at: start.iso8601, ends_at: finish.iso8601, clinician_id: rule.clinician_id,
-              room_ids: rooms.map(&:id) }
+              room_ids: rooms.map(&:id),
+              provenance: { generated_at: @generated_at, source_rules: [ { id: rule.id, version: rule.lock_version } ] } }
           end
         end
-        slots.uniq { |s| [ s[:starts_at], s[:clinician_id] ] }.sort_by { |s| [ s[:starts_at], s[:clinician_id] ] }
+        # Overlapping weekly rules describe one opening. Retain every contributing
+        # revision rather than selecting an arbitrary rule as its source.
+        slots.group_by { |s| [ s[:starts_at], s[:clinician_id] ] }.values.map do |matching|
+          matching.first.merge(provenance: { generated_at: @generated_at,
+            source_rules: matching.flat_map { |s| s[:provenance][:source_rules] }.uniq.sort_by { |r| r[:id] } })
+        end.sort_by { |s| [ s[:starts_at], s[:clinician_id] ] }
       end
 
       def site_open?(start, finish)
