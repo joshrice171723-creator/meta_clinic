@@ -1,11 +1,19 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-29
+updated: 2026-09-30
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-30 — PR55 approved-source and tracker integration preparation
+
+A separate Relay-owned local candidate combines Sage-approved PR55 `1f81a07ed04ef7d7f41034c10167a67634318884` with the preserved PR36 tracker notes and MC-05/06 M11 assignment link. The approved corrected brief supersedes its older copied version in this candidate; the earlier documentation packet remains preserved. Sage passed both retained/failed-refresh browser regressions and reused unchanged-backend two-case / 51-assertion evidence. The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) retains connected Rails/browser acceptance, clinical-review boundaries and the release HOLD. No completion scores, access, upstream merge or deployment changed.
+
+## 2026-09-30 — Local PR36/PR55 tracker reconciliation
+
+A Relay-owned documentation candidate preserves the five unmerged PR36 tracker notes and links the MC-05/06 M11 [saved answer source assignment](../../docs/development/clinic-workflow-plans/intake-answer-provenance.md) from the [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md). PR36 remains an open draft at `d93e9790751ad42897b7cc824ca0fa7cb595c5a0`; its full changes and progress history are preserved separately. Current-main release history is retained. The copied assignment brief matches Nova's PR55 `43aad220f792f99c40cb7bf9a1401ae3d850ab7a`; application changes are excluded from this documentation candidate. Independent source/API and connected browser acceptance remain pending. No scores, permissions, publication or release status changed.
 
 ## 2026-09-29 — Anonymous QA desk published and request persistence verified
 
