@@ -722,6 +722,98 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     assert_nil prospect.portal_setup_expires_at
   end
 
+  %w[none automatic].each do |renewal|
+    test "#{renewal} paid conversion rolls back onboarding failure and retries receipt delivery without duplicates" do
+      version_id = publish_catalog(@admin, "Atomic", renewal:)
+      configure_storefront(@admin, "atomic-memberships", enabled: true)
+      payload = prospect_payload(version_id:, request_key: "atomic-purchase").fetch(:prospect)
+      prepared = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **payload.symbolize_keys)
+      setup_url = ActionMailer::Base.deliveries.sole.text_part.body.decoded.lines.map(&:strip)
+        .find { |line| line.include?("/memberships/account/activate#") }
+      token = URI.decode_www_form(URI.parse(setup_url).fragment).to_h.fetch("token")
+      password = "Synthetic-atomic-password-2026!"
+      Clinic::MembershipGrowth::ActivateAccount.call(token:, password:, password_confirmation: password,
+        accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION)
+      prospect = prepared.prospect.reload
+      gateway = Gateway.new
+      Clinic::MembershipGrowth::PublicCheckout.start_for_account(practice: @practice,
+        prospect:, user: prospect.account_user, gateway:)
+      gateway.mark_paid
+      event = { "type" => "checkout.session.completed", "livemode" => false,
+        "account" => @connection.account_id, "data" => { "object" => gateway.session } }
+      counts = -> {
+        [ Clinic::Care::Patient, Clinic::Invoice, Clinic::Care::SubscriptionAgreement,
+          Clinic::PaymentEvent, Clinic::PaymentAllocation, Clinic::BillingReceipt,
+          Clinic::Billing::StripeCheckout, Clinic::Billing::StripeMembershipCycle,
+          Clinic::PatientPortal::Identity, Clinic::ClinicalTask ].map { |model| model.where(practice: @practice).count }
+      }
+      before_payment = counts.call
+      mail_count = ActionMailer::Base.deliveries.count
+      onboarding_audits = Clinic::AuditEvent.where(practice: @practice,
+        action_code: "membership_storefront.payment_onboarding")
+      original_audit = Clinic::AuditRecorder.method(:record!)
+      Clinic::AuditRecorder.define_singleton_method(:record!) do |**attributes|
+        result = original_audit.call(**attributes)
+        raise "Synthetic onboarding audit failure" if attributes[:action_code] == "membership_storefront.payment_onboarding"
+        result
+      end
+      begin
+        error = assert_raises(RuntimeError) { Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:) }
+        assert_equal "Synthetic onboarding audit failure", error.message
+      ensure
+        Clinic::AuditRecorder.define_singleton_method(:record!, original_audit)
+      end
+      assert_equal before_payment, counts.call
+      assert_equal 0, onboarding_audits.count
+      assert_equal mail_count, ActionMailer::Base.deliveries.count
+      prospect.reload
+      assert prospect.status_checkout_pending?
+      assert_nil prospect.patient_id
+      assert_nil prospect.agreement_id
+      assert_nil prospect.portal_identity_id
+      assert_nil prospect.receipt_id
+      assert_nil prospect.onboarding_task_id
+      assert_nil prospect.receipt_sent_at
+      assert prospect.account_user.reload.active?
+      assert prospect.account_activated_at
+
+      original_receipt = Clinic::MembershipReceiptMailer.method(:receipt)
+      Clinic::MembershipReceiptMailer.define_singleton_method(:receipt) { |*| raise "Synthetic receipt delivery failure" }
+      begin
+        error = assert_raises(RuntimeError) { Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:) }
+        assert_equal "Synthetic receipt delivery failure", error.message
+      ensure
+        Clinic::MembershipReceiptMailer.define_singleton_method(:receipt, original_receipt)
+      end
+      prospect.reload
+      assert prospect.status_paid_onboarding?
+      assert_equal "active", prospect.agreement.current_state
+      assert_equal prospect.account_user_id, prospect.portal_identity.user_id
+      assert prospect.portal_identity.active?
+      assert prospect.receipt_id
+      assert prospect.onboarding_task_id
+      assert_nil prospect.receipt_sent_at
+      assert_equal 1, onboarding_audits.count
+      assert_equal mail_count, ActionMailer::Base.deliveries.count
+      completed_counts = counts.call
+      completed_ids = [ prospect.patient_id, prospect.agreement_id, prospect.portal_identity_id,
+        prospect.receipt_id, prospect.onboarding_task_id ]
+      assert_equal 1, @practice.patients.count
+      assert_equal 1, Clinic::PaymentAllocation.where(practice: @practice).count
+
+      2.times { Clinic::MembershipGrowth::PublicCheckout.webhook(payload: event, gateway:) }
+      prospect.reload
+      assert_equal completed_counts, counts.call
+      assert_equal completed_ids, [ prospect.patient_id, prospect.agreement_id, prospect.portal_identity_id,
+        prospect.receipt_id, prospect.onboarding_task_id ]
+      assert prospect.receipt_sent_at
+      assert_equal 1, onboarding_audits.count
+      assert_equal mail_count + 1, ActionMailer::Base.deliveries.count
+      assert_equal 1, gateway.calls.count { |method, path, _| method == :post && path == "/v1/checkout/sessions" }
+      refute gateway.calls.any? { |method, path, _| method == :post && path != "/v1/checkout/sessions" }
+    end
+  end
+
   test "worker takes a recurring phone payment without exposing another caller or creating a patient before verification" do
     version_id = publish_catalog(@admin, "Assisted", renewal: "automatic")
     configure_storefront(@admin, "assisted-memberships", enabled: true)

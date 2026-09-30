@@ -138,16 +138,18 @@ module Clinic
           end
           return prospect unless session["payment_status"] == "paid"
 
-          ApplicationRecord.transaction do
+          delivery = ApplicationRecord.transaction do
             checkout = ensure_purchase_records!(prospect, connection)
             agreement = Clinic::Billing::StripeMembershipPayments.reconcile(
               checkout:, actor: connection.connected_by, gateway:, verified_webhook: true
             )
             raise Clinic::Billing::StripeGateway::Unavailable, "Paid membership is awaiting reconciliation." unless
               agreement.current_state == "active"
+            prepare_onboarding!(prospect, connection.connected_by)
           end
 
-          finish_onboarding!(prospect, connection.connected_by)
+          deliver_receipt!(prospect.reload, connection.connected_by, delivery)
+          prospect
         end
 
         def verify_session!(prospect, session)
@@ -311,6 +313,12 @@ module Clinic
         end
 
         def finish_onboarding!(prospect, actor)
+          delivery = prepare_onboarding!(prospect, actor)
+          deliver_receipt!(prospect.reload, actor, delivery)
+          prospect
+        end
+
+        def prepare_onboarding!(prospect, actor)
           delivery = nil
           ApplicationRecord.transaction do
             prospect.lock!
@@ -342,8 +350,7 @@ module Clinic
                 resource_version_ref: "membership_prospect:#{prospect.id}")
             end
           end
-          deliver_receipt!(prospect.reload, actor, delivery)
-          prospect
+          delivery
         end
 
         def deliver_receipt!(prospect, actor, invitation)
