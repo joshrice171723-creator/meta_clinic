@@ -1,3 +1,4 @@
+import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, ApiError } from "../../api/client";
 import {
@@ -114,6 +115,8 @@ export function SupplierPricingScreen({
   const [quotedOn, setQuotedOn] = useState("");
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteCurrency, setQuoteCurrency] = useState("");
+  const [quoteFee, setQuoteFee] = useState("");
+  const [quoteFeeBasis, setQuoteFeeBasis] = useState("");
   const [quoteForRequest, setQuoteForRequest] =
     useState<InventorySupplierQuoteRequest | null>(null);
   const [requestOffer, setRequestOffer] =
@@ -142,6 +145,8 @@ export function SupplierPricingScreen({
   const [offerQuotedOn, setOfferQuotedOn] = useState("");
   const [offerPrice, setOfferPrice] = useState("");
   const [offerCurrency, setOfferCurrency] = useState("");
+  const [offerFee, setOfferFee] = useState("");
+  const [offerFeeBasis, setOfferFeeBasis] = useState("");
   const [offerContractStatus, setOfferContractStatus] = useState("unknown");
   const [offerAvailability, setOfferAvailability] = useState("unknown");
   const [offerLeadTime, setOfferLeadTime] = useState("");
@@ -190,6 +195,8 @@ export function SupplierPricingScreen({
               quoted_on: quotedOn,
               wholesale_unit_cost: quotePrice,
               currency: quoteCurrency,
+              quoted_fee_amount: quoteFee,
+              quoted_fee_basis: quoteFeeBasis,
               expected_updated_at: quoteOffer.updated_at,
               ...(quoteForRequest
                 ? { quote_request_id: quoteForRequest.id }
@@ -297,6 +304,8 @@ export function SupplierPricingScreen({
     setOfferQuotedOn("");
     setOfferPrice("");
     setOfferCurrency("");
+    setOfferFee("");
+    setOfferFeeBasis("");
     setOfferContractStatus("unknown");
     setOfferAvailability("unknown");
     setOfferLeadTime("");
@@ -325,6 +334,8 @@ export function SupplierPricingScreen({
               quoted_on: offerQuotedOn,
               wholesale_unit_cost: offerPrice,
               currency: offerCurrency,
+              quoted_fee_amount: offerFee,
+              quoted_fee_basis: offerFeeBasis,
               contract_status: offerContractStatus,
               available: offerAvailability,
               lead_time_days: offerLeadTime,
@@ -644,6 +655,9 @@ export function SupplierPricingScreen({
                       offer?.description ??
                       `Offer ${request.supplier_product_id}`}
                   </strong>
+                  {request.status === "quoted" && (
+                    <p>{quoteFeeEvidenceLabel(request)}</p>
+                  )}
                   <p>
                     Request #{request.id} · Recorded{" "}
                     {new Date(request.created_at).toLocaleString()}
@@ -671,6 +685,8 @@ export function SupplierPricingScreen({
                         setQuoteReference("");
                         setQuotedOn("");
                         setQuotePrice(offer.wholesale_unit_cost);
+                        setQuoteFee(offer.quoted_fee_amount ?? "");
+                        setQuoteFeeBasis(offer.quoted_fee_basis ?? "");
                         setQuoteCurrency(
                           offer.currency === "UNK" ? "" : offer.currency,
                         );
@@ -1127,6 +1143,8 @@ export function SupplierPricingScreen({
                       {offer.price_source === "manual_quote" && (
                         <small>
                           Quote {offer.quote_reference} · {offer.quoted_on}
+                          <br />
+                          {quoteFeeEvidenceLabel(offer)}
                         </small>
                       )}
                     </td>
@@ -1156,6 +1174,8 @@ export function SupplierPricingScreen({
                           setQuoteReference(offer.quote_reference || "");
                           setQuotedOn(offer.quoted_on || "");
                           setQuotePrice(offer.wholesale_unit_cost);
+                          setQuoteFee(offer.quoted_fee_amount ?? "");
+                          setQuoteFeeBasis(offer.quoted_fee_basis ?? "");
                           setQuoteCurrency(
                             offer.currency === "UNK" ? "" : offer.currency,
                           );
@@ -1409,6 +1429,20 @@ export function SupplierPricingScreen({
               />
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <TextField
+                  label="Quoted fee amount"
+                  value={offerFee}
+                  onChange={(event) => setOfferFee(event.target.value)}
+                  inputMode="decimal"
+                  helperText="Optional, in the quote currency. Blank means unknown; no totals are calculated."
+                />
+                <TextField
+                  label="Supplier-stated fee basis"
+                  value={offerFeeBasis}
+                  onChange={(event) => setOfferFeeBasis(event.target.value)}
+                  required={offerFee !== ""}
+                  slotProps={{ htmlInput: { maxLength: 160 } }}
+                />
+                <TextField
                   label="Currency"
                   value={offerCurrency}
                   onChange={(event) =>
@@ -1542,6 +1576,20 @@ export function SupplierPricingScreen({
                 onChange={(event) => setQuotePrice(event.target.value)}
                 required
                 inputMode="decimal"
+              />
+              <TextField
+                label="Quoted fee amount"
+                value={quoteFee}
+                onChange={(event) => setQuoteFee(event.target.value)}
+                inputMode="decimal"
+                helperText="Optional, in the quote currency. Blank means unknown; no totals are calculated."
+              />
+              <TextField
+                label="Supplier-stated fee basis"
+                value={quoteFeeBasis}
+                onChange={(event) => setQuoteFeeBasis(event.target.value)}
+                required={quoteFee !== ""}
+                slotProps={{ htmlInput: { maxLength: 160 } }}
               />
               <TextField
                 label="Currency"

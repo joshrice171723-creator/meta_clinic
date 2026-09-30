@@ -372,6 +372,8 @@ Rails.application.routes.draw do
       post "purchase-orders/:id/returns", to: "inventory/reconciliations#return_stock"
       post "purchase-orders/:id/credits", to: "inventory/reconciliations#credit"
       post "purchase-orders/:id/invoices", to: "inventory/reconciliations#invoice"
+      get "purchase-orders/:id/delivery-preparations", to: "inventory/delivery_preparations#index"
+      post "purchase-orders/:id/delivery-preparations", to: "inventory/delivery_preparations#create"
       post "purchase-orders/:id/transition", to: "inventory/management#transition_purchase_order"
       post "purchase-orders/:id/cancel-remainder", to: "inventory/management#cancel_remainder"
       post "shipments", to: "inventory/management#create_shipment"
