@@ -164,17 +164,35 @@ module Clinic
         end
 
         def fulfill_staff_subscription!(prospect:, connection:, subscription:, gateway:)
-          ApplicationRecord.transaction do
+          raise ActiveRecord::RecordNotFound unless connection.practice_id == prospect.practice_id
+          evidence = StaffSubscriptionEvidence.new(prospect:, subscription:, gateway:)
+          delivery = ApplicationRecord.transaction do
+            prospect.practice.lock!
+            prospect.lock!
             checkout = ensure_purchase_records!(prospect, connection,
               subscription_id: subscription.fetch("id"))
+            evidence.verify_current!(prospect:, checkout:)
             agreement = Clinic::Billing::StripeRecurringPayments.sync(
-              checkout:, actor: connection.connected_by, subscription:, gateway:
+              checkout:, actor: connection.connected_by, subscription: evidence.subscription, gateway: evidence
             )
             raise Clinic::Billing::StripeGateway::Unavailable,
               "Paid membership is awaiting reconciliation." unless agreement.current_state == "active"
+            invitation = prepare_onboarding!(prospect, connection.connected_by)
+            prospect.update!(staff_payment_status: "paid")
+            invitation
           end
 
-          finish_onboarding!(prospect, connection.connected_by)
+          deliver_receipt!(prospect.reload, connection.connected_by, delivery)
+          prospect
+        end
+
+        # Internal recovery for an already committed staff conversion. Caller
+        # retains its practice/reviewer checks; this never starts a payment.
+        def retry_staff_receipt!(prospect:, actor:)
+          raise ArgumentError, "Only completed paid onboarding can deliver a receipt." unless
+            prospect.status_paid_onboarding? || prospect.status_converted?
+          deliver_receipt!(prospect.reload, actor, nil)
+          prospect
         end
 
         private
