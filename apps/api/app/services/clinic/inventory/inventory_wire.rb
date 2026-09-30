@@ -45,7 +45,7 @@ module Clinic
           { batch: %i[product lot location_record] },
           { receipt_line: :receipt }
         ).order(id: :desc).limit(200).to_a
-        context(practice: practice, actor: actor).merge(
+        wire = context(practice: practice, actor: actor).merge(
           products: products.map { |product| product_wire(product, batches, active_holds_by_batch, inventory_date) },
           packages: products.map { |product| package_wire(product) },
           suppliers: suppliers.map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
@@ -63,6 +63,16 @@ module Clinic
           controlled_reconciliations: counts.map { |count| count_wire(count) },
           audit_events: practice.audit_events.includes(:resource_manifests).order(occurred_at: :desc, id: :desc).limit(100).map { |event| audit_wire(event) },
         )
+        ability = Ability.new(actor, practice: practice)
+        unless ability.allowed_permission?("procurement.read")
+          wire[:purchase_orders] = []
+          wire[:purchase_cart] = nil
+          wire[:shipments] = []
+        end
+        wire[:recalls] = [] unless ability.allowed_permission?("recall.read")
+        wire[:controlled_reconciliations] = [] unless ability.allowed_permission?("controlled.read")
+        wire[:supplier_products] = [] unless ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)
+        wire
       end
 
       def context(practice:, actor:)
@@ -305,26 +315,28 @@ module Clinic
         end
       end
 
-      def supplier_pricing(practice:, actor:, **filters)
+      def supplier_pricing(practice:, actor:, quote_request_page: nil, quote_request_status: nil, **filters)
         result = SupplierPricingQuery.call(practice: practice, **filters)
-        quote_requests = SupplierQuoteRequest.where(practice_id: practice.id).includes(:supplier, :product)
-        quote_requests = quote_requests.where(supplier_id: result.supplier_id) if result.supplier_id.present?
-        quote_requests = quote_requests.order(created_at: :desc, id: :desc).limit(26).to_a
-        quote_requests_capped = quote_requests.length > 25
+        requests = SupplierQuoteRequestsQuery.call(practice:, supplier_id: result.supplier_id,
+          page: quote_request_page, status: quote_request_status)
         context(practice: practice, actor: actor).merge(
           supplier_page: { query: result.query, supplier_id: result.supplier_id, page: result.page, page_count: result.page_count,
             page_size: SupplierPricingQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
           products: result.offers.filter_map(&:product).uniq(&:id).map { |product| { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, preferred_supplier_id: product.preferred_supplier_id&.to_s } },
           suppliers: Supplier.where(practice_id: practice.id).order(:name, :id).map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
           supplier_products: result.offers.map { |row| supplier_product_wire(row, on: practice.inventory_date) },
-          quote_requests: quote_requests.first(25).map { |request| supplier_quote_request_wire(request) },
-          quote_requests_capped: quote_requests_capped)
+          quote_requests: requests.requests.map { |request| supplier_quote_request_wire(request) },
+          quote_request_page: { status: requests.status, page: requests.page, page_count: requests.page_count,
+            page_size: SupplierQuoteRequestsQuery::PAGE_SIZE, total_count: requests.total_count, filtered_count: requests.filtered_count },
+          quote_requests_capped: requests.filtered_count > SupplierQuoteRequestsQuery::PAGE_SIZE)
       end
 
       def supplier_quote_request_wire(request)
         { id: request.id.to_s, supplier_product_id: request.supplier_product_id.to_s, supplier_id: request.supplier_id.to_s,
           supplier_name: request.supplier.name, product_id: request.product_id.to_s, product_name: request.product.name,
-          requested_packages: request.requested_packages.to_d.to_s("F"), note: request.note,
+          requested_packages: request.requested_packages.to_d.to_s("F"),
+          package_quantity_at_request: request.package_quantity_at_request&.to_d&.to_s("F"),
+          stock_unit_at_request: request.stock_unit_at_request, note: request.note,
           status: request.status, request_key: request.request_key, created_at: request.created_at.iso8601,
           quote_reference: request.quote_reference, quoted_on: request.quoted_on&.iso8601 }
       end
@@ -469,6 +481,32 @@ module Clinic
       def catalog(practice:, actor:, **filters)
         result = CatalogQuery.table(practice: practice, **filters)
         destinations = practice.sites.where(status: "active")
+        linked_lines = PurchaseOrderLine.joins(:supplier_product, :purchase_order, :product)
+          .where(practice_id: practice.id)
+          .where("clinic_inventory_purchase_orders.supplier_id = clinic_inventory_supplier_products.supplier_id")
+          .merge(PurchaseOrder.where.not(status: "cancelled"))
+          .merge(PharmacyProduct.where(active: true))
+        binned_line = ReceiptLine.joins(:batch, :receipt, purchase_order_line: [ :supplier_product, :purchase_order, :product ])
+          .where(practice_id: practice.id).where.not(clinic_pharmacy_batches: { location_id: nil })
+          .where("clinic_inventory_receipts.shipment_id IS NOT NULL AND clinic_inventory_receipts.purchase_order_id = clinic_inventory_purchase_order_lines.purchase_order_id AND clinic_inventory_purchase_orders.supplier_id = clinic_inventory_supplier_products.supplier_id")
+          .merge(PurchaseOrder.where.not(status: "cancelled"))
+          .merge(PharmacyProduct.where(active: true))
+          .order("clinic_inventory_receipt_lines.id DESC").first
+        first_line = binned_line&.purchase_order_line || linked_lines.order("clinic_inventory_purchase_order_lines.id DESC").first
+        first_offer = first_line&.supplier_product || SupplierProduct.joins(:product)
+          .where(practice_id: practice.id).merge(PharmacyProduct.where(active: true)).order(:id).first
+        first_supplier = first_offer&.supplier || practice.inventory_suppliers.order(:id).first
+        first_product = first_offer&.product || practice.pharmacy_products.where(active: true).order(:id).first
+        first_order = first_line&.purchase_order
+        received_line = first_line && ReceiptLine.joins(:receipt).where(practice_id: practice.id, purchase_order_line_id: first_line.id)
+          .where.not(clinic_inventory_receipts: { shipment_id: nil }).order("clinic_inventory_receipt_lines.id DESC").first
+        first_shipment = binned_line&.receipt&.shipment || received_line&.receipt&.shipment ||
+          (first_line && practice.inventory_shipments.joins(:shipment_lines)
+            .where(purchase_order_id: first_order.id, clinic_inventory_shipment_lines: { purchase_order_line_id: first_line.id })
+            .order(id: :desc).first)
+        received_lines = first_shipment && first_line && ReceiptLine.joins(:receipt)
+          .where(practice_id: practice.id, purchase_order_line_id: first_line.id,
+            clinic_inventory_receipts: { shipment_id: first_shipment.id })
         %w[address_line1 city state postal_code country].each { |field| destinations = destinations.where("#{field} ~ '[^[:space:]]'") }
         context(practice: practice, actor: actor).merge(
           catalog_page: { query: result.query, status: result.status, sort: result.sort, page: result.page, page_count: result.page_count,
@@ -476,6 +514,20 @@ module Clinic
           products: result.products.map { |product| product_summary_wire(product, available: product.available_quantity, on_hand: product.on_hand_quantity, supplier_name: product[:catalog_supplier_name], supplier_id: product[:catalog_supplier_id]) },
           packages: result.products.map { |product| package_wire(product) },
           can_create_purchase_order: destinations.exists?, attention_count: result.attention_count,
+          first_run: {
+            supplier: first_supplier.present?,
+            product: first_product.present?,
+            offer: first_offer.present?,
+            purchase_order: first_order.present?,
+            received: received_lines ? received_lines.exists? : false,
+            binned: received_lines ? received_lines.joins(:batch).where.not(clinic_pharmacy_batches: { location_id: nil }).exists? : false,
+            supplier_id: first_supplier&.id&.to_s,
+            product_id: first_product&.id&.to_s,
+            product_name: first_product&.name,
+            purchase_order_id: first_order&.id&.to_s,
+            purchase_order_status: first_order&.status,
+            shipment_id: first_shipment&.id&.to_s
+          },
           attention: result.attention.map { |lot| { id: lot.id.to_s, product_id: lot.product_id.to_s, product_name: lot[:product_name], lot_number: lot.number, expiration_date: lot.expires_on.iso8601, status: lot[:hold_status] } })
       end
 

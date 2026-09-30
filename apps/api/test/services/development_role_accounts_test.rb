@@ -14,6 +14,8 @@ class DevelopmentRoleAccountsTest < ActiveSupport::TestCase
       accounts = Development::RoleAccounts.prepare!
 
       assert_equal Development::RoleAccounts::ACCOUNTS.keys.sort, accounts.keys.sort
+      assert_equal "active", accounts.fetch("clinic-administrator").clinic_membership.practice.sites
+        .find_by!(code: Development::PilotRehearsal::SITE_CODE).status
       Development::RoleAccounts::ACCOUNTS.each do |role_code, definition|
         user = accounts.fetch(role_code)
         membership = user.clinic_membership

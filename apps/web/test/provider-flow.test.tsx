@@ -582,6 +582,7 @@ describe("provider encounter workflow", () => {
     expect(html).toContain("Synthetic Patient");
     expect(html).toContain("Confirm and begin charting");
     expect(html).not.toContain("SOAP editor");
+    expect(html).not.toContain('id="chart-context"');
     expect(html).not.toContain("Open Scribe");
     expect(html.indexOf('id="nurse-workspace"')).toBeLessThan(
       html.indexOf('id="chart-access"'),
@@ -632,14 +633,25 @@ describe("provider encounter workflow", () => {
     expect(render(contacts.slice(0, 2))).not.toContain("5550101111");
   });
 
-  it("offers chart quick links to patient, HPI, and ROS anchors", () => {
+  it("offers clinical section links separately from encounter navigation", () => {
     const html = renderToStaticMarkup(<ChartQuickJump />);
 
     expect(html).toContain('aria-label="Chart quick navigation"');
-    expect(html).toContain('href="#chart-patient"');
-    expect(html).toContain('href="#chart-hpi"');
-    expect(html).toContain('href="#chart-ros"');
-    expect(html).toContain("Quick jump");
+    expect(
+      Array.from(html.matchAll(/href="([^"]+)"/g), (match) => match[1]),
+    ).toEqual([
+      "#patient-education",
+      "#clinical-history",
+      "#chart-labs",
+      "#medication-administration",
+      "#clinical-plan-workspace",
+      "#chart-hpi",
+      "#chart-ros",
+      "#chart-assessment",
+      "#chart-plan",
+      "#chart-signing",
+    ]);
+    expect(html).toMatch(/<h2[^>]*>Chart<\/h2>/);
   });
 
   it("keeps encounter navigation and status visible before chart confirmation", () => {
@@ -648,17 +660,25 @@ describe("provider encounter workflow", () => {
     );
 
     expect(html).toContain('aria-label="Encounter sections"');
-    expect(html).toContain('href="#chart-patient"');
-    expect(html).toContain('href="#nurse-workspace"');
-    expect(html).toContain('href="#chart-access"');
-    expect(html).not.toContain('href="#chart-hpi"');
+    expect(
+      Array.from(html.matchAll(/href="([^"]+)"/g), (match) => match[1]),
+    ).toEqual(["#chart-patient", "#nurse-workspace", "#chart-access"]);
 
     const confirmedHtml = renderToStaticMarkup(
       <EncounterSectionRail chartConfirmed />,
     );
-    expect(confirmedHtml).toContain('href="#chart-context"');
-    expect(confirmedHtml).toContain('href="#chart-hpi"');
-    expect(confirmedHtml).toContain('href="#chart-completion"');
+    expect(
+      Array.from(
+        confirmedHtml.matchAll(/href="([^"]+)"/g),
+        (match) => match[1],
+      ),
+    ).toEqual([
+      "#chart-patient",
+      "#nurse-workspace",
+      "#chart-access",
+      "#chart-hpi",
+      "#chart-completion",
+    ]);
   });
 
   it("keeps SOAP save reconciliation inside the confirmed chart workspace", () => {

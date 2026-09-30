@@ -28,6 +28,8 @@ module Clinic
       has_many :social_histories, class_name: "Clinic::Care::PatientSocialHistory", dependent: :restrict_with_error
       belongs_to :primary_address_version, class_name: "Clinic::Care::PatientAddressVersion", optional: true
       belongs_to :primary_site, class_name: "Clinic::Site", optional: true
+      belongs_to :merged_into_patient, class_name: "Clinic::Care::Patient", optional: true
+      belongs_to :merged_by_membership, class_name: "Clinic::Membership", optional: true
       has_many :documents, class_name: "Clinic::Document", dependent: :restrict_with_error
       has_many :message_intents, class_name: "Clinic::MessageIntent", dependent: :restrict_with_error
       has_many :communication_endpoints, class_name: "Clinic::CommunicationEndpoint", dependent: :restrict_with_error
@@ -45,10 +47,18 @@ module Clinic
       before_validation :refresh_name_search_tokens, if: -> { will_save_change_to_display_name? || will_save_change_to_practice_id? }
       validates :display_name, presence: true, length: { maximum: 120 }
       validates :reference, presence: true, length: { maximum: 32 }, uniqueness: { scope: :practice_id }
+      validates :merge_reason, length: { maximum: 500 }, allow_nil: true
+      validate :merge_evidence_is_complete
       validate :primary_site_belongs_to_practice
       validate :primary_site_has_selected_specialty, if: -> { primary_site_id.present? && (new_record? || will_save_change_to_primary_site_id?) }
 
       private
+
+      def merge_evidence_is_complete
+        evidence = [ merged_into_patient_id, merged_at, merged_by_membership_id, merge_reason ]
+        errors.add(:base, "Patient merge evidence must be recorded together") unless evidence.all?(&:blank?) || evidence.all?(&:present?)
+        errors.add(:merged_into_patient, "must belong to this practice") if merged_into_patient && merged_into_patient.practice_id != practice_id
+      end
 
       def primary_site_belongs_to_practice
         errors.add(:primary_site, "must belong to this clinic") if primary_site && primary_site.practice_id != practice_id

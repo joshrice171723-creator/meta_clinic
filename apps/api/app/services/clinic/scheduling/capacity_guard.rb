@@ -5,7 +5,7 @@ module Clinic
 
       # Call inside the booking transaction. The shared clinician row serializes
       # offers, bookings and changes to capacity for this provider across sites.
-      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, room: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil, overbook: false)
+      def check!(practice:, clinician:, site:, starts_at:, ends_at:, patient: nil, room: nil, appointment_id: nil, waitlist_entry_id: nil, schedule_hold_id: nil, overbook: false, capacity_override: false)
         return unless site
         clinician&.lock!
         site.lock!
@@ -19,14 +19,15 @@ module Clinic
         end
         raise ArgumentError, "Choose an end after the start." unless starts_at && ends_at && ends_at > starts_at
         check_site_hours!(practice: practice, site: site, starts_at: starts_at, ends_at: ends_at)
-        check_clinician_assignment!(practice: practice, clinician: clinician, site: site, starts_at: starts_at)
+        check_clinician_assignment!(practice: practice, clinician: clinician, site: site,
+          starts_at: starts_at, ends_at: ends_at)
         rules = CapacityRule.where(practice: practice, clinician: clinician, active: true)
         if rules.where(kind: "block").where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
           raise ArgumentError, "The clinician has blocked time in this interval."
         end
         weekly = rules.where(kind: "weekly").to_a
         weekly_for_site = weekly.select { |rule| rule.site_id == site.id }
-        raise ArgumentError, "The clinician has no capacity configured for this site." if weekly_for_site.empty?
+        raise ArgumentError, "The clinician has no capacity configured for this site." if weekly_for_site.empty? && !capacity_override
 
         timezone = site_timezone(practice, site)
         start_local = starts_at.in_time_zone(timezone)
@@ -36,7 +37,7 @@ module Clinic
         fits = start_local.to_date == end_local.to_date && weekly_for_site.any? { |rule|
           rule.site_id == site.id && rule.weekday == start_local.wday && rule.start_minute <= start_minute && rule.end_minute >= end_minute
         }
-        raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits
+        raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits || capacity_override
         appointments = practice.appointments.where(booked_clinician_id: clinician.id, status: %w[scheduled confirmed])
         appointments = appointments.where.not(id: appointment_id) if appointment_id
         overlapping = appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).to_a
@@ -100,10 +101,11 @@ module Clinic
       # assignment that is active for the selected site and appointment time.
       # This keeps legacy unassigned development records usable while failing
       # closed for an explicitly configured clinician/site mismatch.
-      def check_clinician_assignment!(practice:, clinician:, site:, starts_at:)
+      def check_clinician_assignment!(practice:, clinician:, site:, starts_at:, ends_at:)
         assignments = clinician.assignments.where(practice: practice)
         return unless assignments.exists?
-        return if assignments.current(starts_at).where(site_id: site.id).exists?
+        return if assignments.current(starts_at).where(site_id: site.id)
+          .where("effective_until IS NULL OR effective_until >= ?", ends_at).exists?
 
         raise ArgumentError, "The clinician is not assigned to this site for the selected time."
       end

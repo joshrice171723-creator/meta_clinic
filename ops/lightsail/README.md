@@ -1,5 +1,19 @@
 # Meta Clinic Lightsail synthetic demo
 
+## Local QA handoff and deployed identity
+
+The local Codex publisher uses this release path. The Muse review handoff is
+documented in [the QA runbook](../qa/README.md); it does not install a second
+publisher. `/build.json` returns the exact web image's Git revision and package
+version with `Cache-Control: no-store`. The release verifies that revision before
+recording success, within the existing image-rollback boundary. QA notes are at
+`/clinic/updates`. Semantic version alone is insufficient to identify a retest.
+
+Notes for QA: after release, open `/build.json`, confirm its revision matches the
+local deployment report, and hard-reload `/clinic/updates` before retesting. The
+intentional trade-off is that build identity is public metadata, while browser
+acceptance remains an independent Muse result recorded on the PR.
+
 ## Workspace tools and investor demo entry
 
 On `aimetaclinic.com`, `/login` and ordinary workspace pages use `/api/` with
@@ -61,6 +75,16 @@ same Git revision label, saves and transfers them together, then loads them on
 the host. No GitHub Actions job or GHCR credential is needed. A cold build or a
 large image transfer can still exceed ten minutes.
 
+If the local Docker engine cannot fit the web TypeScript build, use
+`-BuildWebOnHost`. The wrapper runs the locked web install, typecheck, and Vite
+bundle on Windows, then packages that bundle into the same revision-labeled
+Nginx image. Host preparation, encrypted recovery, and deployment checks are
+unchanged.
+
+```powershell
+./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>' -BuildWebOnHost
+```
+
 Optional prebuilt mode: first run **Publish portable containers** on `main`
 and wait for both API and web jobs to pass for its exact commit. Give host root
 a GitHub Container Registry credential with `read:packages` only. Keep it in
@@ -90,7 +114,8 @@ both image commit labels and web Nginx syntax, restore-checks
 the ordinary and guided-demo PostgreSQL dumps, and bundles both dumps with
 the existing host secrets. The wrapper downloads that bundle, checks its SHA-256,
 encrypts it with Windows DPAPI CurrentUser in `Desktop/06 - Secure Files`,
-verifies a decrypt/hash round trip, and removes its plaintext local copy.
+uploads and downloads the encrypted copy, verifies its decrypted SHA-256,
+and removes its plaintext local copy.
 Only then does it call `release.sh deploy` with the exact commit and bundle hash.
 The DPAPI archive requires this Windows user's profile to decrypt; retain the
 host backup and previous images for recovery.
@@ -384,8 +409,12 @@ The timer polls two minutes after the prior run completes; releases never overla
 The coordinator shares the existing release lock with manual `release.sh` calls
 and holds it across build, prepare, encryption, deploy, reporting and rollback.
 Root-owned installed control scripts are never replaced by a fetched candidate.
-Build worktrees are isolated under `/opt/meta-clinic/builds/`; existing directories
-are never reset or deleted automatically. Keep previous images and recovery files.
+Build worktrees are isolated under `/opt/meta-clinic/builds/`. The current attempt's
+newly created worktree and its Git registration are removed after the image builds,
+including a failed build, before release preparation. Existing directories are never
+reused, reset or deleted automatically; dirty worktrees are retained for inspection.
+Cleanup does not force removal or prune unrelated worktrees. Keep previous images
+and recovery files.
 Storage cleanup is a separate, reviewed operation, not automatic `docker prune`.
 
 ### Version signal and QA behavior

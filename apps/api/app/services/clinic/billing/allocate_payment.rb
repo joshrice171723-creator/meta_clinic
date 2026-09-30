@@ -18,7 +18,7 @@ module Clinic
           invoice.lock!
           raise ArgumentError, "The invoice must be posted before payment allocation." unless invoice.status == "posted"
           PaymentCollectionIntent.ensure_no_active_invoice_checkout!(invoice)
-          payment = Clinic::PaymentEvent.lock.find_or_create_by!(practice: practice, external_event_reference: external_event_reference) do |event|
+          payment = Clinic::PaymentEvent.find_or_create_by!(practice: practice, external_event_reference: external_event_reference) do |event|
             event.patient = patient
             event.currency = currency
             event.amount = payment_amount
@@ -32,12 +32,12 @@ module Clinic
             raise ArgumentError, "Payment allocation details do not match the original event." unless existing.amount == allocation_amount
             return existing
           end
-          allocated = payment.allocations.lock.to_a.sum { |allocation| allocation.amount }
-          refunded = payment.refund_events.lock.to_a.sum { |refund| refund.amount }
+          allocated = payment.allocations.to_a.sum { |allocation| allocation.amount }
+          refunded = payment.refund_events.to_a.sum { |refund| refund.amount }
           raise ArgumentError, "Payment cannot be allocated more than once." if allocated + refunded + allocation_amount > payment.amount
           raise ArgumentError, "Invoice currency does not match the payment currency." unless payment.currency == invoice.currency
           invoice_total = invoice.lines.sum(:posted_amount)
-          invoice_allocated = invoice.payment_allocations.lock.to_a.sum { |allocation| allocation.amount }
+          invoice_allocated = invoice.payment_allocations.to_a.sum { |allocation| allocation.amount }
           raise ArgumentError, "Invoice cannot be allocated more than its posted total." if invoice_allocated + allocation_amount > invoice_total
 
           allocation_attributes = { practice: practice, patient: patient, invoice: invoice, amount: allocation_amount }

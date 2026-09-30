@@ -38,17 +38,7 @@ module Clinic
           case action
           when "offer"
             raise ArgumentError, "Only waiting or expired entries can receive an offer." unless %w[waiting expired].include?(entry.effective_state)
-            starts_at = attributes.fetch(:starts_at)
-            ends_at = starts_at + entry.duration_minutes.minutes
-            expires_at = attributes.fetch(:expires_at)
-            now = Current.business_time
-            unless starts_at > now && starts_at >= entry.earliest_at && ends_at <= entry.latest_at &&
-              expires_at > now && expires_at <= starts_at && expires_at <= now + 7.days
-              raise ArgumentError, "The offer must fit the requested window and expire before it starts, within seven days."
-            end
-            CapacityGuard.check!(practice: entry.practice, clinician: entry.clinician, site: entry.site,
-              starts_at: starts_at, ends_at: ends_at, waitlist_entry_id: entry.id)
-            entry.update!(state: "offered", offer_starts_at: starts_at, offer_ends_at: ends_at, offer_expires_at: expires_at)
+            offer!(entry: entry, starts_at: attributes.fetch(:starts_at), expires_at: attributes.fetch(:expires_at))
           when "release", "requeue"
             raise ArgumentError, "This entry cannot return to the waitlist." if %w[booked cancelled].include?(entry.state)
             raise ArgumentError, "The requested window has ended. Create a new waitlist request." unless entry.latest_at > Current.business_time
@@ -68,6 +58,56 @@ module Clinic
         end
         result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
+
+      def offer_cancelled_slot!(appointment:, actor:)
+        now = Current.business_time
+        return unless appointment.status == "cancelled" && appointment.starts_at > now &&
+          appointment.visit_modality == "in_person" && appointment.site_id &&
+          appointment.booked_clinician_id && appointment.visit_type_id && appointment.visit_type.retired_at.nil?
+
+        Authorization.authorize_with_legacy!(actor: actor, practice: appointment.practice,
+          action: "appointments.status_transition", legacy_action: "appointments.write", site: appointment.site)
+        expires_at = [now + 4.hours, appointment.starts_at].min
+        duration_minutes = (appointment.ends_at - appointment.starts_at) / 60
+        candidates = WaitlistEntry.where(practice: appointment.practice, site_id: appointment.site_id,
+          clinician_id: appointment.booked_clinician_id, visit_type_id: appointment.visit_type_id)
+          .where("(state = 'waiting' OR (state = 'offered' AND offer_expires_at <= ?))", now)
+          .where.not(patient_id: appointment.patient_id)
+          .where("earliest_at <= ? AND latest_at > ? AND duration_minutes <= ?",
+            appointment.starts_at, appointment.starts_at, duration_minutes)
+          .order(:created_at, :id)
+
+        candidates.each do |entry|
+          entry.lock!
+          next unless %w[waiting expired].include?(entry.effective_state)
+          next unless appointment.starts_at + entry.duration_minutes.minutes <= entry.latest_at
+
+          entry.clinician.lock!
+          begin
+            offer!(entry: entry, starts_at: appointment.starts_at, expires_at: expires_at)
+          rescue ArgumentError
+            next
+          end
+          Clinic::AuditRecorder.record!(practice: appointment.practice, actor: actor,
+            action_code: "waitlist.auto_offer", outcome: :committed,
+            resource_version_ref: "waitlist/#{entry.id}:#{entry.lock_version}")
+          return entry
+        end
+        nil
+      end
+
+      def offer!(entry:, starts_at:, expires_at:)
+        ends_at = starts_at + entry.duration_minutes.minutes
+        now = Current.business_time
+        unless starts_at > now && starts_at >= entry.earliest_at && ends_at <= entry.latest_at &&
+          expires_at > now && expires_at <= starts_at && expires_at <= now + 7.days
+          raise ArgumentError, "The offer must fit the requested window and expire before it starts, within seven days."
+        end
+        CapacityGuard.check!(practice: entry.practice, clinician: entry.clinician, site: entry.site,
+          patient: entry.patient, starts_at: starts_at, ends_at: ends_at, waitlist_entry_id: entry.id)
+        entry.update!(state: "offered", offer_starts_at: starts_at, offer_ends_at: ends_at, offer_expires_at: expires_at)
+      end
+      private_class_method :offer!
 
       def portal_reply(entry:, identity:, actor:, action:, expected_version:, request_key:)
         operation = "patient_portal.waitlist.#{action}"

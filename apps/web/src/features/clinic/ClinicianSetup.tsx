@@ -108,7 +108,7 @@ export function ClinicianSetup() {
       });
       setFeedback({
         error: false,
-        text: "Clinician added for scheduling. Set their working hours before offering appointments; capacity limits are optional.",
+        text: "Clinician added for scheduling. Add them to the relevant service offering and set their working hours before offering appointments; capacity limits are optional.",
       });
       clinicians.refresh();
     } catch (reason) {

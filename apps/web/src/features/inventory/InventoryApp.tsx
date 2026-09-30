@@ -2645,6 +2645,9 @@ export function InventoryApp({ path }: { path: string }) {
                             supplier_id:
                               data.supplier_page.supplier_id ?? undefined,
                             page: data.supplier_page.page,
+                            quote_request_page: data.quote_request_page?.page,
+                            quote_request_status:
+                              data.quote_request_page?.status,
                           }
                         : screen === "purchasing" &&
                             data &&
@@ -2710,6 +2713,8 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "controlled") query.set("view", "queue");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         const routeQuery = new URLSearchParams(window.location.search);
+        if (screen === "supplier_pricing" && !read.supplier_id && routeQuery.get("supplier_id"))
+          query.set("supplier_id", routeQuery.get("supplier_id")!);
         if (
           screen === "receiving" &&
           (read.delivery_status || routeQuery.get("delivery_status"))
@@ -2720,6 +2725,10 @@ export function InventoryApp({ path }: { path: string }) {
           );
         if (read.order_status) query.set("order_status", read.order_status);
         if (read.supplier_id) query.set("supplier_id", read.supplier_id);
+        if (read.quote_request_page)
+          query.set("quote_request_page", String(read.quote_request_page));
+        if (read.quote_request_status)
+          query.set("quote_request_status", read.quote_request_status);
         if (read.location_status)
           query.set("location_status", read.location_status);
         if (read.exception_status)
@@ -3116,8 +3125,16 @@ export function InventoryApp({ path }: { path: string }) {
                         .filter(
                           (link) =>
                             link.group === group &&
-                            (link.screen !== "supplier_pricing" ||
-                              data.capabilities.supplier_pricing === true),
+                            (link.screen === "supplier_pricing"
+                              ? data.capabilities.supplier_pricing === true
+                              : link.screen === "replenishment" ||
+                                  link.screen === "purchasing"
+                                ? data.capabilities["procurement.read"] === true
+                                : link.screen === "recalls"
+                                  ? data.capabilities["recall.read"] === true
+                                  : link.screen === "controlled"
+                                    ? data.capabilities["controlled.read"] === true
+                                    : true),
                         )
                         .map((link) => (
                           <a
@@ -3335,6 +3352,9 @@ export function CatalogScreen({
           purchasing and receiving stock. No inventory records are currently
           available.
         </p>
+        {data.configuration?.status === "configured" && (
+          <InventoryFirstRunWizard data={data} />
+        )}
         {data.configuration?.status === "configured" &&
           capability(data, "inventory.catalog") && (
             <a
@@ -3348,6 +3368,10 @@ export function CatalogScreen({
     );
   return (
     <div className="inventory-stack" aria-busy={loading}>
+      {data.configuration?.status === "configured" &&
+        !inventoryFirstRunComplete(data.first_run) && (
+          <InventoryFirstRunWizard data={data} />
+        )}
       <div className="inventory-catalog-topline">
         <div>
           <h2>Catalog</h2>
@@ -3356,34 +3380,38 @@ export function CatalogScreen({
           </p>
         </div>
         <div className="inventory-catalog-actions">
-          <Button
-            variant="outlined"
-            href="/clinic/inventory/catalog/new"
-            sx={{
-              minHeight: 44,
-              borderColor: "var(--inventory-control)",
-              color: "var(--inventory-blue)",
-              textTransform: "none",
-              fontWeight: 700,
-            }}
-          >
-            Add catalog item
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<MoveToInboxOutlinedIcon />}
-            href="/clinic/inventory/receiving"
-            sx={{
-              minHeight: 44,
-              backgroundColor: "var(--inventory-blue)",
-              textTransform: "none",
-              fontWeight: 700,
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "var(--inventory-blue)" },
-            }}
-          >
-            Receive stock
-          </Button>
+          {capability(data, "inventory.catalog") && (
+            <Button
+              variant="outlined"
+              href="/clinic/inventory/catalog/new"
+              sx={{
+                minHeight: 44,
+                borderColor: "var(--inventory-control)",
+                color: "var(--inventory-blue)",
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              Add catalog item
+            </Button>
+          )}
+          {capability(data, "inventory.receive") && (
+            <Button
+              variant="contained"
+              startIcon={<MoveToInboxOutlinedIcon />}
+              href="/clinic/inventory/receiving"
+              sx={{
+                minHeight: 44,
+                backgroundColor: "var(--inventory-blue)",
+                textTransform: "none",
+                fontWeight: 700,
+                boxShadow: "none",
+                "&:hover": { backgroundColor: "var(--inventory-blue)" },
+              }}
+            >
+              Receive stock
+            </Button>
+          )}
         </div>
       </div>
       <p className="inventory-flow-note">
@@ -3608,6 +3636,117 @@ export function CatalogScreen({
         </ul>
       </Card>
     </div>
+  );
+}
+
+function inventoryFirstRunComplete(
+  firstRun: InventoryCatalogData["first_run"],
+) {
+  return [
+    firstRun.supplier,
+    firstRun.product,
+    firstRun.offer,
+    firstRun.purchase_order,
+    firstRun.received,
+    firstRun.binned,
+  ].every(Boolean);
+}
+
+function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
+  const firstRun = data.first_run;
+  const productQuery = firstRun.product_id
+    ? `?product_id=${encodeURIComponent(firstRun.product_id)}&wizard=1`
+    : "?wizard=1";
+  const offerParams = new URLSearchParams({ wizard: "offer" });
+  if (firstRun.supplier_id) offerParams.set("supplier_id", firstRun.supplier_id);
+  if (firstRun.product_name) offerParams.set("product_name", firstRun.product_name);
+  const purchaseOrderQuery = firstRun.purchase_order_id
+    ? `?purchase_order_id=${encodeURIComponent(firstRun.purchase_order_id)}&wizard=1`
+    : "?wizard=1";
+  const shipmentQuery = firstRun.shipment_id
+    ? `?shipment_id=${encodeURIComponent(firstRun.shipment_id)}&delivery_status=all&wizard=1`
+    : purchaseOrderQuery;
+  const receivingHref = firstRun.shipment_id
+    ? `/clinic/inventory/receiving${shipmentQuery}`
+    : `/clinic/inventory/shipments/new${purchaseOrderQuery}`;
+  const purchaseOrderReady = ["sent", "partially_received", "complete"].includes(
+    firstRun.purchase_order_status ?? "",
+  );
+  const steps = [
+    {
+      title: "Add a supplier",
+      detail: "Create the vendor that will appear on purchase orders.",
+      href: "/clinic/inventory/suppliers?wizard=1",
+      action: "Open suppliers",
+      complete: firstRun.supplier,
+    },
+    {
+      title: "Add the catalog item",
+      detail: "Define the product and its package before recording an offer.",
+      href: "/clinic/inventory/catalog/new?wizard=1",
+      action: "Add catalog item",
+      complete: firstRun.product,
+    },
+    {
+      title: "Record the supplier offer",
+      detail: "Save the supplier SKU, package, price, and currency.",
+       href: `/clinic/inventory/suppliers?${offerParams}`,
+      action: "Record offer",
+      complete: firstRun.offer,
+    },
+    {
+      title: "Create the purchase order",
+      detail: "Choose the supplier offer, quantity, and receiving facility.",
+      href:
+        firstRun.purchase_order && !purchaseOrderReady
+          ? `/clinic/inventory/purchasing?purchase_order_id=${encodeURIComponent(firstRun.purchase_order_id ?? "")}&wizard=review`
+          : `/clinic/inventory/purchasing/new${productQuery}`,
+      action: "Create order",
+      complete: firstRun.purchase_order && purchaseOrderReady,
+    },
+    {
+      title: "Receive the delivery",
+      detail: firstRun.shipment_id
+        ? "Verify the delivery, lot, expiration, and received packages."
+        : "Record the delivered shipment before receiving its lots.",
+      href: receivingHref,
+      action: firstRun.shipment_id ? "Open receiving" : "Record delivery",
+      complete: firstRun.received,
+    },
+    {
+      title: "Put stock in a bin",
+      detail: "Choose the storage location while receiving each lot.",
+      href: receivingHref,
+      action: "Open receiving",
+      complete: firstRun.binned,
+    },
+  ];
+  const nextStepIndex = steps.findIndex((step) => !step.complete);
+  return (
+    <section aria-labelledby="inventory-first-run-title">
+      <h2 id="inventory-first-run-title">First inventory run</h2>
+      <p className="inventory-lead">
+        Follow the saved workflow from supplier setup through stock stored in a
+        bin. Each step opens the existing inventory action for that record.
+      </p>
+      <ol>
+        {steps.map((step, index) => (
+          <li key={step.title}>
+            <strong>
+              {step.complete
+                ? "Complete"
+                : index === nextStepIndex
+                  ? "Next"
+                  : "Not started"}: {step.title}
+            </strong>{" "}
+            — {step.detail}{" "}
+            {!step.complete && index === nextStepIndex && (
+              <a href={step.href}>Continue to {step.title} →</a>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -6473,6 +6612,13 @@ export function ReceivingScreen({
               {recall
                 ? "Create an active quarantine leaf location before receiving this recalled lot."
                 : "Create an active leaf location before receiving stock."}
+              <Button
+                href="/clinic/inventory/locations?return_to=/clinic/inventory/receiving"
+                color="inherit"
+                sx={{ ml: 1 }}
+              >
+                Manage storage locations
+              </Button>
             </Alert>
           )}
           {destination && destination.areas.length > 0 && (

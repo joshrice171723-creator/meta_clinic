@@ -141,7 +141,8 @@ module Clinic
       end
 
       def credit_payload(credit)
-        payload = { id: credit.id, amount: decimal(credit.amount), created_at: credit.created_at.iso8601 }
+        payload = { id: credit.id, amount: decimal(credit.amount), adjustment_type: credit.adjustment_type,
+          created_at: credit.created_at.iso8601 }
         return payload unless @include_adjustment_evidence
 
         payload.merge(

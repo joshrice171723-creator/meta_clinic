@@ -486,6 +486,20 @@ export type InventoryCatalogData = InventoryReadContext &
       InventoryLot,
       "id" | "product_id" | "lot_number" | "expiration_date" | "status"
     > & { product_name: string })[];
+    first_run: {
+      supplier: boolean;
+      product: boolean;
+      offer: boolean;
+      purchase_order: boolean;
+      received: boolean;
+      binned: boolean;
+      supplier_id: string | null;
+      product_id: string | null;
+      product_name: string | null;
+      purchase_order_id: string | null;
+      purchase_order_status: string | null;
+      shipment_id: string | null;
+    };
   };
 
 export type InventoryPlanRead = {
@@ -540,6 +554,8 @@ export type InventorySupplierRead = {
   q?: string;
   supplier_id?: string;
   page?: number;
+  quote_request_page?: number;
+  quote_request_status?: "all" | "open" | "quoted";
 };
 export type InventorySupplierQuoteRequest = {
   id: string;
@@ -549,6 +565,8 @@ export type InventorySupplierQuoteRequest = {
   product_id: string;
   product_name?: string;
   requested_packages: string;
+  package_quantity_at_request: string | null;
+  stock_unit_at_request: string | null;
   note: string;
   status: "open" | "quoted";
   request_key: string;
@@ -573,6 +591,14 @@ export type InventorySupplierData = InventoryReadContext & {
   })[];
   quote_requests: InventorySupplierQuoteRequest[];
   quote_requests_capped?: boolean;
+  quote_request_page?: {
+    status: "all" | "open" | "quoted";
+    page: number;
+    page_count: number;
+    page_size: number;
+    total_count: number;
+    filtered_count: number;
+  };
   products: Pick<
     InventoryProduct,
     "id" | "name" | "ndc" | "preferred_supplier_id"

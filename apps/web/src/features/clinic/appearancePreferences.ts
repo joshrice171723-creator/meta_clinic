@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react";
 
 export const CLINIC_PALETTES = [
-  { id: "astra", label: "Astra / VS Code" },
-  { id: "owner", label: "Owner blue & white" },
-  { id: "juniper", label: "Juniper & porcelain" },
-  { id: "cobalt", label: "Cobalt & limestone" },
-  { id: "plum", label: "Plum & parchment" },
-  { id: "saffron", label: "Saffron & ink" },
+  { id: "astra", label: "Graphite and blue" },
+  { id: "owner", label: "Classic blue" },
+  { id: "juniper", label: "Green" },
+  { id: "cobalt", label: "Cobalt blue" },
+  { id: "plum", label: "Purple" },
+  { id: "saffron", label: "Gold" },
 ] as const;
 export const CLINIC_MODES = [
   { id: "system", label: "Follow system" },

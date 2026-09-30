@@ -132,7 +132,16 @@ export function PatientBillingSupport() {
         )}
         {requests.data && (
           <Stack spacing={1}>
-            <Typography variant="subtitle2">Your recent requests</Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", justifyContent: "space-between" }}
+            >
+              <Typography variant="subtitle2">Your recent requests</Typography>
+              <Button size="small" onClick={requests.refresh}>
+                Refresh status
+              </Button>
+            </Stack>
             {requests.data.requests.length === 0 ? (
               <Typography color="text.secondary">
                 You have not sent a billing support request yet.
@@ -154,6 +163,19 @@ export function PatientBillingSupport() {
                       dateStyle: "medium",
                       timeStyle: "short",
                     }).format(new Date(request.requested_at))}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 1 }}
+                  >
+                    Your message
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                  >
+                    {request.content}
                   </Typography>
                 </Box>
               ))

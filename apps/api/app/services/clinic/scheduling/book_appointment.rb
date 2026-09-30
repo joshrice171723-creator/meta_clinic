@@ -3,7 +3,7 @@ module Clinic
     class BookAppointment
       def self.call(practice:, actor:, patient:, starts_at:, ends_at:, site: nil, room: nil, booked_clinician: nil, visit_type: nil,
         reason: nil, request_key: nil, visit_modality: "in_person", schedule_hold: nil, service_offering: nil,
-        overbook_reason: nil, expected_policy_revision: nil, first_available: false)
+        overbook_reason: nil, expected_policy_revision: nil, first_available: false, walk_in: false, capacity_override_reason: nil)
         authorize = -> {
           Authorization.authorize_with_legacy!(actor: actor, practice: practice,
             action: "appointments.book", legacy_action: "appointments.write", site: site)
@@ -11,6 +11,16 @@ module Clinic
         authorize.call
         if overbook_reason.present?
           Authorization.authorize!(actor: actor, practice: practice, action: "appointments.overbook", site: site)
+        end
+        raise ArgumentError, "A walk-in cannot also be overbooked." if walk_in && overbook_reason.present?
+        raise ArgumentError, "Choose a clinician for a walk-in appointment." if walk_in && first_available
+        raise ArgumentError, "Walk-in appointments must be in person." if walk_in && visit_modality.to_s != "in_person"
+        raise ArgumentError, "A walk-in cannot use a held appointment slot." if walk_in && schedule_hold
+        if walk_in
+          Authorization.authorize!(actor: actor, practice: practice, action: "appointments.capacity_override", site: site)
+          raise ArgumentError, "Enter a walk-in capacity override reason of 1–500 characters." unless capacity_override_reason.to_s.strip.length.between?(1, 500)
+        elsif capacity_override_reason.present?
+          raise ArgumentError, "Select the walk-in option before entering a capacity override reason."
         end
         raise ArgumentError, "The patient must belong to the selected practice." unless patient.practice_id == practice.id
         raise ArgumentError, "Choose a site before scheduling this appointment." unless site
@@ -51,7 +61,9 @@ module Clinic
           service_offering: service_offering,
           actor: actor,
           overbook_reason: overbook_reason,
-          expected_policy_revision: expected_policy_revision
+          expected_policy_revision: expected_policy_revision,
+          walk_in: walk_in,
+          capacity_override_reason: capacity_override_reason
         }
         return create_appointment(practice: practice, **attributes) if request_key.nil?
 
@@ -76,6 +88,8 @@ module Clinic
             ends_at: ends_at.utc.iso8601(6),
             visit_modality: visit_modality,
             overbook_reason: overbook_reason.to_s.strip.presence,
+            walk_in: walk_in,
+            capacity_override_reason: capacity_override_reason.to_s.strip.presence,
             expected_policy_revision: expected_policy_revision
           }
         ) do
@@ -89,7 +103,8 @@ module Clinic
       end
 
       def self.create_appointment(practice:, patient:, starts_at:, ends_at:, site:, room:, booked_clinician:, visit_type:, reason:,
-        visit_modality:, actor:, schedule_hold: nil, service_offering: nil, overbook_reason: nil, expected_policy_revision: nil)
+        visit_modality:, actor:, schedule_hold: nil, service_offering: nil, overbook_reason: nil, expected_policy_revision: nil,
+        walk_in: false, capacity_override_reason: nil)
         ApplicationRecord.transaction do
           practice.lock!
           if schedule_hold
@@ -120,8 +135,12 @@ module Clinic
               raise ArgumentError, "Overbooking is unavailable for this site, visit type, or policy revision."
             end
           end
+          capacity_override_membership = if walk_in
+            Authorization.authorize!(actor: actor, practice: practice, action: "appointments.capacity_override", site: site)
+          end
           allocation = CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
-            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id, overbook: overbook) || 1
+            starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id, overbook: overbook,
+            capacity_override: walk_in) || 1
           conflicts = overbook ? practice.appointments.where(booked_clinician: booked_clinician, status: %w[scheduled confirmed])
             .where("starts_at < ? AND ends_at > ?", ends_at, starts_at).pluck(:id) : []
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
@@ -129,6 +148,10 @@ module Clinic
             status: "scheduled", visit_modality: visit_modality, schedule_hold: schedule_hold,
             clinician_allocation: allocation,
             service_offering: service_offering, service_offering_snapshot: snapshot)
+          if walk_in
+            WalkInException.create!(practice: practice, appointment: appointment, site: site,
+              written_by_membership: capacity_override_membership, reason: capacity_override_reason.to_s.strip)
+          end
           if overbook
             OverbookException.create!(practice: practice, appointment: appointment, site: site,
               written_by_membership: membership, policy_revision: policy.revision,

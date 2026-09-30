@@ -99,7 +99,7 @@ class MemberFlowsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
-  test "contact submissions persist encrypted and are visible only to administrators" do
+  test "contact submissions persist encrypted and are visible only to platform owners" do
     details = { name: "Synthetic Visitor", email: "visitor@example.invalid", message: "A wholly synthetic business inquiry.", website: "" }
     assert_difference "Launch::ContactMessage.count", 1 do
       post "/api/contact_messages", params: { contact_message: details }, headers: csrf_headers, as: :json
@@ -111,7 +111,7 @@ class MemberFlowsTest < ActionDispatch::IntegrationTest
     raw.each_value { |value| assert_not_includes value, "Synthetic" }
     assert_not_includes raw["email"], details[:email]
     assert_not_includes raw["message"], details[:message]
-    @user.update!(admin: true)
+    @user.update!(admin: true, platform_owner: true)
     sign_in
     get "/api/inquiries"
     assert_response :success
@@ -120,7 +120,7 @@ class MemberFlowsTest < ActionDispatch::IntegrationTest
 
   test "inquiry pagination includes older messages" do
     51.times { |n| Launch::ContactMessage.create!(name: "Synthetic #{n}", email: "visitor@example.invalid", message: "Synthetic pagination test.") }
-    @user.update!(admin: true)
+    @user.update!(admin: true, platform_owner: true)
     sign_in
     get "/api/inquiries"
     assert_equal 50, response.parsed_body["inquiries"].length
@@ -128,6 +128,13 @@ class MemberFlowsTest < ActionDispatch::IntegrationTest
     get "/api/inquiries", params: { before: cursor }
     assert_equal 1, response.parsed_body["inquiries"].length
     assert_nil response.parsed_body["next_cursor"]
+  end
+
+  test "clinic administrators cannot access platform inquiries" do
+    @user.update!(admin: true)
+    sign_in
+    get "/api/inquiries"
+    assert_response :forbidden
   end
 
   test "invalid, spam and malformed contact submissions are not stored" do

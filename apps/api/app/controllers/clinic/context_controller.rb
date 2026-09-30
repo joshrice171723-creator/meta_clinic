@@ -128,12 +128,9 @@ module Clinic
     def switch_practice
       practice = available_practices.find(requested_id!(params[:practice_id], :practice_id))
       membership = Membership.find_by(user: current_user, practice: practice)
-      if membership.nil? && development_omni?
-        membership = Membership.create!(user: current_user, practice: practice, active: true)
-        clinic_membership.role_grants.active.where(scope_kind: "practice").each do |grant|
-          membership.role_grants.create!(practice: practice, role_version: grant.role_version,
-            scope_kind: "practice", effective_from: Time.current, revision: 1)
-        end
+      if development_omni?
+        membership ||= Membership.create!(user: current_user, practice: practice, active: true)
+        Development::OmniAccess.ensure_practice_grant!(current_user, membership)
       end
       raise Clinic::Authorization::Denied unless membership&.active?
 
@@ -144,7 +141,9 @@ module Clinic
 
     def context_sites
       sites = accessible_clinic_sites
-      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.allowed_permission?(permission) }
+      return current_practice.sites if current_ability.practice_scope_for?("facilities.write")
+
+      if Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./).any? { |permission| current_ability.practice_scope_for?(permission) }
         sites = current_practice.sites
       end
       if workforce_employment

@@ -195,10 +195,14 @@ function RecallWorklistContent() {
           Recall worklist
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
-          Work clinician-recorded follow-up dates, document outreach, and keep
-          deferrals and completion evidence with the patient record. This queue
-          does not infer screening intervals or send messages.
+          New recalls come from a needed follow-up saved in a patient encounter.
+          Work due dates here, document outreach, and keep deferrals and
+          completion evidence with the patient record. This queue does not infer
+          screening intervals or send messages.
         </Typography>
+        <Button href="/clinic/patients" variant="outlined" sx={{ mt: 2 }}>
+          Open patient register to record follow-up
+        </Button>
       </Box>
 
       {notice && <Alert severity="success">{notice}</Alert>}

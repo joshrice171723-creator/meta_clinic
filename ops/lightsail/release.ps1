@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory = $true)][string]$KeyPath,
   [string]$Server = 'ubuntu@aimetaclinic.com',
   [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files'),
-  [ValidateSet('local', 'registry')][string]$ImageSource = 'local'
+  [ValidateSet('local', 'registry')][string]$ImageSource = 'local',
+  [switch]$BuildWebOnHost
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +11,9 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $key = (Resolve-Path -LiteralPath $KeyPath).Path
 if (-not (Test-Path -LiteralPath $RecoveryDirectory -PathType Container)) {
   throw "Recovery directory does not exist: $RecoveryDirectory"
+}
+if ($BuildWebOnHost -and $ImageSource -ne 'local') {
+  throw 'BuildWebOnHost requires local image transfer.'
 }
 
 Push-Location $root
@@ -30,10 +34,12 @@ try {
 $remoteScript = "/tmp/meta-clinic-release-$revision.sh"
 $remoteVerify = "/tmp/meta-clinic-verify-$revision.py"
 $remoteArchive = $null
+$remoteEncrypted = "/home/ubuntu/meta-clinic-recovery-$revision-$([guid]::NewGuid().ToString('N')).dpapi"
 $remoteImages = "/home/ubuntu/meta-clinic-images-$revision.tar"
 $localImages = Join-Path $env:TEMP "meta-clinic-images-$revision.tar"
 $plain = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision.tar.gz.partial"
 $encrypted = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision.tar.gz.dpapi"
+$roundTripCopy = Join-Path $RecoveryDirectory "MetaClinic-recovery-$revision-$([guid]::NewGuid().ToString('N')).roundtrip.partial"
 if (Test-Path -LiteralPath $plain) { throw "Remove or inspect existing partial download: $plain" }
 if (Test-Path -LiteralPath $encrypted) { throw "An encrypted recovery archive already exists: $encrypted" }
 if ($ImageSource -eq 'local' -and (Test-Path -LiteralPath $localImages)) {
@@ -47,8 +53,38 @@ if ($ImageSource -eq 'local') {
     $webImage = "meta-clinic-web:$revision"
     & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $apiImage apps/api
     if ($LASTEXITCODE -ne 0) { throw 'API image build failed.' }
-    & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
-    if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+    if ($BuildWebOnHost) {
+      Push-Location (Join-Path $root 'apps\web')
+      try {
+        & pnpm.cmd install --frozen-lockfile --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw 'Web locked install failed.' }
+        & pnpm.cmd run build
+        if ($LASTEXITCODE -ne 0) { throw 'Web host build failed.' }
+      } finally {
+        Pop-Location
+      }
+      $webContext = Join-Path $env:TEMP "meta-clinic-web-$revision-$([guid]::NewGuid().ToString('N'))"
+      $tempRoot = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+      if (-not [System.IO.Path]::GetFullPath($webContext).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Web build context escaped the temporary directory.'
+      }
+      try {
+        New-Item -ItemType Directory -Path $webContext | Out-Null
+        Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
+        $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
+        @{ revision = $revision; version = $version } | ConvertTo-Json -Compress |
+          Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
+        Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
+        Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
+        & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
+        if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
+      } finally {
+        if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
+      }
+    } else {
+      & docker build --platform linux/amd64 --add-host api:127.0.0.1 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
+      if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+    }
     & docker save -o $localImages $apiImage $webImage
     if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
   } finally {
@@ -90,8 +126,12 @@ try {
   $protected = [System.Security.Cryptography.ProtectedData]::Protect(
     $bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
   [System.IO.File]::WriteAllBytes($encrypted, $protected)
+  & scp -o BatchMode=yes -i $key $encrypted "${Server}:$remoteEncrypted"
+  if ($LASTEXITCODE -ne 0) { throw 'Could not upload the encrypted recovery archive.' }
+  & scp -o BatchMode=yes -i $key "${Server}:$remoteEncrypted" $roundTripCopy
+  if ($LASTEXITCODE -ne 0) { throw 'Could not download the encrypted recovery archive.' }
   $roundTrip = [System.Security.Cryptography.ProtectedData]::Unprotect(
-    [System.IO.File]::ReadAllBytes($encrypted), $null,
+    [System.IO.File]::ReadAllBytes($roundTripCopy), $null,
     [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
   $hash = [System.Security.Cryptography.SHA256]::HashData($roundTrip)
   if ([Convert]::ToHexString($hash).ToLowerInvariant() -ne $expectedHash) {
@@ -106,7 +146,9 @@ try {
   Write-Output "Release $revision completed. Encrypted recovery archive: $encrypted"
 } finally {
   if (Test-Path -LiteralPath $plain) { Remove-Item -LiteralPath $plain }
+  if (Test-Path -LiteralPath $roundTripCopy) { Remove-Item -LiteralPath $roundTripCopy }
   $cleanupPaths = "$remoteScript $remoteVerify"
   if ($remoteArchive) { $cleanupPaths += " $remoteArchive" }
+  $cleanupPaths += " $remoteEncrypted"
   & ssh -o BatchMode=yes -i $key $Server "rm -f $cleanupPaths" | Out-Null
 }

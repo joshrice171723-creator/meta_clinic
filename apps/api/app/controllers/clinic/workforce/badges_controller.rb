@@ -22,7 +22,7 @@ module Clinic
         raise ArgumentError, "A PIN is required for badges used at this site" if settings.fetch("pin_required", false) && params[:pin].blank?
         result = IssueBadge.call(employment: employment, actor_membership: clinic_membership, pin: params[:pin])
         render json: {
-          badge: ClockSerializer.badge(result.badge),
+          badge: ClockSerializer.badge(result.badge).merge(employee_name: employment.staff_member.display_name),
           printable: { token: result.token, barcode_svg: result.barcode_svg, reprintable: false }
         }, status: :created
       end

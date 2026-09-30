@@ -71,6 +71,7 @@ import {
   requiresLocationSelection,
 } from "./locationSelection";
 import { PatientContextBar } from "./PatientContextBar";
+import { version as clinicVersion } from "../../../package.json";
 
 type ClinicContextValue = ClinicWorkspaceContext & {
   refreshWorkspace: () => void;
@@ -282,7 +283,8 @@ export function ClinicNavigation({
         },
         {
           href: "/clinic/operations",
-          label: "Operations overview",
+          label: "Morning view",
+          description: "Schedule, drawer, invoices, staffing",
           Icon: StorefrontIcon,
           allowed: true,
         },
@@ -476,6 +478,7 @@ export function Workspace({
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
   const [locationSelectionMade, setLocationSelectionMade] = useState(false);
+  const locationSelected = locationSelectionMade || Boolean(data?.current_site);
   const [switchingPractice, setSwitchingPractice] = useState(false);
   useLayoutEffect(() => {
     setClinicPractice(data?.practice.id);
@@ -489,7 +492,7 @@ export function Workspace({
 
   const selectSite = async (siteId: number) => {
     if (selectingLocation.current) return;
-    if (locationSelectionMade && data?.current_site?.id === siteId) return;
+    if (data?.current_site?.id === siteId) return;
     if (confirmNavigation && !confirmNavigation()) return;
     selectingLocation.current = true;
     setSelectingSiteId(siteId);
@@ -540,7 +543,7 @@ export function Workspace({
   const overview = useResource<ClinicOverview>("/api/clinic", {
     enabled: canLoadClinicOverview(
       data?.sites,
-      locationSelectionMade,
+      locationSelected,
       clinicOverviewRequired(path),
     ),
   });
@@ -612,7 +615,7 @@ export function Workspace({
         </main>
       </ClinicAppearanceScope>
     );
-  if (requiresLocationSelection(data.sites, locationSelectionMade))
+  if (requiresLocationSelection(data.sites, locationSelected))
     return (
       <ClinicAppearanceScope {...appearance}>
         <main id="main" className="wrap inner-page">
@@ -836,6 +839,14 @@ export function Workspace({
                               data.practice.name}
                           </span>
                           <a href="/clinic/settings">My settings</a>
+                          <a
+                            href="/clinic/updates"
+                            aria-current={
+                              path === "/clinic/updates" ? "page" : undefined
+                            }
+                          >
+                            Version {clinicVersion} · Update log
+                          </a>
                         </span>
                       </header>
                     )}

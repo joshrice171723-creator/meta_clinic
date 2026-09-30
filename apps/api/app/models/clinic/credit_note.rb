@@ -11,10 +11,11 @@ module Clinic
     encrypts :reason
 
     attr_readonly :practice_id, :patient_id, :invoice_id, :currency, :amount,
-      :reason, :issued_by_membership_id, :issued_at
+      :reason, :issued_by_membership_id, :issued_at, :adjustment_type
 
     validates :currency, presence: true, format: { with: /\A[A-Z]{3}\z/ }
     validates :amount, numericality: { greater_than: 0 }
+    validates :adjustment_type, inclusion: { in: %w[credit write_off] }
     validates :reason, length: { maximum: 500 }, allow_nil: true
     validate :invoice_belongs_to_patient
     validate :issuer_belongs_to_practice

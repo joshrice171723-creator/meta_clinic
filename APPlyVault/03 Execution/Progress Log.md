@@ -1,11 +1,63 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-28
+updated: 2026-09-30
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-30 — MC-09/MC-12 acceptance design linked locally
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) links the revised docs-only PR57 [connected membership and portal packets](../../docs/development/clinic-workflow-plans/membership-portal-connected-acceptance.md) at `2af63b7a0352f752c12796e75b34184e3e96644c` in a separate local documentation candidate. Design includes the planned null-ID manifest and closed-world test clock/gateway recipe. The successful recurring-renewal handler is implemented; missing second-paid-cycle acceptance is a proof gap, not missing product code. Runtime/owned synthetic fixtures and connected execution remain pending; separately authored isolated tests are not counted as passing here. No live fixture/auth changes, charges, outbound messages, provider proof, score change or publication occurred. PR36 notes/history and approved PR55 source remain preserved.
+
+## 2026-09-30 — PR55 approved-source and tracker integration preparation
+
+A separate Relay-owned local candidate combines Sage-approved PR55 `1f81a07ed04ef7d7f41034c10167a67634318884` with the preserved PR36 tracker notes and MC-05/06 M11 assignment link. The approved corrected brief supersedes its older copied version in this candidate; the earlier documentation packet remains preserved. Sage passed both retained/failed-refresh browser regressions and reused unchanged-backend two-case / 51-assertion evidence. The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) retains connected Rails/browser acceptance, clinical-review boundaries and the release HOLD. No completion scores, access, upstream merge or deployment changed.
+
+## 2026-09-30 — Local PR36/PR55 tracker reconciliation
+
+A Relay-owned documentation candidate preserves the five unmerged PR36 tracker notes and links the MC-05/06 M11 [saved answer source assignment](../../docs/development/clinic-workflow-plans/intake-answer-provenance.md) from the [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md). PR36 remains an open draft at `d93e9790751ad42897b7cc824ca0fa7cb595c5a0`; its full changes and progress history are preserved separately. Current-main release history is retained. The copied assignment brief matches Nova's PR55 `43aad220f792f99c40cb7bf9a1401ae3d850ab7a`; application changes are excluded from this documentation candidate. Independent source/API and connected browser acceptance remain pending. No scores, permissions, publication or release status changed.
+
+## 2026-09-29 — Anonymous QA desk published and request persistence verified
+
+Joshua's explicit publishing request released the anonymous QA desk at `e2934e93de0e8b41a1ab54f539589effd8e86379`, version 0.2.3. The initial `fac15f24` release exposed a repeat-action bug in audit-user creation; the corrected release reuses that inactive synthetic attribution identity. Matched API/web images, encrypted recovery round-trip and hosted release checks passed; public build.json independently matched. Anonymous /qa and /qa?view=atlas returned HTTP 200. Browser navigation rendered all seven desk views without a login gate; pin confirmation persisted and the retest button saved task #1, queued for Muse on the exact released revision. This is an assisted release and queue receipt, not an agent claim or a passing retest. Ordinary clinic anonymous denial, CSRF denial, credential login and demo Owner PIN requirements passed the release checks. TypeScript/Vite build, Ruby syntax and scoped diff checks passed; no test suites were run.
+
+Remaining observed integration gaps: GitHub refresh reports unavailable; the coverage export is not imported; public /qa/status.json and /qa/batches.json return 502 while /api/qa/status.json and /api/qa/batches.json return 200. Scheduled pickup, service-token availability and current-build verdict recording are unverified. Preserve task #1 rather than queueing a duplicate. Full live revision is the QA identity; unchanged version does not count as a new unattended product cycle. This dated receipt is documentation only and is not another deployment.
+
+## 2026-09-29 — QA build observation and access feedback released
+
+PR #33 fixes QA build observation independently of workspace access, clears stale workspace records on a failed refresh, disables pin confirmation without workspace data, and explains the existing platform-owner credential requirement. The guarded 0.2.3 release completed at `8e2a8215c1654594eea2c4878707dfbe255f5f24`; independent public build.json matched and /up returned HTTP 200. TypeScript, formatting, encrypted recovery and hosted release checks passed. An anonymous browser was correctly directed to the QA credential form; a signed-in QA build-panel walkthrough and actual platform-owner account login remain unverified. Issue #32 retains that acceptance gap. Demo PIN permissions were not changed. Atlas percentages remain unchanged.
+
+## 2026-09-29 — 0.2.2 demo and scribe carryforward published
+
+PR #31 merged and the guarded Lightsail release completed at `1beddd8bd94b244d95b4cc721e9ac7281d953577`, version 0.2.2. Matched images, encrypted recovery and hosted checks passed; independent build.json matched and /up plus /clinic/updates returned HTTP 200. [Carryforward and release receipt](../../records/audits/2026-09-29-remaining-diff-carryforward.md) preserve the deferred timezone/permission drafts and QA-page follow-up. Atlas percentages are unchanged; Muse exact-build browser acceptance remains pending.
+
+## 2026-09-29 — 0.2.1 QA sign-in release and worktree reconciliation
+
+[Release receipt and exclusions](../../records/audits/2026-09-29-release-reconciliation.md) record verified 0.2.1 at `646a4384df0e3c19dcd0f439d88e82bebc87cbd0`, guarded recovery, passing hosted checks and the browser-observed QA credential form. Remaining dirty work is preserved and classified; platform-owner login acceptance and Muse exact-build retest remain open. Atlas percentages are unchanged.
+
+## 2026-09-29 — 0.2.0 deployment verified
+
+The guarded Lightsail release completed at `bf3c787f38a9c987195cbf0784def55f1b0b53b1` with matched API/web images and verified encrypted off-host recovery. Public `/build.json` independently reports 0.2.0 at that revision; `/up` and `/clinic/updates` return HTTP 200. This supersedes the deployment blocker below: an existing authorized key recovered the SSH transfer, without changing host access. Atlas and canonical release status are updated; scores remain 73.2% Build, 46.3% Validation and 0% external/human acceptance. Muse exact-build retest remains unverified. Open PR #4 and draft PR #3 remain excluded; dirty root/worktree changes are preserved. This assisted release does not count as an unattended cycle.
+
+## 2026-09-29 — QA / Atlas inventory reconciliation
+
+The [checkpoint](../../records/audits/2026-09-29-qa-inventory-reconciliation.md) separates the 81-row implementation Atlas, the recovered 2026-09-28 PDF (historical 0.1.8; 188 defect entries, 6 pending verification, 28 marked fixed/verified, 54 non-bug ideas), 272 historical imported QA records, 70 historical retest findings, and 9 currently open GitHub `muse-qa` issues. Their identifiers are not reconciled, so the scopes must not be added into a unique-defect count or treated as current-build retest evidence. At the original checkpoint, the live site and `origin/main` were both verified at 0.1.9 / `e8a24e4e32c174c14fc32f0d0b51541cfcb56e94`; subsequent 0.2.0 merge and release status are recorded below. Atlas scores remain 73.2% Build, 46.3% local Validation, 0% external/human acceptance; fixing every application defect remains unfinished.
+
+Release status update: PRs #25 and #26 are merged. Package version 0.2.0 is on main at `f2c6f3da02faca7854e268f922be32e53530b7a5`. Guarded release image builds completed, but transfer failed with SSH `Permission denied (publickey)` before the host switch. The public `/build.json` still reports 0.1.9 at `e8a24e4e32c174c14fc32f0d0b51541cfcb56e94`; no deployment is claimed.
+
+## 2026-09-28 — Version 0.1.9 Muse QA disposition checkpoint
+
+The [70-finding audit](../../records/audits/2026-09-28-muse-qa-70-disposition.md) records one source-backed disposition per report finding against the 0.1.9 candidate branch, including reasons where no code change is justified. This batch repairs recurring-series assignment recovery, opt-out warning copy, staff-conversation creator eligibility, location selection on reload, site-scoped location options, clinic-account sign-in discovery, appearance wording, booking site labels and template casing. The source review is not a current-revision browser retest. TypeScript and Ruby syntax passed; tests were not run under the repository preference. Local API/database readiness and browser acceptance remain open, and no hosted 0.1.9 release is claimed at this checkpoint. The founder superseded the earlier 74% and 75% Atlas Build release thresholds with the all-70 disposition gate.
+
+## 2026-09-28 — Atlas day-end review source checkpoint
+
+[Dated source evidence](../../records/implementation/2026-09-28-atlas-day-end-review.md) records a practice-date review note with captured invoice, payment/refund and drawer summaries, exact retry behavior, and a paged earlier-drawer worklist. MC-08/14/15 Build estimates move 91→92%, 58→66% and 55→57%; the equal-weight MC-01–15 Build average moves 72.1→72.8%. Validation and External / human remain unchanged. The isolated migration, Ruby syntax/lint, Rails loading/routes and TypeScript passed; a queued production bundle completed but its wrapper then failed to update metadata. Tests and browser acceptance did not run. This is an unpublished 0.1.9 branch checkpoint, below the 74% Muse QA request and 75% publication gates.
+
+## 2026-09-28 — Atlas Build reconciliation for 0.1.8 candidate
+
+[Dated source evidence](../../records/implementation/2026-09-28-atlas-build-reconciliation.md) maps the published founder workflow preview and subsequent repairs to eleven MC Build rows. The equal-weight MC-01–15 Build estimate moves 70.1→72.1%; Validation and External / human scores remain unchanged. The 0.1.8 candidate also carries a shared booking default fix for Muse GH #21 and selected-site recovery for unfinalized locations. TypeScript, the web production build, Ruby syntax, vault structure and vault audit checks passed. The changed-file formatter reports three files that also failed at `HEAD`; no broad reformat was applied. Exact-revision hosted retest, deployment and all founder workflow acceptance remain open at this checkpoint.
 
 ## 2026-09-28 — Incomplete location setup recovery released
 

@@ -8,6 +8,7 @@ import {
   FormControl,
   FormControlLabel,
   FormLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Radio,
@@ -355,6 +356,27 @@ export function PracticeFeatureSettings({
 
   if (!features) return <LoadState error={error} />;
 
+  const setupSteps = [
+    {
+      label: "Choose a clinic type",
+      complete: siteId
+        ? features.site_specialty_configured === true
+        : features.clinic_type !== null,
+    },
+    { label: "Save the service profile", complete: features.configured },
+    {
+      label: "Review screening scope",
+      complete: features.assessment_configured,
+    },
+    {
+      label: `Finalize ${siteId ? "location" : "clinic"} setup`,
+      complete: features.finalized === true,
+    },
+  ];
+  const completedSetupSteps = setupSteps.filter((step) => step.complete).length;
+  const nextSetupStepIndex = setupSteps.findIndex((step) => !step.complete);
+  const nextSetupStep = setupSteps[nextSetupStepIndex];
+
   const toggleService = (code: ClinicServiceCode, selected: boolean) => {
     setServiceScope((current) =>
       selected
@@ -436,6 +458,62 @@ export function PracticeFeatureSettings({
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={3}>
+        <Stack spacing={1}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ justifyContent: "space-between", alignItems: "baseline" }}
+          >
+            <Typography variant="subtitle1">Setup progress</Typography>
+            <Typography color="text.secondary" variant="body2">
+              {completedSetupSteps} of {setupSteps.length} steps complete
+            </Typography>
+          </Stack>
+          <LinearProgress
+            aria-label="Clinic setup progress"
+            value={(completedSetupSteps / setupSteps.length) * 100}
+            variant="determinate"
+          />
+          <Typography color="text.secondary" variant="body2">
+            {nextSetupStep
+              ? `Next: ${nextSetupStep.label}.`
+              : `${siteId ? "Location" : "Clinic"} profile setup is complete. Workforce settings are managed separately under Workforce.`}
+          </Typography>
+          <Stack
+            component="ol"
+            spacing={0.5}
+            sx={{ m: 0, pl: 2.5 }}
+          >
+            {setupSteps.map((step, index) => (
+              <li key={step.label}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ justifyContent: "space-between", alignItems: "center" }}
+                >
+                  <Typography variant="body2">{step.label}</Typography>
+                  <Chip
+                    size="small"
+                    color={
+                      step.complete
+                        ? "success"
+                        : index === nextSetupStepIndex
+                          ? "primary"
+                          : "default"
+                    }
+                    label={
+                      step.complete
+                        ? "Done"
+                        : index === nextSetupStepIndex
+                          ? "Next"
+                          : "Later"
+                    }
+                  />
+                </Stack>
+              </li>
+            ))}
+          </Stack>
+        </Stack>
         <Stack spacing={1}>
           <Stack
             direction={{ xs: "column", sm: "row" }}
@@ -748,6 +826,7 @@ export function PracticeFeatureSettings({
           </Button>
           {!features.finalized && features.configured && (
             <Button
+              id="clinic-setup-finalize"
               data-demo-next
               disabled={!canWrite || saving || changed}
               onClick={() => void save(true)}

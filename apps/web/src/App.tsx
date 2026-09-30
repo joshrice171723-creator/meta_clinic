@@ -58,6 +58,10 @@ const WorkInbox = lazyNamed(
   () => import("./features/clinic/WorkInbox"),
   (m) => m.WorkInbox,
 );
+const ClinicUpdateLog = lazyNamed(
+  () => import("./features/clinic/ClinicUpdateLog"),
+  (m) => m.ClinicUpdateLog,
+);
 const DemoJourney = lazyNamed(
   () => import("./features/demo/DemoJourney"),
   (m) => m.DemoJourney,
@@ -137,6 +141,10 @@ const Settings = lazyNamed(
 const OwnerCommandCenter = lazyNamed(
   () => import("./features/owner/OwnerCommandCenter"),
   (m) => m.OwnerCommandCenter,
+);
+const QaWorkspace = lazyNamed(
+  () => import("./features/qa/QaWorkspace"),
+  (m) => m.QaWorkspace,
 );
 const OwnerActivationPage = lazyNamed(
   () => import("./features/owner/OwnerActivationPage"),
@@ -588,6 +596,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         />
       ) : path === "/clinic/work" ? (
         <WorkInbox />
+      ) : path === "/clinic/updates" ? (
+        <ClinicUpdateLog />
       ) : path === "/clinic/waitlist" ? (
         <WaitlistWorkspace />
       ) : path === "/clinic/recalls" ? (
@@ -890,6 +900,7 @@ function Application() {
     [
       "/",
       "/login",
+      "/qa",
       "/meta-clinic",
       "/meta-clinic/membership-care/patient-view",
       "/patient-portal/activate",
@@ -1116,6 +1127,13 @@ function Application() {
           ownerPinRequired={configuration.public_demo_owner_pin_required}
         />
       </SessionGuard>
+    );
+  }
+  if (path === "/qa") {
+    return (
+      <RouteBoundary root>
+        <QaWorkspace />
+      </RouteBoundary>
     );
   }
   if (path === "/owner" && user) {

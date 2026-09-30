@@ -79,6 +79,20 @@ describe("inventory integration", () => {
       packages: [],
       can_create_purchase_order: true,
       attention_count: 25,
+      first_run: {
+        supplier: false,
+        product: true,
+        offer: false,
+        purchase_order: false,
+        received: false,
+        binned: false,
+        supplier_id: null,
+        product_id: "21",
+        product_name: "Catalog fixture liquid",
+        purchase_order_id: null,
+        purchase_order_status: null,
+        shipment_id: null,
+      },
       attention: [
         {
           id: "1",
@@ -102,6 +116,25 @@ describe("inventory integration", () => {
     expect(html).toContain("25");
     expect(html).toContain("Catalog pagination");
     expect(html).toContain("product_id=21");
+    expect(html).not.toContain('href="/clinic/inventory/catalog/new"');
+    expect(html).not.toContain('href="/clinic/inventory/receiving"');
+    expect(html).toContain('href="/clinic/inventory/lots?product_id=21"');
+    for (const catalogAllowed of [false, true]) {
+      for (const receivingAllowed of [false, true]) {
+        data.capabilities = {
+          "inventory.catalog": catalogAllowed,
+          "inventory.receive": receivingAllowed,
+        };
+        const permittedHtml = render();
+        expect(
+          permittedHtml.includes('href="/clinic/inventory/catalog/new"'),
+        ).toBe(catalogAllowed);
+        expect(
+          permittedHtml.includes('href="/clinic/inventory/receiving"'),
+        ).toBe(receivingAllowed);
+      }
+    }
+    data.capabilities = {};
     expect(render({ error: "Read failed" })).toContain(
       "The previous catalog page remains visible.",
     );
@@ -565,7 +598,14 @@ describe("inventory integration", () => {
     expect(source).toContain("Search begins automatically after 3 characters.");
     expect(source).not.toContain("Search directory");
     expect(source).toContain("No catalog items yet");
-    expect(source).toContain("Mark delivered → Receiving");
+    expect(source).toContain(
+      "`/api/clinic/inventory/shipments/${shipment.id}/events`",
+    );
+    expect(source).toContain("Record status update");
+    expect(source).toContain("Open receiving record");
+    expect(source).toContain(
+      "`/clinic/inventory/receiving?shipment_id=${shipment.id}&delivery_status=all`",
+    );
     expect(source).toContain('"/api/clinic/inventory_configuration"');
     expect(source).toContain("Initial clinic inventory setup");
     expect(source).toContain("Enable purchasing and receiving");

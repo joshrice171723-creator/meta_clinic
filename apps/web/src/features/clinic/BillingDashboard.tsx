@@ -19,7 +19,6 @@ import {
   Typography,
 } from "@mui/material";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
-import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
@@ -323,12 +322,14 @@ export function BillingDashboard() {
   const canRecordPayment = context.capabilities.billing_payment_record === true;
   const canUseCashDrawer =
     canRecordPayment || context.capabilities.billing_cash_reconcile === true;
-  const [activeTab, setActiveTab] = useState(() =>
-    stripeSetupReturnMarker() ||
-    new URLSearchParams(window.location.search).get("tab") === "subscriptions"
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return stripeSetupReturnMarker() || tab === "subscriptions"
       ? "subscriptions"
-      : "invoices",
-  );
+      : tab === "cash" && canUseCashDrawer
+        ? "cash"
+        : "invoices";
+  });
   const [invoiceOpen, setInvoiceOpen] = useState(
     Boolean(new URLSearchParams(window.location.search).get("invoice_id")),
   );
@@ -597,10 +598,9 @@ export function BillingDashboard() {
           </Button>
           <Button
             variant="outlined"
-            startIcon={<PrintOutlinedIcon />}
             onClick={() => setActiveTab("payments")}
           >
-            Print a receipt
+            View payments & receipts
           </Button>
           {context.capabilities.billing_catalog_manage === true && (
             <Button variant="outlined" href="/clinic/billing/services">
@@ -1014,6 +1014,7 @@ export function BillingDashboard() {
                     <TableCell>Age</TableCell>
                     <TableCell>Total</TableCell>
                     <TableCell>Paid</TableCell>
+                    <TableCell>Credit</TableCell>
                     <TableCell>Balance</TableCell>
                   </TableRow>
                 </TableHead>
@@ -1088,6 +1089,9 @@ export function BillingDashboard() {
                         </TableCell>
                         <TableCell data-label="Paid">
                           {money(invoice.allocated, invoice.currency)}
+                        </TableCell>
+                        <TableCell data-label="Credit">
+                          {money(invoice.credited, invoice.currency)}
                         </TableCell>
                         <TableCell data-label="Balance">
                           {money(invoice.balance, invoice.currency)}

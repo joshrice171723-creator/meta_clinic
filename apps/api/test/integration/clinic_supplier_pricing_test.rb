@@ -69,6 +69,45 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     assert_not Clinic::Inventory::Supplier.exists?(practice_id: @practice.id, name: "Blocked Supply")
   end
 
+  test "quote requests snapshot offer units and cannot close after those units change" do
+    supplier = @practice.inventory_suppliers.create!(name: "Synthetic quote supplier")
+    offer = supplier.supplier_products.create!(
+      practice: @practice, product: @product, ndc: @product.ndc, supplier_sku: "QUOTE-001",
+      description: "Bottle of 90 synthetic tablets", ordering_unit: "package", currency: "USD",
+      contract_status: "active", package_quantity: 90, wholesale_unit_cost: 12,
+      available: true, effective_date: @practice.inventory_date, imported_at: Time.current
+    )
+
+    post "/api/clinic/inventory/supplier-quote-requests?response=ack", params: {
+      quote_request: { supplier_product_id: offer.id, requested_packages: "2", note: "Confirm package size", request_key: SecureRandom.uuid }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    request = Clinic::Inventory::SupplierQuoteRequest.find(response.parsed_body.fetch("id"))
+    assert_equal BigDecimal("90"), request.package_quantity_at_request
+    assert_equal "tablet", request.stock_unit_at_request
+
+    offer.update!(package_quantity: 30)
+    patch "/api/clinic/inventory/supplier-products/#{offer.id}/manual-quote", params: {
+      quote: { reference: "SYN-QUOTE-1", quoted_on: @practice.inventory_date.iso8601,
+        wholesale_unit_cost: "12.00", currency: "USD", expected_updated_at: offer.reload.updated_at.iso8601(6),
+        quote_request_id: request.id }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "open", request.reload.status
+    assert_nil offer.reload.quote_reference
+
+    post "/api/clinic/inventory/supplier-quote-requests?response=ack", params: {
+      quote_request: { supplier_product_id: offer.id, requested_packages: "2", note: "Confirm stock unit", request_key: SecureRandom.uuid }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    unit_request = Clinic::Inventory::SupplierQuoteRequest.find(response.parsed_body.fetch("id"))
+    assert_raises(ActiveRecord::StatementInvalid) do
+      @product.update_catalog!({ stock_unit: "capsule", unit_reference: "Bottle of 90 capsules" }, actor: @user)
+    end
+    assert_equal "tablet", unit_request.reload.stock_unit_at_request
+    assert_equal "open", unit_request.status
+  end
+
   private
 
   def csrf_headers

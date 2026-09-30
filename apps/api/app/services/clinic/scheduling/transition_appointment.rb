@@ -2,7 +2,7 @@ module Clinic
   module Scheduling
     class TransitionAppointment
       def self.call(appointment:, actor:, to:, site: nil, expected_status: nil)
-        appointment.with_lock do
+        updated = appointment.with_lock do
           raise ArgumentError, "The appointment belongs to a different site." if site && site.id != appointment.site_id
 
           Authorization.authorize_with_legacy!(actor: actor, practice: appointment.practice,
@@ -26,6 +26,18 @@ module Clinic
           Clinic::Reminders::ReconcileAppointment.call(appointment: appointment, actor: actor)
           appointment
         end
+        if to.to_s == "cancelled"
+          ActiveRecord.after_all_transactions_commit do
+            begin
+              ApplicationRecord.transaction do
+                Waitlist.offer_cancelled_slot!(appointment: updated, actor: actor)
+              end
+            rescue StandardError => error
+              Rails.logger.warn("Waitlist offer after cancellation #{updated.id} failed: #{error.class}")
+            end
+          end
+        end
+        updated
       end
 
       def self.ready_for_confirmation?(appointment)

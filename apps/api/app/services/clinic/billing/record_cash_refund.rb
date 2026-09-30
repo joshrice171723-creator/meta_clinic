@@ -7,7 +7,7 @@ module Clinic
           tender = Clinic::CashTender.where(practice: practice, payment_event_id: payment.id).first
           raise ArgumentError, "Only cash payments can be refunded from the drawer." unless tender
           drawer = practice.cash_drawer_sessions.lock.find(tender.cash_drawer_session_id)
-          payment = Clinic::PaymentEvent.where(practice: practice).lock.find(payment.id)
+          payment = Clinic::PaymentEvent.where(practice: practice).find(payment.id)
           tender = payment.cash_tender or raise ArgumentError, "Only cash payments can be refunded from the drawer."
           raise ArgumentError, "Cash payment drawer details changed." unless tender.cash_drawer_session_id == drawer.id
           raise ArgumentError, "The cash drawer is closed." unless drawer.status == "open"

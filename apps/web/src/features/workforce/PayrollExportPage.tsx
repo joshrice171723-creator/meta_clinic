@@ -82,6 +82,11 @@ export function PayrollExportPage() {
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const canConfigure = clinic.capabilities.workforce_payroll_configure === true;
   const canExport = clinic.capabilities.workforce_payroll_export === true;
+  const canManageEmployees = clinic.capabilities.workforce_admin === true;
+  const canOpenTimecards =
+    clinic.capabilities.workforce_timecards_read === true ||
+    clinic.capabilities.workforce_timecards_review === true ||
+    clinic.capabilities.workforce_timecards_approve === true;
 
   useEffect(() => {
     if (!siteId) return;
@@ -325,9 +330,25 @@ export function PayrollExportPage() {
                 </Table>
               </TableContainer>
               {!data.employees.length && (
-                <Typography>
-                  No employees are assigned to this location.
-                </Typography>
+                <Alert
+                  severity="info"
+                  action={
+                    canManageEmployees ? (
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => navigate("/clinic/workforce/employees")}
+                      >
+                        Manage employees
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  No employees are assigned to this location.{" "}
+                  {canManageEmployees
+                    ? "Activate or link employees and assign this location before mapping payroll IDs."
+                    : "Ask a workforce administrator to assign employees to this location."}
+                </Alert>
               )}
               <Button
                 variant="outlined"
@@ -416,10 +437,25 @@ export function PayrollExportPage() {
                 />
               ))}
               {!data.timecards.length && (
-                <Typography>
-                  No approved timecards are available. Resolve exceptions and
-                  approve hours in Timecards first.
-                </Typography>
+                <Alert
+                  severity="info"
+                  action={
+                    canOpenTimecards ? (
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => navigate("/clinic/workforce/timecards")}
+                      >
+                        Open Timecards
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  No approved timecards are available.{" "}
+                  {canOpenTimecards
+                    ? "Check the current cards in Timecards; resolve exceptions and follow the configured submission and approval path before exporting."
+                    : "Ask an authorized employee or timecard reviewer to resolve exceptions and complete the configured submission and approval path before exporting."}
+                </Alert>
               )}
               <Stack direction="row" sx={{ gap: 2 }}>
                 <Button

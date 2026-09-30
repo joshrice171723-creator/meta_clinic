@@ -249,6 +249,7 @@ export function EmploymentAdminPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [activationToken, setActivationToken] = useState<string | null>(null);
   const [activationPath, setActivationPath] = useState<string | null>(null);
+  const [setupRoleCode, setSetupRoleCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (roleVersionId || !data) return;
@@ -260,6 +261,14 @@ export function EmploymentAdminPage() {
 
   if (!data) return <LoadState error={error} />;
 
+  const frontDeskRole = data.role_options.find(
+    (role) => role.role_code === "front-desk-coordinator",
+  );
+  const clinicianSetupNeeded =
+    setupRoleCode === "clinician" ||
+    data.role_options.find((role) => String(role.id) === roleVersionId)
+      ?.role_code === "clinician";
+  const frontDeskTitle = /front[\s-]*desk/i.test(jobTitle);
   const reset = () => {
     setDisplayName("");
     setJobTitle("");
@@ -281,6 +290,7 @@ export function EmploymentAdminPage() {
     setFeedback(null);
     setActivationToken(null);
     setActivationPath(null);
+    setSetupRoleCode(null);
     try {
       const isoEffectiveFrom = new Date(effectiveFrom).toISOString();
       if (accountMode === "existing") {
@@ -297,6 +307,10 @@ export function EmploymentAdminPage() {
             },
           },
         });
+        setSetupRoleCode(
+          data.role_options.find((role) => String(role.id) === roleVersionId)
+            ?.role_code ?? null,
+        );
         setFeedback({
           severity: "success",
           text: "The clinic account is now linked to this employee.",
@@ -321,6 +335,10 @@ export function EmploymentAdminPage() {
             },
           },
         });
+        setSetupRoleCode(
+          data.role_options.find((role) => String(role.id) === roleVersionId)
+            ?.role_code ?? null,
+        );
         setActivationToken(result.invitation.activation_token_once);
         setActivationPath(result.invitation.activation_path);
         setFeedback({
@@ -421,6 +439,28 @@ export function EmploymentAdminPage() {
           />
         </Alert>
       )}
+      {clinicianSetupNeeded && (
+        <Alert
+          severity="info"
+          action={
+            <Button
+              component="a"
+              href="/clinic/facilities"
+              target="_blank"
+              rel="noreferrer"
+              color="inherit"
+              size="small"
+            >
+              Open Clinic Setup
+            </Button>
+          }
+        >
+          The Clinician access role does not create a scheduling profile. Once
+          the account is active, open Clinic Setup to add their authorized
+          account at a site and department, then set availability and add them
+          to a service offering. Scheduling setup does not verify credentials.
+        </Alert>
+      )}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
         <Stack component="form" spacing={2.5} onSubmit={submit}>
@@ -508,6 +548,24 @@ export function EmploymentAdminPage() {
               ))}
             </Select>
           </FormControl>
+          {frontDeskTitle &&
+            frontDeskRole &&
+            roleVersionId !== String(frontDeskRole.id) && (
+              <Alert
+                severity="info"
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => setRoleVersionId(String(frontDeskRole.id))}
+                  >
+                    Use suggested role
+                  </Button>
+                }
+              >
+                Hiring for front desk? Start them as Front Desk Coordinator.
+              </Alert>
+            )}
           {data.role_options.length === 0 && (
             <Alert severity="warning">
               Your account cannot assign a workforce role. Ask a clinic access

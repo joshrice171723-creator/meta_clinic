@@ -603,12 +603,9 @@ export function DevelopmentControls({
           />
         )}
         <DevelopmentDatePicker businessDate={businessDate} />
-        <Button href="/memberships" size="small" variant="outlined">
-          Future patient
-        </Button>
         {portal === "clinic" && (
           <Button href="/workforce/activate" size="small" variant="outlined">
-            Activate clinic account
+            Activate with invitation code
           </Button>
         )}
         <Button

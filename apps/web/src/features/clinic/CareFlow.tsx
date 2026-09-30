@@ -122,6 +122,8 @@ type BookingDraft = {
   reason?: string;
   overbookReason?: string;
   overbookRequested?: boolean;
+  walkInReason?: string;
+  walkInRequested?: boolean;
   repeat?: "none" | "weekly";
   repeatIntervalWeeks?: number;
   repeatCount?: number;
@@ -232,6 +234,8 @@ type BookingAttempt = {
       schedule_hold_id?: number;
       reason?: string;
       overbook_reason?: string;
+      walk_in?: boolean;
+      capacity_override_reason?: string;
       expected_policy_revision?: number;
       request_key: string;
       visit_modality?: VisitModality;
@@ -268,6 +272,7 @@ type AppointmentWorkingDraft = {
 
 export function appointmentDraftRecoveryMessage(
   draft: AppointmentWorkingDraft | null,
+  updatedAt?: string | null,
 ): string | null {
   if (
     !draft ||
@@ -279,7 +284,11 @@ export function appointmentDraftRecoveryMessage(
     draft.seriesOutcomeUnconfirmed
   )
     return null;
-  return "Recovered appointment draft: its patient, time, and scheduling details are from your earlier work. Review them before scheduling, or start a new appointment to clear this saved draft.";
+  const age = updatedAt ? Date.now() - Date.parse(updatedAt) : Number.NaN;
+  const stale = Number.isFinite(age) && age >= 24 * 60 * 60 * 1_000;
+  return stale
+    ? `Recovered stale appointment draft saved ${new Date(updatedAt!).toLocaleString()}. Its patient, time, and scheduling details are from an earlier session; review them before scheduling, or start a new appointment.`
+    : "Recovered appointment draft from an earlier session: review its patient, time, and scheduling details before scheduling, or start a new appointment to clear it.";
 }
 
 /**
@@ -603,6 +612,34 @@ function localDateTimeValue(value: Date) {
   return local.toISOString().slice(0, 16);
 }
 
+function bookingTimePreview(value: string, timezone: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.valueOf())) return null;
+  const local = date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const clinic = date.toLocaleTimeString([], {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const localDate = date.toLocaleDateString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const clinicDate = date.toLocaleDateString([], {
+    timeZone: timezone,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const datePrefix =
+    localDate === clinicDate ? "" : `${localDate} → ${clinicDate} · `;
+  return `${datePrefix}${local} your time → ${clinic} clinic time`;
+}
+
 function clinicDateForBooking(value: string, timezone: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.valueOf())) return null;
@@ -624,7 +661,7 @@ function clinicDateForBooking(value: string, timezone: string) {
   }
 }
 
-export function appointmentDefaults(now = businessNow()) {
+export function appointmentDefaults(now = new Date()) {
   const start = new Date(now);
   start.setSeconds(0, 0);
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
@@ -767,14 +804,17 @@ function BookingFormEditor({
   const clinic = useClinic();
   const defaultDraft = useMemo<BookingDraft>(() => {
     const defaults = appointmentDefaults();
+    const slotStart = initialSlot?.starts_at;
+    const useSlotTime = !!slotStart && Date.parse(slotStart) > Date.now();
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
-      startsAt: initialSlot?.starts_at
-        ? localDateTimeValue(new Date(initialSlot.starts_at))
+      startsAt: useSlotTime
+        ? localDateTimeValue(new Date(slotStart))
         : defaults.startsAt,
-      endsAt: initialSlot?.ends_at
-        ? localDateTimeValue(new Date(initialSlot.ends_at))
-        : defaults.endsAt,
+      endsAt:
+        useSlotTime && initialSlot?.ends_at
+          ? localDateTimeValue(new Date(initialSlot.ends_at))
+          : defaults.endsAt,
       siteId: initialSlot ? String(initialSlot.site_id) : "",
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
       clinicianId: initialSlot?.clinician_id
@@ -784,6 +824,8 @@ function BookingFormEditor({
       serviceOfferingId: "",
       reason: "",
       overbookReason: "",
+      walkInReason: "",
+      walkInRequested: false,
       repeat: "none",
       repeatIntervalWeeks: 1,
       repeatCount: 2,
@@ -812,8 +854,32 @@ function BookingFormEditor({
     Boolean(initialDraft?.attempt),
     initialPatientId,
   );
+  const resumedAttempt = boundBooking.attempt?.body.appointment;
+  const resumedAttemptDiffersFromSlot = Boolean(
+    initialSlot?.starts_at &&
+      resumedAttempt &&
+      (Date.parse(initialSlot.starts_at) !==
+        Date.parse(resumedAttempt.starts_at) ||
+        (initialSlot.ends_at &&
+          Date.parse(initialSlot.ends_at) !==
+            Date.parse(resumedAttempt.ends_at)) ||
+        initialSlot.site_id !== Number(resumedAttempt.site_id)),
+  );
   const effectiveDraft = boundBooking.draft;
-  const draftRecoveryMessage = appointmentDraftRecoveryMessage(initialDraft);
+  const draftRecoveryMessage = appointmentDraftRecoveryMessage(
+    initialDraft,
+    workingDraft.updatedAt,
+  );
+  const recoveredDraftDiffersFromSlot = Boolean(
+      draftRecoveryMessage &&
+      initialDraft &&
+      initialSlot?.starts_at &&
+      (Date.parse(initialDraft.draft.startsAt) !==
+        Date.parse(initialSlot.starts_at) ||
+        (initialSlot.ends_at &&
+          Date.parse(initialDraft.draft.endsAt) !==
+            Date.parse(initialSlot.ends_at))),
+  );
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
   const [replacementPatientId, setReplacementPatientId] = useState<
@@ -836,13 +902,22 @@ function BookingFormEditor({
   );
   const [reason, setReason] = useState(restoredDraft.reason ?? "");
   const [overbookReason, setOverbookReason] = useState(
-    restoredDraft.overbookReason ?? "",
+    restoredDraft.walkInRequested || restoredDraft.walkInReason
+      ? ""
+      : restoredDraft.overbookReason ?? "",
   );
   const [overbookRequested, setOverbookRequested] = useState(
-    Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+    !Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason) &&
+      Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+  );
+  const [walkInReason, setWalkInReason] = useState(restoredDraft.walkInReason ?? "");
+  const [walkInRequested, setWalkInRequested] = useState(
+    Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason),
   );
   const [repeat, setRepeat] = useState<"none" | "weekly">(
-    restoredDraft.repeat ?? "none",
+    restoredDraft.walkInRequested || restoredDraft.walkInReason
+      ? "none"
+      : restoredDraft.repeat ?? "none",
   );
   const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(
     restoredDraft.repeatIntervalWeeks ?? 1,
@@ -933,6 +1008,9 @@ function BookingFormEditor({
   const [changingPatient, setChangingPatient] = useState(false);
   const deferredPatientQuery = useDeferredValue(patientQuery);
   const [submitError, setSubmitError] = useState("");
+  const [draftCloseFailed, setDraftCloseFailed] = useState(false);
+  const [assignmentNotice, setAssignmentNotice] = useState("");
+  const [siteAssignmentBusy, setSiteAssignmentBusy] = useState(false);
   const [created, setCreated] = useState<Appointment>();
   const onHoldChangedRef = useRef(onHoldChanged);
   onHoldChangedRef.current = onHoldChanged;
@@ -977,6 +1055,8 @@ function BookingFormEditor({
       reason,
       overbookReason,
       overbookRequested,
+      walkInReason,
+      walkInRequested,
       repeat,
       repeatIntervalWeeks,
       repeatCount,
@@ -993,8 +1073,10 @@ function BookingFormEditor({
       visitTypeId,
       serviceOfferingId,
       reason,
-    overbookReason,
-    overbookRequested,
+      overbookReason,
+      overbookRequested,
+      walkInReason,
+      walkInRequested,
       repeat,
       repeatIntervalWeeks,
       repeatCount,
@@ -1036,6 +1118,7 @@ function BookingFormEditor({
   const schedulingPolicy = useResource<{
     policy: import("../../api/contracts").SiteSchedulingPolicy;
     can_overbook: boolean;
+    can_capacity_override: boolean;
   }>(`/api/clinic/facilities/${siteId}/scheduling_policy`, {
     enabled: Boolean(siteId),
   });
@@ -1171,6 +1254,9 @@ function BookingFormEditor({
       ),
     [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, seriesOutcomeUnconfirmed, registerBlocker],
   );
+  useEffect(() => {
+    setAssignmentNotice("");
+  }, [startsAt, endsAt, siteId, clinicianId, visitTypeId]);
   const resourceError =
     facilities.error || rooms.error || clinicians.error || visitTypes.error;
   if (!facilities.data || !rooms.data || !clinicians.data || !visitTypes.data)
@@ -1204,6 +1290,64 @@ function BookingFormEditor({
   const selectedPatient = selectablePatients.find(
     (patient) => String(patient.id) === patientId,
   );
+  const selectedClinician = clinicians.data.clinicians.find(
+    (clinician) => String(clinician.id) === clinicianId,
+  );
+  const selectedSite = facilities.data.sites.find(
+    (site) => String(site.id) === siteId,
+  );
+  const clinicianSiteWarning =
+    /not assigned to this site for the selected time/i.test(submitError);
+  const bookingTimezone = selectedSite?.timezone_override || timezone;
+  const createdTimezone =
+    facilities.data.sites.find((site) => site.id === created?.site_id)
+      ?.timezone_override || timezone;
+  const timePreview = bookingTimePreview(startsAt, bookingTimezone);
+  const assignClinicianToSlot = async () => {
+    if (siteAssignmentBusy || !selectedClinician || !selectedSite) return;
+    if (
+      repeat === "weekly" &&
+      (!seriesPreview || seriesPreviewPayload !== seriesPreviewKey())
+    )
+      return;
+    setSiteAssignmentBusy(true);
+    setSubmitError("");
+    setAssignmentNotice("");
+    const seriesAppointments =
+      repeat === "weekly"
+        ? (seriesPreview ?? []).filter(
+            (row) => row.state === "booked" && row.starts_at && row.ends_at,
+          )
+        : [];
+    const assignmentStartsAt =
+      seriesAppointments[0]?.starts_at ?? new Date(startsAt).toISOString();
+    const assignmentEndsAt =
+      seriesAppointments[seriesAppointments.length - 1]?.ends_at ??
+      new Date(endsAt).toISOString();
+    try {
+      await api(`/api/clinic/clinicians/${selectedClinician.id}/assign_site`, {
+        method: "POST",
+        body: {
+          assignment: {
+            site_id: siteId,
+            starts_at: assignmentStartsAt,
+            ends_at: assignmentEndsAt,
+          },
+        },
+      });
+      setAssignmentNotice(
+        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} ${repeat === "weekly" ? "for this series period. Preview again before scheduling." : "for this slot. Retry booking."}`,
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to assign this clinician to the selected slot.",
+      );
+    } finally {
+      setSiteAssignmentBusy(false);
+    }
+  };
   const availableRooms = siteId
     ? rooms.data.rooms.filter(
         (room) => room.site_id === Number(siteId) && room.kind === "physical",
@@ -1243,6 +1387,8 @@ function BookingFormEditor({
     setReason("");
     setOverbookReason("");
     setOverbookRequested(Boolean(initialSlot?.overbook));
+    setWalkInReason("");
+    setWalkInRequested(false);
     setRepeat("none");
     setRepeatIntervalWeeks(1);
     setRepeatCount(2);
@@ -1297,6 +1443,7 @@ function BookingFormEditor({
       window.clearTimeout(autosaveTimer.current);
       autosaveTimer.current = undefined;
     }
+    setDraftCloseFailed(false);
     if (!dirty && !saveBlankDraft) {
       onClose();
       return;
@@ -1312,8 +1459,9 @@ function BookingFormEditor({
     setSubmitError("");
     try {
       if (!(await workingDraft.save(snapshot))) {
+        setDraftCloseFailed(true);
         setSubmitError(
-          "The draft could not be saved. Keep this form open and retry.",
+          "The draft could not be saved. Retry, or discard the unsaved changes and close.",
         );
         return;
       }
@@ -1321,14 +1469,36 @@ function BookingFormEditor({
       setHasWorkingDraft(true);
       onClose();
     } catch {
+      setDraftCloseFailed(true);
       setSubmitError(
-        "The draft could not be saved. Keep this form open and retry.",
+        "The draft could not be saved. Retry, or discard the unsaved changes and close.",
       );
     } finally {
       inFlight.current = false;
       setDraftSaving(false);
       setBusy(false);
     }
+  };
+  const discardUnsavedDraftAndClose = () => {
+    if (
+      !draftCloseFailed ||
+      !onClose ||
+      inFlight.current ||
+      busy ||
+      outcomeUnconfirmed ||
+      holdOutcomeUnconfirmed ||
+      seriesOutcomeUnconfirmed ||
+      bookingAttempt ||
+      seriesAttempt ||
+      holdAttempt
+    )
+      return;
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = undefined;
+    }
+    setDraftCloseFailed(false);
+    onClose();
   };
   const createHold = async () => {
     if (
@@ -1510,6 +1680,8 @@ function BookingFormEditor({
     },
   });
   const seriesPreviewKey = () => JSON.stringify(seriesBody("preview").body.series);
+  const seriesPreviewIsCurrent =
+    Boolean(seriesPreview) && seriesPreviewPayload === seriesPreviewKey();
   const previewSeries = async () => {
     if (!patientId || !siteId || !clinicianId || !visitTypeId || intervalError || offeringIssue) {
       setSubmitError("Complete the patient, site, clinician, visit type, and valid time before previewing visits.");
@@ -1521,6 +1693,7 @@ function BookingFormEditor({
     }
     setBusy(true);
     setSubmitError("");
+    setAssignmentNotice("");
     try {
       const attempt = seriesBody("preview");
       const result = await api<{ occurrences: SeriesPreviewRow[] }>(
@@ -1529,6 +1702,13 @@ function BookingFormEditor({
       );
       setSeriesPreview(result.occurrences);
       setSeriesPreviewPayload(JSON.stringify(attempt.body.series));
+      const assignmentConflict = result.occurrences.find((row) =>
+        /not assigned to this site for the selected time/i.test(
+          row.conflict ?? "",
+        ),
+      );
+      if (assignmentConflict?.conflict)
+        setSubmitError(assignmentConflict.conflict);
     } catch (error) {
       setSeriesPreview(null);
       setSeriesPreviewPayload(null);
@@ -1668,7 +1848,18 @@ function BookingFormEditor({
               </Button>
             }
           >
-            {draftRecoveryMessage}
+            {recoveredDraftDiffersFromSlot
+              ? "This saved draft's time differs from the slot you selected. Start a new appointment to clear it, then confirm the displayed time before scheduling."
+              : draftRecoveryMessage}
+          </Alert>
+        )}
+        {resumedAttemptDiffersFromSlot && resumedAttempt && (
+          <Alert severity="warning">
+            This form is resuming a saved request for {clinicDateTime(
+              resumedAttempt.starts_at,
+              bookingTimezone,
+            )}, not the slot you selected. Retry the exact saved request to
+            reconcile it, then select the new slot again.
           </Alert>
         )}
         {initialHoldDeferred && hasWorkingDraft && (
@@ -1725,7 +1916,7 @@ function BookingFormEditor({
             }
           >
             Appointment #{created.id} scheduled for{" "}
-            {clinicDateTime(created.starts_at, timezone)}.
+            {clinicDateTime(created.starts_at, createdTimezone)}.
             {created.service_offering_snapshot?.name &&
               ` Service: ${created.service_offering_snapshot.name}.`}
             {created.telehealth?.clinic_href && (
@@ -1738,10 +1929,15 @@ function BookingFormEditor({
         <Box
           component="form"
           noValidate
+          onChange={() => {
+            if (!outcomeUnconfirmed && !seriesOutcomeUnconfirmed)
+              setSubmitError("");
+          }}
           onSubmit={async (event) => {
             event.preventDefault();
             if (inFlight.current) return;
             setSubmitError("");
+            setAssignmentNotice("");
             if (repeat === "weekly" || seriesAttempt) {
               if (firstAvailable) {
                 setSubmitError(
@@ -1794,6 +1990,16 @@ function BookingFormEditor({
               if (!overbookReason.trim())
                 return setSubmitError("Enter a reason for this clinician exception.");
             }
+            if (!bookingAttempt && walkInRequested) {
+              if (!schedulingPolicy.data?.can_capacity_override)
+                return setSubmitError("Walk-in capacity exceptions are unavailable to this account at this site.");
+              if (firstAvailable || visitModality !== "in_person")
+                return setSubmitError("Choose a clinician and in-person visit format for a walk-in appointment.");
+              if (heldSlot)
+                return setSubmitError("A walk-in cannot use a held appointment slot.");
+              if (!walkInReason.trim())
+                return setSubmitError("Enter a reason for this walk-in capacity exception.");
+            }
             inFlight.current = true;
             if (autosaveTimer.current) {
               window.clearTimeout(autosaveTimer.current);
@@ -1820,6 +2026,10 @@ function BookingFormEditor({
                     ...(overbookRequested ? {
                       overbook_reason: overbookReason.trim(),
                       expected_policy_revision: schedulingPolicy.data?.policy.revision,
+                    } : {}),
+                    ...(walkInRequested ? {
+                      walk_in: true,
+                      capacity_override_reason: walkInReason.trim(),
                     } : {}),
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
@@ -1849,6 +2059,18 @@ function BookingFormEditor({
                   body: attempt.body,
                 },
               );
+              const requested = attempt.body.appointment;
+              if (
+                result.appointment.patient_id !== Number(requested.patient_id) ||
+                result.appointment.site_id !== Number(requested.site_id) ||
+                Date.parse(result.appointment.starts_at) !==
+                  Date.parse(requested.starts_at) ||
+                Date.parse(result.appointment.ends_at) !==
+                  Date.parse(requested.ends_at)
+              )
+                throw new Error(
+                  "The saved appointment did not match the submitted patient, site, or time. Its outcome is unconfirmed; retry the exact request before leaving scheduling.",
+                );
               if (
                 attempt.body.appointment.schedule_hold_id &&
                 (result.appointment.schedule_hold_id !==
@@ -1953,7 +2175,7 @@ function BookingFormEditor({
             >
               <TextField
                 label="Starts"
-                type="datetime-local"
+                type="text"
                 required
                 disabled={
                   busy ||
@@ -1976,11 +2198,19 @@ function BookingFormEditor({
                       ),
                     );
                 }}
-                slotProps={{ inputLabel: { shrink: true } }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                slotProps={{
+                  htmlInput: {
+                    inputMode: "numeric",
+                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
+                    spellCheck: false,
+                  },
+                  inputLabel: { shrink: true },
+                }}
               />
               <TextField
                 label="Ends"
-                type="datetime-local"
+                type="text"
                 required
                 disabled={
                   busy ||
@@ -1994,7 +2224,15 @@ function BookingFormEditor({
                   intervalError || "End time must follow the start time."
                 }
                 onChange={(event) => setEndsAt(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                slotProps={{
+                  htmlInput: {
+                    inputMode: "numeric",
+                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
+                    spellCheck: false,
+                  },
+                  inputLabel: { shrink: true },
+                }}
               />
             </Box>
             <Stack
@@ -2022,12 +2260,11 @@ function BookingFormEditor({
                 </Button>
               ))}
             </Stack>
-            <Alert severity="info" variant="outlined">
-              Enter times using this device’s timezone (
-              {Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"}
-              ). Confirm the clinic time shown on the schedule in {timezone}{" "}
-              before finishing.
-            </Alert>
+            {timePreview && (
+              <Alert severity="info" variant="outlined">
+                {timePreview} — look right?
+              </Alert>
+            )}
             <TelehealthBookingFormat
               value={visitModality}
               disabled={
@@ -2039,7 +2276,11 @@ function BookingFormEditor({
               canConfigure={clinic.capabilities.telehealth_configure === true}
               onChange={(format) => {
                 setVisitModality(format);
-                if (format === "video") setRoomId("");
+                if (format === "video") {
+                  setRoomId("");
+                  setWalkInRequested(false);
+                  setWalkInReason("");
+                }
               }}
             />
             <Box
@@ -2074,7 +2315,7 @@ function BookingFormEditor({
                   </MenuItem>
                   {facilities.data.sites.map((site) => (
                     <MenuItem key={site.id} value={site.id.toString()}>
-                      {site.code}
+                      {site.name || site.code}
                     </MenuItem>
                   ))}
                 </Select>
@@ -2255,11 +2496,15 @@ function BookingFormEditor({
                   control={<Checkbox checked={overbookRequested}
                     disabled={busy || Boolean(bookingAttempt)}
                     onChange={(event) => {
-                      setOverbookRequested(event.target.checked);
+                      const requested = event.target.checked;
+                      setOverbookRequested(requested);
                       if (!event.target.checked) setOverbookReason("");
                       if (event.target.checked) {
+                        setWalkInRequested(false);
+                        setWalkInReason("");
                         setRepeat("none");
                         setSeriesPreview(null);
+                        setSeriesPreviewPayload(null);
                       }
                     }} />}
                   label="Request a clinician overbook exception" />
@@ -2283,26 +2528,74 @@ function BookingFormEditor({
                   />
                 </Stack>
               )}
-              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
-                <TextField
-                  select
-                  label="Repeat"
-                  value={repeat}
-                  onChange={(event) => {
-                    setRepeat(event.target.value as "none" | "weekly");
-                    if (event.target.value === "weekly") {
-                      setOverbookRequested(false);
-                      setOverbookReason("");
+              {schedulingPolicy.data?.can_capacity_override && (
+                <Stack spacing={1} sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={walkInRequested}
+                        disabled={busy || Boolean(bookingAttempt) || Boolean(seriesAttempt) || Boolean(holdAttempt) || Boolean(heldSlot) || firstAvailable || visitModality === "video"}
+                        onChange={(event) => {
+                          const requested = event.target.checked;
+                          setWalkInRequested(requested);
+                          setWalkInReason("");
+                          if (requested) {
+                            setOverbookRequested(false);
+                            setOverbookReason("");
+                            setRepeat("none");
+                            setSeriesPreview(null);
+                            setSeriesPreviewPayload(null);
+                            const start = businessNow();
+                            start.setSeconds(0, 0);
+                            setStartsAt(localDateTimeValue(start));
+                            setEndsAt(localDateTimeValue(new Date(start.getTime() + (selectedOffering?.duration_minutes ?? 30) * 60_000)));
+                          }
+                        }}
+                      />
                     }
-                    setSeriesPreview(null);
-                    setSeriesPreviewPayload(null);
-                  }}
-                  disabled={busy || Boolean(seriesAttempt)}
-                >
-                  <MenuItem value="none">Does not repeat</MenuItem>
-                  <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
-                    Weekly
-                  </MenuItem>
+                    label="Book as a walk-in"
+                  />
+                  {walkInRequested && (
+                    <>
+                      <Alert severity="warning">
+                        This walk-in may bypass the clinician's weekly capacity template. Site hours, clinician assignment, blocked time, patient and room conflicts, and active holds are still checked.
+                      </Alert>
+                      <TextField
+                        fullWidth
+                        required
+                        label="Walk-in reason"
+                        value={walkInReason}
+                        onChange={(event) => setWalkInReason(event.target.value)}
+                        disabled={busy || outcomeUnconfirmed}
+                        slotProps={{ htmlInput: { maxLength: 500 } }}
+                        helperText="Saved with the appointment and the authorizing staff member."
+                      />
+                    </>
+                  )}
+                </Stack>
+              )}
+              <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
+              <TextField
+                select
+                label="Repeat"
+                value={repeat}
+                onChange={(event) => {
+                  setRepeat(event.target.value as "none" | "weekly");
+                  if (event.target.value === "weekly") {
+                    setOverbookRequested(false);
+                    setOverbookReason("");
+                    setWalkInRequested(false);
+                    setWalkInReason("");
+                  }
+                  setSeriesPreview(null);
+                  setSeriesPreviewPayload(null);
+                }}
+                disabled={walkInRequested || busy || Boolean(bookingAttempt) || Boolean(seriesAttempt)}
+              >
+                <MenuItem value="none">Does not repeat</MenuItem>
+                <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
+                  Weekly
+                </MenuItem>
                 </TextField>
                 {repeat === "weekly" && (
                   <>
@@ -2427,9 +2720,9 @@ function BookingFormEditor({
                       schedule.
                     </Alert>
                   ) : (
-                    <Alert severity="warning" variant="outlined">
+                    <Alert severity="info" variant="outlined">
                       <Typography component="div" variant="body2">
-                        The selected resource is already scheduled on{" "}
+                        The selected resource has other appointments on{" "}
                         {resourceDate}:
                       </Typography>
                       <Stack
@@ -2455,15 +2748,60 @@ function BookingFormEditor({
                         variant="body2"
                         sx={{ mt: 0.5 }}
                       >
-                        Choose another time or resource before scheduling.
+                        Scheduling checks whether the appointment times
+                        overlap.
                       </Typography>
                     </Alert>
                   )}
                 </Box>
               )}
             </Box>
+            {assignmentNotice && (
+              <Alert severity="success" role="status">
+                {assignmentNotice}
+              </Alert>
+            )}
             {submitError && (
-              <Alert severity="error" role="alert">
+              <Alert
+                severity={clinicianSiteWarning ? "warning" : "error"}
+                role="alert"
+                action={
+                  (draftCloseFailed && onClose) ||
+                  (clinicianSiteWarning &&
+                    (repeat !== "weekly" || seriesPreviewIsCurrent) &&
+                    clinic.capabilities.clinic_setup_write === true &&
+                    selectedClinician &&
+                    selectedSite) ? (
+                    <Stack direction="row" spacing={1}>
+                      {draftCloseFailed && onClose && (
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={discardUnsavedDraftAndClose}
+                        >
+                          Discard and close
+                        </Button>
+                      )}
+                      {clinicianSiteWarning &&
+                        (repeat !== "weekly" || seriesPreviewIsCurrent) &&
+                        clinic.capabilities.clinic_setup_write === true &&
+                        selectedClinician &&
+                        selectedSite && (
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => void assignClinicianToSlot()}
+                            disabled={siteAssignmentBusy}
+                          >
+                            {siteAssignmentBusy
+                              ? "Assigning…"
+                              : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
+                          </Button>
+                        )}
+                    </Stack>
+                  ) : undefined
+                }
+              >
                 {submitError}
               </Alert>
             )}
@@ -2591,6 +2929,9 @@ function BookingFormEditor({
                   variant="contained"
                   disabled={
                     busy ||
+                    (!outcomeUnconfirmed &&
+                      !seriesOutcomeUnconfirmed &&
+                      Boolean(submitError)) ||
                     (repeat === "weekly" && !seriesAttempt &&
                       (!seriesPreview || seriesPreview.some((row) => Boolean(row.conflict)) ||
                         seriesPreviewPayload !== seriesPreviewKey())) ||
@@ -2611,7 +2952,7 @@ function BookingFormEditor({
                     : outcomeUnconfirmed || seriesOutcomeUnconfirmed
                       ? "Retry same request"
                       : repeat === "weekly" ? "Schedule series" :
-                        overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
+                        walkInRequested ? "Schedule walk-in" : overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
                 </Button>
               </Stack>
             </Stack>
@@ -3129,7 +3470,15 @@ export function SoapNoteForm({
   onRefresh?: () => void;
 }) {
   const { registerBlocker } = useClinicNavigation();
-  const savedBody = note?.current_revision?.body;
+  const [savedNote, setSavedNote] = useState(note);
+  const currentNote =
+    savedNote &&
+    savedNote.id === note?.id &&
+    (savedNote.current_revision?.revision_no ?? 0) >
+      (note?.current_revision?.revision_no ?? 0)
+      ? savedNote
+      : note;
+  const savedBody = currentNote?.current_revision?.body;
   const workingDraft = useWorkingDraft<SoapWorkingDraft>({
     kind: "soap",
     patientId,
@@ -3137,9 +3486,9 @@ export function SoapNoteForm({
     enabled: canWrite,
   });
   const initialBaseline = (): SoapEditorBaseline => ({
-    noteId: note?.id ?? null,
-    revisionId: note?.current_revision?.id ?? null,
-    revisionNo: note?.current_revision?.revision_no ?? null,
+    noteId: currentNote?.id ?? null,
+    revisionId: currentNote?.current_revision?.id ?? null,
+    revisionNo: currentNote?.current_revision?.revision_no ?? null,
     sections: savedBody?.sections ?? EMPTY_SOAP_SECTIONS,
     patientInstructions: savedBody?.patient_instructions ?? "",
     sessionDurationMinutes: savedBody?.session_duration_minutes ?? null,
@@ -3193,7 +3542,7 @@ export function SoapNoteForm({
     patientInstructions !== baseline.patientInstructions ||
     sessionDurationMinutes !== baseline.sessionDurationMinutes ||
     templateChanged;
-  const signed = note?.current_revision?.signed === true;
+  const signed = currentNote?.current_revision?.signed === true;
   const editorDisabled =
     busy ||
     !workingDraft.ready ||
@@ -3558,7 +3907,7 @@ export function SoapNoteForm({
     attempt: NoteSaveAttempt,
   ): Promise<EncounterNote> => {
     setSaveState("reconciling");
-    const exactPatientId = patientId ?? note?.patient_id;
+    const exactPatientId = patientId ?? currentNote?.patient_id;
     if (exactPatientId === undefined) {
       throw new NoteReconciliationError(
         "The saved draft cannot be reconciled without the selected patient.",
@@ -3638,6 +3987,7 @@ export function SoapNoteForm({
     reconciled: EncounterNote,
   ) => {
     cancelPendingDraftSave();
+    setSavedNote(reconciled);
     const body = reconciled.current_revision?.body;
     if (body) {
       setSections(body.sections);
@@ -3808,7 +4158,7 @@ export function SoapNoteForm({
   };
 
   const startCorrection = () => {
-    if (!note || !savedBody || !note.current_revision || !signed) return;
+    if (!currentNote || !savedBody || !currentNote.current_revision || !signed) return;
     if (!correctionReason.trim() || !correctionConfirmed) return;
     setSections(savedBody.sections);
     setPatientInstructions(savedBody.patient_instructions ?? "");
@@ -3817,14 +4167,14 @@ export function SoapNoteForm({
       version: savedBody.template_version,
     });
     setCorrectionTarget({
-      revisionId: note.current_revision.id,
-      revisionNo: note.current_revision.revision_no,
+      revisionId: currentNote.current_revision.id,
+      revisionNo: currentNote.current_revision.revision_no,
       reason: correctionReason.trim(),
     });
     setCorrectionDialogOpen(false);
     setCorrectionConfirmed(false);
     setNotice(
-      `Preparing a correction to signed revision ${note.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
+      `Preparing a correction to signed revision ${currentNote.current_revision.revision_no}. Review the full copied note, then save it as an unsigned correction.`,
     );
   };
 
@@ -3906,13 +4256,13 @@ export function SoapNoteForm({
 
   return (
     <Box className="soap-workspace">
-      {note && savedBody && (
+      {currentNote && savedBody && (
         <Alert severity={signed ? "info" : "warning"}>
           {signed
-            ? `Signed revision ${note.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
+            ? `Signed revision ${currentNote.current_revision?.revision_no} is read-only. Start a correction to prepare a separate unsigned revision.`
             : correctionTarget
               ? `Correction in progress for signed revision ${correctionTarget.revisionNo}. Save creates an unsigned correction that must be reviewed and signed separately.`
-              : `Draft revision ${note.current_revision?.revision_no}. Template provenance is fixed after creation.`}
+              : `Draft revision ${currentNote.current_revision?.revision_no}. Template provenance is fixed after creation.`}
         </Alert>
       )}
       {incomingNote && (
@@ -3929,18 +4279,18 @@ export function SoapNoteForm({
           save is blocked until you review both versions.
         </Alert>
       )}
-      {note?.revisions.length ? (
+      {currentNote?.revisions.length ? (
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             Saved revision history
           </Typography>
           <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", mt: 0.75 }}>
-            {note.revisions.map((revision) => (
+            {currentNote.revisions.map((revision) => (
               <Chip
                 key={revision.id}
                 size="small"
                 variant={
-                  revision.id === note.current_revision?.id
+                  revision.id === currentNote.current_revision?.id
                     ? "filled"
                     : "outlined"
                 }
@@ -3952,7 +4302,7 @@ export function SoapNoteForm({
         </Box>
       ) : null}
       <Stack spacing={1} className="soap-sections">
-        {!note && !signed && (
+        {!currentNote && !signed && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1.25}>
               <Box>
@@ -4113,9 +4463,9 @@ export function SoapNoteForm({
           Saving protected working note…
         </Typography>
       )}
-      {note?.current_revision?.created_at && !signed && (
+      {currentNote?.current_revision?.created_at && !signed && (
         <Typography variant="body2" color="text.secondary">
-          Draft last saved {new Date(note.current_revision.created_at).toLocaleString()}
+          Draft last saved {new Date(currentNote.current_revision.created_at).toLocaleString()}
           {dirty ? " · Current edits are unsaved" : ""}
         </Typography>
       )}
@@ -4151,7 +4501,6 @@ export function SoapNoteForm({
         </Alert>
       )}
       <Stack
-        id="chart-signing"
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
         sx={{ scrollMarginTop: 16 }}
@@ -4175,7 +4524,7 @@ export function SoapNoteForm({
               ? "Saving…"
               : correctionTarget
                 ? "Save unsigned correction"
-                : note
+                : currentNote
                   ? "Save new revision"
                   : "Save draft"}
           </Button>
@@ -4210,9 +4559,9 @@ export function SoapNoteForm({
             Retry exact save
           </Button>
         )}
-        {note && patientId && canSign && (
+        {currentNote && patientId && canSign && (
           <EncounterNoteSigning
-            note={note}
+            note={currentNote}
             patientId={patientId}
             patientName={patientName}
             encounterId={encounterId}
@@ -4373,14 +4722,14 @@ export function SoapNoteForm({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info">
-              This keeps signed revision {note?.current_revision?.revision_no}{" "}
+              This keeps signed revision {currentNote?.current_revision?.revision_no}{" "}
               intact and creates a separate unsigned correction for review and
               signature.
             </Alert>
             <Typography color="text.secondary">
               {patientName || `Patient #${patientId ?? "unavailable"}`} ·
               Encounter #{encounterId} · Signed revision{" "}
-              {note?.current_revision?.revision_no}
+              {currentNote?.current_revision?.revision_no}
             </Typography>
             {SOAP_SECTION_LABELS.map(([key, label]) => (
               <Box key={key}>
@@ -4684,7 +5033,11 @@ export function ProviderEncounterWorkflow({
   const displayedObservations = observations.filter(
     (observation) => observation.value_kind !== "group",
   );
-  const [chartConfirmed, setChartConfirmed] = useState(false);
+  const [chartConfirmed, setChartConfirmed] = useState(
+    () =>
+      encounter.status === "completed" &&
+      !encounterHasSignedSoapNote(encounter),
+  );
   const signedChart = encounterHasSignedSoapNote(encounter);
   const currentPhones = (patient.contacts ?? []).filter(
     (contact) => contact.contact_type === "phone" && !contact.effective_until,
@@ -5209,7 +5562,7 @@ const COMPLETION_EDUCATION_LABELS: Record<
   unable_to_complete: "Unable to complete education",
 };
 
-function VisitWrapUp({
+export function VisitWrapUp({
   patient,
   encounter,
   timezone,
@@ -5657,23 +6010,31 @@ function VisitWrapUp({
               </Stack>
               <Alert
                 severity={
-                  completion.evidence.signed_instruction ? "info" : "warning"
+                  completion.evidence.signed_instruction ||
+                  instructionsStatus === "not_required"
+                    ? "info"
+                    : "warning"
                 }
               >
                 {completion.evidence.signed_instruction
                   ? `Signed written instructions are available from note revision ${completion.evidence.signed_instruction.revision_no}.`
-                  : "No signed note revision with written patient instructions is available."}
+                  : instructionsStatus === "not_required"
+                    ? "Written instructions are not required for this visit."
+                    : "No signed note revision with written patient instructions is available."}
               </Alert>
               <Alert
                 severity={
-                  completion.evidence.education_events.length
+                  completion.evidence.education_events.length ||
+                  educationStatus === "not_required"
                     ? "info"
                     : "warning"
                 }
               >
                 {completion.evidence.education_events.length
                   ? `${completion.evidence.education_events.length} education record${completion.evidence.education_events.length === 1 ? "" : "s"} will be linked to this completion review.`
-                  : "No education or teach-back record is available for this encounter."}
+                  : educationStatus === "not_required"
+                    ? "Education and teach-back are not required for this visit."
+                    : "No education or teach-back record is available for this encounter."}
               </Alert>
               <Box>
                 <Stack
@@ -5759,7 +6120,10 @@ function VisitWrapUp({
                 <Button
                   variant="contained"
                   color="warning"
-                  onClick={() => setConfirmation("close")}
+                  onClick={() => {
+                    setError("");
+                    setConfirmation("close");
+                  }}
                   disabled={formLocked || !completion.evidence.follow_up}
                 >
                   {busy ? "Completing encounter…" : "Complete encounter"}
@@ -5781,7 +6145,10 @@ function VisitWrapUp({
                 Reset completion attempt
               </Button>
             )}
-            <Button href="/clinic" variant="outlined">
+            <Button
+              variant="outlined"
+              onClick={() => window.location.assign("/clinic")}
+            >
               Return to tracking board
             </Button>
             {current.status === "completed" &&
@@ -5817,6 +6184,9 @@ function VisitWrapUp({
               ? "Resetting clears this local attempt. Verify the encounter and completion-review status before trying again."
               : "This records the completion review, ends the encounter, completes the linked appointment when applicable, and makes the visit eligible for checkout. Open tasks remain open with their recorded owner or pool."}
           </Typography>
+          {confirmation === "close" && error && (
+            <ErrorMessage message={error} />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmation(null)} disabled={busy}>
@@ -5991,11 +6361,13 @@ export function EncounterPage({
           nurseWorkspaceResource={nurseWorkspace}
           facilityRoomsResource={facilityRooms}
           noteWorkspace={
-            <SoapNoteWorkspace
-              encounter={encounter.data.encounter}
-              patientName={patient.data.patient.display_name}
-              onChanged={encounter.refresh}
-            />
+            <Box id="chart-signing" sx={{ scrollMarginTop: 16 }}>
+              <SoapNoteWorkspace
+                encounter={encounter.data.encounter}
+                patientName={patient.data.patient.display_name}
+                onChanged={encounter.refresh}
+              />
+            </Box>
           }
         />
       }

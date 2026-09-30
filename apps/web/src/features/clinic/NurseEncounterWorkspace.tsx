@@ -44,6 +44,7 @@ import { VitalSignsEntry } from "./VitalSignsEntry";
 import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
 import { PatientCareCoordination } from "./PatientCareCoordination";
+import { IntakeAnswerProvenance } from "./IntakeAnswerProvenance";
 
 type IntakeForm = Pick<
   EncounterIntakeRevision,
@@ -126,6 +127,38 @@ export function allIntakeChunksConfirmed(
   );
 }
 
+export function intakeRevisionContinuity({
+  received,
+  saved,
+  patientId,
+  encounterId,
+  editedVersion,
+  dirty,
+}: {
+  received: EncounterIntakeRevision | null | undefined;
+  saved: EncounterIntakeRevision | null;
+  patientId: number;
+  encounterId: number;
+  editedVersion: number | null;
+  dirty: boolean;
+}) {
+  const intake =
+    [received, saved]
+      .filter(
+        (revision): revision is EncounterIntakeRevision =>
+          revision != null &&
+          revision.patient_id === patientId &&
+          revision.encounter_id === encounterId,
+      )
+      .sort((left, right) => right.version - left.version)[0] ?? null;
+  const expectedVersion = editedVersion ?? 0;
+  return {
+    intake,
+    expectedVersion,
+    conflict: dirty && (intake?.version ?? 0) > expectedVersion,
+  };
+}
+
 export function NurseEncounterWorkspace({
   patient,
   encounter,
@@ -181,6 +214,8 @@ export function NurseEncounterWorkspaceContent({
   const chunkDefinitions = resource.data?.questionnaire_form?.chunks ?? [];
   const [form, setForm] = useState<IntakeForm>(emptyIntake);
   const [baseline, setBaseline] = useState<IntakeForm>(emptyIntake);
+  const [savedIntake, setSavedIntake] =
+    useState<EncounterIntakeRevision | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -198,6 +233,7 @@ export function NurseEncounterWorkspaceContent({
   useEffect(() => {
     setForm(emptyIntake);
     setBaseline(emptyIntake);
+    setSavedIntake(null);
     setError("");
     setNotice("");
     setActiveChunk(0);
@@ -211,6 +247,18 @@ export function NurseEncounterWorkspaceContent({
   const [taskKind, setTaskKind] =
     useState<ClinicalTask["task_kind"]>("patient_call");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
+  const {
+    intake: latestIntake,
+    expectedVersion,
+    conflict: intakeConflict,
+  } = intakeRevisionContinuity({
+    received: resource.data?.intake,
+    saved: savedIntake,
+    patientId: patient.id,
+    encounterId: encounter.id,
+    editedVersion: hydratedVersion.current,
+    dirty,
+  });
   const reviewIds = useMemo(
     () =>
       careSummary
@@ -260,12 +308,12 @@ export function NurseEncounterWorkspaceContent({
         (roomsResource.data ? "Unavailable" : "Loading room…"));
 
   useEffect(() => {
-    const intake = resource.data?.intake;
+    const intake = latestIntake;
     if (
       !intake ||
       (hydratedVersion.current !== null &&
         hydratedVersion.current >= intake.version) ||
-      (dirty && form.questionnaire)
+      dirty
     )
       return;
     hydratedVersion.current = intake.version;
@@ -297,7 +345,7 @@ export function NurseEncounterWorkspaceContent({
       (_chunk, index) => !savedChunks.includes(index),
     );
     setActiveChunk(nextChunk === -1 ? 0 : nextChunk);
-  }, [chunkDefinitions, dirty, resource.data?.intake]);
+  }, [chunkDefinitions, dirty, latestIntake]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -386,20 +434,19 @@ export function NurseEncounterWorkspaceContent({
     Math.max(intakeChunks.length - 1, 0),
   );
   const roomRequired = encounter.visit_modality !== "video";
-  const intakeVersion = Math.max(
-    workspace.intake?.version ?? 0,
-    hydratedVersion.current ?? 0,
-  );
+  const intakeVersion = latestIntake?.version ?? 0;
   const intakeQuestionGroupsSaved = allIntakeChunksConfirmed(
     intakeChunks,
     confirmedChunkIndexes,
   );
   const intakeRevisionSaved =
-    workspace.intake?.status === "ready_for_handoff" && !dirty;
+    latestIntake?.status === "ready_for_handoff" &&
+    expectedVersion === intakeVersion &&
+    !dirty;
   const staleHandoff = Boolean(
     workspace.handoff &&
-    workspace.intake &&
-    workspace.handoff.intake_revision_id !== workspace.intake.id,
+    latestIntake &&
+    workspace.handoff.intake_revision_id !== latestIntake.id,
   );
   const canRespondToHandoff =
     workspace.capabilities.handoff_respond &&
@@ -457,6 +504,7 @@ export function NurseEncounterWorkspaceContent({
   }
 
   async function saveIntake(formToSave = form, advanceChunk = false) {
+    if (intakeConflict) return;
     const requestContext = `${patient.id}:${encounter.id}`;
     await perform(async () => {
       const confirmedChunksToSave = formToSave.questionnaire
@@ -480,7 +528,7 @@ export function NurseEncounterWorkspaceContent({
           JSON.stringify(baseline.questionnaire)
             ? undefined
             : questionnaire,
-        expected_version: intakeVersion,
+        expected_version: expectedVersion,
         observation_ids: observationIds,
         history_review_ids:
           formToSave.history_state === "reviewed" ? reviewIds : [],
@@ -530,6 +578,7 @@ export function NurseEncounterWorkspaceContent({
       };
       setForm(saved);
       setBaseline(saved);
+      setSavedIntake(response.intake);
       saveAttempt.current = null;
       hydratedVersion.current = response.intake.version;
       if (advanceChunk) {
@@ -561,7 +610,7 @@ export function NurseEncounterWorkspaceContent({
   }
 
   async function requestHandoff() {
-    const intake = workspace.intake;
+    const intake = latestIntake;
     if (!intake) return;
     await perform(async () => {
       const response = await api<{ handoff: EncounterHandoff }>(
@@ -656,6 +705,16 @@ export function NurseEncounterWorkspaceContent({
     });
   }
 
+  function discardIntakeEdits() {
+    hydratedVersion.current = null;
+    saveAttempt.current = null;
+    setForm(emptyIntake);
+    setBaseline(emptyIntake);
+    setError("");
+    setNotice("");
+    resource.refresh();
+  }
+
   return (
     <Paper
       id="nurse-workspace"
@@ -733,6 +792,19 @@ export function NurseEncounterWorkspaceContent({
             </Typography>
           </Alert>
         )}
+        {intakeConflict && (
+          <Alert
+            severity="warning"
+            action={
+              <Button onClick={discardIntakeEdits} disabled={busy}>
+                Discard local edits and load saved intake
+              </Button>
+            }
+          >
+            A newer intake revision is available. Your unsaved changes are still
+            shown. Review them before discarding and loading the saved intake.
+          </Alert>
+        )}
         {error && (
           <Alert
             severity="error"
@@ -741,18 +813,8 @@ export function NurseEncounterWorkspaceContent({
                 <Button color="inherit" onClick={resource.refresh}>
                   Refresh
                 </Button>
-                {dirty && (
-                  <Button
-                    color="inherit"
-                    onClick={() => {
-                      hydratedVersion.current = null;
-                      saveAttempt.current = null;
-                      setForm(emptyIntake);
-                      setBaseline(emptyIntake);
-                      setError("");
-                      resource.refresh();
-                    }}
-                  >
+                {dirty && !intakeConflict && (
+                  <Button color="inherit" onClick={discardIntakeEdits}>
                     Discard local edits and load saved intake
                   </Button>
                 )}
@@ -1144,6 +1206,18 @@ export function NurseEncounterWorkspaceContent({
                                 </AccordionDetails>
                               </Accordion>
                             )}
+                            {latestIntake && (
+                              <IntakeAnswerProvenance
+                                intake={latestIntake}
+                                patientId={patient.id}
+                                encounterId={encounter.id}
+                                fields={
+                                  workspace.questionnaire_form?.fields ?? []
+                                }
+                                questionIds={chunk.fields}
+                                scopeId={chunk.id}
+                              />
+                            )}
                             {intakeChunks[activeChunkIndex].id ===
                               "patient_coordination" && (
                               <PatientCareCoordination patientId={patient.id} />
@@ -1312,7 +1386,9 @@ export function NurseEncounterWorkspaceContent({
                               <Button
                                 variant="contained"
                                 disabled={
-                                  busy || !workspace.capabilities.intake_write
+                                  busy ||
+                                  intakeConflict ||
+                                  !workspace.capabilities.intake_write
                                 }
                                 onClick={() =>
                                   void saveIntake(
@@ -1340,6 +1416,7 @@ export function NurseEncounterWorkspaceContent({
                                 variant="outlined"
                                 disabled={
                                   busy ||
+                                  intakeConflict ||
                                   !dirty ||
                                   !workspace.capabilities.intake_write
                                 }
@@ -1369,7 +1446,7 @@ export function NurseEncounterWorkspaceContent({
                     </Typography>
                     <Chip
                       variant="outlined"
-                      label={`Version ${intakeVersion} · ${stateLabel(workspace.intake?.status || "not recorded")}`}
+                      label={`Version ${intakeVersion} · ${stateLabel(latestIntake?.status || "not recorded")}`}
                     />
                   </Stack>
                   <Typography
@@ -1468,7 +1545,10 @@ export function NurseEncounterWorkspaceContent({
                   <Button
                     variant="contained"
                     disabled={
-                      busy || !dirty || !workspace.capabilities.intake_write
+                      busy ||
+                      intakeConflict ||
+                      !dirty ||
+                      !workspace.capabilities.intake_write
                     }
                     onClick={() => void saveIntake()}
                   >
@@ -1487,6 +1567,7 @@ export function NurseEncounterWorkspaceContent({
                     sx={{ alignSelf: "flex-start" }}
                     disabled={
                       busy ||
+                      intakeConflict ||
                       !intakeQuestionGroupsSaved ||
                       !workspace.capabilities.intake_write
                     }
@@ -1609,24 +1690,27 @@ export function NurseEncounterWorkspaceContent({
                   )}
                 </Stack>
               ) : (
-                <Stack spacing={1}>
-                  <Typography color="text.secondary">
-                    No handoff has been requested.
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    disabled={
-                      busy ||
-                      dirty ||
-                      !intakeRevisionSaved ||
-                      !workspace.capabilities.handoff_request
-                    }
-                    onClick={() => void requestHandoff()}
-                    sx={{ alignSelf: "flex-start" }}
-                  >
-                    Request clinician handoff
-                  </Button>
-                </Stack>
+                <Typography color="text.secondary">
+                  No handoff has been requested.
+                </Typography>
+              )}
+              {(!workspace.handoff ||
+                ["cancelled", "rejected", "completed"].includes(
+                  workspace.handoff.state,
+                )) && (
+                <Button
+                  variant="contained"
+                  disabled={
+                    busy ||
+                    dirty ||
+                    !intakeRevisionSaved ||
+                    !workspace.capabilities.handoff_request
+                  }
+                  onClick={() => void requestHandoff()}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Request clinician handoff
+                </Button>
               )}
             </Stack>
           )}

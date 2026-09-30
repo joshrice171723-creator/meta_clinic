@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import type { EncounterDetail, Patient } from "../../api/contracts";
+import { businessNow } from "../../shared/businessDate";
 import { LoadState, useResource } from "../../shared/ui";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
@@ -73,6 +74,12 @@ type FollowUpDraft = {
   expectedVersion: number;
   pendingRequest?: FollowUpRequest | null;
 };
+type FollowUpDraftOverrides = Partial<
+  Pick<
+    FollowUpDraft,
+    "status" | "plan" | "dueAt" | "appointmentId" | "assigneeId"
+  >
+> & { statusConfirmed?: boolean };
 
 function sameInstant(left: string | null, right: string | null) {
   if (!left || !right) return left === right;
@@ -140,17 +147,28 @@ function dateLabel(value: string, timezone: string) {
   }).format(new Date(value));
 }
 
-export function EncounterFollowUpPanel({
-  patient,
-  encounter,
-  timezone,
-  onChanged,
-}: {
+type EncounterFollowUpPanelProps = {
   patient: Patient;
   encounter: EncounterDetail;
   timezone: string;
   onChanged?: () => void;
-}) {
+};
+
+export function EncounterFollowUpPanel(props: EncounterFollowUpPanelProps) {
+  return (
+    <EncounterFollowUpEditor
+      key={`${props.patient.id}:${props.encounter.id}`}
+      {...props}
+    />
+  );
+}
+
+function EncounterFollowUpEditor({
+  patient,
+  encounter,
+  timezone,
+  onChanged,
+}: EncounterFollowUpPanelProps) {
   const { capabilities } = useClinic();
   const canWrite = capabilities.encounters === true;
   const resource = useResource<FollowUpResponse>(
@@ -172,6 +190,7 @@ export function EncounterFollowUpPanel({
   const baseVersionRef = useRef(0);
   const busyRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
+  const active = useRef(true);
   const followUp = resource.data?.follow_up ?? null;
   const recovery = useWorkingDraft<FollowUpDraft>({
     kind: "follow_up",
@@ -179,6 +198,13 @@ export function EncounterFollowUpPanel({
     encounterId: encounter.id,
     enabled: canWrite,
   });
+
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!resource.data || restored) return;
@@ -294,24 +320,40 @@ export function EncounterFollowUpPanel({
 
   if (!resource.data) return <LoadState error={resource.error} />;
 
-  const editableDraft = (): FollowUpDraft => ({
-    status,
-    plan,
-    dueAt,
-    appointmentId,
-    assigneeId,
+  const editableDraft = (
+    overrides: FollowUpDraftOverrides = {},
+  ): FollowUpDraft => ({
+    status: overrides.status ?? status,
+    plan: overrides.plan ?? plan,
+    dueAt: overrides.dueAt ?? dueAt,
+    appointmentId: overrides.appointmentId ?? appointmentId,
+    assigneeId: overrides.assigneeId ?? assigneeId,
     baselineFollowUpId: followUp?.id ?? null,
     requestKey: null,
     expectedVersion: baseVersionRef.current,
     pendingRequest: null,
   });
 
+  // Adopt the confirmed record together: advancing only the version would let
+  // stale fields overwrite the server's disposition on the next save.
+  const adoptConfirmed = (record: EncounterFollowUpRecord) => {
+    baseVersionRef.current = record.version;
+    pendingDraftRef.current = null;
+    setPending(false);
+    setStatus(record.status === "completed" ? "not_required" : record.status);
+    setStatusConfirmed(true);
+    setPlan(record.plan);
+    setDueAt(localDateTime(record.due_at));
+    setAppointmentId(String(record.follow_up_appointment?.id ?? ""));
+    setAssigneeId(String(record.assigned_to_membership_id ?? ""));
+  };
+
   const releasePending = async (version = baseVersionRef.current) => {
     baseVersionRef.current = version;
     pendingDraftRef.current = null;
     setPending(false);
     const editable = { ...editableDraft(), expectedVersion: version };
-    if (!(await recovery.save(editable)))
+    if (!(await recovery.save(editable)) && active.current)
       setError(
         recovery.error ||
           "The local follow-up edits are still on this page, but the recovery copy could not be updated.",
@@ -329,32 +371,22 @@ export function EncounterFollowUpPanel({
           body: request.body,
         },
       );
+      if (!active.current) return;
       if (
         result.follow_up.patient_id !== patient.id ||
         result.follow_up.encounter_id !== encounter.id
       )
         throw new Error("The saved follow-up did not match this encounter.");
-      if (!(await recovery.clear())) {
+      const cleared = await recovery.clear();
+      if (!active.current) return;
+      if (!cleared) {
         setError(
           recovery.error ||
             "The follow-up was saved, but its recovery record could not be cleared. Retry the same request to finish recovery.",
         );
         return;
       }
-      baseVersionRef.current = result.follow_up.version;
-      pendingDraftRef.current = null;
-      setPending(false);
-      setStatus(
-        result.follow_up.status === "completed"
-          ? "not_required"
-          : result.follow_up.status,
-      );
-      setPlan(result.follow_up.plan);
-      setDueAt(localDateTime(result.follow_up.due_at));
-      setAppointmentId(
-        String(result.follow_up.follow_up_appointment?.id ?? ""),
-      );
-      setAssigneeId(String(result.follow_up.assigned_to_membership_id ?? ""));
+      adoptConfirmed(result.follow_up);
       setNotice(
         request.kind === "record"
           ? "Follow-up plan saved."
@@ -363,12 +395,14 @@ export function EncounterFollowUpPanel({
       resource.refresh();
       onChanged?.();
     } catch (reason) {
+      if (!active.current) return;
       const unknown =
         !(reason instanceof ApiError) ||
         reason.status === 408 ||
         reason.status >= 500 ||
         reason.code === "outcome_unconfirmed";
       if (!unknown) await releasePending();
+      if (!active.current) return;
       setError(
         unknown
           ? "The follow-up outcome is unknown. Check the current record or retry this exact request."
@@ -379,7 +413,7 @@ export function EncounterFollowUpPanel({
     }
   };
 
-  const save = async () => {
+  const save = async (overrides: FollowUpDraftOverrides = {}) => {
     if (!canWrite || busyRef.current || !recovery.ready) return;
     busyRef.current = true;
     setBusy(true);
@@ -390,15 +424,20 @@ export function EncounterFollowUpPanel({
     try {
       let snapshot = pendingDraftRef.current;
       if (!snapshot) {
-        if (!statusConfirmed) {
+        const nextStatus = overrides.status ?? status;
+        const nextPlan = overrides.plan ?? plan;
+        const nextDueAt = overrides.dueAt ?? dueAt;
+        const nextAppointmentId = overrides.appointmentId ?? appointmentId;
+        const nextAssigneeId = overrides.assigneeId ?? assigneeId;
+        if (!(overrides.statusConfirmed ?? statusConfirmed)) {
           setError("Choose the follow-up disposition.");
           return;
         }
-        if (status !== "not_required" && !plan.trim()) {
+        if (nextStatus !== "not_required" && !nextPlan.trim()) {
           setError("Enter the follow-up plan.");
           return;
         }
-        if (status === "arranged" && !appointmentId) {
+        if (nextStatus === "arranged" && !nextAppointmentId) {
           setError("Choose the arranged appointment.");
           return;
         }
@@ -410,23 +449,29 @@ export function EncounterFollowUpPanel({
             follow_up: {
               request_key: requestKey,
               expected_version: baseVersionRef.current,
-              status,
-              plan: status === "not_required" ? "" : plan.trim(),
-              ...(status === "needed" && dueAt
-                ? { due_at: new Date(dueAt).toISOString() }
+              status: nextStatus,
+              plan: nextStatus === "not_required" ? "" : nextPlan.trim(),
+              ...(nextStatus === "needed" && nextDueAt
+                ? { due_at: new Date(nextDueAt).toISOString() }
                 : {}),
-              ...(status === "arranged"
-                ? { follow_up_appointment_id: Number(appointmentId) }
+              ...(nextStatus === "arranged"
+                ? { follow_up_appointment_id: Number(nextAppointmentId) }
                 : {}),
               assigned_to_membership_id:
-                status === "not_required" || !assigneeId
+                nextStatus === "not_required" || !nextAssigneeId
                   ? null
-                  : Number(assigneeId),
+                  : Number(nextAssigneeId),
             },
           },
         };
-        snapshot = { ...editableDraft(), requestKey, pendingRequest: request };
-        if (!(await recovery.save(snapshot))) {
+        snapshot = {
+          ...editableDraft(overrides),
+          requestKey,
+          pendingRequest: request,
+        };
+        const saved = await recovery.save(snapshot);
+        if (!active.current) return;
+        if (!saved) {
           setError(
             recovery.error || "The follow-up could not be saved for recovery.",
           );
@@ -439,9 +484,30 @@ export function EncounterFollowUpPanel({
       setNotice("");
       await submitPending(snapshot);
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (active.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
+  };
+
+  const quickScheduleSixMonthFollowUp = () => {
+    const due = businessNow();
+    const day = due.getDate();
+    due.setDate(1);
+    due.setMonth(due.getMonth() + 6);
+    due.setDate(
+      Math.min(
+        day,
+        new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate(),
+      ),
+    );
+    void save({
+      status: "needed",
+      statusConfirmed: true,
+      plan: "Follow up in 6 months",
+      dueAt: localDateTime(due.toISOString()),
+    });
   };
 
   const reopen = async () => {
@@ -472,7 +538,9 @@ export function EncounterFollowUpPanel({
       pendingRequest: request,
     };
     try {
-      if (!(await recovery.save(snapshot))) {
+      const saved = await recovery.save(snapshot);
+      if (!active.current) return;
+      if (!saved) {
         setError(
           recovery.error ||
             "The reopen request could not be saved for recovery.",
@@ -484,8 +552,10 @@ export function EncounterFollowUpPanel({
       setError("");
       await submitPending(snapshot);
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (active.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
   };
 
@@ -500,6 +570,7 @@ export function EncounterFollowUpPanel({
       const current = await api<FollowUpResponse>(
         `/api/clinic/encounters/${encounter.id}/follow_up`,
       );
+      if (!active.current) return;
       if (
         current.follow_up &&
         (current.follow_up.patient_id !== patient.id ||
@@ -509,27 +580,29 @@ export function EncounterFollowUpPanel({
           "The refreshed follow-up did not match this encounter.",
         );
       if (
+        current.follow_up &&
         followUpMatchesRequest(
           current.follow_up,
           request,
           pendingDraft.baselineFollowUpId,
         )
       ) {
-        if (!(await recovery.clear())) {
+        const cleared = await recovery.clear();
+        if (!active.current) return;
+        if (!cleared) {
           setError(
             "The saved follow-up was confirmed, but its recovery copy could not be cleared. Retry the same request to finish recovery.",
           );
           return;
         }
-        baseVersionRef.current = current.follow_up?.version ?? 0;
-        pendingDraftRef.current = null;
-        setPending(false);
+        adoptConfirmed(current.follow_up);
         setNotice("The saved follow-up was confirmed.");
       } else if (
         current.follow_up &&
         current.follow_up.version !== request.body.follow_up.expected_version
       ) {
         await releasePending(current.follow_up.version);
+        if (!active.current) return;
         setNotice(
           "The follow-up changed while this request was unresolved. Your local edits were kept; review them before saving a new request.",
         );
@@ -541,14 +614,17 @@ export function EncounterFollowUpPanel({
       resource.refresh();
       onChanged?.();
     } catch (reason) {
+      if (!active.current) return;
       setError(
         reason instanceof Error
           ? reason.message
           : "The current follow-up status could not be checked.",
       );
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (active.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
   };
 
@@ -562,6 +638,16 @@ export function EncounterFollowUpPanel({
             also appear in Operations.
           </Typography>
         </Box>
+        {canWrite && (!followUp || followUp.status === "completed") && (
+          <Button
+            variant="outlined"
+            onClick={quickScheduleSixMonthFollowUp}
+            disabled={busy || pending || !recovery.ready}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Follow up in 6 months
+          </Button>
+        )}
         {resource.error && <Alert severity="error">{resource.error}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="info">{notice}</Alert>}

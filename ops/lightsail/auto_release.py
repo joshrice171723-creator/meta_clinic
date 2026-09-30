@@ -220,6 +220,20 @@ def rollback_images(revision, lock):
     atomic_json(STATE / "status.json", {"status": "rolled_back", "sha": record["previous_sha"]})
 
 
+def build_images(source, checkout, revision):
+    # The caller just created this worktree; never reuse or force-remove an existing one.
+    try:
+        atomic_json(STATE / "status.json", {"status": "building", "sha": revision})
+        for component in ("api", "web"):
+            run(["docker", "build", "--platform", "linux/amd64", "--label",
+                 "org.opencontainers.image.revision=" + revision,
+                 "-t", f"meta-clinic-{component}:{revision}", str(checkout / "apps" / component)], timeout=5400)
+    finally:
+        # Remove only this build context and its registration. Keep images and recovery.
+        # A dirty worktree is retained for inspection; do not force or prune other paths.
+        run(["git", "--git-dir", str(source), "worktree", "remove", str(checkout)])
+
+
 def deploy(config, lock):
     if (STATE / "blocked").exists():
         raise Blocked("Previous release failed; inspect status and recovery before clearing the stop file")
@@ -271,11 +285,7 @@ def deploy(config, lock):
     # Lock spans BOTH prepare/deploy phases, encryption, version signal and rollback.
     mutation_started = False
     try:
-        atomic_json(STATE / "status.json", {"status": "building", "sha": revision})
-        for component in ("api", "web"):
-            run(["docker", "build", "--platform", "linux/amd64", "--label",
-                 "org.opencontainers.image.revision=" + revision,
-                 "-t", f"meta-clinic-{component}:{revision}", str(checkout / "apps" / component)], timeout=5400)
+        build_images(source, checkout, revision)
         if api.main() != revision:
             raise Blocked("Main advanced during build; candidate must be reconsidered")
         # This installed script is never replaced with code from the candidate checkout.

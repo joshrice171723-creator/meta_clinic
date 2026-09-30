@@ -215,7 +215,6 @@ module Clinic
           invoice.practice.lock!
           invoice.patient.lock!
           invoice.lock!
-          payment.lock!
           unless payment.patient_id == invoice.patient_id && payment.currency == intent.currency && payment.amount == intent.amount &&
             payment.allocations.exists?(invoice: invoice)
             raise StripeGateway::Invalid, "Stripe refund has conflicting ledger activity."
@@ -292,7 +291,6 @@ module Clinic
             event.created_at = paid_at
             event.updated_at = paid_at
           end
-          ledger_payment.lock!
           unless ledger_payment.patient_id == invoice.patient_id && ledger_payment.currency == intent.currency && ledger_payment.amount == intent.amount
             raise StripeGateway::Invalid, "Stripe payment has conflicting ledger activity."
           end

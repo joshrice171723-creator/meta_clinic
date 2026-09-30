@@ -78,7 +78,7 @@ if [[ $phase == prepare ]]; then
     actual=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$tag")
     [[ $actual == "$revision" ]] || { echo "Image revision mismatch: $tag" >&2; exit 1; }
   done
-  docker run --rm --tmpfs /tmp --entrypoint nginx "$web_tag" -t >/dev/null
+  docker run --rm --tmpfs /tmp --add-host api:127.0.0.1 --entrypoint nginx "$web_tag" -t >/dev/null
   if [[ $image_source == registry ]]; then
     api_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$api_tag")
     web_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$web_tag")
@@ -180,6 +180,8 @@ done
 status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 https://aimetaclinic.com/api/clinic/context)
 [[ $status == 401 || $status == 403 || $status == 404 ]] || { echo "Anonymous clinic access returned $status." >&2; false; }
 python3 "${META_CLINIC_VERIFY_SCRIPT:-/tmp/meta-clinic-verify-$revision.py}"
+curl --fail --silent --show-error --max-time 15 https://aimetaclinic.com/build.json |
+  python3 -c 'import json,sys; data=json.load(sys.stdin); assert data.get("revision") == sys.argv[1], "Public build revision mismatch"; assert data.get("version"), "Missing public version"' "$revision"
 printf '%s\n' "$revision" > /opt/meta-clinic/deploy/current-revision
 echo "RELEASED=$revision"
 echo "API_IMAGE=$(sed -n 's/^API_IMAGE=//p' "$release_file")"

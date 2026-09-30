@@ -3,8 +3,32 @@ Rails.application.routes.draw do
   post "api/integrations/telehealth/daily/events", to: "integrations/telehealth/daily_events#create"
   post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
   scope path: "api", as: "api" do
+  get "qa", to: "qa/workspace#show"
+  get "qa/status.json", to: "qa/workspace#status"
+  get "qa/issues.json", to: "qa/workspace#issues"
+  get "qa/atlas.json", to: "qa/workspace#atlas"
+  get "qa/retest.json", to: "qa/workspace#retest"
+  get "qa/batches.json", to: "qa/workspace#batches"
+  get "qa/tasks", to: "qa/workspace#tasks"
+  get "qa/room", to: "qa/workspace#room"
+  post "qa/room/messages", to: "qa/workspace#create_room_message"
+  post "qa/tasks", to: "qa/workspace#create_task"
+  post "qa/tasks/:id/transition", to: "qa/workspace#transition"
+  post "qa/events", to: "qa/workspace#create_event"
+  post "qa/state", to: "qa/workspace#update_state"
+  post "qa/coverage", to: "qa/workspace#import_coverage"
+  post "qa/issues/:id/priority", to: "qa/workspace#priority"
+  get "qa/evidence/:id", to: "qa/workspace#evidence"
+  post "qa/evidence", to: "qa/workspace#create_evidence"
+  post "qa/baseline", to: "qa/workspace#baseline"
+  post "qa/pin", to: "qa/workspace#pin"
+  post "qa/tasks/:id/approval", to: "qa/workspace#approval"
+  get "qa/notifications", to: "qa/workspace#notifications"
+  post "qa/notifications/:id/receipt", to: "qa/workspace#notification_receipt"
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   get "owner/command_center", to: "platform/api/command_center#show"
+  post "owner/review_packets", to: "platform/api/command_center#create_review_packet"
+  post "owner/review_packets/:id/decision", to: "platform/api/command_center#record_review_decision"
   post "public/page_visits", to: "platform/api/page_visits#create"
   post "owner/clinics", to: "platform/api/command_center#create"
   post "owner/clinics/:id/owner_invitation", to: "platform/api/command_center#invite_owner"
@@ -94,7 +118,9 @@ Rails.application.routes.draw do
     get "practice_features/history", to: "practice_features#history"
     resource :practice_features, only: %i[show update]
     resources :visit_types, only: %i[create update]
-    resources :clinicians, controller: "clinicians", only: %i[index create]
+    resources :clinicians, controller: "clinicians", only: %i[index create] do
+      post :assign_site, on: :member
+    end
     resources :role_versions, controller: "role_versions", only: :index
     resources :appointments, controller: "scheduling/appointments", only: %i[index show create update] do
       post :transition, on: :member
@@ -120,6 +146,7 @@ Rails.application.routes.draw do
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     get "reports/current_stock", to: "reports/current_stock#show"
     get "reports/daily_cash_drawers", to: "reports/daily_cash_drawers#show"
+    resources :day_end_reviews, controller: "reports/day_end_reviews", only: %i[index create]
     get "reports/scribe_activity", to: "reports/scribe_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
@@ -222,6 +249,7 @@ Rails.application.routes.draw do
         patch :draft, on: :member, action: :update_draft
         post :post, on: :member
         post :credits, on: :member, action: :credit
+        post :write_offs, on: :member, action: :write_off
         post :void, on: :member, action: :void_invoice
         post :payment_allocations, on: :member, action: :allocate_payment
         post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
@@ -372,6 +400,7 @@ Rails.application.routes.draw do
     get "lab_reports/follow_up_queue", to: "care/lab_reports#follow_up_queue"
     resources :patients, controller: "care/patients", only: %i[index show create update] do
       get :lookup, on: :collection, to: "care/patients#lookup"
+      post :merge, on: :member
       get :billing_ledger, on: :member, to: "billing/patient_ledgers#show"
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"

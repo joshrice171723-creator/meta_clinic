@@ -100,6 +100,13 @@ export function BadgeAdminPage() {
   );
 
   async function issueBadge() {
+    if (!employmentId || !siteId) {
+      setFeedback({
+        type: "error",
+        text: "Choose an active employee and location before issuing a badge.",
+      });
+      return;
+    }
     setBusy(true);
     setFeedback(null);
     try {
@@ -115,12 +122,21 @@ export function BadgeAdminPage() {
         },
       });
       setPrintable(result.printable);
+      setBadges((current) => [
+        {
+          ...result.badge,
+          employee_name:
+            employees.find((employee) => String(employee.id) === employmentId)
+              ?.employee_name ?? result.badge.employee_name,
+        },
+        ...current.filter((badge) => badge.id !== result.badge.id),
+      ]);
       setPin("");
+      setRevision((value) => value + 1);
       setFeedback({
         type: "success",
         text: "Badge issued. Print it now; the barcode cannot be retrieved later.",
       });
-      setRevision((value) => value + 1);
     } catch (reason) {
       setPin("");
       setFeedback({
@@ -274,7 +290,7 @@ export function BadgeAdminPage() {
                   inputMode: "numeric",
                   pattern: "[0-9]{4,12}",
                   maxLength: 12,
-                  autoComplete: "new-password",
+                  autoComplete: "off",
                 },
               }}
             />

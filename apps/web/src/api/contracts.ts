@@ -122,6 +122,7 @@ export type PatientPortalBillingHistoryPage = {
 };
 export type PatientBillingSupportRequest = {
   id: number;
+  content: string;
   status: "pending" | "in_review" | "resolved" | "declined";
   requested_at: string;
   reviewed_at: string | null;
@@ -437,6 +438,11 @@ export type EncounterIntakeRevision = {
     items?: Record<
       string,
       {
+        question?: import("../features/patientPortal/IntakeQuestions").IntakeField & {
+          question_version?: number;
+        };
+        questionnaire_version?: number;
+        original_response?: import("../features/patientPortal/IntakeQuestions").IntakeAnswer;
         source: string;
         recorded_at: string;
         recorded_by_membership_id: number;
@@ -1158,6 +1164,7 @@ export type BillingPatientLedger = {
       id: number;
       amount: Decimal;
       created_at: string;
+      adjustment_type?: "credit" | "write_off";
       reason?: string | null;
       issued_at?: string | null;
       issued_by?: string | null;
@@ -1466,6 +1473,8 @@ export type Appointment = {
   visit_modality?: "in_person" | "video";
   overbooked?: boolean;
   overbook_reason?: string | null;
+  walk_in?: boolean;
+  capacity_override_reason?: string | null;
   series_id?: number | null;
   series_sequence?: number | null;
   telehealth?: TelehealthSummary | null;

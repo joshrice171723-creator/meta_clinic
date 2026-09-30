@@ -22,7 +22,7 @@ module Clinic
           end
           raise ArgumentError, "The clinician is not active in this practice." if !unassign && !profile
           if profile && !profile.assignments.current.where(site_id: updated.site_id).exists?
-            raise ArgumentError, "The clinician is not assigned to this encounter site."
+            raise ArgumentError, "The clinician is not authorized to provide care at this encounter site."
           end
           current_profile_id = current&.membership&.clinician_profile&.id
           same_provider = profile && current_profile_id == profile.id

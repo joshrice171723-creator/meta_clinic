@@ -221,9 +221,12 @@ module Clinic
           @eligible = if @eligible_site_ids.empty?
             []
           else
-            practice.clinician_profiles.includes(:membership, :assignments).to_a.select do |profile|
+            practice.clinician_profiles.includes(:assignments, membership: :user).to_a.select do |profile|
               profile.membership.active? && profile.membership.practice_id == practice.id &&
-                profile.assignments.any? { |assignment| @eligible_site_ids.include?(assignment.site_id) && effective?(assignment) }
+                profile.membership.user.active? &&
+                @eligible_site_ids.any? do |site_id|
+                  profile.assignments.any? { |assignment| assignment.site_id == site_id && effective?(assignment) }
+                end
             end
           end
         end
@@ -242,9 +245,9 @@ module Clinic
             {
               clinician_profile_id: profile.id.to_s,
               display_name: display_name(profile),
-              site_ids: profile.assignments.select do |assignment|
-                @eligible_site_ids.include?(assignment.site_id) && effective?(assignment)
-              end.map { |assignment| assignment.site_id.to_s }.uniq
+              site_ids: @eligible_site_ids.select do |site_id|
+                profile.assignments.any? { |assignment| assignment.site_id == site_id && effective?(assignment) }
+              end.map(&:to_s)
             }
           end
         end
@@ -262,6 +265,7 @@ module Clinic
         def effective?(assignment)
           assignment.effective_from <= @as_of && (assignment.effective_until.nil? || assignment.effective_until > @as_of)
         end
+
       end
 
       class CareSummaryBatch

@@ -50,7 +50,7 @@ type OrganizationSummary = {
 };
 
 type CommandCenterData = {
-  schema_version: "owner-command-center-v1";
+  schema_version: "owner-command-center-v2";
   delivery_methods: { email: boolean; sms: boolean };
   demo_usage: DemoUsage[];
   demo_feedback: DemoFeedback[];

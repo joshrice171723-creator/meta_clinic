@@ -9,14 +9,27 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type { Adjustment, Timecard, TimecardEmployee } from "./clockTypes";
 import { AdjustmentDialog } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
 
+function workforceSettingsPath(reason: unknown, siteId: string) {
+  if (!(reason instanceof ApiError)) return null;
+  if (reason.code === "workforce_settings_unconfigured")
+    return "/clinic/workforce/settings";
+  if (/approval policy is unconfigured/i.test(reason.message))
+    return siteId
+      ? `/clinic/workforce/settings?site_id=${encodeURIComponent(siteId)}`
+      : "/clinic/workforce/settings";
+  return null;
+}
+
 export function TimecardReviewPage() {
   const clinic = useClinic();
+  const { navigate } = useClinicNavigation();
   const canRead = clinic.capabilities.workforce_timecards_read === true;
   const canReview = clinic.capabilities.workforce_timecards_review === true;
   const canApprove = clinic.capabilities.workforce_timecards_approve === true;
@@ -29,6 +42,7 @@ export function TimecardReviewPage() {
   const [periodStart, setPeriodStart] = useState("");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [error, setError] = useState("");
+  const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,6 +56,7 @@ export function TimecardReviewPage() {
     if (!siteId || !canRead) return;
     const abort = new AbortController();
     setError("");
+    setSettingsPath(null);
     setReviewError("");
     const query = `?site_id=${encodeURIComponent(siteId)}`;
     const adjustmentRequest = canReview
@@ -90,6 +105,8 @@ export function TimecardReviewPage() {
               ? reason.message
               : "Unable to load timecard review.",
           );
+        if (!abort.signal.aborted)
+          setSettingsPath(workforceSettingsPath(reason, siteId));
       });
     return () => abort.abort();
   }, [canRead, canReview, siteId, revision]);
@@ -107,6 +124,7 @@ export function TimecardReviewPage() {
     if (!employmentId || !periodStart) return;
     setBusy(true);
     setError("");
+    setSettingsPath(null);
     setNotice("");
     try {
       await api("/api/clinic/workforce/timecards/calculate", {
@@ -127,6 +145,7 @@ export function TimecardReviewPage() {
           ? reason.message
           : "Unable to calculate the employee timecard.",
       );
+      setSettingsPath(workforceSettingsPath(reason, siteId));
     } finally {
       setBusy(false);
     }
@@ -135,6 +154,7 @@ export function TimecardReviewPage() {
   async function approve(card: Timecard) {
     setBusy(true);
     setError("");
+    setSettingsPath(null);
     setNotice("");
     try {
       await api(`/api/clinic/workforce/timecards/${card.id}/approve`, {
@@ -151,6 +171,7 @@ export function TimecardReviewPage() {
           ? reason.message
           : "Unable to approve the timecard.",
       );
+      setSettingsPath(workforceSettingsPath(reason, siteId));
     } finally {
       setBusy(false);
     }
@@ -246,14 +267,50 @@ export function TimecardReviewPage() {
               </Button>
             </Stack>
             {!employees.length && (
-              <Typography variant="body2" color="text.secondary">
-                No eligible employees are available at this location.
-              </Typography>
+              <Alert
+                severity="info"
+                action={
+                  clinic.capabilities.workforce_admin === true ? (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => navigate("/clinic/workforce/employees")}
+                    >
+                      Manage employees
+                    </Button>
+                  ) : undefined
+                }
+              >
+                No active employees are eligible at this location.{" "}
+                {clinic.capabilities.workforce_admin === true
+                  ? "Activate or link an employee and assign this location."
+                  : "Ask a workforce administrator to activate or link an employee and assign this location."}
+              </Alert>
             )}
           </Stack>
         </Paper>
       )}
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Alert
+          severity={settingsPath ? "warning" : "error"}
+          action={
+            settingsPath && clinic.capabilities.workforce_settings === true ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => navigate(settingsPath)}
+              >
+                Open workforce settings
+              </Button>
+            ) : undefined
+          }
+        >
+          {error}
+          {settingsPath && clinic.capabilities.workforce_settings !== true
+            ? " Ask a workforce settings administrator to save the required practice or location settings."
+            : ""}
+        </Alert>
+      )}
       {reviewError && (
         <Alert severity="warning">
           {reviewError} Authorized timecard records remain available below.

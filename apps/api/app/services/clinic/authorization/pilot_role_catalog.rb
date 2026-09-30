@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class PilotRoleCatalog
-      VERSION = 11
+      VERSION = 12
 
       DEFINITIONS = {
         "workforce-employee" => {
@@ -19,7 +19,7 @@ module Clinic
             inventory.read inventory.catalog inventory.receive inventory.adjust inventory.hold inventory.release inventory.count
             inventory.configure inventory.transfer inventory.put_away procurement.read procurement.create procurement.submit
             procurement.approve recall.read recall.lock recall.dispose controlled.read controlled.count controlled.certify
-            appointments.read appointments.write appointments.book appointments.overbook appointments.status_transition encounters.read encounters.write
+            appointments.read appointments.write appointments.book appointments.overbook appointments.capacity_override appointments.status_transition encounters.read encounters.write
             encounters.assign_provider intake.write notes.read notes.write notes.sign observations.write messages.write
             clinical_records.read medication_requests.write medication_administrations.write service_requests.write diagnoses.write
             procedures.write care_plans.write immunizations.write
@@ -42,7 +42,7 @@ module Clinic
         "front-desk-coordinator" => {
           label: "Front Desk Coordinator",
           permissions: %w[patients.read patients.identity.read patients.write appointments.read appointments.write
-            appointments.book appointments.status_transition encounters.read encounters.write staff.read subscriptions.review]
+            appointments.book appointments.capacity_override appointments.status_transition encounters.read encounters.write staff.read subscriptions.review]
         },
         "clinician" => {
           label: "Clinician",

@@ -3,17 +3,19 @@ require "uri"
 module Clinic
   module Care
     class PatientsController < Clinic::ApiController
+      REGISTRATION_ASSOCIATIONS = %i[versions demographics contacts emergency_contacts address_versions communication_preference social_histories].freeze
+
       rescue_from ArgumentError do |error|
         render_error(error.message, :unprocessable_entity)
       end
 
       before_action -> { require_capability("patients.read") }, only: %i[index show]
       before_action -> { require_capability_with_legacy("patients.identity.read", "patients.read") }, only: :lookup
-      before_action -> { require_capability("patients.write") }, only: %i[create update]
+      before_action -> { require_capability("patients.write") }, only: %i[create update merge]
       before_action -> { require_capability("notes.write") }, only: :note
 
       def index
-        patients = current_practice.patients.accessible_by(current_ability, :read)
+        patients = current_practice.patients.where(merged_into_patient_id: nil).accessible_by(current_ability, :read)
           .includes(:demographics, :contacts)
         if params[:site_id].present?
           site = accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id))
@@ -30,7 +32,7 @@ module Clinic
       # Scheduler/front desk projection: identity and reference only. The
       # endpoint is deliberately separate from the patient detail surface.
       def lookup
-        patients = current_practice.patients.accessible_by(current_ability, :read_identity)
+        patients = current_practice.patients.where(merged_into_patient_id: nil).accessible_by(current_ability, :read_identity)
           .includes(:demographics, :contacts)
         query = query_param
         date_of_birth = params[:date_of_birth].present? ? date_param!(params[:date_of_birth], field: :date_of_birth) : nil
@@ -158,6 +160,41 @@ module Clinic
         render json: payload
       end
 
+      def merge
+        source = current_practice.patients.find(integer_id!(params[:id], field: :id))
+        input = parameter_hash!(:merge, %i[target_patient_id reason])
+        target = current_practice.patients.find(integer_id!(input[:target_patient_id], field: :target_patient_id))
+        raise ArgumentError, "Choose a different canonical patient." if source.id == target.id
+        reason = required_string!(input[:reason], field: :reason, maximum: 500)
+        membership = current_practice.memberships.active.find_by!(user: current_user)
+
+        Clinic::Care::Patient.transaction do
+          locked = current_practice.patients.where(id: [ source.id, target.id ]).order(:id).lock.index_by(&:id)
+          source = locked.fetch(source.id)
+          target = locked.fetch(target.id)
+          raise ArgumentError, "This patient is already merged." if source.merged_into_patient_id.present?
+          raise ArgumentError, "The canonical patient has already been merged." if target.merged_into_patient_id.present?
+
+          blocking = Clinic::Care::Patient.reflect_on_all_associations.find do |association|
+            next unless %i[has_many has_one].include?(association.macro)
+            next if REGISTRATION_ASSOCIATIONS.include?(association.name)
+
+            records = source.public_send(association.name)
+            association.collection? ? records.exists? : records.present?
+          end
+          if blocking || Clinic::PatientPortal::Identity.exists?(practice_id: current_practice.id, patient_id: source.id)
+            raise ArgumentError, "This duplicate has linked activity. Reconcile it before merging."
+          end
+
+          source.update!(merged_into_patient: target, merged_at: Time.current,
+            merged_by_membership: membership, merge_reason: reason)
+          Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+            action_code: "patients.merge", outcome: :committed,
+            resource_version_ref: "Clinic::Care::Patient/#{source.id}")
+        end
+        render json: { canonical_patient_id: target.id, merged_patient_id: source.id }
+      end
+
       def note
         patient = current_practice.patients.accessible_by(current_ability, :read).find(integer_id!(params[:id], field: :id))
         body = required_string!(params[:body], field: :body, maximum: 8_000)
@@ -240,7 +277,13 @@ module Clinic
 
         address = optional_string(input[:primary_address], field: :primary_address, maximum: 20_000)
         current = patient.primary_address_version
-        return false if address.blank? || current&.encrypted_address == address
+        if address.blank?
+          return false unless current
+
+          patient.update!(primary_address_version: nil)
+          return true
+        end
+        return false if current&.encrypted_address == address
 
         Clinic::Care::AddPatientAddress.call(
           practice: current_practice, actor: current_user, patient:, encrypted_address: address, make_primary: true

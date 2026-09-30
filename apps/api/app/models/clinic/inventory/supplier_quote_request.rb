@@ -5,13 +5,16 @@ module Clinic
       include Clinic::TenantScoped
       include Clinic::Auditable
 
-      attr_readonly :supplier_product_id, :supplier_id, :product_id, :requested_packages, :note, :request_key
+      attr_readonly :supplier_product_id, :supplier_id, :product_id, :requested_packages, :package_quantity_at_request, :stock_unit_at_request, :note, :request_key
 
       belongs_to :supplier_product, class_name: "Clinic::Inventory::SupplierProduct"
       belongs_to :supplier, class_name: "Clinic::Inventory::Supplier"
       belongs_to :product, class_name: "Clinic::Inventory::PharmacyProduct"
 
       validates :requested_packages, numericality: { greater_than: 0 }
+      validates :package_quantity_at_request, numericality: { greater_than: 0 }, allow_nil: true
+      validates :package_quantity_at_request, presence: true, on: :create
+      validates :stock_unit_at_request, presence: true, on: :create
       validates :note, presence: true, length: { maximum: 1000 }
       validates :request_key, format: { with: Clinic::Idempotency::KEY_PATTERN }
       validates :status, inclusion: { in: %w[open quoted] }

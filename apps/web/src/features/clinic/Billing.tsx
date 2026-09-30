@@ -45,6 +45,7 @@ import { LoadState, useResource } from "../../shared/ui";
 import {
   CashDrawerOperations,
   hasPendingCashAttempt,
+  pendingCashAttemptInvoiceId,
 } from "./CashDrawerOperations";
 import {
   customInvoiceLine,
@@ -97,7 +98,7 @@ type CashRefundScope = Pick<
 >;
 
 type ChargeAdjustmentAttempt = {
-  action: "credit" | "void";
+  action: "credit" | "write_off" | "void";
   amount?: string;
   invoiceId: number;
   reason: string;
@@ -549,6 +550,11 @@ function LedgerDetails({
   focusRefundId: number | null;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
+  const clinic = useClinic();
+  const [pendingCashState, setPendingCashState] = useState(() => {
+    const invoiceId = pendingCashAttemptInvoiceId(clinic);
+    return { pending: invoiceId !== null, invoiceId };
+  });
   const referenceLabel = patientReferenceLabel(ledger.patient.reference);
   const actionableInvoice =
     checkoutEncounterId && checkoutInvoice.active?.id !== selectedInvoice?.id
@@ -768,7 +774,7 @@ function LedgerDetails({
       </Paper>
       {selectedInvoice && (
         <Accordion
-          key={selectedInvoice.id}
+          key={`invoice-details:${selectedInvoice.id}`}
           defaultExpanded={selectedInvoice.id === queryId("invoice_id")}
           disableGutters
           variant="outlined"
@@ -810,13 +816,18 @@ function LedgerDetails({
       {actionableInvoice && (
         <ChargeAdjustmentDialog
           canAdjust={canAdjust}
+          cashPaymentPending={
+            pendingCashState.pending &&
+            (pendingCashState.invoiceId === null ||
+              pendingCashState.invoiceId === actionableInvoice.id)
+          }
           invoice={actionableInvoice}
           onFinancialChange={onFinancialChange}
         />
       )}
       {actionableInvoice?.status === "draft" && canDraft && (
         <DraftInvoiceEditor
-          key={actionableInvoice.id}
+          key={`invoice-editor:${actionableInvoice.id}`}
           invoice={actionableInvoice}
           patientId={ledger.patient.id}
           encounterId={checkoutEncounterId}
@@ -830,6 +841,7 @@ function LedgerDetails({
           encounterId={checkoutEncounterId}
           canPost={canPost}
           financialRevision={financialRevision}
+          onPendingCashAttemptChange={setPendingCashState}
           onFinancialChange={onFinancialChange}
         />
       </Box>
@@ -874,6 +886,7 @@ function CheckoutSettlement({
   encounterId,
   canPost,
   financialRevision,
+  onPendingCashAttemptChange,
   onFinancialChange,
 }: {
   invoice?: BillingPatientLedger["invoices"][number];
@@ -881,6 +894,10 @@ function CheckoutSettlement({
   encounterId: number | null;
   canPost: boolean;
   financialRevision: number;
+  onPendingCashAttemptChange: (state: {
+    pending: boolean;
+    invoiceId: number | null;
+  }) => void;
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const clinic = useClinic();
@@ -896,6 +913,13 @@ function CheckoutSettlement({
   const [cashPending, setCashPending] = useState(() =>
     hasPendingCashAttempt(clinic),
   );
+  const updateCashPending = (state: {
+    pending: boolean;
+    invoiceId: number | null;
+  }) => {
+    setCashPending(state.pending);
+    onPendingCashAttemptChange(state);
+  };
   const [postedInvoiceId, setPostedInvoiceId] = useState<number | null>(null);
   const [postAttempt, setPostAttempt] = useState<{
     invoiceId: number;
@@ -1122,7 +1146,7 @@ function CheckoutSettlement({
             encounterId={encounterId ?? undefined}
             recoveryInvoiceId={cashRecoveryInvoiceId.current}
             refreshVersion={financialRevision}
-            onPendingChange={setCashPending}
+            onPendingChange={updateCashPending}
             onRecorded={onFinancialChange}
           />
         )}
@@ -1589,10 +1613,12 @@ function DraftInvoiceEditor({
 
 function ChargeAdjustmentDialog({
   canAdjust,
+  cashPaymentPending,
   invoice,
   onFinancialChange,
 }: {
   canAdjust: boolean;
+  cashPaymentPending: boolean;
   invoice: BillingPatientLedger["invoices"][number];
   onFinancialChange: (invoiceId?: number) => void;
 }) {
@@ -1602,14 +1628,18 @@ function ChargeAdjustmentDialog({
   const [attempt, setAttempt] = useState<ChargeAdjustmentAttempt | null>(
     () => pendingChargeAdjustmentAttempts.get(attemptKey) ?? null,
   );
-  const [action, setAction] = useState<"credit" | "void">("credit");
+  const [action, setAction] = useState<"credit" | "write_off" | "void">(
+    "credit",
+  );
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const limits = invoice.adjustment_limits;
   const creditAvailable = limits.credit_available_amount;
+  const writeOffAvailable = invoice.balance_amount;
   const canCredit = !isZero(creditAvailable);
+  const canWriteOff = !isZero(writeOffAvailable);
   const canVoid = limits.void_eligible;
   const retryPending = attempt !== null;
 
@@ -1633,30 +1663,39 @@ function ChargeAdjustmentDialog({
   }, [attemptKey, canCredit]);
 
   const close = () => {
-    if (!busy && !retryPending) setOpen(false);
+    if (!busy) setOpen(false);
   };
 
   const submit = async () => {
-    if (!canAdjust || busy || (!canCredit && !canVoid)) return;
+    if (!canAdjust || busy || (!canCredit && !canWriteOff && !canVoid)) return;
+    if (action === "void" && cashPaymentPending) {
+      setError(
+        "Resolve the pending cash payment for this invoice before voiding it.",
+      );
+      return;
+    }
     if (!retryPending && reason.trim().length === 0) {
       setError("Enter a reason for this charge adjustment.");
       return;
     }
     if (
       !retryPending &&
-      action === "credit" &&
+      (action === "credit" || action === "write_off") &&
       (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
         isZero(amount) ||
-        !decimalNotGreaterThan(amount, creditAvailable))
+        !decimalNotGreaterThan(amount, action === "write_off" ? writeOffAvailable : creditAvailable))
     ) {
+      const available = action === "write_off" ? writeOffAvailable : creditAvailable;
       setError(
-        `Enter a positive credit up to ${money(creditAvailable, invoice.currency)} with up to six decimal places.`,
+        `Enter a positive ${action === "write_off" ? "write-off" : "credit"} up to ${money(available, invoice.currency)} with up to six decimal places.`,
       );
       return;
     }
     const nextAttempt = attempt ?? {
       action,
-      ...(action === "credit" ? { amount: amount.trim() } : {}),
+      ...(action === "credit" || action === "write_off"
+        ? { amount: amount.trim() }
+        : {}),
       invoiceId: invoice.id,
       reason: reason.trim(),
       requestKey: crypto.randomUUID(),
@@ -1666,11 +1705,18 @@ function ChargeAdjustmentDialog({
     setBusy(true);
     setError("");
     try {
-      if (nextAttempt.action === "credit") {
-        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/credits`, {
+      if (
+        nextAttempt.action === "credit" ||
+        nextAttempt.action === "write_off"
+      ) {
+        const parameter =
+          nextAttempt.action === "credit" ? "credit" : "write_off";
+        const endpoint =
+          nextAttempt.action === "credit" ? "credits" : "write_offs";
+        await api(`/api/clinic/invoices/${nextAttempt.invoiceId}/${endpoint}`, {
           method: "POST",
           body: {
-            credit: {
+            [parameter]: {
               amount: nextAttempt.amount,
               reason: nextAttempt.reason,
               request_key: nextAttempt.requestKey,
@@ -1720,7 +1766,7 @@ function ChargeAdjustmentDialog({
   return (
     <>
       <Button
-        disabled={!canCredit && !canVoid}
+        disabled={!canCredit && !canWriteOff && !canVoid}
         onClick={() => setOpen(true)}
         variant="outlined"
       >
@@ -1740,8 +1786,17 @@ function ChargeAdjustmentDialog({
               </Alert>
             ) : (
               <Alert severity="info">
-                A credit reduces recorded charges. It does not return money. Use
-                the separate cash refund workflow when money is returned.
+                {action === "write_off"
+                  ? "A write-off reduces unpaid bad debt, up to the remaining balance. It does not return money."
+                  : action === "void"
+                    ? "Voiding cancels an untouched unpaid invoice. The server checks eligibility again before saving."
+                    : "A credit reduces recorded charges. It does not return money. Use the separate cash refund workflow when money is returned."}
+              </Alert>
+            )}
+            {cashPaymentPending && (
+              <Alert severity="warning">
+                Cash payment for invoice #{invoice.id} is pending confirmation.
+                Resolve it before voiding the invoice.
               </Alert>
             )}
             {canCredit && (
@@ -1754,22 +1809,32 @@ function ChargeAdjustmentDialog({
                 {money(creditAvailable, invoice.currency)}
               </Button>
             )}
+            {canWriteOff && (
+              <Button
+                disabled={retryPending}
+                onClick={() => setAction("write_off")}
+                variant={action === "write_off" ? "contained" : "outlined"}
+              >
+                Write off bad debt · available{" "}
+                {money(writeOffAvailable, invoice.currency)}
+              </Button>
+            )}
             {canVoid && (
               <Button
                 color="warning"
-                disabled={retryPending}
+                disabled={retryPending || cashPaymentPending}
                 onClick={() => setAction("void")}
                 variant={action === "void" ? "contained" : "outlined"}
               >
                 Void untouched unpaid invoice
               </Button>
             )}
-            {action === "credit" && (
+            {(action === "credit" || action === "write_off") && (
               <TextField
                 autoFocus={!retryPending}
                 disabled={retryPending}
                 inputMode="decimal"
-                label="Credit amount"
+                label={action === "write_off" ? "Write-off amount" : "Credit amount"}
                 onChange={(event) => setAmount(event.target.value)}
                 value={amount}
               />
@@ -1794,11 +1859,11 @@ function ChargeAdjustmentDialog({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy || retryPending} onClick={close}>
-            Cancel
+          <Button disabled={busy} onClick={close}>
+            {retryPending ? "Close" : "Cancel"}
           </Button>
           <Button
-            disabled={busy}
+            disabled={busy || (action === "void" && cashPaymentPending)}
             onClick={() => void submit()}
             variant="contained"
           >
@@ -1808,7 +1873,9 @@ function ChargeAdjustmentDialog({
                 ? "Retry exact adjustment"
                 : action === "credit"
                   ? "Record credit"
-                  : "Void invoice"}
+                  : action === "write_off"
+                    ? "Write off bad debt"
+                    : "Void invoice"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1914,7 +1981,7 @@ function InvoiceDetail({
             entries={invoice.allocations}
           />
           <LedgerAmount
-            label="Credits"
+            label="Credits and write-offs"
             value={invoice.credit_amount}
             currency={invoice.currency}
             entries={invoice.credits}
@@ -1948,6 +2015,7 @@ function LedgerAmount({
     id: number;
     amount: string;
     created_at: string;
+    adjustment_type?: "credit" | "write_off";
     reason?: string | null;
     issued_at?: string | null;
     issued_by?: string | null;
@@ -1969,6 +2037,7 @@ function LedgerAmount({
         entries.map((entry) => (
           <Box key={entry.id}>
             <Typography color="text.secondary" variant="body2">
+              {entry.adjustment_type === "write_off" ? "Write-off · " : entry.adjustment_type === "credit" ? "Credit · " : ""}
               {money(entry.amount, currency)} ·{" "}
               {date(entry.issued_at ?? entry.created_at, true)}
             </Typography>

@@ -7,6 +7,7 @@ module Clinic
         allocated = Money.currency_amount(allocation_amount, name: "allocation", positive: true)
         raise ArgumentError, "Cash tender must cover the allocation amount." if tendered < allocated
 
+        recorded_at = Time.current
         ApplicationRecord.transaction do
           existing_tender = Clinic::CashTender.where(practice: practice).lock.find_by(request_key: request_key)
           if existing_tender
@@ -30,14 +31,14 @@ module Clinic
           allocation = AllocatePayment.call(
             practice: practice, actor: actor, patient: patient, invoice: invoice,
             external_event_reference: "cash:#{drawer.id}:#{request_key}", currency: invoice.currency,
-            amount: allocated.to_s("F"), payment_amount: allocated.to_s("F")
+            amount: allocated.to_s("F"), payment_amount: allocated.to_s("F"), created_at: recorded_at
           ) do |payment, created_allocation|
             CashTender.create!(
               practice: practice, patient: patient, payment_event: payment, cash_drawer_session: drawer,
               tendered_amount: tendered, change_amount: tendered - allocated, recorded_by: actor, request_key: request_key
             )
             BillingReceipt.create!(practice: practice, patient: patient, invoice: invoice, payment_event: payment,
-              issued_by: actor, kind: "cash_payment", issued_at: Time.current,
+              issued_by: actor, kind: "cash_payment", issued_at: recorded_at,
               payload: { allocation_id: created_allocation.id, amount: allocated.to_s("F"), currency: invoice.currency, change_amount: (tendered - allocated).to_s("F") })
           end
           tender = allocation.payment_event.cash_tender

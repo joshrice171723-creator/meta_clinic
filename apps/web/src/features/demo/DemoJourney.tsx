@@ -395,8 +395,9 @@ export function DemoJourney() {
           Explore clinic workflows
         </Typography>
         <Typography color="text.secondary">
-          We collect your name, email and company to understand demo usage. No
-          account or email verification is required.
+          Browse the clinic tour without sharing details, or provide your name,
+          email and company for guided workflows. No account or email
+          verification is required.
         </Typography>
         {error && <Alert severity="error">{error}</Alert>}
         {state.value.notice && (
@@ -436,6 +437,18 @@ export function DemoJourney() {
               <Button type="submit" variant="contained" disabled={busy}>
                 {busy ? "Saving…" : "Continue"}
               </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={busy}
+                onClick={() => void selectLesson("navigation_tour")}
+              >
+                Browse without sharing details
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Opens the read-only clinic tour. Other guided workflows still
+                ask for your details.
+              </Typography>
             </Stack>
           </Paper>
         ) : (
@@ -560,6 +573,16 @@ export function DemoJourney() {
                 >
                   Back to lessons
                 </Button>
+                {sandbox && (
+                  <Button
+                    color="warning"
+                    size="small"
+                    disabled={busy}
+                    onClick={() => setRestartOpen(true)}
+                  >
+                    Reset Sandbox
+                  </Button>
+                )}
                 {sandbox && (
                   <Button
                     size="small"

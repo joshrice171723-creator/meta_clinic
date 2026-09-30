@@ -1,9 +1,13 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-22
+updated: 2026-09-28
 ---
 # Decisions
+
+## Version 0.1.9 QA disposition gate — 2026-09-28
+
+**D-081 — founder direction in the active QA task:** the earlier 74% Muse request and 75% Atlas Build publication threshold do not gate version 0.1.9. Review all 70 findings in Muse's 2026-09-28 report against current source. For each, record a fix or implementation, or a concrete, evidence-based reason for no change. Audit report claims rather than treating them as automatically correct. The [70-finding disposition](../../records/audits/2026-09-28-muse-qa-70-disposition.md) records that review. Source disposition does not establish browser acceptance; the existing release runbook and its verification gates still apply.
 
 ## Behavioral-health private note scope — 2026-09-22
 
