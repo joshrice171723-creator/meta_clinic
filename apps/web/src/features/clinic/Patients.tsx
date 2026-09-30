@@ -3,6 +3,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -52,6 +53,7 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
 import { useWorkingDraft } from "./useWorkingDraft";
+import { registrationLanguageSuggestions } from "./registrationLanguageSuggestions";
 
 type LegacyNote = {
   id: number;
@@ -1563,14 +1565,55 @@ function RegistrationConflictReview({
   );
 }
 
+function RegistrationLanguageField({
+  initialValue,
+  onSelectionChange,
+}: {
+  initialValue: string;
+  onSelectionChange: (form: HTMLFormElement) => void;
+}) {
+  const [language, setLanguage] = useState(initialValue);
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <Autocomplete
+      freeSolo
+      options={registrationLanguageSuggestions}
+      value={language || null}
+      inputValue={language}
+      onInputChange={(_event, value, reason) => {
+        if (reason === "input" || reason === "clear") setLanguage(value);
+      }}
+      onChange={(_event, value) => {
+        flushSync(() => setLanguage(value ?? ""));
+        if (input.current?.form) onSelectionChange(input.current.form);
+      }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          inputRef={input}
+          name="clinic_patient[primary_language]"
+          label="Preferred language"
+          helperText="Search suggestions or enter the patient's language in their own words."
+          slotProps={{
+            ...params.slotProps,
+            htmlInput: { ...params.slotProps.htmlInput, maxLength: 80 },
+          }}
+        />
+      )}
+    />
+  );
+}
+
 function PatientFields({
   values,
   onSaveSection,
   onCompletionChange,
+  onFieldChange,
 }: {
   values: RegistrationValues;
   onSaveSection: (form: HTMLFormElement) => Promise<boolean>;
   onCompletionChange: (complete: boolean) => void;
+  onFieldChange: (form: HTMLFormElement) => void;
 }) {
   const [expanded, setExpanded] = useState("demographics");
   const [unlocked, setUnlocked] = useState(0);
@@ -1654,12 +1697,9 @@ function PatientFields({
                 ["unknown", "Unknown"],
               ]}
             />
-            <Field
-              name="clinic_patient[primary_language]"
-              label="Preferred language"
-              required={false}
-              value={values.primary_language}
-              maxLength={80}
+            <RegistrationLanguageField
+              initialValue={values.primary_language}
+              onSelectionChange={onFieldChange}
             />
             <Field
               name="clinic_patient[interpreter_required]"
@@ -1965,6 +2005,7 @@ function PatientRegistrationEditor({
   );
   const autosaveTimer = useRef<number | undefined>(undefined);
   const inFlight = useRef(false);
+  const completed = useRef(false);
   const [dirty, setDirty] = useState(Boolean(initialDraft));
   const [busy, setBusy] = useState(false);
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
@@ -2059,7 +2100,7 @@ function PatientRegistrationEditor({
       }}
       onSubmit={async (event) => {
         event.preventDefault();
-        if (inFlight.current) return;
+        if (inFlight.current || completed.current) return;
         const form = event.currentTarget;
         inFlight.current = true;
         if (autosaveTimer.current) {
@@ -2158,6 +2199,7 @@ function PatientRegistrationEditor({
             );
             return;
           }
+          completed.current = true;
           attempt.current = null;
           requestKey.current = crypto.randomUUID();
           form.reset();
@@ -2386,6 +2428,10 @@ function PatientRegistrationEditor({
               values={initialValues}
               onCompletionChange={setSectionsComplete}
               onSaveSection={saveSection}
+              onFieldChange={(form) => {
+                setSectionsComplete(false);
+                queueAutosave(form);
+              }}
             />
           </Stack>
         </Box>
@@ -2429,7 +2475,9 @@ function PatientRegistrationEditor({
           type="submit"
           variant="contained"
           disabled={
-            busy || (!patient && !sectionsComplete && !outcomeUnconfirmed)
+            busy ||
+            completed.current ||
+            (!patient && !sectionsComplete && !outcomeUnconfirmed)
           }
         >
           {busy
