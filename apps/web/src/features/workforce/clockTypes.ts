@@ -62,8 +62,8 @@ export type TimeSegment = {
   started_at_utc: string;
   ended_at_utc: string;
   raw_minutes: number;
-  rounded_minutes: number;
-  paid_minutes: number;
+  rounded_minutes: number | null;
+  paid_minutes: number | null;
   regular_minutes: number | null;
   overtime_minutes: number | null;
   exception_codes: string[];
@@ -85,11 +85,17 @@ export type Timecard = {
     period: { start: string; end: string };
     totals: {
       raw_minutes: number;
-      rounded_minutes: number;
-      paid_minutes: number;
+      rounded_minutes: number | null;
+      paid_minutes: number | null;
       regular_minutes: number | null;
       overtime_minutes: number | null;
     };
+    schedule_checks?: {
+      site_id: number;
+      local_date: string;
+      status: "no_published_schedule" | "compared";
+      publication_ids: number[];
+    }[];
     segments: TimeSegment[];
   };
   lock_version: number;
