@@ -135,7 +135,13 @@ function receipt(input: Input) {
   };
 }
 async function open(
-  mode: "success" | "unknown" | "changed" | "denied" = "success",
+  mode:
+    | "success"
+    | "unknown"
+    | "unknown-denied"
+    | "write-denied"
+    | "changed"
+    | "denied" = "success",
 ) {
   const page = await browser.newPage();
   page.setDefaultTimeout(8000);
@@ -176,10 +182,21 @@ async function open(
           status: 409,
           json: { error: "Source records changed", code: "source_changed" },
         });
-      if (mode === "unknown" && posts.length === 1)
+      if (
+        (mode === "unknown" || mode === "unknown-denied") &&
+        posts.length === 1
+      )
         return route.fulfill({
           status: 503,
           json: { error: "Synthetic save response lost" },
+        });
+      if (
+        mode === "write-denied" ||
+        (mode === "unknown-denied" && posts.length === 2)
+      )
+        return route.fulfill({
+          status: 403,
+          json: { error: "Synthetic write permission denied" },
         });
       saved = [receipt(input)];
       return route.fulfill({ status: 201, json: { review: saved[0] } });
@@ -368,5 +385,73 @@ it("late save receipt cannot announce success in a newer report context", async 
       .getByRole("button", { name: "Retry same reconciliation" })
       .isDisabled(),
   ).toBe(true);
+  await page.close();
+});
+
+it("lost save then denied exact retry stays frozen until owned success", async () => {
+  const { page, posts } = await open("unknown-denied");
+  await fill(page);
+  await page
+    .getByRole("button", { name: "Save source reconciliation" })
+    .click();
+  await page
+    .getByText("Synthetic save response lost", { exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: "Retry same reconciliation" }).click();
+  await page
+    .getByText("Synthetic write permission denied", { exact: true })
+    .waitFor();
+  expect(
+    await page.getByLabel("Comparison evidence or follow-up").isDisabled(),
+  ).toBe(true);
+  expect(
+    await page
+      .getByRole("button", { name: "Refresh comparison sources" })
+      .isDisabled(),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Switch report date" }).click();
+  expect(
+    await page
+      .getByRole("button", { name: "Retry same reconciliation" })
+      .isDisabled(),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Switch report date" }).click();
+  await page.getByRole("button", { name: "Retry same reconciliation" }).click();
+  await page
+    .getByText(
+      "Reconciliation #55 saved for 2026-09-30 by synthetic@example.invalid.",
+    )
+    .waitFor();
+  expect(posts).toHaveLength(3);
+  expect(posts[1]).toEqual(posts[0]);
+  expect(posts[2]).toEqual(posts[0]);
+  expect(
+    await page.getByLabel("Comparison evidence or follow-up").isDisabled(),
+  ).toBe(false);
+  await page.close();
+});
+it("fresh write denial permits correction without retaining an unknown attempt", async () => {
+  const { page, posts } = await open("write-denied");
+  await fill(page);
+  await page
+    .getByRole("button", { name: "Save source reconciliation" })
+    .click();
+  await page
+    .getByText("Synthetic write permission denied", { exact: true })
+    .waitFor();
+  expect(posts).toHaveLength(1);
+  expect(
+    await page.getByLabel("Comparison evidence or follow-up").isDisabled(),
+  ).toBe(false);
+  expect(
+    await page
+      .getByRole("button", { name: "Retry same reconciliation" })
+      .count(),
+  ).toBe(0);
+  expect(
+    await page
+      .getByRole("button", { name: "Refresh comparison sources" })
+      .isDisabled(),
+  ).toBe(false);
   await page.close();
 });

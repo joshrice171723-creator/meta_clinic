@@ -68,4 +68,6 @@ Relay/scorer own tracker integration. Proposed owning-row entry: “MC14 saved s
 
 ## Last run
 
+2026-09-30 follow-up to Relay's review of `418f9a92`: an already-unconfirmed attempt now stays frozen through a later deterministic denial; a fresh pre-commit denial remains editable. Added loss → 403 → exact retry → owned-success, including blocked different-date retry, plus fresh-403 regression. All eight reconciliation browser cases passed in 19.38 seconds; TypeScript and scoped formatting passed. Backend source is unchanged and its queued verification need not repeat for this frontend repair. Lab provenance work is preserved separately and will resume after this handoff.
+
 2026-09-30. Inspected combined revision `10707c6163ad43b5cdbb59f6f1c9e0225cd2901c`; traced the previously missing identified-source persistence contract and preserved the existing drawer reconciliation. Implemented the scoped source and tests; final frontend checks passed. A transient executor disconnect recovered without duplicate commands or pushes. Tracker and release sources remain separately owned. Next: exact published head and Sage's backend/source review, then Relay integration after approval.

@@ -124,6 +124,7 @@ export function DayEndReconciliation({
       source_digest: preview.data!.source_digest,
       request_key: crypto.randomUUID(),
     };
+    const wasUnconfirmed = pending !== null;
     setPending(attempt);
     setReceipt(null);
     setBusy(true);
@@ -165,7 +166,7 @@ export function DayEndReconciliation({
         reason.status < 500 &&
         reason.status !== 408 &&
         reason.code !== "outcome_unconfirmed";
-      setPending(definitive ? null : attempt);
+      setPending(definitive && !wasUnconfirmed ? null : attempt);
       setError(
         reason instanceof Error
           ? reason.message
