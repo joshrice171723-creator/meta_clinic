@@ -90,6 +90,20 @@ class QaOfficeQaTest < ActiveSupport::TestCase
     end
   end
 
+  test "unknown repair attempts remain null while the three attempt cap stays enforced" do
+    @import["defects"] = [ @defect.merge("repair_attempts" => nil) ]
+    import
+    assert_nil Qa::Snapshot.find_by!(key: Qa::OfficeQa::KEY).data.fetch("defects").first.fetch("repair_attempts")
+    with_workspace(:build, @build) do
+      assert_nil Qa::OfficeQa.read[:ledger][:defects].first.fetch("repair_attempts")
+    end
+    [ -1, 4 ].each do |attempts|
+      input = @import.merge("request_key" => "invalid-repair-count-#{attempts}", "defects" => [ @defect.merge("repair_attempts" => attempts) ])
+      assert_raises(ArgumentError) { Qa::OfficeQa.import_ledger(user: @owner, token: @muse, input:) }
+    end
+    assert_equal 3, Qa::OfficeQa.defect!(@defect.merge("repair_attempts" => 3))["repair_attempts"]
+  end
+
   test "production build without dirty field files a report and its imported ledger record clears pending" do
     input = @defect.slice("title", "severity", "workflow", "repro_steps", "expected", "actual").merge("request_key" => "production-build-report")
     production = @build.slice("version", "revision")

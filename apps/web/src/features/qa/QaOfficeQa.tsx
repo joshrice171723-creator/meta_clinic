@@ -34,7 +34,7 @@ type Defect = {
   evidence_refs?: (number | string)[];
   evidence_notes?: string;
   notes?: string;
-  repair_attempts?: number;
+  repair_attempts?: number | null;
   revision?: string | null;
   version?: string | null;
 };
@@ -422,13 +422,20 @@ export function QaOfficeQa({
             sx={{
               p: 1.5,
               minWidth: 0,
+              overflowWrap: "anywhere",
               bgcolor: column === "fixed" ? "#f2f7f2" : "#faf9f4",
             }}
           >
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
               {label(column)}
             </Typography>
-            <Stack spacing={1}>
+            <Stack
+              spacing={1}
+              role="region"
+              aria-label={`${label(column)} defects`}
+              tabIndex={0}
+              sx={{ maxHeight: 520, overflowY: "auto", minWidth: 0, pr: 0.5 }}
+            >
               {snapshot?.ledger.defects
                 .filter((item) => item.status === column)
                 .map((item) => (
@@ -442,11 +449,14 @@ export function QaOfficeQa({
                         sx={{
                           justifyContent: "flex-start",
                           textAlign: "left",
+                          whiteSpace: "normal",
+                          overflowWrap: "anywhere",
+                          minWidth: 0,
                           px: 0,
                         }}
                         onClick={() => setSelected(item)}
                       >
-                        {item.title}
+                        {item.title || `Muse #${item.id}`}
                       </Button>
                       <Typography variant="caption">
                         Repair attempts {item.repair_attempts ?? "Unknown"}/3
