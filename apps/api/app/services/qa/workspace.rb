@@ -69,11 +69,7 @@ module Qa
       unless pointer.nil? || pointer.is_a?(Integer) && pointer.between?(0, 116) || pointer.is_a?(String) && pointer.match?(/\AWF-(?:00[1-9]|0[1-9][0-9]|10[0-9]|11[0-6])\z/)
         raise ArgumentError, "Coverage pointer must identify a catalog workflow."
       end
-      unless data["interleave"].nil? || [ true, false ].include?(data["interleave"])
-        raise ArgumentError, "Coverage interleave must be true or false."
-      end
-      { "coverage" => workflows, "coverage_pointer" => pointer, "coverage_interleave" => data["interleave"],
-        "coverage_import_status" => "expanded-export" }
+      { "coverage" => workflows, "coverage_pointer" => pointer, "coverage_import_status" => "expanded-export" }
     end
 
     def self.scheduler_state(data)
