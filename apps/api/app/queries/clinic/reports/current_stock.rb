@@ -11,9 +11,9 @@ module Clinic
         low_stock = Clinic::Inventory::PharmacyProduct.from("(#{product_stock.to_sql}) clinic_pharmacy_products")
           .where("active AND available_stock <= reorder_point")
         {
-          practice_id: practice.id,
+          definition: Catalog::CURRENT_STOCK, practice_id: practice.id,
           as_of: Time.current.iso8601(6), inventory_date: day.iso8601, timezone: practice.timezone,
-          source: "clinic_pharmacy_batches, clinic_inventory_holds, clinic_pharmacy_products and clinic_items",
+          source: Catalog::CURRENT_STOCK.fetch(:source),
           status:, low_product_count: low_stock.count,
           pharmacy_units: positions.unit_totals.map { |unit, physical, available|
             { unit:, physical: physical.to_d.to_s("F"), available: available.to_d.to_s("F") }

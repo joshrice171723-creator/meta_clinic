@@ -169,6 +169,9 @@ Rails.application.routes.draw do
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     get "reports/current_stock", to: "reports/current_stock#show"
     get "reports/daily_cash_drawers", to: "reports/daily_cash_drawers#show"
+    resources :report_exports, controller: "reports/exports", only: %i[index show create] do
+      get :download, on: :member
+    end
     resources :day_end_reviews, controller: "reports/day_end_reviews", only: %i[index create] do
       get :preview, on: :collection
     end

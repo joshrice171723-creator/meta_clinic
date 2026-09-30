@@ -2151,3 +2151,34 @@ export type PrescriptionReconciliationWorklistContract = {
     href: string;
   }>;
 };
+
+export type ReportExportReceipt = {
+  id: number;
+  request_key: string;
+  report_id: string;
+  practice_id: number;
+  site_id: number | null;
+  filters: Record<string, string | number>;
+  issued_by_user_id: number;
+  issued_at: string;
+  as_of: string;
+  timezone: string;
+  definition: {
+    id: string;
+    revision: number;
+    source: string;
+    [key: string]: string | number;
+  };
+  serializer_revision: number;
+  source_digest: string;
+  artifact_digest: string;
+  artifact_bytes: number;
+  filename: string;
+  source_pages: Record<
+    string,
+    { page: number; per_page: number; total: number; total_pages: number }
+  >;
+  database_snapshot: string;
+  scope: "summaries_and_selected_source_pages";
+  download_url: string;
+};

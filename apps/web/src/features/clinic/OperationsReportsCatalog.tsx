@@ -13,6 +13,7 @@ import type { ClinicCapabilities } from "../../api/contracts";
 import { ApiError, api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { Card, LoadState, useResource } from "../../shared/ui";
+import { ReportExportControl } from "./ReportExportControl";
 import { DayEndReconciliation } from "./DayEndReconciliation";
 import { clinicDateValue } from "./frontDeskModel";
 import { ConfigurationMappingPreview } from "./ConfigurationMappingPreview";
@@ -769,19 +770,19 @@ function DailyVisitsByState({
             {report.timezone}
             {" · "}As of {report.as_of} · {report.freshness}.
           </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ alignSelf: "flex-start" }}
-            onClick={() => downloadVisitCsv(report)}
-          >
-            Download visit report CSV
-          </Button>
+          <ReportExportControl
+            reportId="daily_visits_by_state"
+            filters={{
+              date: report.date,
+              ...(report.site_id === null ? {} : { site_id: report.site_id }),
+              page: report.pagination.page,
+            }}
+            label="Issue and download CSV"
+          />
           <Typography variant="caption" color="text.secondary">
-            CSV includes counts for all {report.total} matching visits and only
-            the {report.records.length} source appointments on page{" "}
-            {report.pagination.page}. Clinic, location, time interval and source
-            details are included in the file.
+            Issued CSV summaries cover all matching source records. Detail rows
+            cover only the requested source pages; the saved receipt records the
+            actual pages and source time captured during issuance.
           </Typography>
         </Stack>
       )}
@@ -810,79 +811,6 @@ function DailyVisitsByState({
       )}
     </Stack>
   );
-}
-
-function downloadVisitCsv(report: DailyVisitsReport) {
-  const rows = [
-    ["report", "daily_visits_by_state"],
-    ["definition_revision", String(report.definition.revision)],
-    ["source", report.definition.source],
-    ["date_basis", report.definition.date_basis],
-    ["state_basis", report.definition.state_basis],
-    ["population", report.definition.population],
-    ["exclusions", report.definition.exclusions],
-    ["practice_id", String(report.practice_id)],
-    ["site_id", report.site_id === null ? "all" : String(report.site_id)],
-    ["clinic_date", report.date],
-    ["timezone", report.timezone],
-    ["interval_start_inclusive", report.interval_start],
-    ["interval_end_exclusive", report.interval_end],
-    ["as_of", report.as_of],
-    ["freshness", report.freshness],
-    ["counts_scope", "all matching appointments"],
-    ["state", "count"],
-    ...Object.entries(report.counts).map(([state, count]) => [
-      state,
-      String(count),
-    ]),
-    ["unknown_state", String(report.unknown_state_count)],
-    ["total", String(report.total)],
-    [],
-    ["records_scope", "current page only"],
-    ["record_page", String(report.pagination.page)],
-    ["records_per_page", String(report.pagination.per_page)],
-    ["records_total", String(report.pagination.total)],
-    ["record_pages_total", String(report.pagination.total_pages)],
-    ["records_exported", String(report.records.length)],
-    ["visit_id", "site_id", "status", "visit_modality", "local_start"],
-    ...report.records.map((record) => [
-      String(record.id),
-      record.site_id === null ? "" : String(record.site_id),
-      record.status,
-      record.visit_modality,
-      record.local_start,
-    ]),
-  ];
-  downloadCsv(
-    rows,
-    `daily-visits-clinic-${report.practice_id}-site-${report.site_id ?? "all"}-${report.date}-page-${report.pagination.page}.csv`,
-  );
-}
-
-function downloadCsv(rows: string[][], filename: string) {
-  const csv = rows
-    .map((row) =>
-      row
-        .map((value) => {
-          const safe =
-            /^\s*[=+@-]/.test(value) && !/^-?\d+(?:\.\d+)?$/.test(value)
-              ? `'${value}`
-              : value;
-          return `"${safe.replaceAll('"', '""')}"`;
-        })
-        .join(","),
-    )
-    .join("\r\n");
-  const url = URL.createObjectURL(
-    new Blob([csv], { type: "text/csv;charset=utf-8" }),
-  );
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function DailyPaymentActivity({ date }: { date: string }) {
@@ -954,120 +882,19 @@ function DailyPaymentActivity({ date }: { date: string }) {
             pagination={report.refund_pagination}
             onPage={setRefundPage}
           />
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ alignSelf: "flex-start" }}
-            onClick={() =>
-              downloadCsv(
-                [
-                  ["report", "daily_payment_activity"],
-                  ["definition_revision", String(report.definition.revision)],
-                  ["source", report.definition.source],
-                  ["date_basis", report.definition.date_basis],
-                  ["population", report.definition.population],
-                  ["exclusions", report.definition.exclusions],
-                  ["practice_id", String(report.practice_id)],
-                  ["clinic_date", report.date],
-                  ["timezone", report.timezone],
-                  ["interval_start_inclusive", report.interval_start],
-                  ["interval_end_exclusive", report.interval_end],
-                  ["as_of", report.as_of],
-                  ["freshness", report.freshness],
-                  ["summary_scope", "all matching payments and refunds"],
-                  [
-                    "currency",
-                    "payment_count",
-                    "payment_amount",
-                    "refund_count",
-                    "refund_amount",
-                  ],
-                  ...report.currencies.map((row) => [
-                    row.currency,
-                    String(row.payment_count),
-                    row.payment_amount,
-                    String(row.refund_count),
-                    row.refund_amount,
-                  ]),
-                  [],
-                  ["records_scope", "current payment and refund pages only"],
-                  [
-                    "payment_record_page",
-                    String(report.payment_pagination.page),
-                  ],
-                  [
-                    "payment_records_per_page",
-                    String(report.payment_pagination.per_page),
-                  ],
-                  [
-                    "payment_records_total",
-                    String(report.payment_pagination.total),
-                  ],
-                  [
-                    "payment_record_pages_total",
-                    String(report.payment_pagination.total_pages),
-                  ],
-                  [
-                    "payment_records_exported",
-                    String(report.payment_records.length),
-                  ],
-                  ["refund_record_page", String(report.refund_pagination.page)],
-                  [
-                    "refund_records_per_page",
-                    String(report.refund_pagination.per_page),
-                  ],
-                  [
-                    "refund_records_total",
-                    String(report.refund_pagination.total),
-                  ],
-                  [
-                    "refund_record_pages_total",
-                    String(report.refund_pagination.total_pages),
-                  ],
-                  [
-                    "refund_records_exported",
-                    String(report.refund_records.length),
-                  ],
-                  [
-                    "record_type",
-                    "id",
-                    "payment_event_id",
-                    "patient_id",
-                    "currency",
-                    "amount",
-                    "created_at",
-                  ],
-                  ...report.payment_records.map((record) => [
-                    "payment",
-                    String(record.id),
-                    "",
-                    String(record.patient_id),
-                    record.currency,
-                    record.amount,
-                    record.created_at,
-                  ]),
-                  ...report.refund_records.map((record) => [
-                    "refund",
-                    String(record.id),
-                    String(record.payment_event_id),
-                    String(record.patient_id),
-                    record.currency,
-                    record.amount,
-                    record.created_at,
-                  ]),
-                ],
-                `daily-payment-activity-clinic-${report.practice_id}-${report.date}-payments-page-${report.payment_pagination.page}-refunds-page-${report.refund_pagination.page}.csv`,
-              )
-            }
-          >
-            Download payment activity CSV
-          </Button>
+          <ReportExportControl
+            reportId="daily_payment_activity"
+            filters={{
+              date: report.date,
+              payment_page: report.payment_pagination.page,
+              refund_page: report.refund_pagination.page,
+            }}
+            label="Issue and download CSV"
+          />
           <Typography variant="caption" color="text.secondary">
-            CSV includes totals for all matching payments and refunds, with only{" "}
-            {report.payment_records.length} payments from page{" "}
-            {report.payment_pagination.page} and {report.refund_records.length}{" "}
-            refunds from page {report.refund_pagination.page}. Clinic, time
-            interval and source details are included in the file.
+            Issued CSV summaries cover all matching source records. Detail rows
+            cover only the requested source pages; the saved receipt records the
+            actual pages and source time captured during issuance.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1142,86 +969,18 @@ function DailyInvoices({ date }: { date: string }) {
             pagination={report.pagination}
             onPage={setPage}
           />
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ alignSelf: "flex-start" }}
-            onClick={() =>
-              downloadCsv(
-                [
-                  ["report", "daily_invoices"],
-                  ["definition_revision", String(report.definition.revision)],
-                  ["source", report.definition.source],
-                  ["date_basis", report.definition.date_basis],
-                  ["state_basis", report.definition.state_basis],
-                  ["population", report.definition.population],
-                  ["exclusions", report.definition.exclusions],
-                  ["practice_id", String(report.practice_id)],
-                  ["clinic_date", report.date],
-                  ["timezone", report.timezone],
-                  ["interval_start_inclusive", report.interval_start],
-                  ["interval_end_exclusive", report.interval_end],
-                  ["as_of", report.as_of],
-                  ["freshness", report.freshness],
-                  ["summary_scope", "all matching invoices"],
-                  [
-                    "currency",
-                    "state",
-                    "count",
-                    "posted_line_total",
-                    "current_outstanding_balance",
-                  ],
-                  ...report.currencies.flatMap((row) => [
-                    ...Object.entries(row.counts).map(([state, count]) => [
-                      row.currency,
-                      state,
-                      String(count),
-                      state === "posted" ? row.posted_line_total : "",
-                      "",
-                    ]),
-                    [
-                      row.currency,
-                      "all",
-                      "",
-                      "",
-                      row.current_outstanding_balance,
-                    ],
-                  ]),
-                  [],
-                  ["records_scope", "current page only"],
-                  ["record_page", String(report.pagination.page)],
-                  ["records_per_page", String(report.pagination.per_page)],
-                  ["records_total", String(report.pagination.total)],
-                  ["record_pages_total", String(report.pagination.total_pages)],
-                  ["records_exported", String(report.records.length)],
-                  [
-                    "invoice_id",
-                    "patient_id",
-                    "currency",
-                    "status",
-                    "created_at",
-                    "current_outstanding_balance",
-                  ],
-                  ...report.records.map((record) => [
-                    String(record.id),
-                    String(record.patient_id),
-                    record.currency,
-                    record.status,
-                    record.created_at,
-                    record.current_outstanding_balance,
-                  ]),
-                ],
-                `daily-invoices-clinic-${report.practice_id}-${report.date}-page-${report.pagination.page}.csv`,
-              )
-            }
-          >
-            Download invoice report CSV
-          </Button>
+          <ReportExportControl
+            reportId="daily_invoices"
+            filters={{
+              date: report.date,
+              page: report.pagination.page,
+            }}
+            label="Issue and download CSV"
+          />
           <Typography variant="caption" color="text.secondary">
-            CSV includes summaries for all {report.pagination.total} matching
-            invoices and only the {report.records.length} source invoices on
-            page {report.pagination.page}. Clinic, time interval and source
-            details are included in the file.
+            Issued CSV summaries cover all matching source records. Detail rows
+            cover only the requested source pages; the saved receipt records the
+            actual pages and source time captured during issuance.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1302,83 +1061,18 @@ function DailyStockMovements({ date }: { date: string }) {
             pagination={report.pagination}
             onPage={setPage}
           />
-          <Button
-            size="small"
-            variant="outlined"
-            sx={{ alignSelf: "flex-start" }}
-            onClick={() =>
-              downloadCsv(
-                [
-                  ["report", "daily_stock_movements"],
-                  ["definition_revision", String(report.definition.revision)],
-                  ["source", report.definition.source],
-                  ["date_basis", report.definition.date_basis],
-                  ["population", report.definition.population],
-                  ["exclusions", report.definition.exclusions],
-                  ["practice_id", String(report.practice_id)],
-                  ["clinic_date", report.date],
-                  ["timezone", report.timezone],
-                  ["interval_start_inclusive", report.interval_start],
-                  ["interval_end_exclusive", report.interval_end],
-                  ["as_of", report.as_of],
-                  ["freshness", report.freshness],
-                  [
-                    "summary_scope",
-                    "all matching stock entries, grouped by type and unit",
-                  ],
-                  [
-                    "stock_type",
-                    "stock_unit",
-                    "kind",
-                    "count",
-                    "signed_quantity",
-                  ],
-                  ...report.movements.map((row) => [
-                    row.stock_type,
-                    row.stock_unit,
-                    row.kind,
-                    String(row.count),
-                    row.signed_quantity,
-                  ]),
-                  [],
-                  ["records_scope", "current page only"],
-                  ["record_page", String(report.pagination.page)],
-                  ["records_per_page", String(report.pagination.per_page)],
-                  ["records_total", String(report.pagination.total)],
-                  ["record_pages_total", String(report.pagination.total_pages)],
-                  ["records_exported", String(report.records.length)],
-                  [
-                    "entry_id",
-                    "stock_type",
-                    "item_id",
-                    "batch_id",
-                    "kind",
-                    "stock_unit",
-                    "signed_quantity",
-                    "occurred_at",
-                  ],
-                  ...report.records.map((record) => [
-                    String(record.id),
-                    record.stock_type,
-                    record.item_id === null ? "" : String(record.item_id),
-                    record.batch_id === null ? "" : String(record.batch_id),
-                    record.kind,
-                    record.stock_unit,
-                    record.signed_quantity,
-                    record.occurred_at,
-                  ]),
-                ],
-                `daily-stock-movements-clinic-${report.practice_id}-${report.date}-page-${report.pagination.page}.csv`,
-              )
-            }
-          >
-            Download stock movements CSV
-          </Button>
+          <ReportExportControl
+            reportId="daily_stock_movements"
+            filters={{
+              date: report.date,
+              page: report.pagination.page,
+            }}
+            label="Issue and download CSV"
+          />
           <Typography variant="caption" color="text.secondary">
-            CSV includes summaries for all {report.pagination.total} matching
-            stock entries and only the {report.records.length} source entries on
-            page {report.pagination.page}. Stock types and units remain
-            separate; clinic, time interval and source details are included.
+            Issued CSV summaries cover all matching source records. Detail rows
+            cover only the requested source pages; the saved receipt records the
+            actual pages and source time captured during issuance.
           </Typography>
           <Button
             href="/clinic/inventory/activity"
@@ -1817,108 +1511,6 @@ function CurrentStockReport() {
     `/api/clinic/reports/current_stock?page=${page}&office_page=${officePage}&status=${status}`,
   );
   const report = result.data?.report;
-  const download = () => {
-    if (!report) return;
-    downloadCsv(
-      [
-        ["report", "current_stock"],
-        ["practice_id", String(report.practice_id)],
-        ["source", report.source],
-        ["as_of", report.as_of],
-        ["inventory_date", report.inventory_date],
-        ["timezone", report.timezone],
-        ["pharmacy_status_filter", report.status],
-        [
-          "snapshot_basis",
-          "Current balances, not a historical or immutable snapshot",
-        ],
-        [
-          "availability_basis",
-          "Existing hold, expiry, product and location rules",
-        ],
-        [
-          "summary_scope",
-          "All pharmacy positions matching the status filter; all office items",
-        ],
-        [
-          "low_stock_scope",
-          "All clinic products and office items, independent of pharmacy status filter",
-        ],
-        ["low_pharmacy_products", String(report.low_product_count)],
-        ["low_office_items", String(report.low_office_count)],
-        ["stock_type", "unit", "physical_quantity", "available_quantity"],
-        ...report.pharmacy_units.map((row) => [
-          "pharmacy",
-          row.unit,
-          row.physical,
-          row.available,
-        ]),
-        ["office", "each", report.office_quantity, ""],
-        [],
-        ["pharmacy_records_scope", "Selected page only"],
-        ["pharmacy_page", String(report.pagination.page)],
-        ["pharmacy_per_page", String(report.pagination.per_page)],
-        ["pharmacy_records_total", String(report.pagination.total)],
-        ["pharmacy_pages_total", String(report.pagination.total_pages)],
-        ["pharmacy_records_exported", String(report.pharmacy_records.length)],
-        [
-          "batch_id",
-          "product_id",
-          "name",
-          "lot",
-          "location",
-          "unit",
-          "physical_quantity",
-          "available_for_use",
-          "status",
-          "expires_on",
-          "expiring_within_30_days",
-        ],
-        ...report.pharmacy_records.map((row) => [
-          String(row.id),
-          String(row.product_id),
-          row.name,
-          row.lot,
-          row.location,
-          row.unit,
-          row.physical,
-          String(row.available),
-          row.status,
-          row.expires_on,
-          String(row.expiring),
-        ]),
-        [],
-        [
-          "office_records_scope",
-          "Selected page only; no location or expiry tracking",
-        ],
-        ["office_page", String(report.office_pagination.page)],
-        ["office_per_page", String(report.office_pagination.per_page)],
-        ["office_records_total", String(report.office_pagination.total)],
-        ["office_pages_total", String(report.office_pagination.total_pages)],
-        ["office_records_exported", String(report.office_records.length)],
-        [
-          "item_id",
-          "name",
-          "sku",
-          "unit",
-          "quantity",
-          "reorder_level",
-          "low_stock",
-        ],
-        ...report.office_records.map((row) => [
-          String(row.id),
-          row.name,
-          row.sku,
-          "each",
-          row.quantity,
-          row.reorder_level,
-          String(row.low_stock),
-        ]),
-      ],
-      `current-stock-clinic-${report.practice_id}-${report.inventory_date}-${report.status}-pharmacy-page-${report.pagination.page}-office-page-${report.office_pagination.page}.csv`,
-    );
-  };
   return (
     <Stack spacing={1} sx={{ mt: 3 }}>
       <Divider />
@@ -1956,20 +1548,19 @@ function CurrentStockReport() {
             {report.low_office_count} office items at or below their reorder
             level across the clinic.
           </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={download}
-            sx={{ alignSelf: "flex-start" }}
-          >
-            Download stock CSV
-          </Button>
+          <ReportExportControl
+            reportId="current_stock"
+            filters={{
+              status: report.status,
+              page: report.pagination.page,
+              office_page: report.office_pagination.page,
+            }}
+            label="Issue and download CSV"
+          />
           <Typography variant="caption" color="text.secondary">
-            CSV summaries cover all matching pharmacy positions and all office
-            items. Source rows include pharmacy page {report.pagination.page} of{" "}
-            {report.pagination.total_pages} and office page{" "}
-            {report.office_pagination.page} of{" "}
-            {report.office_pagination.total_pages} only.
+            Issued CSV summaries cover all matching source records. Detail rows
+            cover only the requested source pages; the saved receipt records the
+            actual pages and source time captured during issuance.
           </Typography>
           {report.pharmacy_units.map((row) => (
             <Typography key={row.unit} variant="body2">
