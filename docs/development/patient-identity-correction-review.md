@@ -1,6 +1,6 @@
 # Patient identity correction review
 
-Registration staff correcting an existing patient's chart name, legal or preferred name, date of birth, or primary contact detail review the saved and proposed identity before saving. The clinic reference remains immutable. Unchanged identity and correspondence-only edits use the existing save path.
+Registration staff correcting an existing patient's chart name, legal or preferred name, date of birth, or primary contact detail review the saved and proposed identity before saving. Correction comparison and confirmation use the exact field values, including case-only changes. The clinic reference remains immutable. Unchanged identity and correspondence-only edits use the existing save path.
 
 The review reuses the practice-scoped `/api/clinic/patients/lookup` name, reference, birth-date and phone searches. Results are deduplicated by patient ID and exclude the patient being corrected. Failed or incomplete matching blocks confirmation; returning to editing retains the working copy. Matches offer the existing record link and do not merge, delete, or relink records. Confirmation applies only to the original patient ID through the existing registration update API.
 

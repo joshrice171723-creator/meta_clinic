@@ -1285,6 +1285,12 @@ export function registrationIdentitySignature(values: RegistrationValues) {
   );
 }
 
+function registrationIdentityCorrectionSignature(values: RegistrationValues) {
+  return JSON.stringify(
+    registrationIdentityFields.map(([field]) => values[field] ?? ""),
+  );
+}
+
 export function registrationIdentityCorrectionRequired(
   values: RegistrationValues,
   baseline: RegistrationValues,
@@ -1292,9 +1298,10 @@ export function registrationIdentityCorrectionRequired(
   exactRetry: boolean,
 ) {
   return (
-    registrationIdentitySignature(values) !==
-      registrationIdentitySignature(baseline) &&
-    registrationIdentityReviewRequired(values, reviewedIdentity, exactRetry)
+    !exactRetry &&
+    registrationIdentityCorrectionSignature(values) !==
+      registrationIdentityCorrectionSignature(baseline) &&
+    registrationIdentityCorrectionSignature(values) !== reviewedIdentity
   );
 }
 
@@ -2454,7 +2461,7 @@ function PatientRegistrationEditor({
                 onEdit={() => setIdentityCorrection(null)}
                 onProceed={() => {
                   reviewedCorrection.current =
-                    registrationIdentitySignature(identityCorrection);
+                    registrationIdentityCorrectionSignature(identityCorrection);
                   setIdentityCorrection(null);
                   formRef.current?.requestSubmit();
                 }}

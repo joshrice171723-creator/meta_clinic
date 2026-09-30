@@ -160,6 +160,33 @@ it("reviews before/after identity, excludes self, deduplicates matches and updat
     await page.close();
   }
 }, 60_000);
+it("requires lookup and explicit confirmation for a case-only identity correction", async () => {
+  const page = await open();
+  try {
+    await review(page, "AVERY EXAMPLE");
+    expect(await changes(page)).toHaveLength(0);
+    expect(
+      await page.evaluate(
+        () =>
+          (window as any).mc03.requests.filter((r: any) =>
+            r.path.includes("/lookup?"),
+          ).length,
+      ),
+    ).toBeGreaterThan(0);
+    const comparison = await page
+      .getByRole("table", { name: "Identity correction comparison" })
+      .textContent();
+    expect(comparison).toContain("Avery Example");
+    expect(comparison).toContain("AVERY EXAMPLE");
+    await confirm(page);
+    await page.waitForFunction(() => (window as any).mc03.completed === 1);
+    const saved = await changes(page);
+    expect(saved).toHaveLength(1);
+    expect(saved[0].body.clinic_patient.display_name).toBe("AVERY EXAMPLE");
+  } finally {
+    await page.close();
+  }
+}, 60_000);
 it.each(["lookup-error", "partial"])(
   "blocks %s matching and retains edits for a fresh review",
   async (mode) => {
