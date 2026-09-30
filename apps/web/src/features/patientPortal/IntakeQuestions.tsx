@@ -982,6 +982,32 @@ function HistoryEntryEditor({
                 />
               )}
             </>
+          ) : kind === "allergy" ? (
+            <Autocomplete
+              freeSolo
+              options={[
+                ...new Set([
+                  ...medicationReferences.map((product) => product.name),
+                  ...medicationOptions,
+                ]),
+              ]}
+              value={entry.name || null}
+              inputValue={entry.name}
+              disabled={disabled}
+              onChange={(_event, value) => update(index, { name: value ?? "" })}
+              onInputChange={(_event, value, reason) => {
+                if (reason === "input" || reason === "clear") {
+                  update(index, { name: value });
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Substance or product"
+                  helperText="Search clinic medicine names or enter another substance. This records the reported name only."
+                />
+              )}
+            />
           ) : (
             <TextField
               label={
@@ -993,9 +1019,7 @@ function HistoryEntryEditor({
                       ? "Symptom detail"
                       : kind === "family"
                         ? "Family condition"
-                        : kind === "allergy"
-                          ? "Substance or product"
-                          : "Procedure or hospitalization name"
+                        : "Procedure or hospitalization name"
               }
               value={entry.name}
               disabled={disabled}
