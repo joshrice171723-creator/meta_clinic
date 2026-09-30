@@ -134,6 +134,9 @@ Rails.application.routes.draw do
     get "facilities/:site_id/resource_compatibility/services/:offering_id/availability", to: "scheduling/resource_compatibilities#availability"
     get "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#show"
     patch "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#update"
+    get "facilities/:site_id/operational_policy", to: "scheduling/operational_policies#show"
+    patch "facilities/:site_id/operational_policy", to: "scheduling/operational_policies#update"
+    get "facilities/:site_id/operational_policy/history", to: "scheduling/operational_policies#history"
     get "practice_features/history", to: "practice_features#history"
     resource :practice_features, only: %i[show update]
     resource :lab_unit_mappings, only: %i[show update]

@@ -30,6 +30,7 @@ import { useClinic } from "./Workspace";
 import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
 import { ClinicianSetup } from "./ClinicianSetup";
 import { SiteSchedulingPolicySettings } from "./SiteSchedulingPolicy";
+import { OperationalPolicySettings } from "./OperationalPolicySettings";
 import { isDemoFrame } from "../demo/frame";
 
 const days = [
@@ -845,6 +846,9 @@ export function Facilities() {
       <ServiceOfferingSettings canWrite={canWrite} />
       {selected && !creating && (
         <SiteSchedulingPolicySettings key={selected.id} siteId={selected.id} />
+      )}
+      {selected && !creating && (
+        <OperationalPolicySettings key={selected.id} siteId={selected.id} />
       )}
     </div>
   );

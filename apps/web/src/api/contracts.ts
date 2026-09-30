@@ -1,4 +1,5 @@
 // Browser-facing response types only. Business rules live in apps/api.
+import type { WaitingPolicyProjection } from "../features/clinic/operationalPolicyContracts";
 export type Decimal = string;
 export type AppearancePreference = {
   palette: "astra" | "owner" | "juniper" | "cobalt" | "plum" | "saffron";
@@ -1848,6 +1849,7 @@ export type EncounterNote = EncounterNoteSummary & {
   }[];
 };
 export type ClinicTrackingBoardVisit = {
+  waiting_policy?: WaitingPolicyProjection | null;
   id: number;
   row_type: "appointment" | "encounter";
   operational_state:
