@@ -82,6 +82,24 @@ module Clinic
       digest_for_canonical(canonical_payload(payload), algorithm)
     end
 
+    # Receipt-only reconciliation shares the same actor/key lock and canonical
+    # payload verification as execute. Absence is not proof an old HTTP request
+    # was never sent; any explicit repeat still goes through execute.
+    def self.reconcile(practice:, actor:, operation_code:, request_key:, payload:, authorization:)
+      membership = active_membership!(practice, actor)
+      operation = validate_operation!(operation_code)
+      key = validate_key!(request_key)
+      ApplicationRecord.transaction do
+        lock_request!(practice.id, membership.id, key)
+        active_locked_membership!(practice, actor, membership.id)
+        authorization.call
+        receipt = Clinic::OperationReceipt.find_by(practice_id: practice.id,
+          actor_membership_id: membership.id, request_key: key)
+        verify_replay!(receipt, operation, canonical_payload(payload)) if receipt
+        receipt
+      end
+    end
+
     def self.canonical_payload(payload)
       JSON.generate(canonicalize(payload))
     rescue TypeError, JSON::GeneratorError

@@ -105,56 +105,139 @@ async function fixture(
     body: { service_offering: Record<string, unknown> };
   }[] = [];
   const rows = structuredClone(destinations);
+  const context = {
+    actor_id: 7,
+    actor_membership_id: 8,
+    practice_id: 2,
+    site_id: 20,
+    authorization_generation: 1,
+  };
+  const batches = new Map<string, any>();
+  const receipts = new Set<string>();
   await page.route(`${baseUrl}/api/**`, async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
-    if (!["GET", "HEAD"].includes(request.method())) {
-      expect(request.method()).toBe("PATCH");
-      calls.push({ path, body: request.postDataJSON() });
-      const status = statuses[Math.min(calls.length - 1, statuses.length - 1)];
-      const row = rows.find((row) => path.endsWith(`/${row.id}`))!;
-      if (status === 200)
-        Object.assign(row, calls.at(-1)!.body.service_offering, {
-          lock_version: row.lock_version + 1,
-        });
-      await route.fulfill({
-        status,
-        contentType: "application/json",
-        body: JSON.stringify(
-          status === 200
-            ? malformed
-              ? {}
-              : { service_offering: row, replayed: calls.length > 2 }
-            : {
-                error:
-                  status === 403
-                    ? "Synthetic permission denial"
-                    : "Synthetic stale or uncertain outcome",
-              },
-        ),
-      });
-      return;
-    }
-    const body =
-      path === "/api/csrf"
-        ? { csrf_token: "synthetic-fixture-csrf" }
-        : path === "/api/clinic/service_offerings"
-          ? {
-              service_offerings: rows,
-              can_write: canWrite,
-              eligible_clinicians: [],
+    let response: unknown,
+      status = 200;
+    if (path.startsWith("/api/clinic/offering_text_batches")) {
+      if (!canWrite) status = 403;
+      else if (
+        path === "/api/clinic/offering_text_batches" &&
+        request.method() === "GET"
+      )
+        response = {
+          context,
+          capped: false,
+          batches: [...batches.values()].map(
+            ({ request_key, created_at, source }) => ({
+              request_key,
+              created_at,
+              source,
+            }),
+          ),
+        };
+      else if (path === "/api/clinic/offering_text_batches") {
+        const input = request.postDataJSON().batch;
+        expect(input.context).toEqual(context);
+        response = {
+          request_key: input.request_key,
+          created_at: "2026-09-30T21:30:00Z",
+          context,
+          source: input.source,
+          retention_policy: "unselected",
+          items: input.items.map((item: any) => ({
+            ...item,
+            status: "ready",
+            message: "Saved; not attempted",
+            retryPermitted: false,
+          })),
+        };
+        batches.set(input.request_key, response);
+      } else {
+        const parts = path.split("/"),
+          batch = batches.get(parts[4]);
+        if (!batch) status = 404;
+        else if (request.method() === "GET") response = batch;
+        else {
+          expect(request.postDataJSON().context).toEqual(context);
+          const index = Number(parts[6]),
+            operation = parts[7],
+            item = batch.items[index];
+          const key = item.attempt.body.service_offering.request_key;
+          if (operation === "prepare")
+            Object.assign(item, {
+              status: "unknown",
+              message: "Prepared",
+              retryPermitted: true,
+            });
+          if (operation === "reconcile")
+            Object.assign(
+              item,
+              receipts.has(key)
+                ? {
+                    status: "applied",
+                    message: "Original committed receipt",
+                    retryPermitted: false,
+                  }
+                : {
+                    status: "unknown",
+                    message: "No receipt; explicit repeat available",
+                    retryPermitted: true,
+                  },
+            );
+          if (operation === "apply") {
+            calls.push({
+              path: item.attempt.path,
+              body: structuredClone(item.attempt.body),
+            });
+            status = statuses[Math.min(calls.length - 1, statuses.length - 1)];
+            if (status === 200) {
+              const row = rows.find((row) => row.id === item.plan.targetId)!;
+              Object.assign(row, item.attempt.body.service_offering, {
+                lock_version: row.lock_version + 1,
+              });
+              receipts.add(key);
+              Object.assign(item, {
+                status: "applied",
+                message: "Committed",
+                retryPermitted: false,
+              });
             }
-          : path === "/api/clinic/facilities"
+          }
+          response =
+            status === 200
+              ? malformed && operation === "apply"
+                ? {}
+                : batch
+              : { error: "Synthetic denial or unknown response" };
+        }
+      }
+    } else {
+      expect(request.method()).toBe("GET");
+      response =
+        path === "/api/csrf"
+          ? { csrf_token: "synthetic-fixture-csrf" }
+          : path === "/api/clinic/service_offerings"
             ? {
-                sites: [{ id: 20, name: "Synthetic site", status: "active" }],
-                visit_types: [
-                  { id: 22, code: "Synthetic visit", retired_at: null },
-                ],
+                service_offerings: rows,
+                can_write: canWrite,
+                eligible_clinicians: [],
               }
-            : { services: [{ id: 23, name: "Synthetic price", active: true }] };
+            : path === "/api/clinic/facilities"
+              ? {
+                  sites: [{ id: 20, name: "Synthetic site", status: "active" }],
+                  visit_types: [
+                    { id: 22, code: "Synthetic visit", retired_at: null },
+                  ],
+                }
+              : {
+                  services: [{ id: 23, name: "Synthetic price", active: true }],
+                };
+    }
     await route.fulfill({
+      status,
       contentType: "application/json",
-      body: JSON.stringify(body),
+      body: JSON.stringify(response ?? { error: "Synthetic denied lookup" }),
     });
   });
   await page.goto(`${baseUrl}/offering-bulk-fixture`);
@@ -171,6 +254,11 @@ async function review(page: Page, count = 3) {
       exact: true,
     })
     .click();
+  await page
+    .getByText("Saved text-import reviews for this actor and site", {
+      exact: true,
+    })
+    .waitFor();
   await page.getByLabel("Choose bulk offering source JSON").setInputFiles({
     name: "synthetic-bulk-source.json",
     mimeType: "application/json",
@@ -215,76 +303,81 @@ async function review(page: Page, count = 3) {
   await page
     .getByRole("button", { name: "Preview selected draft changes" })
     .click();
-  await page
-    .getByRole("table", { name: "Text changes for destination #202" })
-    .waitFor();
-  expect(
-    await page
-      .getByRole("table", { name: "Text changes for destination #202" })
-      .innerText(),
-  ).toContain("Draft 202");
-  expect(
-    await page
-      .getByRole("table", { name: "Text changes for destination #202" })
-      .innerText(),
-  ).toContain("Source 101");
+  const table = page.getByRole("table", {
+    name: "Text changes for destination #202",
+  });
+  await table.waitFor();
+  expect(await table.innerText()).toContain("Draft 202");
+  expect(await table.innerText()).toContain("Source 101");
 }
 
-it("stops a partial batch, retains unknown requests after denial, and explicitly resumes only unattempted items", async () => {
+it("saves an explicit plan, reloads partial outcomes and reconciles before an exact repeat", async () => {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
   try {
-    const calls = await fixture(page, [200, 503, 403, 200, 200]);
+    const calls = await fixture(page, [200, 503, 200, 200]);
     await review(page);
     expect(calls).toHaveLength(0);
+    expect(
+      await page
+        .getByRole("button", { name: "Apply reviewed draft text", exact: true })
+        .count(),
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Save reviewed text-import batch" })
+      .click();
     await page
       .getByRole("button", { name: "Apply reviewed draft text", exact: true })
       .evaluate((button) => {
         (button as HTMLButtonElement).click();
         (button as HTMLButtonElement).click();
       });
-    const retry = page.getByRole("button", {
-      name: "Retry exact change for #203",
-    });
-    await retry.waitFor();
+    await page
+      .getByRole("button", { name: "Reconcile original receipt for #203" })
+      .waitFor();
     expect(calls).toHaveLength(2);
     expect(
       await page
         .getByRole("button", { name: "Apply unattempted reviewed items" })
         .isDisabled(),
     ).toBe(true);
+    const key = await page
+      .getByRole("textbox", { name: "Saved batch identity" })
+      .inputValue();
+    await page.reload();
+    await page
+      .getByRole("button", {
+        name: "Import text into selected drafts",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: new RegExp(`Resume ${key}`) })
+      .click();
+    await page
+      .getByRole("button", { name: "Reconcile original receipt for #203" })
+      .waitFor();
+    expect(calls).toHaveLength(2);
     expect(
       await page
-        .getByRole("button", { name: "Close review and reload offerings" })
-        .isDisabled(),
-    ).toBe(true);
-    await retry.click();
-    await page.getByText(/Synthetic permission denial/).waitFor();
-    expect(calls).toHaveLength(3);
-    expect(calls[2]).toEqual(calls[1]);
-    expect(
-      await page
-        .getByText("All reviewed items are confirmed applied.", {
-          exact: false,
-        })
+        .getByRole("button", { name: "Retry exact change for #203" })
         .count(),
     ).toBe(0);
-    expect(
-      await page
-        .getByRole("button", { name: "Apply unattempted reviewed items" })
-        .isDisabled(),
-    ).toBe(true);
-    await retry.click();
+    await page
+      .getByRole("button", { name: "Reconcile original receipt for #203" })
+      .click();
+    await page
+      .getByRole("button", { name: "Retry exact change for #203" })
+      .click();
     await expect
       .poll(() =>
         page
-          .getByRole("button", { name: "Retry exact change for #203" })
+          .getByRole("button", { name: "Reconcile original receipt for #203" })
           .count(),
       )
       .toBe(0);
-    expect(calls[3]).toEqual(calls[1]);
-    expect(calls).toHaveLength(4);
+    expect(calls[2]).toEqual(calls[1]);
     await page
       .getByRole("button", { name: "Apply unattempted reviewed items" })
       .click();
@@ -292,9 +385,7 @@ it("stops a partial batch, retains unknown requests after denial, and explicitly
       .getByText("All reviewed items are confirmed applied.", { exact: false })
       .waitFor();
     expect(calls.map((call) => call.path)).toEqual(
-      [202, 203, 203, 203, 204].map(
-        (id) => `/api/clinic/service_offerings/${id}`,
-      ),
+      [202, 203, 203, 204].map((id) => `/api/clinic/service_offerings/${id}`),
     );
     expect(
       new Set(calls.map((call) => call.body.service_offering.request_key)).size,
@@ -308,7 +399,6 @@ it("stops a partial batch, retains unknown requests after denial, and explicitly
     await page
       .getByRole("button", { name: "Close review and reload offerings" })
       .click();
-    await expect.poll(() => page.getByRole("dialog").count()).toBe(0);
     await page
       .getByRole("row")
       .filter({ hasText: "Source 101" })
@@ -324,28 +414,37 @@ it("stops a partial batch, retains unknown requests after denial, and explicitly
   }
 }, 30000);
 
-it("retains rejected and unattempted items without claiming completion or replaying prior successes", async () => {
+it("keeps unresolved identities and stops destination requests after permission loss", async () => {
   const page = await browser.newPage();
   try {
-    const calls = await fixture(page, [200, 409, 200]);
+    const calls = await fixture(page, [200, 503, 403]);
     await review(page);
+    await page
+      .getByRole("button", { name: "Save reviewed text-import batch" })
+      .click();
     await page
       .getByRole("button", { name: "Apply reviewed draft text", exact: true })
       .click();
-    await page.getByText(/Destination #203: failed/).waitFor();
-    expect(calls).toHaveLength(2);
+    await page
+      .getByRole("button", { name: "Reconcile original receipt for #203" })
+      .click();
+    await page
+      .getByRole("button", { name: "Retry exact change for #203" })
+      .click();
+    await expect
+      .poll(() =>
+        page
+          .getByRole("button", { name: "Reconcile original receipt for #203" })
+          .isDisabled(),
+      )
+      .toBe(true);
+    expect(calls).toHaveLength(3);
+    expect(calls[2]).toEqual(calls[1]);
     expect(
       await page
-        .getByRole("button", { name: "Close review and reload offerings" })
+        .getByRole("button", { name: "Apply unattempted reviewed items" })
         .isDisabled(),
-    ).toBe(false);
-    await page
-      .getByRole("button", { name: "Apply unattempted reviewed items" })
-      .click();
-    await page.getByText(/Destination #204: applied/).waitFor();
-    expect(calls.map((call) => call.path)).toEqual(
-      [202, 203, 204].map((id) => `/api/clinic/service_offerings/${id}`),
-    );
+    ).toBe(true);
     expect(
       await page
         .getByText("All reviewed items are confirmed applied.", {
@@ -353,15 +452,12 @@ it("retains rejected and unattempted items without claiming completion or replay
         })
         .count(),
     ).toBe(0);
-    expect(await page.getByRole("alert").innerText()).toContain(
-      "2 of 3 confirmed applied",
-    );
   } finally {
     await page.close();
   }
 }, 20000);
 
-it("denies readers and treats malformed success receipts as unresolved", async () => {
+it("denies readers and recovers a malformed apply acknowledgment without reapplying a committed item", async () => {
   const page = await browser.newPage();
   try {
     const calls = await fixture(page, [200], false);
@@ -382,20 +478,18 @@ it("denies readers and treats malformed success receipts as unresolved", async (
     const calls = await fixture(writer, [200], true, true);
     await review(writer, 1);
     await writer
+      .getByRole("button", { name: "Save reviewed text-import batch" })
+      .click();
+    await writer
       .getByRole("button", { name: "Apply reviewed draft text", exact: true })
       .click();
     await writer
-      .getByRole("button", { name: "Retry exact change for #202" })
+      .getByRole("button", { name: "Reconcile original receipt for #202" })
+      .click();
+    await writer
+      .getByText("All reviewed items are confirmed applied.", { exact: false })
       .waitFor();
     expect(calls).toHaveLength(1);
-    expect(
-      await writer
-        .getByRole("button", { name: "Close review and reload offerings" })
-        .isDisabled(),
-    ).toBe(true);
-    expect(await writer.getByRole("alert").innerText()).toContain(
-      "0 of 1 confirmed applied",
-    );
   } finally {
     await writer.close();
   }

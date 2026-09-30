@@ -341,10 +341,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                   controlsDisabled ||
                   dialog !== null ||
                   retiring !== null ||
-                  !!loadError ||
-                  !data.service_offerings.some(
-                    (offering) => offering.status === "draft",
-                  )
+                  !!loadError
                 }
                 onClick={() => setBulkImportOpen(true)}
               >

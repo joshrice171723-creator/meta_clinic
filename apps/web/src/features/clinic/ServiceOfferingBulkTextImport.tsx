@@ -21,6 +21,13 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import {
+  changeSavedTextBatch,
+  readSavedTextBatch,
+  validateSavedTextBatch,
+  type BatchCatalog,
+  type SavedTextBatch,
+} from "./offeringTextBatchPersistence";
+import {
   readMappingSource,
   type ConfigurationManifest,
 } from "./configurationMapping";
@@ -51,15 +58,38 @@ export function ServiceOfferingBulkTextImport({
   const [mappings, setMappings] = useState<OfferingTextMapping[]>([]);
   const [items, setItems] = useState<OfferingTextBatchItem[] | null>(null);
   const [error, setError] = useState("");
+  const [catalog, setCatalog] = useState<BatchCatalog | null>(null);
+  const [saved, setSaved] = useState<SavedTextBatch | null>(null);
+  const [savedKey, setSavedKey] = useState("");
+  const [contextLost, setContextLost] = useState(false);
+  const reviewKey = useRef("");
+  const saveUncertain = useRef(false);
   const [reading, setReading] = useState(false);
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
   const running = useRef(false);
   const alive = useRef(true);
   const permitted = useRef(canApply);
-  permitted.current = canApply;
+  permitted.current = canApply && !contextLost;
   useEffect(() => {
     alive.current = true;
+    void api<BatchCatalog>("/api/clinic/offering_text_batches")
+      .then((value) => {
+        if (
+          alive.current &&
+          (!targets.length ||
+            value.context.practice_id === targets[0]?.practice_id)
+        )
+          setCatalog(value);
+      })
+      .catch((reason) => {
+        if (alive.current)
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Saved reviews could not be loaded.",
+          );
+      });
     return () => {
       alive.current = false;
       generation.current += 1;
@@ -67,7 +97,7 @@ export function ServiceOfferingBulkTextImport({
   }, []);
   const summary = offeringTextBatchSummary(items ?? []);
   const close = () => {
-    if (!running.current && summary.canClose) onClose();
+    if (!running.current && (saved || summary.canClose)) onClose();
   };
   const read = async (file?: File) => {
     if (running.current || items) return;
@@ -112,7 +142,17 @@ export function ServiceOfferingBulkTextImport({
     );
   };
   const review = () => {
-    if (!source || reading || items || running.current || !canApply) return;
+    if (
+      !source ||
+      reading ||
+      items ||
+      running.current ||
+      !permitted.current ||
+      !catalog
+    )
+      return;
+    reviewKey.current = crypto.randomUUID();
+    saveUncertain.current = false;
     try {
       setItems(
         offeringTextBatchItems(
@@ -129,67 +169,160 @@ export function ServiceOfferingBulkTextImport({
       );
     }
   };
-  const apply = async (retryIndex?: number) => {
-    if (!items || running.current || !permitted.current) return;
-    if (retryIndex === undefined && summary.unknown) return;
-    if (retryIndex !== undefined && items[retryIndex]?.status !== "unknown")
+  const loseContext = (reason: unknown) => {
+    if (
+      reason instanceof ApiError &&
+      ([401, 403].includes(reason.status) ||
+        ["session_changed", "clinic_changed"].includes(reason.code ?? ""))
+    ) {
+      permitted.current = false;
+      setContextLost(true);
+    }
+  };
+  const restore = async (key: string) => {
+    if (!catalog || running.current || !key) return;
+    running.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const batch = await readSavedTextBatch(key, catalog.context);
+      if (alive.current) {
+        setSaved(batch);
+        setItems(batch.items);
+        setSource(null);
+        setSavedKey(batch.request_key);
+      }
+    } catch (reason) {
+      loseContext(reason);
+      if (alive.current)
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "The saved review could not be restored.",
+        );
+    } finally {
+      running.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+  const saveReview = async () => {
+    if (
+      !items ||
+      !source ||
+      !catalog ||
+      saved ||
+      running.current ||
+      !permitted.current
+    )
       return;
     running.current = true;
     setBusy(true);
-    let current = items;
+    setError("");
+    try {
+      const batch = validateSavedTextBatch(
+        await api<SavedTextBatch>("/api/clinic/offering_text_batches", {
+          method: "POST",
+          body: {
+            batch: {
+              context: catalog.context,
+              request_key: reviewKey.current,
+              source: {
+                practiceId: source.configuration.practice.id,
+                digest: source.source_digest,
+                generatedAt: source.generated_at,
+              },
+              items: items.map((item) => ({
+                plan: item.plan,
+                attempt: item.attempt,
+              })),
+            },
+          },
+        }),
+        catalog.context,
+        { key: reviewKey.current, items },
+      );
+      if (alive.current) {
+        setSaved(batch);
+        setItems(batch.items);
+        setSavedKey(batch.request_key);
+      }
+    } catch (reason) {
+      loseContext(reason);
+      if (alive.current) {
+        const unconfirmed =
+          saveUncertain.current ||
+          !(reason instanceof ApiError) ||
+          reason.status === 408 ||
+          reason.status >= 500 ||
+          reason.code === "outcome_unconfirmed";
+        saveUncertain.current = unconfirmed;
+        setSavedKey(unconfirmed ? reviewKey.current : "");
+        setError(
+          (unconfirmed
+            ? "The review save was not confirmed. Reload this exact batch identity before applying. "
+            : "The review was not saved. Revise the selection before saving again. ") +
+            (reason instanceof Error ? reason.message : ""),
+        );
+      }
+    } finally {
+      running.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+  const apply = async (retryIndex?: number, reconcileOnly = false) => {
+    if (!items || !saved || running.current || !permitted.current) return;
+    if (retryIndex === undefined && summary.unknown) return;
+    if (retryIndex !== undefined && items[retryIndex]?.status !== "unknown")
+      return;
+    if (
+      retryIndex !== undefined &&
+      !reconcileOnly &&
+      !saved.items[retryIndex].retryPermitted
+    )
+      return;
+    running.current = true;
+    setBusy(true);
+    let batch = saved;
     const indices =
       retryIndex === undefined
         ? items.flatMap((item, index) =>
             item.status === "ready" ? [index] : [],
           )
         : [retryIndex];
-    const replace = (
-      index: number,
-      changes: Partial<OfferingTextBatchItem>,
-    ) => {
-      current = current.map((item, position) =>
-        position === index ? { ...item, ...changes } : item,
-      );
-      if (alive.current) setItems(current);
+    const accept = (value: SavedTextBatch) => {
+      batch = value;
+      if (alive.current) {
+        setSaved(value);
+        setItems(value.items);
+      }
     };
     try {
       for (const index of indices) {
         if (!alive.current || !permitted.current) break;
-        const item = current[index];
-        replace(index, { status: "sending", message: "Awaiting confirmation" });
         try {
-          const result = await api<{
-            service_offering: OfferingTextTarget;
-            replayed: boolean;
-          }>(item.attempt.path, {
-            method: item.attempt.method,
-            body: item.attempt.body,
-          });
-          if (
-            result?.service_offering?.id !== item.plan.targetId ||
-            result.service_offering.practice_id !== targets[0]?.practice_id ||
-            typeof result.replayed !== "boolean"
-          )
-            throw new ApiError(
-              502,
-              "The destination update receipt could not be confirmed.",
-              "outcome_unconfirmed",
-            );
-          replace(index, {
-            status: "applied",
-            message:
-              "Selected text confirmed saved through the existing offering update.",
-          });
+          if (reconcileOnly) {
+            accept(await changeSavedTextBatch(batch, index, "reconcile"));
+            break;
+          }
+          if (batch.items[index].status === "ready")
+            accept(await changeSavedTextBatch(batch, index, "prepare"));
+          if (!alive.current || !permitted.current) break;
+          accept(await changeSavedTextBatch(batch, index, "apply"));
+          if (batch.items[index].status !== "applied") break;
         } catch (reason) {
-          replace(
-            index,
-            offeringTextBatchFailure(
-              item.status,
-              reason instanceof ApiError ? reason : null,
-            ),
+          loseContext(reason);
+          const failure = offeringTextBatchFailure(
+            "unknown",
+            reason instanceof ApiError ? reason : null,
           );
-          // Stop on the first rejection/uncertainty. Continuing or retrying is
-          // always another explicit action; prior applied items are not resent.
+          accept({
+            ...batch,
+            items: batch.items.map((item, position) =>
+              position === index
+                ? { ...item, ...failure, retryPermitted: false }
+                : item,
+            ),
+          });
           break;
         }
       }
@@ -215,11 +348,63 @@ export function ServiceOfferingBulkTextImport({
             referral instructions. Catalog references, eligibility, prices,
             scheduling rules and profile settings stay with the destination.
           </Typography>
-          {!canApply && (
+          {(!canApply || contextLost) && (
             <Alert severity="warning">
               Current configuration write permission is unavailable. Reviewed
               requests remain here; no new request can be sent.
             </Alert>
+          )}
+          {!items && catalog && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">
+                Saved text-import reviews for this actor and site
+              </Typography>
+              {catalog.batches.map((batch) => (
+                <Button
+                  key={batch.request_key}
+                  disabled={busy || contextLost}
+                  onClick={() => void restore(batch.request_key)}
+                >
+                  Resume {batch.request_key} · {batch.created_at}
+                </Button>
+              ))}
+              {catalog.capped && (
+                <Typography variant="caption">
+                  Latest 25 reviews shown. Enter an older exact batch identity
+                  to reload it.
+                </Typography>
+              )}
+            </Stack>
+          )}
+          {catalog && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <TextField
+                size="small"
+                label="Saved batch identity"
+                value={savedKey}
+                disabled={busy || contextLost}
+                onChange={(event) => setSavedKey(event.target.value)}
+              />
+              <Button
+                disabled={busy || !savedKey || contextLost}
+                onClick={() => void restore(savedKey)}
+              >
+                Reload saved review
+              </Button>
+            </Stack>
+          )}
+          {saved && (
+            <Typography variant="caption">
+              Saved batch {saved.request_key}. Original actor #
+              {saved.context.actor_id}, membership #
+              {saved.context.actor_membership_id}, clinic #
+              {saved.context.practice_id}, site {saved.context.site_id ?? "all"}
+              , authorization generation{" "}
+              {saved.context.authorization_generation}. Source #
+              {saved.source.practiceId}, digest {saved.source.digest}, read{" "}
+              {saved.source.generatedAt}. Retention policy:{" "}
+              {saved.retention_policy}.
+            </Typography>
           )}
           {!items && (
             <Button
@@ -354,7 +539,13 @@ export function ServiceOfferingBulkTextImport({
                 })}
               <Button
                 variant="outlined"
-                disabled={!canApply || !mappings.length || reading}
+                disabled={
+                  !canApply ||
+                  contextLost ||
+                  !catalog ||
+                  !mappings.length ||
+                  reading
+                }
                 onClick={review}
               >
                 Preview selected draft changes
@@ -377,9 +568,11 @@ export function ServiceOfferingBulkTextImport({
                   : `${summary.applied} of ${items.length} confirmed applied; ${summary.unknown} unknown, ${summary.failed} rejected, ${summary.ready} not attempted, ${summary.sending} awaiting confirmation.`}
               </Alert>
               <Typography variant="body2">
-                This review and its exact requests are held in memory. Keep it
-                open while an outcome is unknown. Page reload or navigation does
-                not restore a batch or undo applied text.
+                Save this review before applying. Saved requests and outcomes
+                can be reloaded only by the original authorized actor in the
+                same clinic/site and authorization generation. Reload never
+                applies or undoes text. Unknown items require explicit receipt
+                reconciliation before an exact repeat.
               </Typography>
               {items.map((item, index) => (
                 <Stack key={item.plan.targetId} spacing={1}>
@@ -435,21 +628,41 @@ export function ServiceOfferingBulkTextImport({
                     Destination #{item.plan.targetId}: {item.status} —{" "}
                     {item.message}
                   </Typography>
-                  {item.status === "unknown" && (
+                  {item.status === "unknown" && saved && (
                     <Button
-                      variant="outlined"
-                      disabled={busy || !canApply}
-                      onClick={() => void apply(index)}
+                      disabled={busy || !canApply || contextLost}
+                      onClick={() => void apply(index, true)}
                     >
-                      Retry exact change for #{item.plan.targetId}
+                      Reconcile original receipt for #{item.plan.targetId}
                     </Button>
                   )}
+                  {item.status === "unknown" &&
+                    saved?.items[index].retryPermitted && (
+                      <Button
+                        variant="outlined"
+                        disabled={busy || !canApply || contextLost}
+                        onClick={() => void apply(index)}
+                      >
+                        Retry exact change for #{item.plan.targetId}
+                      </Button>
+                    )}
                 </Stack>
               ))}
-              {summary.ready > 0 && (
+              {!saved && (
+                <Button
+                  variant="outlined"
+                  disabled={busy || !catalog || !canApply || contextLost}
+                  onClick={() => void saveReview()}
+                >
+                  Save reviewed text-import batch
+                </Button>
+              )}
+              {saved && summary.ready > 0 && (
                 <Button
                   variant="contained"
-                  disabled={busy || !canApply || summary.unknown > 0}
+                  disabled={
+                    busy || !canApply || contextLost || summary.unknown > 0
+                  }
                   onClick={() => void apply()}
                 >
                   {summary.applied || summary.failed
@@ -462,12 +675,18 @@ export function ServiceOfferingBulkTextImport({
         </Stack>
       </DialogContent>
       <DialogActions>
-        {items && items.every((item) => item.status === "ready") && (
-          <Button disabled={busy} onClick={() => setItems(null)}>
-            Change selections
-          </Button>
-        )}
-        <Button disabled={busy || !summary.canClose} onClick={close}>
+        {items &&
+          !saved &&
+          !savedKey &&
+          items.every((item) => item.status === "ready") && (
+            <Button disabled={busy} onClick={() => setItems(null)}>
+              Change selections
+            </Button>
+          )}
+        <Button
+          disabled={busy || (!saved && !summary.canClose)}
+          onClick={close}
+        >
           Close review and reload offerings
         </Button>
       </DialogActions>
