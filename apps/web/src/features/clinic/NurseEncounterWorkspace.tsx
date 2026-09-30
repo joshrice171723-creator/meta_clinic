@@ -427,6 +427,9 @@ export function NurseEncounterWorkspaceContent({
       task.task_kind !== "handoff" &&
       !["completed", "cancelled"].includes(task.state),
   );
+  const cancelledManualTasks = workspace.tasks.filter(
+    (task) => task.state === "cancelled" && task.source_type === "manual",
+  );
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
   const confirmedChunkIndexes = form.questionnaire?.confirmed_chunks ?? [];
   const activeChunkIndex = Math.min(
@@ -680,7 +683,7 @@ export function NurseEncounterWorkspaceContent({
 
   async function transitionTask(
     task: ClinicalTask,
-    action: "claim" | "start" | "complete",
+    action: "claim" | "start" | "complete" | "reopen",
   ) {
     await perform(async () => {
       const response = await api<{ task: ClinicalTask }>(
@@ -1906,6 +1909,37 @@ export function NurseEncounterWorkspaceContent({
                 );
               })
             )}
+            {workspace.capabilities.tasks_write &&
+              cancelledManualTasks.length > 0 && (
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    Cancelled follow-up work ({cancelledManualTasks.length})
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Reopening returns deliberately created work to the
+                        available team pool. An authorized owner must claim it.
+                      </Typography>
+                      {cancelledManualTasks.map((task) => (
+                        <Stack key={task.id} direction="row" spacing={1}>
+                          <Typography sx={{ flex: 1 }}>
+                            Task #{task.id} · {taskLabels[task.task_kind]} ·{" "}
+                            {stateLabel(task.pool_code)} pool
+                          </Typography>
+                          <Button
+                            disabled={busy}
+                            onClick={() => void transitionTask(task, "reopen")}
+                            aria-label={`Reopen task ${task.id}`}
+                          >
+                            Reopen
+                          </Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              )}
           </Stack>
         </Box>
       </Stack>
