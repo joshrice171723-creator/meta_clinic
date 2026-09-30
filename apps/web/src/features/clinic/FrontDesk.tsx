@@ -59,6 +59,11 @@ import {
 import { useClinic } from "./Workspace";
 import { AppointmentRequestQueue } from "./AppointmentRequestQueue";
 import { FrontDeskMembershipEnrollment } from "./FrontDeskMembershipEnrollment";
+import {
+  rescheduleOverbookIssue,
+  rescheduleOverbookRequest,
+  type RescheduleOverbookPolicy,
+} from "./rescheduleOverbook";
 import "./frontDesk.css";
 
 function allowed(capability: boolean | undefined) {
@@ -249,6 +254,10 @@ function AppointmentDayQueue({
   }>();
   const [refreshedAt, setRefreshedAt] = useState<Date>();
   const [reschedule, setReschedule] = useState<RescheduleDraft>();
+  const reschedulePolicy = useResource<RescheduleOverbookPolicy>(
+    `/api/clinic/facilities/${reschedule?.siteId}/scheduling_policy`,
+    { enabled: Boolean(reschedule?.siteId) },
+  );
   const [confirmation, setConfirmation] = useState<{
     appointment: FrontDeskAppointment;
     action: "start" | "cancelled" | "no_show";
@@ -524,6 +533,8 @@ function AppointmentDayQueue({
       error: "",
       busy: false,
       outcomeUnconfirmed: false,
+      overbookRequested: false,
+      overbookReason: "",
     });
   }
 
@@ -586,6 +597,16 @@ function AppointmentDayQueue({
       }
     }
 
+    if (!reschedule.outcomeUnconfirmed) {
+      const issue = rescheduleOverbookIssue(reschedule, reschedulePolicy.data);
+      if (issue) {
+        setReschedule((current) =>
+          current ? { ...current, error: issue } : current,
+        );
+        return;
+      }
+    }
+
     setReschedule((current) =>
       current ? { ...current, busy: true, error: "" } : current,
     );
@@ -603,6 +624,7 @@ function AppointmentDayQueue({
             service_offering_id: reschedule.serviceOfferingId || null,
             expected_updated_at: reschedule.appointment.updated_at,
             request_key: reschedule.requestKey,
+            ...rescheduleOverbookRequest(reschedule),
           },
         },
       });
@@ -988,6 +1010,9 @@ function AppointmentDayQueue({
         visitTypes={visitTypes.data?.visit_types ?? []}
         rooms={rooms.data?.rooms ?? []}
         offerings={offerings.data?.service_offerings ?? []}
+        overbookPolicy={reschedulePolicy.data}
+        overbookPolicyError={reschedulePolicy.error}
+        onRefreshPolicy={reschedulePolicy.refresh}
         setupOptionsError={
           offerings.error || clinicians.error || visitTypes.error || rooms.error
         }
@@ -1216,7 +1241,7 @@ function AppointmentRow({
   );
 }
 
-type RescheduleDraft = {
+export type RescheduleDraft = {
   appointment: FrontDeskAppointment;
   startsAt: string;
   endsAt: string;
@@ -1229,9 +1254,12 @@ type RescheduleDraft = {
   error: string;
   busy: boolean;
   outcomeUnconfirmed: boolean;
+  overbookRequested: boolean;
+  overbookReason: string;
+  expectedPolicyRevision?: number;
 };
 
-function RescheduleDialog({
+export function RescheduleDialog({
   draft,
   clinicTimezone,
   sites,
@@ -1239,6 +1267,9 @@ function RescheduleDialog({
   visitTypes,
   rooms,
   offerings,
+  overbookPolicy,
+  overbookPolicyError,
+  onRefreshPolicy,
   setupOptionsError,
   onChange,
   onClose,
@@ -1252,6 +1283,9 @@ function RescheduleDialog({
   visitTypes: VisitType[];
   rooms: FacilityRoom[];
   offerings: BookingServiceOffering[];
+  overbookPolicy?: RescheduleOverbookPolicy;
+  overbookPolicyError?: string;
+  onRefreshPolicy: () => void;
   setupOptionsError?: string;
   onChange: (draft: RescheduleDraft | undefined) => void;
   onClose: () => void;
@@ -1346,6 +1380,8 @@ function RescheduleDialog({
                 ...draft,
                 siteId: event.target.value,
                 roomId: "",
+                overbookRequested: false,
+                expectedPolicyRevision: undefined,
                 requestKey: draft.error
                   ? crypto.randomUUID()
                   : draft.requestKey,
@@ -1523,6 +1559,64 @@ function RescheduleDialog({
                 </MenuItem>
               ))}
           </TextField>
+          {overbookPolicyError && (
+            <Alert severity="warning">{overbookPolicyError}</Alert>
+          )}
+          {(draft?.overbookRequested ||
+            (overbookPolicy?.can_overbook &&
+              overbookPolicy.policy.overbook_enabled)) && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={Boolean(draft?.overbookRequested)}
+                  disabled={draft?.busy || draft?.outcomeUnconfirmed}
+                  onChange={(_, checked) =>
+                    draft &&
+                    onChange({
+                      ...draft,
+                      overbookRequested: checked,
+                      expectedPolicyRevision: checked
+                        ? overbookPolicy?.policy.revision
+                        : undefined,
+                      requestKey: crypto.randomUUID(),
+                      error: "",
+                    })
+                  }
+                />
+              }
+              label="Request a clinician overbook exception for this change"
+            />
+          )}
+          {draft?.overbookRequested && (
+            <>
+              <Alert severity="warning">
+                This change must overlap exactly one clinician appointment.
+                In-person visits need a separate physical room. Patient, room,
+                hours, blocks, offers and holds are checked again before saving.
+              </Alert>
+              <TextField
+                required
+                label="Overbook reason"
+                value={draft.overbookReason}
+                disabled={draft.busy || draft.outcomeUnconfirmed}
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    overbookReason: event.target.value,
+                    requestKey: crypto.randomUUID(),
+                    error: "",
+                  })
+                }
+              />
+              <Button
+                disabled={draft.busy || draft.outcomeUnconfirmed}
+                onClick={onRefreshPolicy}
+              >
+                Refresh scheduling policy
+              </Button>
+            </>
+          )}
           {draft?.error && (
             <Alert
               severity="error"
