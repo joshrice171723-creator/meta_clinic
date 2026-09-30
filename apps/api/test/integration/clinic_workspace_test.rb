@@ -67,6 +67,51 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     assert_operator queries.count { |sql| sql.match?(/FROM "clinic_role_grants"/i) }, :<=, 1, queries.join("\n")
   end
 
+  def grant_clinician_role
+    role = RoleVersion.create!(role_code: "clinician", version: 91_001)
+    RoleVersionPermission.create!(role_version: role, permission: Permission.find_by!(action_code: "notes.sign"))
+    @membership.role_grants.create!(practice: @practice, role_version: role, scope_kind: "practice",
+      effective_from: 1.minute.ago, effective_until: 1.day.from_now, revision: 1)
+  end
+
+  def assert_clinician_capability(expected)
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal expected, response.parsed_body.dig("capabilities", "psychotherapy_notes")
+  end
+
+  test "a revoked clinician grant is denied on the next request" do
+    grant = grant_clinician_role
+    assert_clinician_capability(true)
+    grant.update!(revoked_at: Time.current, revision: 2)
+    assert_clinician_capability(false)
+  end
+
+  test "an expired clinician grant is denied on the next request" do
+    grant = grant_clinician_role
+    assert_clinician_capability(true)
+    grant.update!(effective_until: 1.second.from_now, revision: 2)
+    travel 2.seconds do
+      assert_clinician_capability(false)
+    end
+  end
+
+  test "a deactivated clinician account is denied on the next request" do
+    grant_clinician_role
+    assert_clinician_capability(true)
+    @user.update!(active: false)
+    get "/api/clinic/context", headers: @headers
+    assert_response :unauthorized
+  end
+
+  test "a deactivated clinician membership is denied on the next request" do
+    grant_clinician_role
+    assert_clinician_capability(true)
+    @membership.update!(active: false)
+    get "/api/clinic/context", headers: @headers
+    assert_response :forbidden
+  end
+
   test "clinic context switches assigned locations and filters the selected facility" do
     first = @practice.sites.create!(code: "MAIN", name: "Main synthetic location")
     second = @practice.sites.create!(code: "ANNEX", name: "Annex synthetic location")
@@ -586,6 +631,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   test "catalog creation and delivered shipment intake support the purchasing handoff" do
+    supplier = @practice.inventory_suppliers.create!(name: "Synthetic manual catalog supplier")
     submit "/api/clinic/pharmacy", {
       clinic_pharmacy_product: {
         name: "Manual catalog item",
@@ -606,6 +652,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       purchase_order: {
         request_key: SecureRandom.uuid,
         number: "PO-MANUAL-CATALOG-001",
+        supplier_id: supplier.id,
         destination: "Main Pharmacy",
         reason: "Manual catalog workflow",
         lines: [ { product_id: product.id, quantity: "2", unit_price: "4.50", currency: "USD" } ]
@@ -638,7 +685,13 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       assert_response :created
     end
     shipment = order.shipments.find_by!(reference: "SHIP-MANUAL-CATALOG-001")
-    assert_equal "delivered", shipment.status
+    assert_equal "expected", shipment.status
+    submit "/api/clinic/inventory/shipments/#{shipment.id}/events", {
+      shipment_event: { status: "delivered", note: "Synthetic manual delivery readback", request_key: SecureRandom.uuid }
+    }
+    assert_response :created
+    assert_equal "delivered", shipment.reload.effective_status
+    assert_equal @membership.id, shipment.shipment_events.sole.recorded_by_membership_id
     assert_equal 2, shipment.package_count
     assert_equal 60, shipment.expected_units
     assert_equal 2, shipment.shipment_lines.sole.expected_packages
@@ -729,7 +782,10 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   test "patient directory includes bounded identity details for patient readers" do
-    patient = @practice.patients.create!(display_name: "Synthetic directory patient", reference: "DIR-001")
+    site = @practice.sites.create!(code: "DIRECTORY", status: "active")
+    Development::GuidedClinicDemo.configure_site_profile!(practice: @practice, site:, membership: @membership,
+      clinic_type: "primary_care", request_key: "synthetic-directory-site-profile")
+    patient = @practice.patients.create!(display_name: "Synthetic directory patient", reference: "DIR-001", primary_site: site)
     patient.create_demographics!(practice: @practice, date_of_birth: Date.new(1988, 4, 12),
       sex: "unknown", primary_language: "English", interpreter_required: false)
     patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+1 (555) 867-5309",
@@ -741,7 +797,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     row = response.parsed_body.fetch("patients").find { |item| item.fetch("id") == patient.id }
     assert_equal "1988-04-12", row.fetch("date_of_birth")
     assert_equal "ending 5309", row.fetch("phone_hint")
-    assert_equal %w[date_of_birth display_name id phone_hint reference], row.keys.sort
+    assert_equal site.id, row.fetch("primary_site_id")
+    assert_equal %w[date_of_birth display_name id phone_hint primary_site_id reference], row.keys.sort
   end
 
   test "inventory location paths preserve the tenant site and nested storage hierarchy" do
@@ -891,6 +948,12 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
   end
 
   test "patient creation and append-only draft scoped to clinic regardless of submitted ownership" do
+    site = @practice.sites.create!(code: "REGISTRATION", status: "active")
+    @practice.visit_types.create!(code: "Synthetic registration visit")
+    Development::GuidedClinicDemo.configure_site_profile!(practice: @practice, site:, membership: @membership,
+      clinic_type: "primary_care", request_key: "synthetic-registration-site-profile", finalize: true)
+    submit "/api/clinic/context", { site_id: site.id }, method: :patch
+    assert_response :success
     get "/api/clinic/patients", headers: @headers
     assert_no_difference "Clinic::Care::Patient.count" do
       submit "/api/clinic/patients", { clinic_patient: { display_name: "Example C", reference: "DEMO-003", practice_id: @other.id } }
@@ -901,6 +964,7 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
       assert_response :created
     end
     patient = @practice.patients.find_by!(reference: "DEMO-003")
+    assert_equal site.id, patient.primary_site_id
     submit "/api/clinic/patients/#{patient.id}/note", { body: "<script>fictional only</script>", practice_id: @other.id, author_id: @other_user.id }
     assert_response :success
     note = patient.notes.sole
