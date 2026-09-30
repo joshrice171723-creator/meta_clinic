@@ -77,7 +77,7 @@ module Clinic
     end
 
     def service_offering_fields
-      %i[request_key lock_version name code description visit_type_id billing_service_id duration_minutes modality booking_required requires_room public_visible status site_ids clinician_ids]
+      %i[request_key lock_version name code description contact_instructions referral_instructions visit_type_id billing_service_id duration_minutes modality booking_required requires_room public_visible status site_ids clinician_ids]
     end
 
     def render_result(result, created: false)
