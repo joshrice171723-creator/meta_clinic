@@ -160,3 +160,34 @@ Source07f9ed9d896449363727a0075517183bc40a0793 retains implementation2b38a65a6db
 Point-of-care testing, infusions and patient-supplied medication ownership lack accepted exact classifiers; they remain explicitly unknown and block fresh removals. This is not complete consequence coverage. Cross-domain atomicity and concurrent dependency changes remain deferred, as does runtime acceptance; inventory is bounded recorded associations, not all-patient totals or proof about unlinked work. Document metadata write authority stays deliberately closed, and legacy allowance policies stay unconfigured. No arbitrary percentage or completion claim follows source inclusion.
 
 Merge was clean and added no migration or canonical structure changes. Sage's active23d1ee2d source-generation cutoff therefore still applies to the schema: three previously listed migration files remain outside8170390d until that generation completes. Relay ran no tests/build/lint/database work, PR, main merge, deployment, permission activation or score changes. Office and all other product lanes remain preserved.
+
+## Final frozen source assembly
+
+Exact application/source and generated-schema checkpoint: **4962060c2ee608f7861a6460e47a70a3bd5f6422**. Subsequent freeze documentation changes no application or schema source. The final published branch revision is provided by the Git publication receipt; source is frozen with no further feature additions. Branch: codex/relay-product-source-20260930. Current retained main: dad4e133f504f32a0367b635b907f60b45049cd9.
+
+Sage artifact7149b7c77d6f25e6a0702e33c3bc2a226acd581d is schema-only, directly based on23d1ee2d, and was retained as4962060c. Sage reports the three remaining migrations applied and one dump completed (+486/-0), Office preserved, disposable database removed and no active command/lock. Canonical structure now exactly matches that supplied artifact. Filename/version comparison finds **zero source migrations absent from the dump**. This closes the missing checked-in artifact for this cutoff, not functional verification.
+
+[Retention comparison](2026-09-30-final-source-retention.json) records35 source heads retained as ancestors, including the complete original98d batch/frozenfe6, all subsequent assigned feature heads, and Office main. Selected compatibility080f, carrierc1b2 and evidencea825 commits are retained through equivalent stable patch IDs. Historical correction commits and original branches remain preserved; PR4-only source remains excluded. Source comparison ran no application code, tests/build/lint, migrations, browser or live operations.
+
+### Original-requirement residuals at this frozen source
+
+This updates later source accounting without rewriting the fixed-fe6 inventory or treating its disputed percentages as measured completion. It is a bounded inventory, not a claim of exhaustive original-brief coverage.
+
+| Area | Explicit residual or boundary |
+| --- | --- |
+| MC01 service consequences | Point-of-care testing, infusions and patient-supplied ownership lack exact accepted classifiers; unknown coverage blocks fresh removals. Cross-domain atomicity is unverified. Broader lead/structured referral contracts remain undefined. |
+| MC02 conversion | Corrected staff local/external boundary is source-present; external payment/mail outcomes and distributed exactly-once delivery are not established. |
+| MC03 identity | Linked clinical/portal duplicate merging remains deliberately bounded; no general reconciliation contract or all-context recovery proof. |
+| MC04 scheduling | Resource/category/waiting configuration is wired. Waiting comparison is display-only; automatic escalation action/recipient and clinical policy are unselected. Runtime reservation/concurrency behavior is unverified. |
+| MC05 intake/documents | Saved-question task linkage and existing transitions are present. Document metadata configuration/scaffolding is present but metadata writes remain closed pending approved writer authority; no authority is granted by this batch. Original unavailable attachment, instruments/licensing and clinical applicability limit completeness claims. |
+| MC06 labs/units | Pinned LINEAR-UCUM dimensional comparison is bounded; special/arbitrary units, clinic-approved mappings and full UCUM conformance are not established. No clinical values/conversions/normality are inferred. |
+| MC07 telehealth | Retained local lifecycle is not provider/end-to-end connected acceptance or physical device proof. |
+| MC08/MC13 financial/labor records | Source provenance/variance and explicit unknowns do not supply approved labor/rate/settlement policy, physical hardware acceptance or operational authorization. |
+| MC09 memberships | Configured repeating allowances and deliberate paid-period resolution are present; legacy policy remains unconfigured, conflicting unreversed usage blocks accounting and historical use is preserved. Commercial policy selection and runtime acceptance remain separate. |
+| MC10 prescriptions | Response/cancellation/fill lifecycle is explicitly local SIMULATOR evidence, not vendor acceptance, dispensing or inferred medication/quantity. Partner wire/legal/signer mappings remain disconnected/unselected. |
+| MC11 supplier/carrier | Immutable supplier/carrier preparation is local and disconnected; no dispatch/tracking/receiving completion or verified external response. |
+| MC12 portal | Recovery remains bounded to selected mounted attempts/acknowledgments; universal durable drafts and outbound delivery/patient-read acceptance are not established. |
+| MC14 reports | Five complete filtered report exports remain capped at10000combined rows/2MB CSV/4MB provenance with deadlines and failure instead of truncation. History is own-actor; general reports, retention/legal hold and balanced settlement are not supplied. |
+| MC15 import | Existing-draft fourteen-field explicit mapping/durable continuation is source-present. No prices, creation/merge, protected/status transitions, empty-reference inference, general migration, rollback or autoretry. Sequential application and retention policy remain bounded/unselected. |
+
+All combined runtime/type/build/browser/API/concurrency and connected/manual acceptance remains deferred except explicitly preserved evidence at older exact revisions. Issue34 remains open tester-reported reset timeout/temporary500 on7ded; later5702 behavior was not established by that report. No demo-ready/full-CI-green claim; CI billing remains blocked. Measured overall completion is undefined and legacy80.5/91.1 estimates remain disputed. No source assembly blocker was identified; this is the handoff to the user's separate QA→developer fixes→QA→manual walkthrough phase, which Relay has not started. No main merge, new PR, deployment, permission activation, fixture reset or percentage award.

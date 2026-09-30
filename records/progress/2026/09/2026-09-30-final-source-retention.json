@@ -1,0 +1,172 @@
+{
+  "source_schema_checkpoint": "4962060c2ee608f7861a6460e47a70a3bd5f6422",
+  "source_ancestors": [
+    {
+      "head": "98d16213a3100c183c20ef08c2b6941f810c47e4",
+      "retained": true
+    },
+    {
+      "head": "fe6db4c0764b1dc9a4d33b354bf744d6fc5c3f12",
+      "retained": true
+    },
+    {
+      "head": "6099fc5523b5d82ac2437767bec10f168aceeafd",
+      "retained": true
+    },
+    {
+      "head": "dad4e133f504f32a0367b635b907f60b45049cd9",
+      "retained": true
+    },
+    {
+      "head": "357ccf0d8ed953324e5bec82374ac58f729ed27c",
+      "retained": true
+    },
+    {
+      "head": "445a8a2607f44011a877e7bf2ff3c111dbccd4a3",
+      "retained": true
+    },
+    {
+      "head": "e6e6535a73fb4a4343bd2681f831e33273261426",
+      "retained": true
+    },
+    {
+      "head": "2d96bed50ea815e294e3e80aea246926136d94bc",
+      "retained": true
+    },
+    {
+      "head": "0dc95c5299a0f3aac76fce275747293631f1c17c",
+      "retained": true
+    },
+    {
+      "head": "0bf6584dd9a5d68c20692dbac63ca91d09b07c4f",
+      "retained": true
+    },
+    {
+      "head": "a0326be8ad494a40e9d260eeb226fd038bb2d957",
+      "retained": true
+    },
+    {
+      "head": "d40d584aa55b7ef3cc68facbc91ee89eb0555501",
+      "retained": true
+    },
+    {
+      "head": "8b5c69b0d4d377e95fe0337ded8c8f262b2e138d",
+      "retained": true
+    },
+    {
+      "head": "a1c118ac15fed8f78bb977334a77f66ed6e1231c",
+      "retained": true
+    },
+    {
+      "head": "d9082a1f63b39b963be63d5a277c320267339a20",
+      "retained": true
+    },
+    {
+      "head": "6ee0f3cc6c2ff8656dbec1fd7b24c54bf193f240",
+      "retained": true
+    },
+    {
+      "head": "17f7ee60e6a029a11eed3c0498294ee760324c84",
+      "retained": true
+    },
+    {
+      "head": "c779f9cf1459f0d6e8e9cb4630d815dbd314472b",
+      "retained": true
+    },
+    {
+      "head": "f0269c37c61798bf3f3d8c896ee769592264d6fe",
+      "retained": true
+    },
+    {
+      "head": "54319ae428a030f6f273141710669ce274102af6",
+      "retained": true
+    },
+    {
+      "head": "07121a53607f0176cf503deee635cf5ab351622d",
+      "retained": true
+    },
+    {
+      "head": "25f296a83a09739dc5c5c29ed0a24dd5104528fa",
+      "retained": true
+    },
+    {
+      "head": "7e58880a3cbfeaaec84d861254ffb0b355c66a75",
+      "retained": true
+    },
+    {
+      "head": "667338bdc74a984e27d9611732b9e5d04ffb1d3f",
+      "retained": true
+    },
+    {
+      "head": "460caf7d486ebc53ec9254088021be48e13facc9",
+      "retained": true
+    },
+    {
+      "head": "a11c737c67388860289782933594a66ba71829ea",
+      "retained": true
+    },
+    {
+      "head": "f38cfea3e0a94c74b1fbfd11f31211d5cca709f8",
+      "retained": true
+    },
+    {
+      "head": "1bde8909b4f19ca47f8311df81414a146e2c3ba4",
+      "retained": true
+    },
+    {
+      "head": "f6c3a906311c52f334032611785a8379e2b08669",
+      "retained": true
+    },
+    {
+      "head": "5c82d1761e3f87729d2b1d0bf9f6015e10940ec2",
+      "retained": true
+    },
+    {
+      "head": "1cfab28ea4143998812e323c7c1abe41ef3baa98",
+      "retained": true
+    },
+    {
+      "head": "d1e96341f6af80395cf3310f79b8222085ab0ac8",
+      "retained": true
+    },
+    {
+      "head": "b3a9197b75bc0f34bcb51238fe8dbd04f8cf10a5",
+      "retained": true
+    },
+    {
+      "head": "8d9a0bbe98cbf7c7e7c199889485f102cf8ba4ec",
+      "retained": true
+    },
+    {
+      "head": "07f9ed9d896449363727a0075517183bc40a0793",
+      "retained": true
+    }
+  ],
+  "cherry_sources": [
+    {
+      "source": "080f183f1a5c5afe7e08d3da66d8ac795e74535a",
+      "retained": "f5d8032221a307e3eb79f1874a1e4114548829a8",
+      "patchEquivalent": true,
+      "original_patch_id": "0a714ba3122c9f7d4c62fe1d845413d0713929f1",
+      "retained_patch_id": "0a714ba3122c9f7d4c62fe1d845413d0713929f1"
+    },
+    {
+      "source": "c1b2aea0fae6dc8966438b709047a6193cdf454a",
+      "retained": "58391edae3593c6852a08de57232f82ac418b98c",
+      "patchEquivalent": true,
+      "original_patch_id": "5fd924391ba016f2f17c01c3fb20207e6e240260",
+      "retained_patch_id": "5fd924391ba016f2f17c01c3fb20207e6e240260"
+    },
+    {
+      "source": "a82540157066ec7262b7eea6970be234043a6f7a",
+      "retained": "bcd538dfbf946f27a654ab1422b39588196011e9",
+      "patchEquivalent": true,
+      "original_patch_id": "29d4c3098d91b19aafcca0a7298b25ee1074bee3",
+      "retained_patch_id": "29d4c3098d91b19aafcca0a7298b25ee1074bee3"
+    }
+  ],
+  "final_generated_schema_exact": true,
+  "missing_migration_versions": [],
+  "comparison_only": true,
+  "runtime_checks": false
+}
