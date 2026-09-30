@@ -138,6 +138,7 @@ module Clinic
             Clinic::PracticeFeatureVersion.find_by(practice:, site_id: nil, revision: current.fetch(:revision))
           end
           old = old_version&.optional_features || {}
+          optional[LabUnitMappings::KEY] = old[LabUnitMappings::KEY] if old.key?(LabUnitMappings::KEY)
           if old["starter_profile"].present? && normalized_type != old["clinic_type"]
             raise ArgumentError, "This starter profile already has linked records. Request a scoped Meta Clinic review to change the specialty."
           end

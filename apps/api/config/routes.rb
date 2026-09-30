@@ -131,6 +131,7 @@ Rails.application.routes.draw do
     patch "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#update"
     get "practice_features/history", to: "practice_features#history"
     resource :practice_features, only: %i[show update]
+    resource :lab_unit_mappings, only: %i[show update]
     resources :visit_types, only: %i[create update]
     resources :clinicians, controller: "clinicians", only: %i[index create] do
       post :assign_site, on: :member

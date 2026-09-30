@@ -1,3 +1,4 @@
+import { LabUnitValidation, type LabUnitValidationReceipt } from "./LabUnitValidation";
 import {
   Alert,
   Box,
@@ -32,6 +33,7 @@ type Source = {
 };
 
 type ResultHistoryItem = {
+  unit_validation?: LabUnitValidationReceipt | null;
   report_id: number;
   version_id: number;
   result_index: number;
@@ -242,6 +244,7 @@ export function LabResultHistory({
                                 {item.unit
                                   ? ` ${item.unit}`
                                   : " Unit not recorded"}
+                                <LabUnitValidation receipt={item.unit_validation} valueKind={item.value_kind} />
                               </TableCell>
                               <TableCell>
                                 <Typography variant="body2">

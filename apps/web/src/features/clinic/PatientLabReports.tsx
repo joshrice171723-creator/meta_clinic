@@ -1,3 +1,4 @@
+import { LabUnitValidation, type LabUnitValidationReceipt } from "./LabUnitValidation";
 import AddIcon from "@mui/icons-material/Add";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import {
@@ -33,6 +34,7 @@ import type {
 } from "../../api/contracts";
 
 export type LabResult = {
+  unit_validation?: LabUnitValidationReceipt | null;
   name: string;
   code: string | null;
   code_system?: string | null;
@@ -1235,6 +1237,7 @@ export function PatientLabReports({
                                 : ""}
                               {row.flag ? ` · ${row.flag}` : ""}
                             </Typography>
+                            <LabUnitValidation receipt={row.unit_validation} valueKind={row.value_kind} />
                             {(row.code ||
                               row.value_code ||
                               row.unit_code ||
@@ -1491,6 +1494,7 @@ export function PatientLabReports({
                           .join(" · ")}
                       </Typography>
                     )}
+                    <LabUnitValidation receipt={row.unit_validation} valueKind={row.value_kind} />
                     {history &&
                       version.id === history.current_version_id &&
                       version.status !== "cancelled" && (

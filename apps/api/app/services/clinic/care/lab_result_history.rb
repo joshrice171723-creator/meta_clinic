@@ -97,6 +97,7 @@ module Clinic
           value_code_system: result["value_code_system"],
           unit: normalized_optional(result["unit"]),
           unit_code: normalized_optional(result["unit_code"]),
+          unit_validation: result["unit_validation"],
           reference_range: normalized_optional(result["reference_range"]),
           flag: normalized_optional(result["flag"]),
           reviewed_at: version.reviewed_at&.iso8601(6)

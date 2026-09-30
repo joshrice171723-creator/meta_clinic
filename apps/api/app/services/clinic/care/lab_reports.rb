@@ -220,13 +220,19 @@ module Clinic
       private_class_method :normalize_results
 
       def self.create_version!(report:, member:, number:, attributes:)
+        results = Clinic::Configuration::LabUnitMappings.validate_results(practice: report.practice,
+          results: attributes.fetch(:results))
+        recorded = attributes.except(:content_digest).merge(results:)
+        canonical = JSON.generate(recorded.transform_values { |value| value.respond_to?(:iso8601) ? value.utc.iso8601(6) : value })
+        raise ArgumentError, "Lab report content is too large." if canonical.bytesize > MAX_PAYLOAD_BYTES
+
         report.report_versions.create!(
           practice: report.practice, patient: report.patient, version_number: number,
           title: attributes.fetch(:title), status: attributes.fetch(:status),
           result_priority: attributes.fetch(:result_priority),
           collected_at: attributes.fetch(:collected_at), issued_at: attributes.fetch(:issued_at),
-          results_payload: JSON.generate(attributes.fetch(:results)), entry_kind: attributes.fetch(:entry_kind),
-          content_digest: attributes.fetch(:content_digest), recorded_by_membership: member,
+          results_payload: JSON.generate(results), entry_kind: attributes.fetch(:entry_kind),
+          content_digest: Digest::SHA256.hexdigest(canonical), recorded_by_membership: member,
           recorded_at: Current.business_time
         )
       end

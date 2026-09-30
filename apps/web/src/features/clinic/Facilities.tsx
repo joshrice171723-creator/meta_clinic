@@ -1,3 +1,4 @@
+import { LabUnitMappingSettings } from "./LabUnitMappingSettings";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Alert,
@@ -311,6 +312,7 @@ export function Facilities() {
           )}
         </Alert>
       )}
+      <LabUnitMappingSettings />
       {!creating && (
         <div id="location-setup">
           <PracticeFeatureSettings
