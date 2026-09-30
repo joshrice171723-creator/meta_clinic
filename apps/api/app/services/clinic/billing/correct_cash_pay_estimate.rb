@@ -1,16 +1,19 @@
 module Clinic
   module Billing
     class CorrectCashPayEstimate
-      def self.call(predecessor:, practice:, actor:, reason:, lines:, request_key:)
+      def self.call(predecessor:, practice:, actor:, reason:, lines:, request_key:, context: {})
         authorize!(practice: practice, actor: actor)
         raise ActiveRecord::RecordNotFound unless predecessor.practice_id == practice.id
 
         reason = reason.to_s.strip
         raise ArgumentError, "Explain the estimate correction in 500 characters or fewer." if reason.blank? || reason.length > 500
+        context = CreateCashPayEstimate.normalize_context(context)
+        payload = { predecessor_id: predecessor.id, correction_reason: reason, lines: lines }
+        payload[:context] = context if context.any?
 
         outcome = Clinic::Idempotency.execute(practice: practice, actor: actor,
           operation_code: "cash_pay_estimate.correct", request_key: request_key,
-          payload: { predecessor_id: predecessor.id, correction_reason: reason, lines: lines },
+          payload: payload,
           authorization: -> { authorize!(practice: practice, actor: actor) },
           authorization_action: "billing.invoice_draft", result_resource: ->(estimate) { estimate },
           resource_resolver: ->(practice:, receipt:) { CashPayEstimate.find_by(practice: practice, id: receipt.resource_id) }) do
@@ -26,9 +29,10 @@ module Clinic
           end
           normalized = CreateCashPayEstimate.normalize_lines(practice: practice, currency: predecessor.currency,
             lines: lines, historical_pairs: historical_pairs)
-          estimate = CashPayEstimate.create!(practice: practice, patient: predecessor.patient,
+          inherited = predecessor.attributes.symbolize_keys.slice(*CashPayEstimate::CONTEXT_FIELDS)
+          estimate = CashPayEstimate.create!(inherited.merge(context).merge(practice: practice, patient: predecessor.patient,
             classification: "gfe_candidate", status: "draft", currency: predecessor.currency,
-            supersedes: predecessor, revision: predecessor.revision + 1, correction_reason: reason)
+            supersedes: predecessor, revision: predecessor.revision + 1, correction_reason: reason))
           normalized.each { |line| estimate.lines.create!(line.merge(practice: practice)) }
           AuditRecorder.record!(practice: practice, actor: actor, action_code: "cash_pay_estimate.correct",
             outcome: :committed, resource_version_ref: "cash_pay_estimate/#{estimate.id}:#{estimate.revision}")

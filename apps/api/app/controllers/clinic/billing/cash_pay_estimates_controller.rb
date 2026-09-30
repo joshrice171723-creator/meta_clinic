@@ -25,29 +25,32 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:estimate, %i[request_key patient_id classification currency], nested_arrays: { lines: %i[billing_service_id service_offering_id quantity inclusions exclusions] })
+        input = parameter_hash!(:estimate, %i[request_key patient_id classification currency payment_context request_context scheduled_context], nested_arrays: { lines: %i[billing_service_id service_offering_id quantity inclusions exclusions date_basis] })
         estimate = CreateCashPayEstimate.call(practice: current_practice, actor: current_user,
           patient: input[:patient_id].present? ? current_practice.patients.find(requested_id!(input[:patient_id], :patient_id)) : nil,
           classification: input[:classification], currency: input[:currency], lines: input[:lines],
+          context: input.slice(*CashPayEstimate::CONTEXT_FIELDS),
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
         render json: { estimate: serialize(estimate) }, status: :created
       end
 
       def issue
         estimate = CashPayEstimate.where(practice: current_practice).find(requested_id!(params[:id], :id))
-        input = parameter_hash!(:estimate, %i[request_key policy_version delivery_method])
+        input = parameter_hash!(:estimate, %i[request_key policy_version delivery_method payment_context request_context scheduled_context])
         issued = IssueCashPayEstimate.call(estimate: estimate, practice: current_practice, actor: current_user,
           policy_version: required_string!(input[:policy_version], field: :policy_version, maximum: 80),
           delivery_method: optional_string(input[:delivery_method], field: :delivery_method, maximum: 40),
+          context: input.slice(*CashPayEstimate::CONTEXT_FIELDS),
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
         render json: { estimate: serialize(issued) }
       end
 
       def correct
         predecessor = CashPayEstimate.where(practice: current_practice).find(requested_id!(params[:id], :id))
-        input = parameter_hash!(:estimate, %i[request_key reason], nested_arrays: { lines: %i[billing_service_id service_offering_id quantity inclusions exclusions] })
+        input = parameter_hash!(:estimate, %i[request_key reason payment_context request_context scheduled_context], nested_arrays: { lines: %i[billing_service_id service_offering_id quantity inclusions exclusions date_basis] })
         estimate = CorrectCashPayEstimate.call(predecessor: predecessor, practice: current_practice, actor: current_user,
           reason: required_string!(input[:reason], field: :reason, maximum: 500), lines: input[:lines]&.map(&:to_h),
+          context: input.slice(*CashPayEstimate::CONTEXT_FIELDS),
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 160))
         render json: { estimate: serialize(estimate) }, status: :created
       end
@@ -68,8 +71,8 @@ module Clinic
           classification: estimate.classification, status: estimate.status, currency: estimate.currency,
           policy_version: estimate.policy_version, delivery_method: estimate.delivery_method, issued_at: estimate.issued_at&.iso8601(6),
           delivered_at: estimate.delivered_at&.iso8601(6), supersedes_id: estimate.supersedes_id, correction_reason: estimate.correction_reason,
-          revision: estimate.revision,
-          lines: estimate.lines.map { |line| { id: line.id, billing_service_id: line.billing_service_id, service_offering_id: line.service_offering_id, quantity: line.quantity.to_s("F"), unit_amount: line.unit_amount.to_s("F"), expected_amount: line.expected_amount.to_s("F"), description: line.description_snapshot, inclusions: line.inclusions, exclusions: line.exclusions } } }
+          revision: estimate.revision, payment_context: estimate.payment_context, request_context: estimate.request_context, scheduled_context: estimate.scheduled_context,
+          lines: estimate.lines.map { |line| { id: line.id, billing_service_id: line.billing_service_id, source_price_revision: line.source_price_revision, service_offering_id: line.service_offering_id, quantity: line.quantity.to_s("F"), unit_amount: line.unit_amount.to_s("F"), expected_amount: line.expected_amount.to_s("F"), description: line.description_snapshot, inclusions: line.inclusions, exclusions: line.exclusions, date_basis: line.date_basis } } }
       end
     end
   end

@@ -1,19 +1,22 @@
 module Clinic
   module Billing
     class CreateCashPayEstimate
-      def self.call(practice:, actor:, patient:, classification:, currency:, lines:, request_key:)
+      def self.call(practice:, actor:, patient:, classification:, currency:, lines:, request_key:, context: {})
         authorize!(practice: practice, actor: actor)
         classification = classification.to_s
         raise ArgumentError, "Choose a supported estimate classification." unless %w[general_estimate gfe_candidate].include?(classification)
         currency = currency.to_s
         raise ArgumentError, "Currency must be a three-letter uppercase code." unless currency.match?(/\A[A-Z]{3}\z/)
         request_lines = normalize_request_lines(lines)
+        context = normalize_context(context)
+        payload = { patient_id: patient&.id, classification: classification, currency: currency, lines: request_lines }
+        payload[:context] = context if context.any?
         outcome = Clinic::Idempotency.execute(practice: practice, actor: actor, operation_code: "cash_pay_estimate.create", request_key: request_key,
-          payload: { patient_id: patient&.id, classification: classification, currency: currency, lines: request_lines }, authorization: -> { authorize!(practice: practice, actor: actor) },
+          payload: payload, authorization: -> { authorize!(practice: practice, actor: actor) },
           authorization_action: "billing.invoice_draft", result_resource: ->(estimate) { estimate }, resource_resolver: ->(practice:, receipt:) { CashPayEstimate.find_by(practice: practice, id: receipt.resource_id) }) do
           ApplicationRecord.transaction do
             normalized = normalize_lines(practice: practice, currency: currency, lines: request_lines)
-            estimate = CashPayEstimate.create!(practice: practice, patient: patient, classification: classification, status: "draft", currency: currency)
+            estimate = CashPayEstimate.create!(context.merge(practice: practice, patient: patient, classification: classification, status: "draft", currency: currency))
             normalized.each { |line| estimate.lines.create!(line.merge(practice: practice)) }
             AuditRecorder.record!(practice: practice, actor: actor, action_code: "cash_pay_estimate.create", outcome: :committed, resource_version_ref: "cash_pay_estimate/#{estimate.id}:#{estimate.revision}")
             estimate
@@ -34,7 +37,8 @@ module Clinic
           if offering && !historical_pairs.include?([ offering.id, service.id ])
             raise ArgumentError, "Choose a published offering linked to the selected service." unless offering.published? && offering.billing_service_id == service.id
           end
-          { billing_service: service, service_offering: offering, quantity: quantity.to_s("F"), unit_amount: service.unit_amount.to_s("F"), expected_amount: Money.line_total(quantity: quantity, unit_amount: service.unit_amount), description_snapshot: [ service.name, service.description ].compact.join(" — "), inclusions: values[:inclusions].to_s.strip.presence, exclusions: values[:exclusions].to_s.strip.presence }
+          # Catalog optimistic-lock revision identifies the exact source read under this lock.
+          { billing_service: service, source_price_revision: service.lock_version, service_offering: offering, quantity: quantity.to_s("F"), unit_amount: service.unit_amount.to_s("F"), expected_amount: Money.line_total(quantity: quantity, unit_amount: service.unit_amount), description_snapshot: [ service.name, service.description ].compact.join(" — "), inclusions: values[:inclusions].to_s.strip.presence, exclusions: values[:exclusions].to_s.strip.presence, date_basis: optional_snapshot_text(values[:date_basis], field: "Charge date basis") }
         end
       end
 
@@ -47,15 +51,34 @@ module Clinic
           offering_id = values[:service_offering_id].present? ? Integer(values[:service_offering_id].to_s, 10) : nil
           raise ArgumentError, "Choose a valid billing service and offering." unless service_id.positive? && (!offering_id || offering_id.positive?)
 
-          {
+          normalized = {
             billing_service_id: service_id,
             service_offering_id: offering_id,
             quantity: Money.decimal(values.fetch(:quantity), name: "quantity", positive: true).to_s("F"),
             inclusions: values[:inclusions].to_s.strip.presence,
             exclusions: values[:exclusions].to_s.strip.presence
           }
+          normalized[:date_basis] = optional_snapshot_text(values[:date_basis], field: "Charge date basis") if values.key?(:date_basis)
+          normalized
         rescue KeyError, TypeError, ArgumentError
           raise ArgumentError, "Each estimate line needs valid service, offering, and quantity values."
+        end
+      end
+
+      def self.optional_snapshot_text(value, field:)
+        raise ArgumentError, "#{field} must be text of 500 characters or fewer." unless value.nil? || value.is_a?(String) && value.strip.length <= 500
+
+        value&.strip.presence
+      end
+
+      def self.normalize_context(context)
+        context.to_h.symbolize_keys.slice(*CashPayEstimate::CONTEXT_FIELDS).to_h do |key, value|
+          normalized = optional_snapshot_text(value, field: key.to_s.humanize)
+          normalized = "unknown" if key == :payment_context && normalized.nil?
+          if key == :payment_context && !CashPayEstimate::PAYMENT_CONTEXTS.include?(normalized)
+            raise ArgumentError, "Choose a supported recorded payment context."
+          end
+          [ key, normalized ]
         end
       end
 

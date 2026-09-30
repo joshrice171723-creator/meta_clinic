@@ -13,9 +13,47 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     draft = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
       classification: "gfe_candidate", currency: "USD", lines: [ { billing_service_id: @service.id, quantity: "1" } ], request_key: "api-original-create")
     @original = Clinic::Billing::IssueCashPayEstimate.call(estimate: draft, practice: @practice, actor: @actor,
+      context: { payment_context: "uninsured", request_context: "Requested 2026-09-30", scheduled_context: "No service scheduled" },
       policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "api-original-issue")
     host! "localhost:3000"
     post "/api/session", params: { email_address: @actor.email_address, password: @password }, headers: csrf_headers, as: :json
+    assert_response :success
+  end
+
+  test "date basis and context survive create issue and reload with conflicting retry denied" do
+    payload = { estimate: { request_key: "context-api-create", patient_id: @patient.id, classification: "gfe_candidate", currency: "USD",
+      payment_context: "self_pay", request_context: "Requested 2026-09-30", scheduled_context: "No service scheduled",
+      lines: [ { billing_service_id: @service.id, quantity: "1", date_basis: "Expected visit 2026-10-02; not booked" } ] } }
+    post "/api/clinic/cash_pay_estimates", params: payload, headers: csrf_headers, as: :json
+    assert_response :created
+    draft = response.parsed_body.fetch("estimate")
+    assert_equal "self_pay", draft.fetch("payment_context")
+    assert_equal "Requested 2026-09-30", draft.fetch("request_context")
+    assert_equal "No service scheduled", draft.fetch("scheduled_context")
+    assert_equal "Expected visit 2026-10-02; not booked", draft.fetch("lines").sole.fetch("date_basis")
+    post "/api/clinic/cash_pay_estimates/#{draft.fetch('id')}/issue",
+      params: { estimate: { request_key: "context-api-issue", policy_version: "synthetic-policy", delivery_method: "paper" } }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/cash_pay_estimates/#{draft.fetch('id')}"
+    assert_response :success
+    assert_equal draft.fetch("request_context"), response.parsed_body.fetch("estimate").fetch("request_context")
+    post "/api/clinic/cash_pay_estimates", params: payload.deep_merge(estimate: { request_context: "Changed request" }), headers: csrf_headers, as: :json
+    assert_response :conflict
+  end
+
+  test "unknown context is saved in drafts and blocks only new GFE issuance" do
+    post "/api/clinic/cash_pay_estimates",
+      params: { estimate: { request_key: "unknown-context-create", patient_id: @patient.id, classification: "gfe_candidate", currency: "USD",
+        lines: [ { billing_service_id: @service.id, quantity: "1" } ] } }, headers: csrf_headers, as: :json
+    assert_response :created
+    draft = response.parsed_body.fetch("estimate")
+    assert_equal "unknown", draft.fetch("payment_context")
+    assert_nil draft.fetch("lines").sole.fetch("date_basis")
+    post "/api/clinic/cash_pay_estimates/#{draft.fetch('id')}/issue",
+      params: { estimate: { request_key: "unknown-context-issue", policy_version: "synthetic-policy", delivery_method: "paper" } }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "draft", Clinic::Billing::CashPayEstimate.find(draft.fetch("id")).status
+    get "/api/clinic/cash_pay_estimates", params: { patient_id: @patient.id }
     assert_response :success
   end
 
@@ -29,6 +67,7 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     assert_equal @original.id, estimate.fetch("supersedes_id")
     assert_equal "Catalog price changed", estimate.fetch("correction_reason")
     assert_equal "95.0", estimate.fetch("lines").sole.fetch("unit_amount")
+    assert_equal @service.reload.lock_version, estimate.fetch("lines").sole.fetch("source_price_revision")
     assert_equal "issued", @original.reload.status
 
     foreign = Clinic::Billing::CashPayEstimate.create!(practice: @other_practice, classification: "issued_gfe", status: "issued", currency: "USD",
@@ -63,12 +102,14 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     history = response.parsed_body.fetch("estimates")
     assert_equal [ correction_id, @original.id ], history.map { |item| item.fetch("id") }
     assert_equal [ "95.0", "75.0" ], history.map { |item| item.fetch("lines").sole.fetch("unit_amount") }
+    assert_equal [ 1, 0 ], history.map { |item| item.fetch("lines").sole.fetch("source_price_revision") }
     assert_equal @original.id, history.first.fetch("supersedes_id")
     assert_equal false, response.parsed_body.fetch("truncated")
 
     get "/api/clinic/cash_pay_estimates/#{@original.id}"
     assert_response :success
     assert_equal "75.0", response.parsed_body.fetch("estimate").fetch("lines").sole.fetch("unit_amount")
+    assert_equal 0, response.parsed_body.fetch("estimate").fetch("lines").sole.fetch("source_price_revision")
 
     foreign_patient = @other_practice.patients.create!(display_name: "Other patient", reference: "OTHER-CORR")
     get "/api/clinic/cash_pay_estimates", params: { patient_id: foreign_patient.id }
