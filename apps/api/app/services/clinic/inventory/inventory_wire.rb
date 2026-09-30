@@ -315,20 +315,20 @@ module Clinic
         end
       end
 
-      def supplier_pricing(practice:, actor:, **filters)
+      def supplier_pricing(practice:, actor:, quote_request_page: nil, quote_request_status: nil, **filters)
         result = SupplierPricingQuery.call(practice: practice, **filters)
-        quote_requests = SupplierQuoteRequest.where(practice_id: practice.id).includes(:supplier, :product)
-        quote_requests = quote_requests.where(supplier_id: result.supplier_id) if result.supplier_id.present?
-        quote_requests = quote_requests.order(created_at: :desc, id: :desc).limit(26).to_a
-        quote_requests_capped = quote_requests.length > 25
+        requests = SupplierQuoteRequestsQuery.call(practice:, supplier_id: result.supplier_id,
+          page: quote_request_page, status: quote_request_status)
         context(practice: practice, actor: actor).merge(
           supplier_page: { query: result.query, supplier_id: result.supplier_id, page: result.page, page_count: result.page_count,
             page_size: SupplierPricingQuery::PAGE_SIZE, total_count: result.total_count, filtered_count: result.filtered_count },
           products: result.offers.filter_map(&:product).uniq(&:id).map { |product| { id: product.id.to_s, name: product.name, ndc: product.ndc.to_s, preferred_supplier_id: product.preferred_supplier_id&.to_s } },
           suppliers: Supplier.where(practice_id: practice.id).order(:name, :id).map { |supplier| { id: supplier.id.to_s, name: supplier.name } },
           supplier_products: result.offers.map { |row| supplier_product_wire(row, on: practice.inventory_date) },
-          quote_requests: quote_requests.first(25).map { |request| supplier_quote_request_wire(request) },
-          quote_requests_capped: quote_requests_capped)
+          quote_requests: requests.requests.map { |request| supplier_quote_request_wire(request) },
+          quote_request_page: { status: requests.status, page: requests.page, page_count: requests.page_count,
+            page_size: SupplierQuoteRequestsQuery::PAGE_SIZE, total_count: requests.total_count, filtered_count: requests.filtered_count },
+          quote_requests_capped: requests.filtered_count > SupplierQuoteRequestsQuery::PAGE_SIZE)
       end
 
       def supplier_quote_request_wire(request)

@@ -2645,6 +2645,9 @@ export function InventoryApp({ path }: { path: string }) {
                             supplier_id:
                               data.supplier_page.supplier_id ?? undefined,
                             page: data.supplier_page.page,
+                            quote_request_page: data.quote_request_page?.page,
+                            quote_request_status:
+                              data.quote_request_page?.status,
                           }
                         : screen === "purchasing" &&
                             data &&
@@ -2722,6 +2725,10 @@ export function InventoryApp({ path }: { path: string }) {
           );
         if (read.order_status) query.set("order_status", read.order_status);
         if (read.supplier_id) query.set("supplier_id", read.supplier_id);
+        if (read.quote_request_page)
+          query.set("quote_request_page", String(read.quote_request_page));
+        if (read.quote_request_status)
+          query.set("quote_request_status", read.quote_request_status);
         if (read.location_status)
           query.set("location_status", read.location_status);
         if (read.exception_status)
