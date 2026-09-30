@@ -1206,9 +1206,9 @@ export function NurseEncounterWorkspaceContent({
                                 </AccordionDetails>
                               </Accordion>
                             )}
-                            {workspace.intake && (
+                            {latestIntake && (
                               <IntakeAnswerProvenance
-                                intake={workspace.intake}
+                                intake={latestIntake}
                                 patientId={patient.id}
                                 encounterId={encounter.id}
                                 fields={

@@ -5,7 +5,10 @@ import { chromium, type Browser } from "playwright-core";
 import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { EncounterIntakeRevision } from "../src/api/contracts";
+import type {
+  EncounterIntakeRevision,
+  NurseWorkspace,
+} from "../src/api/contracts";
 import { IntakeAnswerProvenance } from "../src/features/clinic/IntakeAnswerProvenance";
 
 export const savedIntake: EncounterIntakeRevision = {
@@ -183,17 +186,39 @@ beforeAll(async () => {
     plugins: [
       {
         name: "intake-provenance-browser-entry",
-        resolveId(id) {
+        enforce: "pre",
+        resolveId(id, importer) {
+          if (
+            id === "./Workspace" &&
+            /\/(NurseEncounterWorkspace|VitalSignsEntry|IntakeConsentEvidence|PatientCareCoordination)\.tsx$/.test(
+              importer ?? "",
+            )
+          )
+            return "\0nurse-provenance-clinic-context";
           if (id === virtualId) return virtualId;
         },
         load(id) {
+          if (id === "\0nurse-provenance-clinic-context")
+            return "export const useClinic = () => ({membership_id: 7});";
           if (id !== virtualId) return;
           return `import React, {useState} from "react";
           import {createRoot} from "react-dom/client";
           import {IntakeAnswerProvenance} from "/src/features/clinic/IntakeAnswerProvenance";
+          import {NurseEncounterWorkspaceContent} from "/src/features/clinic/NurseEncounterWorkspace";
           function App() {
             const [fixture, replace] = useState(window.initialIntakeFixture);
+            const [refreshError, setRefreshError] = useState("");
             window.replaceIntakeFixture = replace;
+            if (fixture.workspace) return React.createElement(NurseEncounterWorkspaceContent, {
+              patient: {id: 12, display_name: "Synthetic receipt patient"},
+              encounter: {id: 30, patient_id: 12, site_id: 15, room_id: null,
+                status: "open", visit_modality: "video"},
+              observations: [], careSummary: null,
+              roomsResource: {data: {rooms: []}, refresh: () => {}},
+              resource: {data: fixture.workspace, error: refreshError,
+                refresh: () => {window.refreshCount = (window.refreshCount || 0) + 1;
+                  if (fixture.refreshFails) setRefreshError("Controlled refresh failure");}}
+            });
             return React.createElement(IntakeAnswerProvenance, fixture);
           }
           createRoot(document.getElementById("root")).render(React.createElement(App));`;
@@ -237,6 +262,7 @@ it("selects saved questions by keyboard and resets the disclosure on revision an
   const errors: string[] = [];
   const apiReads: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/api/"))
       apiReads.push(request.url());
@@ -335,3 +361,200 @@ it("selects saved questions by keyboard and resets the disclosure on revision an
     await page.close();
   }
 }, 15000);
+
+it.each([false, true])(
+  "keeps acknowledged correction provenance when refresh fails=%s and retains the previous intake",
+  async (refreshFails) => {
+    const previous = structuredClone(savedIntake);
+    previous.questionnaire!.answers = {
+      visit_reason: { state: "answered", value: "Synthetic original answer" },
+    };
+    previous.questionnaire!.items = {
+      visit_reason: {
+        ...savedIntake.questionnaire!.items!.weight,
+        question: {
+          id: "visit_reason",
+          label: "Recorded visit reason",
+          question_version: 2,
+        },
+        original_response: {
+          state: "answered",
+          value: "Synthetic original answer",
+        },
+      },
+    };
+    previous.questionnaire!.questionnaire_version = 3;
+    const receipt = structuredClone(previous);
+    receipt.id = 101;
+    receipt.version = 5;
+    receipt.questionnaire!.answers.visit_reason = {
+      state: "answered",
+      value: "Synthetic corrected answer",
+    };
+    receipt.questionnaire!.items!.visit_reason = {
+      ...receipt.questionnaire!.items!.visit_reason,
+      original_response: {
+        state: "answered",
+        value: "Synthetic corrected answer",
+      },
+      source: "patient_reported",
+      recorded_at: "2026-09-30T13:00:00Z",
+      recorded_by_membership_id: 8,
+      supersedes_revision_id: previous.id,
+    };
+    const workspace: NurseWorkspace = {
+      schema_version: "nurse-workspace-v1",
+      patient_id: 12,
+      encounter_id: 30,
+      intake: previous,
+      handoff: null,
+      tasks: [],
+      capabilities: {
+        intake_write: true,
+        handoff_request: false,
+        handoff_respond: false,
+        tasks_write: false,
+        observations_write: false,
+      },
+      questionnaire_form: {
+        id: "weight-management-initial-v1",
+        version: 3,
+        fields: [
+          {
+            id: "visit_reason",
+            label: "Current visit reason",
+            reusable: false,
+          },
+        ],
+        chunks: [
+          {
+            index: 0,
+            id: "today_visit",
+            label: "Today's visit",
+            description: "Synthetic source correction",
+            fields: ["visit_reason"],
+          },
+        ],
+        answer_states: ["unanswered", "answered", "unknown", "declined"],
+        provenance: ["patient_reported", "staff_recorded"],
+        medication_options: [],
+      },
+    };
+    const page = await browser.newPage({
+      viewport: { width: 1280, height: 900 },
+    });
+    page.setDefaultTimeout(5000);
+    const errors: string[] = [];
+    const saves: Array<{
+      intake: {
+        expected_version: number;
+        request_key: string;
+        questionnaire: { answers: Record<string, { value: string }> };
+      };
+    }> = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.addInitScript(
+      (value) => Object.assign(window, { initialIntakeFixture: value }),
+      { workspace, refreshFails },
+    );
+    await page.route("**/api/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (!path.startsWith("/api/")) {
+        await route.continue();
+      } else if (path === "/api/csrf") {
+        await route.fulfill({
+          json: { csrf_token: "controlled-synthetic-csrf" },
+        });
+      } else if (
+        path === "/api/clinic/patients/12/encounters/30/intake_revisions" &&
+        request.method() === "POST"
+      ) {
+        saves.push(request.postDataJSON());
+        await route.fulfill({ json: { intake: receipt } });
+      } else {
+        await route.fulfill({
+          status: 404,
+          json: { error: "Unexpected controlled request" },
+        });
+      }
+    });
+    try {
+      await page.goto(baseUrl + "/intake-test");
+      await page
+        .getByText("Rooming & intake", { exact: true })
+        .waitFor()
+        .catch(() => {
+          throw new Error(`Workspace did not render: ${errors.join("; ")}`);
+        });
+      const disclosure = page.getByRole("button", {
+        name: "Inspect saved answer source",
+      });
+      await disclosure.click();
+      const region = page.getByRole("region", {
+        name: "Selected saved answer source",
+      });
+      await region
+        .getByText("Synthetic original answer", { exact: true })
+        .first()
+        .waitFor();
+      await page
+        .getByRole("textbox", { name: "Current visit reason", exact: true })
+        .fill("Synthetic corrected answer");
+      await page
+        .getByRole("button", { name: "Save draft", exact: true })
+        .click();
+      await page.getByText("Intake revision saved.", { exact: true }).waitFor();
+      expect(saves).toHaveLength(1);
+      expect(saves[0].intake.expected_version).toBe(4);
+      expect(saves[0].intake.request_key).toBeTruthy();
+      expect(saves[0].intake.questionnaire.answers.visit_reason.value).toBe(
+        "Synthetic corrected answer",
+      );
+      expect(
+        await page.evaluate(
+          () => (window as unknown as { refreshCount: number }).refreshCount,
+        ),
+      ).toBe(1);
+      // The old workspace response stays retained after either refresh outcome.
+      expect(
+        await page.evaluate(
+          () =>
+            (
+              window as unknown as {
+                initialIntakeFixture: { workspace: NurseWorkspace };
+              }
+            ).initialIntakeFixture.workspace.intake!.id,
+        ),
+      ).toBe(100);
+      expect(await disclosure.getAttribute("aria-expanded")).toBe("false");
+      await disclosure.click();
+      await region
+        .getByText("Synthetic corrected answer", { exact: true })
+        .first()
+        .waitFor();
+      expect(
+        await region
+          .getByText("Synthetic corrected answer", { exact: true })
+          .count(),
+      ).toBe(2);
+      expect(await region.textContent()).toContain("Membership #8");
+      expect(await region.textContent()).toContain("2026-09-30T13:00:00Z");
+      expect(await region.textContent()).toContain(
+        "Earlier intake record #100",
+      );
+      expect(await region.textContent()).not.toContain(
+        "Synthetic original answer",
+      );
+      expect(await region.textContent()).not.toContain("Membership #6");
+      expect(await region.textContent()).not.toContain(
+        "Earlier intake record #90",
+      );
+      expect(errors).toEqual([]);
+    } finally {
+      await page.close();
+    }
+  },
+  15000,
+);
