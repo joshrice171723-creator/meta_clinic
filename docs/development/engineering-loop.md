@@ -92,20 +92,22 @@ that control. Remain quiet on unchanged blockers after the initial notification.
 ## Two loops, explicit publication
 
 Development implements independent tracker slices on its owned branch. The existing
-QA loop processes Muse findings and repairs/reviews eligible work on a separate
+QA loop processes only Muse findings and repairs/reviews their associated work on a separate
 branch. Both wake every five minutes; neither duplicates an active pass, merges into
 main, publishes, or merges the other's work each cycle. Fetch for awareness and
 record drift for the publishing handoff.
 
 An open PR or pending QA review is a handoff, not a stop condition. Development
 continues independent tracker slices on its branch and records each completed
-commit. QA reviews exact SHAs; later changes require affected evidence to be
+commit. Muse repair reviews identify exact SHAs; later changes require affected evidence to be
 refreshed when Joshua freezes the final publishing candidate. Neither loop waits
 for the other to merge work after each cycle.
 
 Development PRs carry `engineering-loop` plus the outcome, owned files, revision and
-actual non-test evidence. QA reviews that separate integration lane explicitly;
-it must not invent Muse issue markers or use the Muse approval helper on those PRs.
+actual non-test evidence for the explicit publish review. The QA loop does not
+review those development PRs, select tracker features or perform general audits.
+It stays idle when there is no actionable Muse feedback. Never invent Muse issue
+markers or use the Muse approval helper on unrelated development PRs.
 The existing Muse monitor owns independent browser QA and exact-build retesting.
 Read its active state before publishing; never interrupt its current browser run.
 

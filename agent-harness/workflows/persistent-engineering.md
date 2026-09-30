@@ -87,17 +87,20 @@ An explicit publishing freeze, overlapping ownership, native budget limit or
 concrete blocker stops only the affected path. Do not wait for QA integration
 between development cycles.
 
-The existing QA loop owns eligible Muse repair batches and independent review on
-its own branch. Neither loop merges into main or publishes. Both loops wake
+The existing QA loop handles only Muse-origin findings: triage, bounded repairs,
+review of their associated repair work and exact-build Muse retest coordination on
+its own branch. It does not review unrelated development PRs, select tracker
+features or run general audits. With no actionable Muse feedback, stay quiet and
+idle. Neither loop merges into main or publishes. Both loops wake
 every five minutes; existing Muse browser monitoring remains separately owned.
 Do not create duplicate QA runs, repairs or publishers. QA first checks issue IDs,
 PR reservations and current Muse activity; development chooses independent work
 when its tracker slice overlaps a QA batch.
 
 Development PRs use the `engineering-loop` label and state outcome, owned paths and
-local evidence. They form a separately reviewed integration handoff;
+local evidence. They form an integration handoff for explicit publishing;
 never invent Muse markers or defect IDs to make them eligible for automatic QA
-approval. QA can review their scoped changes; integration is reserved for Joshua's
+approval. Development PR review and integration are reserved for Joshua's
 explicit invocation of [publish](../../.agents/skills/publish/SKILL.md).
 
 On a publishing freeze, stop accepting new slices, finish or safely checkpoint the
