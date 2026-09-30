@@ -18,15 +18,15 @@ Authorized reader opens Prescription reconciliation, sees first-page count/sourc
 
 ## Fields and action rules
 
-| Field/control | Rule |
-| --- | --- |
-| `page` | Optional GET parameter, default 1, integer 1–999999. Existing parameter handler returns 400 with `field: page` for invalid input. |
-| Server page | Fixed 50 rows, immutable attempt-ID ascending order, offset after the existing authorized/series-resolution query. Requested page clamps to available pages; empty population is page 1 of 1. |
-| Pagination | Additive `pagination: {page, per_page, total, total_pages}` on existing v1 contract; full matching count retains its original meaning. Existing limit/returned_count/truncated fields remain. |
+| Field/control    | Rule                                                                                                                                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page`           | Optional GET parameter, default 1, integer 1–999999. Existing parameter handler returns 400 with `field: page` for invalid input.                                                                        |
+| Server page      | Fixed 50 rows, immutable attempt-ID ascending order, offset after the existing authorized/series-resolution query. Requested page clamps to available pages; empty population is page 1 of 1.            |
+| Pagination       | Additive `pagination: {page, per_page, total, total_pages}` on existing v1 contract; full matching count retains its original meaning. Existing limit/returned_count/truncated fields remain.            |
 | Client ownership | Accept matching actor/practice/site, bounded integer metadata and expected/clamped page only. Key state by context plus page. Missing pagination fails closed, requiring compatible backend integration. |
-| Previous/next | Existing MUI Buttons; disabled at bounds. Refresh/retry repeats the current requested page; no record writes. |
-| Empty page | Only zero authorized total can say queue clear. An empty page with nonzero total asks reader to refresh. Live reconciliation may move offset boundaries; this is not a frozen snapshot. |
-| History link | Existing encounter, original revision and attempt IDs preserved; no new medication request or clinical action. |
+| Previous/next    | Existing MUI Buttons; disabled at bounds. Refresh/retry repeats the current requested page; no record writes.                                                                                            |
+| Empty page       | Only zero authorized total can say queue clear. An empty page with nonzero total asks reader to refresh. Live reconciliation may move offset boundaries; this is not a frozen snapshot.                  |
+| History link     | Existing encounter, original revision and attempt IDs preserved; no new medication request or clinical action.                                                                                           |
 
 ## Ownership and dependency matrix references
 
