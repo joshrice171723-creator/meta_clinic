@@ -33,8 +33,8 @@ module Clinic
         exclusions: "Payment amount is not invoice allocation or drawer cash. Refunds may relate to payments from another day. This is not a net cash or processor settlement report."
       }.freeze
       OPEN_CLINICAL_WORK = {
-        id: "open_clinical_work", revision: 1, source: "clinic_clinical_tasks",
-        date_basis: "current state at query time", population: "Active clinical tasks in the selected clinic or site.",
+        id: "open_clinical_work", revision: 2, source: "clinic_clinical_tasks",
+        date_basis: "current state at query time", population: "Active clinical tasks in the selected clinic or site, grouped by current recorded owner, including unassigned work and owners whose access is inactive. Pending transfers do not change the recorded owner.",
         exclusions: "Completed and cancelled tasks, encounter follow-ups, messages, and billing work are excluded. This is not a historical daily census."
       }.freeze
     end

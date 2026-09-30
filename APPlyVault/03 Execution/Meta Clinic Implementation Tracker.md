@@ -43,6 +43,19 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**2026-09-29 — MC-14 clinical work by owner, development branch:** The existing
+open-clinical-work report now groups active tasks by recorded membership owner,
+with per-owner overdue counts and a separate unassigned row. Owner labels reuse
+the worklist's email identity; inactive memberships remain represented and pending
+transfers do not substitute the proposed owner. Tenant/site restrictions and
+existing read/write capability gates remain unchanged. Report definition revision
+2 documents this population. This is an internal aggregation of existing task
+assignments, with no new clinical fields or exchange contract; no additional FHIR
+implementation guide applies to this slice. TypeScript, Ruby syntax, scoped
+RuboCop and diff review passed. Browser counts, empty state, inactive-owner display,
+site/role denial and reload remain unverified. No tests, main merge or publication;
+Build, Validation and external/human scores are unchanged. Source base: `76512d23`.
+
 **2026-09-29 — MC-14 remaining daily CSV provenance, development branch:** Invoice,
 payment/refund and stock-movement exports now retain the existing API clinic ID,
 inclusive/exclusive report interval, timezone, freshness, definition population and

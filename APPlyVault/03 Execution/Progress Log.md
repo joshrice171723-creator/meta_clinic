@@ -7,6 +7,15 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — MC-14 clinical-work owner totals
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records
+owner and unassigned totals with overdue counts in the existing clinical-work
+report on `codex/persistent-engineering-pilot`, based on `76512d23`. Existing task
+ownership, tenant/site restrictions and permission gates are preserved. TypeScript,
+Ruby syntax and scoped lint passed; browser acceptance remains open. No tests,
+main merge or deployment occurred; scores are unchanged.
+
 ## 2026-09-29 — MC-14 invoice, payment and stock CSV provenance
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the

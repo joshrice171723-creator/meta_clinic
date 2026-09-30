@@ -168,6 +168,12 @@ type OpenClinicalWorkReport = {
   total: number;
   overdue_count: number;
   kinds: { kind: string; total: number; counts: Record<string, number> }[];
+  owners: {
+    membership_id: number | null;
+    label: string;
+    total: number;
+    overdue_count: number;
+  }[];
 };
 
 type ConfigurationManifest = {
@@ -345,6 +351,14 @@ function OpenClinicalWork({ siteId }: { siteId?: number }) {
                 )
                 .join(", ")}
               )
+            </Typography>
+          ))}
+          <Typography variant="subtitle2" component="h4">
+            By recorded owner
+          </Typography>
+          {report.owners.map((owner) => (
+            <Typography key={owner.membership_id ?? "unassigned"} variant="body2">
+              {owner.label}: {owner.total} active · {owner.overdue_count} past due
             </Typography>
           ))}
           <Button
