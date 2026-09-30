@@ -57,11 +57,17 @@ type DailyInvoicesReport = {
     revision: number;
     source: string;
     date_basis: string;
+    state_basis: string;
+    population: string;
     exclusions: string;
   };
+  practice_id: number;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
+  freshness: string;
   records: {
     id: number;
     patient_id: number;
@@ -84,11 +90,16 @@ type DailyStockReport = {
     revision: number;
     source: string;
     date_basis: string;
+    population: string;
     exclusions: string;
   };
+  practice_id: number;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
+  freshness: string;
   records: {
     id: number;
     stock_type: string;
@@ -114,11 +125,16 @@ type DailyPaymentReport = {
     revision: number;
     source: string;
     date_basis: string;
+    population: string;
     exclusions: string;
   };
+  practice_id: number;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
+  freshness: string;
   payment_records: {
     id: number;
     patient_id: number;
@@ -847,9 +863,16 @@ function DailyPaymentActivity({ date }: { date: string }) {
                   ["definition_revision", String(report.definition.revision)],
                   ["source", report.definition.source],
                   ["date_basis", report.definition.date_basis],
+                  ["population", report.definition.population],
+                  ["exclusions", report.definition.exclusions],
+                  ["practice_id", String(report.practice_id)],
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
+                  ["interval_start_inclusive", report.interval_start],
+                  ["interval_end_exclusive", report.interval_end],
                   ["as_of", report.as_of],
+                  ["freshness", report.freshness],
+                  ["summary_scope", "all matching payments and refunds"],
                   [
                     "currency",
                     "payment_count",
@@ -865,6 +888,7 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     row.refund_amount,
                   ]),
                   [],
+                  ["records_scope", "current payment and refund pages only"],
                   [
                     "payment_record_page",
                     String(report.payment_pagination.page),
@@ -877,6 +901,14 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     "payment_records_total",
                     String(report.payment_pagination.total),
                   ],
+                  [
+                    "payment_record_pages_total",
+                    String(report.payment_pagination.total_pages),
+                  ],
+                  [
+                    "payment_records_exported",
+                    String(report.payment_records.length),
+                  ],
                   ["refund_record_page", String(report.refund_pagination.page)],
                   [
                     "refund_records_per_page",
@@ -885,6 +917,14 @@ function DailyPaymentActivity({ date }: { date: string }) {
                   [
                     "refund_records_total",
                     String(report.refund_pagination.total),
+                  ],
+                  [
+                    "refund_record_pages_total",
+                    String(report.refund_pagination.total_pages),
+                  ],
+                  [
+                    "refund_records_exported",
+                    String(report.refund_records.length),
                   ],
                   [
                     "record_type",
@@ -914,12 +954,19 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     record.created_at,
                   ]),
                 ],
-                `daily-payment-activity-${report.date}.csv`,
+                `daily-payment-activity-clinic-${report.practice_id}-${report.date}-payments-page-${report.payment_pagination.page}-refunds-page-${report.refund_pagination.page}.csv`,
               )
             }
           >
             Download payment activity CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes totals for all matching payments and refunds, with only{" "}
+            {report.payment_records.length} payments from page{" "}
+            {report.payment_pagination.page} and {report.refund_records.length}{" "}
+            refunds from page {report.refund_pagination.page}. Clinic, time
+            interval and source details are included in the file.
+          </Typography>
           <Button
             href="/clinic/billing"
             size="small"
@@ -1004,10 +1051,17 @@ function DailyInvoices({ date }: { date: string }) {
                   ["definition_revision", String(report.definition.revision)],
                   ["source", report.definition.source],
                   ["date_basis", report.definition.date_basis],
+                  ["state_basis", report.definition.state_basis],
+                  ["population", report.definition.population],
                   ["exclusions", report.definition.exclusions],
+                  ["practice_id", String(report.practice_id)],
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
+                  ["interval_start_inclusive", report.interval_start],
+                  ["interval_end_exclusive", report.interval_end],
                   ["as_of", report.as_of],
+                  ["freshness", report.freshness],
+                  ["summary_scope", "all matching invoices"],
                   [
                     "currency",
                     "state",
@@ -1032,9 +1086,12 @@ function DailyInvoices({ date }: { date: string }) {
                     ],
                   ]),
                   [],
+                  ["records_scope", "current page only"],
                   ["record_page", String(report.pagination.page)],
                   ["records_per_page", String(report.pagination.per_page)],
                   ["records_total", String(report.pagination.total)],
+                  ["record_pages_total", String(report.pagination.total_pages)],
+                  ["records_exported", String(report.records.length)],
                   [
                     "invoice_id",
                     "patient_id",
@@ -1052,12 +1109,18 @@ function DailyInvoices({ date }: { date: string }) {
                     record.current_outstanding_balance,
                   ]),
                 ],
-                `daily-invoices-${report.date}.csv`,
+                `daily-invoices-clinic-${report.practice_id}-${report.date}-page-${report.pagination.page}.csv`,
               )
             }
           >
             Download invoice report CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes summaries for all {report.pagination.total} matching
+            invoices and only the {report.records.length} source invoices on
+            page {report.pagination.page}. Clinic, time interval and source
+            details are included in the file.
+          </Typography>
           <Button
             href="/clinic/billing"
             size="small"
@@ -1148,10 +1211,19 @@ function DailyStockMovements({ date }: { date: string }) {
                   ["definition_revision", String(report.definition.revision)],
                   ["source", report.definition.source],
                   ["date_basis", report.definition.date_basis],
+                  ["population", report.definition.population],
                   ["exclusions", report.definition.exclusions],
+                  ["practice_id", String(report.practice_id)],
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
+                  ["interval_start_inclusive", report.interval_start],
+                  ["interval_end_exclusive", report.interval_end],
                   ["as_of", report.as_of],
+                  ["freshness", report.freshness],
+                  [
+                    "summary_scope",
+                    "all matching stock entries, grouped by type and unit",
+                  ],
                   [
                     "stock_type",
                     "stock_unit",
@@ -1167,9 +1239,12 @@ function DailyStockMovements({ date }: { date: string }) {
                     row.signed_quantity,
                   ]),
                   [],
+                  ["records_scope", "current page only"],
                   ["record_page", String(report.pagination.page)],
                   ["records_per_page", String(report.pagination.per_page)],
                   ["records_total", String(report.pagination.total)],
+                  ["record_pages_total", String(report.pagination.total_pages)],
+                  ["records_exported", String(report.records.length)],
                   [
                     "entry_id",
                     "stock_type",
@@ -1191,12 +1266,18 @@ function DailyStockMovements({ date }: { date: string }) {
                     record.occurred_at,
                   ]),
                 ],
-                `daily-stock-movements-${report.date}.csv`,
+                `daily-stock-movements-clinic-${report.practice_id}-${report.date}-page-${report.pagination.page}.csv`,
               )
             }
           >
             Download stock movements CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes summaries for all {report.pagination.total} matching
+            stock entries and only the {report.records.length} source entries on
+            page {report.pagination.page}. Stock types and units remain
+            separate; clinic, time interval and source details are included.
+          </Typography>
           <Button
             href="/clinic/inventory/activity"
             size="small"

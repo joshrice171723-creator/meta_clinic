@@ -7,6 +7,15 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — MC-14 invoice, payment and stock CSV provenance
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the
+remaining daily CSV provenance slice on `codex/persistent-engineering-pilot`, based
+on `7143d95d`. Exports preserve the existing server source/filter/interval contract
+and distinguish full-population summaries from selected source pages. TypeScript
+passed; browser download, role/site acceptance, separate export authorization/audit
+and retention remain open. No tests, main merge or deployment; scores unchanged.
+
 ## 2026-09-29 — MC-14 visit CSV provenance on development branch
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md)

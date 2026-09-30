@@ -43,6 +43,19 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**2026-09-29 — MC-14 remaining daily CSV provenance, development branch:** Invoice,
+payment/refund and stock-movement exports now retain the existing API clinic ID,
+inclusive/exclusive report interval, timezone, freshness, definition population and
+exclusions (and invoice state basis). Summary totals cover the full filtered
+population; source rows are explicitly the selected page, with independent payment
+and refund page counts. Filenames identify clinic, date and selected pages; download
+captions disclose scope. Currency, stock-type/unit separation, exact decimal strings
+and existing CSV encoding are preserved. TypeScript passed and the source mapping
+was reviewed; browser downloads, role denial and reload remain unverified. Separate
+export authorization/audit and retention policy remain open. No tests, main merge
+or publication occurred; scores remain unchanged. Observed remote main drift to
+`e2934e93` is reserved for the explicit publishing handoff.
+
 **2026-09-29 — MC-14 visit export provenance, development branch:** The daily visit
 CSV now retains the API's clinic/site filter, inclusive start and exclusive end of
 the report interval, timezone, freshness, definition revision, population and
