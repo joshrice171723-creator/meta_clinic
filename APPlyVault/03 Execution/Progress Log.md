@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 - Fixed c1646838 source score batch
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) now assesses only `c16468388eeaed39acbbb2184049fd4c72ff2462`: **Build 76.3% -> 79.1%, local Validation 48.1% -> 48.5%, External / human 0% unchanged**. The [dated batch reconciliation](../../records/progress/2026/09/2026-09-30-tracker-score-reconciliation.md) preserves all before/after rows, source/receipt links and limitations. Build sum 1,145 -> 1,187: +35 is an existing-source MC-07 accounting correction, +7 is new membership-history/timecard delivery. Validation 721 -> 728; both sums use the unchanged 15-row denominator. MC-02's shared slug editor is built; no speculative bonus or separate editor requirement. MC-05's original-field source scope remains unresolved; role/device/policy evidence is tracked separately.
+
+Parent supplies independent and combined eleven-case timecard/six-case membership evidence; source and briefs were inspected, with no app jobs rerun. These are controlled local results, not Rails-backed patient/role, two-party media, provider or clinical acceptance. `186a`, future queue work and later heads are excluded. No app code, credentials, live fixtures, new PR, merge or deployment changed. Relay owns integration of this isolated documentation diff.
+
 ## 2026-09-30 - Founder-requested percentage reconciliation
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) now shows the inspected PR66 combined candidate `8c3d2358073acd14bb135a93a3adb1d7aa9034c8`: **Build 73.2% -> 76.3%, local Validation 46.3% -> 48.1%, External / human 0% unchanged**. The [dated reconciliation](../../records/progress/2026/09/2026-09-30-tracker-score-reconciliation.md) supplies every MC-01-15 before/after, source/receipt links, judgment limits and remaining gaps. Build row sum 1,098 -> 1,145; Validation 694 -> 721, divided by 15. Earlier uncredited prescription/receiving recovery and retained setup, intake, follow-up, billing, supplier, reporting and configuration/Scribe slices are credited; already scored features, Office/QA/DevOps and simulated external outcomes are not. MC-16 remains excluded and unchanged.
