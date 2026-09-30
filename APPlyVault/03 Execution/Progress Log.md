@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — QA build observation and access feedback released
+
+PR #33 fixes QA build observation independently of workspace access, clears stale workspace records on a failed refresh, disables pin confirmation without workspace data, and explains the existing platform-owner credential requirement. The guarded 0.2.3 release completed at `8e2a8215c1654594eea2c4878707dfbe255f5f24`; independent public build.json matched and /up returned HTTP 200. TypeScript, formatting, encrypted recovery and hosted release checks passed. An anonymous browser was correctly directed to the QA credential form; a signed-in QA build-panel walkthrough and actual platform-owner account login remain unverified. Issue #32 retains that acceptance gap. Demo PIN permissions were not changed. Atlas percentages remain unchanged.
+
 ## 2026-09-29 — 0.2.2 demo and scribe carryforward published
 
 PR #31 merged and the guarded Lightsail release completed at `1beddd8bd94b244d95b4cc721e9ac7281d953577`, version 0.2.2. Matched images, encrypted recovery and hosted checks passed; independent build.json matched and /up plus /clinic/updates returned HTTP 200. [Carryforward and release receipt](../../records/audits/2026-09-29-remaining-diff-carryforward.md) preserve the deferred timezone/permission drafts and QA-page follow-up. Atlas percentages are unchanged; Muse exact-build browser acceptance remains pending.
