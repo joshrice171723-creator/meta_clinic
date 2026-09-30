@@ -1,7 +1,9 @@
+import { CarrierTrackingPreparation } from "./CarrierTrackingPreparation";
 import { OrderDeliveryPreparation } from "./OrderDeliveryPreparation";
 import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -5337,10 +5339,21 @@ function PurchaseOrderDetails({
 }) {
   const [deliveryBlocked, setDeliveryBlocked] = useState(false);
   const [financeBlocked, setFinanceBlocked] = useState(false);
+  const [carrierBlocks, setCarrierBlocks] = useState<Record<string, boolean>>({});
+  const carrierBlocked = Object.values(carrierBlocks).some(Boolean);
+  const setCarrierBlocked = useCallback((shipmentId: string, blocked: boolean) => {
+    setCarrierBlocks((current) => {
+      if (Boolean(current[shipmentId]) === blocked) return current;
+      const next = { ...current };
+      if (blocked) next[shipmentId] = true;
+      else delete next[shipmentId];
+      return next;
+    });
+  }, []);
   useEffect(() => {
-    onBlockedChange(deliveryBlocked || financeBlocked);
+    onBlockedChange(deliveryBlocked || financeBlocked || carrierBlocked);
     return () => onBlockedChange(false);
-  }, [deliveryBlocked, financeBlocked, onBlockedChange]);
+  }, [deliveryBlocked, financeBlocked, carrierBlocked, onBlockedChange]);
   const orderGroups = useMemo(
     () => purchaseOrderGroups(data.purchase_orders),
     [data.purchase_orders],
@@ -5783,6 +5796,13 @@ function PurchaseOrderDetails({
                       ? ` · Delivered ${new Date(shipment.delivered_at).toLocaleString()}`
                       : ""}
                   </Typography>
+                  <CarrierTrackingPreparation
+                    key={`${data.practice.id}:${data.current_user_id}:${shipment.id}`}
+                    shipmentId={shipment.id}
+                    canPrepare={capability(data, "inventory.receive")}
+                    externalBusy={preparationBusy || financeBlocked || deliveryBlocked || (carrierBlocked && !carrierBlocks[shipment.id])}
+                    onBlockedChange={setCarrierBlocked}
+                  />
                   {events.length > 0 ? (
                     events.map((event) => (
                       <Typography variant="body2" key={event.id}>
@@ -5887,11 +5907,11 @@ function PurchaseOrderDetails({
           key={`${data.practice.id}:${data.current_user_id}:${order.id}`}
           orderId={order.id}
           canSubmit={capability(data, "procurement.submit")}
-          externalBusy={preparationBusy || financeBlocked}
+          externalBusy={preparationBusy || financeBlocked || carrierBlocked}
           onBlockedChange={setDeliveryBlocked}
         />
         <fieldset
-          disabled={deliveryBlocked || preparationBusy}
+          disabled={deliveryBlocked || carrierBlocked || preparationBusy}
           style={{ border: 0, padding: 0, minWidth: 0 }}
         >
           <OrderReconciliation
