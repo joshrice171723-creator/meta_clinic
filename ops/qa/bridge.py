@@ -32,16 +32,20 @@ def require(value, message):
 
 
 class Client:
-    def __init__(self):
+    def __init__(self, require_token=True):
         target = urlsplit(BASE_URL)
         require(target.scheme == "https" or (target.scheme == "http" and target.hostname in ("localhost", "127.0.0.1", "::1")), "QA tokens require HTTPS outside loopback")
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
         self.csrf = None
-        self.token = require(os.environ.get("QA_SERVICE_TOKEN"), "An authorized host carrier must supply QA_SERVICE_TOKEN securely")
+        self.token = os.environ.get("QA_SERVICE_TOKEN")
+        if require_token:
+            require(self.token, "An authorized host carrier must supply QA_SERVICE_TOKEN securely")
 
     def request(self, path, method="GET", payload=None):
         data = json.dumps(payload).encode() if payload is not None else None
-        headers = {"Accept": "application/json", "Authorization": "Bearer " + self.token}
+        headers = {"Accept": "application/json"}
+        if self.token:
+            headers["Authorization"] = "Bearer " + self.token
         if data is not None:
             headers["Content-Type"] = "application/json"
         if self.csrf:
@@ -137,6 +141,22 @@ def command_status(_):
 def command_inbox(_):
     client = authenticated()
     print_json(client.request("/api/qa/tasks"))
+
+
+def command_room(args):
+    # Public read-only handshake inspection. It never posts or claims work.
+    path = "/api/qa/room" + ("?after_id=%d" % args.after_id if args.after_id is not None else "")
+    print_json(Client(require_token=False).request(path))
+
+
+def command_message(args):
+    message = {"message_key": args.message_key, "agent": args.agent,
+               "recipient": args.recipient, "body": Path(args.body_file).read_text(encoding="utf-8-sig")}
+    for key in ("reference_revision", "case_reference", "reply_to", "correlation_nonce"):
+        value = getattr(args, key)
+        if value is not None:
+            message[key] = value
+    print_json(authenticated().request("/api/qa/room/messages", "POST", {"message": message}))
 
 
 def command_sync(args):
@@ -247,6 +267,19 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status").set_defaults(run=command_status)
     sub.add_parser("inbox").set_defaults(run=command_inbox)
+    room = sub.add_parser("room")
+    room.add_argument("--after-id", type=int)
+    room.set_defaults(run=command_room)
+    message = sub.add_parser("message")
+    message.add_argument("--message-key", required=True)
+    message.add_argument("--agent", required=True)
+    message.add_argument("--recipient", required=True)
+    message.add_argument("--body-file", required=True)
+    message.add_argument("--reference-revision")
+    message.add_argument("--case-reference")
+    message.add_argument("--reply-to", type=int)
+    message.add_argument("--correlation-nonce")
+    message.set_defaults(run=command_message)
     sync = sub.add_parser("sync"); sync.add_argument("--state-dir", required=True); sync.set_defaults(run=command_sync)
     for name, status in (("claim", "claimed"), ("complete", "completed"), ("fail", "failed"), ("abort", "aborted")):
         item = sub.add_parser(name); item.add_argument("id"); item.add_argument("--result", required=name != "claim")

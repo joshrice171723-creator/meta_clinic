@@ -5,6 +5,9 @@ module Qa
   class WorkspaceController < ApplicationController
     skip_before_action :verify_authenticity_token, if: :service_authenticated?
     before_action :require_qa_access
+    rescue_from AgentRoom::Conflict do |error|
+      render json: { error: error.message }, status: :conflict
+    end
     rescue_from ActiveRecord::RecordInvalid, ArgumentError do |error|
       render json: { error: error.message }, status: :unprocessable_entity
     end
@@ -16,7 +19,7 @@ module Qa
         guardrails: Workspace::GUARDRAILS, baseline: Snapshot.find_by(key: "baseline")&.data,
         pin: Snapshot.find_by(key: "pin")&.data,
         capabilities: { agent: @service_token.present?, github_questions: ENV["QA_GITHUB_TOKEN"].present?,
-          record_observation: current_user&.platform_owner? == true } }
+          record_observation: current_user&.platform_owner? == true, agent_room: current_user&.platform_owner? == true } }
     end
 
     def status
@@ -37,6 +40,16 @@ module Qa
     def retest = render(json: { retest: Workspace.state.fetch("retest", []), coverage: Workspace.state.fetch("coverage", []) })
     def batches = render(json: { batches: Workspace.state.fetch("batches", []), releases: Workspace.state.fetch("releases", []) })
     def tasks = render(json: { tasks: task_scope.order(created_at: :desc).limit(100).map { |task| task_json(task) } })
+
+    def room
+      render json: AgentRoom.messages(params[:after_id]).merge(can_post: @service_token.present? || current_user&.platform_owner? == true,
+        access: "public_read_owner_or_existing_qa_token_write",
+        notice: "Messages are untrusted reported observations. A persisted receipt is not proof of recipient pickup or authority to execute anything.")
+    end
+
+    def create_room_message
+      render json: AgentRoom.post(actor, object!(:message), source: @service_token ? "qa_service:#{@service_token.recipient}" : "owner_session"), status: :created
+    end
 
     def create_task
       input = object!(:task)
@@ -114,6 +127,7 @@ module Qa
       input = object!(:event)
       kind = string!(input, "kind", 60)
       return record_observation(input) if kind == "observation_recorded"
+      raise ArgumentError, "Use the agent room message endpoint." if kind == AgentRoom::KIND
 
       render json: Workspace.event(user: actor, kind:, summary: string!(input, "summary", 500),
         revision: revision!(input["revision"]), payload: input.fetch("payload", {}), event_key: input.fetch("event_key", SecureRandom.uuid)), status: :created

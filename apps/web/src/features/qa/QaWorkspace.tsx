@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
+import { QaAgentRoom } from "./QaAgentRoom";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -170,6 +171,22 @@ const shade = (status: string) =>
 const verdictDone = (status: string) =>
   !/pending|queued|not.?started|not.?retested|unattempted/i.test(status);
 
+export function qaWorkspaceView(search: string) {
+  const view = new URLSearchParams(search).get("view") ?? "overview";
+  return [
+    "overview",
+    "atlas",
+    "defects",
+    "retests",
+    "coverage",
+    "inbox",
+    "timeline",
+    "room",
+  ].includes(view)
+    ? view
+    : "overview";
+}
+
 export function QaWorkspace() {
   const [data, setData] = useState<Workspace>();
   const [live, setLive] = useState<Build>();
@@ -177,21 +194,9 @@ export function QaWorkspace() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [section, setSection] = useState(() => {
-    const view =
-      new URLSearchParams(window.location.search).get("view") ?? "overview";
-    return [
-      "overview",
-      "atlas",
-      "defects",
-      "retests",
-      "coverage",
-      "inbox",
-      "timeline",
-    ].includes(view)
-      ? view
-      : "overview";
-  });
+  const [section, setSection] = useState(() =>
+    qaWorkspaceView(window.location.search),
+  );
   const [selected, setSelected] = useState<Issue | KnownIssue>();
   const [report, setReport] = useState(false);
   const [question, setQuestion] = useState(false);
@@ -381,6 +386,7 @@ export function QaWorkspace() {
     ["coverage", "Workflow coverage"],
     ["inbox", "Agent inbox"],
     ["timeline", "Activity & releases"],
+    ["room", "Agent room"],
   ];
 
   function submitReport(event: FormEvent<HTMLFormElement>) {
@@ -1275,6 +1281,11 @@ export function QaWorkspace() {
                     Muse's full COVERAGE_STATE.json to fill this ledger.
                   </p>
                 )}
+              </section>
+            )}
+            {section === "room" && (
+              <section className="qa-panel">
+                <QaAgentRoom />
               </section>
             )}
             {section === "inbox" && (
