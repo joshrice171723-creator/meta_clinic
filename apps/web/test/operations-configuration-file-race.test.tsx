@@ -136,7 +136,7 @@ async function selectFile(
   name: string,
   content = JSON.stringify(manifest),
 ) {
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel("Compare saved JSON").setInputFiles({
     name,
     mimeType: "application/json",
     buffer: Buffer.from(content),

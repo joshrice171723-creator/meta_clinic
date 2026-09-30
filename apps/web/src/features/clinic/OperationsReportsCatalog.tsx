@@ -14,6 +14,11 @@ import { ApiError, api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { Card, LoadState, useResource } from "../../shared/ui";
 import { clinicDateValue } from "./frontDeskModel";
+import { ConfigurationMappingPreview } from "./ConfigurationMappingPreview";
+import type {
+  ConfigurationManifest,
+  ConfigurationRecord,
+} from "./configurationMapping";
 
 type ReportPagination = {
   page: number;
@@ -174,27 +179,6 @@ type OpenClinicalWorkReport = {
     total: number;
     overdue_count: number;
   }[];
-};
-
-type ConfigurationRecord = {
-  id: number;
-  name?: string;
-  [key: string]: unknown;
-};
-
-type ConfigurationManifest = {
-  format: number;
-  purpose: string;
-  generated_at: string;
-  source_digest: string;
-  configuration: {
-    practice: ConfigurationRecord & {
-      name: string;
-      features: { revision: number };
-    };
-    sites: ConfigurationRecord[];
-    service_offerings: ConfigurationRecord[];
-  };
 };
 
 type ReportDestination = {
@@ -409,6 +393,7 @@ function ConfigurationManifestDownload() {
   } | null>(null);
   const [comparisonError, setComparisonError] = useState("");
   const comparisonGeneration = useRef(0);
+  const [mappingGeneration, setMappingGeneration] = useState(0);
   const compareFile = async (file?: File) => {
     const generation = ++comparisonGeneration.current;
     if (!file || !manifest) return;
@@ -513,6 +498,7 @@ function ConfigurationManifestDownload() {
     }
   };
   const refreshSnapshot = () => {
+    setMappingGeneration((current) => current + 1);
     comparisonGeneration.current += 1;
     setComparison(null);
     setComparisonError("");
@@ -608,6 +594,10 @@ function ConfigurationManifestDownload() {
               </Alert>
             )}
           {comparisonError && <Alert severity="error">{comparisonError}</Alert>}
+          <ConfigurationMappingPreview
+            key={`${mappingGeneration}-${manifest.configuration.practice.id}-${manifest.source_digest}-${manifest.generated_at}`}
+            target={manifest}
+          />
         </>
       )}
     </Stack>
