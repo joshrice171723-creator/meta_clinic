@@ -7,6 +7,7 @@ import type {
 } from "../src/api/contracts";
 import {
   allIntakeChunksConfirmed,
+  intakeRevisionContinuity,
   NurseEncounterWorkspace,
 } from "../src/features/clinic/NurseEncounterWorkspace";
 
@@ -401,6 +402,8 @@ describe("NurseEncounterWorkspace", () => {
     const originalHandoff = fixtures.workspace.handoff;
     fixtures.workspace.intake = {
       id: 22,
+      patient_id: 121,
+      encounter_id: 37,
       version: 2,
       status: "incomplete",
     } as NurseWorkspace["intake"];
@@ -421,5 +424,90 @@ describe("NurseEncounterWorkspace", () => {
       fixtures.workspace.intake = originalIntake;
       fixtures.workspace.handoff = originalHandoff;
     }
+  });
+
+  it.each(["cancelled", "rejected", "completed"] as const)(
+    "offers a new review after a %s handoff while retaining its revision reference",
+    (state) => {
+      const originalHandoff = fixtures.workspace.handoff;
+      fixtures.workspace.handoff = {
+        id: 7,
+        intake_revision_id: 21,
+        state,
+        requested_by_membership_id: 7,
+      } as NurseWorkspace["handoff"];
+      try {
+        const html = renderWorkspace(19);
+        expect(html).toContain("Bound to intake revision");
+        expect(html).toContain("Request clinician handoff");
+        expect(html).not.toContain("Cancel handoff");
+      } finally {
+        fixtures.workspace.handoff = originalHandoff;
+      }
+    },
+  );
+});
+
+describe("intake revision continuity", () => {
+  const revision = (version: number, encounterId = 37) =>
+    ({
+      id: 20 + version,
+      patient_id: 121,
+      encounter_id: encounterId,
+      version,
+      status: "incomplete",
+    }) as NonNullable<NurseWorkspace["intake"]>;
+
+  const state = (
+    overrides: Partial<Parameters<typeof intakeRevisionContinuity>[0]> = {},
+  ) =>
+    intakeRevisionContinuity({
+      received: revision(1),
+      saved: null,
+      patientId: 121,
+      encounterId: 37,
+      editedVersion: 1,
+      dirty: false,
+      ...overrides,
+    });
+
+  it("retains the edited version when a newer snapshot arrives with unsaved answers", () => {
+    const result = state({ received: revision(2), dirty: true });
+    expect(result.expectedVersion).toBe(1);
+    expect(result.intake?.version).toBe(2);
+    expect(result.conflict).toBe(true);
+  });
+
+  it("detects a first saved revision arriving while a new draft is being edited", () => {
+    const result = state({ editedVersion: null, dirty: true });
+    expect(result.expectedVersion).toBe(0);
+    expect(result.conflict).toBe(true);
+  });
+
+  it("uses the save receipt while the refresh still contains the superseded intake", () => {
+    const saved = revision(2);
+    const result = state({ saved, editedVersion: 2 });
+    expect(result.intake).toBe(saved);
+    expect(result.expectedVersion).toBe(2);
+    expect(result.conflict).toBe(false);
+    expect(result.intake?.id).not.toBe(revision(1).id);
+  });
+
+  it("allows a newer server revision to replace an older save receipt", () => {
+    const received = revision(3);
+    expect(state({ received, saved: revision(2) }).intake).toBe(received);
+  });
+
+  it("excludes receipts from the previous chart and wrong-patient snapshots", () => {
+    expect(state({ saved: revision(5, 38) }).intake?.version).toBe(1);
+    const received = { ...revision(6), patient_id: 122 };
+    expect(state({ received, saved: revision(5, 38) }).intake).toBeNull();
+  });
+
+  it("permits clean hydration and preserves version zero for a new intake", () => {
+    expect(state({ received: revision(2) }).conflict).toBe(false);
+    const result = state({ received: null, editedVersion: null, dirty: true });
+    expect(result.expectedVersion).toBe(0);
+    expect(result.conflict).toBe(false);
   });
 });
