@@ -1,7 +1,7 @@
 ---
 type: implementation-tracker
 status: active
-updated: 2026-09-29
+updated: 2026-09-30
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
@@ -42,6 +42,76 @@ Track these requested workflow improvements here; mark an item complete only aft
 Consolidated 2026-09-13 around the founder-approved strategy. Older records supply dated implementation evidence only: they do not add requirements, features, exclusions or approval steps. Historical row baselines remain dated; the current revision-4 assignment below links fresh local runtime/browser evidence. “Dated local evidence” means a linked record reports scoped passing checks; “reconcile” means inspect current source against current direction before deciding what remains. Owners and deadlines are unassigned unless explicitly agreed.
 
 ## Workflow inventory and next proof
+
+**2026-09-30 — MC-05/06 M11, draft PR55:** [Saved answer source inspection](../../docs/development/clinic-workflow-plans/intake-answer-provenance.md) is a bounded read-only source inspector delivered in Nova's draft candidate `43aad220f792f99c40cb7bf9a1401ae3d850ab7a`. Authored frontend tests are reported executed by Nova; exact API source/denial review and connected browser acceptance remain separately scoped. Independent Sage review is pending at this documentation checkpoint. No completion percentage, full M11 or clinical-review claim.
+
+**Preserved unmerged PR36 notes:** The five development-branch entries below are carried intact from draft PR36 `d93e9790751ad42897b7cc824ca0fa7cb595c5a0`. They describe that branch and its historical checks, not current-main implementation or fresh acceptance. PR36 application/workflow changes remain separate.
+
+**2026-09-29 — MC-14 current-stock CSV, development branch:** Current stock now
+exports server clinic ID, status filter, source, inventory date/timezone and read
+timestamp with separate pharmacy-unit and office-each summaries. Low-stock counts
+are explicitly clinic-wide and independent of the pharmacy status filter. Source
+rows include only the selected pharmacy and office pages, with independent page,
+total and exported-row metadata plus batch/product/item IDs. Existing decimal
+strings, CSV escaping/formula guards and inventory.read authorization remain.
+This projects existing stock records without new medication fields or exchange
+contracts. The export discloses current balances rather than an immutable historical
+snapshot; office location/expiry tracking is not inferred. TypeScript, Ruby syntax,
+scoped RuboCop and source review passed. Browser downloads, paging/filter/reload,
+role denial and populated reconciliation remain open; separate export authorization/
+audit and retention remain unresolved. No tests, main merge or publication; all
+scores unchanged. Source base: `e29f1750`.
+
+**2026-09-29 — MC-15 named configuration comparison, development branch:**
+The existing read-only saved-JSON comparison now identifies added/removed/changed
+locations and service offerings by name and ID, and lists changed top-level fields
+for them and clinic settings. Object-key ordering does not create a change;
+duplicate or invalid row IDs are rejected. Comparison evidence is bound to the
+loaded snapshot digest and timestamp. Full counts remain visible; the first 20
+details are shown with an explicit disclosure to review both JSON files for the
+rest. Existing same-clinic/format and 1 MB file limits remain. No settings are
+imported, restored or sent to the API. TypeScript and scoped diff review passed;
+browser file selection, malformed-file recovery, named differences and refresh
+remain unverified. No tests, main merge or publication; all scores unchanged.
+Source base: `1ef7324c`; observed main drift: `57abc7b6`, reserved for publishing.
+
+**2026-09-29 — MC-14 clinical work by owner, development branch:** The existing
+open-clinical-work report now groups active tasks by recorded membership owner,
+with per-owner overdue counts and a separate unassigned row. Owner labels reuse
+the worklist's email identity; inactive memberships remain represented and pending
+transfers do not substitute the proposed owner. Tenant/site restrictions and
+existing read/write capability gates remain unchanged. Report definition revision
+2 documents this population. This is an internal aggregation of existing task
+assignments, with no new clinical fields or exchange contract; no additional FHIR
+implementation guide applies to this slice. TypeScript, Ruby syntax, scoped
+RuboCop and diff review passed. Browser counts, empty state, inactive-owner display,
+site/role denial and reload remain unverified. No tests, main merge or publication;
+Build, Validation and external/human scores are unchanged. Source base: `76512d23`.
+
+**2026-09-29 — MC-14 remaining daily CSV provenance, development branch:** Invoice,
+payment/refund and stock-movement exports now retain the existing API clinic ID,
+inclusive/exclusive report interval, timezone, freshness, definition population and
+exclusions (and invoice state basis). Summary totals cover the full filtered
+population; source rows are explicitly the selected page, with independent payment
+and refund page counts. Filenames identify clinic, date and selected pages; download
+captions disclose scope. Currency, stock-type/unit separation, exact decimal strings
+and existing CSV encoding are preserved. TypeScript passed and the source mapping
+was reviewed; browser downloads, role denial and reload remain unverified. Separate
+export authorization/audit and retention policy remain open. No tests, main merge
+or publication occurred; scores remain unchanged. Observed remote main drift to
+`e2934e93` is reserved for the explicit publishing handoff.
+
+**2026-09-29 — MC-14 visit export provenance, development branch:** The daily visit
+CSV now retains the API's clinic/site filter, inclusive start and exclusive end of
+the report interval, timezone, freshness, definition revision, population and
+exclusions. It explicitly distinguishes full-population counts from the current
+page of source appointments, records exported-row/page totals, and includes clinic,
+site, date and page in the filename. The download caption exposes this same scope.
+TypeScript passed; source review matched the existing Rails report projection and
+preserved CSV escaping/formula protection. Browser download/reload and role/site
+acceptance remain unverified; separately authorized/audited export issuance and
+retention policy remain open. No tests, main integration or publication occurred;
+MC-14 and overall scores are unchanged.
 
 ### Clinic workflow planning coverage — 2026-09-22 audit
 

@@ -1,11 +1,15 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-29
+updated: 2026-09-30
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-09-30 — Local PR36/PR55 tracker reconciliation
+
+A Relay-owned documentation candidate preserves the five unmerged PR36 tracker notes and links the MC-05/06 M11 [saved answer source assignment](../../docs/development/clinic-workflow-plans/intake-answer-provenance.md) from the [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md). PR36 remains an open draft at `d93e9790751ad42897b7cc824ca0fa7cb595c5a0`; its full changes and progress history are preserved separately. Current-main release history is retained. The copied assignment brief matches Nova's PR55 `43aad220f792f99c40cb7bf9a1401ae3d850ab7a`; application changes are excluded from this documentation candidate. Independent source/API and connected browser acceptance remain pending. No scores, permissions, publication or release status changed.
 
 ## 2026-09-29 — Anonymous QA desk published and request persistence verified
 
