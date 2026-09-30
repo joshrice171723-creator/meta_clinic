@@ -17,6 +17,12 @@ module Clinic
           finish = instant && instant + (appointment.ends_at - appointment.starts_at)
           if instant
             begin
+              if appointment.service_offering
+                BookAppointment.offering_snapshot!(offering: appointment.service_offering, practice: series.practice,
+                  site: series.site, clinician: series.booked_clinician, room: room || appointment.room,
+                  visit_type: appointment.visit_type, visit_modality: appointment.visit_modality,
+                  starts_at: instant, ends_at: finish, appointment_id: appointment.id)
+              end
               CapacityGuard.check!(practice: series.practice, clinician: series.booked_clinician, site: series.site,
                 patient: series.patient, room: room || appointment.room, starts_at: instant, ends_at: finish,
                 appointment_id: appointment.id)

@@ -93,6 +93,11 @@ import { PatientEducationPanel } from "./PatientEducationPanel";
 import { ClinicalPlanWorkspace } from "./ClinicalPlanWorkspace";
 import { ClinicSchedule, type CalendarBooking } from "./ClinicSchedule";
 import { BookingPatientPicker } from "./BookingPatientPicker";
+import {
+  BookedSchedulingResources,
+  SchedulingResourceAvailability,
+  useSchedulingResourceAvailability,
+} from "./SchedulingResourceAvailability";
 
 function patientDisplayLabel(
   patient?: Pick<Patient, "display_name" | "reference"> | null,
@@ -231,6 +236,7 @@ type BookingAttempt = {
       first_available?: boolean;
       visit_type_id: string;
       service_offering_id?: string;
+      expected_resource_revision?: number;
       schedule_hold_id?: number;
       reason?: string;
       overbook_reason?: string;
@@ -1122,6 +1128,13 @@ function BookingFormEditor({
   }>(`/api/clinic/facilities/${siteId}/scheduling_policy`, {
     enabled: Boolean(siteId),
   });
+  const resourceAvailability = useSchedulingResourceAvailability({
+    siteId,
+    serviceOfferingId,
+    roomId,
+    startsAt,
+    endsAt,
+  });
   const selectedOffering = serviceOfferings.data?.service_offerings.find(
     (offering) => String(offering.id) === serviceOfferingId,
   );
@@ -1977,6 +1990,8 @@ function BookingFormEditor({
               );
             if (!bookingAttempt && offeringIssue)
               return setSubmitError(offeringIssue);
+            if (!bookingAttempt && resourceAvailability.issue)
+              return setSubmitError(resourceAvailability.issue);
             if (!bookingAttempt && firstAvailable && serviceOfferingId)
               return setSubmitError(
                 "First available cannot use a service offering. Add a clinician or choose visit-type booking.",
@@ -2019,7 +2034,10 @@ function BookingFormEditor({
                     ...(firstAvailable ? { first_available: true } : {}),
                     visit_type_id: visitTypeId,
                     ...(serviceOfferingId
-                      ? { service_offering_id: serviceOfferingId }
+                      ? {
+                          service_offering_id: serviceOfferingId,
+                          expected_resource_revision: resourceAvailability.data?.revision,
+                        }
                       : {}),
                     ...(heldSlot ? { schedule_hold_id: heldSlot.id } : {}),
                     reason,
@@ -2109,6 +2127,7 @@ function BookingFormEditor({
                 await workingDraft.save(unresolved);
               } else {
                 if (serviceOfferingId) serviceOfferings.refresh();
+                resourceAvailability.refresh();
                 if (
                   heldSlot &&
                   reason instanceof ApiError &&
@@ -2478,6 +2497,7 @@ function BookingFormEditor({
                     {offeringIssue}
                   </Alert>
                 )}
+                <SchedulingResourceAvailability resource={resourceAvailability} />
               </Box>
               <TextField
                 fullWidth
@@ -3089,6 +3109,7 @@ export function ScheduleView({
                             {appointment.service_offering_snapshot.name}
                           </Typography>
                         )}
+                        <BookedSchedulingResources snapshot={appointment.service_offering_snapshot?.resource_compatibility} />
                       </TableCell>
                       <TableCell>
                         {context.capabilities.patients ? (

@@ -64,7 +64,7 @@ module Clinic
       end
 
       def create
-        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id first_available visit_type_id service_offering_id schedule_hold_id reason request_key visit_modality overbook_reason expected_policy_revision walk_in capacity_override_reason])
+        input = parameter_hash!(:appointment, %i[patient_id starts_at ends_at site_id room_id booked_clinician_id first_available visit_type_id service_offering_id schedule_hold_id reason request_key visit_modality overbook_reason expected_policy_revision expected_resource_revision walk_in capacity_override_reason])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
         site = find_optional(current_practice.sites, input[:site_id], :site_id)
         room = find_optional(current_practice.rooms, input[:room_id], :room_id)
@@ -88,6 +88,7 @@ module Clinic
           request_key: request_key,
           visit_modality: input[:visit_modality].presence || "in_person",
           overbook_reason: optional_string(input[:overbook_reason], field: :overbook_reason, maximum: 500),
+          expected_resource_revision: input[:expected_resource_revision].present? ? bounded_integer!(input[:expected_resource_revision], field: :expected_resource_revision) : nil,
           expected_policy_revision: input[:expected_policy_revision].present? ? Integer(input[:expected_policy_revision].to_s, 10) : nil,
           walk_in: input[:walk_in] == true,
           capacity_override_reason: optional_string(input[:capacity_override_reason], field: :capacity_override_reason, maximum: 500)
@@ -116,7 +117,7 @@ module Clinic
       end
 
       def update
-        input = parameter_hash!(:appointment, %i[starts_at ends_at site_id room_id booked_clinician_id visit_type_id service_offering_id expected_updated_at request_key visit_modality overbook_reason expected_policy_revision])
+        input = parameter_hash!(:appointment, %i[starts_at ends_at site_id room_id booked_clinician_id visit_type_id service_offering_id expected_updated_at request_key visit_modality overbook_reason expected_policy_revision expected_resource_revision])
         appointment = current_practice.appointments.find(requested_id!(params[:id], :id))
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         updated = Clinic::Scheduling::RescheduleAppointment.call(
@@ -127,6 +128,7 @@ module Clinic
           request_key: request_key,
           visit_modality: input[:visit_modality],
           overbook_reason: input.key?(:overbook_reason) ? required_string!(input[:overbook_reason], field: :overbook_reason, maximum: 500) : nil,
+          expected_resource_revision: input[:expected_resource_revision].present? ? bounded_integer!(input[:expected_resource_revision], field: :expected_resource_revision) : nil,
           expected_policy_revision: input[:expected_policy_revision].present? ? Integer(input[:expected_policy_revision].to_s, 10) : nil,
           site: input.key?(:site_id) ? find_optional(current_practice.sites, input[:site_id], :site_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,
           room: input.key?(:room_id) ? find_optional(current_practice.rooms, input[:room_id], :room_id) : Clinic::Scheduling::RescheduleAppointment::UNCHANGED,

@@ -1,3 +1,4 @@
+import { SchedulingCompatibilitySettings } from "./SchedulingCompatibilitySettings";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   Alert,
@@ -141,6 +142,7 @@ export function SiteSchedulingPolicySettings({ siteId }: { siteId: number }) {
             )}
           </>
         )}
+        <SchedulingCompatibilitySettings siteId={siteId} />
       </Stack>
     </Paper>
   );
