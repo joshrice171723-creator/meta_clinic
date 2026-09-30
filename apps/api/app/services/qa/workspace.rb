@@ -42,7 +42,7 @@ module Qa
       if workflows.is_a?(Hash)
         workflows = workflows.map do |id, item|
           raise ArgumentError, "Each workflow must be an object." unless item.is_a?(Hash)
-          raise ArgumentError, "Workflow id differs from its key." if item["id"] && item["id"] != id
+          raise ArgumentError, "Workflow id differs from its key." if %w[id workflow].any? { |field| item[field] && item[field] != id }
           item.merge("id" => id)
         end
       end
@@ -53,6 +53,9 @@ module Qa
       workflows = workflows.map do |item|
         unless item.is_a?(Hash) && (item["id"] || item["workflow"]).to_s.match?(/\AWF-(?:00[1-9]|0[1-9][0-9]|10[0-9]|11[0-6])\z/)
           raise ArgumentError, "Each workflow requires its WF-001–WF-116 id."
+        end
+        if item["id"] && item["workflow"] && item["id"] != item["workflow"]
+          raise ArgumentError, "Workflow id aliases must match."
         end
         record = item.slice(*fields).merge("id" => item["id"] || item["workflow"], "historical" => true)
         unless record.values.all? { |value| value.nil? || value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false }

@@ -131,7 +131,7 @@ module Qa
       end
       imported = Workspace.coverage_export(JSON.parse(raw.delete_prefix("\uFEFF")))
       Snapshot.transaction do
-        snapshot = Snapshot.create_or_find_by!(key: "state") { |record| record.data = Workspace.state }
+        snapshot = Snapshot.find_or_create_by!(key: "state") { |record| record.data = Workspace.state }
         snapshot.with_lock do
           state = snapshot.data.merge(imported)
           state["sources"] = state.fetch("sources", {}).merge("COVERAGE_STATE.json" => {
@@ -258,7 +258,7 @@ module Qa
 
     def require_qa_access
       return if service_authenticated?
-      return if request.get? || %w[pin create_task import_coverage].include?(action_name)
+      return if request.get? || %w[pin create_task].include?(action_name)
       require_member
       return if performed?
       render json: { error: "QA workspace requires a platform owner account." }, status: :forbidden unless current_user.platform_owner?
