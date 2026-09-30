@@ -27,7 +27,8 @@ module Clinic
         site = feature_site(params[:site_id], current_fallback: false)
         render json: { preview: Clinic::Configuration::ServiceDisablePreview.call(
           practice: current_practice, actor: current_user, site:,
-          service_scope: params[:service_scope], expected_revision: bounded_integer!(params[:expected_revision], field: :expected_revision)
+          service_scope: params[:service_scope],
+          assessment_scope: params[:assessment_scope_present] == "1" ? (params[:assessment_scope] || []) : nil, expected_revision: bounded_integer!(params[:expected_revision], field: :expected_revision)
         ) }
         return
       end
