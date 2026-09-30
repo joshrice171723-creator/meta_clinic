@@ -1500,6 +1500,13 @@ export type Appointment = {
     requires_room: boolean;
     published_at: string | null;
     revision: number;
+    resource_compatibility?: {
+      revision: number;
+      mode: "required" | "not_required";
+      site_id: number;
+      service_offering_id: number;
+      resources: { id: number; name: string; kind: "chair" | "equipment"; room_id: number | null; active: boolean; version: number }[];
+    } | null;
   } | null;
   reason?: string | null;
   starts_at: string;

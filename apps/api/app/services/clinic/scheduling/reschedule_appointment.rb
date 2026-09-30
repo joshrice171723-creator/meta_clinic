@@ -5,7 +5,7 @@ module Clinic
 
       def self.call(appointment:, actor:, starts_at:, ends_at:, expected_updated_at:, request_key:, visit_modality: nil,
         site: UNCHANGED, room: UNCHANGED, booked_clinician: UNCHANGED, visit_type: UNCHANGED, service_offering: UNCHANGED,
-        overbook_reason: nil, expected_policy_revision: nil)
+        overbook_reason: nil, expected_policy_revision: nil, expected_resource_revision: nil)
         overbook = !overbook_reason.nil? || !expected_policy_revision.nil?
         next_site = site.equal?(UNCHANGED) ? appointment.site : site
         next_clinician = booked_clinician.equal?(UNCHANGED) ? appointment.booked_clinician : booked_clinician
@@ -55,6 +55,7 @@ module Clinic
             expected_updated_at: expected_updated_at.iso8601(6), visit_modality: next_modality,
             site_id: next_site&.id, booked_clinician_id: next_clinician&.id, visit_type_id: next_visit_type&.id,
             service_offering_id: next_offering&.id, room_id: next_room&.id,
+            **(expected_resource_revision.nil? ? {} : { expected_resource_revision: expected_resource_revision }),
             **(overbook ? { overbook_reason: overbook_reason.to_s.strip, expected_policy_revision: expected_policy_revision } : {}) }
         ) do
           appointment.practice.lock!
@@ -76,7 +77,8 @@ module Clinic
             end
             snapshot = next_offering && BookAppointment.offering_snapshot!(offering: next_offering,
               practice: appointment.practice, site: next_site, clinician: next_clinician, room: next_room, visit_type: next_visit_type,
-              visit_modality: modality, starts_at: starts_at, ends_at: ends_at)
+              visit_modality: modality, starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id,
+              expected_resource_revision: expected_resource_revision)
             if overbook
               raise ArgumentError, "Choose a site, clinician, and visit type for an overbook exception." unless next_site && next_clinician && next_visit_type
               raise ArgumentError, "A walk-in cannot also be overbooked." if appointment.walk_in_exception
@@ -99,10 +101,12 @@ module Clinic
               appointment.practice.appointments.where(booked_clinician: next_clinician, status: %w[scheduled confirmed])
                 .where.not(id: appointment.id).where("starts_at < ? AND ends_at > ?", ends_at, starts_at).pluck(:id)
             end
+            ResourceAllocation.release!(appointment: appointment)
             appointment.update!(starts_at: starts_at, ends_at: ends_at, visit_modality: modality,
               site: next_site, booked_clinician: next_clinician, visit_type: next_visit_type, room: next_room,
               clinician_allocation: allocation,
               service_offering: next_offering, service_offering_snapshot: snapshot)
+            ResourceAllocation.reserve!(appointment: appointment, snapshot: snapshot&.dig("resource_compatibility"))
             if overbook
               OverbookException.create!(practice: appointment.practice, appointment: appointment, site: next_site,
                 written_by_membership: membership, policy_revision: policy.revision,
@@ -120,7 +124,7 @@ module Clinic
       rescue ActiveRecord::StatementInvalid => error
         raise unless error.message.match?(/overlap|exclusion|no_provider|no_room/i)
 
-        raise ArgumentError, "The selected room or clinician is already reserved for that interval."
+        raise ArgumentError, "The selected room, clinician, chair, or equipment is already reserved for that interval."
       end
     end
   end
