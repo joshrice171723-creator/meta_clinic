@@ -99,7 +99,7 @@ module Clinic
           payload: note && Clinic::Care::PrevisitIntake.decode(note.encrypted_text))
         {
           appointment_id: appointment.id,
-          note: Clinic::Care::PrevisitNoteSerializer.call(note),
+          note: Clinic::Care::PrevisitNoteSerializer.call(note)&.merge(request_key: note.request_key),
           intake_form: {
             **form,
             max_answer_length: Clinic::Care::PrevisitIntake::MAX_ANSWER_LENGTH,
