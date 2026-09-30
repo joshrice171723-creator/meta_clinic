@@ -63,7 +63,10 @@ module Qa
         user.with_lock do
           actor = OfficeActorPolicy.actor(config:, user:, token:)
           principal = principal_key(user, token)
-          record = Snapshot.create_or_find_by!(key: KEY) { |row| row.data = {} }
+          # ON CONFLICT DO NOTHING bypasses the uniqueness validator and never
+          # overwrites an existing singleton. Its row lock still guards changes.
+          Snapshot.insert_all([ { key: KEY, data: {}, created_at: Time.current, updated_at: Time.current } ], unique_by: :key)
+          record = Snapshot.find_by!(key: KEY)
           record.with_lock do
             rows = record.data.deep_dup
             previous = rows[actor]

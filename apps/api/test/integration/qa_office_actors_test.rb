@@ -109,8 +109,10 @@ class QaOfficeActorsTest < ActionDispatch::IntegrationTest
     enable_bindings
     result = Qa::OfficeActors.write(user: @owner, token: nil, kind: "position", input: { "x" => 2, "y" => 4, "expected_revision" => 0, "request_key" => "owner-position" })
     assert_equal "josh", result["actor"]
-    other = User.create!(email_address: "office-other-owner@example.invalid", password: "Synthetic-office-other!", platform_owner: true)
-    assert_raises(Qa::OfficeActorPolicy::Denied) { Qa::OfficeActors.write(user: other, token: nil, kind: "check_in", input: { "expected_revision" => 0, "request_key" => "other-owner-request" }) }
+    # Keep the one-platform-owner guard intact while testing a wrong mapping.
+    ENV["QA_OFFICE_JOSH_USER_ID"] = (@owner.id + 10_000).to_s
+    assert_raises(Qa::OfficeActorPolicy::Denied) { Qa::OfficeActors.write(user: @owner, token: nil, kind: "check_in", input: { "expected_revision" => 0, "request_key" => "wrong-owner-mapping" }) }
+    ENV["QA_OFFICE_JOSH_USER_ID"] = @owner.id.to_s
     get "/api/qa/office"
     assert_response :success
     assert_equal "not_configured", response.parsed_body["actor_binding"]
