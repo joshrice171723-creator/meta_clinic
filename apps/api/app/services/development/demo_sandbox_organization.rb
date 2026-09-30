@@ -11,8 +11,10 @@ module Development
 
       organization = primary_lesson.practice.organization ||
         Organization.create!(name: "#{NAME} #{primary_lesson.practice_id}")
-      companion = DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
-        visitor_id: primary_lesson.visitor_id) || create_companion!(primary_lesson.visitor)
+      companion = DemoLesson.where(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
+        practice_id: organization.practice_ids).first ||
+        DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
+          visitor_id: primary_lesson.visitor_id) || create_companion!(primary_lesson.visitor)
       raise ActiveRecord::RecordNotFound if organization.practices.where.not(id: [ primary_lesson.practice_id, companion.practice_id ]).exists? ||
         (companion.practice.organization_id.present? && companion.practice.organization_id != organization.id)
 

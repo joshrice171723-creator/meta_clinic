@@ -49,10 +49,10 @@ module Development
         run.lesson_key == DemoLessonCatalog::SANDBOX_KEY && run.visitor_id.present?
 
       primary = DemoLesson.find_by!(lesson_key: DemoLessonCatalog::SANDBOX_KEY,
-        visitor_id: run.visitor_id, practice_id: run.practice_id)
-      companion = DemoLesson.find_by!(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
-        visitor_id: run.visitor_id)
+        practice_id: run.practice_id)
       organization = primary.practice.organization || raise(ArgumentError, "Sandbox organization is missing")
+      companion = DemoLesson.find_by!(lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY,
+        practice_id: organization.practice_ids)
       expected_ids = [ primary.practice_id, companion.practice_id ].sort
       raise ArgumentError, "Sandbox organization has unexpected clinics" unless
         organization.practices.order(:id).pluck(:id) == expected_ids

@@ -3,6 +3,10 @@ import { version as clinicVersion } from "../../../package.json";
 
 const changes = [
   [
+    "Visitor sandbox reset",
+    "Reset Sandbox now rebuilds the shared clinic baseline when a different registered visitor starts the reset.",
+  ],
+  [
     "Booking attempt reconciliation",
     "Recovered booking requests identify when their saved site or time differs from the selected slot, and a mismatched server result remains unconfirmed instead of appearing successful.",
   ],
@@ -116,6 +120,15 @@ export function ClinicUpdateLog() {
         Notes for QA
       </Typography>
       <Box component="ul" sx={{ pl: 3, my: 0, "& li": { mb: 1 } }}>
+        <li>
+          Visitor sandbox reset: register one visitor and make a synthetic edit
+          in the full Sandbox. Open the same shared Sandbox as a second
+          registered visitor, choose Reset Sandbox, and confirm preparation
+          progress remains visible until the workspace reopens. After reload,
+          confirm the edit is gone and the tracking board matches its prepared
+          baseline. This source fix is not a browser pass until that exact
+          cross-visitor journey succeeds on the deployed revision.
+        </li>
         <li>
           Version 0.2.0: confirm the exact build revision in /build.json.
           The separate private QA findings and retests are tracked at
