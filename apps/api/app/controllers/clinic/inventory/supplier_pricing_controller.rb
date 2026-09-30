@@ -63,7 +63,7 @@ module Clinic
       def record_quote
         offer = SupplierProduct.where(practice_id: current_practice.id).find(requested_id!(params[:id], :id))
         raise ArgumentError, "Match this supplier offer to a clinic catalog item before recording a quote." unless offer.product_id.present?
-        input = parameter_hash!(:quote, %i[reference quoted_on wholesale_unit_cost currency expected_updated_at quote_request_id])
+        input = parameter_hash!(:quote, %i[reference quoted_on wholesale_unit_cost currency expected_updated_at quote_request_id quoted_fee_amount quoted_fee_basis])
         reference = required_string!(input[:reference], field: :reference, maximum: 120)
         quoted_on = date_param!(input[:quoted_on], field: :quoted_on)
         raise ArgumentError, "A supplier quote cannot be dated in the future." if quoted_on > current_practice.inventory_date
@@ -77,7 +77,7 @@ module Clinic
             raise ArgumentError, "This supplier offer changed. Reload it before recording a quote." unless
               offer.updated_at.iso8601(6) == input[:expected_updated_at].to_s
             offer.assign_attributes(price_source: "manual_quote", quote_reference: reference, quoted_on: quoted_on,
-              wholesale_unit_cost: cost, currency: currency, effective_date: quoted_on)
+              wholesale_unit_cost: cost, currency: currency, effective_date: quoted_on, **quote_fee_attributes(input, currency))
             if offer.changed?
               offer.save!
               Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
@@ -144,7 +144,7 @@ module Clinic
       end
 
       def create_manual_quote
-        input = parameter_hash!(:offer, %i[supplier_id product_id supplier_sku description package_quantity quote_reference quoted_on wholesale_unit_cost currency contract_status available lead_time_days])
+        input = parameter_hash!(:offer, %i[supplier_id product_id supplier_sku description package_quantity quote_reference quoted_on wholesale_unit_cost currency contract_status available lead_time_days quoted_fee_amount quoted_fee_basis])
         supplier = current_practice.inventory_suppliers.find(requested_id!(input[:supplier_id], :supplier_id))
         product = current_practice.pharmacy_products.find(requested_id!(input[:product_id], :product_id))
         raise ArgumentError, "Choose an active catalog item." unless product.active?
@@ -187,7 +187,7 @@ module Clinic
               wholesale_unit_cost: Quantity.parse(input[:wholesale_unit_cost].to_s, scale: 6, zero: true),
               currency: currency, contract_status: contract_status, available: available, lead_time_days: lead_time,
               effective_date: quoted_on, imported_at: Time.current, price_source: "manual_quote",
-              quote_reference: reference, quoted_on: quoted_on
+              quote_reference: reference, quoted_on: quoted_on, **quote_fee_attributes(input, currency)
             )
             Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
               action_code: "inventory.supplier_offer.create_manual_quote", outcome: :committed,
@@ -231,6 +231,17 @@ module Clinic
         { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
+      # Supplier evidence only: no fee classification, multiplication or PO total change.
+      def quote_fee_attributes(input, currency)
+        if input[:quoted_fee_amount].blank?
+          raise ArgumentError, "Record an amount with the quoted fee basis, or leave both unknown." if input[:quoted_fee_basis].present?
+          return { quoted_fee_amount: nil, quoted_fee_currency: nil, quoted_fee_basis: nil }
+        end
+        amount = Quantity.parse(input[:quoted_fee_amount].to_s, scale: 6, zero: true)
+        basis = required_string!(input[:quoted_fee_basis], field: :quoted_fee_basis, maximum: 160)
+        { quoted_fee_amount: amount, quoted_fee_currency: currency, quoted_fee_basis: basis }
+      end
+
       def close_quote_request!(value, offer:, product:, reference:, quoted_on:)
         return if value.blank?
 
@@ -243,7 +254,9 @@ module Clinic
         end
         raise ArgumentError, "This supplier quote request is already closed." unless request.status == "open"
 
-        request.update!(status: "quoted", quote_reference: reference, quoted_on: quoted_on)
+        request.update!(status: "quoted", quote_reference: reference, quoted_on: quoted_on,
+          quoted_fee_amount: offer.quoted_fee_amount, quoted_fee_currency: offer.quoted_fee_currency,
+          quoted_fee_basis: offer.quoted_fee_basis)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
           action_code: "inventory.supplier_quote_request.close", outcome: :committed,
           resource_version_ref: "supplier_quote_request:#{request.id}")

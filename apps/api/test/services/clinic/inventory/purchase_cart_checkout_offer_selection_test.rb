@@ -65,6 +65,19 @@ class Clinic::Inventory::PurchaseCartCheckoutOfferSelectionTest < ActiveSupport:
     assert_equal lower_overage, select_offer.supplier_product
   end
 
+  test "quote fee evidence changes the offer digest but never the merchandise total or ranking" do
+    offer = create_offer(name: "Quoted supplier", cost: 7)
+    offer.update!(price_source: "manual_quote", quote_reference: "SYN-FEE", quoted_on: Date.current,
+      quoted_fee_amount: 2, quoted_fee_currency: "USD", quoted_fee_basis: "Entire quoted shipment")
+    captured = select_offer
+    assert_equal BigDecimal("7"), captured.total_cost
+    offer.update!(quoted_fee_amount: 3)
+    refreshed = select_offer
+    assert_not_equal captured.digest, refreshed.digest
+    assert_equal captured.total_cost, refreshed.total_cost
+    assert_equal offer, refreshed.supplier_product
+  end
+
   private
 
   def select_offer

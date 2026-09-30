@@ -252,8 +252,10 @@ module Clinic
               subtotal += quantity * price
               order.lines.create!(practice_id: current_practice.id, product: product, product_name: product.name, stock_unit: product.stock_unit, input_unit: input_unit, ordered_quantity: quantity, received_quantity: 0, conversion_factor: factor, unit_price: price, currency: currency,
                 supplier_product: offer, supplier_sku: offer&.supplier_sku, price_snapshot_at: offer && Time.current,
-                price_snapshot_digest: offer && Digest::SHA256.hexdigest([ offer.id, offer.wholesale_unit_cost.to_s("F"), offer.currency, offer.quote_reference, offer.quoted_on&.iso8601 ].join("|")),
-                quote_reference: offer&.quote_reference, quoted_on: offer&.quoted_on)
+                price_snapshot_digest: offer && Digest::SHA256.hexdigest([ offer.id, offer.wholesale_unit_cost.to_s("F"), offer.currency, offer.quote_reference, offer.quoted_on&.iso8601, offer.quoted_fee_amount&.to_s("F"), offer.quoted_fee_currency, offer.quoted_fee_basis ].join("|")),
+                quote_reference: offer&.quote_reference, quoted_on: offer&.quoted_on,
+                quoted_fee_amount: offer&.quoted_fee_amount, quoted_fee_currency: offer&.quoted_fee_currency,
+                quoted_fee_basis: offer&.quoted_fee_basis)
             end
             order.update!(subtotal: subtotal, total: subtotal + order.tax + order.shipping)
             order

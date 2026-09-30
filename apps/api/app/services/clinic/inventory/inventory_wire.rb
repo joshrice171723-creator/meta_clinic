@@ -338,7 +338,7 @@ module Clinic
           package_quantity_at_request: request.package_quantity_at_request&.to_d&.to_s("F"),
           stock_unit_at_request: request.stock_unit_at_request, note: request.note,
           status: request.status, request_key: request.request_key, created_at: request.created_at.iso8601,
-          quote_reference: request.quote_reference, quoted_on: request.quoted_on&.iso8601 }
+          quote_reference: request.quote_reference, quoted_on: request.quoted_on&.iso8601, quoted_fee_amount: request.quoted_fee_amount&.to_d&.to_s("F"), quoted_fee_currency: request.quoted_fee_currency, quoted_fee_basis: request.quoted_fee_basis }
       end
 
       def supplier_product_wire(row, on:)
@@ -348,7 +348,7 @@ module Clinic
           wholesale_unit_cost: row.wholesale_unit_cost.to_d.to_s("F"), currency: row.currency, ordering_unit: row.ordering_unit,
           contract_status: row.contract_status, available: row.available, lead_time_days: row.lead_time_days, effective_date: row.effective_date&.iso8601,
           imported_at: row.imported_at.iso8601, updated_at: row.updated_at.iso8601(6), price_source: row.price_source,
-          quote_reference: row.quote_reference, quoted_on: row.quoted_on&.iso8601,
+          quote_reference: row.quote_reference, quoted_on: row.quoted_on&.iso8601, quoted_fee_amount: row.quoted_fee_amount&.to_d&.to_s("F"), quoted_fee_currency: row.quoted_fee_currency, quoted_fee_basis: row.quoted_fee_basis,
           eligible: reason.nil?, eligibility_reason: reason }
       end
 
@@ -614,7 +614,7 @@ module Clinic
       end
 
       def purchase_order_wire(order)
-        { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, checkout_group_id: order.checkout_group_id, destination: order.destination, receiving_site_id: order.receiving_site_id&.to_s, destination_address: order.destination_address, created_at: order.created_at.iso8601, lines: order.lines.map { |line| { id: line.id.to_s, product_id: line.product_id.to_s, package_id: package_wire(line.product)[:id], product_name: line.product_name, stock_unit: line.stock_unit, input_unit: line.input_unit, ordered_packages: line.ordered_quantity.to_d.to_s("F"), units_per_package: line.conversion_factor.to_d.to_s("F"), ordered_units: line.ordered_units.to_d.to_s("F"), package_price: line.unit_price.to_d.to_s("F"), currency: line.currency, quote_reference: line.quote_reference, quoted_on: line.quoted_on&.iso8601, received_units: line.received_units.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F") } }, subtotal: order.subtotal.to_d.to_s("F"), tax: order.tax.to_d.to_s("F"), shipping: order.shipping.to_d.to_s("F"), total: order.total.to_d.to_s("F"), cancelled_remaining_units: order.status == "cancelled" ? order.lines.sum { |line| line.remaining_quantity.to_d }.to_s("F") : "0" }
+        { id: order.id.to_s, number: order.number, status: order.status, supplier: order.supplier&.name, checkout_group_id: order.checkout_group_id, destination: order.destination, receiving_site_id: order.receiving_site_id&.to_s, destination_address: order.destination_address, created_at: order.created_at.iso8601, lines: order.lines.map { |line| { id: line.id.to_s, product_id: line.product_id.to_s, package_id: package_wire(line.product)[:id], product_name: line.product_name, stock_unit: line.stock_unit, input_unit: line.input_unit, ordered_packages: line.ordered_quantity.to_d.to_s("F"), units_per_package: line.conversion_factor.to_d.to_s("F"), ordered_units: line.ordered_units.to_d.to_s("F"), package_price: line.unit_price.to_d.to_s("F"), currency: line.currency, quote_reference: line.quote_reference, quoted_on: line.quoted_on&.iso8601, quoted_fee_amount: line.quoted_fee_amount&.to_d&.to_s("F"), quoted_fee_currency: line.quoted_fee_currency, quoted_fee_basis: line.quoted_fee_basis, received_units: line.received_units.to_d.to_s("F"), received_packages: line.received_quantity.to_d.to_s("F") } }, subtotal: order.subtotal.to_d.to_s("F"), tax: order.tax.to_d.to_s("F"), shipping: order.shipping.to_d.to_s("F"), total: order.total.to_d.to_s("F"), cancelled_remaining_units: order.status == "cancelled" ? order.lines.sum { |line| line.remaining_quantity.to_d }.to_s("F") : "0" }
       end
 
       def shipment_wire(shipment)

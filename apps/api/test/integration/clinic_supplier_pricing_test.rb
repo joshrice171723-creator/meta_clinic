@@ -18,6 +18,48 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "manual quote fees are exact optional evidence and a closed request retains its response" do
+    supplier = @practice.inventory_suppliers.create!(name: "Synthetic fee supplier")
+    offer = Clinic::Inventory::SupplierProduct.create!(practice: @practice, supplier: supplier,
+      product: @product, ndc: @product.ndc, supplier_sku: "SYN-FEE", description: "Synthetic fee quote",
+      ordering_unit: "package", package_quantity: 90, wholesale_unit_cost: 12, currency: "USD",
+      contract_status: "active", available: true, imported_at: Time.current)
+    assert_nil offer.quoted_fee_amount
+    post "/api/clinic/inventory/supplier-quote-requests?response=ack", params: {
+      quote_request: { supplier_product_id: offer.id, requested_packages: "2", note: "Synthetic fee basis review", request_key: SecureRandom.uuid }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    request = Clinic::Inventory::SupplierQuoteRequest.find(response.parsed_body.fetch("id"))
+    quote = { reference: "SYN-FEE-1", quoted_on: @practice.inventory_date.iso8601,
+      wholesale_unit_cost: "12.00", currency: "USD", quoted_fee_amount: "1.230001",
+      quoted_fee_basis: "Entire quoted shipment", expected_updated_at: offer.reload.updated_at.iso8601(6), quote_request_id: request.id }
+    patch "/api/clinic/inventory/supplier-products/#{offer.id}/manual-quote", params: { quote: quote }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal BigDecimal("1.230001"), offer.reload.quoted_fee_amount
+    assert_equal "USD", request.reload.quoted_fee_currency
+    assert_equal "Entire quoted shipment", request.quoted_fee_basis
+    assert_equal offer.quoted_fee_amount, request.quoted_fee_amount
+
+    quote = quote.except(:quote_request_id).merge(reference: "SYN-FEE-2", quoted_fee_amount: "0", expected_updated_at: offer.updated_at.iso8601(6))
+    patch "/api/clinic/inventory/supplier-products/#{offer.id}/manual-quote", params: { quote: quote }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal BigDecimal("0"), offer.reload.quoted_fee_amount
+    assert_equal BigDecimal("1.230001"), request.reload.quoted_fee_amount
+
+    quote = quote.merge(quoted_fee_amount: "", quoted_fee_basis: "", expected_updated_at: offer.updated_at.iso8601(6))
+    patch "/api/clinic/inventory/supplier-products/#{offer.id}/manual-quote", params: { quote: quote }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_nil offer.reload.quoted_fee_amount
+    assert_nil offer.quoted_fee_currency
+    assert_nil offer.quoted_fee_basis
+    assert_equal BigDecimal("1.230001"), request.reload.quoted_fee_amount
+
+    quote = quote.merge(quoted_fee_amount: "2", quoted_fee_basis: "", expected_updated_at: offer.updated_at.iso8601(6))
+    patch "/api/clinic/inventory/supplier-products/#{offer.id}/manual-quote", params: { quote: quote }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_nil offer.reload.quoted_fee_amount
+  end
+
   test "supplier prices preview, import, and become the preferred PO default" do
     post "/api/clinic/inventory/suppliers", params: { supplier: { name: "Acme Medical Supply" } }, headers: csrf_headers, as: :json
     assert_response :created
@@ -49,15 +91,24 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal supplier_id, response.parsed_body.fetch("data").fetch("products").find { |product| product.fetch("id") == @product.id.to_s }.fetch("preferred_supplier_id")
 
-    submit_purchase_order(supplier_id, "12.50")
+    offer.update!(price_source: "manual_quote", quote_reference: "SYN-REPLACED-FEE", quoted_on: @practice.inventory_date,
+      quoted_fee_amount: "1.23", quoted_fee_currency: "USD", quoted_fee_basis: "Entire quoted shipment")
+    submit_purchase_order(supplier_id, "12.50", offer: offer)
     order = @practice.inventory_purchase_orders.order(id: :desc).first
     assert_equal "12.5", order.lines.sole.unit_price.to_d.to_s("F")
+    assert_equal BigDecimal("1.23"), order.lines.sole.quoted_fee_amount
+    assert_equal "Entire quoted shipment", order.lines.sole.quoted_fee_basis
+    assert_equal BigDecimal("12.5"), order.total
 
     updated_csv = csv.sub("12.50", "14.00")
     post "/api/clinic/inventory/suppliers/import", params: { supplier_id:, csv: updated_csv, include_lines: [ 2 ] }, headers: csrf_headers, as: :json
     assert_response :success
     assert_equal "14.0", offer.reload.wholesale_unit_cost.to_d.to_s("F")
+    assert_nil offer.quoted_fee_amount
+    assert_nil offer.quoted_fee_currency
+    assert_nil offer.quoted_fee_basis
     assert_equal "12.5", order.lines.sole.reload.unit_price.to_d.to_s("F")
+    assert_equal BigDecimal("1.23"), order.lines.sole.quoted_fee_amount
   end
 
   test "supplier pricing endpoints reject accounts outside the approved roles" do
@@ -115,12 +166,12 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     @headers.merge("X-CSRF-Token" => response.parsed_body.fetch("csrf_token"))
   end
 
-  def submit_purchase_order(supplier_id, unit_price)
+  def submit_purchase_order(supplier_id, unit_price, offer: nil)
     post "/api/clinic/inventory/purchase-orders", params: {
       purchase_order: {
         request_key: SecureRandom.uuid,
         supplier_id:, destination: "Main Pharmacy", reason: "Supplier pricing test",
-        lines: [ { product_id: @product.id, quantity: "1", unit_price:, currency: "USD" } ]
+        lines: [ { product_id: @product.id, quantity: "1", unit_price:, currency: "USD", **(offer ? { supplier_product_id: offer.id, supplier_product_updated_at: offer.updated_at.iso8601(6) } : {}) } ]
       }
     }, headers: csrf_headers, as: :json
     assert_response :created

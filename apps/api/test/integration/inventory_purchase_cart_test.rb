@@ -134,6 +134,31 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("24"), cart.purchase_orders.sole.total
   end
 
+  test "quoted fee changes require explicit refresh and checkout preserves fee evidence without calculating it" do
+    offer = @supplier_one.supplier_products.sole
+    offer.update!(price_source: "manual_quote", quote_reference: "SYN-FEE-CART", quoted_on: @practice.inventory_date,
+      quoted_fee_amount: "2", quoted_fee_currency: "USD", quoted_fee_basis: "Entire quoted shipment")
+    add_item(@product_one, "2")
+    cart = active_cart
+    offer.update!(quoted_fee_amount: "3.230001")
+    checkout(cart)
+    assert_response :conflict
+    assert_equal "cart_offer_changed", response.parsed_body["code"]
+    assert_empty cart.purchase_orders
+    patch_item(cart.items.sole, "2")
+    assert_response :success
+    checkout(cart)
+    assert_response :created
+    order = cart.purchase_orders.sole
+    line = order.lines.sole
+    assert_equal BigDecimal("20"), order.total
+    assert_equal BigDecimal("3.230001"), line.quoted_fee_amount
+    assert_equal "USD", line.quoted_fee_currency
+    assert_equal "Entire quoted shipment", line.quoted_fee_basis
+    offer.update!(quoted_fee_amount: "5")
+    assert_equal BigDecimal("3.230001"), line.reload.quoted_fee_amount
+  end
+
   test "checkout rejects changed supplier SKU and ordering unit snapshots" do
     add_item(@product_one, "2")
     cart = active_cart

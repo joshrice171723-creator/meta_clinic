@@ -1,3 +1,4 @@
+import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
 import {
   useEffect,
   useMemo,
@@ -5632,6 +5633,8 @@ function PurchaseOrderDetails({
                       {line.quote_reference && (
                         <small>
                           Quote {line.quote_reference} · {line.quoted_on}
+                          <br />
+                          {quoteFeeEvidenceLabel(line)}
                         </small>
                       )}
                     </td>
