@@ -118,6 +118,7 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     order = prescription(route: "outside_pharmacy")
     post_event(order, "review")
     assert_response :created
+    review_id = response.parsed_body.fetch("event").fetch("id")
     post "/api/clinic/pharmacy_destinations", params: { pharmacy_destination: {
       request_key: "journey-pharmacy-destination", name: "Synthetic destination pharmacy",
       address_line1: "100 Synthetic Way", city: "Austin", state_code: "TX", postal_code: "78701"
@@ -132,10 +133,15 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     attempt = response.parsed_body.fetch("attempt")
     assert_equal [ "simulated_pharmacy_network", "unknown", "Synthetic destination pharmacy" ],
       [ attempt.fetch("adapter"), attempt.fetch("outcome"), attempt.dig("destination_snapshot", "name") ]
+    assert_equal [ "simulation", "NewRx", "local-simulation-v1", review_id, nil ],
+      attempt.values_at("source", "transaction_type", "schema_version", "review_event_id", "prior_attempt_id")
+    assert_match(/\A[0-9a-f]{64}\z/, attempt.fetch("payload_digest"))
+    assert_match(Clinic::Care::ClinicalPlanWorkflow::UUID_PATTERN, attempt.fetch("correlation_id"))
     assert_no_difference [ "Clinic::Care::PrescriptionTransmissionAttempt.count", "Clinic::Care::PrescriptionEvent.count" ] do
       submit_prescription(order, destination.fetch("id"), scenario: "unknown", key:)
       assert_response :created
       assert_equal attempt.fetch("id"), response.parsed_body.dig("attempt", "id")
+      assert_equal attempt, response.parsed_body.fetch("attempt")
     end
     submit_prescription(order, destination.fetch("id"), scenario: "rejected")
     assert_response :unprocessable_entity
@@ -143,6 +149,47 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal 1, response.parsed_body.fetch("attempts").length
     assert_equal "Synthetic destination pharmacy", response.parsed_body.dig("attempts", 0, "destination_snapshot", "name")
+  end
+
+  test "T09 provenance binds a new attempt to exact review and preserves earlier snapshots" do
+    order = prescription(route: "outside_pharmacy")
+    post_event(order, "review")
+    assert_response :created
+    review_id = response.parsed_body.fetch("event").fetch("id")
+    destination = Clinic::Care::PharmacyDestination.create!(practice: @practice, name: "Synthetic provenance pharmacy",
+      address_line1: "100 Synthetic Way", city: "Austin", state_code: "TX", postal_code: "78701")
+    submit_prescription(order, destination.id, scenario: "failure_before_send")
+    assert_response :created
+    first = response.parsed_body.fetch("attempt")
+    assert_equal review_id, first.fetch("review_event_id")
+    revised = revise(order, substitution_instruction: "allowed")
+    assert_no_difference "Clinic::Care::PrescriptionTransmissionAttempt.count" do
+      submit_prescription(order, destination.id, scenario: "failure_before_send")
+      assert_response :conflict
+      submit_prescription(revised, destination.id, scenario: "failure_before_send")
+      assert_response :unprocessable_entity
+    end
+    post_event(revised, "review")
+    assert_response :created
+    new_review_id = response.parsed_body.fetch("event").fetch("id")
+    destination.update!(name: "Synthetic corrected destination")
+    submit_prescription(revised, destination.id, scenario: "failure_before_send")
+    assert_response :created
+    second = response.parsed_body.fetch("attempt")
+    assert_equal [ first.fetch("id"), revised.id, new_review_id ],
+      second.values_at("prior_attempt_id", "medication_request_revision_id", "review_event_id")
+    assert_not_equal first.fetch("correlation_id"), second.fetch("correlation_id")
+    assert_not_equal first.fetch("payload_digest"), second.fetch("payload_digest")
+    saved = Clinic::Care::PrescriptionTransmissionAttempt.find(first.fetch("id"))
+    assert_equal first, Clinic::Care::PrescriptionTransmissionWorkflow.serialize(saved).stringify_keys
+    assert_equal "Synthetic provenance pharmacy", saved.destination_snapshot.fetch("name")
+    invalid = saved.dup
+    invalid.request_key = SecureRandom.uuid
+    invalid.review_event = Clinic::Care::PrescriptionEvent.find(new_review_id)
+    invalid.valid?
+    assert_includes invalid.errors[:review_event], "must review this exact patient, clinic and revision"
+    assert_not saved.update(correlation_id: SecureRandom.uuid)
+    assert_equal first.fetch("correlation_id"), saved.reload.correlation_id
   end
 
   test "T06 partial handover retries and reversal post exact stock once without creating administration" do
@@ -361,7 +408,8 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
         medication_form: "solution", dose_value: "1", dose_unit_code: "mL", route_code: "oral",
         frequency_text: "Synthetic once-only instruction", instructions: "Synthetic directions, not a clinical recommendation",
         prescribed_quantity: "3.00", quantity_unit: "mL", refills: 0, fulfillment_route: route,
-        pharmacy_name: "Synthetic pharmacy", pharmacy_location: "Synthetic location 1"
+        pharmacy_name: "Synthetic pharmacy", pharmacy_location: "Synthetic location 1",
+        substitution_instruction: "not_allowed"
       }.merge(attributes))
     revise(draft, status: "authorized")
   end
@@ -400,7 +448,7 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
 
   def submit_prescription(order, destination_id, scenario: "acknowledged", key: SecureRandom.uuid)
     post "#{events_path(order).delete_suffix('/events')}/submit", params: { prescription_submission: {
-      pharmacy_destination_id: destination_id, scenario:, request_key: key
+      pharmacy_destination_id: destination_id, scenario:, request_key: key, mode: "standard"
     } }, headers: csrf_headers, as: :json
   end
 

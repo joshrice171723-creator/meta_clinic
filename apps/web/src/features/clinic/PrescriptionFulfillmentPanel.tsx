@@ -42,6 +42,14 @@ type TransmissionAttempt = {
   adapter: "simulated_pharmacy_network";
   mode: "standard" | "controlled_test";
   outcome: string;
+  request_key: string;
+  source: "simulation" | null;
+  transaction_type: "NewRx" | null;
+  schema_version: string | null;
+  payload_digest: string | null;
+  correlation_id: string | null;
+  review_event_id: number | null;
+  prior_attempt_id: number | null;
   signer_snapshot: Record<string, string>;
   reviewer_snapshot: Record<string, string>;
   destination_snapshot: Pick<
@@ -50,6 +58,26 @@ type TransmissionAttempt = {
   >;
   submitted_at: string;
 };
+
+export function PrescriptionAttemptEvidence({
+  attempt,
+}: {
+  attempt: TransmissionAttempt;
+}) {
+  return (
+    <Typography variant="body2">
+      Simulated pharmacy network · {attempt.mode.replaceAll("_", " ")} ·{" "}
+      {attempt.outcome.replaceAll("_", " ")} ·{" "}
+      {attempt.destination_snapshot.name} ·{" "}
+      {new Date(attempt.submitted_at).toLocaleString()}
+      {attempt.review_event_id && attempt.correlation_id
+        ? ` · ${attempt.transaction_type} · version record ${attempt.medication_request_revision_id} · review #${attempt.review_event_id} · correlation ${attempt.correlation_id}${attempt.prior_attempt_id ? ` · follows attempt #${attempt.prior_attempt_id}` : ""}`
+        : " · Historical attempt provenance unavailable"}
+      {attempt.mode === "controlled_test" &&
+        ` · signer ${attempt.signer_snapshot.state ?? "unknown"} · reviewer ${attempt.reviewer_snapshot.state ?? "unknown"}`}
+    </Typography>
+  );
+}
 type Dispense = {
   id: number;
   original_dispense_id: number | null;
@@ -355,6 +383,9 @@ export function PrescriptionFulfillmentPanel({
     ].includes(latest.kind);
   const unavailable = busy || pending !== null || !evidence;
   const disabled = unavailable || !canWrite;
+  const substitutionUnresolved =
+    order?.fulfillment_route === "outside_pharmacy" &&
+    !["allowed", "not_allowed"].includes(order.substitution_instruction ?? "");
   return (
     <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
       <Stack spacing={2}>
@@ -403,6 +434,13 @@ export function PrescriptionFulfillmentPanel({
             Quantity {order.prescribed_quantity ?? "not recorded"}{" "}
             {order.quantity_unit} · Refills {order.refills ?? "not recorded"}
             <br />
+            Substitution:{" "}
+            {order.substitution_instruction === "allowed"
+              ? "Allowed"
+              : order.substitution_instruction === "not_allowed"
+                ? "Not allowed"
+                : "Unresolved — choose before review or submission"}
+            <br />
             {order.fulfillment_route?.replaceAll("_", " ") ??
               "Fulfillment not selected"}{" "}
             · {order.pharmacy_name} {order.pharmacy_location}
@@ -416,7 +454,7 @@ export function PrescriptionFulfillmentPanel({
           onChange={(event) => setNote(event.target.value)}
         />
         <Button
-          disabled={disabled || !!unresolved}
+          disabled={disabled || !!unresolved || substitutionUnresolved}
           onClick={() => event("review", "manual")}
         >
           Confirm current prescription review
@@ -593,7 +631,10 @@ export function PrescriptionFulfillmentPanel({
                   </MenuItem>
                 ))}
               </TextField>
-              <Button disabled={disabled || !destination} onClick={submit}>
+              <Button
+                disabled={disabled || !destination || substitutionUnresolved}
+                onClick={submit}
+              >
                 Submit to pharmacy (simulated)
               </Button>
             </Stack>
@@ -605,14 +646,7 @@ export function PrescriptionFulfillmentPanel({
           </Alert>
         )}
         {evidence?.attempts.map((attempt) => (
-          <Typography key={attempt.id} variant="body2">
-            Simulated pharmacy network · {attempt.mode.replaceAll("_", " ")} ·{" "}
-            {attempt.outcome.replaceAll("_", " ")} ·{" "}
-            {attempt.destination_snapshot.name} ·{" "}
-            {new Date(attempt.submitted_at).toLocaleString()}
-            {attempt.mode === "controlled_test" &&
-              ` · signer ${attempt.signer_snapshot.state ?? "unknown"} · reviewer ${attempt.reviewer_snapshot.state ?? "unknown"}`}
-          </Typography>
+          <PrescriptionAttemptEvidence key={attempt.id} attempt={attempt} />
         ))}
         {evidence?.events.map((item) => (
           <Typography key={item.id} variant="body2">

@@ -63,6 +63,7 @@ module Development
           intent: "order", dose_text: "10 mg", route_text: "oral", frequency_text: "daily",
           instructions: "Follow the demonstration care plan", prescribed_quantity: "30",
           quantity_unit: "tablet", refills: 0, fulfillment_route: "outside_pharmacy",
+          substitution_instruction: "not_allowed",
           pharmacy_name: "Example Community Pharmacy", pharmacy_location: "Austin"
         }
       )

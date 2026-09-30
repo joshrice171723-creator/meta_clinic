@@ -641,6 +641,7 @@ export type ClinicalRevisionBase = {
   recorded_at: string;
 };
 export type MedicationRequestRevision = ClinicalRevisionBase & {
+  substitution_instruction?: "allowed" | "not_allowed" | null;
   fulfillment_route?:
     "outside_pharmacy" | "take_home" | "administration" | null;
   medication_strength?: string | null;
