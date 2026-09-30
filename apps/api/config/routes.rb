@@ -4,7 +4,10 @@ Rails.application.routes.draw do
   post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
   scope path: "api", as: "api" do
   get "qa", to: "qa/workspace#show"
-  get "qa/office", to: "qa/workspace#office"
+    get "qa/office", to: "qa/workspace#office"
+    get "qa/office/actors", to: "qa/workspace#office_actors"
+    post "qa/office/position", to: "qa/workspace#office_position"
+    post "qa/office/check-ins", to: "qa/workspace#office_check_in"
   get "qa/status.json", to: "qa/workspace#status"
   get "qa/issues.json", to: "qa/workspace#issues"
   get "qa/atlas.json", to: "qa/workspace#atlas"

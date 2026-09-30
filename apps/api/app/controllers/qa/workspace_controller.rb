@@ -32,6 +32,12 @@ module Qa
         events: Event.order(created_at: :desc).limit(100),
         evidence: Evidence.order(created_at: :desc).limit(100).map { |item| evidence_json(item) } }
     end
+    rescue_from OfficeActorPolicy::Denied do |error|
+      render json: { error: error.message }, status: :forbidden
+    end
+    rescue_from OfficeActors::Conflict do |error|
+      render json: { error: error.message }, status: :conflict
+    end
 
     def status
       state = Workspace.state
@@ -44,6 +50,18 @@ module Qa
           historical_passed: state.fetch("retest", []).count { |issue| issue["status"] == "passed" },
           current_build_completed_tasks: build["revision"] ? Task.where(status: "completed", revision: build["revision"]).count : nil,
           queued: task_scope.where(status: "queued").count }, github_status: issues["status"], guardrails: Workspace::GUARDRAILS }
+    end
+
+    def office_actors
+      render json: OfficeActors.read(viewer: @service_token&.user || current_user, token: @service_token)
+    end
+
+    def office_position
+      render json: OfficeActors.write(user: actor, token: @service_token, input: object!(:position), kind: "position")
+    end
+
+    def office_check_in
+      render json: OfficeActors.write(user: actor, token: @service_token, input: object!(:check_in), kind: "check_in")
     end
 
     def issues = render(json: Workspace.github)
