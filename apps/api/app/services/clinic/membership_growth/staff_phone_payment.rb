@@ -47,7 +47,8 @@ module Clinic
           begin_reader!(prospect, actor, gateway)
         rescue ArgumentError
           if defined?(prospect) && prospect && !prospect.selected_terms.fetch("eligibility_review", false)
-            prospect.with_lock do
+            prospect.reload.with_lock do
+              next if prospect.status.in?(%w[paid_onboarding converted])
               prospect.update!(staff_payment_status: "failed", status: "payment_failed",
                 follow_up_state: "open", follow_up_due_at: Current.business_time)
             end
@@ -63,7 +64,14 @@ module Clinic
               prospect.staff_payment_setup_intent_id.present?
             raise TransitionProspect::InvalidTransition, "Start this customer's phone payment before checking it."
           end
-          return result(prospect, "paid") if prospect.status_paid_onboarding? || prospect.status_converted?
+          if prospect.status_paid_onboarding? || prospect.status_converted?
+            unless prospect.receipt_sent_at
+              connection = Clinic::Billing::StripeConnect.connection(practice)
+              raise Clinic::Billing::StripeGateway::Unavailable, "Receipt delivery needs the clinic's payment connection." unless connection
+              PublicCheckout.retry_staff_receipt!(prospect:, actor: connection.connected_by)
+            end
+            return result(prospect, "paid")
+          end
 
           connection = Clinic::Billing::StripeConnect.connection(practice)
           raise ArgumentError, "The clinic must complete Stripe onboarding before accepting payment." unless connection
@@ -249,10 +257,7 @@ module Clinic
           return fail_payment!(prospect) if %w[void uncollectible].include?(invoice["status"])
           return result(prospect, "payment_processing") unless invoice["status"] == "paid"
 
-          ApplicationRecord.transaction do
-            PublicCheckout.fulfill_staff_subscription!(prospect:, connection:, subscription:, gateway:)
-            prospect.reload.update!(staff_payment_status: "paid")
-          end
+          PublicCheckout.fulfill_staff_subscription!(prospect:, connection:, subscription:, gateway:)
           result(prospect.reload, "paid")
         end
 
