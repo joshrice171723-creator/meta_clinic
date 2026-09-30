@@ -7,18 +7,33 @@ module Clinic
         SubscriptionAllowanceEntry.where(practice_id: agreement.practice_id, agreement_id: agreement.id)
       end
 
-      def self.window(agreement, component, at: Current.business_time)
+      def self.window(agreement, component, at: Current.business_time, check_conflicts: true)
         return nil unless component["allowance"] && SubscriptionDefinition.allowance(component["allowance"])
         at = at.utc
         paid = agreement.events.to_a.select do |event|
           next false unless event.kind == "active"
           Time.iso8601(event.details.fetch("starts_at")) <= at && at < Time.iso8601(event.details.fetch("ends_at"))
         end
-        # Overlapping paid periods are ambiguous; do not infer which supplies units.
-        return nil unless paid.one?
-        event = paid.first
-        anchor = Time.iso8601(event.details.fetch("starts_at")).utc
-        finish = Time.iso8601(event.details.fetch("ends_at")).utc
+        resolution = nil
+        if paid.length > 1
+          evidence = SubscriptionPaidPeriods.evidence(agreement: agreement, component: component, at: at)
+          resolution = SubscriptionPaidPeriods.current_resolution(agreement: agreement, component: component, evidence: evidence, at: at)
+          return nil unless resolution
+          event = paid.find { |item| item.id == resolution.selected_paid_event_id }
+        else
+          return nil unless paid.one?
+          event = paid.first
+        end
+        current = event_window({ id: event.id, starts_at: event.details.fetch("starts_at"), ends_at: event.details.fetch("ends_at") }, component, at: at)
+        current[:period_resolution_id] = resolution.id if resolution
+        return nil if check_conflicts && SubscriptionPaidPeriods.conflicting_uses(agreement: agreement,
+          service_id: component.fetch("service_id"), window: current).any?
+        current
+      end
+
+      def self.event_window(event, component, at: Current.business_time)
+        anchor = Time.iso8601(event.fetch(:starts_at)).utc
+        finish = Time.iso8601(event.fetch(:ends_at)).utc
         frequency = component.fetch("frequency")
         index = case frequency
         when "term" then 0
@@ -32,7 +47,7 @@ module Clinic
         end
         start = boundary(anchor, frequency, index)
         stop = frequency == "term" ? finish : [boundary(anchor, frequency, index + 1), finish].min
-        { paid_event_id: event.id, window_start: start, window_end: stop }
+        { paid_event_id: event.fetch(:id), window_start: start, window_end: stop }
       end
 
       def self.boundary(anchor, frequency, index)
@@ -45,18 +60,23 @@ module Clinic
       end
 
       def self.token(window)
-        window && "#{window[:paid_event_id]}:#{window[:window_start].iso8601(6)}:#{window[:window_end].iso8601(6)}"
+        return nil unless window
+        value = "#{window[:paid_event_id]}:#{window[:window_start].iso8601(6)}:#{window[:window_end].iso8601(6)}"
+        window[:period_resolution_id] ? "#{value}:resolution:#{window[:period_resolution_id]}" : value
       end
 
       def self.project(agreement:, component:, entries:, state:, at: Current.business_time)
-        current = window(agreement, component, at: at)
+        current = window(agreement, component, at: at, check_conflicts: false)
+        conflicting = current && SubscriptionPaidPeriods.conflicting_uses(agreement: agreement,
+          service_id: component.fetch("service_id"), window: current, entries: entries).any?
         rows = current ? entries.select { |row| row.service_id == component.fetch("service_id") &&
           row.paid_event_id == current[:paid_event_id] && row.window_start == current[:window_start] && row.window_end == current[:window_end] } : []
         used = rows.select { |row| row.kind == "use" }.sum(&:quantity)
         restored = rows.select { |row| row.kind == "reversal" }.sum(&:quantity)
-        remaining = current ? component.fetch("quantity") - used + restored : nil
+        remaining = current && !conflicting ? component.fetch("quantity") - used + restored : nil
         status = if !component["allowance"] then "allowance_unconfigured"
         elsif !current then "paid_period_unavailable"
+        elsif conflicting then "historical_usage_conflict"
         elsif state != "active" then "inactive"
         elsif remaining.zero? then "exhausted"
         else "available"
@@ -67,7 +87,7 @@ module Clinic
           used_quantity: used, reversed_quantity: restored, remaining_quantity: remaining,
           status: status, can_use: status == "available", source: "retained_recurring_allowance",
           allowance_window: token(current), window_start: current&.fetch(:window_start)&.iso8601(6),
-          window_end: current&.fetch(:window_end)&.iso8601(6) }
+          window_end: current&.fetch(:window_end)&.iso8601(6), period_resolution_id: current&.dig(:period_resolution_id) }
       end
 
       def self.record(agreement:, actor:, kind:, service_id: nil, quantity: nil, reversed_entry_id: nil,
@@ -109,7 +129,7 @@ module Clinic
           SubscriptionDefinition.allowance(component["allowance"])
           at = Current.business_time
           current = if original
-            original.attributes.symbolize_keys.slice(:paid_event_id, :window_start, :window_end)
+            original.attributes.symbolize_keys.slice(:paid_event_id, :window_start, :window_end, :period_resolution_id)
           else
             window(agreement, component, at: at)
           end
@@ -121,7 +141,7 @@ module Clinic
           elsif rows.any? { |row| row.reversed_entry_id == original.id }
             raise ArgumentError, "This service use has already been reversed."
           end
-          entry = records(agreement).create!(attributes.merge(current).merge(actor: actor, request_key: key))
+          entry = records(agreement).create!(attributes.merge(current).merge(actor: actor, request_key: key, accounted_at: at))
           AuditRecorder.record!(practice: agreement.practice, actor: actor,
             action_code: "subscriptions.allowance_#{kind}", outcome: :committed,
             resource_version_ref: "subscription_allowance_entry:#{entry.id}")

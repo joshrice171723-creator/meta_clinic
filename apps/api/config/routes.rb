@@ -344,6 +344,8 @@ Rails.application.routes.draw do
     resources :subscriptions, controller: "billing/subscriptions", only: :index do
       post :entitlement, on: :member
       get :entitlements, on: :member
+      get :paid_period_resolutions, on: :member
+      post :resolve_paid_period, on: :member, path: "paid_period_resolutions"
       post :reconcile_ledger, on: :member
       post :review, on: :member
       post :reconcile, on: :member

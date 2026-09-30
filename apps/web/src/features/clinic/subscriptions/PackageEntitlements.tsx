@@ -20,6 +20,7 @@ import type {
   Subscription,
 } from "./contracts";
 import { subscriptionDate } from "./contracts";
+import { PaidPeriodResolution } from "./PaidPeriodResolution";
 import {
   createEntitlementAttempt,
   entitlementActionAllowed,
@@ -65,7 +66,9 @@ export function PackageEntitlementBalances({
               ? balance.source === "retained_recurring_allowance"
                 ? balance.status === "allowance_unconfigured"
                   ? "Unknown — purchased allowance policy unconfigured"
-                  : "Unknown — verified paid period unavailable"
+                  : balance.status === "historical_usage_conflict"
+                    ? "Unknown — another overlapping paid window retains unreversed use"
+                    : "Unknown — verified paid period unavailable"
                 : "Unknown — opening balance not recorded"
               : `${balance.remaining_quantity} units`}
             .
@@ -90,6 +93,17 @@ export function PackageEntitlementBalances({
             <Typography variant="body2">
               Allowance window (UTC): {balance.window_start} through {balance.window_end} (end excluded).
               Unused units expire at the boundary. Reversals restore only their original window.
+            </Typography>
+          )}
+          {balance.period_resolution_id && (
+            <Typography variant="body2">
+              Governing paid-period resolution #{balance.period_resolution_id}.
+            </Typography>
+          )}
+          {balance.status === "historical_usage_conflict" && (
+            <Typography variant="body2">
+              Review the original ledger entries and recorded paid-period evidence.
+              Usage remains in its original window; this view does not move or allocate it.
             </Typography>
           )}
           {balance.status === "inactive" && (
@@ -173,10 +187,13 @@ export function PackageEntitlements({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [resolutionOpen, setResolutionOpen] = useState(false);
+  const [resolutionPending, setResolutionPending] = useState(false);
   const inFlight = useRef(false);
   const refresh = () => setRevision((value) => value + 1);
   const data = read.scope === scope ? read.data : undefined;
-  const locked = disabled || busy || pending !== null;
+  const locked =
+    disabled || busy || pending !== null || resolutionOpen || resolutionPending;
 
   useEffect(() => {
     const abort = new AbortController();
@@ -206,7 +223,7 @@ export function PackageEntitlements({
   }, [subscriptionId, page, scope]);
 
   useEffect(() => {
-    onPendingChange(pending !== null);
+    onPendingChange(pending !== null || resolutionPending);
     if (!pending) return;
     const warning =
       "The package action outcome is unconfirmed. Retry the exact request before leaving.";
@@ -220,7 +237,7 @@ export function PackageEntitlements({
       unregister();
       window.removeEventListener("beforeunload", beforeUnload);
     };
-  }, [pending, onPendingChange, registerBlocker]);
+  }, [pending, resolutionPending, onPendingChange, registerBlocker]);
 
   const select = (
     kind: EntitlementKind,
@@ -383,6 +400,16 @@ export function PackageEntitlements({
                 disabled={locked || confirmation !== null}
                 onSelect={select}
               />
+              {data.subscription.entitlements?.some(
+                (balance) => balance.source === "retained_recurring_allowance",
+              ) && (
+                <Button
+                  disabled={locked || confirmation !== null || draft !== null}
+                  onClick={() => setResolutionOpen(true)}
+                >
+                  Review paid-period overlaps
+                </Button>
+              )}
               {draft && (
                 <Stack spacing={2}>
                   <Divider />
@@ -469,6 +496,7 @@ export function PackageEntitlements({
                       {subscriptionDate(entry.occurred_at, true)} · Source:{" "}
                       {entry.source_reference}
                       {entry.allowance_window ? ` · Window: ${entry.allowance_window}` : ""}
+                      {entry.period_resolution_id ? ` · Resolution #${entry.period_resolution_id}` : ""}
                       {entry.reversed_entry_id
                         ? ` · Reverses #${entry.reversed_entry_id}`
                         : ""}
@@ -527,13 +555,32 @@ export function PackageEntitlements({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button disabled={busy || confirmation !== null} onClick={refresh}>
+        <Button
+          disabled={
+            busy || confirmation !== null || resolutionOpen || resolutionPending
+          }
+          onClick={refresh}
+        >
           Refresh package records
         </Button>
         <Button disabled={locked || confirmation !== null} onClick={onClose}>
           Close
         </Button>
       </DialogActions>
+      {resolutionOpen && (
+        <PaidPeriodResolution
+          subscriptionId={subscriptionId}
+          canRecord={canWrite && !disabled}
+          onResolved={() => {
+            refresh();
+            onChanged();
+          }}
+          onClose={() => {
+            if (!resolutionPending) setResolutionOpen(false);
+          }}
+          onUnknownOutcomeChange={setResolutionPending}
+        />
+      )}
       <Dialog
         open={confirmation !== null}
         fullWidth

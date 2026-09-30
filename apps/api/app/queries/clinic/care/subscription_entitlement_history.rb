@@ -23,7 +23,8 @@ module Clinic
           quantity: entry.quantity, reversed_entry_id: entry.reversed_entry_id,
           source_reference: entry.source_reference, occurred_at: entry.created_at.iso8601,
           ledger: recurring ? "recurring" : "fixed",
-          allowance_window: recurring ? SubscriptionAllowances.token(entry.attributes.symbolize_keys) : nil }
+          allowance_window: recurring ? SubscriptionAllowances.token(entry.attributes.symbolize_keys) : nil,
+          period_resolution_id: recurring ? entry.period_resolution_id : nil }
       end
     end
   end
