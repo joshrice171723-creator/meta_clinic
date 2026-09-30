@@ -615,7 +615,10 @@ function DailyVisitsByState({
   capabilities: ClinicCapabilities;
   timezone?: string;
 }) {
-  const requestedDate = new URLSearchParams(window.location.search).get("date");
+  const requestedDate =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("date");
   const initialDate =
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
       ? requestedDate
