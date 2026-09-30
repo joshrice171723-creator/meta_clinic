@@ -29,11 +29,20 @@ module Qa
       item.kind == KIND && item.user_id == actor.id && item.payload.except(*BUILD_FIELDS) == payload.except(*BUILD_FIELDS)
     end
 
-    def self.post(actor, input, source:)
+    def self.reject_credentials!(value)
+      if value.to_json.match?(/Bearer\s+[A-Za-z0-9_+\/-]{12,}|-----BEGIN[^-]*PRIVATE KEY-----|\bqa_[A-Za-z0-9_-]{43}\b|\b(?:password|pin)\s*[:=]\s*\S+/i)
+        raise ArgumentError, "Remove credentials from Office coordination."
+      end
+    end
+
+    def self.post(actor, input, source:, authenticated_actor: nil)
       key = text!(input, "message_key", 100)
       payload = { "agent" => text!(input, "agent", 80), "recipient" => text!(input, "recipient", 80),
         "body" => text!(input, "body", 2000), "identity" => "self_reported", "authenticated_source" => source,
         "provenance" => "reported" }
+      if authenticated_actor
+        payload.merge!("agent" => OfficeActors::NAMES.fetch(authenticated_actor), "identity" => "server_bound", "authenticated_actor" => authenticated_actor)
+      end
       if input["reference_revision"].present?
         raise ArgumentError, "Reference revision must be a full 40-character SHA." unless input["reference_revision"].is_a?(String) && input["reference_revision"].match?(/\A[0-9a-f]{40}\z/)
         payload["reference_revision"] = input["reference_revision"]
@@ -61,9 +70,7 @@ module Qa
         raise ArgumentError, "Reply message does not exist." unless parent
         payload.merge!("reply_to" => parent.id, "thread_id" => parent.payload["thread_id"] || parent.id)
       end
-      if payload.merge("message_key" => key).to_json.match?(/Bearer\s+[A-Za-z0-9_+\/-]{12,}|-----BEGIN[^-]*PRIVATE KEY-----|\bqa_[A-Za-z0-9_-]{43}\b|\b(?:password|pin)\s*[:=]\s*\S+/i)
-        raise ArgumentError, "Remove credentials. Post independently synthetic QA coordination only."
-      end
+      reject_credentials!(payload.merge("message_key" => key))
       actor.with_lock do
         existing = Event.find_by(event_key: "room:#{key}")
         if existing

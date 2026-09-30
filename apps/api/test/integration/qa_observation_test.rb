@@ -192,7 +192,8 @@ class QaObservationTest < ActionDispatch::IntegrationTest
 
   test "text alone cannot complete a claimed task or pass a defect" do
     sign_in
-    @task.update!(status: "claimed", claimed_by: @owner, claim_run_id: "synthetic-run", claimed_at: Time.current)
+    @task.update!(status: "claimed", claimed_by: @owner, claim_principal: Qa::OfficeActors.principal_key(@owner, nil), lease_expires_at: 30.minutes.from_now,
+      claim_run_id: "synthetic-run", claimed_at: Time.current)
     with_build(@build) do
       assert_no_difference "Qa::Event.count" do
         post "/api/qa/tasks/#{@task.id}/transition", headers: csrf_headers, as: :json, params: {

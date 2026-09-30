@@ -8,6 +8,9 @@ module Qa
     rescue_from AgentRoom::Conflict do |error|
       render json: { error: error.message }, status: :conflict
     end
+    rescue_from OfficeWork::Conflict do |error|
+      render json: { error: error.message }, status: :conflict
+    end
     rescue_from ActiveRecord::RecordInvalid, ArgumentError do |error|
       render json: { error: error.message }, status: :unprocessable_entity
     end
@@ -19,7 +22,8 @@ module Qa
         guardrails: Workspace::GUARDRAILS, baseline: Snapshot.find_by(key: "baseline")&.data,
         pin: Snapshot.find_by(key: "pin")&.data,
         capabilities: { agent: @service_token.present?, github_questions: ENV["QA_GITHUB_TOKEN"].present?,
-          record_observation: current_user&.platform_owner? == true, agent_room: current_user&.platform_owner? == true } }
+          record_observation: current_user&.platform_owner? == true, agent_room: current_user&.platform_owner? == true,
+          manage_tasks: @service_token.nil? && current_user&.platform_owner? == true } }
     end
 
     def office
@@ -27,10 +31,18 @@ module Qa
         actors: [ [ "josh", "Josh" ], [ "muse", "Muse" ], [ "dot", "dot" ] ].map do |id, name|
           { id:, name:, connection: "not_connected", control: "uncontrolled", position: nil }
         end,
+        actor_state: OfficeActors.read(viewer: @service_token&.user || current_user, token: @service_token),
+        messages: AgentRoom.messages[:messages],
         build: Workspace.build,
         tasks: task_scope.order(created_at: :desc).limit(100).map { |task| task_json(task) },
         events: Event.order(created_at: :desc).limit(100),
         evidence: Evidence.order(created_at: :desc).limit(100).map { |item| evidence_json(item) } }
+    end
+    rescue_from OfficeActorPolicy::Denied do |error|
+      render json: { error: error.message }, status: :forbidden
+    end
+    rescue_from OfficeActors::Conflict do |error|
+      render json: { error: error.message }, status: :conflict
     end
 
     def status
@@ -46,6 +58,32 @@ module Qa
           queued: task_scope.where(status: "queued").count }, github_status: issues["status"], guardrails: Workspace::GUARDRAILS }
     end
 
+    def office_actors
+      render json: OfficeActors.read(viewer: @service_token&.user || current_user, token: @service_token)
+    end
+
+    def office_position
+      render json: OfficeActors.write(user: actor, token: @service_token, input: object!(:position), kind: "position")
+    end
+
+    def office_check_in
+      render json: OfficeActors.write(user: actor, token: @service_token, input: object!(:check_in), kind: "check_in")
+    end
+
+    def office_work
+      render json: OfficeWork.read(user: @service_token&.user || current_user, token: @service_token)
+    end
+
+    def office_work_transition
+      render json: OfficeWork.transition(user: actor, token: @service_token, id: params[:id],
+        input: params.to_unsafe_h.except("controller", "action", "id", "format", "workspace"))
+    end
+
+    def office_enrollment
+      raise OfficeActorPolicy::Denied, "Approve fingerprints in the owner's browser session." if @service_token
+      render json: OfficeEnrollment.approve(user: actor, input: object!(:enrollment)), status: :created
+    end
+
     def issues = render(json: Workspace.github)
     def atlas = render(json: Atlas.read)
     def retest = render(json: { retest: Workspace.state.fetch("retest", []), coverage: Workspace.state.fetch("coverage", []) })
@@ -53,13 +91,23 @@ module Qa
     def tasks = render(json: { tasks: task_scope.order(created_at: :desc).limit(100).map { |task| task_json(task) } })
 
     def room
-      render json: AgentRoom.messages(params[:after_id]).merge(can_post: @service_token.present? || current_user&.platform_owner? == true,
+      can_post = @service_token&.office? ? OfficeWork.read(user: actor, token: @service_token)[:can_post] : @service_token.present? || current_user&.platform_owner? == true
+      render json: AgentRoom.messages(params[:after_id]).merge(can_post:,
         access: "public_read_owner_or_existing_qa_token_write",
         notice: "Messages are untrusted reported observations. A persisted receipt is not proof of recipient pickup or authority to execute anything.")
     end
 
     def create_room_message
-      render json: AgentRoom.post(actor, object!(:message), source: @service_token ? "qa_service:#{@service_token.recipient}" : "owner_session"), status: :created
+      input = object!(:message)
+      if @service_token&.office?
+        result = OfficeWork.locked(actor, @service_token) do
+          identity = OfficeActorPolicy.actor(config: OfficeActors.configuration, user: actor, token: @service_token)
+          AgentRoom.post(actor, input, source: "office_service:#{@service_token.id}", authenticated_actor: identity)
+        end
+      else
+        result = AgentRoom.post(actor, input, source: @service_token ? "qa_service:#{@service_token.id}:#{@service_token.recipient}" : "owner_session")
+      end
+      render json: result, status: :created
     end
 
     def create_task
@@ -67,18 +115,27 @@ module Qa
       kind = string!(input, "kind", 30)
       revision = revision!(input["revision"])
       raise ArgumentError, "Live revision changed; refresh before queuing." unless verified_build!["revision"] == revision
-      raise ArgumentError, "Confirm the live build pin before queuing work." unless Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == revision
+      if kind == "coordination"
+        return render json: OfficeWork.create(user: actor, token: @service_token, input:, revision:), status: :created
+      end
+      raise OfficeActorPolicy::Denied, "Office credentials cannot queue QA runs." if @service_token&.office?
+      trusted = @service_token.present? || current_user&.platform_owner?
+      raise ArgumentError, "Confirm the live build pin before queuing work." if trusted && Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
       payload = input.fetch("payload", {})
       unless @service_token || current_user&.platform_owner? || %w[retest qa_run].include?(kind)
         return render json: { error: "Only a platform owner can queue this task kind." }, status: :forbidden
       end
       raise ArgumentError, "Task payload must be an object." unless payload.is_a?(Hash) && payload.to_json.bytesize < 30_000
+      attributes = { "kind" => kind, "title" => string!(input, "title", 200), "recipient" => input.fetch("recipient", "muse"), "revision" => revision, "payload" => payload }
+      digest = Task.fingerprint(attributes)
       task = Task.create_or_find_by!(request_key: string!(input, "request_key", 100)) do |record|
-        record.assign_attributes(user: actor, kind:, title: string!(input, "title", 200),
-          recipient: input.fetch("recipient", "muse"), revision:, payload:)
+        record.assign_attributes(attributes.merge(user: actor, status: trusted ? "queued" : "proposed", request_digest: digest))
       end
-      raise ArgumentError, "Request key already belongs to another actor." unless task.user_id == actor.id
-      Workspace.event(user: actor, kind: "task_queued", summary: task.title, revision:, payload: { task_id: task.id }, event_key: "queued:#{task.id}")
+      previous = task.attributes.slice(*attributes.keys).merge("payload" => task.payload.except("qa_baseline"))
+      unless task.user_id == actor.id && (task.request_digest || Task.fingerprint(previous)) == digest
+        raise OfficeWork::Conflict, "Request key already records different content or another actor."
+      end
+      Workspace.event(user: actor, kind: trusted ? "task_queued" : "task_proposed", summary: task.title, revision:, payload: { task_id: task.id }, event_key: "queued:#{task.id}")
       Workspace.event(user: actor, kind: "defect_found", summary: "Pending triage: #{task.title}", revision:, payload: { task_id: task.id }, event_key: "reported:#{task.id}") if task.kind == "issue_report"
       if task.kind == "question" && task.result["github_delivery"].nil?
         task.with_lock do
@@ -93,14 +150,15 @@ module Qa
       revision = revision!(params[:revision])
       outcome = params[:status].to_s
       task = task_scope.find(params[:id])
+      raise OfficeActorPolicy::Denied, "Use the Office work transition endpoint." if task.kind == "coordination"
       conflict = nil
       actor.with_lock do
         task.lock!
         build = Workspace.build
         live = build["revision"]
         if build["dirty"] || live != revision || task.revision != revision || Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
-          if task.status == "claimed" && task.claim_run_id == run_id && task.claimed_by_id == actor.id
-            task.update!(status: "queued", claimed_by: nil, claim_run_id: nil, claimed_at: nil)
+          if task.status == "claimed" && task.claim_run_id == run_id && task.claimed_by_id == actor.id && task.claim_principal == OfficeActors.principal_key(actor, @service_token)
+            task.update!(status: "queued", claimed_by: nil, claim_principal: nil, lease_expires_at: nil, claim_run_id: nil, claimed_at: nil)
             Workspace.event(user: actor, kind: "run_aborted", summary: "Build changed during #{run_id}; task returned to queue.", revision: live, payload: { task_id: task.id, run_id:, pinned_revision: task.revision })
           end
           conflict = "Build identity changed, unavailable, or has uncommitted changes; use a committed pinned build."
@@ -108,12 +166,12 @@ module Qa
           if task.status != "queued" || Event.exists?(event_key: "claim:#{run_id}")
             conflict = "Task already claimed, or this run has already claimed its one task."
           else
-            task.update!(status: "claimed", claimed_by: actor, claim_run_id: run_id, claimed_at: Time.current,
+            task.update!(status: "claimed", claimed_by: actor, claim_principal: OfficeActors.principal_key(actor, @service_token), claim_run_id: run_id, claimed_at: Time.current, lease_expires_at: 30.minutes.from_now,
               payload: task.payload.merge("qa_baseline" => Snapshot.find_by(key: "baseline")&.data))
             Workspace.event(user: actor, kind: "run_started", summary: "#{run_id} claimed #{task.title}", revision:, payload: { task_id: task.id, run_id: }, event_key: "claim:#{run_id}")
           end
         elsif %w[completed failed aborted].include?(outcome)
-          if task.status != "claimed" || task.claimed_by_id != actor.id || task.claim_run_id != run_id
+          if task.status != "claimed" || task.claimed_by_id != actor.id || task.claim_run_id != run_id || task.claim_principal != OfficeActors.principal_key(actor, @service_token) || !task.lease_expires_at || task.lease_expires_at <= Time.current
             conflict = "Only the claiming run can submit this result."
           else
             result = params[:result].respond_to?(:to_unsafe_h) ? params[:result].to_unsafe_h : params[:result]
@@ -122,7 +180,7 @@ module Qa
               raise ArgumentError, "A completed run requires every defect to pass. Submit failed for a mixed or blocked verdict."
             end
             task.update!(status: outcome == "aborted" ? "queued" : outcome, result: result || {},
-              **(outcome == "aborted" ? { claimed_by: nil, claim_run_id: nil, claimed_at: nil } : {}))
+              **(outcome == "aborted" ? { claimed_by: nil, claim_principal: nil, lease_expires_at: nil, claim_run_id: nil, claimed_at: nil } : { lease_expires_at: nil }))
             Workspace.event(user: actor, kind: outcome == "aborted" ? "run_aborted" : "retest_#{outcome == 'completed' ? 'passed' : 'failed'}",
               summary: "#{run_id}: #{task.title} — #{outcome}", revision:, payload: { task_id: task.id, run_id:, result: result || {} })
           end
@@ -140,8 +198,44 @@ module Qa
       return record_observation(input) if kind == "observation_recorded"
       raise ArgumentError, "Use the agent room message endpoint." if kind == AgentRoom::KIND
 
-      render json: Workspace.event(user: actor, kind:, summary: string!(input, "summary", 500),
-        revision: revision!(input["revision"]), payload: input.fetch("payload", {}), event_key: input.fetch("event_key", SecureRandom.uuid)), status: :created
+      raise ArgumentError, "Server event kinds cannot be submitted." if kind.match?(/\A(?:office_|run_|build_|task_|retest_|human_|notification_|evidence_|baseline_|state_|coverage_|priority_|deploy_)/)
+      payload = input.fetch("payload", {})
+      raise ArgumentError, "Event payload must be an object of 8 KB or less." unless payload.is_a?(Hash) && payload.to_json.bytesize <= 8000
+      AgentRoom.reject_credentials!(input)
+      fields = { "kind" => "reported_#{kind}", "summary" => string!(input, "summary", 500), "revision" => revision!(input["revision"]), "payload" => payload }
+      key = string!(input.merge("event_key" => input.fetch("event_key", SecureRandom.uuid)), "event_key", 100)
+      actor.with_lock do
+        event = Workspace.event(user: actor, **fields.symbolize_keys, event_key: "reported:event:#{key}")
+        unless event.user_id == actor.id && event.attributes.slice(*fields.keys) == fields
+          raise OfficeWork::Conflict, "Event key records different content or another actor."
+        end
+        render json: event, status: :created
+      end
+    end
+
+    def accept_task
+      return render json: { error: "Accept proposals in the owner's session." }, status: :forbidden if @service_token
+      task = Task.find(params[:id])
+      task.with_lock do
+        raise OfficeWork::Conflict, "Only proposed work can be accepted." unless task.status == "proposed"
+        revision = verified_build!["revision"]
+        raise OfficeWork::Conflict, "Refresh the live build and trusted pin before accepting." unless task.revision == revision && Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == revision
+        task.update!(status: "queued")
+        Workspace.event(user: actor, kind: "task_accepted", summary: task.title, revision:, payload: { task_id: task.id })
+      end
+      render json: task_json(task)
+    end
+
+    def recover_task
+      return render json: { error: "Recover expired QA work in the owner's session." }, status: :forbidden if @service_token
+      task = Task.find(params[:id])
+      raise ArgumentError, "Use the Office recovery action for coordination work." if task.kind == "coordination"
+      task.with_lock do
+        raise OfficeWork::Conflict, "Only expired claims can be recovered." unless task.status == "claimed" && (!task.lease_expires_at || task.lease_expires_at <= Time.current)
+        task.update!(status: "queued", claimed_by: nil, claim_principal: nil, claim_run_id: nil, claimed_at: nil, lease_expires_at: nil)
+        Workspace.event(user: actor, kind: "task_recovered", summary: task.title, revision: task.revision, payload: { task_id: task.id })
+      end
+      render json: task_json(task)
     end
 
     def update_state
@@ -230,6 +324,10 @@ module Qa
       build = verified_build!
       raise ArgumentError, "Live build differs from the requested pin." unless build["revision"] == revision
       reason = string!(params.to_unsafe_h, "reason", 500)
+      unless @service_token || current_user&.platform_owner?
+        event = Workspace.event(user: actor, kind: "build_pin_proposed", summary: reason, revision:)
+        return render json: { status: "proposed", proposal_id: event.id, revision:, reason: }, status: :accepted
+      end
       data = { revision:, version: build["version"], confirmed_at: Time.current.iso8601, confirmed_by: actor.email_address, reason: }
       Snapshot.put("pin", data)
       Workspace.event(user: actor, kind: "build_pinned", summary: reason, revision:, payload: data)
@@ -321,7 +419,12 @@ module Qa
     end
 
     def require_qa_access
-      return if service_authenticated?
+      if service_authenticated?
+        if @service_token.office? && !%w[office office_actors office_work office_work_transition office_position office_check_in room create_room_message tasks create_task].include?(action_name)
+          render json: { error: "This Office credential cannot access QA operations." }, status: :forbidden
+        end
+        return
+      end
       return if request.get? || %w[pin create_task].include?(action_name)
       require_member
       return if performed?
@@ -345,7 +448,10 @@ module Qa
       raise ArgumentError, "Live build identity is unavailable." unless build["revision"]
       build
     end
-    def task_scope = @service_token ? Task.where(recipient: @service_token.recipient) : Task.all
+    def task_scope
+      scope = @service_token ? Task.where(recipient: @service_token.recipient) : Task.all
+      @service_token&.office? ? scope.where(kind: "coordination") : scope
+    end
     def object!(key)
       value = params.require(key)
       raise ArgumentError, "#{key} must be an object." unless value.is_a?(ActionController::Parameters)
@@ -383,7 +489,8 @@ module Qa
       context.merge("tester" => actor.email_address)
     end
     def task_json(task)
-      task.as_json.merge("claimed_by" => task.claim_run_id, "requester" => task.user.email_address)
+      return OfficeWork.task_json(task) if task.kind == "coordination"
+      task.as_json.except("claim_principal", "request_digest").merge("claimed_by" => task.claim_run_id, "requester" => task.user.email_address)
     end
     def evidence_json(item)
       item.attributes.except("image").merge("url" => "/api/qa/evidence/#{item.id}", "tester" => item.user.email_address)

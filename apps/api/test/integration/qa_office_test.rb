@@ -27,7 +27,7 @@ class QaOfficeTest < ActionDispatch::IntegrationTest
     get "/api/qa/office"
     assert_response :success
     body = response.parsed_body
-    assert_equal %w[actor_binding actors build cadence contract_version events evidence receipts tasks], body.keys.sort
+    assert_equal %w[actor_binding actor_state actors build cadence contract_version events evidence messages receipts tasks], body.keys.sort
     assert_equal 1, body["contract_version"]
     assert_equal "not_configured", body["actor_binding"]
     assert_nil body["receipts"]
