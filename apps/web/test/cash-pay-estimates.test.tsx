@@ -28,6 +28,7 @@ const issued: CashPayEstimate = {
     {
       id: 1,
       billing_service_id: 2,
+      source_price_revision: 0,
       service_offering_id: 17,
       quantity: "1.0",
       unit_amount: "75.0",
@@ -40,6 +41,26 @@ const issued: CashPayEstimate = {
 };
 
 describe("cash-pay estimate snapshots", () => {
+  it("displays source revision zero and preserves unknown historical provenance", () => {
+    const html = renderToStaticMarkup(
+      <CashPayEstimateSnapshot estimate={issued} title="Issued snapshot" />,
+    );
+    expect(html).toContain(
+      "Catalog price source: billing service #2 · revision 0",
+    );
+    const historical = {
+      ...issued,
+      lines: [{ ...issued.lines[0], source_price_revision: null }],
+    };
+    expect(
+      renderToStaticMarkup(
+        <CashPayEstimateSnapshot
+          estimate={historical}
+          title="Historical snapshot"
+        />,
+      ),
+    ).toContain("Catalog price revision not recorded");
+  });
   it("keeps the prior and corrected prices and reason visible without implying delivery", () => {
     const correction: CashPayEstimate = {
       ...issued,
@@ -52,6 +73,7 @@ describe("cash-pay estimate snapshots", () => {
         {
           ...issued.lines[0],
           id: 2,
+          source_price_revision: 1,
           unit_amount: "95.0",
           expected_amount: "95.0",
         },
@@ -73,6 +95,12 @@ describe("cash-pay estimate snapshots", () => {
     expect(html).toContain("Correction snapshot");
     expect(html).toContain("USD 75.0");
     expect(html).toContain("USD 95.0");
+    expect(html).toContain(
+      "Catalog price source: billing service #2 · revision 0",
+    );
+    expect(html).toContain(
+      "Catalog price source: billing service #2 · revision 1",
+    );
     expect(html).toContain("Price catalog changed");
     expect(html).toContain("Linked service offering #17");
     expect(html).toContain("Delivery not recorded");

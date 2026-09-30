@@ -92,6 +92,7 @@ function estimate(patientId = 701, draft = false): CashPayEstimate {
       {
         id: 711,
         billing_service_id: 77,
+        source_price_revision: draft ? null : 4,
         service_offering_id: null,
         quantity: "1.0",
         unit_amount: "75.3",
@@ -263,6 +264,9 @@ describe(
     it("read-only staff select an eligible invoice, inspect source lines and exact server totals, then reload", () =>
       withPage(async (page) => {
         const requests = await fixture(page);
+        expect(await page.locator("body").innerText()).toContain(
+          "Catalog price source: billing service #77 · revision 4",
+        );
         const headings = await page.getByRole("heading").allTextContents();
         expect(headings.indexOf("Cash-pay estimates")).toBeLessThan(
           headings.indexOf("Compare with posted invoice"),
@@ -303,6 +307,9 @@ describe(
         ).toBe(0);
         await page.reload();
         await chooseInvoice(page, 801);
+        expect(await page.locator("body").innerText()).toContain(
+          "Catalog price source: billing service #77 · revision 4",
+        );
         await expect
           .poll(() => panel(page).textContent())
           .toContain("Difference (posted charges − estimate): USD 20.0");
@@ -454,6 +461,9 @@ describe(
           })
           .click();
         await expect.poll(() => panel(page).count()).toBe(0);
+        expect(await page.locator("body").innerText()).toContain(
+          "Catalog price revision not recorded",
+        );
         expect(
           await page
             .getByRole("heading", { name: "Selected estimate", exact: true })

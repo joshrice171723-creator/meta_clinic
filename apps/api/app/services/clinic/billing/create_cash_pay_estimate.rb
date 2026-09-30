@@ -34,7 +34,8 @@ module Clinic
           if offering && !historical_pairs.include?([ offering.id, service.id ])
             raise ArgumentError, "Choose a published offering linked to the selected service." unless offering.published? && offering.billing_service_id == service.id
           end
-          { billing_service: service, service_offering: offering, quantity: quantity.to_s("F"), unit_amount: service.unit_amount.to_s("F"), expected_amount: Money.line_total(quantity: quantity, unit_amount: service.unit_amount), description_snapshot: [ service.name, service.description ].compact.join(" — "), inclusions: values[:inclusions].to_s.strip.presence, exclusions: values[:exclusions].to_s.strip.presence }
+          # Catalog optimistic-lock revision identifies the exact source read under this lock.
+          { billing_service: service, source_price_revision: service.lock_version, service_offering: offering, quantity: quantity.to_s("F"), unit_amount: service.unit_amount.to_s("F"), expected_amount: Money.line_total(quantity: quantity, unit_amount: service.unit_amount), description_snapshot: [ service.name, service.description ].compact.join(" — "), inclusions: values[:inclusions].to_s.strip.presence, exclusions: values[:exclusions].to_s.strip.presence }
         end
       end
 

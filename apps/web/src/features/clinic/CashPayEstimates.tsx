@@ -43,6 +43,7 @@ export type CashPayEstimate = {
   lines: {
     id: number;
     billing_service_id: number | null;
+    source_price_revision: number | null;
     service_offering_id: number | null;
     quantity: string;
     unit_amount: string;
@@ -72,6 +73,14 @@ export function estimateDeliveryLabel(estimate: CashPayEstimate) {
   return estimate.delivered_at
     ? `Staff-reported delivery ${new Date(estimate.delivered_at).toLocaleString()}`
     : "Delivery not recorded";
+}
+
+export function estimatePriceSourceLabel(
+  line: CashPayEstimate["lines"][number],
+) {
+  return line.source_price_revision != null && line.billing_service_id != null
+    ? `Catalog price source: billing service #${line.billing_service_id} · revision ${line.source_price_revision}`
+    : "Catalog price revision not recorded";
 }
 
 export function CashPayEstimateSnapshot({
@@ -144,6 +153,9 @@ export function CashPayEstimateSnapshot({
                 Linked service offering #{line.service_offering_id}
               </Typography>
             )}
+            <Typography color="text.secondary" variant="caption" component="p">
+              {estimatePriceSourceLabel(line)}
+            </Typography>
             {line.inclusions && (
               <Typography variant="caption">
                 Includes: {line.inclusions}
@@ -602,6 +614,13 @@ export function CashPayEstimates({
                       {line.description}
                       {line.inclusions ? ` · Includes: ${line.inclusions}` : ""}
                       {line.exclusions ? ` · Excludes: ${line.exclusions}` : ""}
+                      <Typography
+                        color="text.secondary"
+                        variant="caption"
+                        component="p"
+                      >
+                        {estimatePriceSourceLabel(line)}
+                      </Typography>
                     </td>
                     <td align="right">{line.quantity}</td>
                     <td align="right">

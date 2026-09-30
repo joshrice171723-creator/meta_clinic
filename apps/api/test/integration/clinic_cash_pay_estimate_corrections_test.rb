@@ -29,6 +29,7 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     assert_equal @original.id, estimate.fetch("supersedes_id")
     assert_equal "Catalog price changed", estimate.fetch("correction_reason")
     assert_equal "95.0", estimate.fetch("lines").sole.fetch("unit_amount")
+    assert_equal @service.reload.lock_version, estimate.fetch("lines").sole.fetch("source_price_revision")
     assert_equal "issued", @original.reload.status
 
     foreign = Clinic::Billing::CashPayEstimate.create!(practice: @other_practice, classification: "issued_gfe", status: "issued", currency: "USD",
@@ -63,12 +64,14 @@ class ClinicCashPayEstimateCorrectionsTest < ActionDispatch::IntegrationTest
     history = response.parsed_body.fetch("estimates")
     assert_equal [ correction_id, @original.id ], history.map { |item| item.fetch("id") }
     assert_equal [ "95.0", "75.0" ], history.map { |item| item.fetch("lines").sole.fetch("unit_amount") }
+    assert_equal [ 1, 0 ], history.map { |item| item.fetch("lines").sole.fetch("source_price_revision") }
     assert_equal @original.id, history.first.fetch("supersedes_id")
     assert_equal false, response.parsed_body.fetch("truncated")
 
     get "/api/clinic/cash_pay_estimates/#{@original.id}"
     assert_response :success
     assert_equal "75.0", response.parsed_body.fetch("estimate").fetch("lines").sole.fetch("unit_amount")
+    assert_equal 0, response.parsed_body.fetch("estimate").fetch("lines").sole.fetch("source_price_revision")
 
     foreign_patient = @other_practice.patients.create!(display_name: "Other patient", reference: "OTHER-CORR")
     get "/api/clinic/cash_pay_estimates", params: { patient_id: foreign_patient.id }

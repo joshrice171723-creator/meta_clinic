@@ -69,7 +69,7 @@ module Clinic
           policy_version: estimate.policy_version, delivery_method: estimate.delivery_method, issued_at: estimate.issued_at&.iso8601(6),
           delivered_at: estimate.delivered_at&.iso8601(6), supersedes_id: estimate.supersedes_id, correction_reason: estimate.correction_reason,
           revision: estimate.revision,
-          lines: estimate.lines.map { |line| { id: line.id, billing_service_id: line.billing_service_id, service_offering_id: line.service_offering_id, quantity: line.quantity.to_s("F"), unit_amount: line.unit_amount.to_s("F"), expected_amount: line.expected_amount.to_s("F"), description: line.description_snapshot, inclusions: line.inclusions, exclusions: line.exclusions } } }
+          lines: estimate.lines.map { |line| { id: line.id, billing_service_id: line.billing_service_id, source_price_revision: line.source_price_revision, service_offering_id: line.service_offering_id, quantity: line.quantity.to_s("F"), unit_amount: line.unit_amount.to_s("F"), expected_amount: line.expected_amount.to_s("F"), description: line.description_snapshot, inclusions: line.inclusions, exclusions: line.exclusions } } }
       end
     end
   end
