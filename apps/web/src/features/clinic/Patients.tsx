@@ -2335,7 +2335,9 @@ function PatientRegistrationEditor({
         <Button
           type="submit"
           variant="contained"
-          disabled={busy || (!patient && !sectionsComplete)}
+          disabled={
+            busy || (!patient && !sectionsComplete && !outcomeUnconfirmed)
+          }
         >
           {busy
             ? "Saving…"
