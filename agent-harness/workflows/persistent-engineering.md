@@ -20,9 +20,9 @@ unattended repair. The checkpoint helper records budgets; it does not enforce to
 ## Execute
 
 1. Inspect Git status, shared checkpoint, active chats and existing automation ownership.
-   Fetch main. Pull only in an owned checkout where existing edits can be preserved;
-   use a clean isolated worktree when the shared root cannot safely advance. Inspect
-   remote master only if it exists and applies; never invent that branch.
+   Fetch main for awareness. Keep development and QA on separate owned branches;
+   do not merge main or another worker on each wake. Record base drift and potential
+   conflicts for the explicit publishing handoff. Preserve the dirty shared root.
 2. Inspect exact-SHA CI metadata first. Read selected job annotations before logs.
    Pending CI is pending. Missing logs or zero executed steps are not code failures.
    Separate application, check/harness, environment and account/infrastructure causes.
@@ -44,8 +44,8 @@ unattended repair. The checkpoint helper records budgets; it does not enforce to
 6. Default to no subagents. When explicitly delegated, give each one bounded owned
    paths and count all workers against the pass budget. One coordinator integrates.
 7. Freeze and review owned changes. Run necessary non-test checks and diff review.
-   Synchronize current remote main in the isolated branch, commit only owned work,
-   and push without force when authorized. Concurrent changes invalidate affected
+   Commit only complete owned work to the loop's branch and push without force
+   when authorized. Concurrent changes invalidate affected
    evidence. Never merge unrelated root edits or claim branch delivery is deployment.
 8. Finish the local marker with a disposition, evidence and next action. Complete the
    native Goal only after its disposition contract is satisfied. A blocked report can
@@ -54,9 +54,17 @@ unattended repair. The checkpoint helper records budgets; it does not enforce to
 ## Repetition and escalation
 
 At each scheduled wake, inspect the prior Goal and checkpoint before creating a
-new Goal. Skip overlapping work. If a previous pass was interrupted or exhausted
-its budget, report the preserved checkpoint for owner review; do not clear it silently
-or automatically grant another budget to continue the same unresolved repair.
+new Goal. Skip overlapping work. Joshua selected 200,000 tokens per work cycle and
+authorized subsequent cycles to finish saved unfinished work before selecting new
+work. Record cycle boundaries and cumulative native usage; keep hypotheses and
+failed approaches. A wake is not a token grant to an already-running Goal.
+
+Native host controls remain binding. If an unfinished Goal is budget limited, retain
+its checkpoint and notify Joshua once to extend/resume it using the app. Do not mark
+unfinished work complete or create a replacement Goal to evade that limit. Continue
+the authorized next cycle only when host controls permit it. Publishing freezes,
+unchanged external blockers and repeated failures without new evidence still stop
+the affected path regardless of remaining budget.
 
 Do not repeatedly investigate an unchanged external blocker. GitHub Actions billing
 does not block independent local implementation or builds; use local evidence and
@@ -71,26 +79,33 @@ independently reviewable branch. Build health supports delivery. Preserve separa
 Build, Validation and external/human acceptance measures; source changes do not
 close browser findings.
 
-The existing QA reviewer/publisher loop owns eligible Muse repair batches, review,
-integration, the single release lock and exact-build retest handoff. Both loops wake
+The existing QA loop owns eligible Muse repair batches and independent review on
+its own branch. Neither loop merges into main or publishes. Both loops wake
 every five minutes; existing Muse browser monitoring remains separately owned.
 Do not create duplicate QA runs, repairs or publishers. QA first checks issue IDs,
 PR reservations and current Muse activity; development chooses independent work
 when its tracker slice overlaps a QA batch.
 
 Development PRs use the `engineering-loop` label and state outcome, owned paths and
-local evidence. They form a separately reviewed owner-authorized integration lane;
+local evidence. They form a separately reviewed integration handoff;
 never invent Muse markers or defect IDs to make them eligible for automatic QA
-approval. QA handles their scoped review and ordinary Git integration explicitly.
-After integration, application changes may use the existing authorized publisher;
-documentation-only pilot changes do not require a deployment.
+approval. QA can review their scoped changes; integration is reserved for Joshua's
+explicit invocation of [publish](../../.agents/skills/publish/SKILL.md).
+
+On a publishing freeze, stop accepting new slices, finish or safely checkpoint the
+current owned operation, and return branch, base/head SHAs, owned files, checks,
+known defects, incomplete exclusions and readiness. Commit only complete owned
+work. Wait for the publisher's explicit resume after release or abort; a scheduled
+wake must never restart a frozen loop. Pausing a schedule does not itself stop an
+active Goal or command. The publish skill verifies both owners are quiescent.
 
 For `aimetaclinic.com`, use the existing [Lightsail runbook](../../ops/lightsail/README.md)
 and `release.ps1 -BuildWebOnHost`: clean pushed main, exact revision, matched images,
 encrypted recovery round trip and live verification. Actions/GHCR are not required
 for its local-image mode. Keep release gates, permissions and rollback boundaries.
-The QA loop owns immediate publication; keep the separate scheduled publisher
-paused to avoid competition. A five-minute wake never interrupts an active release
+Joshua controls publication through the publish skill; keep the separate scheduled
+publisher paused. Documentation-only changes do not trigger deployment.
+A five-minute wake never interrupts an active release
 or active Muse run. Let a stale-build QA run finish, classify it as stale, and request
 current-build retest through the existing owner.
 

@@ -4,25 +4,26 @@ This pilot uses Codex Goals for bounded continuation, the existing resource queu
 for heavy commands, and a shared checkpoint for recovery between turns. Follow
 [the persistent-engineering procedure](../../agent-harness/workflows/persistent-engineering.md)
 and [root policy](../../AGENTS.md). Existing Muse QA and release automations remain
-separate; development hands delivery to the existing QA reviewer/publisher.
+separate; development and QA retain their own branches until Joshua invokes publish.
 
 ## First guided pass
 
 The starting task is build-health triage on current remote main. Its finish line is
 one evidence-backed disposition, not an obligation to edit code when CI is blocked.
-The selected pilot budget is 20,000 tokens per pass, with five-minute follow-ups in the
+The current selected budget is 200,000 tokens per cycle, with five-minute follow-ups in the
 same Codex chat. Scheduling and Goal budgets are host configuration, not enabled by
 reading this file. Keep the user's selected main model and reasoning effort.
 
 1. Read `python bin/engineering-loop status`. Inspect the current native Goal and
    active work ownership. Use a clean owned worktree; preserve a dirty shared root.
-2. Fetch and synchronize main. Capture its SHA. Read existing CI without triggering
+2. Fetch main for awareness without merging it into either loop branch. Capture its
+   SHA and branch drift. Read existing CI without triggering
    another run:
 
    ```powershell
    git status --short
    git fetch origin
-   git pull --ff-only origin main
+   git rev-parse HEAD origin/main
    gh run list --branch main --workflow CI --limit 5 --json databaseId,headSha,status,conclusion,url
    ```
 
@@ -31,14 +32,14 @@ reading this file. Keep the user's selected main model and reasoning effort.
    `gh api repos/joshrice171723-creator/meta_clinic/check-runs/CHECK_ID/annotations`.
    Replace the ID arguments with observed IDs. Do not dump environment values or
    unrelated logs. No run for the SHA means remote verification is unavailable.
-4. Activate a native Goal with a 20,000-token budget: produce one verified build-health
+4. Activate a native Goal with a 200,000-token budget: produce one verified build-health
    disposition; repair only the selected cause; no tests, deployments, billing changes
    or changes to existing QA/release schedules. If native budget enforcement is
    unavailable, stop unattended work and report it. A normal prompt alone is not a cap.
 5. Start the durable pass and use the returned `pass_id` for subsequent commands:
 
    ```powershell
-   python bin/engineering-loop start --objective "Triage current main CI and produce one evidence-backed disposition" --token-budget 20000 --scope .github/workflows/ci.yml
+   python bin/engineering-loop start --objective "Triage current main CI and produce one evidence-backed disposition" --token-budget 200000 --scope .github/workflows/ci.yml
    python bin/engineering-loop checkpoint --pass-id PASS_ID --hypothesis "Determine whether jobs executed before diagnosing code" --evidence RUN_URL --next-action "Read selected check annotations"
    ```
 
@@ -72,23 +73,29 @@ reading this file. Keep the user's selected main model and reasoning effort.
 
 ## How to steer the next pass
 
-In the same chat, say: "Run one engineering pass on current main with 20,000 tokens;
+In the same chat, say: "Run one engineering cycle on the owned branch with 200,000 tokens;
 follow the persistent-engineering workflow and keep the no-tests rule." To target a
 known issue, name its tracker ID, observed failure and allowed paths. Request tests
 explicitly if the pass needs them. Ask to pause five-minute follow-ups to stop scheduling;
 ask to pause the Goal to stop a currently continuing Goal. These are separate controls.
 
-The five-minute follow-up should select a feasible unfinished tracker slice, resume
-from evidence, and use local verification while Actions is unavailable. It should never create a
-fresh repair budget to evade an exhausted prior pass. Native Goal usage is the
-token accounting source; the local helper only stores the requested cap.
+The five-minute follow-up resumes saved unfinished work first, then selects a feasible
+unfinished tracker slice when the previous task is done. Use local verification while
+Actions is unavailable. A wake checks for work; it does not interrupt active work,
+grant another 200,000 tokens to an active Goal, or guarantee token throughput.
+Joshua authorized subsequent cycles for unfinished tasks, with saved evidence,
+cycle boundaries and cumulative usage. Native Goal usage is the accounting source;
+the local helper only stores the requested cap. A budget-limited unfinished native
+Goal requires host extension/resume. Never fake completion or replace it to bypass
+that control. Remain quiet on unchanged blockers after the initial notification.
 
-## Two loops, one publication owner
+## Two loops, explicit publication
 
-Development implements independent tracker slices. The existing QA reviewer and
-publisher processes Muse findings, repairs/reviews eligible PRs, integrates reviewed
-development PRs and publishes application changes through the existing Lightsail
-runbook. Both wake every five minutes; neither duplicates an active pass.
+Development implements independent tracker slices on its owned branch. The existing
+QA loop processes Muse findings and repairs/reviews eligible work on a separate
+branch. Both wake every five minutes; neither duplicates an active pass, merges into
+main, publishes, or merges the other's work each cycle. Fetch for awareness and
+record drift for the publishing handoff.
 
 Development PRs carry `engineering-loop` plus the outcome, owned files, revision and
 actual non-test evidence. QA reviews that separate integration lane explicitly;
@@ -96,8 +103,12 @@ it must not invent Muse issue markers or use the Muse approval helper on those P
 The existing Muse monitor owns independent browser QA and exact-build retesting.
 Read its active state before publishing; never interrupt its current browser run.
 
-The QA reviewer/publisher is the single release owner, using the existing exclusive
-release lock and [Lightsail procedure](../../ops/lightsail/README.md). The separate
+Joshua invokes [publish](../../.agents/skills/publish/SKILL.md) to freeze both loops,
+collect exact branch/base/head and verification handoffs, review their combined
+candidate, and use the existing exclusive release lock and
+[Lightsail procedure](../../ops/lightsail/README.md). Incomplete work is explicitly
+excluded. A frozen loop waits for explicit publisher resume after release or abort;
+pausing its schedule alone does not stop an active Goal or command. The separate
 scheduled publisher remains paused. Local-image release does not depend on Actions
 or GHCR, but clean pushed main, matched images, encrypted recovery and live checks
 remain required. Documentation-only setup does not need deployment.
