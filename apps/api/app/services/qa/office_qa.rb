@@ -74,7 +74,7 @@ module Qa
       raise ArgumentError, "Invalid severity or ledger state." unless %w[critical high medium low unknown].include?(item["severity"]) && %w[open pending_retest fixed].include?(item["status"])
       workflow!(item["workflow"])
       %w[repro_steps expected actual].each { |field| raise ArgumentError, "#{field} exceeds 4000 characters." unless item[field].nil? || item[field].is_a?(String) && item[field].length <= 4000 }
-      raise ArgumentError, "Repair attempts must be 0–3." unless item["repair_attempts"].is_a?(Integer) && item["repair_attempts"].between?(0, 3)
+      raise ArgumentError, "Repair attempts must be 0–3 or null when unknown." unless item["repair_attempts"].nil? || item["repair_attempts"].is_a?(Integer) && item["repair_attempts"].between?(0, 3)
       raise ArgumentError, "Revision must be a full SHA or null." unless item["revision"].nil? || item["revision"].is_a?(String) && item["revision"].match?(SHA)
       raise ArgumentError, "Version must be at most 100 characters or null." unless item["version"].nil? || item["version"].is_a?(String) && item["version"].length <= 100
       refs = item["evidence_refs"]
