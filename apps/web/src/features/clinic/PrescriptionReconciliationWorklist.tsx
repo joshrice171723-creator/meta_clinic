@@ -235,6 +235,17 @@ export function PrescriptionReconciliationWorklist({
                           <Typography variant="body2">
                             {item.outcome.replaceAll("_", " ")}
                           </Typography>
+                          {item.response_outcome && (
+                            <Typography variant="body2">
+                              Received simulation {item.response_transaction_type}: {item.response_outcome.replaceAll("_", " ")}
+                              {item.response_received_at && ` · ${new Date(item.response_received_at).toLocaleString()}`}
+                            </Typography>
+                          )}
+                          {item.cancellation_state && (
+                            <Typography variant="body2">
+                              Local cancellation: {item.cancellation_state.replaceAll("_", " ")}
+                            </Typography>
+                          )}
                           <Typography variant="caption">
                             Simulation ·{" "}
                             {new Date(item.submitted_at).toLocaleString()}

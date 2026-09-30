@@ -33,6 +33,9 @@ module Clinic
         rows = attempts.includes(:patient, :prescription_event, :medication_request_revision)
           .order("clinic_prescription_transmission_attempts.id ASC").limit(LIMIT).offset((page - 1) * LIMIT).map do |attempt|
             order = attempt.medication_request_revision
+            response = PrescriptionResponseEvent.where(practice:, transmission_attempt_id: attempt.id, event_kind: "received").order(:id).last
+            cancellation = PrescriptionLifecycleRequest.where(practice:, transmission_attempt_id: attempt.id, action: "cancel").order(:id).last
+            cancellation_state = cancellation && PrescriptionResponseWorkflow.request_state(cancellation)
             {
               id: attempt.id, event_id: attempt.prescription_event_id,
               patient: { id: attempt.patient_id, display_name: attempt.patient.display_name, reference: attempt.patient.reference },
@@ -40,8 +43,12 @@ module Clinic
               medication_request_revision_id: order.id, series_id: order.series_id, version_number: order.version_number,
               medication_name: order.medication_name, outcome: attempt.outcome, source: attempt.prescription_event.source,
               adapter: attempt.adapter, submitted_at: attempt.submitted_at.iso8601(6),
+              response_outcome: response&.outcome, response_transaction_type: response&.transaction_type, response_received_at: response&.received_at&.iso8601(6),
+              cancellation_state:, original_correlation_id: attempt.correlation_id,
               owner: "Prescriber/support queue",
-              next_action: "Review original attempt history and reconcile its outcome before another submission.",
+              next_action: cancellation_state.in?(%w[pending outcome_unknown]) ?
+                "Resolve the existing local cancellation request using its original correlation; do not submit a replacement." :
+                "Review original attempt and received simulation evidence before reconciliation or cancellation.",
               href: "/clinic/patients/#{attempt.patient_id}/encounters/#{order.encounter_id}?focus=clinical-plan-workspace&medication_request_revision_id=#{order.id}&prescription_attempt_id=#{attempt.id}"
             }
           end

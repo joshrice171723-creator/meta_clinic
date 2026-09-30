@@ -23,7 +23,7 @@ module Clinic
           destination = PharmacyDestination.where(practice:, active: true).lock.find(pharmacy_destination_id)
           validate_ready!(order:, destination:)
           review = PrescriptionWorkflow.events(order).where(medication_request_revision_id: order.id, kind: "review", source: "manual").last
-          raise ArgumentError, "Review this exact prescription version before preparing it." unless review
+          validate_review!(order:, review:)
           snapshot = destination.snapshot
           PrescriptionPreparation.create!(practice:, patient: order.patient, medication_request_revision: order,
             pharmacy_destination: destination, review_event: review,
@@ -52,6 +52,7 @@ module Clinic
 
       def validate_submission!(preparation:, order:, destination:, mode:, signer_snapshot:, reviewer_snapshot:)
         validate_ready!(order:, destination:)
+        validate_review!(order:, review: preparation.review_event)
         raise ArgumentError, "Prepare this exact prescription version and pharmacy first." unless
           preparation.medication_request_revision_id == order.id && preparation.patient_id == order.patient_id &&
           preparation.pharmacy_destination_id == destination.id && preparation.mode == mode
@@ -59,6 +60,19 @@ module Clinic
         current_digest = digest(order:, review: preparation.review_event, destination_snapshot: destination.snapshot,
           mode:, signer_snapshot:, reviewer_snapshot:)
         raise ArgumentError, "The prepared prescription source changed. Prepare it again before submission." unless current_digest == preparation.payload_digest
+      end
+
+      def review_current?(order:, review:)
+        return false unless review && review.practice_id == order.practice_id && review.patient_id == order.patient_id &&
+          review.medication_request_revision_id == order.id && review.kind == "review" && review.source == "manual"
+        latest = PrescriptionWorkflow.events(order).where.not(kind: "review").last
+        return true unless latest && latest.kind.in?(%w[cancelled confirmed_not_sent])
+
+        review.id > latest.id
+      end
+
+      def validate_review!(order:, review:)
+        raise ArgumentError, "Review this exact prescription version again after reconciliation before preparing or submitting a replacement." unless review_current?(order:, review:)
       end
 
       def digest(order:, review:, destination_snapshot:, mode:, signer_snapshot:, reviewer_snapshot:)
@@ -76,6 +90,7 @@ module Clinic
         current = MedicationRequestRevision.where(practice_id: order.practice_id, series_id: order.series_id).order(version_number: :desc).first!
         destination = preparation.pharmacy_destination
         fresh = current.id == preparation.medication_request_revision_id && destination.active? &&
+          review_current?(order: current, review: preparation.review_event) &&
           digest(order: current, review: preparation.review_event, destination_snapshot: destination.snapshot,
             mode: preparation.mode, signer_snapshot: preparation.signer_snapshot,
             reviewer_snapshot: preparation.reviewer_snapshot) == preparation.payload_digest

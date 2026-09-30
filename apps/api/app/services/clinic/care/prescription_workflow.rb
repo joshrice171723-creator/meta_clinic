@@ -9,7 +9,8 @@ module Clinic
       end
 
       def unresolved?(order)
-        events(order).where.not(kind: "review").last&.kind.in?(%w[unknown acknowledged accepted outcome_unknown rejected unavailable revoked duplicate])
+        events(order).where.not(kind: "review").last&.kind.in?(%w[unknown acknowledged accepted outcome_unknown rejected unavailable revoked duplicate]) ||
+          PrescriptionResponseWorkflow.pending_cancellation?(order)
       end
 
       def record(practice:, actor:, order:, kind:, source:, request_key:, prior_event_id: nil, note: nil, simulated_submission: false)
@@ -33,9 +34,15 @@ module Clinic
           history = events(order)
           prior = prior_event_id.present? ? history.find(prior_event_id) : nil
           if kind.in?(%w[cancelled confirmed_not_sent])
+            if PrescriptionResponseWorkflow.pending_cancellation?(order)
+              raise ArgumentError, "Resolve the pending cancellation using its original request and correlation first."
+            end
             raise ArgumentError, "Reconcile the latest unresolved prescription attempt." unless prior && prior == history.where.not(kind: "review").last && prior.kind.in?(%w[unknown acknowledged accepted outcome_unknown rejected unavailable revoked duplicate])
             raise ArgumentError, "Record the reconciliation evidence." if note.to_s.strip.empty?
-            if kind == "confirmed_not_sent" && prior.kind.in?(%w[acknowledged accepted])
+            prior_attempt = PrescriptionTransmissionAttempt.find_by(practice_id: practice.id, prescription_event_id: prior.id)
+            accepted = prior.kind.in?(%w[acknowledged accepted]) ||
+              (prior_attempt && PrescriptionResponseWorkflow.effective_outcome(prior_attempt).in?(%w[acknowledged accepted]))
+            if kind == "confirmed_not_sent" && accepted
               raise ArgumentError, "An accepted prescription requires confirmed cancellation before replacement."
             end
             raise ArgumentError, "Reconciliation must retain the original evidence source." unless source == prior.source

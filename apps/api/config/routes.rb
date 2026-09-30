@@ -215,6 +215,8 @@ Rails.application.routes.draw do
     post "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#create"
     post "patients/:patient_id/medication_requests/:medication_request_id/prepare", to: "care/prescription_events#prepare"
     post "patients/:patient_id/medication_requests/:medication_request_id/submit", to: "care/prescription_events#submit"
+    post "patients/:patient_id/medication_requests/:medication_request_id/lifecycle_requests", to: "care/prescription_events#lifecycle_request"
+    post "patients/:patient_id/medication_requests/:medication_request_id/simulated_responses", to: "care/prescription_events#simulate_response"
     post "patients/:patient_id/medication_requests/:medication_request_id/dispenses", to: "care/prescription_events#dispense"
     get "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace",
       to: "care/clinical_plan_workspace#show"

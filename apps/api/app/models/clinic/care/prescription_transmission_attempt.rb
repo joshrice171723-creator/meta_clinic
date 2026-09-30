@@ -19,6 +19,9 @@ module Clinic
       belongs_to :preparation, class_name: "Clinic::Care::PrescriptionPreparation", optional: true
       belongs_to :prior_attempt, class_name: "Clinic::Care::PrescriptionTransmissionAttempt", optional: true
 
+      has_many :response_events, class_name: "Clinic::Care::PrescriptionResponseEvent", foreign_key: :transmission_attempt_id
+      has_many :lifecycle_requests, class_name: "Clinic::Care::PrescriptionLifecycleRequest", foreign_key: :transmission_attempt_id
+
       validates :preparation, presence: true, on: :create
       validates :adapter, inclusion: { in: [ ADAPTER ] }
       validates :mode, inclusion: { in: MODES }
