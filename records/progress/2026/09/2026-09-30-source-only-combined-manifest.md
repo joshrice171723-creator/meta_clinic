@@ -11,7 +11,7 @@ This is a source-accounting cutoff for the single product integration branch, no
 | MC03 identity/language | e6e6535a73fb4a4343bd2681f831e33273261426; matrix43b3b000e2fb9e3db4f2a08c10572a372234f893 |
 | MC04 provenance | 2d96bed50ea815e294e3e80aea246926136d94bc |
 | MC04 overbook | ONLY a98cd14fa845169823acad39649e3ca13f99d046 cherry-picked; no other source from its branch |
-| MC05 question context/manual recovery and patient intake retry | 142599baf63fdd310021fc51176456f66d06c63e, retaining20995/d5c5/784 |
+| MC05 question context/manual recovery and patient intake retry | 0dc95c5299a0f3aac76fce275747293631f1c17c, retaining142599/20995/d5c5/784 |
 | MC06 lab provenance/configured units | 0bf6584dd9a5d68c20692dbac63ca91d09b07c4f plusd40d584aa55b7ef3cc68facbc91ee89eb0555501 |
 | MC06 repaired closure/type/replay guards | a0326be8ad494a40e9d260eeb226fd038bb2d957; replaces unrepaireddbef final source |
 | MC07 repaired telehealth lifecycle | a1c118ac15fed8f78bb977334a77f66ed6e1231c, already retained at6099 |
@@ -70,3 +70,7 @@ Sage independently checked immutablefe6 source consistency:235 migration IDs/cla
 ## Subsequent verified Office main advancement
 
 While publishing the recurring/carrier wave, remote main advanced to5702fee0d757c0f2e4b77506f576eed24c5999c1, changing only Office repair-count/defect-lane source and its authored test. This external commit was merged into the isolated product branch without conflict, preserving both main ancestry and all product work. No test was executed by Relay and no main/deployment mutation occurred. Initial7ded baseline statements above are retained as historical checkpoints; current preserved main baseline is5702fee0.
+
+## MC05 explicit saved-question task linkage
+
+Source0dc95c5299a0f3aac76fce275747293631f1c17c retains the intake recovery source and adds explicit create/link against an immutable saved question/revision, eligible staff selection, transfer acknowledgement, status/history and cancelled-only reopen. Original answer references and exact uncertain receipt retries remain protected. This merge was conflict-free and adds no migration. Static source inspection does not establish runtime completion; no new tests/build/lint, automatic task assignment, clinical approval or percentage credit. Ten prior schema-artifact stages remain pending.
