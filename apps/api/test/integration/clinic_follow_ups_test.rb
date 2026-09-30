@@ -314,6 +314,81 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
     assert_equal message.id, conversation_member.reload.last_read_message_id
   end
 
+  test "staff request pages reach later matching work without counting inaccessible conversations" do
+    allowed_site = @practice.sites.create!(code: "PAGE-ALLOWED")
+    denied_site = @practice.sites.create!(code: "PAGE-DENIED")
+    conversation = create_conversation(title: "Synthetic paged requests", members: [@membership, @coworker], site: allowed_site)
+    due_at = 1.hour.from_now.change(usec: 0)
+    requests = 51.times.map { create_request(conversation: conversation, assignee: @membership, due_at: due_at) }
+    denied = create_conversation(title: "Synthetic other location", members: [@membership, @coworker], site: denied_site)
+    create_request(conversation: denied, assignee: @membership, due_at: due_at)
+    hidden_peer = create_membership(@practice, "synthetic-page-private@example.invalid")
+    private_conversation = create_conversation(title: "Synthetic private", members: [@coworker, hidden_peer])
+    create_request(conversation: private_conversation, assignee: @coworker, due_at: due_at)
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "staff_messaging.read", scope_kind: "site", site: allowed_site)
+
+    get follow_ups_path, params: { filter: "mine", staff_requests_page: 1 }, headers: @headers
+    assert_response :success
+    assert_equal requests.first(50).map(&:id), request_ids
+    assert_equal({ "page" => 1, "per_page" => 50, "total" => 51, "total_pages" => 2 }, response.parsed_body.fetch("staff_requests_page"))
+    assert_equal 0, response.parsed_body.dig("encounter_follow_ups_page", "total")
+    assert_equal 0, response.parsed_body.dig("renewal_exceptions_page", "total")
+
+    get follow_ups_path, params: { filter: "mine", staff_requests_page: 2 }, headers: @headers
+    assert_response :success
+    assert_equal [requests.last.id], request_ids
+    assert_equal conversation.id, response.parsed_body.fetch("requests").sole.fetch("conversation_id")
+
+    get follow_ups_path, params: { filter: "mine", staff_requests_page: 999 }, headers: @headers
+    assert_response :success
+    assert_equal 2, response.parsed_body.dig("staff_requests_page", "page")
+    assert_equal [requests.last.id], request_ids
+
+    get follow_ups_path, params: { filter: "overdue", staff_requests_page: 2 }, headers: @headers
+    assert_response :success
+    assert_empty request_ids
+    assert_equal({ "page" => 1, "per_page" => 50, "total" => 0, "total_pages" => 0 }, response.parsed_body.fetch("staff_requests_page"))
+  end
+
+  test "encounter follow-up pages retain closed-encounter work and count only permitted sites" do
+    allowed_site = @practice.sites.create!(code: "FOLLOW-UP-PAGE-ALLOWED")
+    denied_site = @practice.sites.create!(code: "FOLLOW-UP-PAGE-DENIED")
+    grant_permissions!(@membership, "patients.read")
+    grant_permissions!(@membership, "encounters.write", scope_kind: "site", site: allowed_site)
+    patient = @practice.patients.create!(display_name: "Synthetic Paged Patient", reference: "PAGE-001")
+    due_at = 1.hour.from_now.change(usec: 0)
+    create_follow_up = lambda do |site|
+      encounter = @practice.encounters.create!(patient: patient, site: site,
+        started_at: 2.hours.ago, ended_at: 1.hour.ago, status: "completed")
+      Clinic::EncounterFollowUp.create!(practice: @practice, patient: patient, encounter: encounter,
+        source_kind: "in_person", state: "needed", plan: "Synthetic return visit", outcome: "", due_at: due_at,
+        assigned_to_membership: @membership, recorded_by_membership: @membership, updated_by_membership: @membership)
+    end
+    follow_ups = 51.times.map { create_follow_up.call(allowed_site) }
+    create_follow_up.call(denied_site)
+
+    get follow_ups_path, params: { filter: "mine", encounter_follow_ups_page: 2 }, headers: @headers
+    assert_response :success
+    assert_equal({ "page" => 2, "per_page" => 50, "total" => 51, "total_pages" => 2 }, response.parsed_body.fetch("encounter_follow_ups_page"))
+    row = response.parsed_body.fetch("encounter_follow_ups").sole
+    assert_equal follow_ups.last.id, row.fetch("id")
+    assert_equal follow_ups.last.encounter_id, row.fetch("encounter_id")
+    assert_equal patient.id, row.fetch("patient_id")
+    assert_equal 1, response.parsed_body.dig("staff_requests_page", "page")
+    assert_equal "completed", follow_ups.last.encounter.reload.status
+    assert_equal "needed", follow_ups.last.reload.state
+  end
+
+  test "each queue page rejects nonpositive and unbounded parameters" do
+    %w[staff_requests_page encounter_follow_ups_page renewal_exceptions_page].each do |field|
+      ["0", "-1", "1.5", "1000001"].each do |invalid|
+        get follow_ups_path, params: { field => invalid }, headers: @headers
+        assert_response :bad_request
+      end
+    end
+  end
+
   private
 
   def follow_ups_path
