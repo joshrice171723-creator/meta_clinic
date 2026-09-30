@@ -70,7 +70,7 @@ if [[ $phase == prepare ]]; then
     actual=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$tag")
     [[ $actual == "$revision" ]] || { echo "Image revision mismatch: $tag" >&2; exit 1; }
   done
-  docker run --rm --tmpfs /tmp --entrypoint nginx "$web_tag" -t >/dev/null
+  docker run --rm --tmpfs /tmp --add-host api:127.0.0.1 --entrypoint nginx "$web_tag" -t >/dev/null
   if [[ $image_source == registry ]]; then
     api_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$api_tag")
     web_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$web_tag")
