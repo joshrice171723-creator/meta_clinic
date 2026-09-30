@@ -9,8 +9,8 @@ class QaOfficeActorsTest < ActionDispatch::IntegrationTest
     # Independently synthetic credentials stay inside this isolated test process.
     @muse_raw = "qa_#{SecureRandom.urlsafe_base64(32)}"
     @dot_raw = "qa_#{SecureRandom.urlsafe_base64(32)}"
-    @muse = Qa::ServiceToken.create!(user: @owner, name: "Synthetic Muse", recipient: "muse", digest: Digest::SHA256.hexdigest(@muse_raw))
-    @dot = Qa::ServiceToken.create!(user: @owner, name: "Synthetic dot", recipient: "codex", digest: Digest::SHA256.hexdigest(@dot_raw))
+    @muse = Qa::ServiceToken.create!(user: @owner, name: "Synthetic Muse", recipient: "muse", scope: "office", digest: Digest::SHA256.hexdigest(@muse_raw))
+    @dot = Qa::ServiceToken.create!(user: @owner, name: "Synthetic dot", recipient: "codex", scope: "office", digest: Digest::SHA256.hexdigest(@dot_raw))
   end
 
   teardown do

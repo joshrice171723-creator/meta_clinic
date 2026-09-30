@@ -32547,7 +32547,9 @@ CREATE TABLE public.qa_service_tokens (
     revoked_at timestamp(6) without time zone,
     last_used_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    scope character varying DEFAULT 'qa'::character varying NOT NULL,
+    CONSTRAINT qa_service_scope CHECK (((scope)::text = ANY ((ARRAY['qa'::character varying, 'office'::character varying])::text[])))
 );
 
 
@@ -32623,8 +32625,11 @@ CREATE TABLE public.qa_tasks (
     human_decision jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    request_digest character varying,
+    claim_principal character varying,
+    lease_expires_at timestamp(6) without time zone,
     CONSTRAINT qa_task_recipient CHECK (((recipient)::text = ANY ((ARRAY['muse'::character varying, 'codex'::character varying])::text[]))),
-    CONSTRAINT qa_task_status CHECK (((status)::text = ANY ((ARRAY['queued'::character varying, 'claimed'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT qa_task_status CHECK (((status)::text = ANY ((ARRAY['proposed'::character varying, 'queued'::character varying, 'claimed'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -32874,6 +32879,7 @@ ALTER TABLE ONLY public.qa_service_tokens
     ADD CONSTRAINT fk_rails_de1504344e FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930160000'),
 ('20260930000100'),
 ('20260929000200'),
 ('20260929000100'),

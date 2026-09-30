@@ -6,7 +6,9 @@ class OfficeActorPolicyTest < Minitest::Test
     alias_method :active?, :active
     alias_method :platform_owner?, :platform_owner
   end
-  Token = Struct.new(:id, :user_id, :recipient, :revoked_at)
+  Token = Struct.new(:id, :user_id, :recipient, :revoked_at) do
+    def office? = true
+  end
   def setup
     @config = { "QA_OFFICE_ACTORS_ENABLED" => "1", "QA_OFFICE_JOSH_USER_ID" => "10",
       "QA_OFFICE_MUSE_TOKEN_ID" => "20", "QA_OFFICE_DOT_TOKEN_ID" => "30" }

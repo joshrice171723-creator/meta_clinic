@@ -1,11 +1,15 @@
 require "securerandom"
 
 module Qa
-  # Uses existing snapshots/events; no credential creation or schema change.
+  # Uses existing snapshots/events. Provisioning is a separate authorized action.
   class OfficeActors
     KEY = "office:actors".freeze
     NAMES = { "josh" => "Josh", "muse" => "Muse", "dot" => "dot" }.freeze
     class Conflict < StandardError; end
+
+    def self.configuration
+      ENV.to_h.merge(Snapshot.find_by(key: "office:bindings")&.data&.fetch("config", {}) || {})
+    end
 
     def self.principal_key(user, token)
       token ? "service:#{token.id}:#{user.id}" : "owner:#{user.id}"
@@ -34,7 +38,7 @@ module Qa
       result
     end
 
-    def self.read(config: ENV, viewer: nil, token: nil)
+    def self.read(config: configuration, viewer: nil, token: nil)
       bindings = registered(config)
       rows = Snapshot.find_by(key: KEY)&.data || {}
       controlled = begin
@@ -52,10 +56,11 @@ module Qa
       end
       { contract_version: 1, actor_binding: bindings.empty? ? "not_configured" : "server_bound",
         controlled_actor: controlled, actors:, muse_cadence_ms: OfficeActorPolicy.cadence(config),
+        can_enroll: token.nil? && viewer&.active? == true && viewer&.platform_owner? == true,
         notice: "Positions and check-ins are authenticated recorded state, not proof of continuous work or live presence." }
     end
 
-    def self.write(user:, token:, input:, kind:, config: ENV)
+    def self.write(user:, token:, input:, kind:, config: configuration)
       OfficeActorPolicy.input(input, kind:)
       OfficeActorPolicy.actor(config:, user:, token:)
       # Lock/reload both credential and owner before authorization to handle revocation.
@@ -73,7 +78,7 @@ module Qa
             previous = nil unless previous && previous["principal_key"] == principal
             state = previous || { "principal_key" => principal, "principal_id" => SecureRandom.uuid, "revision" => 0 }
             event_key = "office:#{actor}:#{input['request_key']}"
-            payload = input.except("expected_revision", "request_key").merge("actor" => actor, "principal_id" => state["principal_id"], "action" => kind)
+            payload = input.except("request_key").merge("actor" => actor, "principal_id" => state["principal_id"], "action" => kind)
             existing = Event.find_by(event_key:)
             if existing
               unless existing.user_id == user.id && existing.kind == "office_actor_updated" && existing.payload["input"] == payload

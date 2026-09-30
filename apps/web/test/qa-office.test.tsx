@@ -83,6 +83,22 @@ beforeAll(async () => {
   server = await createServer({
     configFile: false,
     root,
+    resolve: { dedupe: ["react", "react-dom"] },
+    optimizeDeps: {
+      include: [
+        "react",
+        "react-dom/client",
+        "@mui/material",
+        ...[
+          "LaptopMacRounded",
+          "AssignmentRounded",
+          "CollectionsRounded",
+          "ForumRounded",
+          "LocalFloristRounded",
+          "ExpandMoreRounded",
+        ].map((icon) => `@mui/icons-material/${icon}`),
+      ],
+    },
     server: { host: "127.0.0.1", port: 0 },
     plugins: [
       {
@@ -155,6 +171,10 @@ async function open(
           notice: "Synthetic read-only room",
         },
       });
+    if (url.pathname === "/api/qa/office/work")
+      return route.fulfill({
+        json: { tasks: [], can_post: false, controlled_actor: null },
+      });
     if (url.pathname === "/api/qa/office") {
       if (mode === "loading") return;
       if (mode === "error")
@@ -208,7 +228,9 @@ it("bootstraps Office with one current navigation item and no inferred live pres
         .count(),
     ).toBe(3);
     expect(
-      await page.getByText(/Running \/ live presence: Unknown/i).count(),
+      await page
+        .getByText(/Receipt timing shows the last authenticated contact/i)
+        .count(),
     ).toBeGreaterThan(0);
     const floor = page.getByRole("group", { name: "Office floor" });
     for (const actor of ["Josh", "Muse", "dot"]) {
@@ -249,7 +271,7 @@ it("keeps loading, failed reads and empty records explicit", async () => {
             ? /loading office|connecting.*records/i
             : mode === "error"
               ? /Synthetic source unavailable/
-              : /no.*tasks|no.*records/i,
+              : /No shared work here yet/i,
         )
         .first()
         .waitFor();
@@ -267,6 +289,7 @@ it("uses the shared Office snapshot without falling back to workspace records", 
       .getByRole("navigation", { name: "Office destinations" })
       .getByRole("button", { name: "Task board", exact: true })
       .click();
+    await page.getByRole("button", { name: /QA task archive/ }).click();
     await page.getByText(/#1.*Synthetic queued task/).waitFor();
     expect(await page.getByText("Separate workspace record").count()).toBe(0);
     await page.route("**/api/qa/office", (route) =>
@@ -291,7 +314,7 @@ it("navigates directly to the existing room without issuing writes", async () =>
       .getByRole("button", { name: /meeting room/i })
       .first()
       .click();
-    await page.getByRole("button", { name: "Enter agent room" }).click();
+    await page.getByRole("button", { name: "Full message history" }).click();
     await page
       .getByRole("heading", { name: /agent coordination room/i })
       .waitFor();
@@ -310,7 +333,7 @@ it("moves focus out of Office to the destination heading for room and inbox", as
     try {
       if (destination === "room") {
         await page
-          .getByRole("button", { name: "Open agent room", exact: true })
+          .getByRole("button", { name: "Full message history", exact: true })
           .focus();
         await page.keyboard.press("Enter");
       } else {
@@ -318,6 +341,7 @@ it("moves focus out of Office to the destination heading for room and inbox", as
           .getByRole("navigation", { name: "Office destinations" })
           .getByRole("button", { name: "Task board", exact: true })
           .click();
+        await page.getByRole("button", { name: /QA task archive/ }).click();
         await page
           .getByRole("button", { name: "Open full task inbox" })
           .focus();
@@ -410,6 +434,7 @@ it("bounds keyboard walking and preserves selection and position through refresh
     await page
       .getByRole("heading", { name: "Task board", exact: true })
       .waitFor();
+    await page.getByRole("button", { name: /QA task archive/ }).click();
     await page
       .getByText("#1 · Synthetic queued task", { exact: true })
       .waitFor();
@@ -525,6 +550,105 @@ it("advances Muse timing on the local clock and refills only for a new authentic
       })
       .waitFor();
     expect(writes).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("queues shared work with the task envelope, retains the retry key, and renders only allowed result confirmation", async () => {
+  const { page } = await open();
+  try {
+    let created: Record<string, any> | undefined;
+    const commands: Record<string, any>[] = [];
+    const work = {
+      tasks: [] as Record<string, any>[],
+      can_post: true,
+      controlled_actor: "josh",
+    };
+    await page.route("**/api/qa/office/work", (route) =>
+      route.fulfill({ json: work }),
+    );
+    await page.route("**/api/qa/tasks", async (route) => {
+      const command = route.request().postDataJSON();
+      commands.push(command);
+      if (commands.length === 1)
+        return route.fulfill({
+          status: 503,
+          json: { error: "Synthetic uncertain response" },
+        });
+      const receipt: Record<string, any> = {
+        ...command.task,
+        id: 41,
+        status: "completed",
+        office_status: "completed",
+        created_at: observed,
+        allowed_transitions: ["result_confirmed"],
+        result: { summary: "Synthetic result ready for requester review" },
+      };
+      created = receipt;
+      work.tasks = [receipt];
+      return route.fulfill({ status: 201, json: receipt });
+    });
+    const details = page.getByRole("region", { name: "Office details" });
+    await details.getByRole("button", { name: "Refresh", exact: true }).click();
+    await details.getByRole("button", { name: "New shared work" }).click();
+    await details
+      .getByRole("textbox", { name: "What needs doing?" })
+      .fill("Synthetic Office handoff");
+    await details
+      .getByRole("textbox", { name: "Instructions and expected result" })
+      .fill("Return a bounded synthetic summary.");
+    await details
+      .getByRole("button", { name: "Queue work", exact: true })
+      .click();
+    await details.getByText(/Synthetic uncertain response/).waitFor();
+    await details
+      .getByRole("button", { name: "Queue work", exact: true })
+      .click();
+    await details
+      .getByRole("button", { name: /#41.*Synthetic Office handoff/ })
+      .click();
+    expect(commands).toHaveLength(2);
+    expect(commands[0]).toEqual(commands[1]);
+    expect(commands[0].task).toMatchObject({
+      kind: "coordination",
+      title: "Synthetic Office handoff",
+      recipient: "muse",
+      revision,
+      payload: { description: "Return a bounded synthetic summary." },
+    });
+    expect(commands[0].task.request_key).toMatch(/^[A-Za-z0-9_-]{8,100}$/);
+    expect(
+      await details.getByRole("button", { name: "Acknowledge pickup" }).count(),
+    ).toBe(0);
+    expect(
+      await details.getByRole("button", { name: "Submit result" }).count(),
+    ).toBe(0);
+    await details
+      .getByText("Synthetic result ready for requester review")
+      .waitFor();
+    let confirmation: Record<string, unknown> | undefined;
+    await page.route("**/api/qa/office/work/41/transition", async (route) => {
+      confirmation = route.request().postDataJSON();
+      work.tasks = [
+        {
+          ...created,
+          office_status: "result_confirmed",
+          allowed_transitions: [],
+        },
+      ];
+      return route.fulfill({ json: work.tasks[0] });
+    });
+    await details
+      .getByRole("button", { name: "Confirm result received" })
+      .click();
+    await details.getByText("result confirmed", { exact: true }).waitFor();
+    expect(confirmation).toMatchObject({ status: "result_confirmed" });
+    expect(
+      await details
+        .getByRole("button", { name: "Confirm result received" })
+        .count(),
+    ).toBe(0);
   } finally {
     await page.close();
   }

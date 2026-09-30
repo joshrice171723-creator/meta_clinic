@@ -7,6 +7,7 @@ module Qa
       raise Denied, "Office actor writes are not activated." unless config["QA_OFFICE_ACTORS_ENABLED"] == "1"
       raise Denied, "An active platform-owner principal is required." unless user && user.active? && user.platform_owner?
       if token
+        raise Denied, "Office writes require an Office-only credential." unless token.office?
         raise Denied, "A current dedicated service principal is required." if token.revoked_at || token.user_id != user.id
         muse = positive_id(config["QA_OFFICE_MUSE_TOKEN_ID"])
         dot = positive_id(config["QA_OFFICE_DOT_TOKEN_ID"])
