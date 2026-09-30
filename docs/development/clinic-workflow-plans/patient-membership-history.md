@@ -55,7 +55,7 @@ Ruby is absent; no provisioning or backend execution. If the reviewer wants unch
 
 ## Checkpoint
 
-Source implemented. Final six controlled Chromium cases passed (10.24 seconds); TypeScript, scoped Prettier, Vite production bundle (1,476 modules; 946 ms) and diff checks passed. An initial denial case used an overly exact locator; that harness-only issue was corrected before the final pass. No Rails or provider execution is claimed.
+Source implemented. Final six controlled Chromium cases passed (10.24 seconds); TypeScript, scoped Prettier, Vite production bundle (1,475 modules; 946 ms) and diff checks passed. An initial denial case used an overly exact locator; that harness-only issue was corrected before the final pass. No Rails or provider execution is claimed.
 
 ## Last run
 
