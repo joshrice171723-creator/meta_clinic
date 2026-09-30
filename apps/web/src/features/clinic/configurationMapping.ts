@@ -49,8 +49,9 @@ export function readMappingSource(value: unknown): ConfigurationManifest {
         !Array.isArray(offering.site_ids) ||
         offering.site_ids.some((id) => !Number.isSafeInteger(id) || id <= 0) ||
         new Set(offering.site_ids).size !== offering.site_ids.length ||
-        !Number.isSafeInteger(offering.visit_type_id) ||
-        Number(offering.visit_type_id) <= 0,
+        (offering.visit_type_id !== null &&
+          (!Number.isSafeInteger(offering.visit_type_id) ||
+            Number(offering.visit_type_id) <= 0)),
     )
   ) {
     throw new Error(
@@ -122,9 +123,18 @@ export function configurationMappingPlan(
           `Service offering ${offering.name} (#${offering.id}): mapped destination does not serve location #${mappings.sites[id]}. Review its eligible locations separately.`,
         );
     }
-    blockers.push(
-      `Service offering ${offering.name} (#${offering.id}): visit type #${offering.visit_type_id} needs separate catalog mapping; this snapshot does not contain visit types or clinician/price eligibility.`,
-    );
+    if (offering.visit_type_id === null)
+      blockers.push(
+        `Service offering ${offering.name} (#${offering.id}): source visit type is not configured. Ask the source configuration owner to select it through the normal offering workflow, then obtain a fresh snapshot. No visit type is inferred.`,
+      );
+    else
+      blockers.push(
+        `Service offering ${offering.name} (#${offering.id}): visit type #${offering.visit_type_id} needs separate catalog mapping; this snapshot does not contain visit types or clinician/price eligibility.`,
+      );
+    if (destination && destination.visit_type_id === null)
+      blockers.push(
+        `Service offering ${offering.name} (#${offering.id}): destination offering #${destination.id} has no configured visit type. Review its configuration separately; mapping this record does not complete the offering.`,
+      );
   }
   return {
     format: "meta-clinic-configuration-mapping-review-v1",
