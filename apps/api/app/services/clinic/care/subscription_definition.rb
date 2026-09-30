@@ -58,7 +58,8 @@ module Clinic
             "quantity" => integer(component.fetch("quantity", 1), 1..10000, "Service quantity"),
             "frequency" => choice(component.fetch("frequency", "term"), %w[term day week month], "Frequency"),
             "price_adjustment" => mode == "included" ? "0.0" : money(component.fetch("price_adjustment", "0")),
-            "eligibility_review" => boolean(component.fetch("eligibility_review", false))
+            "eligibility_review" => boolean(component.fetch("eligibility_review", false)),
+            "allowance" => allowance(component["allowance"])
           }
         end
         raise ArgumentError, "A service may appear only once in a package." unless snapshot["components"].map { |c| c["service_id"] }.uniq.length == components.length
@@ -69,6 +70,16 @@ module Clinic
         snapshot
       rescue KeyError
         raise ArgumentError, "Complete the required package settings."
+      end
+
+      # No inferred policy: every supported dimension must be deliberately supplied.
+      def self.allowance(value)
+        return nil if value.nil?
+        expected = { "anchor" => "paid_period_start", "timezone" => "UTC",
+          "reset" => "discard_unused", "renewal" => "verified_paid_period",
+          "partial_window" => "full_quantity" }
+        raise ArgumentError, "Complete all allowance policy choices; unsupported policies require separate review." unless value == expected
+        expected
       end
 
       def self.select(snapshot, selected_ids)

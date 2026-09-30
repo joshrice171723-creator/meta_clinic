@@ -17,7 +17,7 @@ BEGIN
     'clinic_recall_events','clinic_patient_education_acknowledgments','clinic_patient_portal_waitlist_reply_receipts','clinic_refill_response_deliveries','clinic_model_versions','clinic_role_grant_events','clinic_audit_events','clinic_audit_resource_manifests','clinic_audit_delivery_receipts','platform_audit_events',
     'clinic_patient_address_versions','clinic_staff_address_versions','clinic_supplier_address_versions','clinic_encounter_note_revisions','clinic_encounter_note_signatures','clinic_encounter_completion_reviews','clinic_assessment_revisions',
     'clinic_observation_sources','clinic_payment_events','clinic_payment_allocations','clinic_credit_notes','clinic_refund_events','clinic_coverage_versions',
-    'clinic_subscription_versions','clinic_subscription_agreements','clinic_subscription_events','clinic_subscription_entitlement_entries','clinic_stripe_membership_cycles',
+    'clinic_subscription_versions','clinic_subscription_agreements','clinic_subscription_events','clinic_subscription_entitlement_entries','clinic_subscription_allowance_entries','clinic_stripe_membership_cycles',
     'clinic_message_intents','clinic_message_attachments','clinic_message_delivery_events','clinic_invoice_lines','clinic_insurance_claims',
     'clinic_clinical_task_events','clinic_prescription_events','clinic_medication_dispenses','clinic_lab_report_actions'] LOOP
     EXECUTE format('REVOKE UPDATE, DELETE ON %I FROM apply_runtime',relation);

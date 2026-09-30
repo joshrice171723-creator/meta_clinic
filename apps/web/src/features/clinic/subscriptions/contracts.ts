@@ -1,3 +1,10 @@
+export type AllowancePolicy = {
+  anchor: "paid_period_start";
+  timezone: "UTC";
+  reset: "discard_unused";
+  renewal: "verified_paid_period";
+  partial_window: "full_quantity";
+};
 export type ServiceComponent = {
   service_id: number;
   name: string;
@@ -8,6 +15,7 @@ export type ServiceComponent = {
   max: number;
   quantity: number;
   frequency: "term" | "day" | "week" | "month";
+  allowance?: Partial<AllowancePolicy> | null;
   price_adjustment: string;
   eligibility_review: boolean;
 };
@@ -84,7 +92,10 @@ export type PackageEntitlement = {
   remaining_quantity: number | null;
   status: string;
   can_use: boolean;
-  source: "staff_recorded_package_ledger";
+  source: "staff_recorded_package_ledger" | "retained_recurring_allowance";
+  allowance_window?: string | null;
+  window_start?: string | null;
+  window_end?: string | null;
 };
 export type PackageEntitlementEntry = {
   id: number;
@@ -94,6 +105,8 @@ export type PackageEntitlementEntry = {
   reversed_entry_id: number | null;
   source_reference: string;
   occurred_at: string;
+  ledger?: "fixed" | "recurring";
+  allowance_window?: string | null;
 };
 export type SubscriptionReceipt = {
   id: number;

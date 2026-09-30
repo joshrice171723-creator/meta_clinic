@@ -93,7 +93,7 @@ class SubscriptionEntitlementsTest < ActiveSupport::TestCase
     assert_equal 3, balance[:purchased_quantity]
     other = checkout("other-purchase")
     pay(other)
-    assert_equal "unsupported_frequency", balance(other)[:status]
+    assert_equal "allowance_unconfigured", balance(other)[:status]
     assert_nil balance(other)[:remaining_quantity]
     assert_raises(ArgumentError) { record("opening", 1, "weekly", agreement: other) }
   end
