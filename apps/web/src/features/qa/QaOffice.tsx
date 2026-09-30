@@ -5,7 +5,14 @@ import {
   AccordionSummary,
   Alert,
   Button,
+  CircularProgress,
 } from "@mui/material";
+import {
+  acceptMuseReceipt,
+  museCountdown,
+  type MuseCheckIn,
+  type MuseReceipt,
+} from "./museCheckIn";
 
 export type QaOfficeProps = {
   tasks: {
@@ -35,6 +42,8 @@ export type QaOfficeProps = {
   lastQaRevision?: string;
   loading?: boolean;
   error?: string;
+  /** Reserved for a server-authenticated projection; never QA report timestamps. */
+  museCheckIn?: MuseCheckIn;
   onNavigate: (view: string) => void;
 };
 
@@ -65,9 +74,31 @@ export function QaOffice({
   lastQaRevision,
   loading,
   error,
+  museCheckIn,
   onNavigate,
 }: QaOfficeProps) {
-  const [position, setPosition] = useState({ x: 5, y: 4 });
+  const [position, setPosition] = useState({ x: 5, y: 5 });
+  const principal = museCheckIn?.musePrincipalId ?? "";
+  const [receipt, setReceipt] = useState<MuseReceipt>();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const observedNow = Date.now();
+    setNow(observedNow);
+    setReceipt((previous) =>
+      acceptMuseReceipt(previous, museCheckIn?.receipt, principal, observedNow),
+    );
+  }, [museCheckIn?.receipt, principal]);
+  useEffect(() => {
+    if (!receipt || !museCheckIn?.cadenceMs) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [receipt, museCheckIn?.cadenceMs]);
+  const checkIn = museCountdown(
+    receipt,
+    principal,
+    museCheckIn?.cadenceMs,
+    now,
+  );
   const [selected, setSelected] = useState<Destination>();
   const detailHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -172,7 +203,9 @@ export function QaOffice({
       <p id="qa-office-help">
         Focus the floor and use arrow keys or WASD to walk; Enter opens the
         nearest destination. Walking is optional: use any destination button.
-        Desks are symbolic, not presence telemetry.
+        The local preview cursor is not Josh, Muse or dot and never writes
+        shared positions. Each avatar awaits its own verified identity and
+        controller.
       </p>
       <div className="qa-office-layout">
         <div>
@@ -199,6 +232,38 @@ export function QaOffice({
                 {item.label}
               </Button>
             ))}
+            {[
+              { name: "Josh", x: 2 },
+              { name: "dot", x: 5 },
+              { name: "Muse", x: 8 },
+            ].map((actor) => (
+              <div
+                key={actor.name}
+                className="qa-office-avatar"
+                role="group"
+                aria-label={`${actor.name} avatar: Not connected, Uncontrolled`}
+                style={{ left: `${actor.x * 10}%`, top: "38%" }}
+              >
+                <span className="qa-office-avatar-body">
+                  {actor.name === "Muse" && (
+                    <CircularProgress
+                      variant="determinate"
+                      value={checkIn.fraction * 100}
+                      size={48}
+                      aria-label={`Muse expected check-in: ${checkIn.label}`}
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        "& .MuiCircularProgress-circle": { transition: "none" },
+                      }}
+                    />
+                  )}
+                  <strong>{actor.name}</strong>
+                </span>
+                <small>Not connected</small>
+                <small>Uncontrolled</small>
+              </div>
+            ))}
             <span
               className="qa-office-player"
               aria-hidden="true"
@@ -207,12 +272,17 @@ export function QaOffice({
                 top: `${position.y * 11}%`,
               }}
             >
-              J
+              Preview
             </span>
           </div>
           <p className="qa-office-position">
-            Josh's navigation position: column {position.x}, row {position.y}.
+            Local preview position: column {position.x}, row {position.y}.
             Nearest: {nearest.label}.
+          </p>
+          <p className="qa-office-check-in">
+            Muse expected check-in: <strong>{checkIn.label}</strong>. This is
+            receipt timing, not live presence. Shared avatar control is not
+            available.
           </p>
           <nav
             className="qa-office-destination-list"

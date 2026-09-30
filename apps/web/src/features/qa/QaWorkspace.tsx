@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   Alert,
   Button,
@@ -13,6 +19,7 @@ import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
 import { QaAgentRoom } from "./QaAgentRoom";
 import { QaOffice } from "./QaOffice";
+import { sharedOffice, type SharedOffice } from "./sharedOffice";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -203,6 +210,9 @@ const nav = [
 
 export function QaWorkspace() {
   const [data, setData] = useState<Workspace>();
+  const [office, setOffice] = useState<SharedOffice>();
+  const [officeError, setOfficeError] = useState("");
+  const officeRequest = useRef(0);
   const [live, setLive] = useState<Build>();
   const [buildError, setBuildError] = useState("");
   const [error, setError] = useState("");
@@ -212,6 +222,14 @@ export function QaWorkspace() {
     qaWorkspaceView(window.location.search),
   );
   const viewTitle = nav.find(([id]) => id === section)?.[1];
+  const viewHeading = useRef<HTMLHeadingElement>(null);
+  const focusAfterOffice = useRef(false);
+  useEffect(() => {
+    if (focusAfterOffice.current) {
+      viewHeading.current?.focus();
+      focusAfterOffice.current = false;
+    }
+  }, [section]);
   const [selected, setSelected] = useState<Issue | KnownIssue>();
   const [report, setReport] = useState(false);
   const [question, setQuestion] = useState(false);
@@ -228,7 +246,24 @@ export function QaWorkspace() {
     window.history.replaceState(null, "", url);
   }, [section]);
   const refresh = useCallback(async (github = false) => {
+    const request = ++officeRequest.current;
     await Promise.all([
+      (async () => {
+        try {
+          const snapshot = sharedOffice(await api<unknown>("/api/qa/office"));
+          if (request !== officeRequest.current) return;
+          setOffice(snapshot);
+          setOfficeError("");
+        } catch (reason) {
+          if (request !== officeRequest.current) return;
+          setOffice(undefined);
+          setOfficeError(
+            reason instanceof Error
+              ? reason.message
+              : "Shared Office unavailable.",
+          );
+        }
+      })(),
       (async () => {
         try {
           const workspace = await api<Workspace>(
@@ -506,7 +541,12 @@ export function QaWorkspace() {
         <header className="qa-header">
           <div>
             <p className="qa-eyebrow">RELEASE CONFIDENCE / SHARED WITH MUSE</p>
-            <h1 aria-live="polite" aria-atomic="true">
+            <h1
+              ref={viewHeading}
+              tabIndex={-1}
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {viewTitle}
             </h1>
           </div>
@@ -609,15 +649,16 @@ export function QaWorkspace() {
         )}
         {section === "office" && (
           <QaOffice
-            tasks={data?.tasks ?? []}
-            evidence={data?.evidence ?? []}
-            events={data?.events ?? []}
-            build={live}
-            lastRunAt={data?.state.last_run_at}
-            lastQaRevision={data?.state.last_qa_revision}
-            loading={!data && !error}
-            error={error}
-            onNavigate={setSection}
+            tasks={office?.tasks ?? []}
+            evidence={office?.evidence ?? []}
+            events={office?.events ?? []}
+            build={office?.build}
+            loading={!office && !officeError}
+            error={officeError}
+            onNavigate={(view) => {
+              focusAfterOffice.current = true;
+              setSection(view);
+            }}
           />
         )}
         {data && (
