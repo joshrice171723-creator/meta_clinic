@@ -198,6 +198,7 @@ type ProviderHarnessValue = {
   callState: string;
   error: string | null;
   authorizationStatus: string;
+  retrying: boolean;
   participants: unknown[];
   registerVisitPolling: (visitId: string) => () => void;
 };
@@ -436,6 +437,30 @@ describe("persistent telehealth session authorization", () => {
     expect(apiMocks.requestStaffJoinGrant).toHaveBeenCalledTimes(1);
     expect(renderProvider().active).toBeNull();
     expect(mediaMocks.createAdapter).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a later reconnect after a fresh join supersedes a pending reconnect", async () => {
+    const provider = await joinStaff();
+    const pendingGrant = deferred<typeof grantEnvelope>();
+    apiMocks.requestStaffJoinGrant.mockReturnValueOnce(pendingGrant.promise);
+    const staleRetry = provider.retryConnection();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(apiMocks.requestStaffJoinGrant).toHaveBeenCalledTimes(2);
+
+    await joinStaff();
+    expect(renderProvider().retrying).toBe(false);
+    pendingGrant.resolve(grantEnvelope);
+    await staleRetry;
+    await renderProvider().retryConnection();
+
+    expect(apiMocks.requestStaffJoinGrant).toHaveBeenCalledTimes(4);
+    expect(mediaMocks.createAdapter).toHaveBeenCalledTimes(3);
+    expect(renderProvider()).toMatchObject({
+      active: { visitId: "visit-1" },
+      authorizationStatus: "confirmed",
+      retrying: false,
+    });
   });
 
   it("stops Scribe before media when the canonical participant is removed", async () => {

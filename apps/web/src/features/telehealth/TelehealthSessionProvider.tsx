@@ -434,6 +434,9 @@ export function TelehealthSessionProvider({
       if (activeRef.current && activeRef.current.visitId !== input.visitId)
         await leave(true);
       const generation = ++generationRef.current;
+      // A fresh join owns recovery now; retire the superseded retry latch.
+      retryingRef.current = false;
+      setRetrying(false);
       setError(null);
       setAuthorizationError(null);
       setAuthorizationStatus("checking");
