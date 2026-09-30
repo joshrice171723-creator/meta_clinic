@@ -33,6 +33,7 @@ type Source = {
   code_system: string | null;
   unit: string | null;
   unit_code: string | null;
+  supplied_unit_code?: string | null;
   source_name: string | null;
 };
 
@@ -52,6 +53,7 @@ type ResultHistoryItem = LabResultProvenance & {
   absent_reason?: string | null;
   unit: string | null;
   unit_code: string | null;
+  supplied_unit_code?: string | null;
   reference_range: string | null;
   flag: string | null;
   reviewed_at: string | null;
@@ -169,8 +171,8 @@ export function LabResultHistory({
                   {data.selected.unit
                     ? ` · ${data.selected.unit}`
                     : " · Unit not recorded"}
-                  {data.selected.unit_code
-                    ? ` · UCUM ${data.selected.unit_code}`
+                  {(data.selected.supplied_unit_code ?? data.selected.unit_code)
+                    ? ` · Supplied unit code ${data.selected.supplied_unit_code ?? data.selected.unit_code}`
                     : ""}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">

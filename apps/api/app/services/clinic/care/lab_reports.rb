@@ -208,7 +208,7 @@ module Clinic
             "value_code" => value_code,
             "value_code_system" => value_code_system,
             "unit" => optional_text(values[:unit], "result unit", 80),
-            "unit_code" => optional_text(values[:unit_code], "result unit code", 80),
+            "unit_code" => optional_text(values[:supplied_unit_code].presence || values[:unit_code], "supplied result unit code", 80),
             "interpretation" => optional_text(values[:interpretation], "result interpretation", 80),
             "reference_range" => optional_text(values[:reference_range], "reference_range", 200),
             "flag" => optional_text(values[:flag], "result flag", 80)

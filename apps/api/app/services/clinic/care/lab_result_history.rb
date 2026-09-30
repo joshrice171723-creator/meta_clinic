@@ -63,7 +63,8 @@ module Clinic
           code: normalized_optional(result["code"]),
           code_system: normalized_optional(result["code_system"]),
           unit: normalized_optional(result["unit"]),
-          unit_code: normalized_optional(result["unit_code"]),
+          unit_code: normalized_optional(Clinic::Configuration::LabUnitMappings.present_result(result)["unit_code"]),
+          supplied_unit_code: normalized_optional(result["supplied_unit_code"] || result["unit_code"]),
           source_name: report.source_name.to_s.strip
         }
       end
@@ -75,11 +76,12 @@ module Clinic
           normalized_optional(result["code"]) == selected.fetch(:code) &&
           normalized_optional(result["code_system"]) == selected.fetch(:code_system) &&
           normalized_optional(result["unit"]) == selected.fetch(:unit) &&
-          normalized_optional(result["unit_code"]) == selected.fetch(:unit_code)
+          normalized_optional(result["supplied_unit_code"] || result["unit_code"]) == selected.fetch(:supplied_unit_code)
       end
       private_class_method :same_result?
 
       def self.item_payload(report, version, result, result_index)
+        result = Clinic::Configuration::LabUnitMappings.present_result(result)
         {
           report_id: report.id,
           version_id: version.id,
@@ -97,6 +99,7 @@ module Clinic
           value_code_system: result["value_code_system"],
           unit: normalized_optional(result["unit"]),
           unit_code: normalized_optional(result["unit_code"]),
+          supplied_unit_code: result["supplied_unit_code"],
           unit_validation: result["unit_validation"],
           reference_range: normalized_optional(result["reference_range"]),
           flag: normalized_optional(result["flag"]),

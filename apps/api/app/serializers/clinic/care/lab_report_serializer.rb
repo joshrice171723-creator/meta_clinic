@@ -35,7 +35,7 @@ module Clinic
           result_priority: value.result_priority,
           collected_at: iso(value.collected_at),
           issued_at: iso(value.issued_at),
-          results: value.results,
+          results: value.results.map { |row| Clinic::Configuration::LabUnitMappings.present_result(row) },
           entry_kind: value.entry_kind,
           content_digest: value.content_digest,
           recorded_at: iso(value.recorded_at),
