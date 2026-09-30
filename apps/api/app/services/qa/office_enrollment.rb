@@ -12,7 +12,7 @@ module Qa
       digest = input["digest"]
       raise ArgumentError, "Provide the agent's SHA256 fingerprint, never its secret." unless digest.is_a?(String) && digest.match?(/\A[0-9a-f]{64}\z/)
       cadence = input["cadence_seconds"]
-      raise ArgumentError, "Cadence must match the real Muse schedule (10â€“86400 seconds)." if cadence && (!cadence.is_a?(Integer) || !cadence.between?(10, 86_400) || target != "muse")
+      raise ArgumentError, "Cadence must match the real Muse schedule (10-86400 seconds)." if cadence && (!cadence.is_a?(Integer) || !cadence.between?(10, 86_400) || target != "muse")
       AgentRoom.reject_credentials!(name)
       user.with_lock do
         event_key = "office:enrollment:#{key}"

@@ -559,19 +559,19 @@ export function QaOfficeWork({
                       >
                         <MenuItem
                           value="muse"
-                          disabled={work.controlled_actor === "muse"}
+                          disabled={work?.controlled_actor === "muse"}
                         >
                           Muse
                         </MenuItem>
                         <MenuItem
                           value="dot"
-                          disabled={work.controlled_actor === "dot"}
+                          disabled={work?.controlled_actor === "dot"}
                         >
                           dot
                         </MenuItem>
                         <MenuItem
                           value="codex"
-                          disabled={work.controlled_actor === "codex"}
+                          disabled={work?.controlled_actor === "codex"}
                         >
                           Codex
                         </MenuItem>
@@ -602,7 +602,7 @@ export function QaOfficeWork({
                         disabled={
                           busy ||
                           (status === "handoff" &&
-                            handoffActor === work.controlled_actor)
+                            handoffActor === work?.controlled_actor)
                         }
                         onClick={() => void transition(status)}
                       >
