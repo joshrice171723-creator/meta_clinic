@@ -9,6 +9,7 @@ module Clinic
       belongs_to :paid_event, class_name: "Clinic::Care::SubscriptionEvent"
       belongs_to :actor, class_name: "User"
       belongs_to :reversed_entry, class_name: name, optional: true
+      belongs_to :period_resolution, class_name: "Clinic::Care::SubscriptionPaidPeriodResolution", optional: true
     end
   end
 end

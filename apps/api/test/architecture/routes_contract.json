@@ -1410,6 +1410,11 @@
     "/api/patient_portal/invoices/:id/online_payment/start(.:format)"
   ],
   [
+    "paid_period_resolutions_api_clinic_subscription",
+    "GET",
+    "/api/clinic/subscriptions/:id/paid_period_resolutions(.:format)"
+  ],
+  [
     "pause_api_clinic_reminder",
     "POST",
     "/api/clinic/reminders/:id/pause(.:format)"
@@ -1543,6 +1548,11 @@
     "release_api_clinic_schedule_hold",
     "POST",
     "/api/clinic/schedule_holds/:id/release(.:format)"
+  ],
+  [
+    "resolve_paid_period_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/paid_period_resolutions(.:format)"
   ],
   [
     "restore_api_clinic_scribe_draft",

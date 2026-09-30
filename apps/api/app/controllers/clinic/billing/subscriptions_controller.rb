@@ -117,6 +117,27 @@ module Clinic
           page: page, per_page: 50, total_count: total, total_pages: (total / 50.0).ceil }
       end
 
+      def paid_period_resolutions
+        page = bounded_integer!(params.fetch(:page, 1), field: :page, min: 1, max: 1_000_000)
+        record = agreement
+        resolutions = Care::SubscriptionPaidPeriods.records(record).order(id: :desc)
+        total = resolutions.count
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+          action_code: "subscriptions.paid_period.read", outcome: :released,
+          resource_version_ref: "subscription:#{record.id}")
+        render json: { cases: Care::SubscriptionPaidPeriods.cases(agreement: record),
+          history: resolutions.limit(50).offset((page - 1) * 50).map { |item| Care::SubscriptionPaidPeriods.serialize(item) },
+          page: page, total_count: total, total_pages: (total / 50.0).ceil }
+      end
+
+      def resolve_paid_period
+        input = parameter_hash!(:resolution, %i[service_id selected_paid_event_id evidence_token reason request_key])
+        resolution = Care::SubscriptionPaidPeriods.record(agreement: agreement, actor: current_user,
+          service_id: input[:service_id], selected_paid_event_id: input[:selected_paid_event_id],
+          evidence_token: input[:evidence_token], reason: input[:reason], request_key: input[:request_key])
+        render json: { resolution: Care::SubscriptionPaidPeriods.serialize(resolution) }
+      end
+
       private
 
       def agreement

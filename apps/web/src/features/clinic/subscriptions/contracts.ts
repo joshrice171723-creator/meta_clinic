@@ -96,6 +96,7 @@ export type PackageEntitlement = {
   allowance_window?: string | null;
   window_start?: string | null;
   window_end?: string | null;
+  period_resolution_id?: number | null;
 };
 export type PackageEntitlementEntry = {
   id: number;
@@ -107,6 +108,55 @@ export type PackageEntitlementEntry = {
   occurred_at: string;
   ledger?: "fixed" | "recurring";
   allowance_window?: string | null;
+  period_resolution_id?: number | null;
+};
+export type PaidPeriodCandidate = {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  recorded_at: string;
+  details: Record<string, unknown>;
+};
+export type PaidPeriodResolutionRecord = {
+  id: number;
+  service_id: number;
+  selected_paid_event_id: number;
+  effective_at: string;
+  reason: string;
+  actor_id: number;
+  created_at: string;
+  request_key: string;
+  evidence_token: string;
+  overlap_start: string;
+  overlap_end: string;
+  candidate_event_ids: number[];
+  evidence_snapshot: { events: PaidPeriodCandidate[] };
+};
+export type PaidPeriodResolutionCase = {
+  service_id: number;
+  name: string;
+  status: "unresolved" | "resolved";
+  evidence_token: string;
+  overlap_start: string;
+  overlap_end: string;
+  candidates: PaidPeriodCandidate[];
+  resolution: Pick<
+    PaidPeriodResolutionRecord,
+    | "id"
+    | "selected_paid_event_id"
+    | "effective_at"
+    | "reason"
+    | "actor_id"
+    | "created_at"
+  > | null;
+  blockers: { selected_paid_event_id: number; entry_ids: number[] }[];
+};
+export type PaidPeriodResolutionLedger = {
+  cases: PaidPeriodResolutionCase[];
+  history: PaidPeriodResolutionRecord[];
+  page: number;
+  total_pages: number;
+  total_count: number;
 };
 export type SubscriptionReceipt = {
   id: number;
