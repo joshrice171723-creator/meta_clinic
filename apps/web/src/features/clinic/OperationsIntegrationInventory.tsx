@@ -1,4 +1,5 @@
-import { Button, Divider, Stack, Typography } from "@mui/material";
+import { Button, Divider, Pagination, Stack, Typography } from "@mui/material";
+import { useState } from "react";
 import { useResource, Card, LoadState } from "../../shared/ui";
 import type { StripeConnectionStatus } from "./billing/StripeConnectPanel";
 import { IntegrationStatusBadge } from "./IntegrationStatusBadge";
@@ -428,7 +429,7 @@ export function OperationsIntegrationInventory({
   );
 }
 
-type ScribeActivityReport = {
+export type ScribeActivityReport = {
   as_of: string;
   provider_configured: boolean;
   current_draft_counts: Record<string, number>;
@@ -443,11 +444,18 @@ type ScribeActivityReport = {
     status: string;
     updated_at: string;
   }>;
+  recovery_pagination?: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
 };
 
-function ScribeActivitySummary() {
+export function ScribeActivitySummary() {
+  const [page, setPage] = useState(1);
   const resource = useResource<{ report: ScribeActivityReport }>(
-    "/api/clinic/reports/scribe_activity",
+    `/api/clinic/reports/scribe_activity?page=${page}`,
   );
   const report = resource.data?.report;
   return (
@@ -456,7 +464,14 @@ function ScribeActivitySummary() {
         Scribe
       </Typography>
       {!report ? (
-        <LoadState error={resource.error} onRetry={resource.refresh} />
+        <>
+          <LoadState error={resource.error} onRetry={resource.refresh} />
+          {resource.error && page > 1 && (
+            <Button size="small" onClick={() => setPage(1)}>
+              Return to first unfinished Scribe page
+            </Button>
+          )}
+        </>
       ) : (
         <>
           <Typography variant="body2">
@@ -482,10 +497,12 @@ function ScribeActivitySummary() {
             {report.current_draft_counts.exported ?? 0}. Superseded drafts are
             excluded.
           </Typography>
-          {report.recovery_items.length > 0 && (
+          {(report.recovery_items.length > 0 || report.recovery_pagination) && (
             <Stack spacing={0.25}>
               <Typography variant="subtitle2">
-                Unfinished records (latest 25)
+                {report.recovery_pagination
+                  ? `Unfinished records (${report.recovery_pagination.total})`
+                  : "Unfinished records (latest 25)"}
               </Typography>
               {report.recovery_items.map((item) => (
                 <Button
@@ -498,6 +515,30 @@ function ScribeActivitySummary() {
                   {new Date(item.updated_at).toLocaleString()}
                 </Button>
               ))}
+              {report.recovery_pagination && (
+                <>
+                  {report.recovery_pagination.total === 0 ? (
+                    <Typography variant="body2">
+                      No unfinished recordings or sources.
+                    </Typography>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">
+                      Page {report.recovery_pagination.page} of{" "}
+                      {report.recovery_pagination.total_pages} ·{" "}
+                      {report.recovery_items.length} records shown
+                    </Typography>
+                  )}
+                  {report.recovery_pagination.total_pages > 1 && (
+                    <Pagination
+                      size="small"
+                      count={report.recovery_pagination.total_pages}
+                      page={report.recovery_pagination.page}
+                      onChange={(_, nextPage) => setPage(nextPage)}
+                      aria-label="Unfinished Scribe records pages"
+                    />
+                  )}
+                </>
+              )}
             </Stack>
           )}
           <Typography variant="caption" color="text.secondary">
