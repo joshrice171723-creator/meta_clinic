@@ -80,6 +80,43 @@ class Clinic::Scheduling::CalendarTest < ActiveSupport::TestCase
     end
   end
 
+  test "deduplicated slots retain every source rule revision and one generation time" do
+    first, second = weekly, weekly
+    second.update!(end_minute: 630)
+    # Unrelated site and inactive rules must never be reported as contributors.
+    other_site = @practice.sites.create!(code: "OTHER")
+    weekly.update!(site: other_site)
+    weekly.update!(active: false)
+
+    result = projection
+    slots = result[:days].find { |d| d[:date] == @date.iso8601 }[:slots]
+    assert_equal 4, slots.length
+    assert_equal({ generated_at: result[:as_of], source_rules: [
+      { id: first.id, version: first.lock_version },
+      { id: second.id, version: second.lock_version }
+    ] }, slots.first[:provenance])
+    assert_equal [ { id: first.id, version: first.lock_version } ], slots.last[:provenance][:source_rules]
+    assert slots.all? { |slot| slot[:provenance][:generated_at] == result[:as_of] }
+    assert_equal [ @room.id ], slots.first[:room_ids]
+  end
+
+  test "a new projection reflects a changed rule revision without reserving capacity" do
+    rule = weekly
+    before = projection
+    rule.update!(start_minute: 570)
+    after = projection
+    before_slots = before[:days].find { |d| d[:date] == @date.iso8601 }[:slots]
+    after_slots = after[:days].find { |d| d[:date] == @date.iso8601 }[:slots]
+
+    assert_equal 4, before_slots.length
+    assert_equal 3, after_slots.length
+    assert_equal 0, before_slots.first[:provenance][:source_rules].first[:version]
+    assert_equal rule.lock_version, after_slots.first[:provenance][:source_rules].first[:version]
+    assert_equal rule.id, after_slots.first[:provenance][:source_rules].first[:id]
+    assert_equal 0, @practice.appointments.count
+    assert_equal 0, Clinic::Scheduling::ScheduleHold.where(practice: @practice).count
+  end
+
   test "serializing appointments preloads telehealth visits" do
     2.times do |index|
       @practice.appointments.create!(patient: @patient, site: @site, booked_clinician: @clinician,

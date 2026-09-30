@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   calendarDate,
   calendarInstant,
@@ -10,6 +11,7 @@ import {
   isValidCalendarDay,
   calendarTimezone,
   ClinicSchedule,
+  SlotProvenance,
 } from "../src/features/clinic/ClinicSchedule";
 import { bindBookingPatient, Schedule } from "../src/features/clinic/CareFlow";
 import type { CalendarAppointment } from "../src/api/contracts";
@@ -22,6 +24,26 @@ vi.mock("../src/features/clinic/Workspace", () => ({
 }));
 
 describe("clinic calendar navigation and authoritative booking handoff", () => {
+  it("shows all source revisions and site-local calculation time for an opening", () => {
+    const html = renderToStaticMarkup(
+      <SlotProvenance
+        timezone="America/Chicago"
+        provenance={{
+          generated_at: "2026-09-16T14:00:00Z",
+          source_rules: [
+            { id: 41, version: 0 },
+            { id: 42, version: 3 },
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain("Sep 16, 2026, 9:00:00 AM CDT");
+    expect(html).toContain("rule #41, version 0; rule #42, version 3");
+    expect(html).toContain("Availability is checked again when booking.");
+  });
+  it("does not invent slot provenance for manual or busy-time booking", () => {
+    expect(renderToStaticMarkup(<SlotProvenance timezone="UTC" />)).toBe("");
+  });
   it("keeps overlapping appointments visible in separate tracks", () => {
     const appointments = [
       {

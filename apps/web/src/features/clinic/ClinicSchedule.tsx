@@ -23,6 +23,7 @@ import type {
   CalendarAppointment,
   CalendarHold,
   CalendarResponse,
+  CalendarSlot,
 } from "../../api/contracts";
 import { api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
@@ -40,7 +41,37 @@ export type CalendarBooking = {
   ends_at?: string;
   hold?: CalendarHold;
   overbook?: boolean;
+  provenance?: CalendarSlot["provenance"];
 };
+
+export function SlotProvenance({
+  provenance,
+  timezone,
+}: {
+  provenance?: CalendarSlot["provenance"];
+  timezone: string;
+}) {
+  if (!provenance) return null;
+  return (
+    <Stack spacing={0.5} sx={{ mb: 2, overflowWrap: "anywhere" }}>
+      <Typography variant="body2" color="text.secondary">
+        Selected opening calculated at{" "}
+        {new Intl.DateTimeFormat("en-US", {
+          timeZone: timezone,
+          dateStyle: "medium",
+          timeStyle: "long",
+        }).format(new Date(provenance.generated_at))}
+        . Availability is checked again when booking.
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Capacity source:{" "}
+        {provenance.source_rules
+          .map((rule) => `rule #${rule.id}, version ${rule.version}`)
+          .join("; ")}
+      </Typography>
+    </Stack>
+  );
+}
 
 export function calendarTimezone(
   sites: { id: number; timezone_override?: string | null }[],
@@ -662,7 +693,8 @@ export function ClinicSchedule({
                 const firstAvailableSlot =
                   view === "day"
                     ? selectedDay?.slots.find(
-                        (slot) => Date.parse(slot.starts_at) > businessNow().getTime(),
+                        (slot) =>
+                          Date.parse(slot.starts_at) > businessNow().getTime(),
                       )
                     : undefined;
                 setBooking({
@@ -1297,7 +1329,11 @@ export function ClinicSchedule({
                               <Chip size="small" label="Overbooked" />
                             )}
                             {appointment.walk_in && (
-                              <Chip size="small" color="warning" label="Walk-in" />
+                              <Chip
+                                size="small"
+                                color="warning"
+                                label="Walk-in"
+                              />
                             )}
                             {appointment.series_id && (
                               <Chip size="small" label="Repeats weekly" />
@@ -1341,6 +1377,10 @@ export function ClinicSchedule({
         }}
       >
         <DialogContent>
+          <SlotProvenance
+            provenance={booking?.provenance}
+            timezone={timezone}
+          />
           {booking &&
             renderBooking(
               booking,
@@ -1389,7 +1429,8 @@ export function ClinicSchedule({
                 )}
                 {selected.walk_in && (
                   <Typography variant="body2">
-                    Walk-in capacity exception · {selected.capacity_override_reason}
+                    Walk-in capacity exception ·{" "}
+                    {selected.capacity_override_reason}
                   </Typography>
                 )}
                 {selected.series_id && (
@@ -1485,7 +1526,10 @@ export function ClinicSchedule({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy} onClick={() => setCancelConfirmationOpen(false)}>
+          <Button
+            disabled={busy}
+            onClick={() => setCancelConfirmationOpen(false)}
+          >
             Go back
           </Button>
           <Button
