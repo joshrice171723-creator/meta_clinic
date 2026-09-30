@@ -15,6 +15,7 @@ import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type { Adjustment, Timecard, TimecardEmployee } from "./clockTypes";
 import { AdjustmentDialog } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
+import { timecardAttention, type TimecardAttention } from "./timecardAttention";
 
 function workforceSettingsPath(reason: unknown, siteId: string) {
   if (!(reason instanceof ApiError)) return null;
@@ -36,6 +37,9 @@ export function TimecardReviewPage() {
   const [siteId, setSiteId] = useState(
     String(clinic.current_site?.id ?? clinic.sites[0]?.id ?? ""),
   );
+  const [attention, setAttention] = useState<TimecardAttention>("all");
+  const [loading, setLoading] = useState(true);
+  const [loadedSiteId, setLoadedSiteId] = useState("");
   const [cards, setCards] = useState<Timecard[]>([]);
   const [employees, setEmployees] = useState<TimecardEmployee[]>([]);
   const [employmentId, setEmploymentId] = useState("");
@@ -54,6 +58,10 @@ export function TimecardReviewPage() {
 
   useEffect(() => {
     if (!siteId || !canRead) return;
+    setLoading(true);
+    setCards([]);
+    setAdjustments([]);
+    setCorrectionCard(null);
     const abort = new AbortController();
     setError("");
     setSettingsPath(null);
@@ -83,6 +91,8 @@ export function TimecardReviewPage() {
     ])
       .then(([timecardData, adjustmentData]) => {
         if (!abort.signal.aborted) {
+          setLoadedSiteId(siteId);
+          setLoading(false);
           setCards(timecardData.timecards);
           setEmployees(timecardData.employees);
           setEmploymentId((current) =>
@@ -99,6 +109,7 @@ export function TimecardReviewPage() {
         }
       })
       .catch((reason: unknown) => {
+        if (!abort.signal.aborted) setLoading(false);
         if (!abort.signal.aborted)
           setError(
             reason instanceof Error
@@ -111,14 +122,21 @@ export function TimecardReviewPage() {
     return () => abort.abort();
   }, [canRead, canReview, siteId, revision]);
 
-  const latestCards = useMemo(() => {
-    const found = new Map<string, Timecard>();
-    cards.forEach((card) => {
-      const key = `${card.employment_id}:${card.period_start}`;
-      if (!found.has(key)) found.set(key, card);
-    });
-    return [...found.values()];
-  }, [cards]);
+  const currentSource = canRead && loadedSiteId === siteId && !loading;
+  const attentionData = useMemo(
+    () =>
+      timecardAttention(
+        currentSource ? cards : [],
+        currentSource ? adjustments : [],
+      ),
+    [cards, adjustments, currentSource],
+  );
+  const attentionAvailable = attention !== "corrections" || !reviewError;
+  const latestCards = attentionData.groups[attention];
+  useEffect(() => {
+    if (!canReview)
+      setAttention((current) => (current === "corrections" ? "all" : current));
+  }, [canReview]);
 
   async function calculate() {
     if (!employmentId || !periodStart) return;
@@ -207,6 +225,9 @@ export function TimecardReviewPage() {
       setBusy(false);
     }
   }
+
+  if (!canRead)
+    return <Alert severity="info">Timecard read access is unavailable.</Alert>;
 
   return (
     <Stack spacing={3}>
@@ -311,100 +332,163 @@ export function TimecardReviewPage() {
             : ""}
         </Alert>
       )}
+      {attention === "corrections" && reviewError && (
+        <Alert severity="warning">
+          This correction view is unavailable. Select another view or refresh.
+        </Alert>
+      )}
       {reviewError && (
         <Alert severity="warning">
           {reviewError} Authorized timecard records remain available below.
         </Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
-      {canReview &&
-        adjustments
-          .filter((adjustment) => adjustment.status === "submitted")
-          .map((adjustment) => (
-            <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
-              <Stack spacing={1}>
-                <Typography variant="h3">
-                  Correction request #{adjustment.id}
-                </Typography>
-                <Typography>{adjustment.reason}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {adjustment.correction_type.replaceAll("_", " ")} · submitted{" "}
-                  {new Date(adjustment.requested_at).toLocaleString()}
-                </Typography>
-                <TextField
-                  label="Decision reason"
-                  value={decisionReasons[adjustment.id] ?? ""}
-                  onChange={(event) =>
-                    setDecisionReasons((current) => ({
-                      ...current,
-                      [adjustment.id]: event.target.value,
-                    }))
-                  }
-                  multiline
-                  minRows={2}
-                />
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    variant="contained"
-                    disabled={busy || !decisionReasons[adjustment.id]?.trim()}
-                    onClick={() => void decide(adjustment, "approved")}
-                  >
-                    Approve correction
-                  </Button>
-                  <Button
-                    color="warning"
-                    disabled={busy || !decisionReasons[adjustment.id]?.trim()}
-                    onClick={() => void decide(adjustment, "denied")}
-                  >
-                    Deny
-                  </Button>
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-      {latestCards.map((card) => (
-        <TimecardSummary
-          key={card.id}
-          card={card}
-          corrections={adjustments.filter(
-            (adjustment) =>
-              adjustment.resulting_timecard_version_id === card.id,
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={1}>
+          <Typography variant="h3">Timecard attention</Typography>
+          <Typography variant="body2">
+            Latest recorded versions at this location. Submitted does not mean
+            eligible for approval; the existing server policy and correction
+            checks still apply.
+          </Typography>
+          {loading && (
+            <Typography role="status">Loading timecard attention…</Typography>
           )}
-          actions={
-            canReview || canApprove ? (
-              <>
-                {canApprove && (
-                  <Button
-                    variant="contained"
-                    disabled={
-                      busy ||
-                      card.status !== "submitted" ||
-                      card.unresolved_exceptions.length > 0
-                    }
-                    onClick={() => void approve(card)}
-                  >
-                    Approve timecard
-                  </Button>
-                )}
-                {canReview && (
-                  <Button
-                    disabled={busy || card.status === "superseded"}
-                    onClick={() => setCorrectionCard(card)}
-                  >
-                    Add manager correction
-                  </Button>
-                )}
-              </>
-            ) : undefined
-          }
-        />
-      ))}
-      {!latestCards.length && (
+          <TextField
+            select
+            label="Timecard view"
+            value={attention}
+            disabled={!currentSource || !!error}
+            onChange={(event) =>
+              setAttention(event.target.value as TimecardAttention)
+            }
+          >
+            <MenuItem value="all">
+              All latest versions ({attentionData.groups.all.length})
+            </MenuItem>
+            <MenuItem value="submitted">
+              Submitted for approval ({attentionData.groups.submitted.length})
+            </MenuItem>
+            <MenuItem value="exceptions">
+              Recorded exceptions ({attentionData.groups.exceptions.length})
+            </MenuItem>
+            {canReview && (
+              <MenuItem value="corrections" disabled={!!reviewError}>
+                Pending corrections (
+                {reviewError
+                  ? "unknown"
+                  : attentionData.groups.corrections.length}
+                )
+              </MenuItem>
+            )}
+          </TextField>
+          {canReview && currentSource && (
+            <Typography role="status">
+              {reviewError
+                ? "Pending correction count is unknown."
+                : `${attentionData.pending.length} pending correction requests. Requests against earlier versions remain listed below.`}
+            </Typography>
+          )}
+          <Button
+            disabled={busy || loading}
+            onClick={() => setRevision((value) => value + 1)}
+          >
+            Refresh timecard attention
+          </Button>
+        </Stack>
+      </Paper>
+      {canReview &&
+        currentSource &&
+        attentionData.pending.map((adjustment) => (
+          <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
+            <Stack spacing={1}>
+              <Typography variant="h3">
+                Correction request #{adjustment.id}
+              </Typography>
+              <Typography>{adjustment.reason}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {adjustment.correction_type.replaceAll("_", " ")} · submitted{" "}
+                {new Date(adjustment.requested_at).toLocaleString()}
+              </Typography>
+              <TextField
+                label="Decision reason"
+                value={decisionReasons[adjustment.id] ?? ""}
+                onChange={(event) =>
+                  setDecisionReasons((current) => ({
+                    ...current,
+                    [adjustment.id]: event.target.value,
+                  }))
+                }
+                multiline
+                minRows={2}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  disabled={busy || !decisionReasons[adjustment.id]?.trim()}
+                  onClick={() => void decide(adjustment, "approved")}
+                >
+                  Approve correction
+                </Button>
+                <Button
+                  color="warning"
+                  disabled={busy || !decisionReasons[adjustment.id]?.trim()}
+                  onClick={() => void decide(adjustment, "denied")}
+                >
+                  Deny
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        ))}
+      {currentSource &&
+        !error &&
+        attentionAvailable &&
+        latestCards.map((card) => (
+          <TimecardSummary
+            key={card.id}
+            card={card}
+            corrections={adjustments.filter(
+              (adjustment) =>
+                adjustment.resulting_timecard_version_id === card.id,
+            )}
+            actions={
+              canReview || canApprove ? (
+                <>
+                  {canApprove && (
+                    <Button
+                      variant="contained"
+                      disabled={
+                        busy ||
+                        card.status !== "submitted" ||
+                        card.unresolved_exceptions.length > 0
+                      }
+                      onClick={() => void approve(card)}
+                    >
+                      Approve timecard
+                    </Button>
+                  )}
+                  {canReview && (
+                    <Button
+                      disabled={busy || card.status === "superseded"}
+                      onClick={() => setCorrectionCard(card)}
+                    >
+                      Add manager correction
+                    </Button>
+                  )}
+                </>
+              ) : undefined
+            }
+          />
+        ))}
+      {currentSource && !error && attentionAvailable && !latestCards.length && (
         <Alert severity="info">
-          No calculated timecards are available for this location.
+          {attention === "all"
+            ? "No calculated timecards are available for this location."
+            : "No latest timecards match this attention view."}
         </Alert>
       )}
-      {canReview && correctionCard && (
+      {canReview && currentSource && correctionCard && (
         <AdjustmentDialog
           card={correctionCard}
           siteId={Number(siteId)}
