@@ -900,6 +900,7 @@ function Application() {
     [
       "/",
       "/login",
+      "/qa",
       "/meta-clinic",
       "/meta-clinic/membership-care/patient-view",
       "/patient-portal/activate",
@@ -1128,17 +1129,11 @@ function Application() {
       </SessionGuard>
     );
   }
-  if (path === "/qa" && user) {
+  if (path === "/qa") {
     return (
-      <SessionGuard
-        key={user.id}
-        expectedUserId={user.id}
-        initialSession={session}
-      >
-        <RouteBoundary root>
-          <QaWorkspace />
-        </RouteBoundary>
-      </SessionGuard>
+      <RouteBoundary root>
+        <QaWorkspace />
+      </RouteBoundary>
     );
   }
   if (path === "/owner" && user) {

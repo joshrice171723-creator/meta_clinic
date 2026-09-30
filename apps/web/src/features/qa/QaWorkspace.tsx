@@ -9,7 +9,7 @@ import {
   MenuItem,
   TextField,
 } from "@mui/material";
-import { ApiError, api } from "../../api/client";
+import { api } from "../../api/client";
 import "./qa.css";
 
 type RecordData = Record<string, unknown>;
@@ -207,12 +207,9 @@ export function QaWorkspace() {
         } catch (reason) {
           setData(undefined);
           setError(
-            reason instanceof ApiError &&
-              (reason.status === 401 || reason.status === 403)
-              ? "QA requires a platform-owner email and password. The demo Owner PIN session does not grant QA access."
-              : reason instanceof Error
-                ? reason.message
-                : "QA workspace unavailable.",
+            reason instanceof Error
+              ? reason.message
+              : "QA workspace unavailable.",
           );
         }
       })(),
@@ -486,14 +483,7 @@ export function QaWorkspace() {
             </Button>
           </div>
         </header>
-        {error && (
-          <Alert severity="error">
-            {error}
-            {/sign|owner/i.test(error) && (
-              <a href="/login?next=%2Fqa"> Sign in as platform owner</a>
-            )}
-          </Alert>
-        )}
+        {error && <Alert severity="error">{error}</Alert>}
         {notice && (
           <Alert severity="success" onClose={() => setNotice("")}>
             {notice}

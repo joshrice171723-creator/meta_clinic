@@ -30,6 +30,8 @@ If potentially sensitive information or a suspected incident appears, stop the a
 
 ## Task modes and authority
 
+- All subagents default to GPT-6.1 Sol (`gpt-6.1-sol`). Choose reasoning effort for the task; explicit user model instructions take precedence.
+
 - **Testing preference:** Do not add tests or run tests unless Joshua explicitly requests them. This instruction overrides test recommendations in general workflows and skills. Prefer scoped source and diff review; run only non-test checks that are necessary for the requested change, and avoid broad verification overhead.
 
 - **Review, explain or diagnose:** inspect and report. Do not edit unless the user also requests a change.

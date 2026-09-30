@@ -44,6 +44,9 @@ module Qa
       raise ArgumentError, "Live revision changed; refresh before queuing." unless verified_build!["revision"] == revision
       raise ArgumentError, "Confirm the live build pin before queuing work." unless Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == revision
       payload = input.fetch("payload", {})
+      unless @service_token || current_user&.platform_owner? || %w[retest qa_run].include?(kind)
+        return render json: { error: "Only a platform owner can queue this task kind." }, status: :forbidden
+      end
       raise ArgumentError, "Task payload must be an object." unless payload.is_a?(Hash) && payload.to_json.bytesize < 30_000
       task = Task.create_or_find_by!(request_key: string!(input, "request_key", 100)) do |record|
         record.assign_attributes(user: actor, kind:, title: string!(input, "title", 200),
@@ -232,12 +235,23 @@ module Qa
 
     def require_qa_access
       return if service_authenticated?
+      return if request.get? || %w[pin create_task].include?(action_name)
       require_member
       return if performed?
       render json: { error: "QA workspace requires a platform owner account." }, status: :forbidden unless current_user.platform_owner?
     end
 
-    def actor = @service_token&.user || current_user
+    def actor
+      return @actor if @actor
+      return @actor = @service_token&.user || current_user if @service_token || current_user
+
+      visitor = User.create_or_find_by!(email_address: "qa-public-desk@example.test") do |user|
+        user.password = SecureRandom.urlsafe_base64(48)
+        user.active = false
+      end
+      raise ArgumentError, "Public QA attribution is unavailable." if visitor.active? || visitor.admin? || visitor.platform_owner?
+      @actor = visitor
+    end
     def verified_build!
       build = Workspace.build
       raise ArgumentError, "Commit source changes before pinning or running exact-build QA." if build["dirty"]
