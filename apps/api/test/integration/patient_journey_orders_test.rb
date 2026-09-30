@@ -447,8 +447,14 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
   end
 
   def submit_prescription(order, destination_id, scenario: "acknowledged", key: SecureRandom.uuid)
+    post "#{events_path(order).delete_suffix('/events')}/prepare", params: { prescription_preparation: {
+      pharmacy_destination_id: destination_id, request_key: "prepare:#{key}", mode: "standard"
+    } }, headers: csrf_headers, as: :json
+    return unless response.successful?
+
+    preparation_id = response.parsed_body.fetch("preparation").fetch("id")
     post "#{events_path(order).delete_suffix('/events')}/submit", params: { prescription_submission: {
-      pharmacy_destination_id: destination_id, scenario:, request_key: key, mode: "standard"
+      preparation_id:, pharmacy_destination_id: destination_id, scenario:, request_key: key, mode: "standard"
     } }, headers: csrf_headers, as: :json
   end
 

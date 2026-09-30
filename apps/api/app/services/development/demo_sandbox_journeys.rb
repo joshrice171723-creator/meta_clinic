@@ -80,8 +80,10 @@ module Development
       )
       Clinic::Care::PrescriptionWorkflow.record(practice:, actor:, order:, kind: "review",
         source: "manual", request_key: "#{key}-review")
+      preparation = Clinic::Care::PrescriptionPreparationWorkflow.prepare(practice:, actor:, order:,
+        pharmacy_destination_id: destination.id, request_key: "#{key}-prepare")
       Clinic::Care::PrescriptionTransmissionWorkflow.submit(
-        practice:, actor:, order:, pharmacy_destination_id: destination.id,
+        practice:, actor:, order:, preparation_id: preparation.id, pharmacy_destination_id: destination.id,
         scenario: "accepted", request_key: "#{key}-simulation"
       )
     end

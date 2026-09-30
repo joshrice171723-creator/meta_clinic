@@ -16,8 +16,10 @@ module Clinic
       belongs_to :prescription_event, class_name: "Clinic::Care::PrescriptionEvent"
       belongs_to :initiated_by_membership, class_name: "Clinic::Membership"
       belongs_to :review_event, class_name: "Clinic::Care::PrescriptionEvent", optional: true
+      belongs_to :preparation, class_name: "Clinic::Care::PrescriptionPreparation", optional: true
       belongs_to :prior_attempt, class_name: "Clinic::Care::PrescriptionTransmissionAttempt", optional: true
 
+      validates :preparation, presence: true, on: :create
       validates :adapter, inclusion: { in: [ ADAPTER ] }
       validates :mode, inclusion: { in: MODES }
       validates :outcome, inclusion: { in: OUTCOMES }
@@ -25,6 +27,7 @@ module Clinic
       validates :request_key, uniqueness: { scope: :practice_id }
       validate :context_matches
       validate :provenance_matches
+      validate :preparation_matches
 
       before_update { throw :abort }
       before_destroy { throw :abort }
@@ -49,6 +52,19 @@ module Clinic
             prior.medication_request_revision.series_id == medication_request_revision&.series_id &&
             (id.nil? || prior.id < id)
         end
+      end
+
+      def preparation_matches
+        return unless preparation_id
+
+        prepared = preparation
+        errors.add(:preparation, "must match the exact prepared prescription") unless prepared &&
+          prepared.practice_id == practice_id && prepared.patient_id == patient_id &&
+          prepared.medication_request_revision_id == medication_request_revision_id &&
+          prepared.pharmacy_destination_id == pharmacy_destination_id && prepared.review_event_id == review_event_id &&
+          prepared.schema_version == schema_version && prepared.payload_digest == payload_digest && prepared.mode == mode &&
+          prepared.destination_snapshot == destination_snapshot && prepared.signer_snapshot == signer_snapshot &&
+          prepared.reviewer_snapshot == reviewer_snapshot
       end
 
       def context_matches

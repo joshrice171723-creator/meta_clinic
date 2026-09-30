@@ -610,13 +610,13 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     accepted = authorized_outside_pharmacy_order("controlled-accepted")
     Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: accepted, kind: "review",
       source: "manual", request_key: "controlled-accepted-review")
-    attempt = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: accepted,
+    attempt = submit_prepared_prescription(practice: @practice, actor: @user, order: accepted,
       pharmacy_destination_id: destination.id, scenario: "accepted", mode: "controlled_test",
       signer_state: "active", reviewer_state: "active", request_key: "controlled-accepted-submit")
     assert_equal [ "controlled_test", "accepted", "active", "active" ],
       [ attempt.mode, attempt.outcome, attempt.signer_snapshot.fetch("state"), attempt.reviewer_snapshot.fetch("state") ]
     assert_raises(ArgumentError) do
-      Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: accepted,
+      submit_prepared_prescription(practice: @practice, actor: @user, order: accepted,
         pharmacy_destination_id: destination.id, scenario: "accepted", mode: "controlled_test",
         signer_state: "active", reviewer_state: "active", request_key: "controlled-accepted-new-submit")
     end
@@ -625,7 +625,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       order = authorized_outside_pharmacy_order("controlled-#{scenario}")
       Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order:, kind: "review",
         source: "manual", request_key: "controlled-#{scenario}-review")
-      simulated = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order:,
+      simulated = submit_prepared_prescription(practice: @practice, actor: @user, order:,
         pharmacy_destination_id: destination.id, scenario:, mode: "controlled_test",
         signer_state: "active", reviewer_state: "active", request_key: "controlled-#{scenario}-submit")
       assert_equal scenario, simulated.outcome
@@ -634,15 +634,15 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     unknown = authorized_outside_pharmacy_order("controlled-unknown")
     Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: unknown, kind: "review",
       source: "manual", request_key: "controlled-unknown-review")
-    first = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: unknown,
+    first = submit_prepared_prescription(practice: @practice, actor: @user, order: unknown,
       pharmacy_destination_id: destination.id, scenario: "outcome_unknown", mode: "controlled_test",
       signer_state: "active", reviewer_state: "active", request_key: "controlled-unknown-submit")
-    duplicate = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: unknown,
+    duplicate = submit_prepared_prescription(practice: @practice, actor: @user, order: unknown,
       pharmacy_destination_id: destination.id, scenario: "outcome_unknown", mode: "controlled_test",
       signer_state: "active", reviewer_state: "active", request_key: "controlled-unknown-submit")
     assert_equal first.id, duplicate.id
     assert_raises(ArgumentError) do
-      Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: unknown,
+      submit_prepared_prescription(practice: @practice, actor: @user, order: unknown,
         pharmacy_destination_id: destination.id, scenario: "accepted", mode: "controlled_test",
         signer_state: "active", reviewer_state: "active", request_key: "controlled-unknown-new-submit")
     end
@@ -650,13 +650,60 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     revoked = authorized_outside_pharmacy_order("controlled-revoked")
     Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: revoked, kind: "review",
       source: "manual", request_key: "controlled-revoked-review")
-    attempt = Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice: @practice, actor: @user, order: revoked,
+    attempt = submit_prepared_prescription(practice: @practice, actor: @user, order: revoked,
       pharmacy_destination_id: destination.id, scenario: "revoked", mode: "controlled_test",
       signer_state: "revoked", reviewer_state: "active", request_key: "controlled-revoked-submit")
     assert_equal "revoked", attempt.signer_snapshot.fetch("state")
   end
 
+  test "preparation is durable without submission and exact replay keeps its identity" do
+    order = authorized_outside_pharmacy_order("durable-preparation")
+    destination = Clinic::Care::PharmacyDestination.create!(practice: @practice, name: "Synthetic Pharmacy",
+      address_line1: "1 Demo Way", city: "Austin", state_code: "TX", postal_code: "78701")
+    Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order:, kind: "review",
+      source: "manual", request_key: "durable-preparation-review")
+    input = { practice: @practice, actor: @user, order:, pharmacy_destination_id: destination.id,
+      request_key: "durable-preparation-save" }
+    prepared = nil
+    assert_no_difference "Clinic::Care::PrescriptionTransmissionAttempt.count" do
+      assert_no_difference "Clinic::Care::PrescriptionEvent.count" do
+        prepared = Clinic::Care::PrescriptionPreparationWorkflow.prepare(**input)
+        replay = Clinic::Care::PrescriptionPreparationWorkflow.prepare(**input)
+        assert_equal prepared.id, replay.id
+        assert_equal prepared.payload_digest, replay.payload_digest
+      end
+    end
+    assert_equal "prepared", Clinic::Care::PrescriptionPreparationWorkflow.serialize(prepared, order:).fetch(:state)
+    assert_nil prepared.submission_attempt
+    destination.update!(address_line1: "2 Demo Way")
+    assert_not Clinic::Care::PrescriptionPreparationWorkflow.serialize(prepared, order:).fetch(:current)
+    assert_raises(ArgumentError) do
+      Clinic::Care::PrescriptionTransmissionWorkflow.submit(**input.except(:request_key),
+        preparation_id: prepared.id, scenario: "unknown", request_key: "durable-preparation-submit")
+    end
+    fresh = Clinic::Care::PrescriptionPreparationWorkflow.prepare(**input.merge(request_key: "durable-preparation-new"))
+    submission = input.except(:request_key).merge(preparation_id: fresh.id, scenario: "unknown", request_key: "durable-preparation-submit")
+    attempt = Clinic::Care::PrescriptionTransmissionWorkflow.submit(**submission)
+    replay = Clinic::Care::PrescriptionTransmissionWorkflow.submit(**submission)
+    assert_equal [ attempt.id, attempt.correlation_id ], [ replay.id, replay.correlation_id ]
+    assert_equal [ fresh.id, fresh.payload_digest, fresh.review_event_id ],
+      [ attempt.preparation_id, attempt.payload_digest, attempt.review_event_id ]
+    evidence = Clinic::Care::PrescriptionPreparationWorkflow.serialize(fresh.reload, order:)
+    assert_equal "submitted", evidence.fetch(:state)
+    assert_equal attempt.id, evidence.fetch(:submission_attempt_id)
+    assert_equal "unknown", evidence.fetch(:submission_outcome)
+    assert_raises(ArgumentError) do
+      Clinic::Care::PrescriptionTransmissionWorkflow.submit(**submission.merge(request_key: "durable-preparation-second-submit"))
+    end
+  end
+
   private
+
+  def submit_prepared_prescription(**input)
+    prepare_input = input.except(:scenario).merge(request_key: "prepare:#{input.fetch(:request_key)}")
+    preparation = Clinic::Care::PrescriptionPreparationWorkflow.prepare(**prepare_input)
+    Clinic::Care::PrescriptionTransmissionWorkflow.submit(**input, preparation_id: preparation.id)
+  end
 
   def enable_immunization_administration!
     optional_features = {
