@@ -1,0 +1,22 @@
+[Unit]
+Description=Meta Clinic synthetic demo release coordinator
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+ConditionPathExists=/etc/meta-clinic/auto-release.json
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/meta-clinic/deploy
+ExecStart=/usr/bin/python3 -B /opt/meta-clinic/automation/auto_release.py poll
+UMask=0077
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+# Do not kill a database migration because a build or restore takes longer.
+TimeoutStartSec=infinity
+Restart=no
+Environment=PYTHONDONTWRITEBYTECODE=1
+StandardOutput=journal
+StandardError=journal

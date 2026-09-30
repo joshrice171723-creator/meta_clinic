@@ -1,0 +1,39 @@
+name: Merge eligible QA fixes
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, labeled, ready_for_review, edited]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: write
+  actions: write
+  checks: read
+
+concurrency:
+  group: meta-clinic-auto-fix
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Privileged workflow: ONLY trusted main policy. No PR checkout, artifacts,
+      # dependency install, caches, shell interpolation or execution of PR content.
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: ops/lightsail/qa_policy.py
+          sparse-checkout-cone-mode: false
+      - name: Validate exact tested merge, paths, QA notes and attempt budget
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 -B ops/lightsail/qa_policy.py merge
