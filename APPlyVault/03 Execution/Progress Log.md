@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 — Fixed fe6db4c0 source-only score
+
+[Canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md): **Build 80.5%→91.1%; local Validation 49.5% unchanged; External/human 0% unchanged**, only at `fe6db4c0764b1dc9a4d33b354bf744d6fc5c3f12`. [All-row evidence and ranked remaining mechanisms](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) records 1,208→1,366 Build points (+135 retained deliveries, +23 existing-source corrections in MC03/13) and 742 Validation points over the unchanged 15-row denominator. Office earns zero. Full matrices retain per-question task linkage, response/carrier evidence, scheduling resources, repeating allowances and broader migration/export gaps with undefined policy separated.
+
+Candidate preserves externally merged main 7ded/Office; PR66 is closed. This source-only batch has no new app tests/build/lint, schema/runtime or release pass. Existing receipts remain historical at tested bytes. At these estimates 59 more row points are needed for 95; no forecast award, main merge, deployment or new PR. Relay receives the isolated three-file documentation branch for its current product integration branch.
+
 ## 2026-09-30 — Fixed 6099fc55 source assessment
 
 [Canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md): **Build 79.1% → 80.5%; local Validation 48.5% → 49.5%; External / human 0% unchanged**, only at `6099fc5523b5d82ac2437767bec10f168aceeafd`. [All-row matrix/source evidence](../../records/progress/2026/09/2026-09-30-tracker-score-batch-6099fc55.md) records 1,187 → 1,208 Build points (+12 delivery, +9 MC05 existing-source correction) and 728 → 742 Validation points over the unchanged 15-row denominator. Allergy-name suggestions, telehealth fencing/retry, prescription paging and mapping review/recovery are retained; import/application and pending 1b9/MC03/09/12 remain excluded. Full matrices retain concrete missing guards/fields and undefined policy.
