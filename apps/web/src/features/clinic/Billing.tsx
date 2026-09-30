@@ -774,7 +774,7 @@ function LedgerDetails({
       </Paper>
       {selectedInvoice && (
         <Accordion
-          key={selectedInvoice.id}
+          key={`invoice-details:${selectedInvoice.id}`}
           defaultExpanded={selectedInvoice.id === queryId("invoice_id")}
           disableGutters
           variant="outlined"
@@ -827,7 +827,7 @@ function LedgerDetails({
       )}
       {actionableInvoice?.status === "draft" && canDraft && (
         <DraftInvoiceEditor
-          key={actionableInvoice.id}
+          key={`invoice-editor:${actionableInvoice.id}`}
           invoice={actionableInvoice}
           patientId={ledger.patient.id}
           encounterId={checkoutEncounterId}
