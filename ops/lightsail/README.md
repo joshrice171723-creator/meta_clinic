@@ -49,7 +49,9 @@ not server login keys. Do not print, copy into source, or rotate private keys
 during a routine release. The `184.194.129.57` address below records the initial
 deployment and is no longer the site's current destination.
 
-Until the optional automation below is installed and its first cycle is proven,
+Automatic merges remain disabled. Use one combined, reviewed release candidate
+and the existing Relay-owned publication path. Until a separately approved
+automation is installed and its first cycle is proven,
 deployment is manual: pushing `main` does not change the running website.
 Use the PowerShell release command below. It builds matched API/web images
 locally from a clean, pushed `main` checkout, then transfers them to the host.
@@ -245,22 +247,34 @@ Route `/api/demo-workspace/` to loopback port 3002, retaining the prefix for the
 
 ## Optional automatic QA release path
 
-**Implementation is not activation evidence.** These files must be reviewed and
-installed once on the existing authorized synthetic Lightsail host. No timer,
-credentials, backup destination, billing setting or server is provisioned by
-committing this code. Keep the ChatGPT relay on PR #3 until a supplied real QA
-issue has completed the full cycle and the QA agent has confirmed the result.
+**Disabled source example; not the current release path.** Automatic merges are
+not registered. The preserved [workflow template](auto-fix.workflow.example.yml)
+is outside `.github/workflows`, so merging this source does not grant automatic
+GitHub merge authority. No replacement live or manual write-token workflow is
+provided. Repository `allow_auto_merge=false` alone would not disable this policy:
+it advances `refs/heads/main` directly and may record an attempt before CI checks.
 
-The path is: owner-filed bug → owner-authored `auto-fix` PR → exact-candidate CI →
+Policy and host scripts remain uninstalled, inactive source. No timer, credentials,
+backup destination, billing setting or server is provisioned by committing this
+code. Retain the existing Relay-owned publication path and single combined release
+candidate. PR #3 is a tracker-document PR, not the runtime release worker.
+
+The following proposed setup and operation require separate, explicit approval;
+this release does not authorize copying the template into `.github/workflows`,
+running the installer, creating credentials or enabling the host timer.
+
+The preserved future design is: owner-filed bug → owner-authored `auto-fix` PR → exact-candidate CI →
 fast-forward main to that tested merge commit → explicit main CI → host builds
 matched images → existing prepare → encrypted, verified off-host recovery →
 existing deploy and hosted checks → version entry with Notes for QA → QA retest.
-Application-code work may run unattended after setup; blocked gates remain visible
+In that separately approved design, application-code work may run unattended
+after setup; blocked gates remain visible
 and never silently become approvals.
 
 ### Merge gate and three-attempt budget
 
-`.github/workflows/auto-fix.yml` runs trusted **main** policy only. It never checks
+The inert `auto-fix.workflow.example.yml` would run trusted **main** policy only
+if separately approved and registered. It never checks
 out PR code with the write token, consumes PR artifacts as executable content,
 installs PR dependencies or evaluates PR text as shell input. It requires:
 
@@ -476,7 +490,8 @@ merge commit, automatic main advancement, successful main CI, host image build,
 both database restore checks, local/off-host encryption checks, per-database
 migrations, login/authorization/Sandbox create/switch/session-reset verification,
 public SHA/timestamp/Notes for QA update, and QA's independent retest. Record actual
-revision and results. Only after that proof should the PR #3 ChatGPT relay be retired.
+revision and results. Retain the existing Relay-owned release path until a
+separately approved replacement has completed that proof.
 
 Source references: [GitHub workflow-token event behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow),
 [non-force reference updates](https://docs.github.com/en/rest/git/refs#update-a-reference),
