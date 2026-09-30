@@ -75,5 +75,50 @@ class AbilityTest < ActiveSupport::TestCase
     Current.reset
   end
 
+  test "role checks reuse the active permission snapshot without querying grants again" do
+    grant = grant_permissions!(@membership, "patients.read")
+    role_code = grant.role_version.role_code
+    queries = []
+    subscriber = ->(_name, _started, _finished, _unique_id, payload) { queries << payload[:sql].to_s }
+
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") do
+        ability = Ability.new(@user, practice: @practice)
+        assert ability.allowed_permission?("patients.read")
+        assert ability.role_code_allowed?(role_code)
+        assert ability.role_code_allowed?([ "missing-role", role_code ])
+        assert_not ability.role_code_allowed?("missing-role")
+      end
+    end
+    assert_equal 1, queries.count { |sql| sql.match?(/FROM "clinic_role_grants"/i) }
+  end
+
+  test "new ability snapshots exclude revoked expired and future role grants" do
+    grant = grant_permissions!(@membership, "patients.read", effective_until: 1.day.from_now)
+    role_code = grant.role_version.role_code
+    assert Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+
+    grant.update!(revoked_at: Time.current)
+    assert_not Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+    grant.update!(revoked_at: nil, effective_until: 1.minute.ago)
+    assert_not Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+    grant.update!(effective_from: 1.day.from_now, effective_until: nil)
+    assert_not Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+  end
+
+  test "role snapshots deny inactive users memberships and other practices" do
+    grant = grant_permissions!(@membership, "patients.read")
+    role_code = grant.role_version.role_code
+    assert Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+    assert_not Ability.new(@user, practice: @other_practice).role_code_allowed?(role_code)
+    assert_not Ability.new(@other_user, practice: @practice).role_code_allowed?(role_code)
+
+    @membership.update!(active: false)
+    assert_not Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+    @membership.update!(active: true)
+    @user.update!(active: false)
+    assert_not Ability.new(@user, practice: @practice).role_code_allowed?(role_code)
+  end
+
   private
 end

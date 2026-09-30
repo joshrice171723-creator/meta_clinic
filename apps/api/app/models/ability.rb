@@ -164,6 +164,8 @@ class Ability
     @at = at
     @membership = active_membership_for(user, practice)
     @omni_override = false
+    # Role checks share this instance's live grant snapshot with permission checks.
+    @active_role_codes = []
     return unless @membership
 
     # Omni is a deliberately unrestricted synthetic operator for the explicitly
@@ -226,8 +228,7 @@ class Ability
     return false unless membership
     return true if omni_override?
 
-    membership.role_grants.active(@at).joins(:role_version)
-      .where(role_versions: { role_code: Array(role_codes) }).exists?
+    Array(role_codes).any? { |role_code| @active_role_codes.include?(role_code) }
   end
 
   def accessible_site_ids
@@ -249,6 +250,7 @@ class Ability
   def effective_permissions_by_scope(membership, at)
     permissions = Hash.new { |hash, key| hash[key] = { practice: false, site_ids: [] } }
     membership.role_grants.active(at).includes(role_version: :permissions).each do |grant|
+      @active_role_codes << grant.role_version.role_code
       grant.role_version.permissions.each do |permission|
         entry = permissions[permission.action_code]
         if grant.practice?
