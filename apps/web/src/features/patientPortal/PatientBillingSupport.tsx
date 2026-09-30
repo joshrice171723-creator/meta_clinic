@@ -10,8 +10,12 @@ import {
   Typography,
 } from "@mui/material";
 import type { PatientBillingSupportRequest } from "../../api/contracts";
-import { api, ApiError } from "../../api/client";
+import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import {
+  BillingSupportSubmission,
+  type BillingSupportAcknowledgement,
+} from "./billingSupportSubmission";
 
 function requestStatus(value: PatientBillingSupportRequest["status"]) {
   return value.replaceAll("_", " ");
@@ -25,55 +29,49 @@ export function PatientBillingSupport() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const pendingAttempt = useRef<{ requestKey: string; content: string } | null>(
-    null,
-  );
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
+  const submission = useRef<BillingSupportSubmission | null>(null);
+  submission.current ??= new BillingSupportSubmission(async (attempt) => {
+    const response = await api<{ request: BillingSupportAcknowledgement }>(
+      "/api/patient_portal/requests",
+      {
+        method: "POST",
+        body: {
+          patient_portal_request: {
+            request_key: attempt.requestKey,
+            request_type: "message",
+            content: attempt.content,
+          },
+        },
+      },
+    );
+    return response.request;
+  });
 
   const submit = async () => {
     const value = content.trim();
-    if (!value || busy) return;
-    const attempt =
-      pendingAttempt.current?.content === value
-        ? pendingAttempt.current
-        : { requestKey: crypto.randomUUID(), content: value };
-    pendingAttempt.current = attempt;
+    const current = submission.current!;
+    if (!value || current.busy) return;
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      await api<{ request: PatientBillingSupportRequest }>(
-        "/api/patient_portal/requests",
-        {
-          method: "POST",
-          body: {
-            patient_portal_request: {
-              request_key: attempt.requestKey,
-              request_type: "message",
-              content: attempt.content,
-            },
-          },
-        },
-      );
-      pendingAttempt.current = null;
+      if (!(await current.submit(value))) return;
       setContent("");
       setMessage(
-        "Your billing support request has been sent to the clinic team.",
+        "Your billing support request is saved for the clinic team to review.",
       );
       requests.refresh();
     } catch (reason) {
-      const unknown =
-        reason instanceof ApiError &&
-        (reason.status === 408 ||
-          reason.status >= 500 ||
-          reason.code === "outcome_unconfirmed");
       setError(
-        unknown
-          ? "We could not confirm the request outcome. Retry the same request before changing it."
+        current.outcomeUnconfirmed
+          ? "We could not confirm the request outcome. Your question is kept unchanged. Retry the same request before starting another."
           : reason instanceof Error
             ? reason.message
             : "Your billing support request could not be sent.",
       );
     } finally {
+      setOutcomeUnconfirmed(current.outcomeUnconfirmed);
       setBusy(false);
     }
   };
@@ -101,7 +99,7 @@ export function PatientBillingSupport() {
           label="Billing question"
           value={content}
           onChange={(event) => setContent(event.target.value)}
-          disabled={busy}
+          disabled={busy || outcomeUnconfirmed}
           multiline
           minRows={3}
           slotProps={{ htmlInput: { maxLength: 10_000 } }}
@@ -117,7 +115,11 @@ export function PatientBillingSupport() {
             busy ? <CircularProgress size={18} color="inherit" /> : undefined
           }
         >
-          {busy ? "Sending request…" : "Send billing support request"}
+          {busy
+            ? "Sending request…"
+            : outcomeUnconfirmed
+              ? "Retry same billing support request"
+              : "Send billing support request"}
         </Button>
         {!requests.data && !requests.error && (
           <Typography color="text.secondary" role="status">

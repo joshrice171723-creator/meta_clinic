@@ -14,7 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import {
@@ -22,6 +22,10 @@ import {
   type ConfirmableAppointment,
 } from "./PatientAppointmentConfirmation";
 import { PatientPrevisitNote } from "./PatientPrevisitNote";
+import {
+  ReturnVisitRequestSubmission,
+  type ReturnVisitAcknowledgement,
+} from "./returnVisitRequestSubmission";
 
 type Site = { id: number; code: string; name: string };
 type VisitType = {
@@ -118,7 +122,16 @@ export function PatientAppointmentRequests({
     "in_person" | "video"
   >("in_person");
   const [busy, setBusy] = useState(false);
-  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const submission = useRef<ReturnVisitRequestSubmission | null>(null);
+  submission.current ??= new ReturnVisitRequestSubmission(async (attempt) => {
+    const result = await api<{
+      appointment_request: ReturnVisitAcknowledgement;
+    }>("/api/patient_portal/appointment_requests", {
+      method: "POST",
+      body: { appointment_request: attempt },
+    });
+    return result.appointment_request;
+  });
   const [error, setError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [notice, setNotice] = useState("");
@@ -169,48 +182,39 @@ export function PatientAppointmentRequests({
   ]);
 
   async function submit() {
-    if (
-      !siteId ||
-      !intervalValid ||
-      !resource.data?.options.can_request_new_booking
-    )
+    const current = submission.current!;
+    const eligible = resource.data?.options.can_request_new_booking === true;
+    if (busy || !siteId || !intervalValid || !current.canSubmit(eligible))
       return;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      await api("/api/patient_portal/appointment_requests", {
-        method: "POST",
-        body: {
-          appointment_request: {
-            request_key: requestKey,
-            request_kind: "new_booking",
-            starts_at: new Date(startsAt).toISOString(),
-            ends_at: new Date(endsAt).toISOString(),
-            site_id: Number(siteId),
-            visit_type_id: visitTypeId ? Number(visitTypeId) : undefined,
-            requested_modality: requestedModality,
-          },
+      const acknowledged = await current.submit(
+        {
+          starts_at: new Date(startsAt).toISOString(),
+          ends_at: new Date(endsAt).toISOString(),
+          site_id: Number(siteId),
+          visit_type_id: visitTypeId ? Number(visitTypeId) : undefined,
+          requested_modality: requestedModality,
         },
-      });
-      setNotice(
-        "Your preferred window was sent to the clinic for review. It is not a confirmed appointment.",
+        eligible,
       );
-      setRequestKey(crypto.randomUUID());
-      setOutcomeUnconfirmed(false);
+      if (!acknowledged) return;
+      setNotice(
+        "Your appointment request is saved. Check its current status below; a request alone is not a confirmed appointment.",
+      );
       resource.refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Your appointment request could not be sent.",
-      );
-      setOutcomeUnconfirmed(
-        !(reason instanceof ApiError) ||
-          reason.status >= 500 ||
-          reason.code === "outcome_unconfirmed",
+        current.outcomeUnconfirmed
+          ? "We could not confirm whether your request was saved. Retry the same request before choosing a different window."
+          : reason instanceof Error
+            ? reason.message
+            : "Your appointment request could not be sent.",
       );
     } finally {
+      setOutcomeUnconfirmed(current.outcomeUnconfirmed);
       setBusy(false);
     }
   }
@@ -499,7 +503,6 @@ export function PatientAppointmentRequests({
                   value={startsAt}
                   onChange={(event) => {
                     setStartsAt(event.target.value);
-                    setRequestKey(crypto.randomUUID());
                   }}
                   slotProps={{
                     htmlInput: { min: minimum },
@@ -519,7 +522,6 @@ export function PatientAppointmentRequests({
                   }
                   onChange={(event) => {
                     setEndsAt(event.target.value);
-                    setRequestKey(crypto.randomUUID());
                   }}
                   slotProps={{
                     htmlInput: { min: minimum },
@@ -534,7 +536,6 @@ export function PatientAppointmentRequests({
                   value={siteId}
                   onChange={(event) => {
                     setSiteId(event.target.value);
-                    setRequestKey(crypto.randomUUID());
                   }}
                 >
                   <MenuItem value="" disabled>
@@ -555,7 +556,6 @@ export function PatientAppointmentRequests({
                   onChange={(event) => {
                     setVisitTypeId(event.target.value);
                     setRequestedModality("in_person");
-                    setRequestKey(crypto.randomUUID());
                   }}
                 >
                   <MenuItem value="">No preference</MenuItem>
@@ -574,7 +574,6 @@ export function PatientAppointmentRequests({
                     setRequestedModality(
                       event.target.value as "in_person" | "video",
                     );
-                    setRequestKey(crypto.randomUUID());
                   }}
                   helperText="Video visits require an eligible visit type and clinic approval."
                 >
@@ -609,7 +608,9 @@ export function PatientAppointmentRequests({
                     busy ||
                     !siteId ||
                     !intervalValid ||
-                    !resource.data.options.can_request_new_booking
+                    !submission.current.canSubmit(
+                      resource.data.options.can_request_new_booking,
+                    )
                   }
                   onClick={() => void submit()}
                   startIcon={<EventAvailableOutlinedIcon />}

@@ -99,6 +99,57 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
       @patient_session.response.parsed_body.fetch("appointment_requests").map { |request| request.fetch("id") }
   end
 
+  test "an existing return request replays after membership changes without completing prior follow-up" do
+    grant_permissions!(@staff_membership, "patients.read", "encounters.write")
+    encounter = @practice.encounters.create!(patient: @patient, site: @site,
+      started_at: 2.days.ago, ended_at: 2.days.ago + 1.hour, status: "completed")
+    follow_up = Clinic::EncounterFollowUp.create!(practice: @practice, patient: @patient, encounter: encounter,
+      source_kind: "in_person", state: "needed", plan: "Synthetic outstanding return follow-up", outcome: "",
+      assigned_to_membership: @staff_membership,
+      recorded_by_membership: @staff_membership, updated_by_membership: @staff_membership)
+    starts_at = 2.days.from_now.change(usec: 0)
+    payload = patient_request_payload("return-before-membership-change", starts_at, starts_at + 1.hour)
+    @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    request_id = @patient_session.response.parsed_body.dig("appointment_request", "id")
+
+    @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @staff_membership,
+      status: "nonmember", version: 2, effective_from: 1.minute.ago)
+    get_patient_requests
+    assert_equal false, @patient_session.response.parsed_body.dig("options", "can_request_new_booking")
+    original_follow_up = follow_up.attributes
+    original_encounter = encounter.attributes
+    assert_no_difference "Clinic::PatientPortal::AppointmentRequest.count" do
+      assert_no_difference "Clinic::Appointment.count" do
+        @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+        assert_equal 200, @patient_session.response.status
+        assert_equal request_id, @patient_session.response.parsed_body.dig("appointment_request", "id")
+        assert_equal "pending", @patient_session.response.parsed_body.dig("appointment_request", "status")
+        assert_nil @patient_session.response.parsed_body.dig("appointment_request", "appointment")
+      end
+    end
+    assert_equal original_follow_up, follow_up.reload.attributes
+    assert_equal original_encounter, encounter.reload.attributes
+
+    @patient_session.post patient_requests_path,
+      params: patient_request_payload("fresh-return-after-membership-change", starts_at, starts_at + 1.hour),
+      headers: @patient_headers, as: :json
+    assert_equal 422, @patient_session.response.status
+    assert_equal 1, @practice.patient_portal_appointment_requests.where(request_key: "return-before-membership-change").count
+    assert_equal "needed", follow_up.reload.state
+
+    other_patient = @practice.patients.create!(display_name: "Synthetic Return Patient B", reference: "RETURN-B")
+    other_password = SecureRandom.hex(18)
+    other_user = User.create!(email_address: "synthetic-return-b@example.invalid", password: other_password)
+    Clinic::PatientPortal::Identity.create!(practice: @practice, patient: other_patient, user: other_user,
+      status: :active, invited_at: 1.day.ago, activated_at: 1.day.ago)
+    other_session, other_headers = authenticated_session(other_user, other_password, profile: "patient")
+    other_session.post patient_requests_path, params: payload, headers: other_headers, as: :json
+    assert_equal 409, other_session.response.status
+    assert_not other_session.response.parsed_body.key?("appointment_request")
+    assert_equal original_follow_up, follow_up.reload.attributes
+  end
+
   test "inactive membership blocks new booking while callback and existing visit cancellation remain available" do
     @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @staff_membership,
       status: "nonmember", version: 2, effective_from: 1.minute.ago)
