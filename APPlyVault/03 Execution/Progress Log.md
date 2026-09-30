@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 — Fixed 6099fc55 source assessment
+
+[Canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md): **Build 79.1% → 80.5%; local Validation 48.5% → 49.5%; External / human 0% unchanged**, only at `6099fc5523b5d82ac2437767bec10f168aceeafd`. [All-row matrix/source evidence](../../records/progress/2026/09/2026-09-30-tracker-score-batch-6099fc55.md) records 1,187 → 1,208 Build points (+12 delivery, +9 MC05 existing-source correction) and 728 → 742 Validation points over the unchanged 15-row denominator. Allergy-name suggestions, telehealth fencing/retry, prescription paging and mapping review/recovery are retained; import/application and pending 1b9/MC03/09/12 remain excluded. Full matrices retain concrete missing guards/fields and undefined policy.
+
+Josh changed the target to 95 by Oct1 00:31 UTC and requested source work without tests/build/lint. No app runs were performed for this review; the preceding executed 45-case/combined and mapping receipts remain bounded local evidence. At these estimates 217 row points remain to 95. Release verification is deferred, not passed; no main merge/deployment/new PR. Relay owns integration of this isolated three-file documentation commit.
+
 ## 2026-09-30 - Fixed c1646838 source score batch
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) now assesses only `c16468388eeaed39acbbb2184049fd4c72ff2462`: **Build 76.3% -> 79.1%, local Validation 48.1% -> 48.5%, External / human 0% unchanged**. The [dated batch reconciliation](../../records/progress/2026/09/2026-09-30-tracker-score-reconciliation.md) preserves all before/after rows, source/receipt links and limitations. Build sum 1,145 -> 1,187: +35 is an existing-source MC-07 accounting correction, +7 is new membership-history/timecard delivery. Validation 721 -> 728; both sums use the unchanged 15-row denominator. MC-02's shared slug editor is built; no speculative bonus or separate editor requirement. MC-05's original-field source scope remains unresolved; role/device/policy evidence is tracked separately.
