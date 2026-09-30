@@ -675,5 +675,28 @@
     "implementation_base": "5470609423ed67b99453c3b779f584e0c86f2fd8",
     "guard_scope": "G06-A and G06-B only; baseline matrix preserved; implementation checkpoint will be separate",
     "score_changes": false
+  },
+  "repair_checkpoint": {
+    "date": "2026-09-30",
+    "matrix_commit": "4732505e5d115e51f850976560f8184ebf52ba94",
+    "implementation_base": "5470609423ed67b99453c3b779f584e0c86f2fd8",
+    "guard_findings": [
+      "G06-A",
+      "G06-B"
+    ],
+    "code_paths": [
+      "apps/api/app/services/clinic/care/clinical_plan_closure_workflow.rb",
+      "apps/api/app/services/clinic/care/clinical_plan_workflow.rb",
+      "apps/api/test/integration/clinical_plan_workflow_test.rb"
+    ],
+    "status": "source repair plus authored synthetic regression; backend checks handed off, not executed",
+    "nova_ownership": [
+      "G06-C",
+      "G06-D",
+      "MC10paging",
+      "MC14"
+    ],
+    "static_checks": "diff hygiene and matrix relative links passed; agent-harness failed inherited patient-membership-history tracker link",
+    "scores_changed": false
   }
 }

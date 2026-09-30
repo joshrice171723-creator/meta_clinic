@@ -313,6 +313,139 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       .any? { |target| target.fetch("id") == statement.id }
   end
 
+  test "procedure fulfillment rejects incomplete targets and old incomplete links cannot complete an order" do
+    order = fulfillment_order("procedure", "procedure-fulfillment-order")
+    task = Clinic::ClinicalTask.find_by!(source_type: "order", source_kind: "service_request", source_id: order.id)
+    incomplete = %w[planned in_progress not_done entered_in_error].map do |status|
+      Clinic::Care::ProcedureRevision.create!(
+        practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+        recorded_by_membership: @membership, recorded_at: Time.utc(2026, 9, 10, 15),
+        series_id: SecureRandom.uuid, version_number: 1, status:, complication_state: "not_assessed",
+        procedure_display: "Synthetic #{status} procedure", request_key: "fulfillment-procedure-#{status}",
+        content_digest: Digest::SHA256.hexdigest(status), service_request_revision: order
+      )
+    end
+    incomplete.each do |procedure|
+      assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+        post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+          params: fulfillment_link_body(order, "procedure", procedure.id, "reject-procedure-#{procedure.status}"),
+          headers: csrf_headers, as: :json
+        assert_response :unprocessable_entity
+        assert_includes response.parsed_body.fetch("error"), "Only a completed procedure"
+      end
+    end
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("available_link_targets").fetch("procedure")
+
+    # Preserve previously stored evidence while proving it cannot falsely close source work.
+    Clinic::Care::ClinicalPlanLink.create!(
+      practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      source_kind: "service_request", service_request_revision: order, target_kind: "procedure",
+      procedure_revision: incomplete.first, recorded_by_membership: @membership,
+      recorded_at: Time.utc(2026, 9, 10, 15), request_key: "previous-incomplete-procedure-link"
+    )
+    assert_no_difference "Clinic::Care::ServiceRequestRevision.count" do
+      patch "#{workspace_path(@patient)}/service_requests/#{order.series_id}",
+        params: revision_body("service_request", order.as_json, "completed", "incomplete-procedure-completion"),
+        headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_equal "open", task.reload.state
+
+    completed = Clinic::Care::ProcedureRevision.create!(
+      practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      recorded_by_membership: @membership, recorded_at: Time.utc(2026, 9, 10, 15),
+      series_id: SecureRandom.uuid, version_number: 1, status: "completed", complication_state: "none_reported",
+      performed_at: Time.utc(2026, 9, 10, 15), procedure_display: "Synthetic completed procedure",
+      request_key: "fulfillment-procedure-completed", content_digest: Digest::SHA256.hexdigest("completed"),
+      service_request_revision: order
+    )
+    get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
+    assert_response :success
+    assert_equal [ completed.id ], response.parsed_body.fetch("available_link_targets").fetch("procedure").pluck("id")
+    body = fulfillment_link_body(order, "procedure", completed.id, "completed-procedure-link")
+    assert_difference "Clinic::Care::ClinicalPlanLink.count", 1 do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    patch "#{workspace_path(@patient)}/service_requests/#{order.series_id}",
+      params: revision_body("service_request", order.as_json, "completed", "completed-procedure-completion"),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "completed", task.reload.state
+  end
+
+  test "lab fulfillment requires the original order series and ignores old wrong-order links at completion" do
+    grant_permissions!(@membership, "observations.write", "notes.write")
+    order = fulfillment_order("lab", "selected-lab-fulfillment-order")
+    other_order = fulfillment_order("lab", "other-lab-fulfillment-order")
+    other_report = fulfillment_lab_report(other_order, "other-lab-fulfillment-report")
+    task = Clinic::ClinicalTask.find_by!(source_type: "order", source_kind: "service_request", source_id: order.id)
+    assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: fulfillment_link_body(order, "lab_report", other_report.id, "reject-other-order-report"),
+        headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_includes response.parsed_body.fetch("error"), "must belong to this laboratory order"
+    end
+    Clinic::Care::ClinicalPlanLink.create!(
+      practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      source_kind: "service_request", service_request_revision: order, target_kind: "lab_report",
+      lab_report: other_report, recorded_by_membership: @membership,
+      recorded_at: Time.utc(2026, 9, 10, 15), request_key: "previous-wrong-order-report-link"
+    )
+    assert_no_difference "Clinic::Care::ServiceRequestRevision.count" do
+      patch "#{workspace_path(@patient)}/service_requests/#{order.series_id}",
+        params: revision_body("service_request", order.as_json, "completed", "wrong-report-completion"),
+        headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_equal "open", task.reload.state
+
+    report = fulfillment_lab_report(order, "selected-lab-fulfillment-report")
+    Clinic::Care::LabReports.review(practice: @practice, actor: @user, patient: @patient,
+      report:, version: report.current_version, request_key: "review-selected-fulfillment-report", confirmed_patient: true)
+    patch "#{workspace_path(@patient)}/service_requests/#{order.series_id}",
+      params: { service_request: { destination: "Updated synthetic laboratory coordination",
+        expected_version: order.version_number, request_key: "selected-order-revision" } },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    current = Clinic::Care::ServiceRequestRevision.find(response.parsed_body.fetch("service_request").fetch("id"))
+    assert_equal order.id, report.service_request_revision_id
+
+    assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: fulfillment_link_body(order, "lab_report", report.id, "reject-stale-fulfillment-source"),
+        headers: csrf_headers, as: :json
+      assert_response :conflict
+    end
+    body = fulfillment_link_body(current, "lab_report", report.id, "current-series-fulfillment-report")
+    assert_difference "Clinic::Care::ClinicalPlanLink.count", 1 do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: body, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    patch "#{workspace_path(@patient)}/service_requests/#{order.series_id}",
+      params: revision_body("service_request", current.as_json, "completed", "selected-report-completion"),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal "completed", task.reload.state
+    assert_equal "open", Clinic::ClinicalTask.find_by!(source_type: "order", source_kind: "service_request",
+      source_id: other_order.id).state
+  end
+
   test "clinical plan workspace denies a membership without its site scoped read permission" do
     denied = User.create!(email_address: "clinical-plan-denied@example.invalid", password: @password)
     denied_membership = @practice.memberships.create!(user: denied)
@@ -591,6 +724,36 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       params: { root => attributes.merge(request_key:) }, headers: csrf_headers, as: :json
     assert_response :created
     response.parsed_body.fetch(root)
+  end
+
+  def fulfillment_order(kind, key)
+    order = Clinic::Care::ServiceRequestRevision.create!(
+      practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      series_id: SecureRandom.uuid, version_number: 1, status: "active", request_kind: kind, intent: "order",
+      priority: "routine", requested_display: "Synthetic #{kind} fulfillment order", destination: "Synthetic service",
+      recorded_by_membership: @membership, recorded_at: Time.utc(2026, 9, 10, 14), request_key: key,
+      content_digest: Digest::SHA256.hexdigest(key)
+    )
+    Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter, site: @site,
+      task_kind: "order_execution", state: "open", pool_code: "clinical", source_type: "order",
+      source_kind: "service_request", source_id: order.id, recorded_by_membership: @membership)
+    order
+  end
+
+  def fulfillment_lab_report(order, key)
+    Clinic::Care::LabReports.create(practice: @practice, actor: @user, patient: @patient,
+      request_key: key, confirmed_patient: true, source_name: "Synthetic fulfillment laboratory",
+      external_report_id: key, service_request_revision_id: order.id,
+      specimen: { specimen_identifier: key, specimen_type_code: "synthetic-specimen",
+        specimen_type_display: "Synthetic specimen", condition_code: "satisfactory" },
+      version: { title: "Synthetic fulfillment report", status: "final", result_priority: "routine",
+        collected_at: Time.utc(2026, 9, 10, 14), issued_at: Time.utc(2026, 9, 10, 15),
+        results: [ { name: "Synthetic result", value_kind: "text", value: "Recorded synthetic source text" } ] }).value
+  end
+
+  def fulfillment_link_body(order, kind, target_id, key)
+    { clinical_plan_link: { source_kind: "service_request", source_revision_id: order.id,
+      target_kind: kind, target_id:, request_key: key } }
   end
 
   def revise_record(collection, root, record, body)

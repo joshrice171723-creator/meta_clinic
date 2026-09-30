@@ -583,7 +583,9 @@ module Clinic
             medication_request_revision_id: revision_ids, status: "completed") ||
             ClinicalPlanLink.exists?(practice_id: previous.practice_id, medication_request_revision_id: revision_ids)
         else
-          ClinicalPlanLink.exists?(practice_id: previous.practice_id, service_request_revision_id: revision_ids) ||
+          ClinicalPlanLink.where(practice_id: previous.practice_id, service_request_revision_id: revision_ids)
+            .includes(:procedure_revision, lab_report: :service_request_revision)
+            .any? { |link| ClinicalPlanClosureWorkflow.fulfillment_link_evidence?(previous, link) } ||
             ReferralExchangeEvent.exists?(practice_id: previous.practice_id,
               service_request_series_id: previous.series_id, stage: "closed")
         end

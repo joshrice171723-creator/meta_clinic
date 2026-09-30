@@ -45,7 +45,7 @@ module Clinic
           Clinic::Authorization.authorize!(actor:, practice:, action: "documents.read", any_site: true)
         end
         target = target!(target_definition, practice, patient, encounter, target_id)
-        validate_target_evidence!(target_kind, target)
+        validate_target_evidence!(source, target_kind, target)
         payload = {
           patient_id: patient.id, encounter_id: encounter.id, source_kind: source_kind.to_s,
           source_revision_id: source.id, target_kind: target_kind.to_s, target_id: target.id,
@@ -173,7 +173,7 @@ module Clinic
             end,
           lab_report: LabReport.where(practice:, patient:).includes(:current_version).order(updated_at: :desc, id: :desc)
             .limit(100).map { |record| { id: record.id, label: record.current_version&.title || "Lab report #{record.id}" } },
-          procedure: current_procedures(practice, patient, encounter).map do |record|
+          procedure: current_procedures(practice, patient, encounter).select { |record| record.status == "completed" }.map do |record|
             { id: record.id, label: "#{record.procedure_display} · #{record.status}" }
           end,
           document: documents_allowed ? Clinic::Document.where(practice:, patient:).includes(:category)
@@ -230,11 +230,38 @@ module Clinic
       end
       private_class_method :validate_target_compatibility!
 
-      def validate_target_evidence!(target_kind, target)
-        return unless target_kind.to_s == "medication_administration"
-        return if target.status == "completed" && target.movement_links.exists?
+      def fulfillment_link_evidence?(source, link)
+        target = link.public_send(TARGETS.fetch(link.target_kind).fetch(:column).to_s.delete_suffix("_id"))
+        target_evidence?(source, link.target_kind, target)
+      end
 
-        raise ArgumentError, "Only a completed, stock-linked medication administration can be linked."
+      def target_evidence?(source, target_kind, target)
+        return false unless target
+
+        case target_kind.to_s
+        when "medication_administration"
+          target.status == "completed" && target.movement_links.exists?
+        when "procedure"
+          target.status == "completed"
+        when "lab_report"
+          order = target.service_request_revision
+          order && [ order.practice_id, order.patient_id, order.encounter_id, order.series_id ] ==
+            [ source.practice_id, source.patient_id, source.encounter_id, source.series_id ]
+        else
+          true
+        end
+      end
+      private_class_method :target_evidence?
+
+      def validate_target_evidence!(source, target_kind, target)
+        return if target_evidence?(source, target_kind, target)
+
+        message = case target_kind.to_s
+        when "procedure" then "Only a completed procedure can be linked as fulfillment."
+        when "lab_report" then "The lab report must belong to this laboratory order."
+        else "Only a completed, stock-linked medication administration can be linked."
+        end
+        raise ArgumentError, message
       end
       private_class_method :validate_target_evidence!
 

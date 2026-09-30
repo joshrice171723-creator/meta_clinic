@@ -836,3 +836,29 @@ The matrix is published on `codex/mc06-fulfillment-source-coverage`, based on co
 - `rxtests`: [apps/api/test/integration/refill_workflow_test.rb](../../apps/api/test/integration/refill_workflow_test.rb) at baseline line 26.
 [source-rxtests]: ../../apps/api/test/integration/refill_workflow_test.rb
 
+
+## Fulfillment-guard implementation checkpoint — 2026-09-30
+
+The separately published baseline matrix commit is `4732505e5d115e51f850976560f8184ebf52ba94` on `codex/mc06-fulfillment-source-coverage`. Its 42 groups remain historical baseline evidence; the findings are not silently changed to match this repair.
+
+**Approved bounded repair:** G06-A and G06-B only, against combined source `5470609423ed67b99453c3b779f584e0c86f2fd8`. Blob comparison confirmed that the two services and owning test file were identical at this implementation base and the immutable matrix baseline.
+
+- [ClinicalPlanClosureWorkflow](../../apps/api/app/services/clinic/care/clinical_plan_closure_workflow.rb) rejects noncompleted procedure fulfillment, offers only completed current procedure revisions as link targets, and requires a lab report's original order to match the selected order's practice, patient, encounter and series. A report attached to an earlier revision of that same order series remains eligible.
+- [ClinicalPlanWorkflow](../../apps/api/app/services/clinic/care/clinical_plan_workflow.rb) rechecks those source/target predicates before accepting stored service-request fulfillment links as completion evidence. Existing invalid links remain historical records and cannot satisfy the completion gate by themselves. Document alternatives, referral closure evidence, explicit completion exceptions, existing lab review/absent-result checks, authorizations, idempotency, current-source checks and task dependency semantics retain their owning behavior. No new clinical result rule, migration or data cleanup is introduced.
+- [ClinicalPlanWorkflowTest](../../apps/api/test/integration/clinical_plan_workflow_test.rb) adds two synthetic regression cases: incomplete procedure rejection, previously recorded invalid-link completion denial, completed procedure recovery/replay, wrong-order report rejection and previously recorded wrong-link denial, earlier same-series report acceptance, stale-source denial, exact link replay, source-owned completion and unrelated order-task preservation. The cases are authored but **not executed here**.
+
+**Ownership correction:** Nova now owns G06-C/D, the lab unit/dimension and organization/method/time provenance gaps. This branch owns only the two fulfillment services, `clinical_plan_workflow_test.rb`, and this dated matrix/checkpoint. It does not edit lab normalization/model/controller/serializer/UI, WorkInbox or paging paths. Nova retains MC10 paging and MC14; the existing MC12 owner retains labqueuepaging. G10-A/B/C and bounded RxFill/cancellation decisions remain separately documented for parent assignment.
+
+**Checks actually performed:** `git diff --check` passed. Scoped JSON/link validation confirmed all 42 unique groups and every relative document/source path resolves. `python3 bin/agent-check --phase final --staged --path apps/api --level component --json` listed impacted checks; it did not execute Rails or RuboCop. `python3 bin/verify-agent-harness` ran and failed on the pre-existing missing tracker link to `docs/development/clinic-workflow-plans/patient-membership-history.md`; the implementation-base tracker also lacks that link. No historical harness/tracker repair is included. Ruby syntax, RuboCop, Rails/eager loading and connected browser acceptance are unexecuted because the cloud has no Ruby/gems/PostgreSQL runtime and official registries remain blocked. No frontend source changed, so no frontend build or tests were run.
+
+**Sage backend handoff:** use this branch's final exact source head in Sage's existing isolated synthetic test runtime with the pinned locked Ruby/Bundler dependencies. Reuse only the runtime Sage owns, keep `RAILS_ENV=test`, and do not point these commands at development/hosted/live databases. From repository root:
+
+```sh
+cd apps/api
+python3 ../../bin/agent-resources run -- ruby bin/postgres exec env RAILS_ENV=test bin/rails db:prepare
+python3 ../../bin/agent-resources run -- ruby bin/postgres exec env RAILS_ENV=test bin/rails test test/integration/clinical_plan_workflow_test.rb test/integration/clinic_lab_reports_test.rb
+python3 ../../bin/agent-resources run -- ruby bin/rubocop app/services/clinic/care/clinical_plan_closure_workflow.rb app/services/clinic/care/clinical_plan_workflow.rb test/integration/clinical_plan_workflow_test.rb
+python3 ../../bin/agent-resources run -- ruby bin/postgres exec env RAILS_ENV=test bin/rails zeitwerk:check
+```
+
+These commands are a handoff, not a claimed Sage execution or passing result. The parent routes the immutable final head to Sage. No new PR, score edit, canonical tracker change, main merge, deployment, provider action, secrets or infrastructure change occurred.
