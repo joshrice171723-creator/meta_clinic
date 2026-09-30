@@ -78,7 +78,7 @@ beforeAll(async () => {
         },
         load(id) {
           if (id === "\0qa-office-entry.js")
-            return `import React from 'react'; import {createRoot} from 'react-dom/client'; import {QaWorkspace} from '/src/features/qa/QaWorkspace.tsx'; window.qaRoot=createRoot(document.getElementById('root')); window.qaRoot.render(React.createElement(QaWorkspace));`;
+            return `import React from 'react'; import {createRoot} from 'react-dom/client'; import {QaWorkspace} from '/src/features/qa/QaWorkspace.tsx'; import {QaOffice} from '/src/features/qa/QaOffice.tsx'; window.qaRoot=createRoot(document.getElementById('root')); window.renderOffice=(museCheckIn)=>window.qaRoot.render(React.createElement(QaOffice,{tasks:[],evidence:[],events:[],onNavigate:()=>{},museCheckIn})); window.qaRoot.render(React.createElement(QaWorkspace));`;
         },
         configureServer(vite) {
           vite.middlewares.use((request, response, next) => {
@@ -106,11 +106,18 @@ afterAll(async () => {
   await browser?.close();
   await server?.close();
 });
-async function open(mode: "ready" | "loading" | "error" | "empty" = "ready") {
+async function open(
+  mode: "ready" | "loading" | "error" | "empty" = "ready",
+  clockTime?: number,
+) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
   page.setDefaultTimeout(8_000);
+  if (clockTime !== undefined) {
+    await page.clock.install({ time: clockTime });
+    await page.clock.pauseAt(clockTime);
+  }
   const writes: string[] = [];
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
@@ -180,6 +187,24 @@ it("bootstraps Office with one current navigation item and no inferred live pres
     expect(
       await page.getByText(/Running \/ live presence: Unknown/i).count(),
     ).toBeGreaterThan(0);
+    const floor = page.getByRole("group", { name: "Office floor" });
+    for (const actor of ["Josh", "Muse", "dot"]) {
+      const avatar = floor.getByRole("group", {
+        name: `${actor} avatar: Not connected, Uncontrolled`,
+        exact: true,
+      });
+      expect(await avatar.locator("strong").textContent()).toBe(actor);
+    }
+    expect(await floor.locator(".qa-office-avatar").count()).toBe(3);
+    expect(await floor.locator(".qa-office-player").textContent()).toBe(
+      "Preview",
+    );
+    await page
+      .getByRole("progressbar", {
+        name: "Muse expected check-in: Not connected",
+      })
+      .waitFor();
+    expect(await page.getByRole("combobox").count()).toBe(0);
     expect(writes).toEqual([]);
   } finally {
     await page.close();
@@ -286,7 +311,7 @@ it("bounds keyboard walking and preserves selection and position through refresh
     await floor.focus();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("w");
-    expect(await position.textContent()).toContain("column 6, row 3");
+    expect(await position.textContent()).toContain("column 6, row 4");
     for (let i = 0; i < 15; i++) await page.keyboard.press("ArrowLeft");
     for (let i = 0; i < 15; i++) await page.keyboard.press("s");
     expect(await position.textContent()).toContain("column 1, row 7");
@@ -328,6 +353,86 @@ it("bounds keyboard walking and preserves selection and position through refresh
     expect(
       await floor.evaluate((node) => node === document.activeElement),
     ).toBe(true);
+    expect(writes).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("advances Muse timing on the local clock and refills only for a new authenticated receipt", async () => {
+  const now = Date.parse("2026-09-30T12:00:00Z");
+  const { page, writes } = await open("ready", now);
+  try {
+    const receipt = {
+      id: "synthetic-receipt-1",
+      authenticatedActorId: "synthetic-muse",
+      receivedAtMs: now,
+    };
+    const render = (input: unknown) =>
+      page.evaluate(
+        (projection) => (window as any).renderOffice(projection),
+        input,
+      );
+    await render({
+      musePrincipalId: "synthetic-muse",
+      receipt,
+      cadenceMs: 60_000,
+    });
+    const ring = page.getByRole("progressbar");
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[role="progressbar"]')
+          ?.getAttribute("aria-valuenow") === "100",
+    );
+    await page.clock.runFor(30_000);
+    expect(await ring.getAttribute("aria-valuenow")).toBe("50");
+    await render({
+      musePrincipalId: "synthetic-muse",
+      receipt: { ...receipt, receivedAtMs: now + 30_000 },
+      cadenceMs: 60_000,
+    });
+    expect(await ring.getAttribute("aria-valuenow")).toBe("50");
+    await page.clock.runFor(30_000);
+    expect(await ring.getAttribute("aria-label")).toBe(
+      "Muse expected check-in: Due now",
+    );
+    await page.clock.runFor(1000);
+    expect(await ring.getAttribute("aria-label")).toBe(
+      "Muse expected check-in: Overdue",
+    );
+    await render({
+      musePrincipalId: "synthetic-muse",
+      receipt: {
+        ...receipt,
+        id: "synthetic-receipt-2",
+        receivedAtMs: now + 61_000,
+      },
+      cadenceMs: 60_000,
+    });
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[role="progressbar"]')
+          ?.getAttribute("aria-valuenow") === "100",
+    );
+    await render({
+      musePrincipalId: "synthetic-muse",
+      receipt: {
+        ...receipt,
+        id: "synthetic-receipt-2",
+        receivedAtMs: now + 61_000,
+      },
+    });
+    await page
+      .getByRole("progressbar", { name: "Muse expected check-in: No schedule" })
+      .waitFor();
+    await render({ musePrincipalId: "synthetic-muse" });
+    await page
+      .getByRole("progressbar", {
+        name: "Muse expected check-in: Not connected",
+      })
+      .waitFor();
     expect(writes).toEqual([]);
   } finally {
     await page.close();
