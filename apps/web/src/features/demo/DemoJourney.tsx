@@ -498,6 +498,20 @@ export function DemoJourney() {
     );
   if (!run) return null;
   const source = frameUrl(run);
+  const sandboxProgress = preparingSandbox && (
+    <Alert severity="info" role="status">
+      <Stack spacing={1}>
+        <Typography variant="body2">
+          Preparing clinic data and reopening your workspace. This can take a
+          couple of minutes.
+        </Typography>
+        <LinearProgress aria-label="Preparing sandbox" />
+        <Typography variant="caption">
+          Elapsed: {durationLabel(sandboxElapsed)}
+        </Typography>
+      </Stack>
+    </Alert>
+  );
   return (
     <Stack
       component="main"
@@ -505,20 +519,7 @@ export function DemoJourney() {
       sx={{ width: "100%", p: { xs: 1, sm: 2 } }}
     >
       {error && <Alert severity="error">{error}</Alert>}
-      {preparingSandbox && (
-        <Alert severity="info" role="status">
-          <Stack spacing={1}>
-            <Typography variant="body2">
-              Preparing clinic data and reopening your workspace. This can take
-              a couple of minutes.
-            </Typography>
-            <LinearProgress aria-label="Preparing sandbox" />
-            <Typography variant="caption">
-              Elapsed: {durationLabel(sandboxElapsed)}
-            </Typography>
-          </Stack>
-        </Alert>
-      )}
+      {!restartOpen && sandboxProgress}
       {progressError && (
         <Alert
           severity="error"
@@ -867,6 +868,9 @@ export function DemoJourney() {
               ? "This shared workspace is used by other visitors. Reset rebuilds the full clinic, removes everyone's changes, and interrupts their active sessions."
               : "This restarts only this lesson’s clinic and progress."}
           </Typography>
+          {restartOpen && sandboxProgress && (
+            <Box sx={{ mt: 2 }}>{sandboxProgress}</Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button disabled={busy} onClick={() => setRestartOpen(false)}>
