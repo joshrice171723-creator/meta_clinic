@@ -52,6 +52,7 @@ import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
+import { PatientDocumentProvenance } from "./PatientDocumentProvenance";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { registrationLanguageSuggestions } from "./registrationLanguageSuggestions";
 
@@ -1062,6 +1063,7 @@ function PatientRecord({
           )}
         </AccordionDetails>
       </Accordion>
+      <PatientDocumentProvenance patientId={patient.id} />
       <PatientSupport patientId={patient.id} />
       <Card title="Legacy unsigned drafts">
         <p>These drafts are not encounter notes and cannot be signed.</p>
