@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
+  Pagination,
   Stack,
   TextField,
 } from "@mui/material";
@@ -17,6 +18,7 @@ import type {
   InventorySupplierRead,
 } from "./inventoryContracts";
 import { decimalMoney } from "./inventoryContracts";
+import { LoadState } from "../../shared/ui";
 import "./supplierPricing.css";
 
 type PreviewRow = {
@@ -73,7 +75,7 @@ export function SupplierPricingScreen({
   loading,
   error: readError,
   readBlocked,
-  onRead,
+  onRead: performRead,
 }: {
   data: InventorySupplierData;
   loading: boolean;
@@ -85,6 +87,13 @@ export function SupplierPricingScreen({
   const canManage =
     canAccess && data.capabilities["inventory.catalog"] === true;
   const page = data.supplier_page;
+  const requestPage = data.quote_request_page;
+  const [attemptedRead, setAttemptedRead] =
+    useState<InventorySupplierRead | null>(null);
+  const onRead = (read: InventorySupplierRead) => {
+    setAttemptedRead(read);
+    return performRead(read);
+  };
   const [supplierId, setSupplierId] = useState(page.supplier_id ?? "");
   const [supplierName, setSupplierName] = useState("");
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(
@@ -154,6 +163,8 @@ export function SupplierPricingScreen({
     q: page.query,
     supplier_id: page.supplier_id ?? undefined,
     page: page.page,
+    quote_request_page: requestPage?.page,
+    quote_request_status: requestPage?.status,
   };
   const refresh = (read: InventorySupplierRead = applied) => onRead(read);
 
@@ -562,7 +573,58 @@ export function SupplierPricingScreen({
       <section className="inventory-card" aria-label="Local quote requests">
         <h2>Quote requests</h2>
         <p>These are staff records. No request is sent to a supplier.</p>
-        {data.quote_requests.length === 0 ? (
+        {requestPage && (
+          <TextField
+            select
+            size="small"
+            label="Quote request status"
+            value={
+              loading || readError
+                ? (attemptedRead?.quote_request_status ?? requestPage.status)
+                : requestPage.status
+            }
+            disabled={loading || Boolean(busy) || readBlocked}
+            onChange={(event) =>
+              void onRead({
+                ...applied,
+                quote_request_status: event.target.value as NonNullable<
+                  InventorySupplierRead["quote_request_status"]
+                >,
+                quote_request_page: 1,
+              })
+            }
+          >
+            <MenuItem value="all">All requests</MenuItem>
+            <MenuItem value="open">Awaiting response</MenuItem>
+            <MenuItem value="quoted">Quote recorded</MenuItem>
+          </TextField>
+        )}
+        {loading || readError || readBlocked ? (
+          <>
+            <LoadState
+              error={
+                readError ||
+                (readBlocked
+                  ? "Reload supplier pricing before reviewing requests."
+                  : undefined)
+              }
+              onRetry={() => void onRead(attemptedRead ?? applied)}
+            />
+            {readError && (attemptedRead?.quote_request_page ?? 1) > 1 && (
+              <Button
+                size="small"
+                onClick={() =>
+                  void onRead({
+                    ...(attemptedRead ?? applied),
+                    quote_request_page: 1,
+                  })
+                }
+              >
+                Return to first quote request page
+              </Button>
+            )}
+          </>
+        ) : data.quote_requests.length === 0 ? (
           <p>No quote requests recorded for this view.</p>
         ) : (
           <Stack spacing={1}>
@@ -581,6 +643,10 @@ export function SupplierPricingScreen({
                       offer?.description ??
                       `Offer ${request.supplier_product_id}`}
                   </strong>
+                  <p>
+                    Request #{request.id} · Recorded{" "}
+                    {new Date(request.created_at).toLocaleString()}
+                  </p>
                   <p>
                     {request.requested_packages} packages ·{" "}
                     {request.package_quantity_at_request
@@ -622,7 +688,33 @@ export function SupplierPricingScreen({
             })}
           </Stack>
         )}
-        {data.quote_requests_capped && <p>Showing the latest 25 requests.</p>}
+        {!loading &&
+          !readError &&
+          !readBlocked &&
+          (requestPage ? (
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              <p role="status">
+                {requestPage.filtered_count} matching requests (
+                {requestPage.total_count} for this supplier view) · Page{" "}
+                {requestPage.page} of {requestPage.page_count} ·{" "}
+                {data.quote_requests.length} shown
+              </p>
+              {requestPage.page_count > 1 && (
+                <Pagination
+                  size="small"
+                  count={requestPage.page_count}
+                  page={requestPage.page}
+                  disabled={Boolean(busy)}
+                  aria-label="Local quote request pages"
+                  onChange={(_, nextPage) =>
+                    void onRead({ ...applied, quote_request_page: nextPage })
+                  }
+                />
+              )}
+            </Stack>
+          ) : (
+            data.quote_requests_capped && <p>Showing the latest 25 requests.</p>
+          ))}
       </section>
       <div className="supplier-pricing-workbench">
         <section className="inventory-card supplier-directory">
@@ -645,7 +737,12 @@ export function SupplierPricingScreen({
                 onClick={() => {
                   setSupplierId("");
                   setPreview(null);
-                  void onRead({ ...applied, supplier_id: undefined, page: 1 });
+                  void onRead({
+                    ...applied,
+                    supplier_id: undefined,
+                    page: 1,
+                    quote_request_page: 1,
+                  });
                 }}
               >
                 <strong>All suppliers</strong>
@@ -672,6 +769,7 @@ export function SupplierPricingScreen({
                         ...applied,
                         supplier_id: supplier.id,
                         page: 1,
+                        quote_request_page: 1,
                       });
                     }}
                   >
