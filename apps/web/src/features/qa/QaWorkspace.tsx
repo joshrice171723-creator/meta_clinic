@@ -10,6 +10,7 @@ import {
   TextField,
 } from "@mui/material";
 import { api } from "../../api/client";
+import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
 type RecordData = Record<string, unknown>;
@@ -290,6 +291,9 @@ export function QaWorkspace() {
       "Request saved. Pickup happens on the next scheduled agent run; its claim and verdict will appear here.",
     );
   const issues = data?.github.issues ?? [];
+  const openDefectCount = data
+    ? githubOpenDefectCount(data.github)
+    : "Unavailable";
   const known = data?.state.known_issues ?? [];
   const retests = data?.state.retest ?? [];
   const tasks = data?.tasks ?? [];
@@ -580,9 +584,7 @@ export function QaWorkspace() {
                   />
                   <Metric
                     label="GitHub open defects"
-                    count={
-                      issues.filter((issue) => issue.state === "open").length
-                    }
+                    count={openDefectCount}
                     detail={
                       data.github.status === "connected"
                         ? "Live source · muse-qa"
@@ -859,8 +861,7 @@ export function QaWorkspace() {
                   }
                 >
                   {data.atlas?.inventory?.length ?? 0} Atlas rows ·{" "}
-                  {retests.length} Muse retest findings ·{" "}
-                  {issues.filter((issue) => issue.state === "open").length}{" "}
+                  {retests.length} Muse retest findings · {openDefectCount}{" "}
                   GitHub open defects. These inventories overlap; do not add
                   their counts as unique defects.
                   {data.atlas?.inventory_status === "snapshot_outdated" &&
