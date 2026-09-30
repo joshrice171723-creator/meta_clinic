@@ -7,6 +7,11 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 - Correct disputed percentage presentation
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) and [fe6 score report](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) now label retained aggregate numbers as disputed historical planning estimates, not measured product completion or release gates. The [fixed-fe6 requirement inventory](../../records/progress/2026/09/2026-09-30-fe6-requirement-inventory-and-estimate-correction.md) records actual source-present mechanisms, partial/missing scope, undefined/external choices and unrun runtime verification. No stable atomic requirement denominator or justified weights exist; overall measured completion is undefined and further subjective awards are frozen. Historical numeric cells, arithmetic and records are preserved without another guessed percentage. This documentation-only correction does not credit later source, change application code, run tests or authorize merge/deployment. Relay owns integration of the correction branch.
+
+
 ## 2026-09-30 — Fixed 6099fc55 source assessment
 
 [Canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md): **Build 79.1% → 80.5%; local Validation 48.5% → 49.5%; External / human 0% unchanged**, only at `6099fc5523b5d82ac2437767bec10f168aceeafd`. [All-row matrix/source evidence](../../records/progress/2026/09/2026-09-30-tracker-score-batch-6099fc55.md) records 1,187 → 1,208 Build points (+12 delivery, +9 MC05 existing-source correction) and 728 → 742 Validation points over the unchanged 15-row denominator. Allergy-name suggestions, telehealth fencing/retry, prescription paging and mapping review/recovery are retained; import/application and pending 1b9/MC03/09/12 remain excluded. Full matrices retain concrete missing guards/fields and undefined policy.

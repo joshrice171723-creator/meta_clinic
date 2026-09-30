@@ -9,6 +9,7 @@ One file per material outcome. The active [Progress Log](../../../../APPlyVault/
 
 | Date | Record |
 | --- | --- |
+| 2026-09-30 | [Fixed-fe6 requirement inventory and disputed-estimate correction](2026-09-30-fe6-requirement-inventory-and-estimate-correction.md) |
 | 2026-09-25 | [i2E branch integration and hosted release](2026-09-25-i2e-branch-integration-release.md) |
 | 2026-09-23 | [Prepared worktree startup proof](2026-09-23-worktree-startup.md) |
 | 2026-09-23 | [Patient-journey plan consolidation and archive](2026-09-23-patient-journey-plan-consolidation.md) |
