@@ -13,6 +13,7 @@ import type { ClinicCapabilities } from "../../api/contracts";
 import { ApiError, api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { Card, LoadState, useResource } from "../../shared/ui";
+import { DayEndReconciliation } from "./DayEndReconciliation";
 import { clinicDateValue } from "./frontDeskModel";
 import { ConfigurationMappingPreview } from "./ConfigurationMappingPreview";
 import type {
@@ -797,7 +798,12 @@ function DailyVisitsByState({
       )}
       {capabilities.billing_read &&
         (capabilities.billing_cash_reconcile || capabilities.billing_write) && (
-          <DayEndReviews date={loadedDate} />
+          <>
+            <DayEndReviews date={loadedDate} />
+            {siteId && capabilities.appointments_read && (
+              <DayEndReconciliation date={loadedDate} siteId={siteId} />
+            )}
+          </>
         )}
       {capabilities.inventory && (
         <DailyStockMovements key={loadedDate} date={loadedDate} />
