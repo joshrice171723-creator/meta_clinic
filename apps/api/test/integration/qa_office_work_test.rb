@@ -208,5 +208,4 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     assert receipts.all? { |receipt| receipt["created_at"].present? }
     assert_equal id, Qa::Task.find_by!(request_key: @input[:request_key]).id
   end
-
 end
