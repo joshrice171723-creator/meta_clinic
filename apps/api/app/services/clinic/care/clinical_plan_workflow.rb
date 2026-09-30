@@ -572,7 +572,7 @@ module Clinic
         end
 
         revision_ids = previous.class.where(practice_id: previous.practice_id, series_id: previous.series_id).select(:id)
-        if kind.to_sym == :service_requests && previous.request_kind == "lab"
+        if kind.to_sym == :service_requests && values[:request_kind] == "lab"
           reports = LabReport.where(practice_id: previous.practice_id, service_request_revision_id: revision_ids).includes(:current_version)
           if reports.any? && reports.none? { |report| report.current_version.reviewed_at && %w[final amended corrected].include?(report.current_version.status) && report.current_version.results.none? { |row| row["value_kind"] == "absent" } }
             raise ArgumentError, "Some lab results remain pending. Review available results or follow up with the laboratory."
@@ -583,9 +583,11 @@ module Clinic
             medication_request_revision_id: revision_ids, status: "completed") ||
             ClinicalPlanLink.exists?(practice_id: previous.practice_id, medication_request_revision_id: revision_ids)
         else
-          ClinicalPlanLink.exists?(practice_id: previous.practice_id, service_request_revision_id: revision_ids) ||
-            ReferralExchangeEvent.exists?(practice_id: previous.practice_id,
-              service_request_series_id: previous.series_id, stage: "closed")
+          ClinicalPlanLink.where(practice_id: previous.practice_id, service_request_revision_id: revision_ids)
+            .includes(:procedure_revision, lab_report: :service_request_revision)
+            .any? { |link| ClinicalPlanClosureWorkflow.fulfillment_link_evidence?(previous, link, request_kind: values[:request_kind]) } ||
+            (values[:request_kind] == "referral" && ReferralExchangeEvent.exists?(practice_id: previous.practice_id,
+              service_request_series_id: previous.series_id, stage: "closed"))
         end
         return if linked || values[:completion_exception].present?
 
