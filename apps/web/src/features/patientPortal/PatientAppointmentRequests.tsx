@@ -27,6 +27,11 @@ import {
   type ReturnVisitAcknowledgement,
 } from "./returnVisitRequestSubmission";
 
+import {
+  AppointmentChangeSubmission,
+  type AppointmentChangeAcknowledgement,
+} from "./appointmentChangeSubmission";
+
 type Site = { id: number; code: string; name: string };
 type VisitType = {
   id: number;
@@ -135,8 +140,21 @@ export function PatientAppointmentRequests({
   const [error, setError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [notice, setNotice] = useState("");
-  const [callbackKey, setCallbackKey] = useState(() => crypto.randomUUID());
+  const callbackAttempt = useRef<{
+    readonly requestKey: string;
+    busy: boolean;
+    saved: boolean;
+    outcomeUnconfirmed: boolean;
+  } | null>(null);
+  callbackAttempt.current ??= {
+    requestKey: crypto.randomUUID(),
+    busy: false,
+    saved: false,
+    outcomeUnconfirmed: false,
+  };
   const [callbackSaved, setCallbackSaved] = useState(false);
+  const [callbackOutcomeUnconfirmed, setCallbackOutcomeUnconfirmed] =
+    useState(false);
   const [change, setChange] = useState<{
     appointment: AppointmentSnapshot;
     kind: "reschedule" | "cancel";
@@ -220,32 +238,66 @@ export function PatientAppointmentRequests({
   }
 
   async function requestCallback() {
-    if (busy || callbackSaved) return;
+    const current = callbackAttempt.current!;
+    if (busy || current.busy || current.saved) return;
+    current.busy = true;
     setBusy(true);
     setError("");
+    setNotice("");
+    const content = "Please call me about scheduling an appointment.";
     try {
-      await api("/api/patient_portal/requests", {
+      const response = await api<{
+        request: {
+          id: number;
+          request_key: string;
+          request_type: string;
+          content: string;
+          status: string;
+        };
+      }>("/api/patient_portal/requests", {
         method: "POST",
         body: {
           patient_portal_request: {
-            request_key: callbackKey,
+            request_key: current.requestKey,
             request_type: "callback",
-            content: "Please call me about scheduling an appointment.",
+            content,
           },
         },
       });
+      const saved = response?.request;
+      if (
+        !saved ||
+        !Number.isSafeInteger(saved.id) ||
+        saved.id <= 0 ||
+        saved.request_key !== current.requestKey ||
+        saved.request_type !== "callback" ||
+        saved.content !== content ||
+        !["pending", "in_review", "resolved", "declined"].includes(saved.status)
+      ) {
+        throw new Error("The saved callback request could not be confirmed.");
+      }
+      current.saved = true;
+      current.outcomeUnconfirmed = false;
       setCallbackSaved(true);
-      setCallbackKey(crypto.randomUUID());
       setNotice(
-        "Your callback request is saved for the clinic front desk. No appointment has been booked.",
+        "Your callback request is saved. The clinic owns its follow-up; this request does not book an appointment.",
       );
     } catch (reason) {
+      current.outcomeUnconfirmed ||=
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "The callback outcome could not be confirmed. Retry the same request.",
+        current.outcomeUnconfirmed
+          ? "We could not confirm your callback request. Retry the same callback request to confirm its outcome."
+          : reason instanceof Error
+            ? reason.message
+            : "Your callback request could not be sent.",
       );
     } finally {
+      current.busy = false;
+      setCallbackOutcomeUnconfirmed(current.outcomeUnconfirmed);
       setBusy(false);
     }
   }
@@ -455,7 +507,8 @@ export function PatientAppointmentRequests({
               <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
                 Request a new appointment
               </Typography>
-              {!resource.data.options.can_request_new_booking && (
+              {(!resource.data.options.can_request_new_booking ||
+                callbackOutcomeUnconfirmed) && (
                 <Alert
                   severity="info"
                   sx={{ mb: 2 }}
@@ -465,11 +518,17 @@ export function PatientAppointmentRequests({
                       disabled={busy || callbackSaved}
                       onClick={() => void requestCallback()}
                     >
-                      {callbackSaved ? "Callback requested" : "Request a call"}
+                      {callbackSaved
+                        ? "Callback requested"
+                        : callbackOutcomeUnconfirmed
+                          ? "Retry same callback"
+                          : "Request a call"}
                     </Button>
                   }
                 >
-                  {resource.data.options.booking_requirement}
+                  {resource.data.options.can_request_new_booking
+                    ? "Your earlier callback outcome is unconfirmed. Retry it to confirm the saved request."
+                    : resource.data.options.booking_requirement}
                 </Alert>
               )}
               {requestedModality === "video" &&
@@ -711,15 +770,14 @@ export function PatientAppointmentRequests({
         )}
         {change && (
           <AppointmentChangeDialog
+            key={`${change.appointment.id}:${change.kind}`}
             appointment={change.appointment}
             kind={change.kind}
             onClose={() => setChange(null)}
             onSaved={() => {
               setChange(null);
               setNotice(
-                change.kind === "cancel"
-                  ? "Your cancellation request was sent to the clinic for review."
-                  : "Your preferred reschedule time was sent to the clinic for review.",
+                "Your appointment change request is saved. Check its current status below.",
               );
               resource.refresh();
             }}
@@ -748,7 +806,7 @@ export function PatientAppointmentRequests({
   );
 }
 
-function AppointmentChangeDialog({
+export function AppointmentChangeDialog({
   appointment,
   kind,
   onClose,
@@ -765,10 +823,23 @@ function AppointmentChangeDialog({
   const [endsAt, setEndsAt] = useState(() =>
     localDateTime(new Date(appointment.ends_at)),
   );
-  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [error, setError] = useState("");
+  const submission = useRef<AppointmentChangeSubmission | null>(null);
+  submission.current ??= new AppointmentChangeSubmission(
+    appointment,
+    kind,
+    async (attempt) => {
+      const response = await api<{
+        appointment_request: AppointmentChangeAcknowledgement;
+      }>("/api/patient_portal/appointment_requests", {
+        method: "POST",
+        body: { appointment_request: attempt },
+      });
+      return response.appointment_request;
+    },
+  );
   const intervalDuration =
     new Date(endsAt).valueOf() - new Date(startsAt).valueOf();
   const intervalValid =
@@ -776,42 +847,32 @@ function AppointmentChangeDialog({
     (intervalDuration > 0 && intervalDuration <= 4 * 60 * 60 * 1_000);
 
   async function submit() {
-    if (!intervalValid) return;
+    const current = submission.current!;
+    if (current.busy || (!intervalValid && !current.outcomeUnconfirmed)) return;
     setBusy(true);
     setError("");
     try {
-      await api("/api/patient_portal/appointment_requests", {
-        method: "POST",
-        body: {
-          appointment_request: {
-            request_key: requestKey,
-            request_kind: kind,
-            source_appointment_id: appointment.id,
-            source_appointment_updated_at: appointment.updated_at,
-            starts_at:
-              kind === "reschedule"
-                ? new Date(startsAt).toISOString()
-                : undefined,
-            ends_at:
-              kind === "reschedule"
-                ? new Date(endsAt).toISOString()
-                : undefined,
-          },
-        },
-      });
-      onSaved();
+      if (
+        await current.submit(
+          kind === "reschedule"
+            ? {
+                starts_at: new Date(startsAt).toISOString(),
+                ends_at: new Date(endsAt).toISOString(),
+              }
+            : undefined,
+        )
+      )
+        onSaved();
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Your appointment change request could not be sent.",
-      );
-      setOutcomeUnconfirmed(
-        !(reason instanceof ApiError) ||
-          reason.status >= 500 ||
-          reason.code === "outcome_unconfirmed",
+        current.outcomeUnconfirmed
+          ? "We could not confirm this change request. Your original details are kept unchanged. Retry the same request before changing or closing it."
+          : reason instanceof Error
+            ? reason.message
+            : "Your appointment change request could not be sent.",
       );
     } finally {
+      setOutcomeUnconfirmed(current.outcomeUnconfirmed);
       setBusy(false);
     }
   }
@@ -850,8 +911,6 @@ function AppointmentChangeDialog({
                 value={startsAt}
                 onChange={(event) => {
                   setStartsAt(event.target.value);
-                  setRequestKey(crypto.randomUUID());
-                  setOutcomeUnconfirmed(false);
                 }}
                 slotProps={{ inputLabel: { shrink: true } }}
               />
@@ -868,8 +927,6 @@ function AppointmentChangeDialog({
                 }
                 onChange={(event) => {
                   setEndsAt(event.target.value);
-                  setRequestKey(crypto.randomUUID());
-                  setOutcomeUnconfirmed(false);
                 }}
                 slotProps={{ inputLabel: { shrink: true } }}
               />
