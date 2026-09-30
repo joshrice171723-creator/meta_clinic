@@ -22,6 +22,7 @@ import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { PackageCard } from "../clinic/subscriptions/PackageCard";
 import { MembershipCatalog } from "./MembershipCatalog";
+import { MembershipActivity } from "./MembershipActivity";
 import { patientPortalLabel } from "./patientPortalLabels";
 import {
   stateLabel,
@@ -559,6 +560,7 @@ export function PatientSubscriptions({
                     payment receipts.
                   </Typography>
                 )}
+                <MembershipActivity subscription={subscription} />
               </Stack>
             </Paper>
           ))}
