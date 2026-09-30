@@ -37,7 +37,7 @@ class Client:
         require(target.scheme == "https" or (target.scheme == "http" and target.hostname in ("localhost", "127.0.0.1", "::1")), "QA tokens require HTTPS outside loopback")
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
         self.csrf = None
-        self.token = require(os.environ.get("QA_SERVICE_TOKEN"), "QA_SERVICE_TOKEN must be injected by Secure Vault")
+        self.token = require(os.environ.get("QA_SERVICE_TOKEN"), "An authorized host carrier must supply QA_SERVICE_TOKEN securely")
 
     def request(self, path, method="GET", payload=None):
         data = json.dumps(payload).encode() if payload is not None else None
@@ -56,7 +56,7 @@ class Client:
         return json.loads(body) if body else None
 
     def sign_in(self):
-        raise RuntimeError("Agents authenticate with Secure Vault's QA_SERVICE_TOKEN")
+        raise RuntimeError("Host carriers authenticate with QA_SERVICE_TOKEN")
 
     def build(self):
         return self.request("/build.json")
@@ -94,13 +94,16 @@ def records(value):
 def sync_state(directory, existing=None):
     state = dict(existing or {})
     state.update(updated_at=now(), sources=dict(state.get("sources", {})))
-    for name in ("BATCH_STATE.json", "COVERAGE_STATE.json", "RETEST_70.md", "KNOWN_ISSUES.md", "WORKFLOWS.md"):
+    for name in ("BATCH_STATE.json", "COVERAGE_STATE.json", "QA_SCHEDULER_STATE.json", "RETEST_70.md", "KNOWN_ISSUES.md", "WORKFLOWS.md"):
         path = directory / name
         if path.is_file():
             item = source_record(path)
             state["sources"][name] = item
             parsed = item["parsed"]
-            if name == "BATCH_STATE.json" and isinstance(parsed, dict):
+            if name == "QA_SCHEDULER_STATE.json":
+                require(isinstance(parsed, dict), "QA_SCHEDULER_STATE.json must contain an actual scheduler receipt")
+                state["scheduler"] = parsed
+            elif name == "BATCH_STATE.json" and isinstance(parsed, dict):
                 state["batches"] = records(parsed.get("batches", parsed.get("batch_state"))) or ([parsed] if "batch" in parsed or "batch_number" in parsed else [])
                 for field in ("retest", "releases", "last_qa_revision", "last_run_at"):
                     if field in parsed:
