@@ -1,8 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { PackageTerms } from "../src/features/clinic/subscriptions/contracts";
+import type { PublicMembershipStorefrontResponse } from "../src/features/membershipGrowth/types";
 
 vi.mock("../src/shared/ui", () => {
-  const terms = {
+  const terms: PackageTerms = {
     family_id: 1,
     family_name: "Direct primary care",
     package_id: 2,
@@ -116,10 +118,34 @@ vi.mock("../src/shared/ui", () => {
       if (path.startsWith("/api/public/membership_storefronts/")) {
         return {
           data: {
-            practice: { name: "North Clinic", slug: "north-clinic" },
+            practice: {
+              name: "North Clinic",
+              slug: "north-clinic",
+              headline: null,
+              intro: null,
+              accent: null,
+              logo_path: null,
+            },
             business_date: "2026-09-14",
             catalog: [published],
-            payment: { checkout_available: true, mode: "test" },
+            services: [],
+            payment: {
+              checkout_available: true,
+              mode: "test",
+              source: "stripe_test",
+              vendor_confirmed: false,
+            },
+          } satisfies PublicMembershipStorefrontResponse,
+          refresh: () => {},
+        };
+      }
+      if (path.startsWith("/api/clinic/service_inquiries?")) {
+        return {
+          data: {
+            inquiries: [],
+            pagination: { page: 1, per_page: 25, total: 0, total_pages: 0 },
+            clinic_date: "2026-09-14",
+            capped: false,
           },
           refresh: () => {},
         };
@@ -245,6 +271,8 @@ describe("clinic-specific membership growth", () => {
     expect(html).toContain("Account created → account activated → payment");
     expect(html).toContain("Contact first");
     expect(html).toContain("Prospective patient");
+    expect(html).toContain("Service inquiries");
+    expect(html).toContain("No matching service inquiries.");
   });
 
   it("describes verified-payment onboarding separately from contact-first leads", () => {
