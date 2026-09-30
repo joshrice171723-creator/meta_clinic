@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 - Correct MC02 staff caller boundary inference
+
+The [fixed-fe6 inventory](../../records/progress/2026/09/2026-09-30-fe6-requirement-inventory-and-estimate-correction.md) and [historical report correction](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) now record the full staff caller trace: local fulfillment/onboarding/paid-state writes were already grouped at fe6. The earlier inner-function-only inference did not establish a separate commit; prior outer-boundary/applicability assessment was uncertain. Provider GET and receipt delivery inside the transaction are a separate concern. Later b3a9197 is reported pending integration with tests unrun and receives no fe6 credit. Historical numeric fields remain unchanged; documentation only, no app tests or source edits.
+
 ## 2026-09-30 - Correct disputed percentage presentation
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) and [fe6 score report](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) now label retained aggregate numbers as disputed historical planning estimates, not measured product completion or release gates. The [fixed-fe6 requirement inventory](../../records/progress/2026/09/2026-09-30-fe6-requirement-inventory-and-estimate-correction.md) records actual source-present mechanisms, partial/missing scope, undefined/external choices and unrun runtime verification. No stable atomic requirement denominator or justified weights exist; overall measured completion is undefined and further subjective awards are frozen. Historical numeric cells, arithmetic and records are preserved without another guessed percentage. This documentation-only correction does not credit later source, change application code, run tests or authorize merge/deployment. Relay owns integration of the correction branch.
