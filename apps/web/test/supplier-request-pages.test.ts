@@ -175,23 +175,28 @@ async function withScreen(
   await page.addInitScript((value) => {
     Object.assign(window, { initialSupplierData: value });
   }, initial);
-  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
-    methods.push(route.request().method());
-    const url = new URL(route.request().url());
-    if (url.pathname === "/api/csrf") {
-      await route.fulfill({ json: { csrf_token: "synthetic-only" } });
-      return;
-    }
-    expect(url.pathname).toBe("/api/clinic/inventory/supplier-pricing");
-    reads.push(url.searchParams);
-    const response = respond(url.searchParams);
-    // Keep the read pending long enough to verify old rows disappear.
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await route.fulfill({
-      status: response.status ?? 200,
-      json: response.data ? { data: response.data } : { error: response.error },
-    });
-  });
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    async (route) => {
+      methods.push(route.request().method());
+      const url = new URL(route.request().url());
+      if (url.pathname === "/api/csrf") {
+        await route.fulfill({ json: { csrf_token: "synthetic-only" } });
+        return;
+      }
+      expect(url.pathname).toBe("/api/clinic/inventory/supplier-pricing");
+      reads.push(url.searchParams);
+      const response = respond(url.searchParams);
+      // Keep the read pending long enough to verify old rows disappear.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await route.fulfill({
+        status: response.status ?? 200,
+        json: response.data
+          ? { data: response.data }
+          : { error: response.error },
+      });
+    },
+  );
   try {
     await page.goto(baseUrl + "/supplier-test");
     await page

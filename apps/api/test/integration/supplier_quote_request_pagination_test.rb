@@ -110,8 +110,10 @@ class SupplierQuoteRequestPaginationTest < ActionDispatch::IntegrationTest
 
   def create_offer(practice)
     supplier = practice.inventory_suppliers.create!(name: "Synthetic quote supplier #{SecureRandom.hex(3)}")
-    product = practice.pharmacy_products.create!(name: "Synthetic liquid", sku: "QUOTE-#{SecureRandom.hex(5)}",
-      ndc: "12345678901", stock_unit: "mL", quantity_scale: 3, package_size: 90, unit_reference: "90 mL bottle")
+    product = practice.pharmacy_products.find_or_create_by!(ndc: "12345678901") do |item|
+      item.assign_attributes(name: "Synthetic liquid", sku: "QUOTE-#{SecureRandom.hex(5)}",
+        stock_unit: "mL", quantity_scale: 3, package_size: 90, unit_reference: "90 mL bottle")
+    end
     supplier.supplier_products.create!(practice:, product:, ndc: product.ndc, supplier_sku: "SYN-QUOTE",
       description: "Synthetic liquid offer", ordering_unit: "package", currency: "USD", contract_status: "active",
       package_quantity: "0.125", wholesale_unit_cost: 12, available: true,
