@@ -22,6 +22,17 @@ module Qa
           record_observation: current_user&.platform_owner? == true, agent_room: current_user&.platform_owner? == true } }
     end
 
+    def office
+      render json: { contract_version: 1, actor_binding: "not_configured", receipts: nil, cadence: nil,
+        actors: [ [ "josh", "Josh" ], [ "muse", "Muse" ], [ "dot", "dot" ] ].map do |id, name|
+          { id:, name:, connection: "not_connected", control: "uncontrolled", position: nil }
+        end,
+        build: Workspace.build,
+        tasks: task_scope.order(created_at: :desc).limit(100).map { |task| task_json(task) },
+        events: Event.order(created_at: :desc).limit(100),
+        evidence: Evidence.order(created_at: :desc).limit(100).map { |item| evidence_json(item) } }
+    end
+
     def status
       state = Workspace.state
       issues = Workspace.github

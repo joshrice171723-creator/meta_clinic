@@ -62,6 +62,20 @@ const fixture = {
   guardrails: [],
   capabilities: { github_questions: false, record_observation: false },
 };
+const officeFixture = {
+  ...fixture,
+  contract_version: 1,
+  actor_binding: "not_configured",
+  actors: ["josh", "muse", "dot"].map((id) => ({
+    id,
+    name: id === "josh" ? "Josh" : id === "muse" ? "Muse" : "dot",
+    connection: "not_connected",
+    control: "uncontrolled",
+    position: null,
+  })),
+  receipts: null,
+  cadence: null,
+};
 let server: ViteDevServer;
 let browser: Browser;
 let base: string;
@@ -141,7 +155,7 @@ async function open(
           notice: "Synthetic read-only room",
         },
       });
-    if (url.pathname === "/api/qa") {
+    if (url.pathname === "/api/qa/office") {
       if (mode === "loading") return;
       if (mode === "error")
         return route.fulfill({
@@ -151,10 +165,19 @@ async function open(
       return route.fulfill({
         json:
           mode === "empty"
-            ? { ...fixture, tasks: [], evidence: [], events: [], state: {} }
-            : fixture,
+            ? { ...officeFixture, tasks: [], evidence: [], events: [] }
+            : officeFixture,
       });
     }
+    if (url.pathname === "/api/qa")
+      return route.fulfill({
+        json: {
+          ...fixture,
+          tasks: [{ ...fixture.tasks[0], title: "Separate workspace record" }],
+          evidence: [],
+          events: [],
+        },
+      });
     return route.abort();
   });
   await page.goto(`${base}qa?view=office`);
@@ -234,6 +257,30 @@ it("keeps loading, failed reads and empty records explicit", async () => {
     } finally {
       await page.close();
     }
+  }
+}, 60_000);
+
+it("uses the shared Office snapshot without falling back to workspace records", async () => {
+  const { page, writes } = await open();
+  try {
+    await page
+      .getByRole("navigation", { name: "Office destinations" })
+      .getByRole("button", { name: "Task board", exact: true })
+      .click();
+    await page.getByText(/#1.*Synthetic queued task/).waitFor();
+    expect(await page.getByText("Separate workspace record").count()).toBe(0);
+    await page.route("**/api/qa/office", (route) =>
+      route.fulfill({ status: 503, json: { error: "Office offline" } }),
+    );
+    await page.getByRole("button", { name: "Refresh sources" }).click();
+    await page
+      .getByText(/Office records could not refresh: Office offline/)
+      .waitFor();
+    expect(await page.getByText(/#1.*Synthetic queued task/).count()).toBe(0);
+    expect(await page.getByText("Separate workspace record").count()).toBe(0);
+    expect(writes).toEqual([]);
+  } finally {
+    await page.close();
   }
 }, 60_000);
 
