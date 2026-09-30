@@ -229,7 +229,7 @@ class StripeMembershipsTest < ActiveSupport::TestCase
     ledger = recurring_ledger_snapshot
     prior_end = Clinic::Care::SubscriptionProjection.agreement(@agreement).fetch(:ends_at)
     with_recurring_clock(Time.utc(2026, 2, 15, 12)) do
-      unpaid = paid_invoice(id: "in_second_unpaid", payment_id: "pi_second_unpaid", reason: "subscription_cycle",
+      unpaid = paid_invoice(id: "in_secondunpaid", payment_id: "pi_secondunpaid", reason: "subscription_cycle",
         start_at: Time.current, paid_at: Time.current).merge(
           "status" => "open", "amount_paid" => 0, "amount_remaining" => 2500,
           "status_transitions" => { "paid_at" => nil }
@@ -259,18 +259,21 @@ class StripeMembershipsTest < ActiveSupport::TestCase
     ledger = recurring_ledger_snapshot(practices: [@practice, foreign_practice])
     prior_end = Clinic::Care::SubscriptionProjection.agreement(@agreement).fetch(:ends_at)
     with_recurring_clock(Time.utc(2026, 2, 15, 12)) do
-      renewal = paid_invoice(id: "in_second_foreign", payment_id: "pi_second_foreign", reason: "subscription_cycle",
+      renewal = paid_invoice(id: "in_secondforeign", payment_id: "pi_secondforeign", reason: "subscription_cycle",
         start_at: Time.current, paid_at: Time.current)
-      gateway.add_invoice(renewal, payment_id: "pi_second_foreign")
+      gateway.add_invoice(renewal, payment_id: "pi_secondforeign")
       assert_nil deliver_invoice(gateway, id: "evt_second_foreign_account", invoice_id: renewal.fetch("id"), account: "acct_foreign")
       assert_equal ledger, recurring_ledger_snapshot(practices: [@practice, foreign_practice])
       assert_equal prior_end, Clinic::Care::SubscriptionProjection.agreement(@agreement.reload).fetch(:ends_at)
 
       foreign_subscription = renewal.deep_merge("parent" => { "subscription_details" => { "subscription" => "sub_foreign" } })
-      gateway.add_invoice(foreign_subscription, payment_id: "pi_second_foreign")
-      assert_raises(Clinic::Billing::StripeGateway::Invalid) do
+      gateway.add_invoice(foreign_subscription, payment_id: "pi_secondforeign")
+      calls_before = gateway.calls.length
+      error = assert_raises(Clinic::Billing::StripeGateway::Invalid) do
         deliver_invoice(gateway, id: "evt_second_foreign_subscription", invoice_id: renewal.fetch("id"))
       end
+      assert_equal "Stripe invoice does not match this membership.", error.message
+      assert gateway.calls.drop(calls_before).any? { |method, path, _| method == :get && path == "/v1/invoices/in_secondforeign" }
       assert_equal ledger, recurring_ledger_snapshot(practices: [@practice, foreign_practice])
       assert_equal prior_end, Clinic::Care::SubscriptionProjection.agreement(@agreement.reload).fetch(:ends_at)
     end
