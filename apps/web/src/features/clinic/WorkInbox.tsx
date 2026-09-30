@@ -1503,7 +1503,7 @@ function QueuePageControls({
           : error
             ? `Page ${requestedPage} unavailable`
             : page
-              ? `${page.total} matching · Page ${page.page} of ${inboxPageCount(page)}`
+              ? `${page.total} source items · Page ${page.page} of ${inboxPageCount(page)}`
               : "Unavailable"}
       </Typography>
       <Button
@@ -2079,6 +2079,23 @@ function ScopedWorkInbox() {
     canLoadRefills ||
     canLoadExceptions ||
     canLoadScheduledVisits;
+  const hasOtherSourcePages = Boolean(
+    (work.data &&
+      (work.data.staff_requests_page.total > work.data.requests.length ||
+        work.data.encounter_follow_ups_page.total >
+          work.data.encounter_follow_ups.length ||
+        work.data.renewal_exceptions_page.total >
+          (work.data.renewal_exceptions?.length ?? 0) ||
+        (assignment === "offboarded" &&
+          work.data.offboarded_tasks_page.total >
+            work.data.clinical_tasks.length))) ||
+    (assignment === "all" &&
+      labReviews.data &&
+      labReviews.data.pagination.total > labReviews.data.items.length) ||
+    ((assignment === "all" || assignment === "overdue") &&
+      labFollowUps.data &&
+      labFollowUps.data.pagination.total > labFollowUps.data.items.length),
+  );
 
   const flowItems = useMemo(() => {
     const patientFlowItems = items.filter((item) => !item.patientFlowHidden);
@@ -2309,6 +2326,10 @@ function ScopedWorkInbox() {
                     onPage={(page) => changePage("labReview", page)}
                     onRetry={() => setRefreshRevision((value) => value + 1)}
                   />
+                </>
+              )}
+              {canLoadLabs &&
+                (assignment === "all" || assignment === "overdue") && (
                   <QueuePageControls
                     label="Lab follow-up"
                     page={labFollowUps.data?.pagination}
@@ -2318,8 +2339,7 @@ function ScopedWorkInbox() {
                     onPage={(page) => changePage("labFollowUp", page)}
                     onRetry={() => setRefreshRevision((value) => value + 1)}
                   />
-                </>
-              )}
+                )}
             </Stack>
           )}
           <Stack
@@ -2377,10 +2397,15 @@ function ScopedWorkInbox() {
               <AssignmentOutlinedIcon
                 sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
               />
-              <Typography variant="h6">No matching work</Typography>
+              <Typography variant="h6">
+                {hasOtherSourcePages
+                  ? "No matching work on the loaded pages"
+                  : "No matching work"}
+              </Typography>
               <Typography color="text.secondary">
-                Try another scope or work type. New authorized work will appear
-                here when it is created.
+                {hasOtherSourcePages
+                  ? "Filters apply to the loaded pages. Navigate source pages to check the remaining work."
+                  : "Try another scope or work type. New authorized work will appear here when it is created."}
               </Typography>
             </Box>
           )}
