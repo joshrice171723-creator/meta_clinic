@@ -25,6 +25,12 @@ import { api, ApiError } from "../../api/client";
 import { businessTimeAfter } from "../../shared/businessDate";
 import { useClinic } from "./Workspace";
 import { localDateTimeInput } from "./frontDeskModel";
+import {
+  LabResultProvenanceFields,
+  LabResultProvenanceView,
+  labResultProvenancePayload,
+  type LabResultProvenance,
+} from "./LabResultProvenance";
 import { LabResultHistory } from "./LabResultHistory";
 import { LabReportActionsPanel } from "./LabReportActionsPanel";
 import type {
@@ -32,7 +38,7 @@ import type {
   ServiceRequestRevision,
 } from "../../api/contracts";
 
-export type LabResult = {
+export type LabResult = LabResultProvenance & {
   name: string;
   code: string | null;
   code_system?: string | null;
@@ -635,6 +641,7 @@ export function PatientLabReports({
               interpretation: row.interpretation?.trim() || null,
               reference_range: row.reference_range?.trim() || null,
               flag: row.flag?.trim() || null,
+              ...labResultProvenancePayload(row),
             })),
           };
           const next = editing
@@ -1257,6 +1264,7 @@ export function PatientLabReports({
                                   .join(" · ")}
                               </Typography>
                             )}
+                            <LabResultProvenanceView row={row} />
                             {report.current_version.status !== "cancelled" && (
                               <Button
                                 size="small"
@@ -1491,6 +1499,7 @@ export function PatientLabReports({
                           .join(" · ")}
                       </Typography>
                     )}
+                    <LabResultProvenanceView row={row} />
                     {history &&
                       version.id === history.current_version_id &&
                       version.status !== "cancelled" && (
@@ -1579,16 +1588,19 @@ export function PatientLabReports({
                   {reviewTarget.version.title} · Version{" "}
                   {reviewTarget.version.version_number}
                 </Typography>
-                {reviewTarget.version.results.map((row) => (
-                  <Typography key={row.name} variant="body2">
-                    {row.name}:{" "}
-                    {row.value_kind === "absent"
-                      ? `Not available: ${row.absent_reason}`
-                      : row.value}
-                    {row.unit ? ` ${row.unit}` : ""} ·{" "}
-                    {row.reference_range || "Range not recorded"}
-                    {row.flag ? ` · ${row.flag}` : ""}
-                  </Typography>
+                {reviewTarget.version.results.map((row, index) => (
+                  <Stack key={`${row.name}-${index}`}>
+                    <Typography variant="body2">
+                      {row.name}:{" "}
+                      {row.value_kind === "absent"
+                        ? `Not available: ${row.absent_reason}`
+                        : row.value}
+                      {row.unit ? ` ${row.unit}` : ""} ·{" "}
+                      {row.reference_range || "Range not recorded"}
+                      {row.flag ? ` · ${row.flag}` : ""}
+                    </Typography>
+                    <LabResultProvenanceView row={row} />
+                  </Stack>
                 ))}
                 {reviewTarget.version.result_priority !== "routine" && (
                   <Alert
@@ -2269,6 +2281,10 @@ function LabForm({
                 onChange={(event) =>
                   result(index, { unit_code: event.target.value || null })
                 }
+              />
+              <LabResultProvenanceFields
+                row={row}
+                onChange={(changes) => result(index, changes)}
               />
               <TextField
                 fullWidth
