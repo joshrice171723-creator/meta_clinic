@@ -419,6 +419,17 @@ export type PatientCareSummary = {
   review_needed: boolean | null;
   review_needed_topics: string[] | null;
 };
+export type IntakeQuestionFollowUpRecord = {
+  reason: string;
+  next_action: string;
+  question: import("../features/patientPortal/IntakeQuestions").IntakeField;
+  source_answer: import("../features/patientPortal/IntakeQuestions").IntakeAnswer;
+  source_form_id: string;
+  source_questionnaire_version: number;
+  source_revision_version: number;
+  recorded_by_membership_id: number;
+  recorded_at: string;
+};
 export type EncounterIntakeRevision = {
   questionnaire?: {
     answers: import("../features/patientPortal/IntakeQuestions").IntakeAnswers;
@@ -429,6 +440,7 @@ export type EncounterIntakeRevision = {
     confirmed_chunks?: number[];
     recorder?: "patient" | "staff";
     staff_confirmation?: boolean;
+    question_follow_up?: Record<string, IntakeQuestionFollowUpRecord>;
     evidence_references?: Array<{
       key: string;
       kind: string;

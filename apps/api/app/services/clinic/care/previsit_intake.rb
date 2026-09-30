@@ -542,6 +542,7 @@ module Clinic
           end
         end
         sections << "Additional note\n#{payload['text']}" if payload["text"].present?
+        sections.concat(IntakeQuestionFollowUp.render(payload))
         if payload["attestation"]
           sections << "Patient confirmation\nConfirmed current and authorized for care-team review"
         end
