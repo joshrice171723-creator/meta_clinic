@@ -143,7 +143,7 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     other_user = User.create!(email_address: "synthetic-return-b@example.invalid", password: other_password)
     Clinic::PatientPortal::Identity.create!(practice: @practice, patient: other_patient, user: other_user,
       status: :active, invited_at: 1.day.ago, activated_at: 1.day.ago)
-    other_session, other_headers = authenticated_session(other_user, other_password, profile: "patient")
+    other_session, other_headers = authenticated_session(other_user, other_password)
     other_session.post patient_requests_path, params: payload, headers: other_headers, as: :json
     assert_equal 409, other_session.response.status
     assert_not other_session.response.parsed_body.key?("appointment_request")
