@@ -556,8 +556,10 @@ function PatientSubmittedIdentityReview({
   values,
   onEdit,
   onProceed,
+  correction,
 }: {
   values: RegistrationValues;
+  correction?: { patientId: number; before: RegistrationValues };
   onEdit: () => void;
   onProceed: () => void;
 }) {
@@ -589,6 +591,7 @@ function PatientSubmittedIdentityReview({
             new Map(
               responses
                 .flatMap((response) => response.patients)
+                .filter((patient) => patient.id !== correction?.patientId)
                 .map((patient) => [patient.id, patient]),
             ).values(),
           ),
@@ -609,12 +612,40 @@ function PatientSubmittedIdentityReview({
         });
       });
     return () => abort.abort();
-  }, [searchSignature, revision]);
+  }, [searchSignature, revision, correction?.patientId]);
 
   return (
     <Stack spacing={1.5}>
+      {correction && (
+        <TableContainer>
+          <Table size="small" aria-label="Identity correction comparison">
+            <TableHead>
+              <TableRow>
+                <TableCell>Identity field</TableCell>
+                <TableCell>Currently saved</TableCell>
+                <TableCell>Proposed correction</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {registrationIdentityFields.map(([field, label]) => (
+                <TableRow key={field}>
+                  <TableCell component="th" scope="row">
+                    {label}
+                  </TableCell>
+                  <TableCell>
+                    {correction.before[field] || "Not recorded"}
+                  </TableCell>
+                  <TableCell>{values[field] || "Not recorded"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
       <Alert severity="info">
-        Review the identity entered in registration before creating a chart:{" "}
+        {correction
+          ? "Review the correction for this patient before saving: "
+          : "Review the identity entered in registration before creating a chart: "}
         {values.display_name || "Name not entered"} · DOB{" "}
         {values.date_of_birth || "not recorded"} · clinic reference{" "}
         {values.reference || "not entered"}.
@@ -675,19 +706,23 @@ function PatientSubmittedIdentityReview({
             </Stack>
           ) : (
             <Typography>
-              No matching patients were found for the submitted details.
+              {correction
+                ? "No other matching patients were found for the proposed identity."
+                : "No matching patients were found for the submitted details."}
             </Typography>
           )}
           {result.incomplete && (
             <Alert severity="warning">
               A search returned more than 100 records. Narrow the identity
-              details before registering.
+              details before{" "}
+              {correction ? "saving this correction" : "registering"}.
             </Alert>
           )}
           {!result.incomplete && (
             <Alert severity="warning">
-              Open an existing record if it belongs to this person. Register a
-              separate patient only after confirming these are different people.
+              {correction
+                ? "Keep editing if another record might belong to this person. Save only after confirming the correction belongs to this patient and any matches are different people. This action does not merge or relink records."
+                : "Open an existing record if it belongs to this person. Register a separate patient only after confirming these are different people."}
             </Alert>
           )}
         </>
@@ -701,7 +736,9 @@ function PatientSubmittedIdentityReview({
           onClick={onProceed}
           variant="contained"
         >
-          Register a separate patient
+          {correction
+            ? "Save identity correction"
+            : "Register a separate patient"}
         </Button>
       </Stack>
     </Stack>
@@ -1230,17 +1267,41 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
 
 type RegistrationValues = Record<string, string>;
 
+const registrationIdentityFields = [
+  ["display_name", "Name shown in chart"],
+  ["legal_name", "Legal name"],
+  ["preferred_name", "Preferred name"],
+  ["reference", "Clinic reference"],
+  ["date_of_birth", "Date of birth"],
+  ["contact_type", "Contact type"],
+  ["contact_value", "Contact value"],
+] as const;
+
 export function registrationIdentitySignature(values: RegistrationValues) {
   return JSON.stringify(
-    [
-      "display_name",
-      "legal_name",
-      "preferred_name",
-      "reference",
-      "date_of_birth",
-      "contact_type",
-      "contact_value",
-    ].map((field) => values[field]?.trim().toLocaleLowerCase() ?? ""),
+    registrationIdentityFields.map(
+      ([field]) => values[field]?.trim().toLocaleLowerCase() ?? "",
+    ),
+  );
+}
+
+function registrationIdentityCorrectionSignature(values: RegistrationValues) {
+  return JSON.stringify(
+    registrationIdentityFields.map(([field]) => values[field] ?? ""),
+  );
+}
+
+export function registrationIdentityCorrectionRequired(
+  values: RegistrationValues,
+  baseline: RegistrationValues,
+  reviewedIdentity: string | null,
+  exactRetry: boolean,
+) {
+  return (
+    !exactRetry &&
+    registrationIdentityCorrectionSignature(values) !==
+      registrationIdentityCorrectionSignature(baseline) &&
+    registrationIdentityCorrectionSignature(values) !== reviewedIdentity
   );
 }
 
@@ -1886,6 +1947,11 @@ function PatientRegistrationEditor({
   );
   const requestKey = useRef(initialDraft?.requestKey || crypto.randomUUID());
   const expectedUpdatedAt = useRef(patient?.updated_at);
+  const formRef = useRef<HTMLFormElement>(null);
+  const identityBaseline = useRef(registrationValues(patient));
+  const reviewedCorrection = useRef<string | null>(null);
+  const [identityCorrection, setIdentityCorrection] =
+    useState<RegistrationValues | null>(null);
   const attempt = useRef<RegistrationDraft | null>(
     initialDraft?.pending ? initialDraft : null,
   );
@@ -1985,6 +2051,7 @@ function PatientRegistrationEditor({
   return (
     <Box
       component="form"
+      ref={formRef}
       id={patient ? undefined : "patient-registration-form"}
       onInput={(event) => {
         setSectionsComplete(false);
@@ -2031,6 +2098,28 @@ function PatientRegistrationEditor({
             setDirty(true);
             setError("");
             onIdentityReviewRequired(current.body.clinic_patient);
+          }
+          inFlight.current = false;
+          return;
+        }
+        if (
+          patient &&
+          registrationIdentityCorrectionRequired(
+            current.body.clinic_patient,
+            identityBaseline.current,
+            reviewedCorrection.current,
+            Boolean(attempt.current),
+          )
+        ) {
+          lastSnapshot.current = current;
+          if (!(await workingDraft.save(current))) {
+            setError(
+              "The working copy could not be saved. Keep this page open and retry the identity review.",
+            );
+          } else {
+            setDirty(true);
+            setError("");
+            setIdentityCorrection(current.body.clinic_patient);
           }
           inFlight.current = false;
           return;
@@ -2124,6 +2213,10 @@ function PatientRegistrationEditor({
                     "The latest patient version could not be confirmed.",
                   );
                 expectedUpdatedAt.current = refreshed.patient.updated_at;
+                identityBaseline.current = registrationValues(
+                  refreshed.patient,
+                );
+                reviewedCorrection.current = null;
                 const rebased = {
                   ...editable,
                   body: {
@@ -2347,6 +2440,35 @@ function PatientRegistrationEditor({
                 ? "Save registration details"
                 : "Register patient"}
         </Button>
+        <Dialog
+          open={Boolean(identityCorrection)}
+          onClose={() => setIdentityCorrection(null)}
+          fullWidth
+          maxWidth="md"
+          aria-labelledby="identity-correction-title"
+        >
+          <DialogTitle id="identity-correction-title">
+            Review identity correction
+          </DialogTitle>
+          <DialogContent>
+            {patient && identityCorrection && (
+              <PatientSubmittedIdentityReview
+                values={identityCorrection}
+                correction={{
+                  patientId: patient.id,
+                  before: identityBaseline.current,
+                }}
+                onEdit={() => setIdentityCorrection(null)}
+                onProceed={() => {
+                  reviewedCorrection.current =
+                    registrationIdentityCorrectionSignature(identityCorrection);
+                  setIdentityCorrection(null);
+                  formRef.current?.requestSubmit();
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </Stack>
     </Box>
   );
