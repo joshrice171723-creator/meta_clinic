@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { qaWorkspaceView } from "../src/features/qa/QaWorkspace";
 import {
   AgentRoomMessage,
   QaAgentRoom,
@@ -32,6 +33,12 @@ const item: RoomMessage = {
   },
 };
 describe("agent coordination room", () => {
+  it("opens the room bootstrap URL while retaining known views and the fallback", () => {
+    expect(qaWorkspaceView("?view=room")).toBe("room");
+    expect(qaWorkspaceView("?view=inbox")).toBe("inbox");
+    expect(qaWorkspaceView("?view=unknown")).toBe("overview");
+    expect(qaWorkspaceView("")).toBe("overview");
+  });
   it("merges cursor pages without duplicate messages and bounds the visible history", () => {
     expect(
       mergeRoomMessages([item], [item, { ...item, id: 13 }]).map(
