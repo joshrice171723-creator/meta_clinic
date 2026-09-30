@@ -42,6 +42,7 @@ export function IntakeQuestionFollowUp({
   writable,
   disabled,
   onChange,
+  onManageTasks,
 }: {
   fields: IntakeField[];
   answers: IntakeAnswers;
@@ -50,6 +51,7 @@ export function IntakeQuestionFollowUp({
   writable: boolean;
   disabled: boolean;
   onChange: (drafts: Record<string, QuestionFollowUpDraft>) => void;
+  onManageTasks?: () => void;
 }) {
   const [selected, setSelected] = useState<IntakeField | null>(null);
   const currentIds = new Set(fields.map((field) => field.id));
@@ -67,7 +69,8 @@ export function IntakeQuestionFollowUp({
           <Typography variant="body2" color="text.secondary">
             Record a reason and next action for a specific question. Save with
             the intake draft. This documents follow-up without creating a task
-            or resolving the answer.
+            or resolving the answer. Use Follow-up work to deliberately link a
+            saved question and revision to a manual task.
           </Typography>
           {writable && (
             <Stack spacing={1}>
@@ -122,6 +125,11 @@ export function IntakeQuestionFollowUp({
                     answer state {answerState(record.source_answer)}; membership{" "}
                     {record.recorded_by_membership_id}, {record.recorded_at}
                   </Typography>
+                )}
+                {record && onManageTasks && (
+                  <Button disabled={disabled} onClick={onManageTasks}>
+                    Manage saved question tasks
+                  </Button>
                 )}
                 {changed && (
                   <Alert severity="warning">

@@ -176,6 +176,8 @@ Rails.application.routes.draw do
       end
     post "patients/:patient_id/encounters/:encounter_id/intake_revisions", to: "care/nurse_workflow#revise_intake"
     post "patients/:patient_id/encounters/:encounter_id/handoffs", to: "care/nurse_workflow#request_handoff"
+    get "patients/:patient_id/encounters/:encounter_id/intake_question_tasks", to: "care/nurse_workflow#question_tasks"
+    post "patients/:patient_id/encounters/:encounter_id/intake_question_tasks", to: "care/nurse_workflow#link_question_task"
     post "patients/:patient_id/encounters/:encounter_id/clinical_tasks", to: "care/nurse_workflow#create_task"
     patch "handoffs/:id", to: "care/nurse_workflow#transition_handoff"
     patch "clinical_tasks/:id", to: "care/nurse_workflow#transition_task"

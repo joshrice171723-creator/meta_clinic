@@ -45,6 +45,7 @@ import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
 import { PatientCareCoordination } from "./PatientCareCoordination";
 import { IntakeAnswerProvenance } from "./IntakeAnswerProvenance";
+import { IntakeQuestionTasks } from "./IntakeQuestionTasks";
 import {
   IntakeQuestionFollowUp,
   questionFollowUpDrafts,
@@ -1247,6 +1248,7 @@ export function NurseEncounterWorkspaceContent({
                                 form.questionnaire?.question_follow_up ?? {}
                               }
                               writable={workspace.capabilities.intake_write}
+                              onManageTasks={() => setActiveWorkspace("followup")}
                               disabled={busy || intakeConflict}
                               onChange={(question_follow_up) =>
                                 setForm((current) => ({
@@ -1770,6 +1772,14 @@ export function NurseEncounterWorkspaceContent({
           hidden={activeWorkspace !== "followup"}
           sx={{ display: activeWorkspace === "followup" ? "block" : "none" }}
         >
+          <IntakeQuestionTasks
+            patientId={patient.id}
+            encounterId={encounter.id}
+            tasks={workspace.tasks}
+            writable={workspace.capabilities.tasks_write}
+            disabled={busy || intakeConflict}
+            onChanged={resource.refresh}
+          />
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1}

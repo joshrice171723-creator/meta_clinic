@@ -430,6 +430,46 @@ export type IntakeQuestionFollowUpRecord = {
   recorded_by_membership_id: number;
   recorded_at: string;
 };
+export type IntakeQuestionTaskSource = {
+  intake_revision_id: number;
+  intake_version: number | null;
+  question_id: string;
+  question_label: string;
+  reason: string;
+  next_action: string;
+  source_revision_version: number | null;
+  source_answer_state: string;
+  source_available: boolean;
+  source_answer?: import("../features/patientPortal/IntakeQuestions").IntakeAnswer | null;
+  source_question?: import("../features/patientPortal/IntakeQuestions").IntakeField | null;
+  source_form_id: string | null;
+  source_questionnaire_version: number | null;
+  source_recorded_by_membership_id: number | null;
+  source_recorded_at: string | null;
+};
+export type IntakeQuestionTaskLink = IntakeQuestionTaskSource & {
+  id: number;
+  task_id: number;
+  recorded_by_membership_id: number;
+  recorded_at: string;
+  request_key: string;
+};
+export type IntakeQuestionTasksProjection = {
+  patient_id: number;
+  encounter_id: number;
+  actor_membership_id: number;
+  eligible_assignees: Array<{membership_id: number; label: string}>;
+  sources: IntakeQuestionTaskSource[];
+  links: IntakeQuestionTaskLink[];
+  tasks: ClinicalTask[];
+};
+export type ClinicalTaskMutationReceipt = {
+  request_key: string;
+  operation_code: string;
+  resource_id: number;
+  resource_version: string;
+  actor_membership_id: number;
+};
 export type EncounterIntakeRevision = {
   questionnaire?: {
     answers: import("../features/patientPortal/IntakeQuestions").IntakeAnswers;
