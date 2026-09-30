@@ -211,7 +211,7 @@ module Development
     def self.seed_workflow!(membership)
       practice = membership.practice
       user = membership.user
-      site = practice.sites.find_or_create_by!(code: "MAIN")
+      site = practice.sites.find_or_create_by!(code: "MAIN") { |record| record.status = "active" }
       department = practice.departments.find_or_create_by!(code: "PRIMARY")
       clinician = practice.clinician_profiles.find_or_create_by!(membership: membership)
       clinician.assignments.find_or_create_by!(practice: practice, site: site,
