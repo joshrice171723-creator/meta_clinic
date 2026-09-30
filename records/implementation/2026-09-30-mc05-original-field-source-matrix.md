@@ -156,3 +156,7 @@ bundle exec rubocop app/services/clinic/care/intake_question_follow_up.rb app/se
 ```
 
 Use the parent's existing isolated PostgreSQL runner/environment. The commands have not been executed here; this is a source candidate pending that backend evidence. No new PR/main merge/deploy, score edit, live data or credential work is performed. The subsequent intake exact-retry work is a separate increment and does not erase these field changes.
+
+## Subsequent explicit question/revision task-linkage source increment
+
+The user subsequently selected the full deliberate per-question/manual-task linkage contract. The [dated source report](2026-09-30-mc05-question-task-linkage.md) supersedes the earlier “absent per-item task binding” finding for this bounded local path: existing saved reason/next-action, explicit question/revision selection, permitted manual-task create/link, assignment/transfer acknowledgment, current state/history, cancelled-only reopen and immutable encrypted-source reference are now wired through the encounter UI/API/persisted task events. Routine answer states still create no tasks; completed tasks gain no automatic reopen policy. Generic document clinical provenance remains separate and optional insurance stays excluded. Under the later user instruction, this increment has static source/contract checks only; prior test results do not establish its runtime or release acceptance. Original attachment availability limitation remains unchanged.

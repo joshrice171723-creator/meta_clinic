@@ -271,3 +271,5 @@ function SavedAnswerInspector({ intake, fields, questionIds }: Props) {
     </Accordion>
   );
 }
+
+export { Answer as IntakeSourceAnswer };

@@ -1727,6 +1727,11 @@
   [
     null,
     "GET",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_question_tasks(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/nurse_workspace(.:format)"
   ],
   [
@@ -2238,6 +2243,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/encounters/:encounter_id/immunizations(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/encounters/:encounter_id/intake_question_tasks(.:format)"
   ],
   [
     null,

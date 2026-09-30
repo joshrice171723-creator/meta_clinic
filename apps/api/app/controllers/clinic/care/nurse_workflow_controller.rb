@@ -52,6 +52,29 @@ module Clinic
         render json: { handoff: NurseWorkflow.serialize_handoff(handoff) }
       end
 
+      def question_tasks
+        patient, encounter = patient_and_encounter
+        render json: IntakeQuestionTasks.index(practice: current_practice, actor: current_user, patient:, encounter:)
+      end
+
+      def link_question_task
+        patient, encounter = patient_and_encounter
+        input = parameter_hash!(:question_task,
+          %i[request_key intake_revision_id question_id task_id expected_task_version task_kind pool_code])
+        result = IntakeQuestionTasks.link(
+          practice: current_practice, actor: current_user, patient:, encounter:,
+          request_key: request_key!(input[:request_key]),
+          intake_revision_id: requested_id!(input[:intake_revision_id], :intake_revision_id),
+          question_id: required_string!(input[:question_id], field: :question_id, maximum: 128),
+          task_id: optional_id(input[:task_id], :task_id),
+          expected_task_version: input[:expected_task_version].nil? ? nil : bounded_integer!(
+            input[:expected_task_version], field: :expected_task_version, min: 0, max: 2_147_483_647),
+          task_kind: optional_string(input[:task_kind], field: :task_kind, maximum: 32),
+          pool_code: optional_string(input[:pool_code], field: :pool_code, maximum: 32)
+        )
+        render json: result, status: :created
+      end
+
       def create_task
         patient, encounter = patient_and_encounter
         input = parameter_hash!(:task,
@@ -75,7 +98,15 @@ module Clinic
           request_key: request_key!(input[:request_key]), resolution_code: input[:resolution_code],
           assignee_membership_id: input[:assignee_membership_id], dependency_ids: input[:dependency_ids]
         )
-        render json: { task: NurseWorkflow.serialize_task(task) }
+        member = Clinic::Membership.active.find_by!(practice: current_practice, user: current_user)
+        receipt = Clinic::OperationReceipt.find_by(practice: current_practice, actor_membership_id: member.id,
+          request_key: request_key!(input[:request_key]), operation_code: "operations.clinical_task.#{input[:action].to_s.strip}",
+          resource_type: "Clinic::ClinicalTask", resource_id: task.id)
+        render json: { task: NurseWorkflow.serialize_task(task), task_receipt: receipt && {
+          request_key: receipt.request_key, operation_code: receipt.operation_code,
+          resource_id: receipt.resource_id, resource_version: receipt.resource_version,
+          actor_membership_id: receipt.actor_membership_id
+        } }
       end
 
       private
