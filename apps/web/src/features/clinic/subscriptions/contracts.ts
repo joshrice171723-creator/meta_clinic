@@ -71,6 +71,29 @@ export type Subscription = {
   cancellation_effective_at: string | null;
   terms: PackageTerms;
   events: { kind: string; occurred_at: string }[];
+  entitlements?: PackageEntitlement[];
+};
+export type PackageEntitlement = {
+  service_id: number;
+  name: string;
+  frequency: string;
+  purchased_quantity: number;
+  opening_quantity: number | null;
+  used_quantity: number;
+  reversed_quantity: number;
+  remaining_quantity: number | null;
+  status: string;
+  can_use: boolean;
+  source: "staff_recorded_package_ledger";
+};
+export type PackageEntitlementEntry = {
+  id: number;
+  kind: "opening" | "use" | "reversal";
+  service_id: number;
+  quantity: number;
+  reversed_entry_id: number | null;
+  source_reference: string;
+  occurred_at: string;
 };
 export type SubscriptionReceipt = {
   id: number;
