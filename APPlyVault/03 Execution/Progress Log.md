@@ -7,6 +7,16 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — MC-14 current-stock reconciliation CSV
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records a
+provenance-bearing export of current stock summaries and selected source pages on
+`codex/persistent-engineering-pilot`, based on `e29f1750`. Pharmacy units, office
+stock, whole-population summaries and selected-page records remain distinct.
+TypeScript, Ruby syntax and scoped lint passed; browser download/reconciliation
+and export policy evidence remain open. No tests, main merge or deployment; scores
+unchanged.
+
 ## 2026-09-29 — MC-15 named configuration differences
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the

@@ -1767,6 +1767,8 @@ function DayEndReviews({ date }: { date: string }) {
 }
 
 type StockSnapshot = {
+  practice_id: number;
+  status: string;
   as_of: string;
   inventory_date: string;
   timezone: string;
@@ -1808,6 +1810,108 @@ function CurrentStockReport() {
     `/api/clinic/reports/current_stock?page=${page}&office_page=${officePage}&status=${status}`,
   );
   const report = result.data?.report;
+  const download = () => {
+    if (!report) return;
+    downloadCsv(
+      [
+        ["report", "current_stock"],
+        ["practice_id", String(report.practice_id)],
+        ["source", report.source],
+        ["as_of", report.as_of],
+        ["inventory_date", report.inventory_date],
+        ["timezone", report.timezone],
+        ["pharmacy_status_filter", report.status],
+        [
+          "snapshot_basis",
+          "Current balances, not a historical or immutable snapshot",
+        ],
+        [
+          "availability_basis",
+          "Existing hold, expiry, product and location rules",
+        ],
+        [
+          "summary_scope",
+          "All pharmacy positions matching the status filter; all office items",
+        ],
+        [
+          "low_stock_scope",
+          "All clinic products and office items, independent of pharmacy status filter",
+        ],
+        ["low_pharmacy_products", String(report.low_product_count)],
+        ["low_office_items", String(report.low_office_count)],
+        ["stock_type", "unit", "physical_quantity", "available_quantity"],
+        ...report.pharmacy_units.map((row) => [
+          "pharmacy",
+          row.unit,
+          row.physical,
+          row.available,
+        ]),
+        ["office", "each", report.office_quantity, ""],
+        [],
+        ["pharmacy_records_scope", "Selected page only"],
+        ["pharmacy_page", String(report.pagination.page)],
+        ["pharmacy_per_page", String(report.pagination.per_page)],
+        ["pharmacy_records_total", String(report.pagination.total)],
+        ["pharmacy_pages_total", String(report.pagination.total_pages)],
+        ["pharmacy_records_exported", String(report.pharmacy_records.length)],
+        [
+          "batch_id",
+          "product_id",
+          "name",
+          "lot",
+          "location",
+          "unit",
+          "physical_quantity",
+          "available_for_use",
+          "status",
+          "expires_on",
+          "expiring_within_30_days",
+        ],
+        ...report.pharmacy_records.map((row) => [
+          String(row.id),
+          String(row.product_id),
+          row.name,
+          row.lot,
+          row.location,
+          row.unit,
+          row.physical,
+          String(row.available),
+          row.status,
+          row.expires_on,
+          String(row.expiring),
+        ]),
+        [],
+        [
+          "office_records_scope",
+          "Selected page only; no location or expiry tracking",
+        ],
+        ["office_page", String(report.office_pagination.page)],
+        ["office_per_page", String(report.office_pagination.per_page)],
+        ["office_records_total", String(report.office_pagination.total)],
+        ["office_pages_total", String(report.office_pagination.total_pages)],
+        ["office_records_exported", String(report.office_records.length)],
+        [
+          "item_id",
+          "name",
+          "sku",
+          "unit",
+          "quantity",
+          "reorder_level",
+          "low_stock",
+        ],
+        ...report.office_records.map((row) => [
+          String(row.id),
+          row.name,
+          row.sku,
+          "each",
+          row.quantity,
+          row.reorder_level,
+          String(row.low_stock),
+        ]),
+      ],
+      `current-stock-clinic-${report.practice_id}-${report.inventory_date}-${report.status}-pharmacy-page-${report.pagination.page}-office-page-${report.office_pagination.page}.csv`,
+    );
+  };
   return (
     <Stack spacing={1} sx={{ mt: 3 }}>
       <Divider />
@@ -1845,9 +1949,24 @@ function CurrentStockReport() {
             {report.low_office_count} office items at or below their reorder
             level across the clinic.
           </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={download}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Download stock CSV
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV summaries cover all matching pharmacy positions and all office
+            items. Source rows include pharmacy page {report.pagination.page} of{" "}
+            {report.pagination.total_pages} and office page{" "}
+            {report.office_pagination.page} of{" "}
+            {report.office_pagination.total_pages} only.
+          </Typography>
           {report.pharmacy_units.map((row) => (
             <Typography key={row.unit} variant="body2">
-              Pharmacy ({status}): {row.physical} {row.unit} on hand;{" "}
+              Pharmacy ({report.status}): {row.physical} {row.unit} on hand;{" "}
               {row.available} available.
             </Typography>
           ))}

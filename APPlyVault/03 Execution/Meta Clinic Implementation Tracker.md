@@ -43,6 +43,21 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**2026-09-29 — MC-14 current-stock CSV, development branch:** Current stock now
+exports server clinic ID, status filter, source, inventory date/timezone and read
+timestamp with separate pharmacy-unit and office-each summaries. Low-stock counts
+are explicitly clinic-wide and independent of the pharmacy status filter. Source
+rows include only the selected pharmacy and office pages, with independent page,
+total and exported-row metadata plus batch/product/item IDs. Existing decimal
+strings, CSV escaping/formula guards and inventory.read authorization remain.
+This projects existing stock records without new medication fields or exchange
+contracts. The export discloses current balances rather than an immutable historical
+snapshot; office location/expiry tracking is not inferred. TypeScript, Ruby syntax,
+scoped RuboCop and source review passed. Browser downloads, paging/filter/reload,
+role denial and populated reconciliation remain open; separate export authorization/
+audit and retention remain unresolved. No tests, main merge or publication; all
+scores unchanged. Source base: `e29f1750`.
+
 **2026-09-29 — MC-15 named configuration comparison, development branch:**
 The existing read-only saved-JSON comparison now identifies added/removed/changed
 locations and service offerings by name and ID, and lists changed top-level fields
