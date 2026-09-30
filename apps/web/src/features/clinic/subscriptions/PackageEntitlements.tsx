@@ -24,7 +24,7 @@ import {
   createEntitlementAttempt,
   entitlementActionAllowed,
   entitlementLedgerResponse,
-  entitlementOutcomeUnknown,
+  entitlementAttemptAfterFailure,
   submitEntitlementAttempt,
   type EntitlementAttempt,
   type EntitlementKind,
@@ -297,11 +297,15 @@ export function PackageEntitlements({
       refresh();
       onChanged();
     } catch (reason) {
-      const unknown = entitlementOutcomeUnknown(reason);
-      if (!unknown) setPending(null);
+      const unresolved = entitlementAttemptAfterFailure(
+        attempt,
+        reason,
+        pending,
+      );
+      setPending(unresolved);
       setError(
-        unknown
-          ? "The action outcome is unconfirmed. Records will refresh; retry only the exact saved request."
+        unresolved
+          ? `${reason instanceof Error ? reason.message : "The request was not confirmed."} The original action outcome remains unconfirmed. Records will refresh; retry only the exact saved request.`
           : reason instanceof Error
             ? reason.message
             : "The package action was rejected.",

@@ -113,6 +113,19 @@ export function entitlementOutcomeUnknown(reason: unknown) {
   );
 }
 
+export function entitlementAttemptAfterFailure(
+  attempt: EntitlementAttempt,
+  reason: unknown,
+  previouslyUnconfirmed: EntitlementAttempt | null = null,
+) {
+  // A retry denial says nothing about whether the earlier request committed.
+  // Only an owned successful response or reconciliation may resolve that request.
+  return (
+    previouslyUnconfirmed ??
+    (entitlementOutcomeUnknown(reason) ? attempt : null)
+  );
+}
+
 export function entitlementResponse(
   value: unknown,
   attempt: EntitlementAttempt,

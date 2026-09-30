@@ -7,6 +7,7 @@ import {
   entitlementActionAllowed,
   entitlementLedgerResponse,
   entitlementOutcomeUnknown,
+  entitlementAttemptAfterFailure,
   entitlementResponse,
   submitEntitlementAttempt,
 } from "../src/features/clinic/subscriptions/entitlementActions";
@@ -352,6 +353,41 @@ describe("fixed-term package actions", () => {
       entitlementOutcomeUnknown(new ApiError(422, "Units exhausted")),
     ).toBe(false);
   });
+
+  it.each([403, 409, 422])(
+    "preserves an earlier unknown attempt when its exact retry returns %s",
+    (status) => {
+      const attempt = createEntitlementAttempt(
+        subscription,
+        available,
+        true,
+        "use",
+        "2",
+        "synthetic-use",
+        undefined,
+        "saved-key",
+      );
+      const saved = entitlementAttemptAfterFailure(
+        attempt,
+        new TypeError("Response lost after possible commit"),
+      );
+      expect(saved).toBe(attempt);
+      const afterDenial = entitlementAttemptAfterFailure(
+        attempt,
+        new ApiError(status, "Retry denied"),
+        saved,
+      );
+      expect(afterDenial).toBe(attempt);
+      expect(afterDenial?.body).toBe(attempt.body);
+      expect(afterDenial?.body.entitlement.request_key).toBe("saved-key");
+      expect(
+        entitlementAttemptAfterFailure(
+          attempt,
+          new ApiError(status, "Initial request denied"),
+        ),
+      ).toBeNull();
+    },
+  );
 
   it("rejects wrong membership, source, service, units and reversal response ownership", () => {
     const attempt = createEntitlementAttempt(
