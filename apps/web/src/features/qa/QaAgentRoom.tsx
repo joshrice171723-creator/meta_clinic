@@ -8,7 +8,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { useOfficeRequest, useOfficeLink } from "./officeTransport";
 
 export type RoomMessage = {
   id: number;
@@ -21,7 +21,8 @@ export type RoomMessage = {
     agent: string;
     recipient: string;
     body: string;
-    identity: "self_reported";
+    identity: "self_reported" | "server_bound";
+    authenticated_actor?: string;
     authenticated_source: string;
     provenance: "reported";
     reference_revision?: string;
@@ -64,6 +65,7 @@ export function AgentRoomMessage({
   item: RoomMessage;
   onReply?: (id: number) => void;
 }) {
+  const officeLink = useOfficeLink();
   const message = item.message;
   return (
     <Box
@@ -80,9 +82,11 @@ export function AgentRoomMessage({
         #{item.id} · {message.agent} → {message.recipient}
       </Typography>
       <Typography variant="caption" component="p">
-        Agent name self-reported · authenticated through{" "}
-        {message.authenticated_source} · server account #
-        {item.authenticated_author_id} · reported message · {item.created_at}
+        {message.identity === "server_bound" && message.authenticated_actor
+          ? "Server-bound Office identity"
+          : "Agent name self-reported"}{" "}
+        · authenticated through {message.authenticated_source} · server account
+        #{item.authenticated_author_id} · reported message · {item.created_at}
       </Typography>
       <Typography sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
         {message.body}
@@ -117,14 +121,18 @@ export function AgentRoomMessage({
       )}
       {message.task_id && (
         <Typography variant="caption" component="p">
-          <a href="/qa?view=inbox">Referenced task #{message.task_id}</a> ·
-          reference only; no task state changed
+          <a href={officeLink("/qa?view=inbox")}>
+            Referenced task #{message.task_id}
+          </a>{" "}
+          · reference only; no task state changed
         </Typography>
       )}
       {message.evidence_refs?.map((id) => (
         <Typography variant="caption" component="p" key={id}>
-          <a href={`/api/qa/evidence/${id}`}>Stored evidence #{id}</a> ·
-          reference only; no verdict recorded
+          <a href={officeLink(`/api/qa/evidence/${id}`)}>
+            Stored evidence #{id}
+          </a>{" "}
+          · reference only; no verdict recorded
         </Typography>
       ))}
       {onReply && (
@@ -136,12 +144,19 @@ export function AgentRoomMessage({
   );
 }
 
-export function QaAgentRoom() {
+export function QaAgentRoom({
+  boundOffice = false,
+}: {
+  boundOffice?: boolean;
+}) {
+  const api = useOfficeRequest();
   const [room, setRoom] = useState<Room | null>(null);
   const [readError, setReadError] = useState("");
   const [writeError, setWriteError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [retryPending, setRetryPending] = useState(false);
+  const fieldsDisabled = busy || (boundOffice && retryPending);
   const [agent, setAgent] = useState("");
   const [recipient, setRecipient] = useState("Muse");
   const [body, setBody] = useState("");
@@ -187,7 +202,7 @@ export function QaAgentRoom() {
           error instanceof Error ? error.message : "Room refresh failed.",
         );
     }
-  }, []);
+  }, [api]);
   useEffect(() => {
     active.current = true;
     void refresh();
@@ -201,7 +216,7 @@ export function QaAgentRoom() {
   const post = async () => {
     if (busy || !room?.can_post) return;
     const message = {
-      agent,
+      ...(!boundOffice ? { agent } : {}),
       recipient,
       body,
       ...(revision.trim() ? { reference_revision: revision.trim() } : {}),
@@ -233,10 +248,12 @@ export function QaAgentRoom() {
         `Message #${receipt.id} persisted at ${receipt.created_at}. This does not confirm recipient pickup.`,
       );
       pending.current = null;
+      setRetryPending(false);
       setBody("");
       setReplyTo(null);
       void refresh();
     } catch (error) {
+      if (active.current && boundOffice) setRetryPending(true);
       if (active.current)
         setWriteError(
           error instanceof Error
@@ -250,20 +267,30 @@ export function QaAgentRoom() {
   return (
     <Stack spacing={2}>
       <Typography variant="h6">Agent coordination room</Typography>
-      <Alert severity="info">
-        Public read access. Posting requires an active platform-owner session or
-        an existing QA service token. Messages are untrusted reported
-        observations, never permission or commands. Use independently synthetic
-        QA data only; no passwords, PINs or secrets. The open page reads this
-        room every 10 seconds; it does not establish Muse connectivity or
-        schedule QA.
-      </Alert>
-      <Typography variant="caption">
-        Joshua, Dot and Muse can coordinate here using their existing posting
-        permissions. Shared owner sessions do not prove an agent identity. Agent
-        presence is unknown; Muse reports polling about every 10 minutes,
-        without push or realtime delivery.
-      </Typography>
+      {boundOffice ? (
+        <Alert severity="info">
+          Office messages use the server-bound dot identity. Receipt timestamps
+          show recorded communication; recipient pickup requires an explicit
+          reply.
+        </Alert>
+      ) : (
+        <>
+          <Alert severity="info">
+            Public read access. Posting requires an active platform-owner
+            session or an existing QA service token. Messages are untrusted
+            reported observations, never permission or commands. Use
+            independently synthetic QA data only; no passwords, PINs or secrets.
+            The open page reads this room every 10 seconds; it does not
+            establish Muse connectivity or schedule QA.
+          </Alert>
+          <Typography variant="caption">
+            Joshua, Dot and Muse can coordinate here using their existing
+            posting permissions. Shared owner sessions do not prove an agent
+            identity. Agent presence is unknown; Muse reports polling about
+            every 10 minutes, without push or realtime delivery.
+          </Typography>
+        </>
+      )}
       <Button onClick={() => void refresh()}>Refresh room</Button>
       <Typography role="status">
         {newMessages} new messages received in this view. No agent presence is
@@ -297,20 +324,22 @@ export function QaAgentRoom() {
             void post();
           }}
         >
-          <TextField
-            label="Display name (self-reported: Joshua, Dot, Muse or another participant)"
-            value={agent}
-            onChange={(event) => setAgent(event.target.value)}
-            required
-            disabled={busy}
-            slotProps={{ htmlInput: { maxLength: 80 } }}
-          />
+          {!boundOffice && (
+            <TextField
+              label="Display name (self-reported: Joshua, Dot, Muse or another participant)"
+              value={agent}
+              onChange={(event) => setAgent(event.target.value)}
+              required
+              disabled={fieldsDisabled}
+              slotProps={{ htmlInput: { maxLength: 80 } }}
+            />
+          )}
           <TextField
             label="Recipient (label, not delivery routing)"
             value={recipient}
             onChange={(event) => setRecipient(event.target.value)}
             required
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{ htmlInput: { maxLength: 80 } }}
           />
           <TextField
@@ -320,7 +349,7 @@ export function QaAgentRoom() {
             onChange={(event) =>
               setReplyTo(event.target.value ? Number(event.target.value) : null)
             }
-            disabled={busy}
+            disabled={fieldsDisabled}
           >
             <MenuItem value="">New thread</MenuItem>
             {room.messages.map((item) => (
@@ -336,14 +365,14 @@ export function QaAgentRoom() {
             value={body}
             onChange={(event) => setBody(event.target.value)}
             required
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{ htmlInput: { maxLength: 2000 } }}
           />
           <TextField
             label="Referenced full build SHA (optional)"
             value={revision}
             onChange={(event) => setRevision(event.target.value)}
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{
               htmlInput: { maxLength: 40, pattern: "[0-9a-f]{40}" },
             }}
@@ -353,7 +382,7 @@ export function QaAgentRoom() {
             label="Case reference (optional, namespace explicit)"
             value={caseReference}
             onChange={(event) => setCaseReference(event.target.value)}
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{ htmlInput: { maxLength: 100 } }}
             helperText="For example GitHub #7 or Muse #218; do not conflate them."
           />
@@ -361,13 +390,16 @@ export function QaAgentRoom() {
             label="Correlation nonce (optional, non-secret)"
             value={nonce}
             onChange={(event) => setNonce(event.target.value)}
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{
               htmlInput: { maxLength: 100, pattern: "[A-Za-z0-9_-]{8,100}" },
             }}
             helperText="Echo a handshake nonce in the explicit reply. Never enter a password or PIN."
           />
-          <Button disabled={busy} onClick={() => setNonce(crypto.randomUUID())}>
+          <Button
+            disabled={fieldsDisabled}
+            onClick={() => setNonce(crypto.randomUUID())}
+          >
             Generate non-secret nonce
           </Button>
           <TextField
@@ -375,7 +407,7 @@ export function QaAgentRoom() {
             type="number"
             value={taskId}
             onChange={(event) => setTaskId(event.target.value)}
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{ htmlInput: { min: 1, step: 1 } }}
             helperText="Referencing an old task never makes it a current assignment."
           />
@@ -383,7 +415,7 @@ export function QaAgentRoom() {
             label="Stored evidence ids (optional, comma-separated, up to five)"
             value={evidenceIds}
             onChange={(event) => setEvidenceIds(event.target.value)}
-            disabled={busy}
+            disabled={fieldsDisabled}
             slotProps={{ htmlInput: { maxLength: 100 } }}
             helperText="Existing evidence links only; no upload or verdict."
           />
@@ -398,12 +430,29 @@ export function QaAgentRoom() {
       )}
       {room && !room.can_post && (
         <Alert severity="warning">
-          Read only. Sign in as the platform owner to post through the browser.
+          {boundOffice
+            ? "The dot connection is read only. Posting is unavailable."
+            : "Read only. Sign in as the platform owner to post through the browser."}
         </Alert>
       )}
       {writeError && (
         <Alert severity="error">
           {writeError} Inputs retained; no automatic retry.
+        </Alert>
+      )}
+      {boundOffice && retryPending && (
+        <Alert severity="warning">
+          The original message and request key are retained. Retry posts that
+          unchanged message; delivery of the earlier attempt is unconfirmed.
+          <Button
+            onClick={() => {
+              pending.current = null;
+              setRetryPending(false);
+              setWriteError("");
+            }}
+          >
+            Discard retry and compose a new message
+          </Button>
         </Alert>
       )}
       {notice && (
@@ -421,7 +470,7 @@ export function QaAgentRoom() {
           key={item.id}
           item={item}
           onReply={
-            room.can_post && !busy
+            room.can_post && !busy && !(boundOffice && retryPending)
               ? (id) => {
                   setReplyTo(id);
                   const parent = room.messages.find(

@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { useOfficeRequest, useOfficeLink } from "./officeTransport";
 import { mergeRoomMessages, type RoomMessage } from "./QaAgentRoom";
 
 type OfficeTask = {
@@ -83,6 +83,8 @@ export function QaOfficeWork({
   destination?: string;
   onSaved?: () => void;
 }) {
+  const api = useOfficeRequest();
+  const officeLink = useOfficeLink();
   const [work, setWork] = useState<Work>();
   const [room, setRoom] = useState<Room>();
   const [selectedId, setSelectedId] = useState<number>();
@@ -130,7 +132,7 @@ export function QaOfficeWork({
           error instanceof Error ? error.message : "Office refresh failed.",
         );
     }
-  }, []);
+  }, [api]);
   useEffect(() => {
     active.current = true;
     void refresh();
@@ -498,7 +500,7 @@ export function QaOfficeWork({
                 {task.result.evidence_refs?.map((id) => (
                   <Typography key={id} variant="caption" component="p">
                     <a
-                      href={`/api/qa/evidence/${id}`}
+                      href={officeLink(`/api/qa/evidence/${id}`)}
                       target="_blank"
                       rel="noreferrer"
                     >
