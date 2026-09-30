@@ -14,6 +14,16 @@ The forward migration only permits SQL null for derived rounded/paid segment val
 
 ## Checks and limits
 
+### Independent-review repair of `8079470c`
+
+The site-restricted serializer now preserves null rounded/paid aggregates when any included segment is unknown; it no longer turns a seven-minute unconfigured segment into Paid 0. Known rounded totals remain available when only break pay is unknown. Existing raw values and restricted permissions remain unchanged.
+
+Published employee shift windows that overlap the recorded interval now establish applicable schedule evidence even when the publication's Monday week ends before the interval's local date. The Chicago Aug24 publication with Aug30 23:00–Aug31 02:00 work now compares Aug31 00:30–01:30 and retains its publication ID without requiring an Aug31 publication. Partly covered overnight work still flags exact variance without reducing recorded work. Comparison provenance lists applicable publications. Calculator version advances to v2 so existing calculations receive a successor instead of reusing a stale comparison digest.
+
+Schedule-draft fixtures now use Monday Aug31 instead of Sunday Aug30/Sep6; the nonmidnight test retains its actual Sunday boundary interval. Existing unknown-rounding/break tests add site-restricted serializer assertions, and two new overnight cases cover full/partial coverage by the prior Aug24 Monday publication. These assertions are authored, not executed.
+
+At 21:08UTC Josh directed source-first work and skipping new tests/builds/lint. Repair validation is limited to static contract and diff review; no new runtime pass is claimed. Earlier frontend checks below apply to `8079470c`, not proof of the corrected backend source. Ruby remains unavailable here, and the existing backend owner retains migration/schema and deferred Rails verification. No rounding, break, tolerance or pay policy was selected.
+
 - Passed: locked frontend dependency install without scripts through the shared resource queue; changed frontend formatting; full frontend TypeScript check; focused `test/timecard-policy-state.test.tsx` (2 tests); source/whitespace review.
 - Focused frontend checks exercise actual `TimecardSummary`: unknown financial categories remain "Not configured", raw time is visible, policy warning remains, and absent published schedule differs from a recorded variance. They are static rendering checks, not connected Rails/browser acceptance.
 - Bounded independent read-only source review caught missing adjustment-site digest input and the nonmidnight ending-window omission; both are repaired and have authored regressions. Expiry replay and null-total propagation were also inspected.

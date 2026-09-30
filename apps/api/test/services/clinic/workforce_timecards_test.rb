@@ -234,6 +234,10 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
     assert_equal 7, segment.raw_minutes
     assert_nil segment.rounded_minutes
     assert_nil segment.paid_minutes
+    restricted = Clinic::Workforce::TimecardSerializer.call(card, site_id: @site.id)
+    assert_equal 7, restricted.dig(:snapshot, "totals", "raw_minutes")
+    assert_nil restricted.dig(:snapshot, "totals", "rounded_minutes")
+    assert_nil restricted.dig(:snapshot, "totals", "paid_minutes")
     assert_equal 2, card.snapshot.fetch("source_punch_ids").length
     card.assign_attributes(status: "approved", submitted_at: Time.current,
       submitted_by_membership: @employee_membership, approved_at: Time.current,
@@ -271,6 +275,9 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
     assert_equal 540, card.rounded_total_minutes
     assert_nil card.snapshot.dig("totals", "paid_minutes")
     assert_nil card.time_segments.find_by!(segment_kind: "break").paid_minutes
+    restricted = Clinic::Workforce::TimecardSerializer.call(card, site_id: @site.id)
+    assert_equal 540, restricted.dig(:snapshot, "totals", "rounded_minutes")
+    assert_nil restricted.dig(:snapshot, "totals", "paid_minutes")
     assert_nil card.time_segments.order(:started_at_utc).last.regular_minutes
     assert_includes card.unresolved_exceptions, "break_pay_policy_unconfigured"
     assert_equal 4, Clinic::Workforce::Punch.where(employment: @employment).count
@@ -321,21 +328,49 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
     assert_includes corrected.snapshot.fetch("schedule_checks").first.fetch("publication_ids"), publication.id
   end
 
-  test "nonmidnight workweek compares publication starting on its ending date" do
+  test "nonmidnight workweek compares publication containing its ending date" do
     save_settings_revision(2, "none", nil, day: 0, start_time: "09:00")
     create_punch("clock_in", "2026-09-06T12:00:00Z")
     create_punch("clock_out", "2026-09-06T13:00:00Z")
     publication = publish_timecard_schedule("2026-09-06T13:00:00Z", "2026-09-06T14:00:00Z",
-      week_start: Date.new(2026, 9, 6))
+      week_start: Date.new(2026, 8, 31))
     card = calculate_card
     assert_includes card.unresolved_exceptions, "off_schedule_work"
     assert_equal 60, card.raw_total_minutes
     assert_includes card.snapshot.fetch("schedule_checks").first.fetch("publication_ids"), publication.id
   end
 
+  test "prior Monday publication covers overnight work in the following schedule week" do
+    create_punch("clock_in", "2026-08-31T05:30:00Z")
+    create_punch("clock_out", "2026-08-31T06:30:00Z")
+    publication = publish_timecard_schedule("2026-08-31T04:00:00Z", "2026-08-31T07:00:00Z",
+      week_start: Date.new(2026, 8, 24))
+
+    card = calculate_card
+    assert_equal 60, card.raw_total_minutes
+    assert_not_includes card.unresolved_exceptions, "off_schedule_work"
+    check = card.snapshot.fetch("schedule_checks").first
+    assert_equal "compared", check.fetch("status")
+    assert_equal [ publication.id ], check.fetch("publication_ids")
+  end
+
+  test "partially covered prior-week overnight work retains evidence and exact variance" do
+    create_punch("clock_in", "2026-08-31T06:30:00Z")
+    create_punch("clock_out", "2026-08-31T07:30:00Z")
+    publication = publish_timecard_schedule("2026-08-31T04:00:00Z", "2026-08-31T07:00:00Z",
+      week_start: Date.new(2026, 8, 24))
+
+    card = calculate_card
+    assert_equal 60, card.raw_total_minutes
+    assert_includes card.unresolved_exceptions, "off_schedule_work"
+    check = card.snapshot.fetch("schedule_checks").first
+    assert_equal "compared", check.fetch("status")
+    assert_equal [ publication.id ], check.fetch("publication_ids")
+  end
+
   private
 
-  def publish_timecard_schedule(starts_at, ends_at, prior: nil, site: @site, week_start: Date.new(2026, 8, 30))
+  def publish_timecard_schedule(starts_at, ends_at, prior: nil, site: @site, week_start: Date.new(2026, 8, 31))
     draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: site,
       created_by_id: @manager.id, week_start_on: week_start, timezone: "America/Chicago",
       status: "published", revision: 1)

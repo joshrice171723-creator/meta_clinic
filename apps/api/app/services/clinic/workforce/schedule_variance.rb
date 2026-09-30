@@ -24,21 +24,24 @@ module Clinic
         start_at = interval.fetch(:started_at_utc)
         end_at = interval.fetch(:ended_at_utc)
         local_date = start_at.in_time_zone(site.timezone_override.presence || @employment.practice.timezone).to_date
-        publications = @publications.select do |row|
-          schedule_date = start_at.in_time_zone(row.timezone).to_date
-          row.site_id == site.id && schedule_date >= row.week_start_on && schedule_date < row.week_start_on + 7.days
-        end
-        key = [ site.id, local_date ]
         candidates = @publications.select { |row| row.site_id == site.id }
+        windows = candidates.flat_map do |row|
+          row.shift_snapshot.filter_map do |shift|
+            next unless shift.fetch("employment_id").to_i == @employment.id
+            [ Time.iso8601(shift.fetch("starts_at")), Time.iso8601(shift.fetch("ends_at")), row ]
+          end
+        end.sort_by(&:first)
+        publications = candidates.select do |row|
+          schedule_date = start_at.in_time_zone(row.timezone).to_date
+          schedule_date >= row.week_start_on && schedule_date < row.week_start_on + 7.days
+        end
+        publications |= windows.select { |from, to| from < end_at && to > start_at }.map(&:last)
+        key = [ site.id, local_date ]
         @checks[key] = { "site_id" => site.id, "local_date" => local_date.iso8601,
           "status" => publications.empty? ? "no_published_schedule" : "compared",
-          "publication_ids" => publications.empty? ? [] : candidates.map(&:id).sort }
+          "publication_ids" => publications.map(&:id).sort }
         return false if publications.empty?
 
-        windows = candidates.flat_map(&:shift_snapshot).filter_map do |shift|
-          next unless shift.fetch("employment_id").to_i == @employment.id
-          [ Time.iso8601(shift.fetch("starts_at")), Time.iso8601(shift.fetch("ends_at")) ]
-        end.sort_by(&:first)
         covered_until = start_at
         windows.each do |from, to|
           next if to <= covered_until

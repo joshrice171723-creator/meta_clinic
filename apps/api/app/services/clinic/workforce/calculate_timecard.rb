@@ -2,7 +2,7 @@ module Clinic
   module Workforce
     class CalculateTimecard
       class InvalidPunchSequence < StandardError; end
-      CALCULATION_VERSION = "explicit-policy-and-schedule-v1".freeze
+      CALCULATION_VERSION = "explicit-policy-and-schedule-v2".freeze
 
       def self.call(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil)
         new(employment: employment, period_start: period_start, actor_membership: actor_membership,
