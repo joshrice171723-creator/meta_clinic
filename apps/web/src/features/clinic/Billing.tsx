@@ -577,6 +577,7 @@ function LedgerDetails({
         patientId={ledger.patient.id}
         patientName={ledger.patient.display_name}
         canDraft={canDraft}
+        invoices={ledger.invoices}
         onUnknownOutcomeChange={onEstimateUnknownOutcomeChange}
       />
       {ledger.currencies.length === 0 ? (

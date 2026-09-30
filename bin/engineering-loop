@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Persist one engineering pass across turns and worktrees; never execute repairs."""
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+import sys
+import uuid
+
+from dev_resources import git, lock, shared, write_json
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def scope_path(value):
+    target = (ROOT / value).resolve()
+    try:
+        return target.relative_to(ROOT).as_posix()
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Scope must stay inside this worktree") from error
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="action", required=True)
+    commands.add_parser("status")
+    start = commands.add_parser("start")
+    start.add_argument("--objective", required=True)
+    start.add_argument("--token-budget", required=True, type=int)
+    start.add_argument("--scope", action="append", required=True, type=scope_path)
+    for action in ("checkpoint", "finish"):
+        command = commands.add_parser(action)
+        command.add_argument("--pass-id", required=True)
+        command.add_argument("--next-action", required=True)
+        command.add_argument("--evidence", action="append", default=[])
+        if action == "checkpoint":
+            command.add_argument("--hypothesis")
+        else:
+            command.add_argument("--verdict", required=True,
+                                 choices=("passed", "blocked", "needs_review", "no_action"))
+    args = parser.parse_args()
+    if args.action == "start" and args.token_budget <= 0:
+        parser.error("Token budget must be positive; enforcement belongs to the host Goal")
+
+    directory = shared(ROOT) / "engineering-loop"
+    directory.mkdir(exist_ok=True)
+    state_path = directory / "checkpoint.json"
+    # Existing kernel lock plus a persisted active marker protects between-turn ownership.
+    with lock(directory, "state", timeout=1):
+        state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {
+            "schema_version": 1, "status": "idle", "last_pass": None,
+        }
+        if args.action == "status":
+            print(json.dumps({"state_path": str(state_path), **state}, indent=2))
+            return 0
+        if args.action == "start":
+            if state["status"] == "running":
+                raise RuntimeError("Another pass is active; inspect its checkpoint, do not take over")
+            if git(ROOT, "status", "--porcelain"):
+                raise RuntimeError("Start from a clean owned worktree; preserve existing edits")
+            state = {
+                "schema_version": 1, "status": "running",
+                "pass_id": str(uuid.uuid4()), "started_at": now(),
+                "worktree": str(ROOT), "branch": git(ROOT, "branch", "--show-current"),
+                "base_sha": git(ROOT, "rev-parse", "HEAD"),
+                "objective": args.objective, "token_budget": args.token_budget,
+                "scope": args.scope, "next_action": "Inspect exact-revision evidence",
+                "hypotheses": [], "evidence": [], "last_pass": state.get("last_pass"),
+            }
+        else:
+            if state["status"] != "running" or state.get("pass_id") != args.pass_id:
+                raise RuntimeError("Pass identity does not match the active owner")
+            if state["worktree"] != str(ROOT):
+                raise RuntimeError("Update the pass from its owning worktree")
+            state["next_action"] = args.next_action
+            state["evidence"].extend(item for item in args.evidence if item not in state["evidence"])
+            if args.action == "checkpoint" and args.hypothesis:
+                state["hypotheses"].append({"at": now(), "statement": args.hypothesis})
+            if args.action == "finish":
+                state.update(status="idle", verdict=args.verdict, finished_at=now(),
+                             result_sha=git(ROOT, "rev-parse", "HEAD"))
+                record = directory / (state["pass_id"] + ".json")
+                write_json(record, state)
+                state["last_pass"] = str(record)
+        state["updated_at"] = now()
+        write_json(state_path, state)
+        print(json.dumps({"state_path": str(state_path), **state}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (RuntimeError, TimeoutError, OSError, ValueError) as error:
+        print(f"Engineering pass stopped: {error}", file=sys.stderr)
+        raise SystemExit(2)

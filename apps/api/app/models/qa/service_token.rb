@@ -6,6 +6,9 @@ module Qa
     belongs_to :user
     validates :name, :digest, presence: true
     validates :recipient, inclusion: { in: %w[muse codex] }
+    validates :scope, inclusion: { in: %w[qa office] }
+
+    def office? = scope == "office"
 
     def self.authenticate(raw)
       return unless raw.to_s.match?(/\Aqa_[A-Za-z0-9_-]{43}\z/)

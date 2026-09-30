@@ -136,7 +136,7 @@ class QaAgentRoomTest < ActionDispatch::IntegrationTest
     token = Qa::ServiceToken.create!(user: @owner, name: "Synthetic room token", recipient: "muse", digest: Digest::SHA256.hexdigest(raw))
     post_message("Authorization" => "Bearer #{raw}")
     assert_response :created
-    assert_equal "qa_service:muse", response.parsed_body.dig("message", "authenticated_source")
+    assert_equal "qa_service:#{token.id}:muse", response.parsed_body.dig("message", "authenticated_source")
     token.update!(revoked_at: Time.current)
     @input[:message_key] = SecureRandom.uuid
     post_message(csrf_headers.merge("Authorization" => "Bearer #{raw}"))

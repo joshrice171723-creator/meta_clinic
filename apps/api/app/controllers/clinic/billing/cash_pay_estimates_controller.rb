@@ -1,7 +1,7 @@
 module Clinic
   module Billing
     class CashPayEstimatesController < Clinic::ApiController
-      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show]
+      before_action -> { require_capability_with_legacy("billing.read", "billing.write") }, only: %i[index show invoice_comparison]
       before_action -> { require_capability_with_legacy("billing.invoice_draft", "billing.write") }, only: %i[create issue correct deliver]
 
       def index
@@ -14,6 +14,14 @@ module Clinic
       def show
         estimate = CashPayEstimate.where(practice: current_practice).includes(:lines).find(requested_id!(params[:id], :id))
         render json: { estimate: serialize(estimate) }
+      end
+
+      def invoice_comparison
+        patient = current_practice.patients.find(requested_id!(params[:patient_id], :patient_id))
+        comparison = EstimateInvoiceComparison.call(practice: current_practice, patient: patient,
+          estimate_id: requested_id!(params[:id], :id), invoice_id: requested_id!(params[:invoice_id], :invoice_id))
+        response.headers["Cache-Control"] = "no-store"
+        render json: { comparison: comparison }
       end
 
       def create

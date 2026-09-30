@@ -1117,6 +1117,45 @@ export type InvoiceOnlinePayment = {
     | "provider_reconciliation_required"
     | null;
 };
+export type EstimateInvoiceComparison = {
+  schema_version: "estimate-invoice-comparison-v1";
+  patient_id: number;
+  currency: string;
+  generated_at: string;
+  comparison_basis: "posted_charges_before_payments_and_credits";
+  difference_amount: Decimal;
+  estimate: {
+    id: number;
+    revision: number;
+    status: "issued" | "superseded";
+    issued_at: string;
+    total_amount: Decimal;
+    lines: {
+      id: number;
+      description: string;
+      quantity: Decimal;
+      unit_amount: Decimal;
+      expected_amount: Decimal;
+      inclusions: string | null;
+      exclusions: string | null;
+    }[];
+  };
+  invoice: {
+    id: number;
+    status: "posted";
+    created_at: string;
+    updated_at: string;
+    total_amount: Decimal;
+    lines: {
+      id: number;
+      description: string;
+      quantity: Decimal;
+      unit_amount: Decimal;
+      posted_amount: Decimal;
+    }[];
+  };
+};
+
 export type BillingPatientLedger = {
   schema_version: "clinic-patient-ledger-v1";
   patient: Pick<Patient, "id" | "display_name" | "reference">;
@@ -1990,4 +2029,41 @@ export type NdcResult = {
   ndc: string;
   labeler: string;
   reference_token: string;
+};
+
+export type PrescriptionReconciliationWorklistContract = {
+  schema_version: "prescription-reconciliation-worklist-v1";
+  practice_id: number;
+  actor_id: number;
+  site_id: number | null;
+  as_of: string;
+  source: "clinic_prescription_transmission_attempts";
+  limit: number;
+  unresolved_count: number;
+  returned_count: number;
+  truncated: boolean;
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
+  items: Array<{
+    id: number;
+    event_id: number;
+    patient: { id: number; display_name: string; reference: string | null };
+    site_id: number;
+    encounter_id: number;
+    medication_request_revision_id: number;
+    series_id: string;
+    version_number: number;
+    medication_name: string;
+    outcome: string;
+    source: "simulation";
+    adapter: "simulated_pharmacy_network";
+    submitted_at: string;
+    owner: string;
+    next_action: string;
+    href: string;
+  }>;
 };

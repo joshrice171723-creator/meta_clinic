@@ -4,8 +4,29 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  Box,
   Button,
+  Chip,
+  CircularProgress,
+  Stack,
+  Typography,
 } from "@mui/material";
+import LaptopMacRounded from "@mui/icons-material/LaptopMacRounded";
+import AssignmentRounded from "@mui/icons-material/AssignmentRounded";
+import CollectionsRounded from "@mui/icons-material/CollectionsRounded";
+import ForumRounded from "@mui/icons-material/ForumRounded";
+import LocalFloristRounded from "@mui/icons-material/LocalFloristRounded";
+import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
+import { api } from "../../api/client";
+import {
+  acceptMuseReceipt,
+  museCountdown,
+  type MuseCheckIn,
+  type MuseReceipt,
+} from "./museCheckIn";
+import type { OfficeActorState } from "./sharedOffice";
+import { QaOfficeWork } from "./QaOfficeWork";
+import { QaOfficeQa } from "./QaOfficeQa";
 
 export type QaOfficeProps = {
   tasks: {
@@ -16,6 +37,8 @@ export type QaOfficeProps = {
     revision: string;
     claimed_at?: string;
     claimed_by?: string;
+    kind?: string;
+    payload?: { assigned_actor?: string };
   }[];
   evidence: {
     id: number;
@@ -35,18 +58,33 @@ export type QaOfficeProps = {
   lastQaRevision?: string;
   loading?: boolean;
   error?: string;
+  museCheckIn?: MuseCheckIn;
+  actorState?: OfficeActorState;
+  onRefresh?: () => void;
   onNavigate: (view: string) => void;
 };
-
 const destinations = [
-  { id: "josh", label: "Josh desk", x: 2, y: 2 },
-  { id: "dot", label: "dot desk", x: 5, y: 2 },
-  { id: "muse", label: "Muse desk", x: 8, y: 2 },
-  { id: "tasks", label: "Task board", x: 2, y: 6 },
-  { id: "evidence", label: "Evidence board", x: 5, y: 6 },
-  { id: "meeting", label: "Meeting room", x: 8, y: 6 },
+  { id: "josh", label: "Josh desk", x: 2, y: 2, icon: LaptopMacRounded },
+  { id: "dot", label: "dot desk", x: 4, y: 2, icon: LaptopMacRounded },
+  { id: "muse", label: "Muse desk", x: 6, y: 2, icon: LaptopMacRounded },
+  { id: "codex", label: "Codex desk", x: 8, y: 2, icon: LaptopMacRounded },
+  { id: "tasks", label: "Task board", x: 2, y: 6, icon: AssignmentRounded },
+  {
+    id: "evidence",
+    label: "Evidence board",
+    x: 5,
+    y: 6,
+    icon: CollectionsRounded,
+  },
+  { id: "meeting", label: "Meeting room", x: 8, y: 6, icon: ForumRounded },
 ] as const;
 type Destination = (typeof destinations)[number]["id"];
+const actorColors = {
+  josh: "#527663",
+  dot: "#b27843",
+  muse: "#616ca4",
+  codex: "#4f8190",
+};
 function stamp(value?: string) {
   if (!value) return "Not recorded";
   const date = new Date(value);
@@ -55,25 +93,67 @@ function stamp(value?: string) {
     : "Unknown timestamp";
 }
 
-/** A navigation metaphor over existing QA records; no presence or command authority. */
 export function QaOffice({
   tasks,
   evidence,
   events,
   build,
-  lastRunAt,
-  lastQaRevision,
   loading,
   error,
+  museCheckIn,
+  actorState,
+  onRefresh,
   onNavigate,
 }: QaOfficeProps) {
-  const [position, setPosition] = useState({ x: 5, y: 4 });
+  const [buildBannerTarget, setBuildBannerTarget] =
+    useState<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState({ x: 5, y: 5 });
   const [selected, setSelected] = useState<Destination>();
+  const [writeError, setWriteError] = useState("");
+  const [writeNotice, setWriteNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const pending = useRef<{ intent: string; key: string } | undefined>(
+    undefined,
+  );
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  const controlled = actorState?.actors.find(
+    (actor) =>
+      actor.id === actorState.controlled_actor && actor.control === "bound",
+  );
+  const muse = actorState?.actors.find((actor) => actor.id === "muse");
+  const principal = muse?.principal_id ?? museCheckIn?.musePrincipalId ?? "";
+  const incomingReceipt = muse?.receipt ?? museCheckIn?.receipt;
+  const cadence = actorState?.muse_cadence_ms ?? museCheckIn?.cadenceMs;
+  const [receipt, setReceipt] = useState<MuseReceipt>();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const observedNow = Date.now();
+    setNow(observedNow);
+    setReceipt((previous) =>
+      acceptMuseReceipt(
+        previous,
+        incomingReceipt ?? undefined,
+        principal,
+        observedNow,
+      ),
+    );
+  }, [incomingReceipt, principal]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const checkIn = museCountdown(receipt, principal, cadence ?? undefined, now);
   const detailHeading = useRef<HTMLHeadingElement>(null);
+  const trigger = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (selected) detailHeading.current?.focus();
   }, [selected]);
-  const trigger = useRef<HTMLElement | null>(null);
   const nearest = destinations.reduce((best, item) =>
     Math.abs(item.x - position.x) + Math.abs(item.y - position.y) <
     Math.abs(best.x - position.x) + Math.abs(best.y - position.y)
@@ -133,18 +213,182 @@ export function QaOffice({
       open(nearest.id, event.currentTarget);
     }
   };
+  const writeActor = async (kind: "position" | "check_in") => {
+    if (!controlled || busy || error) return;
+    const content = {
+      expected_revision: controlled.revision,
+      ...(kind === "position" ? position : {}),
+    };
+    const intent = JSON.stringify({ kind, content });
+    if (pending.current?.intent !== intent)
+      pending.current = { intent, key: crypto.randomUUID() };
+    setBusy(true);
+    setWriteError("");
+    setWriteNotice("");
+    try {
+      await api(
+        `/api/qa/office/${kind === "position" ? "position" : "check-ins"}`,
+        {
+          method: "POST",
+          body: { [kind]: { ...content, request_key: pending.current.key } },
+        },
+      );
+      if (!active.current) return;
+      pending.current = undefined;
+      setWriteNotice(
+        `${controlled.name} ${kind === "position" ? "position" : "check-in"} recorded by the server.`,
+      );
+      onRefresh?.();
+    } catch (reason) {
+      if (active.current)
+        setWriteError(
+          reason instanceof Error
+            ? reason.message
+            : "Office action could not be confirmed.",
+        );
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  };
   const title = destinations.find((item) => item.id === selected)?.label;
+  const roster = actorState?.actors ?? [
+    {
+      id: "josh" as const,
+      name: "Josh",
+      position: null,
+      receipt: null,
+      control: "uncontrolled",
+      principal_id: null,
+    },
+    {
+      id: "dot" as const,
+      name: "dot",
+      position: null,
+      receipt: null,
+      control: "uncontrolled",
+      principal_id: null,
+    },
+    {
+      id: "muse" as const,
+      name: "Muse",
+      position: null,
+      receipt: null,
+      control: "uncontrolled",
+      principal_id: null,
+    },
+    {
+      id: "codex" as const,
+      name: "Codex",
+      position: null,
+      receipt: null,
+      control: "uncontrolled",
+      principal_id: null,
+    },
+  ];
+  const deskActor = roster.find((actor) => actor.id === selected);
+  const heldTasks = tasks.filter(
+    (task) =>
+      task.kind === "coordination" &&
+      task.status === "claimed" &&
+      (task.payload?.assigned_actor ??
+        (task.recipient === "muse" ? "muse" : "dot")) === selected,
+  );
   return (
-    <section className="qa-office" aria-labelledby="qa-office-title">
-      <div className="qa-office-heading">
-        <div>
-          <h2 id="qa-office-title">Office</h2>
-          <p>A shared place to review work and meet in the agent room.</p>
-        </div>
-        <Button variant="outlined" onClick={() => onNavigate("room")}>
-          Open agent room
+    <Box
+      component="section"
+      className="qa-office"
+      aria-labelledby="qa-office-title"
+      sx={{
+        "& .qa-office-floor": {
+          minHeight: { xs: 420, sm: 560 },
+          border: "10px solid #ccd7ce",
+          borderRadius: 3,
+          boxShadow: "inset 0 0 0 2px #a2b6a6, 0 16px 40px #23392b14",
+          bgcolor: "#f1eddf",
+          backgroundImage:
+            "linear-gradient(#e5dfd0 1px, transparent 1px),linear-gradient(90deg,#e5dfd0 1px,transparent 1px)",
+          backgroundSize: "10% 11%",
+        },
+        "& .qa-office-floor .qa-office-destination": {
+          borderRadius: 2,
+          minHeight: 66,
+          bgcolor: "#fffdf8",
+          boxShadow: "0 6px 0 #c7b89d,0 12px 16px #4b493817",
+          borderColor: "#b5a486",
+          width: "19%",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.5,
+          py: 1,
+        },
+        "& .qa-office-floor .qa-office-meeting": {
+          bgcolor: "#e1e9e2",
+          borderColor: "#91ad97",
+        },
+        "& .qa-office-avatar-body": {
+          border: "3px solid #fff",
+          boxShadow: "0 3px 10px #1c2c2633",
+          color: "#fff",
+          width: 48,
+          height: 48,
+        },
+        "& .qa-office-avatar small": {
+          borderRadius: 1,
+          px: 0.5,
+          bgcolor: "#fffdf4e8",
+          color: "#36443a",
+        },
+        "& .qa-office-detail": {
+          borderRadius: 3,
+          borderColor: "#d5dfd7",
+          boxShadow: "0 12px 30px #23392b08",
+        },
+        "& .qa-office-layout": {
+          gridTemplateColumns: {
+            xs: "minmax(0,1fr)",
+            lg: "minmax(0,1.2fr) minmax(360px,1fr)",
+          },
+        },
+      }}
+    >
+      <div ref={setBuildBannerTarget} />
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          flexWrap: "wrap",
+        }}
+      >
+        <Box>
+          <Typography
+            variant="overline"
+            sx={{ letterSpacing: "0.2em", color: "#527663" }}
+          >
+            COMMAND CENTER
+          </Typography>
+          <Typography
+            component="h2"
+            variant="h4"
+            id="qa-office-title"
+            sx={{ fontWeight: 750 }}
+          >
+            Office
+          </Typography>
+          <Typography color="text.secondary">
+            A place for Muse, dot, and Codex to pick up work, share results, and
+            meet.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<ForumRounded />}
+          onClick={() => onNavigate("room")}
+        >
+          Full message history
         </Button>
-      </div>
+      </Stack>
       {loading && (
         <Alert severity="info">
           Loading office records. Navigation remains available.
@@ -152,28 +396,47 @@ export function QaOffice({
       )}
       {error && (
         <Alert severity="error">
-          Office records could not refresh: {error}. Use Refresh in the
-          workspace header to retry. Records are unavailable until refresh
-          succeeds.
+          Office records could not refresh: {error}. Shared controls are paused;
+          refresh to retry.
         </Alert>
       )}
-      <div className="qa-office-context">
-        <span>
-          Observed build: <code>{build?.revision ?? "Unknown"}</code>
-          {build?.dirty ? " · working tree changes reported" : ""}
-        </span>
-        <span>Build observed: {stamp(build?.observed_at)}</span>
-        <span>Last recorded QA run: {stamp(lastRunAt)}</span>
-        <span>
-          Last QA revision: <code>{lastQaRevision ?? "Not recorded"}</code>
-        </span>
-        <span>Running / live presence: Unknown</span>
-      </div>
-      <p id="qa-office-help">
+      {writeError && (
+        <Alert severity="error">
+          {writeError} No automatic retry; refresh or explicitly retry the same
+          action.
+        </Alert>
+      )}
+      {writeNotice && (
+        <Alert severity="success" role="status">
+          {writeNotice}
+        </Alert>
+      )}
+      <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`Build ${build?.revision?.slice(0, 12) ?? "unknown"}${build?.dirty ? " · uncommitted" : ""}`}
+        />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={
+            controlled
+              ? `Your actor: ${controlled.name}`
+              : "Exploring · no actor control"
+          }
+        />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`Muse: ${checkIn.label}`}
+        />
+      </Stack>
+      <Typography variant="caption" id="qa-office-help">
         Focus the floor and use arrow keys or WASD to walk; Enter opens the
         nearest destination. Walking is optional: use any destination button.
-        Desks are symbolic, not presence telemetry.
-      </p>
+        The local preview cursor never writes shared positions.
+      </Typography>
       <div className="qa-office-layout">
         <div>
           <div
@@ -185,8 +448,62 @@ export function QaOffice({
             onKeyDown={move}
           >
             <span className="qa-office-floor-label" aria-hidden="true">
-              COMMAND CENTER / OFFICE
+              MUSE + DOT / SHARED STUDIO
             </span>
+            <Box
+              aria-hidden="true"
+              sx={{
+                position: "absolute",
+                left: "9%",
+                right: "9%",
+                top: "8%",
+                height: 12,
+                border: "2px solid #a6bec0",
+                borderRadius: 1,
+                bgcolor: "#c8e2e2",
+                boxShadow: "inset 0 -4px #ffffff88",
+              }}
+            />
+            <LocalFloristRounded
+              aria-hidden="true"
+              sx={{
+                position: "absolute",
+                bottom: 16,
+                left: 16,
+                fontSize: 38,
+                color: "#597f58",
+              }}
+            />
+            <LocalFloristRounded
+              aria-hidden="true"
+              sx={{
+                position: "absolute",
+                bottom: 16,
+                right: 16,
+                fontSize: 38,
+                color: "#597f58",
+              }}
+            />
+            <Box
+              aria-hidden="true"
+              sx={{
+                position: "absolute",
+                left: "12%",
+                right: "12%",
+                top: "44%",
+                height: "11%",
+                borderRadius: 2,
+                border: "1px dashed #b8c4b6",
+                bgcolor: "#d9e4d44d",
+                display: "grid",
+                placeItems: "center",
+                color: "#778b76",
+                fontSize: 10,
+                letterSpacing: "0.22em",
+              }}
+            >
+              SHARED WORK · CLEAR RECEIPTS
+            </Box>
             {destinations.map((item) => (
               <Button
                 key={item.id}
@@ -196,9 +513,73 @@ export function QaOffice({
                 onClick={(event) => open(item.id, event.currentTarget)}
                 aria-pressed={selected === item.id}
               >
+                <item.icon fontSize="small" />
                 {item.label}
               </Button>
             ))}
+            {roster.map((actor) => {
+              const expected = actor.id === "muse" ? cadence : undefined;
+              const valid =
+                !!actor.receipt &&
+                actor.receipt.authenticatedActorId === actor.principal_id &&
+                actor.receipt.receivedAtMs <= now;
+              const stale =
+                valid &&
+                !!expected &&
+                now - actor.receipt!.receivedAtMs > expected;
+              const status = error
+                ? "State unavailable"
+                : !valid
+                  ? "Not connected"
+                  : stale
+                    ? "Check-in stale"
+                    : "Check-in recorded";
+              const fallback = destinations.find(
+                (item) => item.id === actor.id,
+              )!;
+              return (
+                <div
+                  key={actor.id}
+                  className="qa-office-avatar"
+                  role="group"
+                  aria-label={`${actor.name} avatar: ${status}, ${actor.control === "bound" ? "Bound identity" : "Uncontrolled"}`}
+                  style={{
+                    left: `${(actor.position?.x ?? fallback.x) * 10}%`,
+                    top: `${actor.position ? actor.position.y * 11 : 36}%`,
+                    opacity: stale || !valid ? 0.65 : 1,
+                  }}
+                >
+                  <span
+                    className="qa-office-avatar-body"
+                    style={{ background: actorColors[actor.id] }}
+                  >
+                    {actor.id === "muse" && (
+                      <CircularProgress
+                        variant="determinate"
+                        value={checkIn.fraction * 100}
+                        size={52}
+                        aria-label={`Muse expected check-in: ${checkIn.label}`}
+                        sx={{
+                          position: "absolute",
+                          inset: -5,
+                          color: "#616ca4",
+                          "& .MuiCircularProgress-circle": {
+                            transition: "none",
+                          },
+                        }}
+                      />
+                    )}
+                    <strong>{actor.name}</strong>
+                  </span>
+                  <small>{status}</small>
+                  <small>
+                    {actor.control === "bound"
+                      ? "Bound identity"
+                      : "Uncontrolled"}
+                  </small>
+                </div>
+              );
+            })}
             <span
               className="qa-office-player"
               aria-hidden="true"
@@ -207,13 +588,40 @@ export function QaOffice({
                 top: `${position.y * 11}%`,
               }}
             >
-              J
+              Preview
             </span>
           </div>
           <p className="qa-office-position">
-            Josh's navigation position: column {position.x}, row {position.y}.
+            Local preview position: column {position.x}, row {position.y}.
             Nearest: {nearest.label}.
           </p>
+          {controlled && (
+            <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", mb: 2 }}>
+              <Button
+                variant="contained"
+                disabled={busy || !!error}
+                onClick={() => void writeActor("position")}
+              >
+                Move {controlled.name} here
+              </Button>
+              <Button
+                variant="outlined"
+                disabled={busy || !!error}
+                onClick={() => void writeActor("check_in")}
+              >
+                Record my check-in
+              </Button>
+            </Stack>
+          )}
+          <Typography
+            variant="caption"
+            component="p"
+            className="qa-office-check-in"
+          >
+            Muse expected check-in: <strong>{checkIn.label}</strong>. Receipt
+            timing shows the last authenticated contact, not continuous
+            execution.
+          </Typography>
           <nav
             className="qa-office-destination-list"
             aria-label="Office destinations"
@@ -221,6 +629,7 @@ export function QaOffice({
             {destinations.map((item) => (
               <Button
                 key={item.id}
+                size="small"
                 variant={selected === item.id ? "contained" : "outlined"}
                 onClick={(event) => open(item.id, event.currentTarget)}
                 aria-pressed={selected === item.id}
@@ -229,6 +638,38 @@ export function QaOffice({
               </Button>
             ))}
           </nav>
+          <Accordion sx={{ mt: 2 }}>
+            <AccordionSummary expandIcon={<ExpandMoreRounded />}>
+              Recent recorded activity
+            </AccordionSummary>
+            <AccordionDetails>
+              {events.length ? (
+                events.slice(0, 8).map((item) => (
+                  <Box key={item.id} sx={{ mb: 1.5 }}>
+                    <Typography variant="body2">{item.summary}</Typography>
+                    <Typography variant="caption">
+                      {stamp(item.created_at)}
+                    </Typography>
+                  </Box>
+                ))
+              ) : (
+                <Typography color="text.secondary">
+                  No activity records available.
+                </Typography>
+              )}
+            </AccordionDetails>
+          </Accordion>
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreRounded />}>
+              QA task archive · {tasks.length} records
+            </AccordionSummary>
+            <AccordionDetails>
+              <TaskRecords tasks={tasks} loading={loading} />
+              <Button onClick={() => onNavigate("inbox")}>
+                Open full task inbox
+              </Button>
+            </AccordionDetails>
+          </Accordion>
         </div>
         <section
           className="qa-office-detail"
@@ -242,130 +683,99 @@ export function QaOffice({
         >
           <div className="qa-office-heading">
             <h3 ref={detailHeading} tabIndex={-1}>
-              {title ?? "Choose a destination"}
+              {title ?? "The shared table"}
             </h3>
-            {selected && <Button onClick={close}>Close details</Button>}
+            {selected && (
+              <Button size="small" onClick={close}>
+                Close details
+              </Button>
+            )}
           </div>
-          <p className="qa-office-announcement" role="status">
+          <Typography
+            className="qa-office-announcement"
+            variant="caption"
+            role="status"
+          >
             {selected
               ? `${title} selected. Details follow.`
-              : "No destination selected."}
-          </p>
-          {!selected && (
-            <p>
-              Visit a desk to review shared records, or open a board. Messages
-              and manual task instructions are available in the agent room.
-            </p>
+              : "Choose a desk to see its shared work, or start at the table."}
+          </Typography>
+          {deskActor && (
+            <Box
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2,
+                p: 1.5,
+              }}
+            >
+              <Typography variant="subtitle2">
+                {deskActor.name} ·{" "}
+                {deskActor.control === "bound"
+                  ? "Verified binding"
+                  : "Not bound"}
+              </Typography>
+              <Typography variant="caption" component="p">
+                Last authenticated check-in:{" "}
+                {deskActor.receipt &&
+                deskActor.receipt.authenticatedActorId ===
+                  deskActor.principal_id
+                  ? new Date(deskActor.receipt.receivedAtMs).toLocaleString()
+                  : "Not connected"}
+              </Typography>
+              <Typography variant="caption" component="p">
+                Recorded position:{" "}
+                {deskActor.position
+                  ? `${deskActor.position.x}, ${deskActor.position.y}`
+                  : "Not recorded"}{" "}
+                · {heldTasks.length} held coordination tasks
+              </Typography>
+              {heldTasks.map((task) => (
+                <Typography key={task.id} variant="body2">
+                  #{task.id} · {task.title}
+                </Typography>
+              ))}
+            </Box>
           )}
-          {(selected === "josh" ||
-            selected === "dot" ||
-            selected === "muse") && (
+          {selected === "evidence" ? (
             <>
-              <p>
-                {selected === "muse"
-                  ? `Last recorded QA run: ${stamp(lastRunAt)}. This is a QA report, not proof Muse is connected or running.`
-                  : "This desk links to shared work. Task recipients and claims are shown exactly as recorded; no desk assignment is inferred."}
-              </p>
-              <Button onClick={() => onNavigate("room")}>
-                Messages and manual instructions
-              </Button>
-              <h4>Recorded tasks</h4>
-              <TaskRecords tasks={tasks} loading={loading} />
-              <Button onClick={() => onNavigate("inbox")}>
-                Open full task inbox
-              </Button>
-              <Accordion>
-                <AccordionSummary>Beacon team / workstreams</AccordionSummary>
-                <AccordionDetails>
-                  <p>
-                    Nova, Scout, Patch, Sage, Relay, and Bridge are roster names
-                    only. Temporary workers belong in this drilldown; task
-                    assignments are not inferred.
-                  </p>
-                </AccordionDetails>
-              </Accordion>
-              <Accordion>
-                <AccordionSummary>Recent recorded activity</AccordionSummary>
-                <AccordionDetails>
-                  {events.length ? (
-                    events.slice(0, 8).map((item) => (
-                      <article key={item.id}>
-                        <p>{item.summary}</p>
-                        <small>{stamp(item.created_at)}</small>
-                      </article>
-                    ))
-                  ) : (
-                    <p>
-                      {loading
-                        ? "Activity is loading."
-                        : "No activity records available."}
-                    </p>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </>
-          )}
-          {selected === "tasks" && (
-            <>
-              <TaskRecords tasks={tasks} loading={loading} />
-              <Button onClick={() => onNavigate("inbox")}>
-                Open full task inbox
-              </Button>
-              <Button onClick={() => onNavigate("room")}>
-                Discuss tasks and instructions in agent room
-              </Button>
-            </>
-          )}
-          {selected === "evidence" && (
-            <>
-              <p>
+              <Typography>
                 Showing {Math.min(20, evidence.length)} of {evidence.length}{" "}
                 evidence records.
-              </p>
+              </Typography>
               <Button onClick={() => onNavigate("timeline")}>
                 Open activity and evidence
               </Button>
-              {evidence.length ? (
-                evidence.slice(0, 20).map((item) => (
-                  <article key={item.id}>
-                    <a
-                      href={`/api/qa/evidence/${encodeURIComponent(String(item.id))}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {item.caption || `Evidence #${item.id}`}
-                    </a>
-                    <small>{stamp(item.created_at)}</small>
-                    <code>{item.revision}</code>
-                  </article>
-                ))
-              ) : (
-                <p>
-                  {loading
-                    ? "Evidence is loading."
-                    : "No evidence records available."}
-                </p>
+              {evidence.slice(0, 20).map((item) => (
+                <article key={item.id}>
+                  <a
+                    href={`/api/qa/evidence/${item.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {item.caption || `Evidence #${item.id}`}
+                  </a>
+                  <Typography variant="caption" component="p">
+                    {stamp(item.created_at)} · {item.revision.slice(0, 12)}
+                  </Typography>
+                </article>
+              ))}
+              {!evidence.length && (
+                <Typography>No evidence records available.</Typography>
               )}
             </>
+          ) : (
+            <QaOfficeWork
+              revision={build?.revision}
+              dirty={build?.dirty}
+              destination={selected}
+              onSaved={onRefresh}
+            />
           )}
-          {selected === "meeting" && (
-            <>
-              <p>
-                The meeting room opens existing discussion and correlated
-                messages. Entering this room does not connect an agent or start
-                a live meeting.
-              </p>
-              <Button variant="contained" onClick={() => onNavigate("room")}>
-                Enter agent room
-              </Button>
-            </>
-          )}
-          <p className="qa-office-future">
-            Grok: future informational placeholder. No integration available.
-          </p>
         </section>
       </div>
-    </section>
+      <QaOfficeQa buildBannerTarget={buildBannerTarget} />
+    </Box>
   );
 }
 function TaskRecords({
@@ -373,29 +783,27 @@ function TaskRecords({
   loading,
 }: Pick<QaOfficeProps, "tasks" | "loading">) {
   return tasks.length ? (
-    <div className="qa-office-records">
-      <p>
-        Showing {Math.min(30, tasks.length)} of {tasks.length} task records.
-      </p>
+    <Stack spacing={1.5}>
       {tasks.slice(0, 30).map((task) => (
-        <article key={task.id}>
-          <strong>
+        <Box key={task.id}>
+          <Typography variant="subtitle2">
             #{task.id} · {task.title}
-          </strong>
-          <p>
-            To {task.recipient} · {task.status.replaceAll("_", " ")}
-          </p>
-          <code>{task.revision}</code>
+          </Typography>
+          <Typography variant="caption" component="p">
+            To {task.recipient} · {task.status.replaceAll("_", " ")} ·{" "}
+            {task.revision.slice(0, 12)}
+          </Typography>
           {task.claimed_by && (
-            <small>
-              Claimed by {task.claimed_by} · {stamp(task.claimed_at)}. A claim
-              does not prove current execution.
-            </small>
+            <Typography variant="caption">
+              Claimed by {task.claimed_by} · {stamp(task.claimed_at)}
+            </Typography>
           )}
-        </article>
+        </Box>
       ))}
-    </div>
+    </Stack>
   ) : (
-    <p>{loading ? "Tasks are loading." : "No task records available."}</p>
+    <Typography>
+      {loading ? "Tasks are loading." : "No task records available."}
+    </Typography>
   );
 }

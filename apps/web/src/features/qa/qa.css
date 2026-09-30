@@ -672,7 +672,7 @@
 }
 .qa-office-floor {
   position: relative;
-  min-height: 370px;
+  min-height: 480px;
   overflow: hidden;
   border: 2px solid #879098;
   border-radius: 8px;
@@ -712,7 +712,7 @@
 .qa-office-player {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 30px;
+  width: 64px;
   height: 30px;
   display: grid;
   place-items: center;
@@ -721,10 +721,40 @@
   background: #263c58;
   color: #fff;
   font-weight: 800;
+  font-size: 11px;
   pointer-events: none;
   transition:
     left 80ms linear,
     top 80ms linear;
+}
+.qa-office-avatar {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 90px;
+  color: #26352e;
+  pointer-events: none;
+}
+.qa-office-avatar-body {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #64746b;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 12px;
+}
+.qa-office-avatar small {
+  font-size: 10px;
+  line-height: 1.2;
+  background: #e6e9df;
+}
+.qa-office-check-in {
+  color: var(--qa-muted);
 }
 .qa-office-position {
   padding: 8px 0;
@@ -769,7 +799,7 @@
 }
 @media (max-width: 480px) {
   .qa-office-floor {
-    min-height: 300px;
+    min-height: 400px;
   }
   .qa-office-floor .qa-office-destination {
     font-size: 11px;

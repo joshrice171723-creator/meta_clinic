@@ -4,6 +4,20 @@ Rails.application.routes.draw do
   post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
   scope path: "api", as: "api" do
   get "qa", to: "qa/workspace#show"
+    get "qa/office", to: "qa/workspace#office"
+    get "qa/office/actors", to: "qa/workspace#office_actors"
+    post "qa/office/position", to: "qa/workspace#office_position"
+    post "qa/office/check-ins", to: "qa/workspace#office_check_in"
+    post "qa/office/enrollments", to: "qa/workspace#office_enrollment"
+    get "qa/office/qa", to: "qa/workspace#office_qa"
+    post "qa/office/qa/ledger", to: "qa/workspace#office_qa_ledger"
+    post "qa/office/qa/defects", to: "qa/workspace#office_qa_defect"
+    post "qa/office/qa/retests", to: "qa/workspace#office_qa_retest"
+    post "qa/office/qa/batches/poll", to: "qa/workspace#office_qa_poll"
+    get "qa/office/work", to: "qa/workspace#office_work"
+    post "qa/office/work/:id/transition", to: "qa/workspace#office_work_transition"
+    post "qa/tasks/:id/accept", to: "qa/workspace#accept_task"
+    post "qa/tasks/:id/recover", to: "qa/workspace#recover_task"
   get "qa/status.json", to: "qa/workspace#status"
   get "qa/issues.json", to: "qa/workspace#issues"
   get "qa/atlas.json", to: "qa/workspace#atlas"
@@ -179,6 +193,7 @@ Rails.application.routes.draw do
     patch "handoffs/:id", to: "care/nurse_workflow#transition_handoff"
     patch "clinical_tasks/:id", to: "care/nurse_workflow#transition_task"
     resources :pharmacy_destinations, controller: "care/pharmacy_destinations", only: %i[index create]
+    get "prescription_reconciliation_worklist", to: "care/prescription_reconciliation_worklists#show"
     get "patients/:patient_id/medication_request_series", to: "care/prescription_order_series#index"
     get "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#index"
     post "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#create"
@@ -267,6 +282,7 @@ Rails.application.routes.draw do
       post :retire, on: :member
     end
     resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: %i[index show create] do
+      get :invoice_comparison, on: :member
       post :issue, on: :member
       post :correct, on: :member
       post :deliver, on: :member

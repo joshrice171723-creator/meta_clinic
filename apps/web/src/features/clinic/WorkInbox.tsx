@@ -34,6 +34,7 @@ import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
 import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
+import { PrescriptionReconciliationWorklist } from "./PrescriptionReconciliationWorklist";
 import { useClinicRealtimeTopic } from "./ClinicRealtime";
 
 type AssignmentFilter = "all" | "mine" | "overdue" | "offboarded";
@@ -1462,7 +1463,7 @@ function PatientFlowCard({
 }
 
 export function WorkInbox() {
-  const { capabilities, current_site } = useClinic();
+  const { capabilities, current_site, practice, user_id } = useClinic();
   const canLoadWork =
     capabilities.billing_read === true ||
     capabilities.staff_messaging_read === true ||
@@ -2379,6 +2380,15 @@ export function WorkInbox() {
           )}
         </Box>
       </Paper>
+      <PrescriptionReconciliationWorklist
+        practiceId={practice.id}
+        actorId={user_id}
+        siteId={current_site?.id ?? null}
+        enabled={
+          capabilities.patients === true &&
+          capabilities.clinical_records_read === true
+        }
+      />
       <Typography variant="caption" color="text.secondary">
         Opening or refreshing this inbox does not complete, acknowledge, or
         change source work.

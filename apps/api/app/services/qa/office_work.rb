@@ -1,0 +1,143 @@
+module Qa
+  # Coordination lives in the existing task/event history, separate from QA verdicts.
+  class OfficeWork
+    class Conflict < StandardError; end
+    LEASE = 15.minutes
+
+    def self.identity(user, token)
+      raise OfficeActorPolicy::Denied, "An active Office principal is required." unless user&.active? && user.platform_owner?
+      name = OfficeActorPolicy.actor(config: OfficeActors.configuration, user:, token:)
+      { key: OfficeActors.principal_key(user, token), name:, recipient: token&.recipient, owner: token.nil? }
+    end
+
+    def self.allowed(task, principal)
+      return [] unless principal && task.kind == "coordination"
+      expired = task.status == "claimed" && (!task.lease_expires_at || task.lease_expires_at <= Time.current)
+      return [ "recover" ] if principal[:owner] && expired
+      return [ "result_confirmed" ] if task.status == "completed" && task.payload["office_status"] != "result_confirmed" && task.payload["requester_principal"] == principal[:key]
+      return [ "decision" ] if principal[:owner] && task.payload["office_status"] == "blocked"
+      assignee = task.payload["assigned_actor"] || (task.recipient == "muse" ? "muse" : "dot")
+      return [] unless assignee == principal[:name]
+      return task.payload["office_status"] == "picked_up" ? [ "acknowledged" ] : %w[picked_up acknowledged] if task.status == "queued"
+      return [] unless task.status == "claimed" && task.claim_principal == principal[:key] && !expired
+      %w[working blocked completed handoff]
+    end
+
+    def self.receipts(task)
+      Event.where(kind: %w[office_work_queued office_work_transition office_qa_defect_submitted office_qa_retest_submitted]).where("payload ->> 'task_id' = ?", task.id.to_s).order(:id).map do |event|
+        { id: event.id, status: event.payload["status"] || "submitted", actor: event.payload["actor"], created_at: event.created_at.iso8601,
+          summary: event.payload.dig("input", "result", "summary") || event.summary }
+      end
+    end
+
+    def self.task_json(task, principal: nil)
+      task.as_json.except("claim_principal", "request_digest").merge(
+        "payload" => task.payload.except("requester_principal"),
+        "office_status" => task.payload["office_status"] || task.status,
+        "lease_expired" => task.status == "claimed" && (!task.lease_expires_at || task.lease_expires_at <= Time.current),
+        "allowed_transitions" => allowed(task, principal))
+    end
+
+    def self.read(user: nil, token: nil)
+      principal = begin
+        identity(user, token)
+      rescue OfficeActorPolicy::Denied
+        nil
+      end
+      { tasks: Task.where(kind: "coordination").order(created_at: :desc).limit(100).map { |task| task_json(task, principal:).merge("receipts" => receipts(task)) },
+        can_post: principal.present?, controlled_actor: principal&.fetch(:name) }
+    end
+
+    def self.create(user:, token:, input:, revision:)
+      principal = identity(user, token)
+      key = AgentRoom.text!(input, "request_key", 100)
+      raise ArgumentError, "Use a non-secret unique request key." unless key.match?(/\A[A-Za-z0-9_-]{8,100}\z/)
+      title = AgentRoom.text!(input, "title", 200)
+      recipient = input.fetch("recipient", "muse")
+      raise ArgumentError, "Choose muse or codex." unless %w[muse codex].include?(recipient)
+      assignee = input.fetch("assigned_actor", recipient == "muse" ? "muse" : "dot")
+      raise ArgumentError, "Choose the actual Muse, dot or Codex assignee." unless %w[muse dot codex].include?(assignee) && recipient == (assignee == "muse" ? "muse" : "codex")
+      payload = input.fetch("payload", {})
+      raise ArgumentError, "Coordination payload requires only a description." unless payload.is_a?(Hash) && payload.keys == [ "description" ]
+      description = AgentRoom.text!(payload, "description", 4000)
+      request = { "title" => title, "recipient" => recipient, "revision" => revision, "description" => description, "assigned_actor" => assignee }
+      AgentRoom.reject_credentials!(request)
+      digest = Task.fingerprint(request)
+      locked(user, token) do
+        identity(user, token)
+        task = Task.create_or_find_by!(request_key: key) do |record|
+          record.assign_attributes(user:, kind: "coordination", title:, recipient:, revision:, request_digest: digest,
+            payload: { description:, office_status: "queued", requester_principal: principal[:key], requester_actor: principal[:name], assigned_actor: assignee })
+        end
+        unless task.kind == "coordination" && task.request_digest == digest && task.payload["requester_principal"] == principal[:key]
+          raise Conflict, "Request key already records different work or another principal."
+        end
+        Workspace.event(user:, kind: "office_work_queued", summary: title, revision:, payload: { task_id: task.id, actor: principal[:name] }, event_key: "office:work:queued:#{task.id}")
+        task_json(task, principal:)
+      end
+    end
+
+    def self.transition(user:, token:, id:, input:)
+      principal = identity(user, token)
+      key = AgentRoom.text!(input, "request_key", 100)
+      raise ArgumentError, "Use a non-secret unique request key." unless key.match?(/\A[A-Za-z0-9_-]{8,100}\z/)
+      status = AgentRoom.text!(input, "status", 30)
+      raise ArgumentError, "Only transition fields are accepted." unless (input.keys - %w[request_key status result assigned_actor]).empty?
+      target = input["assigned_actor"]
+      if status == "handoff"
+        raise ArgumentError, "Choose a different actual Office assignee." unless %w[muse dot codex].include?(target) && target != principal[:name]
+      elsif target
+        raise ArgumentError, "An assignee is accepted only for a handoff."
+      end
+      result = input.fetch("result", {})
+      raise ArgumentError, "Result must be an object of 8 KB or less." unless result.is_a?(Hash) && result.to_json.bytesize <= 8000
+      raise ArgumentError, "Only summary and evidence_refs are accepted." unless (result.keys - %w[summary evidence_refs]).empty?
+      AgentRoom.text!(result, "summary", 4000) if result.key?("summary") || %w[blocked completed handoff decision].include?(status)
+      refs = result.fetch("evidence_refs", [])
+      raise ArgumentError, "Use up to five stored evidence ids." unless refs.is_a?(Array) && refs.length <= 5 && refs.uniq == refs && refs.all? { |ref| ref.is_a?(Integer) && ref.positive? } && Evidence.where(id: refs).count == refs.length
+      AgentRoom.reject_credentials!(result)
+      operation = { "status" => status, "result" => result, "principal" => principal[:key] }
+      operation["assigned_actor"] = target if target
+      locked(user, token) do
+        principal = identity(user, token)
+        task = Task.where(kind: "coordination").find(id)
+        task.with_lock do
+          event_key = "office:work:#{task.id}:#{key}"
+          existing = Event.find_by(event_key:)
+          if existing
+            raise Conflict, "Transition key records different content or another principal." unless existing.kind == "office_work_transition" && existing.payload["input"] == operation
+            return existing.payload["result"]
+          end
+          raise OfficeActorPolicy::Denied, "This transition is not allowed for this principal or lease." unless allowed(task, principal).include?(status)
+          changes = { payload: task.payload.merge("office_status" => status) }
+          case status
+          when "acknowledged"
+            changes.merge!(status: "claimed", claimed_by: user, claim_principal: principal[:key], claim_run_id: "office-#{task.id}-#{SecureRandom.uuid}", claimed_at: Time.current, lease_expires_at: LEASE.from_now)
+          when "working", "blocked"
+            changes.merge!(lease_expires_at: LEASE.from_now, result:)
+          when "completed"
+            changes.merge!(status: "completed", result:, lease_expires_at: nil)
+          when "decision"
+            changes = { payload: task.payload.merge("owner_decision" => result["summary"], "decision_at" => Time.current.iso8601) }
+          when "handoff"
+            changes.merge!(status: "queued", recipient: target == "muse" ? "muse" : "codex", claimed_by: nil, claim_principal: nil, claim_run_id: nil, claimed_at: nil, lease_expires_at: nil,
+              payload: task.payload.merge("office_status" => "queued", "assigned_actor" => target, "handoff_summary" => result["summary"]))
+          when "recover"
+            changes.merge!(status: "queued", claimed_by: nil, claim_principal: nil, claim_run_id: nil, claimed_at: nil, lease_expires_at: nil,
+              payload: task.payload.merge("office_status" => "queued"))
+          end
+          task.update!(changes)
+          receipt = task_json(task, principal:).merge("receipt_id" => SecureRandom.uuid)
+          Event.create!(user:, kind: "office_work_transition", event_key:, summary: "#{principal[:name]}: #{task.title} - #{status}", revision: task.revision,
+            payload: { input: operation, result: receipt, task_id: task.id, actor: principal[:name], status: })
+          receipt
+        end
+      end
+    end
+
+    def self.locked(user, token, &block)
+      operation = -> { user.with_lock(&block) }
+      token ? token.with_lock { operation.call } : operation.call
+    end
+  end
+end

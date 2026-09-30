@@ -22,7 +22,9 @@ module Qa
 
     def self.build
       url = ENV.fetch("QA_BUILD_URL", Rails.env.production? ? "http://web:8080/build.json" : "http://127.0.0.1:3000/build.json")
-      data = read_json(URI(url))
+      uri = URI(url)
+      uri.query = URI.encode_www_form(URI.decode_www_form(uri.query.to_s) + [[ "verified_at", Time.current.to_i.to_s ]])
+      data = read_json(uri)
       raise "Build identity is incomplete" unless data.is_a?(Hash) && data["revision"].to_s.match?(/\A[0-9a-f]{40}\z/)
       data.slice("version", "revision", "environment", "dirty").merge("observed_at" => Time.current.iso8601)
     rescue StandardError => error
@@ -133,6 +135,7 @@ module Qa
       request = Net::HTTP::Get.new(uri)
       request["Accept"] = "application/json"
       request["User-Agent"] = "MetaClinic-QA-Workspace"
+      request["Cache-Control"] = "no-cache"
       request["Authorization"] = "Bearer #{ENV.fetch('QA_GITHUB_TOKEN')}" if github && ENV["QA_GITHUB_TOKEN"].present?
       response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https", open_timeout: 4, read_timeout: 8) { |http| http.request(request) }
       raise UpstreamError, response.code unless response.is_a?(Net::HTTPSuccess)

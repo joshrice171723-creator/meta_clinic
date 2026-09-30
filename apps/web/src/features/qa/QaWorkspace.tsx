@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   Alert,
   Button,
@@ -13,6 +19,7 @@ import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
 import { QaAgentRoom } from "./QaAgentRoom";
 import { QaOffice } from "./QaOffice";
+import { sharedOffice, type SharedOffice } from "./sharedOffice";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -61,6 +68,7 @@ type Task = {
   human_decision?: RecordData;
   claimed_by?: string;
   claimed_at?: string;
+  lease_expires_at?: string | null;
   created_at: string;
 };
 type Evidence = {
@@ -142,7 +150,11 @@ type Workspace = {
     prepared_at: string;
     note: string;
   };
-  capabilities: { github_questions: boolean; record_observation?: boolean };
+  capabilities: {
+    github_questions: boolean;
+    record_observation?: boolean;
+    manage_tasks?: boolean;
+  };
   pin?: { revision: string; confirmed_at: string; confirmed_by: string };
 };
 type Build = {
@@ -203,6 +215,9 @@ const nav = [
 
 export function QaWorkspace() {
   const [data, setData] = useState<Workspace>();
+  const [office, setOffice] = useState<SharedOffice>();
+  const [officeError, setOfficeError] = useState("");
+  const officeRequest = useRef(0);
   const [live, setLive] = useState<Build>();
   const [buildError, setBuildError] = useState("");
   const [error, setError] = useState("");
@@ -212,6 +227,14 @@ export function QaWorkspace() {
     qaWorkspaceView(window.location.search),
   );
   const viewTitle = nav.find(([id]) => id === section)?.[1];
+  const viewHeading = useRef<HTMLHeadingElement>(null);
+  const focusAfterOffice = useRef(false);
+  useEffect(() => {
+    if (focusAfterOffice.current) {
+      viewHeading.current?.focus();
+      focusAfterOffice.current = false;
+    }
+  }, [section]);
   const [selected, setSelected] = useState<Issue | KnownIssue>();
   const [report, setReport] = useState(false);
   const [question, setQuestion] = useState(false);
@@ -227,50 +250,76 @@ export function QaWorkspace() {
     url.searchParams.set("view", section);
     window.history.replaceState(null, "", url);
   }, [section]);
-  const refresh = useCallback(async (github = false) => {
-    await Promise.all([
-      (async () => {
-        try {
-          const workspace = await api<Workspace>(
-            `/api/qa${github ? "?refresh=1" : ""}`,
-          );
-          setData(workspace);
-          setError("");
-        } catch (reason) {
-          setData(undefined);
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "QA workspace unavailable.",
-          );
-        }
-      })(),
-      (async () => {
-        try {
-          const response = await fetch(`/build.json?qa=${Date.now()}`, {
-            cache: "no-store",
-            credentials: "same-origin",
-          });
-          if (!response.ok)
-            throw new Error("Live build could not be observed.");
-          const build = (await response.json()) as Build;
-          if (!build.revision || !/^[0-9a-f]{40}$/.test(build.revision))
-            throw new Error(
-              "Live build has no full revision. QA actions are paused.",
-            );
-          setLive({ ...build, observed_at: new Date().toISOString() });
-          setBuildError("");
-        } catch (reason) {
-          setBuildError(
-            reason instanceof Error
-              ? reason.message
-              : "Live build unavailable.",
-          );
-          setLive(undefined);
-        }
-      })(),
-    ]);
+  const refreshOffice = useCallback(async () => {
+    const request = ++officeRequest.current;
+    try {
+      const snapshot = sharedOffice(await api<unknown>("/api/qa/office"));
+      if (request !== officeRequest.current) return;
+      setOffice(snapshot);
+      setOfficeError("");
+    } catch (reason) {
+      if (request !== officeRequest.current) return;
+      setOffice(undefined);
+      setOfficeError(
+        reason instanceof Error ? reason.message : "Shared Office unavailable.",
+      );
+    }
   }, []);
+  useEffect(() => {
+    if (section !== "office") return;
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void refreshOffice();
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [section, refreshOffice]);
+  const refresh = useCallback(
+    async (github = false) => {
+      await Promise.all([
+        refreshOffice(),
+        (async () => {
+          try {
+            const workspace = await api<Workspace>(
+              `/api/qa${github ? "?refresh=1" : ""}`,
+            );
+            setData(workspace);
+            setError("");
+          } catch (reason) {
+            setData(undefined);
+            setError(
+              reason instanceof Error
+                ? reason.message
+                : "QA workspace unavailable.",
+            );
+          }
+        })(),
+        (async () => {
+          try {
+            const response = await fetch(`/build.json?qa=${Date.now()}`, {
+              cache: "no-store",
+              credentials: "same-origin",
+            });
+            if (!response.ok)
+              throw new Error("Live build could not be observed.");
+            const build = (await response.json()) as Build;
+            if (!build.revision || !/^[0-9a-f]{40}$/.test(build.revision))
+              throw new Error(
+                "Live build has no full revision. QA actions are paused.",
+              );
+            setLive({ ...build, observed_at: new Date().toISOString() });
+            setBuildError("");
+          } catch (reason) {
+            setBuildError(
+              reason instanceof Error
+                ? reason.message
+                : "Live build unavailable.",
+            );
+            setLive(undefined);
+          }
+        })(),
+      ]);
+    },
+    [refreshOffice],
+  );
   useEffect(() => {
     const previousTitle = document.title;
     void refresh();
@@ -506,7 +555,12 @@ export function QaWorkspace() {
         <header className="qa-header">
           <div>
             <p className="qa-eyebrow">RELEASE CONFIDENCE / SHARED WITH MUSE</p>
-            <h1 aria-live="polite" aria-atomic="true">
+            <h1
+              ref={viewHeading}
+              tabIndex={-1}
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {viewTitle}
             </h1>
           </div>
@@ -609,15 +663,18 @@ export function QaWorkspace() {
         )}
         {section === "office" && (
           <QaOffice
-            tasks={data?.tasks ?? []}
-            evidence={data?.evidence ?? []}
-            events={data?.events ?? []}
-            build={live}
-            lastRunAt={data?.state.last_run_at}
-            lastQaRevision={data?.state.last_qa_revision}
-            loading={!data && !error}
-            error={error}
-            onNavigate={setSection}
+            tasks={office?.tasks ?? []}
+            evidence={office?.evidence ?? []}
+            events={office?.events ?? []}
+            build={office?.build}
+            actorState={office?.actor_state}
+            onRefresh={() => void refreshOffice()}
+            loading={!office && !officeError}
+            error={officeError}
+            onNavigate={(view) => {
+              focusAfterOffice.current = true;
+              setSection(view);
+            }}
           />
         )}
         {data && (
@@ -1321,7 +1378,58 @@ export function QaWorkspace() {
                   tasks.map((task) => (
                     <div key={task.id}>
                       <TaskCard task={task} />
+                      {task.kind === "coordination" && (
+                        <Button onClick={() => setSection("office")}>
+                          Open shared Office work
+                        </Button>
+                      )}
+                      {task.kind !== "coordination" &&
+                        data.capabilities.manage_tasks &&
+                        task.status === "proposed" && (
+                          <Button
+                            disabled={
+                              busy ||
+                              !pinReady ||
+                              task.revision !== live?.revision
+                            }
+                            onClick={() =>
+                              void perform(
+                                () =>
+                                  api(`/api/qa/tasks/${task.id}/accept`, {
+                                    method: "POST",
+                                    body: {},
+                                  }),
+                                `Proposal #${task.id} accepted into the work queue.`,
+                              )
+                            }
+                          >
+                            Accept proposal for pinned build
+                          </Button>
+                        )}
+                      {task.kind !== "coordination" &&
+                        data.capabilities.manage_tasks &&
+                        task.status === "claimed" &&
+                        (!task.lease_expires_at ||
+                          new Date(task.lease_expires_at).getTime() <=
+                            Date.now()) && (
+                          <Button
+                            disabled={busy}
+                            onClick={() =>
+                              void perform(
+                                () =>
+                                  api(`/api/qa/tasks/${task.id}/recover`, {
+                                    method: "POST",
+                                    body: {},
+                                  }),
+                                `Expired claim #${task.id} returned to the queue.`,
+                              )
+                            }
+                          >
+                            Recover expired claim
+                          </Button>
+                        )}
                       {["completed", "failed"].includes(task.status) &&
+                        task.kind !== "coordination" &&
                         !task.human_decision?.outcome && (
                           <Button onClick={() => setReviewTask(task)}>
                             Review agent evidence

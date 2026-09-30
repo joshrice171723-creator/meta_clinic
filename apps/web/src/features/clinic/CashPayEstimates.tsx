@@ -13,6 +13,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import type { BillingService } from "./InvoiceLineEditor";
+import {
+  EstimateInvoiceComparisonPanel,
+  type ComparisonInvoice,
+} from "./EstimateInvoiceComparisonPanel";
 
 export type CashPayEstimate = {
   id: number;
@@ -177,11 +181,13 @@ export function CashPayEstimates({
   patientId,
   patientName,
   canDraft,
+  invoices = [],
   onUnknownOutcomeChange,
 }: {
   patientId: number;
   patientName: string;
   canDraft: boolean;
+  invoices?: ComparisonInvoice[];
   onUnknownOutcomeChange?: (unknown: boolean) => void;
 }) {
   const [estimates, setEstimates] = useState<CashPayEstimate[]>([]);
@@ -505,6 +511,16 @@ export function CashPayEstimates({
             )}
           </Stack>
         )}
+        {selected?.issued_at &&
+          ["issued", "superseded"].includes(selected.status) && (
+            <EstimateInvoiceComparisonPanel
+              key={`${patientId}:${selected.id}:${selected.currency}`}
+              patientId={patientId}
+              estimateId={selected.id}
+              currency={selected.currency}
+              invoices={invoices}
+            />
+          )}
         {printable && (
           <Button
             variant="outlined"
