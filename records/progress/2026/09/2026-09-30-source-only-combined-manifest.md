@@ -152,3 +152,11 @@ The supplied generated schema8170390d remains unchanged after this merge. Source
 - `apps/api/db/migrate/20261001000200_guard_resolved_allowance_accounting.rb`
 
 This is source/artifact accounting for Sage's next isolated generation, not executed migration or functional evidence. Previousfa967 cutoff remains historical; this reconciled source preserves current Office main ancestry. Closed document write authority, unconfigured legacy allowances, disputed estimates and issue34 limitations remain intact.
+
+## Bounded service-impact registry source
+
+Source07f9ed9d896449363727a0075517183bc40a0793 retains implementation2b38a65a6db741026708d06c523673b4b890ca9e and its evidence. It adds source-backed consequence inventory across the existing17-service/9-assessment registry, server rejection of incomplete review and explicit review/refresh/restore UI paths. Exact typed references, existing domain-reader authority, unknown/restricted/unavailable states and original open/history ownership are preserved. No care is cancelled or completed by scope removal.
+
+Point-of-care testing, infusions and patient-supplied medication ownership lack accepted exact classifiers; they remain explicitly unknown and block fresh removals. This is not complete consequence coverage. Cross-domain atomicity and concurrent dependency changes remain deferred, as does runtime acceptance; inventory is bounded recorded associations, not all-patient totals or proof about unlinked work. Document metadata write authority stays deliberately closed, and legacy allowance policies stay unconfigured. No arbitrary percentage or completion claim follows source inclusion.
+
+Merge was clean and added no migration or canonical structure changes. Sage's active23d1ee2d source-generation cutoff therefore still applies to the schema: three previously listed migration files remain outside8170390d until that generation completes. Relay ran no tests/build/lint/database work, PR, main merge, deployment, permission activation or score changes. Office and all other product lanes remain preserved.
