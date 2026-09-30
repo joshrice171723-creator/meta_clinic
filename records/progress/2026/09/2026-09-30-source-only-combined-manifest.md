@@ -16,7 +16,7 @@ This is a source-accounting cutoff for the single product integration branch, no
 | MC06 repaired closure/type/replay guards | a0326be8ad494a40e9d260eeb226fd038bb2d957; replaces unrepaireddbef final source |
 | MC07 repaired telehealth lifecycle | a1c118ac15fed8f78bb977334a77f66ed6e1231c, already retained at6099 |
 | MC08 price/date/context | d9082a1f63b39b963be63d5a277c320267339a20, retainingd19 |
-| MC09 entitlement source/scoped schema | 6ee0f3cc6c2ff8656dbec1fd7b24c54bf193f240 and schema795bde81a1bed44d82b1ac838a682137db7cacb2, already retained at1b9 |
+| MC09 entitlement/recurring allowance source | 17f7ee60e6a029a11eed3c0498294ee760324c84, retaining6ee and supplied schema795; prior source retained at1b9 |
 | MC10 substitution/provenance/durable preparation | f0269c37c61798bf3f3d8c896ee769592264d6fe, retaining5f8/067a/10afe/a325/60158 |
 | MC11 quote/local supplier preparation | 07121a53607f0176cf503deee635cf5ab351622d, retainingba08 |
 | MC12 paging/return/refill/reschedule/callback | 25f296a83a09739dc5c5c29ed0a24dd5104528fa, retaining6caa/900/8b6/ed421/repaired8715 |
@@ -54,3 +54,9 @@ Branch: `codex/relay-product-source-20260930`. Product source snapshot98d16213 r
 MC15 f38cfea3 adds explicit source/destination/four-text-field mapping across existing drafts, frozen per-item exact requests and sequential partial application. Unknown items retain exact identity across denial; unresolved items never count as all applied. Recovery is in memory, not atomic or rollback-capable; no new offerings, catalog application or protected configuration changes. Nine authored regressions were not run.
 
 MC06 d40d584a adds revisioned clinic-supplied lab unit mapping configuration through existing permission boundaries. Numeric/range results store their captured configured-pair validation receipt; unconfigured/unmapped remains explicitly unvalidated. No conversions, authoritative catalog values or clinical approval is supplied. Human mapping approval earns no source credit. The two frontend integration conflicts were resolved by preserving LabResultProvenance type extension and view plus adding the unit-validation receipt property and view. Backend, configuration and route additions merged without dropping existing provenance or repaired closure guards. No schema mutation or new tests/builds/lint were run for these increments.
+
+## Next wave after immutable scoredfe6 cutoff
+
+Sourcefe6db4c0764b1dc9a4d33b354bf744d6fc5c3f12 retains final MC10f0269c37, MC15bulkf38cfea3 and MC06unitsd40d584a. These three were not pending at that cutoff. Its independent scoring remains frozen to that exact tree.
+
+MC09 recurring accounting17f7ee60 is the next source increment: explicit purchased allowance configuration, retained paid-window identity, immutable use/reversal and exact replay; historical agreements without allowance policy remain unconfigured. Migration20260930001100 follows prior entitlement00900 and references its table plus existing subscription event identities and immutable-record function. No version duplicate was found statically. The merge retains the complete existing Office/MC09/MC08 schema snapshot byte-for-byte; no allowance-table generated SQL or migration-version entry was fabricated. Fresh schema generation, migration execution and new authored regressions are unrun. Existing runtime_privileges.sql source adds the new allowance table to the protected append-only table list; that script was not executed and no access/role/token changed. Human commercial policy selection and clinical approval are not credited by source implementation. No main merge, new PR or deployment.
