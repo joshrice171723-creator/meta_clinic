@@ -33,10 +33,10 @@ module Clinic
         exclusions: "Payment amount is not invoice allocation or drawer cash. Refunds may relate to payments from another day. This is not a net cash or processor settlement report."
       }.freeze
       CURRENT_STOCK = {
-        id: "current_stock", revision: 1,
+        id: "current_stock", revision: 2,
         source: "clinic_pharmacy_batches, clinic_inventory_holds, clinic_pharmacy_products and clinic_items",
         date_basis: "current balances at query time; inventory_date controls expiry and availability",
-        population: "Current filtered pharmacy positions and all office items; source rows are selected pages only.",
+        population: "Current filtered pharmacy positions and all office items.",
         exclusions: "Not historical balances. Office stock has no location or expiry tracking. Units remain separate."
       }.freeze
       OPEN_CLINICAL_WORK = {

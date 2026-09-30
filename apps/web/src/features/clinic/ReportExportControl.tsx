@@ -4,7 +4,7 @@ import { api, ApiError, SESSION_CHANGED_EVENT } from "../../api/client";
 import type { ReportExportReceipt } from "../../api/contracts";
 import { LoadState, useResource } from "../../shared/ui";
 
-type Filters = Record<string, string | number>;
+type Filters = Partial<Record<"date" | "site_id" | "status", string | number>>;
 type Attempt = { reportId: string; filters: Filters; requestKey: string };
 type Owner = { generation: number };
 
@@ -104,6 +104,7 @@ export function ReportExportControl({
           body: {
             export: {
               report_id: attempt.reportId,
+              scope: "all_filtered_rows",
               filters: attempt.filters,
               request_key: attempt.requestKey,
             },
@@ -127,11 +128,13 @@ export function ReportExportControl({
       setError(
         committed
           ? "Export issued; download could not be completed. Use the saved receipt to download again."
-          : unknown
-            ? "Issuance outcome is unconfirmed. Retry the same request, or recover the receipt from history after reload."
-            : reason instanceof Error
-              ? reason.message
-              : "The export could not be issued.",
+          : reason instanceof ApiError && reason.code === "export_limit_exceeded"
+            ? "No export was issued. These filters exceed the export resource limits. Narrow the filters and request again."
+            : unknown
+              ? "Issuance outcome is unconfirmed. Retry the same request, or recover the receipt from history after reload."
+              : reason instanceof Error
+                ? reason.message
+                : "The export could not be issued.",
       );
     } finally {
       if (accepts(owner)) {
@@ -164,8 +167,9 @@ export function ReportExportControl({
   return (
     <Stack spacing={1}>
       <Typography variant="caption" color="text.secondary">
-        Request a fresh server snapshot for these filters. Summaries cover all
-        matching records; source rows remain selected pages only.
+        Request all matching rows from a fresh, consistent server snapshot for
+        these filters. Requests above the export resource limits are rejected
+        without issuing a partial artifact.
       </Typography>
       <Button
         size="small"
@@ -193,14 +197,14 @@ export function ReportExportControl({
             Request key: {receipt.request_key}; filters:{" "}
             {JSON.stringify(receipt.filters)}
           </Typography>
-          {Object.entries(receipt.source_pages).map(([name, page]) => (
-            <Typography key={name} variant="caption">
-              {name}: page {page.page} of {page.total_pages}; {page.total} matching
-              records.
-            </Typography>
-          ))}
+          <ExportCoverage receipt={receipt} />
           <Typography variant="caption" sx={{ overflowWrap: "anywhere" }}>
-            CSV SHA-256: {receipt.artifact_digest} · {receipt.artifact_bytes} bytes
+            Definition revision {receipt.definition.revision} · CSV revision{" "}
+            {receipt.serializer_revision} · coverage revision{" "}
+            {receipt.coverage_revision}
+            {" · "}Source SHA-256: {receipt.source_digest}
+            {" · "}CSV SHA-256: {receipt.artifact_digest} · {receipt.artifact_bytes}{" "}
+            bytes
           </Typography>
           <Button
             size="small"
@@ -255,7 +259,8 @@ function ExportHistory({
   return (
     <Stack spacing={1}>
       <Typography variant="body2">
-        Your issued exports for these exact filters.
+        Your issued exports for these report filters, including historical
+        selected-page receipts.
       </Typography>
       {!history.data ? (
         <LoadState error={history.error} onRetry={history.refresh} />
@@ -274,6 +279,10 @@ function ExportHistory({
               <Typography variant="caption" sx={{ overflowWrap: "anywhere" }}>
                 Source SHA-256: {item.source_digest} · CSV SHA-256:{" "}
                 {item.artifact_digest}
+              </Typography>
+              <ExportCoverage receipt={item} />
+              <Typography variant="caption" sx={{ overflowWrap: "anywhere" }}>
+                Saved filters: {JSON.stringify(item.filters)}
               </Typography>
               <Button
                 size="small"
@@ -307,6 +316,36 @@ function ExportHistory({
       >
         Refresh issuance history
       </Button>
+    </Stack>
+  );
+}
+
+function ExportCoverage({ receipt }: { receipt: ReportExportReceipt }) {
+  return (
+    <Stack spacing={0.25}>
+      <Typography variant="body2">
+        {receipt.scope === "all_filtered_rows"
+          ? "Complete filtered source rows"
+          : "Partial source rows: summaries and selected pages"}
+      </Typography>
+      {receipt.scope === "all_filtered_rows"
+        ? Object.entries(receipt.row_counts).map(([name, count]) => (
+            <Typography key={name} variant="caption">
+              {name}: {count.exported} exported of {count.matched} matching rows.
+            </Typography>
+          ))
+        : Object.entries(receipt.source_pages).map(([name, page]) => (
+            <Typography key={name} variant="caption">
+              {name}: page {page.page} of {page.total_pages}; {page.total} matching
+              records.
+            </Typography>
+          ))}
+      {receipt.resource_limits && (
+        <Typography variant="caption">
+          Issuance limits: {receipt.resource_limits.max_rows} source rows;{" "}
+          {receipt.resource_limits.max_artifact_bytes} artifact bytes.
+        </Typography>
+      )}
     </Stack>
   );
 }

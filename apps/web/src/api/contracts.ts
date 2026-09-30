@@ -2184,6 +2184,16 @@ export type ReportExportReceipt = {
     { page: number; per_page: number; total: number; total_pages: number }
   >;
   database_snapshot: string;
-  scope: "summaries_and_selected_source_pages";
+  scope: "summaries_and_selected_source_pages" | "all_filtered_rows";
+  coverage_revision: number;
+  row_counts: Record<string, { matched: number; exported: number }>;
+  resource_limits: {
+    max_rows: number;
+    max_artifact_bytes: number;
+    max_snapshot_bytes: number;
+    max_query_ms: number;
+    max_lock_wait_ms: number;
+    max_capture_ms: number;
+  } | null;
   download_url: string;
 };
