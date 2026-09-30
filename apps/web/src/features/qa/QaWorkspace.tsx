@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   Alert,
   Button,
@@ -212,6 +218,14 @@ export function QaWorkspace() {
     qaWorkspaceView(window.location.search),
   );
   const viewTitle = nav.find(([id]) => id === section)?.[1];
+  const viewHeading = useRef<HTMLHeadingElement>(null);
+  const focusAfterOffice = useRef(false);
+  useEffect(() => {
+    if (focusAfterOffice.current) {
+      viewHeading.current?.focus();
+      focusAfterOffice.current = false;
+    }
+  }, [section]);
   const [selected, setSelected] = useState<Issue | KnownIssue>();
   const [report, setReport] = useState(false);
   const [question, setQuestion] = useState(false);
@@ -506,7 +520,12 @@ export function QaWorkspace() {
         <header className="qa-header">
           <div>
             <p className="qa-eyebrow">RELEASE CONFIDENCE / SHARED WITH MUSE</p>
-            <h1 aria-live="polite" aria-atomic="true">
+            <h1
+              ref={viewHeading}
+              tabIndex={-1}
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {viewTitle}
             </h1>
           </div>
@@ -617,7 +636,10 @@ export function QaWorkspace() {
             lastQaRevision={data?.state.last_qa_revision}
             loading={!data && !error}
             error={error}
-            onNavigate={setSection}
+            onNavigate={(view) => {
+              focusAfterOffice.current = true;
+              setSection(view);
+            }}
           />
         )}
         {data && (

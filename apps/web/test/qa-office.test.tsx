@@ -257,6 +257,50 @@ it("navigates directly to the existing room without issuing writes", async () =>
   }
 }, 60_000);
 
+it("moves focus out of Office to the destination heading for room and inbox", async () => {
+  for (const destination of ["room", "inbox"]) {
+    const { page, writes } = await open();
+    try {
+      if (destination === "room") {
+        await page
+          .getByRole("button", { name: "Open agent room", exact: true })
+          .focus();
+        await page.keyboard.press("Enter");
+      } else {
+        await page
+          .getByRole("navigation", { name: "Office destinations" })
+          .getByRole("button", { name: "Task board", exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: "Open full task inbox" })
+          .focus();
+        await page.keyboard.press("Enter");
+      }
+      await page.waitForFunction(
+        () => document.activeElement?.tagName === "H1",
+      );
+      const heading = page.getByRole("heading", { level: 1 });
+      expect(await heading.getAttribute("aria-live")).toBe("polite");
+      expect(await heading.getAttribute("aria-atomic")).toBe("true");
+      expect(
+        await heading.evaluate((node) => node === document.activeElement),
+      ).toBe(true);
+      expect(
+        await page
+          .getByRole("navigation", { name: "QA workspace" })
+          .locator('[aria-current="page"]')
+          .count(),
+      ).toBe(1);
+      expect(
+        await page.getByRole("group", { name: "Office floor" }).count(),
+      ).toBe(0);
+      expect(writes).toEqual([]);
+    } finally {
+      await page.close();
+    }
+  }
+}, 60_000);
+
 it("contains the narrow reduced-motion Office and captures a synthetic screenshot", async () => {
   const { page } = await open();
   try {
