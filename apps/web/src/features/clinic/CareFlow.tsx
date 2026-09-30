@@ -5562,7 +5562,7 @@ const COMPLETION_EDUCATION_LABELS: Record<
   unable_to_complete: "Unable to complete education",
 };
 
-function VisitWrapUp({
+export function VisitWrapUp({
   patient,
   encounter,
   timezone,
@@ -6181,6 +6181,9 @@ function VisitWrapUp({
               ? "Resetting clears this local attempt. Verify the encounter and completion-review status before trying again."
               : "This records the completion review, ends the encounter, completes the linked appointment when applicable, and makes the visit eligible for checkout. Open tasks remain open with their recorded owner or pool."}
           </Typography>
+          {confirmation === "close" && error && (
+            <ErrorMessage message={error} />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmation(null)} disabled={busy}>
