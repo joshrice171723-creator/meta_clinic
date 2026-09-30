@@ -9,6 +9,7 @@ type Mapping = {
   code: string;
   code_version: string | null;
   dimension: string;
+  expected_dimension_unit?: string;
   unit_codes: string[];
 };
 type Configuration = {
@@ -93,10 +94,10 @@ export function LabUnitMappingSettings() {
       <Divider />
       <Typography variant="h3">Clinic-supplied lab unit mappings</Typography>
       <Typography variant="body2" color="text.secondary">
-        Supply approved test system/code/version pairs, their dimension labels and allowed unit codes. Matching is exact and case-sensitive. No units or clinical ranges are inferred or converted. These declarations do not establish terminology certification.
+        Supply approved test system/code/version pairs and a reference UCUM unit expressing the expected dimension. Linear UCUM dimensions are computed from pinned definitions; every approved unit must match. Special/non-ratio and arbitrary units are unsupported. No result values are converted and no medical mappings are suggested.
       </Typography>
       <Alert severity={saved.configured ? "info" : "warning"}>
-        {saved.configured ? `Configured declarations: ${saved.mappings.length}. Other tests remain unmapped.` : "Unconfigured: unit/dimension compatibility is not validated."} Revision {saved.revision}.
+        {saved.configured ? `Configured declarations: ${saved.mappings.length}. Other tests remain unmapped. Legacy mappings without a reference UCUM unit require completion.` : "Unconfigured: unit/dimension compatibility is not validated."} Revision {saved.revision}.
       </Alert>
       {feedback && <Alert severity={pending ? "warning" : "info"}>{feedback}</Alert>}
       {pending && <Alert severity="warning">Save outcome unresolved. Editing is locked; retry preserves the original body and request key.</Alert>}
@@ -107,14 +108,15 @@ export function LabUnitMappingSettings() {
             <TextField label="Test code system" value={row.code_system} disabled={!editable} onChange={(event) => field(index, { code_system: event.target.value })} />
             <TextField label="Test code" value={row.code} disabled={!editable} onChange={(event) => field(index, { code: event.target.value })} />
             <TextField label="Code version (optional)" helperText="Blank matches only an unspecified version." value={row.code_version ?? ""} disabled={!editable} onChange={(event) => field(index, { code_version: event.target.value || null })} />
-            <TextField label="Supplied dimension label" value={row.dimension} disabled={!editable} onChange={(event) => field(index, { dimension: event.target.value })} />
+            <TextField label="Dimension description (clinic supplied)" value={row.dimension} disabled={!editable} onChange={(event) => field(index, { dimension: event.target.value })} />
           </Stack>
+          <TextField label="Expected-dimension reference UCUM unit" helperText="Enter a clinic-approved reference expression. Its computed base dimensions define this mapping; no default is selected." value={row.expected_dimension_unit ?? ""} disabled={!editable} onChange={(event) => field(index, { expected_dimension_unit: event.target.value })} />
           <TextField label="Allowed unit codes" helperText="One explicitly approved code per line. No display-label substitutions." multiline minRows={2} value={row.unit_codes.join("\n")} disabled={!editable} onChange={(event) => field(index, { unit_codes: event.target.value.split("\n") })} />
           <Button disabled={!editable} onClick={() => setDraft((rows) => rows.filter((_, position) => position !== index))}>Remove mapping {index + 1}</Button>
         </Stack>
       ))}
       <Stack direction="row" spacing={1}>
-        <Button disabled={!editable || draft.length >= 200} onClick={() => setDraft((rows) => [...rows, { code_system: "", code: "", code_version: null, dimension: "", unit_codes: [""] }])}>Add mapping</Button>
+        <Button disabled={!editable || draft.length >= 200} onClick={() => setDraft((rows) => [...rows, { code_system: "", code: "", code_version: null, dimension: "", expected_dimension_unit: "", unit_codes: [""] }])}>Add mapping</Button>
         <Button variant="contained" disabled={busy || !resource.data.can_write || (!changed && !pending)} onClick={() => void save()}>{busy ? "Saving…" : pending ? "Retry exact mapping save" : "Save mappings"}</Button>
         <Button disabled={busy || !!pending} onClick={() => void reload()}>Discard draft and reload</Button>
       </Stack>

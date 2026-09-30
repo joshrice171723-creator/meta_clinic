@@ -46,6 +46,7 @@ export type LabResult = {
   value_code_system?: string | null;
   unit: string | null;
   unit_code?: string | null;
+  supplied_unit_code?: string | null;
   interpretation?: string | null;
   reference_range: string | null;
   flag: string | null;
@@ -633,7 +634,7 @@ export function PatientLabReports({
               value_code: row.value_code?.trim() || null,
               value_code_system: row.value_code_system?.trim() || null,
               unit: row.unit?.trim() || null,
-              unit_code: row.unit_code?.trim() || null,
+              supplied_unit_code: (row.supplied_unit_code ?? row.unit_code)?.trim() || null,
               interpretation: row.interpretation?.trim() || null,
               reference_range: row.reference_range?.trim() || null,
               flag: row.flag?.trim() || null,
@@ -1240,7 +1241,7 @@ export function PatientLabReports({
                             <LabUnitValidation receipt={row.unit_validation} valueKind={row.value_kind} />
                             {(row.code ||
                               row.value_code ||
-                              row.unit_code ||
+                              row.unit_code || row.supplied_unit_code ||
                               row.interpretation) && (
                               <Typography
                                 variant="caption"
@@ -1251,8 +1252,8 @@ export function PatientLabReports({
                                     `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
                                   row.value_code &&
                                     `Value code: ${row.value_code}${row.value_code_system ? ` (${row.value_code_system})` : ""}`,
-                                  row.unit_code &&
-                                    `UCUM unit: ${row.unit_code}`,
+                                  row.supplied_unit_code && `Supplied unit code: ${row.supplied_unit_code}`,
+                                  row.unit_code && `${row.unit_validation?.status === "dimensionally_validated" && row.unit_validation.validation_engine === "ucum-2.2-linear-dimensions-v1" ? "Validated UCUM unit" : "Supplied unit code"}: ${row.unit_code}`,
                                   row.interpretation &&
                                     `Source interpretation: ${row.interpretation}`,
                                 ]
@@ -1478,7 +1479,7 @@ export function PatientLabReports({
                     </Typography>
                     {(row.code ||
                       row.value_code ||
-                      row.unit_code ||
+                      row.unit_code || row.supplied_unit_code ||
                       row.interpretation) && (
                       <Typography variant="caption" color="text.secondary">
                         {[
@@ -1486,7 +1487,8 @@ export function PatientLabReports({
                             `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
                           row.value_code &&
                             `Value code: ${row.value_code}${row.value_code_system ? ` (${row.value_code_system})` : ""}`,
-                          row.unit_code && `UCUM unit: ${row.unit_code}`,
+                          row.supplied_unit_code && `Supplied unit code: ${row.supplied_unit_code}`,
+                          row.unit_code && `${row.unit_validation?.status === "dimensionally_validated" && row.unit_validation.validation_engine === "ucum-2.2-linear-dimensions-v1" ? "Validated UCUM unit" : "Supplied unit code"}: ${row.unit_code}`,
                           row.interpretation &&
                             `Source interpretation: ${row.interpretation}`,
                         ]
@@ -2268,10 +2270,11 @@ function LabForm({
               />
               <TextField
                 fullWidth
-                label="UCUM unit code"
-                value={row.unit_code ?? ""}
+                label="Supplied unit code"
+                helperText="Preserved as source text; a UCUM code is validated only against a configured expected dimension."
+                value={row.supplied_unit_code ?? row.unit_code ?? ""}
                 onChange={(event) =>
-                  result(index, { unit_code: event.target.value || null })
+                  result(index, { supplied_unit_code: event.target.value || null, unit_code: null })
                 }
               />
               <TextField

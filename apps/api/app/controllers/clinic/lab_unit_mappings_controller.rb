@@ -9,7 +9,7 @@ module Clinic
     def update
       Clinic::Authorization.authorize!(practice: current_practice, actor: current_user, action: "facilities.write")
       input = parameter_hash!(:configuration, %i[expected_revision request_key],
-        nested_arrays: { mappings: [:code_system, :code, :code_version, :dimension, { unit_codes: [] }] })
+        nested_arrays: { mappings: [:code_system, :code, :code_version, :dimension, :expected_dimension_unit, { unit_codes: [] }] })
       raise ArgumentError, "mappings are required." unless input.key?(:mappings)
       raise ArgumentError, "expected_revision is required." unless input.key?(:expected_revision)
       configuration = Clinic::Configuration::LabUnitMappings.revise(practice: current_practice,

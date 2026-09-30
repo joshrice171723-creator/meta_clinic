@@ -1,5 +1,7 @@
 # Configured lab unit mappings
 
+**Partial historical increment:** the original implementation below checked string membership only and did not establish UCUM dimensions. See [the mechanical dimensional-validation source pass](ucum-dimensional-validation.md) for its scoped replacement and remaining unsupported/verification boundaries.
+
 ## Assignment and authority
 
 MC06 source-only assignment from dot, 2026-09-30: implement the approved typed-result unit/dimension mechanism using explicit clinic-supplied mappings. Do not select clinical values, seed catalogs, introduce conversions/ranges, grant roles or change live configuration. Josh directs no tests/build/lint during this sprint. Relay owns integration and the tracker; this brief supplies the proposed tracker entry rather than editing scores.

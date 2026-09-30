@@ -6,7 +6,7 @@ module Clinic
         only: %i[index show review_queue follow_up_queue result_history]
 
       VERSION_FIELDS = %i[title status result_priority collected_at issued_at].freeze
-      RESULT_FIELDS = %i[name code code_system code_version value unit unit_code interpretation reference_range flag value_kind absent_reason value_code value_code_system].freeze
+      RESULT_FIELDS = %i[name code code_system code_version value unit unit_code supplied_unit_code interpretation reference_range flag value_kind absent_reason value_code value_code_system].freeze
 
       def index
         patient = readable_patient!
@@ -309,7 +309,7 @@ module Clinic
             value_code: optional_string(row[:value_code], field: "#{field}.value_code", maximum: 200),
             value_code_system: optional_string(row[:value_code_system], field: "#{field}.value_code_system", maximum: 240),
             unit: optional_string(row[:unit], field: "#{field}.unit", maximum: 80),
-            unit_code: optional_string(row[:unit_code], field: "#{field}.unit_code", maximum: 80),
+            unit_code: optional_string(row[:supplied_unit_code].presence || row[:unit_code], field: "#{field}.unit_code", maximum: 80),
             interpretation: optional_string(row[:interpretation], field: "#{field}.interpretation", maximum: 80),
             reference_range: optional_string(row[:reference_range], field: "#{field}.reference_range", maximum: 200),
             flag: optional_string(row[:flag], field: "#{field}.flag", maximum: 80)
