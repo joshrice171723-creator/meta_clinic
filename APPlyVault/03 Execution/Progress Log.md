@@ -7,6 +7,13 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 - One combined release preparation, no partial deployment
+
+- Joshua chose one target-main combined release PR and same-revision canonical publication. Live remains `4eed814c524449bb6c0b0b5948d2b4f37c565e7a`; main already retains reviewed PR61 at `c2d30609d656cf71ab3c7a8806b1ac3585923f04`. Neither main history nor the live baseline was rewritten. Relay's isolated branch locally retains independently approved PR35, PR64 and PR65 without merge conflicts, with MC-08/MC-10 workflow-brief links added and existing tracker scores/history preserved.
+- PR3 was closed without a source merge because Patch verified its reconciled tracker tree equals retained main. Original branch remains. PR36's exact repair base `29601ee0caea7361b531206362015db61a09e078` is published on a dedicated source branch for Nova's async-race correction; complete final review is pending. Active PR4 `049b83c` is excluded while Patch prepares an inert template. Beacon owns the pending Office shared-source candidate.
+- Local integration is preparation, not exact final combined acceptance or deployment. Preserve original focused evidence and disclosed connected/two-visitor gaps; run justified combined-impact checks after remaining exact heads arrive. No partial PR61 rollout, fixture reset, new credentials/access/keys/daemon activation or provider action. CI remains billing-blocked before steps. One release will occur only after the frozen combined tree and applicable gates pass.
+
+
 ## 2026-09-30 — MC-09/MC-12 acceptance design linked locally
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) links the revised docs-only PR57 [connected membership and portal packets](../../docs/development/clinic-workflow-plans/membership-portal-connected-acceptance.md) at `2af63b7a0352f752c12796e75b34184e3e96644c` in a separate local documentation candidate. Design includes the planned null-ID manifest and closed-world test clock/gateway recipe. The successful recurring-renewal handler is implemented; missing second-paid-cycle acceptance is a proof gap, not missing product code. Runtime/owned synthetic fixtures and connected execution remain pending; separately authored isolated tests are not counted as passing here. No live fixture/auth changes, charges, outbound messages, provider proof, score change or publication occurred. PR36 notes/history and approved PR55 source remain preserved.
