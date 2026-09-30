@@ -36,7 +36,7 @@ beforeAll(async () => {
               React.createElement("button", {onClick: () => setPatientId(702)}, "Switch synthetic patient"),
               React.createElement(CashPayEstimates, {
                 key: patientId, patientId, patientName: "Synthetic comparison patient",
-                canDraft: false, invoices: patientId === 701 ? invoices : [invoices[1]],
+                canDraft: new URLSearchParams(location.search).has("writer"), invoices: patientId === 701 ? invoices : [invoices[1]],
               })
             );
           }
@@ -88,10 +88,14 @@ function estimate(patientId = 701, draft = false): CashPayEstimate {
     supersedes_id: null,
     correction_reason: null,
     revision: 1,
+    payment_context: "unknown",
+    request_context: null,
+    scheduled_context: null,
     lines: [
       {
         id: 711,
         billing_service_id: 77,
+        date_basis: null,
         source_price_revision: draft ? null : 4,
         service_offering_id: null,
         quantity: "1.0",
@@ -150,11 +154,15 @@ type FixtureOptions = {
   failure?: number;
   wrongScope?: boolean;
   firstGate?: Promise<void>;
+  writer?: boolean;
+  onWrite?: (body: Record<string, unknown>) => void;
 };
 async function fixture(page: Page, options: FixtureOptions = {}) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const requests: { method: string; path: string; query: string }[] = [];
+  let saved: CashPayEstimate | null = null;
+  let issueAttempts = 0;
   await page.route(/^http:\/\/127\.0\.0\.1:\d+\/api\//, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -163,6 +171,51 @@ async function fixture(page: Page, options: FixtureOptions = {}) {
       path: url.pathname,
       query: url.search,
     });
+    if (
+      options.writer &&
+      request.method() === "POST" &&
+      (url.pathname === "/api/clinic/cash_pay_estimates" ||
+        url.pathname === "/api/clinic/cash_pay_estimates/903/issue")
+    ) {
+      const body = request.postDataJSON() as {
+        estimate: Record<string, unknown>;
+      };
+      options.onWrite?.(body.estimate);
+      if (url.pathname.endsWith("/issue")) {
+        if (++issueAttempts === 1) {
+          await route.fulfill({
+            status: 503,
+            json: { error: "Synthetic outcome unknown" },
+          });
+          return;
+        }
+        saved = {
+          ...saved!,
+          status: "issued",
+          classification: "issued_gfe",
+          issued_at: "2026-09-30T20:00:00Z",
+        };
+      } else {
+        saved = {
+          ...estimate(701, true),
+          id: 903,
+          payment_context: body.estimate
+            .payment_context as CashPayEstimate["payment_context"],
+          request_context: body.estimate.request_context as string,
+          scheduled_context: body.estimate.scheduled_context as string,
+          lines: [
+            {
+              ...estimate(701, true).lines[0],
+              source_price_revision: 4,
+              date_basis: (body.estimate.lines as { date_basis: string }[])[0]
+                .date_basis,
+            },
+          ],
+        };
+      }
+      await route.fulfill({ json: { estimate: saved } });
+      return;
+    }
     if (request.method() !== "GET") {
       await route.fulfill({
         status: 405,
@@ -176,11 +229,35 @@ async function fixture(page: Page, options: FixtureOptions = {}) {
       });
       return;
     }
+    if (url.pathname === "/api/clinic/billing_services") {
+      await route.fulfill({
+        json: {
+          services: [
+            {
+              id: 77,
+              name: "Synthetic visit",
+              unit_amount: "75.3",
+              currency: "USD",
+              active: true,
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (url.pathname === "/api/clinic/service_offerings") {
+      await route.fulfill({ json: { service_offerings: [] } });
+      return;
+    }
     if (url.pathname === "/api/clinic/cash_pay_estimates") {
       const patientId = Number(url.searchParams.get("patient_id"));
       await route.fulfill({
         json: {
-          estimates: [estimate(patientId), estimate(patientId, true)],
+          estimates: [
+            estimate(patientId),
+            ...(saved ? [saved] : []),
+            estimate(patientId, true),
+          ],
           truncated: false,
         },
       });
@@ -213,7 +290,9 @@ async function fixture(page: Page, options: FixtureOptions = {}) {
       json: { error: "Unexpected fixture read" },
     });
   });
-  await page.goto(`${baseUrl}/comparison-test`);
+  await page.goto(
+    `${baseUrl}/comparison-test${options.writer ? "?writer=1" : ""}`,
+  );
   try {
     await expect
       .poll(
@@ -261,6 +340,111 @@ describe(
   "controlled estimate to posted-invoice comparison",
   { timeout: 15000 },
   () => {
+    it("records draft facts, blocks unknown-context issue and retries the exact context after an uncertain outcome", () =>
+      withPage(async (page) => {
+        const writes: Record<string, unknown>[] = [];
+        await fixture(page, {
+          writer: true,
+          onWrite: (body) => writes.push(body),
+        });
+        await page
+          .getByRole("combobox", { name: "Estimate to review" })
+          .click();
+        await page
+          .getByRole("option", {
+            name: "#902 · revision 1 · gfe candidate · draft",
+            exact: true,
+          })
+          .click();
+        await page
+          .getByLabel("Policy version", { exact: true })
+          .fill("synthetic-reviewed-policy");
+        expect(
+          await page
+            .getByRole("button", { name: "Issue selected GFE", exact: true })
+            .isDisabled(),
+        ).toBe(true);
+        await page
+          .getByRole("combobox", { name: "Service 1", exact: true })
+          .click();
+        await page
+          .getByRole("option", {
+            name: "Synthetic visit · USD 75.3",
+            exact: true,
+          })
+          .click();
+        await page
+          .getByLabel("Charge date basis 1", { exact: true })
+          .fill("Expected visit 2026-10-02; not booked");
+        await page
+          .getByRole("combobox", {
+            name: "Recorded payment context",
+            exact: true,
+          })
+          .click();
+        await page
+          .getByRole("option", { name: "Self-pay", exact: true })
+          .click();
+        await page
+          .getByLabel("Request context", { exact: true })
+          .fill("Requested 2026-09-30");
+        await page
+          .getByLabel("Scheduled context", { exact: true })
+          .fill("No service scheduled");
+        await page
+          .getByRole("button", { name: "Save GFE candidate", exact: true })
+          .click();
+        await expect.poll(() => writes.length).toBe(1);
+        expect(
+          (writes[0].lines as { date_basis: string }[])[0].date_basis,
+        ).toBe("Expected visit 2026-10-02; not booked");
+        await expect
+          .poll(() => page.locator("body").innerText())
+          .toContain(
+            "Charge date basis: Expected visit 2026-10-02; not booked",
+          );
+        await page
+          .getByLabel("Policy version", { exact: true })
+          .fill("synthetic-reviewed-policy");
+        await page
+          .getByRole("button", { name: "Issue selected GFE", exact: true })
+          .click();
+        await expect
+          .poll(() =>
+            page
+              .getByRole("button", { name: "Retry exact request", exact: true })
+              .count(),
+          )
+          .toBe(1);
+        expect(
+          await page
+            .getByLabel("Request context", { exact: true })
+            .isDisabled(),
+        ).toBe(true);
+        await page
+          .getByRole("button", { name: "Retry exact request", exact: true })
+          .click();
+        await expect.poll(() => writes.length).toBe(3);
+        expect(writes[2]).toEqual(writes[1]);
+        expect(writes[2]).toMatchObject({
+          payment_context: "self_pay",
+          request_context: "Requested 2026-09-30",
+          scheduled_context: "No service scheduled",
+        });
+        await page.reload();
+        await page
+          .getByRole("combobox", { name: "Estimate to review" })
+          .click();
+        await page
+          .getByRole("option", {
+            name: "#903 · revision 1 · issued gfe · issued",
+            exact: true,
+          })
+          .click();
+        expect(await page.locator("body").innerText()).toContain(
+          "Scheduled context: No service scheduled",
+        );
+      }));
     it("read-only staff select an eligible invoice, inspect source lines and exact server totals, then reload", () =>
       withPage(async (page) => {
         const requests = await fixture(page);
@@ -463,6 +647,12 @@ describe(
         await expect.poll(() => panel(page).count()).toBe(0);
         expect(await page.locator("body").innerText()).toContain(
           "Catalog price revision not recorded",
+        );
+        expect(await page.locator("body").innerText()).toContain(
+          "Charge date basis: Not recorded",
+        );
+        expect(await page.locator("body").innerText()).toContain(
+          "Request context: Not recorded",
         );
         expect(
           await page

@@ -24,11 +24,15 @@ const issued: CashPayEstimate = {
   supersedes_id: null,
   correction_reason: null,
   revision: 1,
+  payment_context: "self_pay",
+  request_context: "Estimate requested 2026-09-30",
+  scheduled_context: "No service is scheduled",
   lines: [
     {
       id: 1,
       billing_service_id: 2,
       source_price_revision: 0,
+      date_basis: "Expected synthetic visit 2026-10-02; not booked",
       service_offering_id: 17,
       quantity: "1.0",
       unit_amount: "75.0",
@@ -95,6 +99,12 @@ describe("cash-pay estimate snapshots", () => {
     expect(html).toContain("Correction snapshot");
     expect(html).toContain("USD 75.0");
     expect(html).toContain("USD 95.0");
+    expect(html).toContain("Recorded payment context: Self-pay");
+    expect(html).toContain("Request context: Estimate requested 2026-09-30");
+    expect(html).toContain("Scheduled context: No service is scheduled");
+    expect(html).toContain(
+      "Charge date basis: Expected synthetic visit 2026-10-02; not booked",
+    );
     expect(html).toContain(
       "Catalog price source: billing service #2 · revision 0",
     );

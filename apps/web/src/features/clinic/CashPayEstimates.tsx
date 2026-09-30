@@ -40,6 +40,9 @@ export type CashPayEstimate = {
   supersedes_id: number | null;
   correction_reason: string | null;
   revision: number;
+  payment_context: "unknown" | "uninsured" | "self_pay" | "other";
+  request_context: string | null;
+  scheduled_context: string | null;
   lines: {
     id: number;
     billing_service_id: number | null;
@@ -51,6 +54,7 @@ export type CashPayEstimate = {
     description: string;
     inclusions: string | null;
     exclusions: string | null;
+    date_basis: string | null;
   }[];
 };
 
@@ -58,6 +62,7 @@ type DraftLine = {
   billing_service_id: number;
   service_offering_id: number | null;
   quantity: string;
+  date_basis: string;
 };
 type EstimateOffering = {
   id: number;
@@ -81,6 +86,29 @@ export function estimatePriceSourceLabel(
   return line.source_price_revision != null && line.billing_service_id != null
     ? `Catalog price source: billing service #${line.billing_service_id} · revision ${line.source_price_revision}`
     : "Catalog price revision not recorded";
+}
+
+function EstimateContextSnapshot({ estimate }: { estimate: CashPayEstimate }) {
+  const paymentLabels = {
+    unknown: "Not recorded",
+    uninsured: "Uninsured",
+    self_pay: "Self-pay",
+    other: "Other recorded context",
+  };
+  return (
+    <Stack spacing={0.5}>
+      <Typography variant="body2">
+        Recorded payment context:{" "}
+        {paymentLabels[estimate.payment_context ?? "unknown"]}
+      </Typography>
+      <Typography variant="body2">
+        Request context: {estimate.request_context ?? "Not recorded"}
+      </Typography>
+      <Typography variant="body2">
+        Scheduled context: {estimate.scheduled_context ?? "Not recorded"}
+      </Typography>
+    </Stack>
+  );
 }
 
 export function CashPayEstimateSnapshot({
@@ -136,6 +164,7 @@ export function CashPayEstimateSnapshot({
             Correction reason: {estimate.correction_reason}
           </Typography>
         )}
+        <EstimateContextSnapshot estimate={estimate} />
         {estimate.lines.map((line) => (
           <Box
             key={line.id}
@@ -155,6 +184,9 @@ export function CashPayEstimateSnapshot({
             )}
             <Typography color="text.secondary" variant="caption" component="p">
               {estimatePriceSourceLabel(line)}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              Charge date basis: {line.date_basis ?? "Not recorded"}
             </Typography>
             {line.inclusions && (
               <Typography variant="caption">
@@ -214,11 +246,20 @@ export function CashPayEstimates({
   const [offerings, setOfferings] = useState<EstimateOffering[]>([]);
   const [offeringError, setOfferingError] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([
-    { billing_service_id: 0, service_offering_id: null, quantity: "1" },
+    {
+      billing_service_id: 0,
+      service_offering_id: null,
+      quantity: "1",
+      date_basis: "",
+    },
   ]);
   const [reason, setReason] = useState("");
   const [policyVersion, setPolicyVersion] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("");
+  const [paymentContext, setPaymentContext] =
+    useState<CashPayEstimate["payment_context"]>("unknown");
+  const [requestContext, setRequestContext] = useState("");
+  const [scheduledContext, setScheduledContext] = useState("");
   const [busy, setBusy] = useState(false);
   const [unknownOutcome, setUnknownOutcome] = useState(false);
   const attempt = useRef<EstimateAttempt | null>(null);
@@ -319,16 +360,27 @@ export function CashPayEstimates({
               billing_service_id: line.billing_service_id!,
               service_offering_id: line.service_offering_id,
               quantity: line.quantity,
+              date_basis: line.date_basis ?? "",
             }))
         : [];
     setLines(
       fromSnapshot.length
         ? fromSnapshot
-        : [{ billing_service_id: 0, service_offering_id: null, quantity: "1" }],
+        : [
+            {
+              billing_service_id: 0,
+              service_offering_id: null,
+              quantity: "1",
+              date_basis: "",
+            },
+          ],
     );
     setReason("");
     setPolicyVersion("");
     setDeliveryMethod("");
+    setPaymentContext(previous?.payment_context ?? "unknown");
+    setRequestContext(previous?.request_context ?? "");
+    setScheduledContext(previous?.scheduled_context ?? "");
   }, [selectedId]);
   const predecessor = selected?.supersedes_id
     ? estimates.find((estimate) => estimate.id === selected.supersedes_id)
@@ -425,6 +477,14 @@ export function CashPayEstimates({
     }
   };
   const estimateLines = lines.map((line) => ({ ...line }));
+  const estimateContext = {
+    payment_context: paymentContext,
+    request_context: requestContext.trim() || null,
+    scheduled_context: scheduledContext.trim() || null,
+  };
+  const contextRecorded =
+    paymentContext !== "unknown" &&
+    Boolean(requestContext.trim() && scheduledContext.trim());
 
   return (
     <Paper component="section" variant="outlined" sx={{ p: 2 }}>
@@ -576,6 +636,7 @@ export function CashPayEstimates({
               </Typography>
             )}
             <Typography>Prepared for {patientName}</Typography>
+            <EstimateContextSnapshot estimate={selected} />
             <Typography>
               Estimate #{selected.id} · revision {selected.revision} ·{" "}
               {selected.status}
@@ -620,6 +681,9 @@ export function CashPayEstimates({
                         component="p"
                       >
                         {estimatePriceSourceLabel(line)}
+                      </Typography>
+                      <Typography variant="body2">
+                        Charge date basis: {line.date_basis ?? "Not recorded"}
                       </Typography>
                     </td>
                     <td align="right">{line.quantity}</td>
@@ -697,6 +761,8 @@ export function CashPayEstimates({
                 key={index}
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1}
+                useFlexGap
+                sx={{ flexWrap: "wrap" }}
               >
                 <TextField
                   select
@@ -781,6 +847,23 @@ export function CashPayEstimates({
                   slotProps={{ htmlInput: { inputMode: "decimal" } }}
                   sx={{ flex: 1 }}
                 />
+                <TextField
+                  label={`Charge date basis ${index + 1}`}
+                  value={line.date_basis}
+                  onChange={(event) =>
+                    setLines((current) =>
+                      current.map((item, at) =>
+                        at === index
+                          ? { ...item, date_basis: event.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                  disabled={busy || unknownOutcome}
+                  helperText="Record the expected charge's date basis in plain language; leave blank if unknown."
+                  slotProps={{ htmlInput: { maxLength: 500 } }}
+                  sx={{ flex: "1 1 100%" }}
+                />
                 <Button
                   onClick={() =>
                     setLines((current) =>
@@ -801,6 +884,7 @@ export function CashPayEstimates({
                     billing_service_id: 0,
                     service_offering_id: null,
                     quantity: "1",
+                    date_basis: "",
                   },
                 ])
               }
@@ -809,6 +893,43 @@ export function CashPayEstimates({
             >
               Add service
             </Button>
+            <TextField
+              select
+              label="Recorded payment context"
+              value={paymentContext}
+              onChange={(event) =>
+                setPaymentContext(
+                  event.target.value as CashPayEstimate["payment_context"],
+                )
+              }
+              disabled={busy || unknownOutcome}
+              helperText="Record the facts reviewed for this estimate. This does not determine legal GFE applicability."
+            >
+              <MenuItem value="unknown">Not recorded</MenuItem>
+              <MenuItem value="uninsured">Uninsured</MenuItem>
+              <MenuItem value="self_pay">Self-pay</MenuItem>
+              <MenuItem value="other">Other recorded context</MenuItem>
+            </TextField>
+            <TextField
+              label="Request context"
+              value={requestContext}
+              onChange={(event) => setRequestContext(event.target.value)}
+              disabled={busy || unknownOutcome}
+              multiline
+              minRows={2}
+              slotProps={{ htmlInput: { maxLength: 500 } }}
+              helperText="Record whether and when an estimate was requested, or that no request is recorded."
+            />
+            <TextField
+              label="Scheduled context"
+              value={scheduledContext}
+              onChange={(event) => setScheduledContext(event.target.value)}
+              disabled={busy || unknownOutcome}
+              multiline
+              minRows={2}
+              slotProps={{ htmlInput: { maxLength: 500 } }}
+              helperText="Record the known scheduled service context, or that no service is scheduled. No appointment is created."
+            />
             {isCorrection && (
               <TextField
                 label="Correction reason"
@@ -843,6 +964,7 @@ export function CashPayEstimates({
                         estimate: {
                           request_key: crypto.randomUUID(),
                           reason: reason.trim(),
+                          ...estimateContext,
                           lines: estimateLines,
                         },
                       },
@@ -858,6 +980,7 @@ export function CashPayEstimates({
                           request_key: crypto.randomUUID(),
                           patient_id: patientId,
                           classification: "gfe_candidate",
+                          ...estimateContext,
                           currency: currencies[0],
                           lines: estimateLines,
                         },
@@ -890,7 +1013,12 @@ export function CashPayEstimates({
                 />
                 <Button
                   variant="contained"
-                  disabled={busy || unknownOutcome || !policyVersion.trim()}
+                  disabled={
+                    busy ||
+                    unknownOutcome ||
+                    !policyVersion.trim() ||
+                    !contextRecorded
+                  }
                   onClick={() => {
                     if (!selected) return;
                     void submit(
@@ -900,6 +1028,7 @@ export function CashPayEstimates({
                           estimate: {
                             request_key: crypto.randomUUID(),
                             policy_version: policyVersion.trim(),
+                            ...estimateContext,
                             delivery_method: deliveryMethod.trim() || null,
                           },
                         },

@@ -4,6 +4,8 @@ module Clinic
       self.table_name = "clinic_cash_pay_estimates"
       include Clinic::TenantScoped
       include Clinic::Auditable
+      CONTEXT_FIELDS = %i[payment_context request_context scheduled_context].freeze
+      PAYMENT_CONTEXTS = %w[unknown uninsured self_pay other].freeze
       belongs_to :patient, class_name: "Clinic::Care::Patient", optional: true
       belongs_to :supersedes, class_name: "Clinic::Billing::CashPayEstimate", optional: true
       has_many :lines, class_name: "Clinic::Billing::CashPayEstimateLine", dependent: :restrict_with_error
@@ -12,6 +14,8 @@ module Clinic
       validates :currency, format: { with: /\A[A-Z]{3}\z/ }
       validates :revision, numericality: { only_integer: true, greater_than: 0 }
       validates :correction_reason, length: { maximum: 500 }, allow_nil: true
+      validates :payment_context, inclusion: { in: PAYMENT_CONTEXTS }
+      validates :request_context, :scheduled_context, length: { maximum: 500 }, allow_nil: true
       validate :issued_snapshot
       validate :correction_lineage
       validate :preserve_issued_snapshot, on: :update
