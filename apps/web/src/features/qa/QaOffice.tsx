@@ -17,7 +17,7 @@ import CollectionsRounded from "@mui/icons-material/CollectionsRounded";
 import ForumRounded from "@mui/icons-material/ForumRounded";
 import LocalFloristRounded from "@mui/icons-material/LocalFloristRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
-import { api } from "../../api/client";
+import { useOfficeRequest, useOfficeLink } from "./officeTransport";
 import {
   acceptMuseReceipt,
   museCountdown,
@@ -105,6 +105,8 @@ export function QaOffice({
   onRefresh,
   onNavigate,
 }: QaOfficeProps) {
+  const api = useOfficeRequest();
+  const officeLink = useOfficeLink();
   const [buildBannerTarget, setBuildBannerTarget] =
     useState<HTMLDivElement | null>(null);
   const [position, setPosition] = useState({ x: 5, y: 5 });
@@ -749,7 +751,7 @@ export function QaOffice({
               {evidence.slice(0, 20).map((item) => (
                 <article key={item.id}>
                   <a
-                    href={`/api/qa/evidence/${item.id}`}
+                    href={officeLink(`/api/qa/evidence/${item.id}`)}
                     target="_blank"
                     rel="noreferrer"
                   >

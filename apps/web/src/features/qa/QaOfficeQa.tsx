@@ -20,7 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
-import { api } from "../../api/client";
+import { useOfficeRequest, useOfficeLink } from "./officeTransport";
 
 type Defect = {
   id: number | string;
@@ -141,6 +141,8 @@ export function QaOfficeQa({
 }: {
   buildBannerTarget?: HTMLElement | null;
 }) {
+  const api = useOfficeRequest();
+  const officeLink = useOfficeLink();
   const [snapshot, setSnapshot] = useState<QaSnapshot>();
   const [readError, setReadError] = useState("");
   const [writeError, setWriteError] = useState("");
@@ -186,7 +188,7 @@ export function QaOfficeQa({
           reason instanceof Error ? reason.message : "QA refresh failed.",
         );
     }
-  }, []);
+  }, [api]);
   useEffect(() => {
     active.current = true;
     void refresh();
@@ -864,7 +866,7 @@ export function QaOfficeQa({
               typeof ref === "number" ? (
                 <a
                   key={ref}
-                  href={`/api/qa/evidence/${ref}`}
+                  href={officeLink(`/api/qa/evidence/${ref}`)}
                   target="_blank"
                   rel="noreferrer"
                 >

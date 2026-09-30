@@ -19,7 +19,7 @@ import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
 import { QaAgentRoom } from "./QaAgentRoom";
 import { QaOffice } from "./QaOffice";
-import { sharedOffice, type SharedOffice } from "./sharedOffice";
+import { useSharedOffice } from "./useSharedOffice";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -215,9 +215,6 @@ const nav = [
 
 export function QaWorkspace() {
   const [data, setData] = useState<Workspace>();
-  const [office, setOffice] = useState<SharedOffice>();
-  const [officeError, setOfficeError] = useState("");
-  const officeRequest = useRef(0);
   const [live, setLive] = useState<Build>();
   const [buildError, setBuildError] = useState("");
   const [error, setError] = useState("");
@@ -250,28 +247,10 @@ export function QaWorkspace() {
     url.searchParams.set("view", section);
     window.history.replaceState(null, "", url);
   }, [section]);
-  const refreshOffice = useCallback(async () => {
-    const request = ++officeRequest.current;
-    try {
-      const snapshot = sharedOffice(await api<unknown>("/api/qa/office"));
-      if (request !== officeRequest.current) return;
-      setOffice(snapshot);
-      setOfficeError("");
-    } catch (reason) {
-      if (request !== officeRequest.current) return;
-      setOffice(undefined);
-      setOfficeError(
-        reason instanceof Error ? reason.message : "Shared Office unavailable.",
-      );
-    }
-  }, []);
-  useEffect(() => {
-    if (section !== "office") return;
-    const timer = window.setInterval(() => {
-      if (!document.hidden) void refreshOffice();
-    }, 15000);
-    return () => window.clearInterval(timer);
-  }, [section, refreshOffice]);
+  const { office, officeError, refreshOffice } = useSharedOffice(
+    api,
+    section === "office",
+  );
   const refresh = useCallback(
     async (github = false) => {
       await Promise.all([

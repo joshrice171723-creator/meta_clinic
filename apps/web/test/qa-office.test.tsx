@@ -135,7 +135,7 @@ beforeAll(async () => {
         },
         load(id) {
           if (id === "\0qa-office-entry.js")
-            return `import React from 'react'; import {createRoot} from 'react-dom/client'; import {QaWorkspace} from '/src/features/qa/QaWorkspace.tsx'; import {QaOffice} from '/src/features/qa/QaOffice.tsx'; window.qaRoot=createRoot(document.getElementById('root')); window.renderOffice=(museCheckIn)=>window.qaRoot.render(React.createElement(QaOffice,{tasks:[],evidence:[],events:[],onNavigate:()=>{},museCheckIn})); window.qaRoot.render(React.createElement(QaWorkspace));`;
+            return `import React from 'react'; import {createRoot} from 'react-dom/client'; import {QaWorkspace} from '/src/features/qa/QaWorkspace.tsx'; import {QaOffice} from '/src/features/qa/QaOffice.tsx'; import {QaAgentRoom} from '/src/features/qa/QaAgentRoom.tsx'; window.qaRoot=createRoot(document.getElementById('root')); window.renderBoundOfficeRoom=()=>window.qaRoot.render(React.createElement(QaAgentRoom,{boundOffice:true})); window.renderOffice=(museCheckIn)=>window.qaRoot.render(React.createElement(QaOffice,{tasks:[],evidence:[],events:[],onNavigate:()=>{},museCheckIn})); window.qaRoot.render(React.createElement(QaWorkspace));`;
         },
         configureServer(vite) {
           vite.middlewares.use((request, response, next) => {
@@ -868,6 +868,58 @@ it("posts owner Office messages without self-reported identity and puts the full
     expect(banner).toBeTruthy();
     expect(header).toBeTruthy();
     expect(banner!.y).toBeLessThan(header!.y);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("locks the original bound Office message after uncertain delivery and retries its identical key without an identity field", async () => {
+  const { page } = await open();
+  try {
+    await page.route(/\/api\/qa\/room(?:\?after_id=\d+)?$/, (route) =>
+      route.fulfill({
+        json: {
+          messages: [],
+          next_cursor: 0,
+          has_more: false,
+          can_post: true,
+          notice: "Bound Office fixture",
+        },
+      }),
+    );
+    const commands: Record<string, any>[] = [];
+    await page.route("**/api/qa/room/messages", (route) => {
+      commands.push(route.request().postDataJSON());
+      return commands.length === 1
+        ? route.fulfill({ status: 503, json: { error: "Delivery uncertain" } })
+        : route.fulfill({ json: { id: 23, created_at: observed } });
+    });
+    await page.evaluate(() => (window as any).renderBoundOfficeRoom());
+    const body = page.getByRole("textbox", { name: "Message", exact: true });
+    await body.fill("Original Office message");
+    expect(
+      await page.getByRole("textbox", { name: /Display name/ }).count(),
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Post message", exact: true })
+      .click();
+    await page
+      .getByText(/The original message and request key are retained/)
+      .waitFor();
+    expect(await body.isDisabled()).toBe(true);
+    await page
+      .getByRole("button", { name: "Post message", exact: true })
+      .click();
+    await page.getByText(/Message #23 persisted/).waitFor();
+    expect(commands).toHaveLength(2);
+    expect(commands[0]).toEqual(commands[1]);
+    expect(commands[0].message).toMatchObject({
+      body: "Original Office message",
+      recipient: "Muse",
+    });
+    expect(commands[0].message).not.toHaveProperty("agent");
+    expect(await body.isDisabled()).toBe(false);
+    expect(await body.inputValue()).toBe("");
   } finally {
     await page.close();
   }

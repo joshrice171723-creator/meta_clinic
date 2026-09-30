@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --strictPort",
     "build": "pnpm run typecheck && pnpm run build:bundle",
-    "build:bundle": "vite build",
+    "build:bundle": "vite build && vite build --config vite.office.config.ts",
     "browser:smoke": "node scripts/browser-smoke.mjs",
     "browser:acceptance": "node scripts/browser-acceptance.mjs",
     "typecheck": "tsc --noEmit",
@@ -21,11 +21,14 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "twilio-video": "^2.35.0"
+    "twilio-video": "^2.35.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "26.4.0",
