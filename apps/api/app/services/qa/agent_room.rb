@@ -1,6 +1,7 @@
 module Qa
   class AgentRoom
     KIND = "agent_room_message".freeze
+    BUILD_FIELDS = %w[build_at_send build_dirty build_available].freeze
     class Conflict < StandardError; end
 
     def self.text!(input, field, maximum)
@@ -24,14 +25,15 @@ module Qa
         created_at: item.created_at.iso8601, delivery: "persisted", authenticated_author_id: item.user_id, revision: item.revision }
     end
 
+    def self.matches?(item, actor, payload)
+      item.kind == KIND && item.user_id == actor.id && item.payload.except(*BUILD_FIELDS) == payload.except(*BUILD_FIELDS)
+    end
+
     def self.post(actor, input, source:)
       key = text!(input, "message_key", 100)
       payload = { "agent" => text!(input, "agent", 80), "recipient" => text!(input, "recipient", 80),
         "body" => text!(input, "body", 2000), "identity" => "self_reported", "authenticated_source" => source,
         "provenance" => "reported" }
-      if payload.to_json.match?(/Bearer\s+[A-Za-z0-9_+\/-]{12,}|-----BEGIN[^-]*PRIVATE KEY-----|\bqa_[A-Za-z0-9_-]{43}\b|\b(?:password|pin)\s*[:=]\s*\S+/i)
-        raise ArgumentError, "Remove credentials. Post independently synthetic QA coordination only."
-      end
       if input["reference_revision"].present?
         raise ArgumentError, "Reference revision must be a full 40-character SHA." unless input["reference_revision"].is_a?(String) && input["reference_revision"].match?(/\A[0-9a-f]{40}\z/)
         payload["reference_revision"] = input["reference_revision"]
@@ -59,11 +61,13 @@ module Qa
         raise ArgumentError, "Reply message does not exist." unless parent
         payload.merge!("reply_to" => parent.id, "thread_id" => parent.payload["thread_id"] || parent.id)
       end
+      if payload.merge("message_key" => key).to_json.match?(/Bearer\s+[A-Za-z0-9_+\/-]{12,}|-----BEGIN[^-]*PRIVATE KEY-----|\bqa_[A-Za-z0-9_-]{43}\b|\b(?:password|pin)\s*[:=]\s*\S+/i)
+        raise ArgumentError, "Remove credentials. Post independently synthetic QA coordination only."
+      end
       actor.with_lock do
         existing = Event.find_by(event_key: "room:#{key}")
         if existing
-          original = existing.payload.except("build_at_send", "build_dirty", "build_available")
-          raise Conflict, "Message key already records different content or another author." unless existing.kind == KIND && existing.user_id == actor.id && original == payload
+          raise Conflict, "Message key already records different content or another author." unless matches?(existing, actor, payload)
           return receipt(existing)
         end
         if Event.where(kind: KIND, user_id: actor.id).where("created_at >= ?", 1.minute.ago).count >= 30
@@ -73,6 +77,7 @@ module Qa
         payload.merge!("build_at_send" => build["revision"], "build_dirty" => !!build["dirty"], "build_available" => build["revision"].present?)
         item = Workspace.event(user: actor, kind: KIND, summary: "#{payload['agent']} → #{payload['recipient']}",
           revision: build["dirty"] ? nil : build["revision"], payload:, event_key: "room:#{key}")
+        raise Conflict, "Message key already records different content or another author." unless matches?(item, actor, payload)
         receipt(item)
       end
     end

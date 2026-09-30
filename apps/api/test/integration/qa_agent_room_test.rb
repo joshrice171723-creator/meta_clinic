@@ -182,4 +182,51 @@ class QaAgentRoomTest < ActionDispatch::IntegrationTest
     get "/api/qa/room", params: { after_id: "-1" }
     assert_response :unprocessable_entity
   end
+
+  test "credential shaped text cannot enter any public message field or event key" do
+    sign_in
+    original = @input.dup
+    fake_credential = "qa_#{'x' * 43}"
+    %i[message_key agent recipient body case_reference correlation_nonce reference_revision task_id evidence_refs reply_to].each do |field|
+      @input = original.merge(field => fake_credential)
+      assert_no_difference "Qa::Event.count", "credential accepted in #{field}" do
+        post_message
+        assert_response :unprocessable_entity
+      end
+    end
+  end
+
+  test "a late unique key winner from another author never becomes the callers receipt" do
+    sign_in
+    post_message
+    winner = Qa::Event.find(response.parsed_body.fetch("id"))
+    original_winner = winner.attributes
+    # Both owners can have passed authorization on either side of an ownership
+    # transfer. Force the second lookup miss to model the winning insert landing
+    # between that lookup and create_or_find_by!; PostgreSQL resolves the key.
+    @owner.update!(platform_owner: false)
+    other = User.create!(email_address: "room-race-owner@example.invalid", password: PASSWORD, platform_owner: true)
+    sign_in(other)
+    original_find = Qa::Event.method(:find_by)
+    missed = false
+    key = "room:#{@input[:message_key]}"
+    Qa::Event.define_singleton_method(:find_by) do |*args, **kwargs|
+      conditions = kwargs.empty? ? args.first : kwargs
+      if !missed && conditions == { event_key: key }
+        missed = true
+        nil
+      else
+        original_find.call(*args, **kwargs)
+      end
+    end
+    assert_no_difference "Qa::Event.count" do
+      post_message
+      assert_response :conflict
+    end
+    assert missed, "the initial lookup must miss to exercise the database collision path"
+    assert_equal original_winner, winner.reload.attributes
+    assert_nil response.parsed_body["authenticated_author_id"]
+  ensure
+    Qa::Event.define_singleton_method(:find_by, original_find) if original_find
+  end
 end
