@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 - Founder-requested percentage reconciliation
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) now shows the inspected PR66 combined candidate `8c3d2358073acd14bb135a93a3adb1d7aa9034c8`: **Build 73.2% -> 76.3%, local Validation 46.3% -> 48.1%, External / human 0% unchanged**. The [dated reconciliation](../../records/progress/2026/09/2026-09-30-tracker-score-reconciliation.md) supplies every MC-01-15 before/after, source/receipt links, judgment limits and remaining gaps. Build row sum 1,098 -> 1,145; Validation 694 -> 721, divided by 15. Earlier uncredited prescription/receiving recovery and retained setup, intake, follow-up, billing, supplier, reporting and configuration/Scribe slices are credited; already scored features, Office/QA/DevOps and simulated external outcomes are not. MC-16 remains excluded and unchanged.
+
+Fresh read-only checks confirmed PR66 open at that head, main `c2d30609` and live build.json `4eed814c` (0.2.3). This is source-candidate progress, not a merge/deployment, complete clinical journey or release approval. Older unchanged-score entries remain historical. No application source, tests, credentials, provider actions or live fixtures changed; no app checks ran. The score-only branch is for Relay to review/incorporate into existing PR66, with no new PR. Documentation checks and exact commit are supplied in the handoff.
+
 ## 2026-09-30 - Approved combined source, final release hold
 
 The single [release PR66](https://github.com/joshrice171723-creator/meta_clinic/pull/66) retains main PR61 history and approved PR35/64/65, Office `9efdbb75352adc212999dba3492b605e057ed574`, and preserved PR36 `29601ee0caea7361b531206362015db61a09e078` plus Sage-approved race repair `26d24d47d63741d65fc7b2409047a377819c5cdb`. The one Progress Log conflict retains both complete entries; SSR and feature additions remain. Joshua dropped PR4: it is closed, branch preserved, and all PR4-only source is excluded. PR3 is closed as fully superseded; PR35/64/65 were closed only after source retention in PR66 was verified. Original branches, evidence and tracker percentages remain preserved.
