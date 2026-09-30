@@ -1,6 +1,6 @@
 # Source-only combined integration — 2026-09-30
 
-This is a source-accounting cutoff for the single combined PR66, not a release-readiness claim. Main and live are unchanged. Josh's 21:08 UTC instruction changed the sprint target to 95% Build and deferred new tests/builds/lint. No new verification job was started after that instruction. Independent scoring owns percentages; tests do not earn Build credit.
+This is a source-accounting cutoff for the single product integration branch, not a release-readiness claim. Product integration does not change main or live. PR66 was merged externally with Office at21:20:20UTC; that release did not contain this larger product batch. The product branch now preserves verified current main7ded2cfe5768f9dea1fbba58a49805ff34fa3214 as its baseline. Josh's 21:08 UTC instruction changed the sprint target to 95% Build and deferred new tests/builds/lint. No new verification job was started after that instruction. Independent scoring owns percentages; tests do not earn Build credit.
 
 ## Retained source heads
 
@@ -17,7 +17,7 @@ This is a source-accounting cutoff for the single combined PR66, not a release-r
 | MC07 repaired telehealth lifecycle | a1c118ac15fed8f78bb977334a77f66ed6e1231c, already retained at6099 |
 | MC08 price/date/context | d9082a1f63b39b963be63d5a277c320267339a20, retainingd19 |
 | MC09 entitlement source/scoped schema | 6ee0f3cc6c2ff8656dbec1fd7b24c54bf193f240 and schema795bde81a1bed44d82b1ac838a682137db7cacb2, already retained at1b9 |
-| MC10 substitution/provenance/durable preparation | 067a984f8ea82ce137a5d2378a049379b91413df, retaining10afe/a325/60158 |
+| MC10 substitution/provenance/durable preparation | f0269c37c61798bf3f3d8c896ee769592264d6fe, retaining5f8/067a/10afe/a325/60158 |
 | MC11 quote/local supplier preparation | 07121a53607f0176cf503deee635cf5ab351622d, retainingba08 |
 | MC12 paging/return/refill/reschedule/callback | 25f296a83a09739dc5c5c29ed0a24dd5104528fa, retaining6caa/900/8b6/ed421/repaired8715 |
 | MC12 waitlist | 7e58880a3cbfeaaec84d861254ffb0b355c66a75; original branch ancestry retained after earlier isolated cherry-pick |
@@ -33,7 +33,7 @@ All original branches/history are preserved. Old blocked source heads may remain
 - Supplied verified MC08 schema commit51111f92e2eca3ef0b9c65130cf51e43d8e8ebff contributes exactly three lines: price-revision column/check and migrationversion. Its migration-list conflict was resolved additively, preserving all existing combined schema content, including MC09's177added lines. No generated dump was fabricated or rewritten.
 - MC08 and MC13 originally duplicated migrationversion20260930230000. Sage's unchanged-content rename460caf7d fixes MC13 to20260930230200; MC08 remains230000/230100. Static inventory now has unique versions. No migration ran during this source-only batch.
 - Remaining new migration/schema stages are unfinished/unverified: MC04 overbook trigger; MC08 date/context; MC10 substitution/attempt provenance/durable preparation; MC11 quote/delivery preparation; MC13 nullable policy totals. The committed structure is not claimed to be a freshly regenerated complete schema for this batch. Preserve scoped generated artifacts when supplied; do not fill unknown values or backfill historical clinical choices.
-- MC10's current UI submits preparation_id; both existing synthetic application callers create a preparation and pass its ID. Newer caller/route/regression follow-up5f8ea8d2c5d3c7e57de12e845a9f82f08d48293a and legacy-owned-receipt compatibility remain with the author for the next increment. No historical preparation is inferred or fabricated; current durable-preparation source is not a runtime-completion claim.
+- MC10's current UI submits preparation_id; both existing synthetic application callers create a preparation and pass its ID. Final sourcef026 retains caller/route/regression follow-up5f8 and allows exact owned committed legacy retries to reach idempotency with their original payload before preparation validation. Auth/actor/practice/key/digest remain checked; unmatched new requests require explicit preparation. This is statically inspected source; runtime verification remains deferred. No historical preparation is inferred or fabricated; current durable-preparation source is not a runtime-completion claim.
 - Shared ClinicalPlanWorkflow retains prescription substitution handling and corrected proposed-kind/closure evidence checks. Routes/contracts were merged additively. These are concise source inspections, not runtime/type/build passes.
 - PR4, actor credentials/activation, new Office scope, unrelated646bc531 and unfinished fast-builder increments are excluded. Original main recovery infrastructure is preserved.
 
@@ -44,3 +44,7 @@ Latest independent score documents c18d37fa44a1de4efffeca47e5241bd330cb38cf asse
 Existing completed evidence remains valid only at its tested source:6099 cloud45/45,types/build/style;1b9 cloud108tests/types/build/format completed before stop per parent handoff; isolated MC09 schema-bearing4401 restore27Rails/3641assertions,lint/eager/syntax. None is a combined runtime pass for this later batch.
 
 Three MC09 architecture-contract failures independently reproduce identically at baseline8c. They remain disclosed pre-existing contract debt, not passing tests. MC03 backend failures likewise reproduce on baseline per Sage's disposition. CI billing fails before jobs; full CI is not green. New runtime, migration, type/build, connected/browser/provider and release/recovery verification is deferred. No main merge, production deployment, fixture reset, charges/provider calls, credentials/access changes or host automation activation occurred.
+
+## External Office baseline reconciliation
+
+Branch: `codex/relay-product-source-20260930`. Product source snapshot98d16213 remains preserved on the old local integration branch; the merged PR66 branch was not pushed again. The new branch retains main7ded2cfe and all its Office identity/task/UI, harness and infrastructure source. The sole baseline conflict was the schema-migration list; Office160000, MC09 000900 and MC08 230000 entries were retained together. Product schema changes remain additive to the supplied Office schema. No new PR, main merge, deployment, actor activation or credential action was performed. New product percentages require an independent frozen-cutoff assessment.
