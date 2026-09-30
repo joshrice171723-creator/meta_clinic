@@ -43,6 +43,15 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**2026-09-29 — PR #3 evidence reconciliation:** Earlier planning/Atlas and report
+evidence links are retained alongside later implementation checkpoints. The
+[Operations integration inventory](../../apps/web/src/features/clinic/OperationsIntegrationInventory.tsx)
+remains a source projection, not external settlement or pharmacy-response proof.
+Direct server denial, CSV inspection, populated exception/reconciliation branches
+and safe retry remain acceptance gates. Later MC dashboard percentages and the
+September 29 QA inventory correction take precedence over the older PR snapshot.
+
+
 ### Clinic workflow planning coverage — 2026-09-22 audit
 
 Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked from its owning item even when the plan itself is the only changed artifact. A plan is not implementation or acceptance evidence. The dedicated [assignment folder](../../docs/development/clinic-workflow-plans/README.md) currently contains three assignment briefs plus the organization-wide sandbox coverage matrix; earlier briefs remain at their established owning paths and are linked below.
