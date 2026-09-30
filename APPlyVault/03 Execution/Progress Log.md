@@ -9,7 +9,7 @@ canonical_for: recent-progress-and-history-index
 
 ## 2026-09-30 — MC-09/MC-12 acceptance design linked locally
 
-The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) now links the docs-only PR57 [connected membership and portal packets](../../docs/development/clinic-workflow-plans/membership-portal-connected-acceptance.md) at `ceef54ccca69e28335733ecfe698b2bcbecf09c1` in a separate local documentation candidate. Design is complete; runtime/owned synthetic fixture prerequisites and all connected execution remain pending. Successful recurring renewal is uncovered by the current local simulator. No charge, outbound message, provider proof, score change or publication occurred. PR36 notes/history and the independently approved PR55 source candidate remain preserved.
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) links the revised docs-only PR57 [connected membership and portal packets](../../docs/development/clinic-workflow-plans/membership-portal-connected-acceptance.md) at `2af63b7a0352f752c12796e75b34184e3e96644c` in a separate local documentation candidate. Design includes the planned null-ID manifest and closed-world test clock/gateway recipe. The successful recurring-renewal handler is implemented; missing second-paid-cycle acceptance is a proof gap, not missing product code. Runtime/owned synthetic fixtures and connected execution remain pending; separately authored isolated tests are not counted as passing here. No live fixture/auth changes, charges, outbound messages, provider proof, score change or publication occurred. PR36 notes/history and approved PR55 source remain preserved.
 
 ## 2026-09-30 — PR55 approved-source and tracker integration preparation
 
