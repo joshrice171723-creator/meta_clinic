@@ -33,23 +33,37 @@ module Clinic
           raise ArgumentError, "Confirm the previous prescription outcome before another submission." if PrescriptionWorkflow.unresolved?(order)
           destination = PharmacyDestination.where(practice:, active: true).find(pharmacy_destination_id)
           PrescriptionWorkflow.validate_release!(order, destination:)
-          raise ArgumentError, "Review this exact prescription version first." unless PrescriptionWorkflow.events(order)
-            .exists?(medication_request_revision_id: order.id, kind: "review")
+          review = PrescriptionWorkflow.events(order).where(medication_request_revision_id: order.id, kind: "review").last
+          raise ArgumentError, "Review this exact prescription version first." unless review
           PrescriptionWorkflow.ensure_dependencies!(order)
+          destination_snapshot = destination.snapshot
+          prior_attempt = attempts(order).last
+          # This local canonical envelope is not a vendor or FHIR wire payload.
+          fields = ClinicalPlanWorkflow::COMMON_FIELDS + ClinicalPlanWorkflow::DEFINITIONS.fetch(:medication_requests).fetch(:fields)
+          envelope = { schema_version: PrescriptionTransmissionAttempt::SCHEMA_VERSION, source: "simulation", transaction_type: "NewRx",
+            practice_id: practice.id, patient_id: order.patient_id, encounter_id: order.encounter_id,
+            order_id: order.id, series_id: order.series_id, version_number: order.version_number,
+            prescription: order.slice(*fields), review_event_id: review.id, destination: destination_snapshot,
+            mode:, signer_snapshot:, reviewer_snapshot: }
+          digest = Clinic::Idempotency.payload_digest(envelope, algorithm: Clinic::Idempotency::LEGACY_DIGEST_ALGORITHM)
           event = PrescriptionWorkflow.record(practice:, actor:, order:, kind: outcome, source: "simulation",
             request_key: "prescription-event:#{request_key}", simulated_submission: true)
           PrescriptionTransmissionAttempt.create!(practice:, patient: order.patient, medication_request_revision: order,
             pharmacy_destination: destination, prescription_event: event,
             initiated_by_membership: practice.memberships.active.find_by!(user: actor), request_key:,
             adapter: PrescriptionTransmissionAttempt::ADAPTER, outcome:, mode:, signer_snapshot:, reviewer_snapshot:,
-            destination_snapshot: destination.snapshot, submitted_at: Current.business_time)
+            destination_snapshot:, submitted_at: Current.business_time,
+            source: "simulation", transaction_type: "NewRx", schema_version: PrescriptionTransmissionAttempt::SCHEMA_VERSION,
+            payload_digest: digest, correlation_id: SecureRandom.uuid, review_event: review, prior_attempt:)
         end
         result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
       end
 
       def serialize(attempt)
         attempt.slice(:id, :medication_request_revision_id, :pharmacy_destination_id, :prescription_event_id,
-          :adapter, :outcome, :mode, :signer_snapshot, :reviewer_snapshot, :destination_snapshot).merge(submitted_at: attempt.submitted_at.iso8601)
+          :adapter, :outcome, :mode, :signer_snapshot, :reviewer_snapshot, :destination_snapshot,
+          :request_key, :source, :transaction_type, :schema_version, :payload_digest, :correlation_id, :review_event_id,
+          :prior_attempt_id).merge(submitted_at: attempt.submitted_at.iso8601)
       end
 
       def controlled_snapshots!(practice:, site:, mode:, signer_state:, reviewer_state:, outcome:)
