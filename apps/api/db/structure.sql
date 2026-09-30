@@ -9730,9 +9730,13 @@ CREATE TABLE public.clinic_service_offerings (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     public_visible boolean DEFAULT false NOT NULL,
+    contact_instructions text,
+    referral_instructions text,
     CONSTRAINT clinic_service_offerings_code_value CHECK (((code IS NULL) OR (length(TRIM(BOTH FROM code)) > 0))),
     CONSTRAINT clinic_service_offerings_duration CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 5) AND (duration_minutes <= 1440)))),
-    CONSTRAINT clinic_service_offerings_values CHECK (((length(TRIM(BOTH FROM name)) > 0) AND ((modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying, 'either'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'retired'::character varying])::text[])) AND (lock_version >= 0)))
+    CONSTRAINT clinic_service_offerings_values CHECK (((length(TRIM(BOTH FROM name)) > 0) AND ((modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying, 'either'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'retired'::character varying])::text[])) AND (lock_version >= 0))),
+    CONSTRAINT service_offering_contact_instructions_length CHECK (((contact_instructions IS NULL) OR (char_length(contact_instructions) <= 500))),
+    CONSTRAINT service_offering_referral_instructions_length CHECK (((referral_instructions IS NULL) OR (char_length(referral_instructions) <= 500)))
 );
 
 
@@ -32870,6 +32874,7 @@ ALTER TABLE ONLY public.qa_service_tokens
     ADD CONSTRAINT fk_rails_de1504344e FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930000100'),
 ('20260929000200'),
 ('20260929000100'),
 ('20260928001000'),

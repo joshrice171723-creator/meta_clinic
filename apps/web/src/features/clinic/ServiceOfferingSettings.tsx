@@ -38,6 +38,8 @@ type ServiceOffering = {
   name: string;
   code: string | null;
   description: string | null;
+  contact_instructions: string | null;
+  referral_instructions: string | null;
   visit_type_id: number | null;
   billing_service_id: number | null;
   duration_minutes: number | null;
@@ -64,6 +66,8 @@ function emptyForm(visitType?: VisitType, siteIds: number[] = []): FormState {
     name: visitType?.code ?? "",
     code: null,
     description: null,
+    contact_instructions: null,
+    referral_instructions: null,
     visit_type_id: visitType?.id ?? null,
     billing_service_id: null,
     duration_minutes: null,
@@ -185,6 +189,8 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       name: form.name.trim(),
       code: form.code?.trim() || null,
       description: form.description?.trim() || null,
+      contact_instructions: form.contact_instructions?.trim() || null,
+      referral_instructions: form.referral_instructions?.trim() || null,
       visit_type_id: form.visit_type_id,
       billing_service_id: form.billing_service_id,
       duration_minutes: form.duration_minutes,
@@ -463,7 +469,23 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
               {feedback && (
-                <Alert severity={feedback.tone}>{feedback.text}</Alert>
+                <Alert
+                  severity={feedback.tone}
+                  action={
+                    retryAttempt ? (
+                      <Button
+                        color="inherit"
+                        size="small"
+                        disabled={busy}
+                        onClick={() => void perform(retryAttempt)}
+                      >
+                        Retry exact change
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {feedback.text}
+                </Alert>
               )}
               <FormControl fullWidth>
                 <InputLabel id="offering-visit-type">Visit type</InputLabel>
@@ -528,6 +550,30 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 onChange={(event) =>
                   update({ description: event.target.value || null })
                 }
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+              />
+              <TextField
+                label="Contact instructions"
+                value={form.contact_instructions ?? ""}
+                multiline
+                minRows={2}
+                disabled={controlsDisabled}
+                onChange={(event) =>
+                  update({ contact_instructions: event.target.value || null })
+                }
+                helperText="Optional service-specific contact steps. Published with this service when public visibility is enabled."
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+              />
+              <TextField
+                label="Referral instructions"
+                value={form.referral_instructions ?? ""}
+                multiline
+                minRows={2}
+                disabled={controlsDisabled}
+                onChange={(event) =>
+                  update({ referral_instructions: event.target.value || null })
+                }
+                helperText="Optional guidance for asking about a referral. This text does not verify referral receipt or eligibility."
                 slotProps={{ htmlInput: { maxLength: 500 } }}
               />
               <FormControl fullWidth>
@@ -659,8 +705,9 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 label="Show on public clinic page when published"
               />
               <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
-                Only the name, description, duration, and visit format appear
-                publicly. Draft and retired offerings stay hidden.
+                The name, description, contact and referral instructions,
+                duration, and visit format appear publicly. Draft and retired
+                offerings stay hidden.
               </Typography>
               <FormControlLabel
                 control={
