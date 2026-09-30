@@ -239,6 +239,9 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_includes response.parsed_body.fetch("error"), "Protected profile change"
     payload.merge!(clinic_type: "weight_loss", service_scope: %w[telehealth], request_key: SecureRandom.uuid)
+    get "/api/clinic/practice_features", params: { preview_service_change: "1", expected_revision: 2, service_scope: %w[telehealth] }, headers: @headers
+    assert_response :success
+    payload[:expected_impact_digest] = response.parsed_body.dig("preview", "impact_digest")
     put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
     assert_response :success
     assert_equal starter, response.parsed_body.dig("features", "starter_profile")
@@ -266,7 +269,179 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_equal "behavioral-health-initial-v1", starter.dig("visits", "psychiatric_evaluation", "form_id")
   end
 
+  test "renaming and retiring starter visits preserve IDs forms and customization on reapply" do
+    practice = @membership.practice
+    payload = profile_payload(clinic_type: "weight_loss")
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    original = response.parsed_body.dig("features", "starter_profile", "visits")
+    initial = practice.visit_types.find(original.dig("initial", "visit_type_id"))
+    follow_up = practice.visit_types.find(original.dig("follow_up", "visit_type_id"))
+    initial.update!(code: "SYN_Customized initial visit")
+    follow_up.update!(code: "SYN_Retired follow-up", retired_at: Time.current)
+    payload.merge!(expected_revision: 1, request_key: "renamed-starter-reapply", assessment_scope: %w[depression])
+    assert_no_difference -> { practice.visit_types.count } do
+      2.times do
+        put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+        assert_response :success
+        visits = response.parsed_body.dig("features", "starter_profile", "visits")
+        assert_equal initial.id, visits.dig("initial", "visit_type_id")
+        assert_equal "SYN_Customized initial visit", visits.dig("initial", "name")
+        assert_equal follow_up.id, visits.dig("follow_up", "visit_type_id")
+        assert_equal original.dig("follow_up", "form_id"), visits.dig("follow_up", "form_id")
+        assert_predicate follow_up.reload.retired_at, :present?
+      end
+    end
+    assert_equal 2, Clinic::PracticeFeatureVersion.where(practice:).count
+  end
+
+  test "starter replay rejects unavailable or foreign linked IDs without replacing them" do
+    practice = @membership.practice
+    foreign = Clinic::Practice.create!(name: "SYN_Foreign starter clinic").visit_types.create!(code: "SYN_Foreign visit")
+    [ foreign.id, -1 ].each do |id|
+      previous = { "id" => "weight-management", "visits" => { "initial" => { "visit_type_id" => id } } }
+      assert_no_difference -> { practice.visit_types.count } do
+        assert_raises ArgumentError do
+          Clinic::Configuration::StarterProfile.apply(practice:, clinic_type: "weight_loss", previous:)
+        end
+      end
+    end
+  end
+
+  test "disable preview is read only scoped and revalidated while exact committed replay survives later work" do
+    practice = @membership.practice
+    site = practice.sites.create!(code: "IMPACT", status: "active")
+    practice.visit_types.create!(code: "SYN_Impact visit")
+    payload = profile_payload(site_id: site.id, finalize: true)
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    patient = practice.patients.first
+    visit = practice.appointments.create!(patient:, site:, status: "scheduled", visit_modality: "video",
+      starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes)
+    other_site = practice.sites.create!(code: "OTHERIMPACT", status: "active")
+    practice.appointments.create!(patient:, site: other_site, status: "scheduled", visit_modality: "video",
+      starts_at: 2.days.from_now, ends_at: 2.days.from_now + 30.minutes)
+    preview = disable_preview(site:)
+    assert_equal site.id, preview.fetch("site_id")
+    assert_equal 1, preview.fetch("revision")
+    assert_equal 1, preview.fetch("services").first.fetch("open_records")
+    assert_not preview.to_json.include?(patient.display_name)
+    assert_not preview.to_json.include?("patient_id")
+    disable = payload.merge(service_scope: %w[external_lab_coordination], finalize: false,
+      expected_revision: 1, request_key: "disable-preview", expected_impact_digest: preview.fetch("impact_digest"))
+    visit.update!(reason: "SYN_Changed after preview")
+    put "/api/clinic/practice_features", params: { features: disable }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "service_impact_changed", response.parsed_body.fetch("code")
+    assert_equal 1, Clinic::PracticeFeatureVersion.where(practice:, site:).count
+    disable[:expected_impact_digest] = disable_preview(site:).fetch("impact_digest")
+    put "/api/clinic/practice_features", params: { features: disable }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "scheduled", visit.reload.status
+    assert_equal %w[external_lab_coordination], response.parsed_body.dig("features", "service_scope")
+    visit.update!(reason: "SYN_Changed after commit")
+    put "/api/clinic/practice_features", params: { features: disable }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal 2, Clinic::PracticeFeatureVersion.where(practice:, site:).count
+    assert_not Clinic::Configuration::StarterProfile.service_available?(practice:, site:, service: "telehealth")
+    assert Clinic::Configuration::StarterProfile.service_available?(practice:, site:, service: "external_lab_coordination")
+  end
+
+  test "configuration-only preview reports unknown work and cannot grant chart or foreign scope access" do
+    practice = @membership.practice
+    practice.sites.create!(code: "RESTRICTED", status: "active")
+    practice.visit_types.create!(code: "SYN_Restricted visit")
+    payload = profile_payload(finalize: true)
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "facilities.read", "facilities.write")
+    preview = disable_preview
+    assert_equal "restricted", preview.fetch("services").first.fetch("status")
+    assert_nil preview.fetch("services").first.fetch("open_records")
+    get "/api/clinic/patients", headers: @headers
+    assert_response :forbidden
+    foreign_site = Clinic::Practice.create!(name: "SYN_Foreign preview").sites.create!(code: "FOREIGN")
+    get "/api/clinic/practice_features", params: { preview_service_change: "1", expected_revision: 1,
+      site_id: foreign_site.id, service_scope: [] }, headers: @headers
+    assert_response :not_found
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "facilities.read")
+    get "/api/clinic/practice_features", params: { preview_service_change: "1", expected_revision: 1,
+      service_scope: [] }, headers: @headers
+    assert_response :forbidden
+    assert_not response.parsed_body.key?("preview")
+  end
+
+  test "current order revisions and unfinished source tasks stay independent in disable preview" do
+    practice = @membership.practice
+    site = practice.sites.create!(code: "LABIMPACT", status: "active")
+    practice.visit_types.create!(code: "SYN_Lab impact visit")
+    payload = profile_payload(site_id: site.id, finalize: true)
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    patient = practice.patients.first
+    encounter = practice.encounters.create!(patient:, site:, started_at: 1.hour.ago, status: "open")
+    attributes = { practice:, patient:, encounter:, site:, recorded_by_membership: @membership,
+      recorded_at: Current.business_time, series_id: SecureRandom.uuid, version_number: 1,
+      request_key: "lab-impact-draft", content_digest: "a" * 64, status: "draft",
+      request_kind: "lab", intent: "order", priority: "routine", requested_display: "SYN_Lab order" }
+    draft = Clinic::Care::ServiceRequestRevision.create!(attributes)
+    Clinic::Care::ServiceRequestRevision.create!(attributes.merge(prior_revision: draft,
+      version_number: 2, status: "completed", request_key: "lab-impact-completed",
+      content_digest: "b" * 64, completion_exception: "SYN_Recorded completion"))
+    task = Clinic::ClinicalTask.create!(practice:, patient:, encounter:, site:,
+      recorded_by_membership: @membership, task_kind: "order_execution", state: "open",
+      pool_code: "clinical", source_type: "order", source_kind: "service_request", source_id: draft.id)
+    get "/api/clinic/practice_features", params: { preview_service_change: "1", site_id: site.id,
+      expected_revision: 1, service_scope: %w[telehealth] }, headers: @headers
+    assert_response :success
+    preview = response.parsed_body.fetch("preview")
+    lab = preview.fetch("services").first
+    assert_equal "external_lab_coordination", lab.fetch("service")
+    assert_equal 0, lab.fetch("open_records")
+    assert_equal 1, lab.fetch("open_tasks")
+    assert_equal 1, lab.fetch("unassigned_tasks")
+    put "/api/clinic/practice_features", params: { features: payload.merge(finalize: false,
+      service_scope: %w[telehealth], expected_revision: 1, request_key: "disable-lab-with-owned-work",
+      expected_impact_digest: preview.fetch("impact_digest")) }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "open", task.reload.state
+    assert_equal "clinical", task.pool_code
+    assert_equal draft.id, task.source_id
+    assert_equal 2, Clinic::Care::ServiceRequestRevision.where(practice:, series_id: draft.series_id).count
+  end
+
+  test "disable cannot bypass preview while permitted independent assessment edits and protected denial remain" do
+    practice = @membership.practice
+    practice.sites.create!(code: "KEEP", status: "active")
+    practice.visit_types.create!(code: "SYN_Keep visit")
+    payload = profile_payload(finalize: true)
+    put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+    assert_response :success
+    disable = payload.merge(service_scope: [], finalize: false, expected_revision: 1, request_key: "without-review")
+    put "/api/clinic/practice_features", params: { features: disable }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "service_impact_changed", response.parsed_body.fetch("code")
+    put "/api/clinic/practice_features", params: { features: payload.merge(finalize: false,
+      expected_revision: 1, request_key: "independent-assessment", assessment_scope: %w[depression]) }, headers: csrf_headers, as: :json
+    assert_response :success
+    put "/api/clinic/practice_features", params: { features: payload.merge(finalize: false,
+      expected_revision: 2, request_key: "protected-change", clinic_type: "weight_loss") }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_includes response.parsed_body.fetch("error"), "Protected profile change"
+  end
+
   private
+
+  def disable_preview(site: nil)
+    assert_no_difference -> { Clinic::PracticeFeatureVersion.where(practice: @membership.practice).count } do
+      get "/api/clinic/practice_features", params: { preview_service_change: "1", site_id: site&.id,
+        expected_revision: 1, service_scope: %w[external_lab_coordination] }, headers: @headers
+      assert_response :success
+    end
+    response.parsed_body.fetch("preview")
+  end
 
   def profile_payload(overrides = {})
     {

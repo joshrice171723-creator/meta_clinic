@@ -1407,6 +1407,23 @@ export type ClinicWorkspaceContext = {
   current_site: ClinicSite | null;
   sites: ClinicSite[];
 };
+export type ServiceDisablePreview = {
+  site_id: number | null;
+  revision: number;
+  generated_at: string;
+  impact_digest: string;
+  preservation: string;
+  services: Array<{
+    service: ClinicServiceCode;
+    status: "available" | "restricted" | "not_mapped";
+    open_records: number | null;
+    open_tasks: number | null;
+    unassigned_tasks: number | null;
+    effect: string;
+    resolution: string;
+    resolution_path: string | null;
+  }>;
+};
 export type PracticeFeatures = {
   site_id?: number | null;
   site_specialty_configured?: boolean;

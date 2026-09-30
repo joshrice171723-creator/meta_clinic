@@ -83,7 +83,7 @@ module Clinic
 
       def self.revise(practice:, actor:, request_key:, expected_revision:, insurance_workflows_enabled:,
         site: nil,
-        clinic_type:, service_scope:, assessment_scope:, finalize: false)
+        clinic_type:, service_scope:, assessment_scope:, finalize: false, expected_impact_digest: nil)
         raise ArgumentError, "The location must belong to this clinic." if site && site.practice_id != practice.id
         Clinic::Authorization.authorize!(practice: practice, actor: actor.user,
           action: "facilities.write", site: site)
@@ -113,7 +113,9 @@ module Clinic
           "service_scope" => SERVICE_SCOPE.select { |code| normalized_scope.include?(code) },
           "assessment_scope" => ASSESSMENT_SCOPE.select { |code| normalized_assessments.include?(code) }
         }
-        digest = Digest::SHA256.hexdigest([optional, finalize == true].to_json)
+        digest_input = [ optional, finalize == true ]
+        digest_input << expected_impact_digest if expected_impact_digest.present?
+        digest = Digest::SHA256.hexdigest(digest_input.to_json)
         practice.with_lock do
           site&.lock!
           existing = Clinic::PracticeFeatureVersion.find_by(practice: practice, site:, request_key: key)
@@ -131,6 +133,13 @@ module Clinic
             optional["insurance_workflows"] != current[:insurance_workflows_enabled] ||
             (normalized_scope - current[:selected_services]).any?)
             raise ArgumentError, "Protected profile change: request Meta Clinic review. Unsupported transitions require an FDE assignment. Existing care and permitted clinic settings remain available."
+          end
+          if current[:finalized] && (current[:service_scope] - normalized_scope).any?
+            impact = ServiceDisablePreview.call(practice:, actor: actor.user, site:,
+              service_scope: normalized_scope, expected_revision:)
+            unless expected_impact_digest.present? && expected_impact_digest == impact.fetch(:impact_digest)
+              raise ServiceDisablePreview::Stale, "Service consequences changed or have not been reviewed. Review them again before saving."
+            end
           end
           old_version = if site
             Clinic::PracticeFeatureVersion.find_by(practice:, site:, revision: current.fetch(:revision)) if current.fetch(:revision).positive?
