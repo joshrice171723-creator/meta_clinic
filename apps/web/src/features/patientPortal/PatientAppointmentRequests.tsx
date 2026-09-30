@@ -140,8 +140,21 @@ export function PatientAppointmentRequests({
   const [error, setError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const [notice, setNotice] = useState("");
-  const [callbackKey, setCallbackKey] = useState(() => crypto.randomUUID());
+  const callbackAttempt = useRef<{
+    readonly requestKey: string;
+    busy: boolean;
+    saved: boolean;
+    outcomeUnconfirmed: boolean;
+  } | null>(null);
+  callbackAttempt.current ??= {
+    requestKey: crypto.randomUUID(),
+    busy: false,
+    saved: false,
+    outcomeUnconfirmed: false,
+  };
   const [callbackSaved, setCallbackSaved] = useState(false);
+  const [callbackOutcomeUnconfirmed, setCallbackOutcomeUnconfirmed] =
+    useState(false);
   const [change, setChange] = useState<{
     appointment: AppointmentSnapshot;
     kind: "reschedule" | "cancel";
@@ -225,32 +238,66 @@ export function PatientAppointmentRequests({
   }
 
   async function requestCallback() {
-    if (busy || callbackSaved) return;
+    const current = callbackAttempt.current!;
+    if (busy || current.busy || current.saved) return;
+    current.busy = true;
     setBusy(true);
     setError("");
+    setNotice("");
+    const content = "Please call me about scheduling an appointment.";
     try {
-      await api("/api/patient_portal/requests", {
+      const response = await api<{
+        request: {
+          id: number;
+          request_key: string;
+          request_type: string;
+          content: string;
+          status: string;
+        };
+      }>("/api/patient_portal/requests", {
         method: "POST",
         body: {
           patient_portal_request: {
-            request_key: callbackKey,
+            request_key: current.requestKey,
             request_type: "callback",
-            content: "Please call me about scheduling an appointment.",
+            content,
           },
         },
       });
+      const saved = response?.request;
+      if (
+        !saved ||
+        !Number.isSafeInteger(saved.id) ||
+        saved.id <= 0 ||
+        saved.request_key !== current.requestKey ||
+        saved.request_type !== "callback" ||
+        saved.content !== content ||
+        !["pending", "in_review", "resolved", "declined"].includes(saved.status)
+      ) {
+        throw new Error("The saved callback request could not be confirmed.");
+      }
+      current.saved = true;
+      current.outcomeUnconfirmed = false;
       setCallbackSaved(true);
-      setCallbackKey(crypto.randomUUID());
       setNotice(
-        "Your callback request is saved for the clinic front desk. No appointment has been booked.",
+        "Your callback request is saved. The clinic owns its follow-up; this request does not book an appointment.",
       );
     } catch (reason) {
+      current.outcomeUnconfirmed ||=
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "The callback outcome could not be confirmed. Retry the same request.",
+        current.outcomeUnconfirmed
+          ? "We could not confirm your callback request. Retry the same callback request to confirm its outcome."
+          : reason instanceof Error
+            ? reason.message
+            : "Your callback request could not be sent.",
       );
     } finally {
+      current.busy = false;
+      setCallbackOutcomeUnconfirmed(current.outcomeUnconfirmed);
       setBusy(false);
     }
   }
@@ -460,7 +507,8 @@ export function PatientAppointmentRequests({
               <Typography variant="h6" component="h2" sx={{ mb: 0.5 }}>
                 Request a new appointment
               </Typography>
-              {!resource.data.options.can_request_new_booking && (
+              {(!resource.data.options.can_request_new_booking ||
+                callbackOutcomeUnconfirmed) && (
                 <Alert
                   severity="info"
                   sx={{ mb: 2 }}
@@ -470,11 +518,17 @@ export function PatientAppointmentRequests({
                       disabled={busy || callbackSaved}
                       onClick={() => void requestCallback()}
                     >
-                      {callbackSaved ? "Callback requested" : "Request a call"}
+                      {callbackSaved
+                        ? "Callback requested"
+                        : callbackOutcomeUnconfirmed
+                          ? "Retry same callback"
+                          : "Request a call"}
                     </Button>
                   }
                 >
-                  {resource.data.options.booking_requirement}
+                  {resource.data.options.can_request_new_booking
+                    ? "Your earlier callback outcome is unconfirmed. Retry it to confirm the saved request."
+                    : resource.data.options.booking_requirement}
                 </Alert>
               )}
               {requestedModality === "video" &&
