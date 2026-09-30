@@ -187,6 +187,17 @@ export function qaWorkspaceView(search: string) {
     : "overview";
 }
 
+const nav = [
+  ["atlas", "Implementation Atlas"],
+  ["overview", "Mission control"],
+  ["defects", "Defect register"],
+  ["retests", "Retest campaign"],
+  ["coverage", "Workflow coverage"],
+  ["inbox", "Agent inbox"],
+  ["timeline", "Activity & releases"],
+  ["room", "Agent room"],
+];
+
 export function QaWorkspace() {
   const [data, setData] = useState<Workspace>();
   const [live, setLive] = useState<Build>();
@@ -197,6 +208,7 @@ export function QaWorkspace() {
   const [section, setSection] = useState(() =>
     qaWorkspaceView(window.location.search),
   );
+  const viewTitle = nav.find(([id]) => id === section)?.[1];
   const [selected, setSelected] = useState<Issue | KnownIssue>();
   const [report, setReport] = useState(false);
   const [question, setQuestion] = useState(false);
@@ -258,7 +270,6 @@ export function QaWorkspace() {
   }, []);
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "QA Operations Desk · Meta Clinic";
     void refresh();
     const timer = setInterval(() => void refresh(), 60_000);
     return () => {
@@ -266,6 +277,9 @@ export function QaWorkspace() {
       document.title = previousTitle;
     };
   }, [refresh]);
+  useEffect(() => {
+    document.title = `${viewTitle} · QA Operations Desk · Meta Clinic`;
+  }, [viewTitle]);
   const perform = async (action: () => Promise<unknown>, message: string) => {
     setBusy(true);
     setError("");
@@ -378,17 +392,6 @@ export function QaWorkspace() {
           .includes(filter.toLowerCase()),
     )
     .sort((a, b) => Number(b.priority) - Number(a.priority));
-  const nav = [
-    ["atlas", "Implementation Atlas"],
-    ["overview", "Mission control"],
-    ["defects", "Defect register"],
-    ["retests", "Retest campaign"],
-    ["coverage", "Workflow coverage"],
-    ["inbox", "Agent inbox"],
-    ["timeline", "Activity & releases"],
-    ["room", "Agent room"],
-  ];
-
   function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -480,6 +483,7 @@ export function QaWorkspace() {
           {nav.map(([id, label], index) => (
             <Button
               key={id}
+              aria-current={section === id ? "page" : undefined}
               className={section === id ? "qa-nav active" : "qa-nav"}
               onClick={() => setSection(id)}
             >
@@ -499,7 +503,9 @@ export function QaWorkspace() {
         <header className="qa-header">
           <div>
             <p className="qa-eyebrow">RELEASE CONFIDENCE / SHARED WITH MUSE</p>
-            <h1>{nav.find(([id]) => id === section)?.[1]}</h1>
+            <h1 aria-live="polite" aria-atomic="true">
+              {viewTitle}
+            </h1>
           </div>
           <div className="qa-actions">
             {data?.capabilities.record_observation && (
