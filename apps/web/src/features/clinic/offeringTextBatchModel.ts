@@ -1,27 +1,32 @@
 import type { ConfigurationManifest } from "./configurationMapping";
 import {
-  offeringTextImportAttempt,
-  offeringTextImportPlan,
-  type OfferingImportField,
-  type OfferingTextTarget,
-} from "./offeringTextImportModel";
+  offeringFieldImportAttempt,
+  offeringFieldImportPlan,
+  type OfferingMappedField,
+  type OfferingMappedTarget,
+  type OfferingReferenceMapping,
+  type OfferingReferenceCatalog,
+  type OfferingFieldPlan,
+} from "./offeringFieldImportModel";
 
 export type OfferingTextMapping = {
   targetId: number;
   sourceOfferingId: number;
-  fields: OfferingImportField[];
+  fields: OfferingMappedField[];
+  referenceMappings?: OfferingReferenceMapping[];
 };
 export type OfferingTextBatchItem = {
-  plan: ReturnType<typeof offeringTextImportPlan>;
-  attempt: ReturnType<typeof offeringTextImportAttempt>;
+  plan: OfferingFieldPlan;
+  attempt: ReturnType<typeof offeringFieldImportAttempt>;
   status: "ready" | "sending" | "applied" | "failed" | "unknown";
   message: string;
 };
 
 export function offeringTextBatchPlan(
   source: ConfigurationManifest,
-  targets: OfferingTextTarget[],
+  targets: OfferingMappedTarget[],
   mappings: OfferingTextMapping[],
+  catalog?: OfferingReferenceCatalog,
 ) {
   if (!mappings.length || mappings.length > 500)
     throw new Error("Select between 1 and 500 existing destination drafts.");
@@ -45,7 +50,7 @@ export function offeringTextBatchPlan(
       throw new Error(
         "Select an existing destination draft from the loaded list.",
       );
-    return offeringTextImportPlan(
+    return offeringFieldImportPlan(
       source,
       mapping.sourceOfferingId,
       target,
@@ -53,6 +58,8 @@ export function offeringTextBatchPlan(
       targets
         .filter((row) => row.id !== target.id && row.code !== null)
         .map((row) => row.code!),
+      mapping.referenceMappings,
+      catalog,
     );
   });
   const codes = plans.flatMap((plan) =>
@@ -76,7 +83,7 @@ export function offeringTextBatchItems(
     throw new Error("Each reviewed item needs its own request identity.");
   return plans.map((plan, index) => ({
     plan,
-    attempt: offeringTextImportAttempt(plan, keys[index]),
+    attempt: offeringFieldImportAttempt(plan, keys[index]),
     status: "ready",
     message: "Not attempted",
   }));

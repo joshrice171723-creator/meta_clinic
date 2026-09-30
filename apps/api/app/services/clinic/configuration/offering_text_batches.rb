@@ -5,10 +5,13 @@ require "time"
 module Clinic
   module Configuration
     class OfferingTextBatches
-      FIELDS = { "name" => 160, "code" => 50, "contact_instructions" => 500, "referral_instructions" => 500 }.freeze
-
       def initialize(practice:, actor:, membership:, site_id:)
         @practice, @actor, @membership, @site_id = practice, actor, membership, site_id
+      end
+
+      def catalog
+        authorize!
+        import_fields.catalog
       end
 
       def scope
@@ -49,7 +52,7 @@ module Clinic
         audit!(batch)
         batch
       rescue KeyError, TypeError, NoMethodError
-        raise ArgumentError, "A complete reviewed text-import plan is required."
+        raise ArgumentError, "A complete reviewed draft-offering import plan is required."
       end
 
       def change(key, index, action)
@@ -59,6 +62,7 @@ module Clinic
           raise Clinic::Authorization::Denied unless batch.authorization_generation == @membership.reload.authorization_generation
           data = JSON.parse(batch.document)
           item = data.fetch("items").fetch(index)
+          authorize_item!(item)
           if action == "prepare"
             # Durable intent precedes any destination request. Interrupted work
             # is therefore unknown after reload, never silently ready again.
@@ -89,6 +93,7 @@ module Clinic
         authorize!
         raise Clinic::Authorization::Denied unless scope.exists?(id: batch.id)
         data = JSON.parse(batch.document)
+        data.fetch("items").each { |item| authorize_item!(item) }
         audit!(batch, action_code: "facilities.read")
         { request_key: batch.request_key, created_at: batch.created_at.iso8601(6),
           context: { actor_id: batch.actor_id, actor_membership_id: batch.actor_membership_id,
@@ -100,6 +105,7 @@ module Clinic
       private
 
       def authorize!
+        @actor.reload
         @membership.reload
         raise Clinic::Authorization::Denied unless @membership.active? && @membership.user_id == @actor.id && @membership.practice_id == @practice.id && @actor.active?
         if @site_id
@@ -115,13 +121,15 @@ module Clinic
         offering = @practice.service_offerings.find(plan.fetch("targetId"))
         raise ArgumentError, "Select a current existing draft revision." unless offering.status == "draft" && plan["expectedVersion"] == offering.lock_version
         changes = plan.fetch("changes")
-        raise ArgumentError, "Select supported fields once." unless changes.is_a?(Array) && changes.length.between?(1, 4) && changes.map { |change| change["field"] }.uniq.length == changes.length
+        raise ArgumentError, "Select supported fields once." unless changes.is_a?(Array) && changes.length.between?(1, OfferingImportFields::FIELDS.length) && changes.map { |change| change["field"] }.uniq.length == changes.length
         attributes = changes.to_h do |change|
           field, after = change.values_at("field", "after")
-          raise ArgumentError, "Select supported nonempty text." unless FIELDS.key?(field) && after.is_a?(String) && after == after.strip && after.length.between?(1, FIELDS.fetch(field))
-          raise ArgumentError, "Preview the current destination text." unless change["before"] == offering.public_send(field) && after != change["before"]
+          raise ArgumentError, "Select only supported offering fields." unless OfferingImportFields::FIELDS.include?(field)
+          import_fields.validate_value!(field, after)
+          raise ArgumentError, "Preview the current destination value." unless change["before"] == import_fields.current(offering, field) && after != change["before"]
           [field, after]
         end
+        import_fields.validate_references!(changes, plan.fetch("referenceMappings", []))
         raise ArgumentError, "Preview attributes do not match." unless attributes == plan["attributes"]
         if attributes["code"] && @practice.service_offerings.where(code: attributes["code"]).where.not(id: offering.id).exists?
           raise ArgumentError, "Destination code is already used."
@@ -129,17 +137,32 @@ module Clinic
         body = attempt.dig("body", "service_offering")
         expected = attributes.merge("lock_version" => offering.lock_version, "request_key" => body&.[]("request_key"))
         raise ArgumentError, "Retain the exact supported PATCH request." unless attempt["method"] == "PATCH" && attempt["path"] == "/api/clinic/service_offerings/#{offering.id}" && attempt["body"].keys == ["service_offering"] && body == expected && body["request_key"].is_a?(String) && body["request_key"].match?(Clinic::Idempotency::KEY_PATTERN)
-        { "plan" => plan.slice("sourcePracticeId", "sourceOfferingId", "sourceDigest", "targetId", "expectedVersion", "changes", "attributes"),
-          "attempt" => { "method" => "PATCH", "path" => attempt["path"], "body" => { "service_offering" => expected }, "success" => "Selected draft text confirmed saved." },
+        { "plan" => plan.slice("sourcePracticeId", "sourceOfferingId", "sourceDigest", "targetId", "expectedVersion", "changes", "attributes", "referenceMappings"),
+          "attempt" => { "method" => "PATCH", "path" => attempt["path"], "body" => { "service_offering" => expected }, "success" => "Selected draft offering fields confirmed saved." },
           "status" => "ready", "message" => "Saved review; not attempted.", "retryPermitted" => false }
       end
 
+      def import_fields
+        @import_fields ||= OfferingImportFields.new(practice: @practice, actor: @actor)
+      end
+
+      def canonical_attributes(body)
+        # Receipt comparison must match the owning operation, including sorted
+        # association IDs. Never hash a parallel browser normalization.
+        ManageServiceOffering.send(:normalize, body.except("request_key", "lock_version").symbolize_keys, creating: false)
+      end
+
+      def authorize_item!(item)
+        import_fields.authorize_billing! if item["plan"]["attributes"].key?("billing_service_id")
+      end
+
       def reconcile!(item)
+        authorize_item!(item)
         body = item.dig("attempt", "body", "service_offering")
         receipt = Clinic::Idempotency.reconcile(practice: @practice, actor: @actor,
           operation_code: ManageServiceOffering::UPDATE_OPERATION, request_key: body.fetch("request_key"),
-          payload: { service_offering_id: item["plan"]["targetId"], lock_version: body.fetch("lock_version"), attributes: body.except("request_key", "lock_version").symbolize_keys },
-          authorization: -> { authorize! })
+          payload: { service_offering_id: item["plan"]["targetId"], lock_version: body.fetch("lock_version"), attributes: canonical_attributes(body) },
+          authorization: -> { authorize!; authorize_item!(item) })
         item["receiptCheckedAt"] = Time.current.iso8601(6)
         item["retryPermitted"] = false
         if receipt&.outcome_committed?
@@ -162,11 +185,15 @@ module Clinic
             authorize!
             offering = @practice.service_offerings.find(item["plan"]["targetId"])
             raise ArgumentError, "The destination is no longer a draft." unless offering.status == "draft"
+            import_fields.validate_destination_references!(item["plan"]["attributes"])
             ManageServiceOffering.update(practice: @practice, actor: @actor, offering: offering,
               request_key: body.fetch("request_key"), lock_version: body.fetch("lock_version"),
               attributes: body.except("request_key", "lock_version").symbolize_keys)
           end
-          item.merge!("status" => "applied", "message" => "Exact reviewed text update committed.", "retryPermitted" => false)
+          # Persist the committed receipt identity as well as the item state;
+          # a success projection never rests solely on the browser response.
+          reconcile!(item)
+          raise Clinic::Idempotency::OutcomeUnconfirmed unless item["status"] == "applied"
         rescue Clinic::Idempotency::OutcomeUnconfirmed
           item.merge!("status" => "unknown", "message" => "The owning update remains unconfirmed.", "retryPermitted" => false)
         rescue ActiveRecord::StaleObjectError, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ArgumentError

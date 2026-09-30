@@ -1,5 +1,9 @@
 module Clinic
   class OfferingTextBatchesController < ApiController
+    def catalog
+      render json: owner.catalog.merge(context: context)
+    end
+
     def index
       rows = owner.scope.order(id: :desc).limit(26).to_a
       render json: { context: context, capped: rows.length > 25, batches: rows.first(25).map { |batch|
