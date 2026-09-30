@@ -118,9 +118,32 @@ module Qa
     def update_state
       state = object!(:state)
       raise ArgumentError, "State exceeds 5 MB." if state.to_json.bytesize > 5.megabytes
+      state["scheduler"] = Workspace.scheduler_state(state["scheduler"]) if state.key?("scheduler")
       Snapshot.put("state", state)
       Workspace.event(user: actor, kind: "state_synced", summary: "QA state imported from agent records.", revision: state["last_qa_revision"])
       render json: { saved: true, updated_at: Time.current.iso8601 }
+    end
+
+    def import_coverage
+      raw = params[:content]
+      unless raw.is_a?(String) && raw.bytesize.between?(1, 1.megabyte)
+        raise ArgumentError, "Upload a COVERAGE_STATE.json export of 1 MB or less."
+      end
+      imported = Workspace.coverage_export(JSON.parse(raw.delete_prefix("\uFEFF")))
+      Snapshot.transaction do
+        snapshot = Snapshot.create_or_find_by!(key: "state") { |record| record.data = Workspace.state }
+        snapshot.with_lock do
+          state = snapshot.data.merge(imported)
+          state["sources"] = state.fetch("sources", {}).merge("COVERAGE_STATE.json" => {
+            "path" => "COVERAGE_STATE.json", "sha256" => Digest::SHA256.hexdigest(raw),
+            "imported_at" => Time.current.iso8601, "imported_by" => actor.email_address })
+          snapshot.update!(data: state)
+          Workspace.event(user: actor, kind: "coverage_imported", summary: "Imported #{imported.fetch('coverage').length} historical workflow records.")
+        end
+      end
+      render json: { saved: true, records: imported.fetch("coverage").length }
+    rescue JSON::ParserError
+      raise ArgumentError, "Upload a valid COVERAGE_STATE.json export."
     end
 
     def priority
@@ -235,7 +258,7 @@ module Qa
 
     def require_qa_access
       return if service_authenticated?
-      return if request.get? || %w[pin create_task].include?(action_name)
+      return if request.get? || %w[pin create_task import_coverage].include?(action_name)
       require_member
       return if performed?
       render json: { error: "QA workspace requires a platform owner account." }, status: :forbidden unless current_user.platform_owner?

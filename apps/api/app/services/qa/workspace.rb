@@ -3,6 +3,13 @@ require "json"
 
 module Qa
   class Workspace
+    class UpstreamError < StandardError
+      attr_reader :status
+      def initialize(status)
+        @status = status.to_i
+        super("Upstream HTTP #{@status}")
+      end
+    end
     REPOSITORY = "joshrice171723-creator/meta_clinic".freeze
     GUARDRAILS = [
       "Use synthetic fixtures in the dedicated QA clinic only.",
@@ -26,6 +33,72 @@ module Qa
       Snapshot.find_by(key: "state")&.data || JSON.parse(Rails.root.join("config/qa_state.json").read)
     end
 
+    def self.coverage_export(data)
+      raise ArgumentError, "Coverage export must be an object." unless data.is_a?(Hash)
+      if data.to_json.match?(/(?:"(?:password|secret|token|service_token|api_key|authorization)"\s*:|Bearer\s+[A-Za-z0-9_+\/-]{12,})/i)
+        raise ArgumentError, "Remove credentials from the coverage export before importing."
+      end
+      workflows = data["coverage"] || data["workflows"]
+      if workflows.is_a?(Hash)
+        workflows = workflows.map do |id, item|
+          raise ArgumentError, "Each workflow must be an object." unless item.is_a?(Hash)
+          raise ArgumentError, "Workflow id differs from its key." if item["id"] && item["id"] != id
+          item.merge("id" => id)
+        end
+      end
+      unless workflows.is_a?(Array) && workflows.length.between?(1, 116)
+        raise ArgumentError, "Provide 1–116 expanded workflow records in coverage or workflows."
+      end
+      fields = %w[id workflow title result status marker last_attempted_at last_attempt last_version version revision evidence_ref evidence notes attempts]
+      workflows = workflows.map do |item|
+        unless item.is_a?(Hash) && (item["id"] || item["workflow"]).to_s.match?(/\AWF-(?:00[1-9]|0[1-9][0-9]|10[0-9]|11[0-6])\z/)
+          raise ArgumentError, "Each workflow requires its WF-001–WF-116 id."
+        end
+        record = item.slice(*fields).merge("id" => item["id"] || item["workflow"], "historical" => true)
+        unless record.values.all? { |value| value.nil? || value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false }
+          raise ArgumentError, "Workflow fields must contain scalar values."
+        end
+        raise ArgumentError, "Workflow record exceeds 10 KB." if record.to_json.bytesize > 10_000
+        if record["revision"].present? && !record["revision"].to_s.match?(/\A[0-9a-f]{40}\z/)
+          raise ArgumentError, "Workflow revision must be a full SHA."
+        end
+        record
+      end
+      raise ArgumentError, "Workflow ids must be unique." unless workflows.map { |item| item["id"] }.uniq.length == workflows.length
+      pointer = data["pointer"]
+      unless pointer.nil? || pointer.is_a?(Integer) && pointer.between?(0, 116) || pointer.is_a?(String) && pointer.match?(/\AWF-(?:00[1-9]|0[1-9][0-9]|10[0-9]|11[0-6])\z/)
+        raise ArgumentError, "Coverage pointer must identify a catalog workflow."
+      end
+      unless data["interleave"].nil? || [ true, false ].include?(data["interleave"])
+        raise ArgumentError, "Coverage interleave must be true or false."
+      end
+      { "coverage" => workflows, "coverage_pointer" => pointer, "coverage_interleave" => data["interleave"],
+        "coverage_import_status" => "expanded-export" }
+    end
+
+    def self.scheduler_state(data)
+      fields = %w[source status schedule_id observed_at next_run_at interval_minutes]
+      unless data.is_a?(Hash) && (data.keys - fields).empty? && data["source"].is_a?(String) &&
+          data["source"].length.between?(1, 200) && %w[active paused unavailable].include?(data["status"])
+        raise ArgumentError, "Provide a scheduler source and active, paused or unavailable status."
+      end
+      %w[observed_at next_run_at].each do |field|
+        value = data[field]
+        next if value.nil? && field == "next_run_at"
+        unless value.is_a?(String) && value.match?(/(?:Z|[+-]\d{2}:\d{2})\z/)
+          raise ArgumentError, "Scheduler timestamps must include a timezone."
+        end
+        Time.iso8601(value)
+      end
+      if data["schedule_id"] && (!data["schedule_id"].is_a?(String) || data["schedule_id"].length > 200)
+        raise ArgumentError, "Scheduler id must be a string of 200 characters or less."
+      end
+      if data["interval_minutes"] && !(data["interval_minutes"].is_a?(Integer) && data["interval_minutes"].between?(1, 10_080))
+        raise ArgumentError, "Scheduler interval must be 1–10080 minutes."
+      end
+      data
+    end
+
     def self.github(refresh: false)
       cached = Snapshot.find_by(key: "github")
       return with_priorities(cached.data) if !refresh && cached && cached.updated_at > 1.minute.ago
@@ -45,8 +118,9 @@ module Qa
       Snapshot.put("github", result)
       with_priorities(result)
     rescue StandardError => error
+      detail = error.is_a?(UpstreamError) ? "HTTP #{error.status}" : error.class.name
       with_priorities((cached&.data || { "issues" => [], "observed_at" => nil }).merge(
-        "status" => cached ? "stale" : "unavailable", "error" => "GitHub refresh failed (#{error.class.name}); cached records remain visible."))
+        "status" => cached ? "stale" : "unavailable", "error" => "GitHub refresh failed (#{detail}); check QA_GITHUB_TOKEN and repository access. Cached records remain visible."))
     end
 
     def self.with_priorities(data)
@@ -62,7 +136,7 @@ module Qa
       request["User-Agent"] = "MetaClinic-QA-Workspace"
       request["Authorization"] = "Bearer #{ENV.fetch('QA_GITHUB_TOKEN')}" if github && ENV["QA_GITHUB_TOKEN"].present?
       response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https", open_timeout: 4, read_timeout: 8) { |http| http.request(request) }
-      raise "Upstream #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+      raise UpstreamError, response.code unless response.is_a?(Net::HTTPSuccess)
       raise "Response too large" if response.body.bytesize > 5.megabytes
       JSON.parse(response.body)
     end
