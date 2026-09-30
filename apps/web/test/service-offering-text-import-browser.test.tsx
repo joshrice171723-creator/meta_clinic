@@ -102,6 +102,7 @@ async function fixture(
   statuses: number[] = [200],
   canWrite = true,
   status = "draft",
+  responseCodes: Array<string | undefined> = [],
 ) {
   page.setDefaultTimeout(5000);
   const calls: {
@@ -126,6 +127,9 @@ async function fixture(
         body = { service_offering: record, replayed: calls.length > 1 };
       } else
         body = {
+          code: responseCodes[
+            Math.min(calls.length - 1, responseCodes.length - 1)
+          ],
           error:
             responseStatus === 409
               ? "Destination changed; reload before importing."
@@ -305,6 +309,11 @@ it("shows stale/denied saves without success or automatic retry and blocks pendi
     ).toBe(0);
     expect(calls).toHaveLength(1);
     expect(await page.getByRole("dialog").count()).toBe(1);
+    expect(
+      await page
+        .getByRole("textbox", { name: "Description", exact: true })
+        .isEnabled(),
+    ).toBe(true);
     await page.close();
   }
   const edited = await browser.newPage();
@@ -320,3 +329,85 @@ it("shows stale/denied saves without success or automatic retry and blocks pendi
   ).toBe(true);
   await edited.close();
 }, 25000);
+
+it.each([409, 408])(
+  "retains exact pending import and edit lock for unconfirmed status %s",
+  async (status) => {
+    const page = await browser.newPage();
+    try {
+      const calls = await fixture(
+        page,
+        [status, 200],
+        true,
+        "draft",
+        status === 409 ? ["outcome_unconfirmed"] : [],
+      );
+      await selectSource(page);
+      await page
+        .getByRole("button", { name: "Apply selected text to this draft" })
+        .click();
+      await page.getByRole("button", { name: "Retry exact change" }).waitFor();
+      expect(calls).toHaveLength(1);
+      expect(
+        await page
+          .getByRole("textbox", { name: "Description", exact: true })
+          .isDisabled(),
+      ).toBe(true);
+      expect(
+        await page
+          .getByRole("checkbox", { name: "Offering name", exact: true })
+          .isDisabled(),
+      ).toBe(true);
+      await page.getByRole("button", { name: "Retry exact change" }).click();
+      await expect.poll(() => calls.length).toBe(2);
+      expect(calls[1]).toEqual(calls[0]);
+      await expect.poll(() => page.getByRole("dialog").count()).toBe(0);
+    } finally {
+      await page.close();
+    }
+  },
+  20000,
+);
+
+it.each([403, 409, 422])(
+  "preserves prior uncertain import after a later %s denial until exact recovery",
+  async (status) => {
+    const page = await browser.newPage();
+    try {
+      const calls = await fixture(page, [503, status, 200]);
+      await selectSource(page);
+      await page
+        .getByRole("button", { name: "Apply selected text to this draft" })
+        .click();
+      await page.getByRole("button", { name: "Retry exact change" }).waitFor();
+      await page.getByRole("button", { name: "Retry exact change" }).click();
+      await expect.poll(() => calls.length).toBe(2);
+      await expect
+        .poll(() => page.getByRole("alert").innerText())
+        .toContain("save outcome is unknown");
+      expect(
+        await page
+          .getByRole("textbox", { name: "Description", exact: true })
+          .isDisabled(),
+      ).toBe(true);
+      expect(
+        await page
+          .getByRole("button", { name: "Save draft", exact: true })
+          .isDisabled(),
+      ).toBe(true);
+      expect(
+        await page
+          .getByRole("button", { name: "Apply selected text to this draft" })
+          .isDisabled(),
+      ).toBe(true);
+      expect(calls[1]).toEqual(calls[0]);
+      await page.getByRole("button", { name: "Retry exact change" }).click();
+      await expect.poll(() => calls.length).toBe(3);
+      expect(calls[2]).toEqual(calls[0]);
+      await expect.poll(() => page.getByRole("dialog").count()).toBe(0);
+    } finally {
+      await page.close();
+    }
+  },
+  20000,
+);

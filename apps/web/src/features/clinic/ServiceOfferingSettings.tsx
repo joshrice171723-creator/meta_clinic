@@ -139,7 +139,14 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       setDialog(null);
       refresh();
     } catch (reason) {
+      const unconfirmed =
+        retryAttempt !== null ||
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
       if (
+        !unconfirmed &&
         reason instanceof ApiError &&
         reason.status >= 400 &&
         reason.status < 500
@@ -150,7 +157,9 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
         setRetryAttempt(attempt);
         setFeedback({
           tone: "error",
-          text: "The save outcome is unknown. Retry this exact change before making another one.",
+          text:
+            "The save outcome is unknown. Retry this exact change before making another one." +
+            (reason instanceof ApiError ? ` ${reason.message}` : ""),
         });
       }
     } finally {
