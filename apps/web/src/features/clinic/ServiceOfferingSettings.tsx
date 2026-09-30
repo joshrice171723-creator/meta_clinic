@@ -345,7 +345,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 }
                 onClick={() => setBulkImportOpen(true)}
               >
-                Import text into selected drafts
+                Import selected fields into drafts
               </Button>
               <Button
                 variant="contained"

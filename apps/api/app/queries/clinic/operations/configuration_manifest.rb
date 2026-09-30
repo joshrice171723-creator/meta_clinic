@@ -22,14 +22,15 @@ module Clinic
               features: feature_summary(Clinic::Configuration::PracticeFeatures.snapshot(practice:, site:))
             }
           end,
-          service_offerings: practice.service_offerings.includes(:sites).order(:id).map do |offering|
+          service_offerings: practice.service_offerings.includes(:sites, :clinicians).order(:id).map do |offering|
             {
               id: offering.id, code: offering.code, name: offering.name, status: offering.status,
               public_visible: offering.public_visible, visit_type_id: offering.visit_type_id,
+              description: offering.description, billing_service_id: offering.billing_service_id,
               contact_instructions: offering.contact_instructions, referral_instructions: offering.referral_instructions,
               duration_minutes: offering.duration_minutes, modality: offering.modality,
               booking_required: offering.booking_required, requires_room: offering.requires_room,
-              site_ids: offering.sites.map(&:id).sort
+              site_ids: offering.sites.map(&:id).sort, clinician_ids: offering.clinicians.map(&:id).sort
             }
           end
         }

@@ -25,6 +25,7 @@ import {
   readSavedTextBatch,
   validateSavedTextBatch,
   type BatchCatalog,
+  type BatchContext,
   type SavedTextBatch,
 } from "./offeringTextBatchPersistence";
 import {
@@ -32,10 +33,15 @@ import {
   type ConfigurationManifest,
 } from "./configurationMapping";
 import {
-  offeringImportFields,
-  type OfferingImportField,
-  type OfferingTextTarget,
-} from "./offeringTextImportModel";
+  offeringMappedFields,
+  offeringReferenceGroups,
+  offeringReferenceSourceIds,
+  offeringMappedValueLabel,
+  type OfferingMappedField,
+  type OfferingMappedTarget,
+  type OfferingReferenceField,
+  type OfferingReferenceCatalog,
+} from "./offeringFieldImportModel";
 import {
   offeringTextBatchFailure,
   offeringTextBatchItems,
@@ -50,7 +56,7 @@ export function ServiceOfferingBulkTextImport({
   canApply,
   onClose,
 }: {
-  targets: OfferingTextTarget[];
+  targets: OfferingMappedTarget[];
   canApply: boolean;
   onClose: () => void;
 }) {
@@ -59,6 +65,10 @@ export function ServiceOfferingBulkTextImport({
   const [items, setItems] = useState<OfferingTextBatchItem[] | null>(null);
   const [error, setError] = useState("");
   const [catalog, setCatalog] = useState<BatchCatalog | null>(null);
+  const [rawReferenceCatalog, setReferenceCatalog] = useState<
+    (OfferingReferenceCatalog & { context: BatchContext }) | null
+  >(null);
+  const [referenceError, setReferenceError] = useState("");
   const [saved, setSaved] = useState<SavedTextBatch | null>(null);
   const [savedKey, setSavedKey] = useState("");
   const [contextLost, setContextLost] = useState(false);
@@ -83,6 +93,7 @@ export function ServiceOfferingBulkTextImport({
           setCatalog(value);
       })
       .catch((reason) => {
+        loseContext(reason);
         if (alive.current)
           setError(
             reason instanceof Error
@@ -90,11 +101,32 @@ export function ServiceOfferingBulkTextImport({
               : "Saved reviews could not be loaded.",
           );
       });
+    void api<OfferingReferenceCatalog & { context: BatchContext }>(
+      "/api/clinic/offering_text_batches/catalog",
+    )
+      .then((value) => {
+        if (alive.current) setReferenceCatalog(value);
+      })
+      .catch((reason) => {
+        loseContext(reason);
+        if (alive.current)
+          setReferenceError(
+            "Destination reference catalog unavailable. Text and scalar fields can still be reviewed; references require a fresh authorized catalog.",
+          );
+      });
     return () => {
       alive.current = false;
       generation.current += 1;
     };
   }, []);
+  const referenceCatalog =
+    rawReferenceCatalog &&
+    catalog &&
+    (Object.keys(catalog.context) as (keyof BatchContext)[]).every(
+      (key) => rawReferenceCatalog.context?.[key] === catalog.context[key],
+    )
+      ? rawReferenceCatalog
+      : null;
   const summary = offeringTextBatchSummary(items ?? []);
   const close = () => {
     if (!running.current && (saved || summary.canClose)) onClose();
@@ -156,7 +188,12 @@ export function ServiceOfferingBulkTextImport({
     try {
       setItems(
         offeringTextBatchItems(
-          offeringTextBatchPlan(source, targets, mappings),
+          offeringTextBatchPlan(
+            source,
+            targets,
+            mappings,
+            referenceCatalog ?? undefined,
+          ),
           () => crypto.randomUUID(),
         ),
       );
@@ -165,7 +202,7 @@ export function ServiceOfferingBulkTextImport({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Review the selected destinations and text fields.",
+          : "Review the selected destinations and fields.",
       );
     }
   };
@@ -334,19 +371,21 @@ export function ServiceOfferingBulkTextImport({
 
   return (
     <Dialog open onClose={close} fullWidth maxWidth="lg">
-      <DialogTitle>Import text into selected drafts</DialogTitle>
+      <DialogTitle>Import selected fields into drafts</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Typography variant="body2">
-            Choose each existing destination draft, source offering, and text
-            field explicitly. Review every replacement before applying. Each
-            item uses its own authorized offering update; this review is not an
-            atomic batch.
+            Choose each existing destination draft, source offering, and field
+            explicitly. Review every replacement before applying. Each item uses
+            its own authorized offering update; this review is not an atomic
+            batch.
           </Typography>
           <Typography variant="body2">
-            Supported text: offering name, local code, contact instructions and
-            referral instructions. Catalog references, eligibility, prices,
-            scheduling rules and profile settings stay with the destination.
+            Supported: five text fields, duration, modality, booking, room and
+            visibility flags, plus explicitly mapped visit type, billing
+            service, location and clinician references. Every value comes from a
+            selected source field; reference lists replace the existing list.
+            Prices, publication, profiles and clinical defaults are excluded.
           </Typography>
           {(!canApply || contextLost) && (
             <Alert severity="warning">
@@ -357,7 +396,7 @@ export function ServiceOfferingBulkTextImport({
           {!items && catalog && (
             <Stack spacing={1}>
               <Typography variant="subtitle2">
-                Saved text-import reviews for this actor and site
+                Saved offering-import reviews for this actor and site
               </Typography>
               {catalog.batches.map((batch) => (
                 <Button
@@ -430,6 +469,12 @@ export function ServiceOfferingBulkTextImport({
             <Typography role="status">Reading source snapshot…</Typography>
           )}
           {error && <Alert severity="error">{error}</Alert>}
+          {referenceError && <Alert severity="warning">{referenceError}</Alert>}
+          {referenceCatalog?.excluded?.map((reason) => (
+            <Typography variant="caption" key={reason}>
+              {reason}
+            </Typography>
+          ))}
           {source && (
             <Typography variant="caption">
               Source: {source.configuration.practice.name} (#
@@ -491,6 +536,7 @@ export function ServiceOfferingBulkTextImport({
                                 sourceOfferingId:
                                   Number(event.target.value) || 0,
                                 fields: [],
+                                referenceMappings: [],
                               })
                             }
                           >
@@ -504,32 +550,140 @@ export function ServiceOfferingBulkTextImport({
                             )}
                           </TextField>
                           {mapping.sourceOfferingId > 0 && (
-                            <Stack direction="row" sx={{ flexWrap: "wrap" }}>
+                            <Stack spacing={1}>
                               {(
                                 Object.keys(
-                                  offeringImportFields,
-                                ) as OfferingImportField[]
-                              ).map((field) => (
-                                <FormControlLabel
-                                  key={field}
-                                  label={`${offeringImportFields[field].label} for #${target.id}`}
-                                  control={
-                                    <Checkbox
-                                      checked={mapping.fields.includes(field)}
-                                      disabled={!canApply}
-                                      onChange={(_event, checked) =>
-                                        updateMapping(target.id, {
-                                          fields: checked
-                                            ? [...mapping.fields, field]
-                                            : mapping.fields.filter(
-                                                (item) => item !== field,
+                                  offeringMappedFields,
+                                ) as OfferingMappedField[]
+                              ).map((field) => {
+                                const row =
+                                  source.configuration.service_offerings.find(
+                                    (entry) =>
+                                      entry.id === mapping.sourceOfferingId,
+                                  )!;
+                                const spec = offeringMappedFields[field];
+                                const isReference = spec.kind === "reference";
+                                const sourceIds = offeringReferenceSourceIds(
+                                  row,
+                                  field,
+                                );
+                                const options = isReference
+                                  ? (referenceCatalog?.[
+                                      offeringReferenceGroups[
+                                        field as OfferingReferenceField
+                                      ]
+                                    ] ?? [])
+                                  : [];
+                                const absent =
+                                  row[field] === undefined ||
+                                  row[field] === null ||
+                                  (typeof row[field] === "string" &&
+                                    !String(row[field]).trim());
+                                const reason = absent
+                                  ? "Source value absent; clearing is excluded."
+                                  : isReference && !sourceIds.length
+                                    ? "No explicit nonempty source references; defaults and clearing are excluded."
+                                    : isReference &&
+                                        (!options.length ||
+                                          (field === "billing_service_id" &&
+                                            !referenceCatalog?.billing_available))
+                                      ? "No authorized eligible destination references available."
+                                      : "";
+                                return (
+                                  <Stack key={field} spacing={1}>
+                                    <FormControlLabel
+                                      label={`${spec.label} for #${target.id}`}
+                                      control={
+                                        <Checkbox
+                                          checked={mapping.fields.includes(
+                                            field,
+                                          )}
+                                          disabled={!canApply || !!reason}
+                                          onChange={(_event, checked) =>
+                                            updateMapping(target.id, {
+                                              fields: checked
+                                                ? [...mapping.fields, field]
+                                                : mapping.fields.filter(
+                                                    (item) => item !== field,
+                                                  ),
+                                              referenceMappings: (
+                                                mapping.referenceMappings ?? []
+                                              ).filter(
+                                                (entry) =>
+                                                  entry.field !== field,
                                               ),
-                                        })
+                                            })
+                                          }
+                                        />
                                       }
                                     />
-                                  }
-                                />
-                              ))}
+                                    {reason && (
+                                      <Typography variant="caption">
+                                        {spec.label}: {reason}
+                                      </Typography>
+                                    )}
+                                    {isReference &&
+                                      mapping.fields.includes(field) &&
+                                      sourceIds.map((sourceId) => (
+                                        <TextField
+                                          key={sourceId}
+                                          select
+                                          size="small"
+                                          label={`${spec.label}: source #${sourceId} → destination for offering #${target.id}`}
+                                          value={
+                                            mapping.referenceMappings?.find(
+                                              (entry) =>
+                                                entry.field === field &&
+                                                entry.sourceId === sourceId,
+                                            )?.targetId ?? ""
+                                          }
+                                          disabled={!canApply}
+                                          onChange={(event) =>
+                                            updateMapping(target.id, {
+                                              referenceMappings: [
+                                                ...(
+                                                  mapping.referenceMappings ??
+                                                  []
+                                                ).filter(
+                                                  (entry) =>
+                                                    !(
+                                                      entry.field === field &&
+                                                      entry.sourceId ===
+                                                        sourceId
+                                                    ),
+                                                ),
+                                                ...(event.target.value
+                                                  ? [
+                                                      {
+                                                        field:
+                                                          field as OfferingReferenceField,
+                                                        sourceId,
+                                                        targetId: Number(
+                                                          event.target.value,
+                                                        ),
+                                                      },
+                                                    ]
+                                                  : []),
+                                              ],
+                                            })
+                                          }
+                                        >
+                                          <MenuItem value="">
+                                            Select explicitly
+                                          </MenuItem>
+                                          {options.map((entry) => (
+                                            <MenuItem
+                                              key={entry.id}
+                                              value={entry.id}
+                                            >
+                                              {entry.label} (#{entry.id})
+                                            </MenuItem>
+                                          ))}
+                                        </TextField>
+                                      ))}
+                                  </Stack>
+                                );
+                              })}
                             </Stack>
                           )}
                         </>
@@ -571,8 +725,8 @@ export function ServiceOfferingBulkTextImport({
                 Save this review before applying. Saved requests and outcomes
                 can be reloaded only by the original authorized actor in the
                 same clinic/site and authorization generation. Reload never
-                applies or undoes text. Unknown items require explicit receipt
-                reconciliation before an exact repeat.
+                applies or undoes changes. Unknown items require explicit
+                receipt reconciliation before an exact repeat.
               </Typography>
               {items.map((item, index) => (
                 <Stack key={item.plan.targetId} spacing={1}>
@@ -588,20 +742,20 @@ export function ServiceOfferingBulkTextImport({
                   <TableContainer sx={{ overflowX: "auto" }}>
                     <Table
                       size="small"
-                      aria-label={`Text changes for destination #${item.plan.targetId}`}
+                      aria-label={`Selected changes for destination #${item.plan.targetId}`}
                     >
                       <TableHead>
                         <TableRow>
                           <TableCell>Field</TableCell>
-                          <TableCell>Current destination text</TableCell>
-                          <TableCell>Source text to save</TableCell>
+                          <TableCell>Current destination value</TableCell>
+                          <TableCell>Exact destination value to save</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {item.plan.changes.map((change) => (
                           <TableRow key={change.field}>
                             <TableCell>
-                              {offeringImportFields[change.field].label}
+                              {offeringMappedFields[change.field].label}
                             </TableCell>
                             <TableCell
                               sx={{
@@ -609,7 +763,19 @@ export function ServiceOfferingBulkTextImport({
                                 overflowWrap: "anywhere",
                               }}
                             >
-                              {change.before ?? "Not configured"}
+                              {offeringMappedValueLabel(
+                                change.before,
+                                change.field,
+                                referenceCatalog ?? undefined,
+                              )}
+                              <Typography variant="caption" display="block">
+                                Exact value: {JSON.stringify(change.before)}
+                              </Typography>
+                              {change.beforeLabel && (
+                                <Typography variant="caption" display="block">
+                                  Saved reference label: {change.beforeLabel}
+                                </Typography>
+                              )}
                             </TableCell>
                             <TableCell
                               sx={{
@@ -617,13 +783,36 @@ export function ServiceOfferingBulkTextImport({
                                 overflowWrap: "anywhere",
                               }}
                             >
-                              {change.after}
+                              {offeringMappedValueLabel(
+                                change.after,
+                                change.field,
+                                referenceCatalog ?? undefined,
+                              )}
+                              <Typography variant="caption" display="block">
+                                Exact value: {JSON.stringify(change.after)}
+                              </Typography>
+                              {change.afterLabel && (
+                                <Typography variant="caption" display="block">
+                                  Saved reference label: {change.afterLabel}
+                                </Typography>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  {item.plan.referenceMappings?.map((entry) => (
+                    <Typography
+                      variant="caption"
+                      key={`${entry.field}:${entry.sourceId}`}
+                    >
+                      {offeringMappedFields[entry.field].label}: source #
+                      {entry.sourceId} → destination #{entry.targetId}. Source
+                      IDs are provenance only; no catalog equivalence is
+                      inferred.
+                    </Typography>
+                  ))}
                   <Typography role="status">
                     Destination #{item.plan.targetId}: {item.status} —{" "}
                     {item.message}
@@ -654,7 +843,7 @@ export function ServiceOfferingBulkTextImport({
                   disabled={busy || !catalog || !canApply || contextLost}
                   onClick={() => void saveReview()}
                 >
-                  Save reviewed text-import batch
+                  Save reviewed offering-import batch
                 </Button>
               )}
               {saved && summary.ready > 0 && (
@@ -667,7 +856,7 @@ export function ServiceOfferingBulkTextImport({
                 >
                   {summary.applied || summary.failed
                     ? "Apply unattempted reviewed items"
-                    : "Apply reviewed draft text"}
+                    : "Apply reviewed draft changes"}
                 </Button>
               )}
             </>

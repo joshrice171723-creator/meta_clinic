@@ -250,12 +250,12 @@ async function fixture(
 async function review(page: Page, count = 3) {
   await page
     .getByRole("button", {
-      name: "Import text into selected drafts",
+      name: "Import selected fields into drafts",
       exact: true,
     })
     .click();
   await page
-    .getByText("Saved text-import reviews for this actor and site", {
+    .getByText("Saved offering-import reviews for this actor and site", {
       exact: true,
     })
     .waitFor();
@@ -321,14 +321,14 @@ it("saves an explicit plan, reloads partial outcomes and reconciles before an ex
     expect(calls).toHaveLength(0);
     expect(
       await page
-        .getByRole("button", { name: "Apply reviewed draft text", exact: true })
+        .getByRole("button", { name: "Apply reviewed draft changes", exact: true })
         .count(),
     ).toBe(0);
     await page
-      .getByRole("button", { name: "Save reviewed text-import batch" })
+      .getByRole("button", { name: "Save reviewed offering-import batch" })
       .click();
     await page
-      .getByRole("button", { name: "Apply reviewed draft text", exact: true })
+      .getByRole("button", { name: "Apply reviewed draft changes", exact: true })
       .evaluate((button) => {
         (button as HTMLButtonElement).click();
         (button as HTMLButtonElement).click();
@@ -348,7 +348,7 @@ it("saves an explicit plan, reloads partial outcomes and reconciles before an ex
     await page.reload();
     await page
       .getByRole("button", {
-        name: "Import text into selected drafts",
+        name: "Import selected fields into drafts",
         exact: true,
       })
       .click();
@@ -420,10 +420,10 @@ it("keeps unresolved identities and stops destination requests after permission 
     const calls = await fixture(page, [200, 503, 403]);
     await review(page);
     await page
-      .getByRole("button", { name: "Save reviewed text-import batch" })
+      .getByRole("button", { name: "Save reviewed offering-import batch" })
       .click();
     await page
-      .getByRole("button", { name: "Apply reviewed draft text", exact: true })
+      .getByRole("button", { name: "Apply reviewed draft changes", exact: true })
       .click();
     await page
       .getByRole("button", { name: "Reconcile original receipt for #203" })
@@ -464,7 +464,7 @@ it("denies readers and recovers a malformed apply acknowledgment without reapply
     expect(
       await page
         .getByRole("button", {
-          name: "Import text into selected drafts",
+          name: "Import selected fields into drafts",
           exact: true,
         })
         .count(),
@@ -478,10 +478,10 @@ it("denies readers and recovers a malformed apply acknowledgment without reapply
     const calls = await fixture(writer, [200], true, true);
     await review(writer, 1);
     await writer
-      .getByRole("button", { name: "Save reviewed text-import batch" })
+      .getByRole("button", { name: "Save reviewed offering-import batch" })
       .click();
     await writer
-      .getByRole("button", { name: "Apply reviewed draft text", exact: true })
+      .getByRole("button", { name: "Apply reviewed draft changes", exact: true })
       .click();
     await writer
       .getByRole("button", { name: "Reconcile original receipt for #202" })

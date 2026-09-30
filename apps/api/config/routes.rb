@@ -184,6 +184,7 @@ Rails.application.routes.draw do
     get "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#show"
     put "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#upsert"
     get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
+    get "offering_text_batches/catalog", to: "offering_text_batches#catalog"
     resources :offering_text_batches, only: %i[index show create], param: :id do
       post "items/:item/:operation", on: :member, to: "offering_text_batches#change", constraints: { operation: /prepare|reconcile|apply/ }
     end
