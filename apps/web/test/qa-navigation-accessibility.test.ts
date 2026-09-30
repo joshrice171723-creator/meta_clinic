@@ -88,6 +88,7 @@ async function open(view: string) {
 it("identifies exactly the initial current view, including an invalid-view fallback", async () => {
   for (const [view, label] of [
     ["atlas", "Implementation Atlas"],
+    ["office", "Office"],
     ["invalid", "Mission control"],
   ]) {
     const page = await open(view);

@@ -12,6 +12,7 @@ import {
 import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
 import { QaAgentRoom } from "./QaAgentRoom";
+import { QaOffice } from "./QaOffice";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -182,6 +183,7 @@ export function qaWorkspaceView(search: string) {
     "inbox",
     "timeline",
     "room",
+    "office",
   ].includes(view)
     ? view
     : "overview";
@@ -196,6 +198,7 @@ const nav = [
   ["inbox", "Agent inbox"],
   ["timeline", "Activity & releases"],
   ["room", "Agent room"],
+  ["office", "Office"],
 ];
 
 export function QaWorkspace() {
@@ -603,6 +606,19 @@ export function QaWorkspace() {
         </section>
         {!data && !error && (
           <p className="qa-empty">Connecting the QA records…</p>
+        )}
+        {section === "office" && (
+          <QaOffice
+            tasks={data?.tasks ?? []}
+            evidence={data?.evidence ?? []}
+            events={data?.events ?? []}
+            build={live}
+            lastRunAt={data?.state.last_run_at}
+            lastQaRevision={data?.state.last_qa_revision}
+            loading={!data && !error}
+            error={error}
+            onNavigate={setSection}
+          />
         )}
         {data && (
           <>
