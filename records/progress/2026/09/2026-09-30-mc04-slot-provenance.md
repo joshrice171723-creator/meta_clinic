@@ -55,3 +55,24 @@ These are source/policy limits, not numerical completion claims. Connected brows
 Reviewed 2026-09-30: [HL7 FHIR R4 Slot 4.0.1](https://hl7.org/fhir/R4/slot.html), sections 12.13.1–2, and [Schedule 4.0.1](https://hl7.org/fhir/R4/schedule.html), section 12.12.1. These trial-use base resources inform U.S. internal scheduling through the repository's existing R4 reference map: slot schedule linkage and time windows are distinct from appointments. There is no selected exchange partner or standalone U.S. scheduling profile for this local provenance addition. Source revisions/generation time are explicit D-079 product requirements, not asserted FHIR conformance or a prescribed scheduling algorithm.
 
 MUI documentation MCP tools were unavailable. Used installed MUI 9.4.0 types and [official Stack documentation](https://mui.com/material-ui/react-stack/) for the existing Stack/Typography composition. No custom interactive primitive or dependency patch.
+
+## Independent-review correction — 2026-09-30
+
+Independent review rejected `ca7302d215d2aa104a524edb718065e0e3c5b2db`: the original 12 tests/typecheck/build did not cover three real provenance-context failures. Day-view Book appointment selected an actual opening but dropped its metadata; room-grid booking retained one clinician's metadata while leaving clinician selection open; a location switch retained the old booking and rendered its calculation time in the new location's timezone. The original checks above remain historical receipts, not evidence that those paths were correct.
+
+This correction owns only `ClinicSchedule.tsx`, its two focused frontend test files, and this evidence append. Provenance is now carried with its originating site, clinician, interval and server calendar timezone. Both the Day-view primary booking action and clinician-grid action use the same bound handoff. Room-grid booking preserves its previous open-clinician behavior and carries no clinician-specific provenance. The display refuses mismatched site/clinician/start/end metadata and formats using the captured origin timezone. A render-time site check hides stale booking immediately; an effect clears the stale state without altering the separate server-owned working draft.
+
+Added [adversarial schedule handoff tests](../../../../apps/web/test/schedule-provenance-context.test.tsx) invoke the actual component's primary action, grid action, location selector and `renderBooking` callback through a synthetic hook/control driver. They assert complete Day-view provenance, absent room-grid clinician metadata, and no stale dialog/booking callback after a site switch even before effects run. Expanded the existing display case to reject changed/unselected clinician, changed site and changed start/end. These are controlled local component checks, not real-browser focus, backend, or connected acceptance.
+
+Passed on the corrected application-source snapshot:
+
+```sh
+python bin/agent-resources run -- pnpm --dir apps/web exec vitest run test/schedule-pagination.test.tsx test/schedule-provenance-context.test.tsx --maxWorkers=1
+# 2 files, 15 tests passed
+python bin/agent-resources run -- pnpm --dir apps/web run build
+# TypeScript passed; Vite built 1,478 modules
+pnpm --dir apps/web exec prettier --check src/features/clinic/ClinicSchedule.tsx test/schedule-pagination.test.tsx test/schedule-provenance-context.test.tsx
+# Passed
+```
+
+Scoped diff/whitespace review passed. No API, allocation-policy, migration, score, PR, merge or deployment changes are included in this correction. Previous Sage commands and backend execution limits remain unchanged. The reasoned-overbook increment was interrupted and preserved separately on `codex/mc04-overbook-reschedule-20260930` in the named stash `MC04 overbook rescheduling preserved for priority slot-context repair`; none of that work is included here.

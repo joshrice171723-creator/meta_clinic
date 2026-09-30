@@ -15,6 +15,7 @@ import {
 } from "../src/features/clinic/ClinicSchedule";
 import { bindBookingPatient, Schedule } from "../src/features/clinic/CareFlow";
 import type { CalendarAppointment } from "../src/api/contracts";
+import type { CalendarBooking } from "../src/features/clinic/ClinicSchedule";
 
 vi.mock("../src/features/clinic/Workspace", () => ({
   useClinic: () => ({
@@ -25,24 +26,41 @@ vi.mock("../src/features/clinic/Workspace", () => ({
 
 describe("clinic calendar navigation and authoritative booking handoff", () => {
   it("shows all source revisions and site-local calculation time for an opening", () => {
-    const html = renderToStaticMarkup(
-      <SlotProvenance
-        timezone="America/Chicago"
-        provenance={{
-          generated_at: "2026-09-16T14:00:00Z",
-          source_rules: [
-            { id: 41, version: 0 },
-            { id: 42, version: 3 },
-          ],
-        }}
-      />,
-    );
+    const booking: CalendarBooking = {
+      site_id: 4,
+      clinician_id: 9,
+      starts_at: "2026-09-16T14:00:00Z",
+      ends_at: "2026-09-16T14:30:00Z",
+      provenance: {
+        site_id: 4,
+        clinician_id: 9,
+        starts_at: "2026-09-16T14:00:00Z",
+        ends_at: "2026-09-16T14:30:00Z",
+        timezone: "America/Chicago",
+        generated_at: "2026-09-16T14:00:00Z",
+        source_rules: [
+          { id: 41, version: 0 },
+          { id: 42, version: 3 },
+        ],
+      },
+    };
+    const html = renderToStaticMarkup(<SlotProvenance booking={booking} />);
     expect(html).toContain("Sep 16, 2026, 9:00:00 AM CDT");
     expect(html).toContain("rule #41, version 0; rule #42, version 3");
     expect(html).toContain("Availability is checked again when booking.");
+    for (const mismatched of [
+      { ...booking, clinician_id: undefined },
+      { ...booking, clinician_id: 10 },
+      { ...booking, site_id: 5 },
+      { ...booking, starts_at: "2026-09-16T15:00:00Z" },
+      { ...booking, ends_at: "2026-09-16T15:30:00Z" },
+    ])
+      expect(
+        renderToStaticMarkup(<SlotProvenance booking={mismatched} />),
+      ).toBe("");
   });
   it("does not invent slot provenance for manual or busy-time booking", () => {
-    expect(renderToStaticMarkup(<SlotProvenance timezone="UTC" />)).toBe("");
+    expect(renderToStaticMarkup(<SlotProvenance />)).toBe("");
   });
   it("keeps overlapping appointments visible in separate tracks", () => {
     const appointments = [

@@ -41,23 +41,57 @@ export type CalendarBooking = {
   ends_at?: string;
   hold?: CalendarHold;
   overbook?: boolean;
-  provenance?: CalendarSlot["provenance"];
+  provenance?: CalendarSlot["provenance"] & {
+    site_id: number;
+    clinician_id: number;
+    starts_at: string;
+    ends_at: string;
+    timezone: string;
+  };
 };
 
-export function SlotProvenance({
-  provenance,
-  timezone,
-}: {
-  provenance?: CalendarSlot["provenance"];
-  timezone: string;
-}) {
-  if (!provenance) return null;
+function calendarSlotBooking(
+  slot: CalendarSlot,
+  siteId: number,
+  timezone: string,
+  group: "clinician" | "room" = "clinician",
+  roomId?: number,
+): CalendarBooking {
+  return {
+    site_id: siteId,
+    starts_at: slot.starts_at,
+    ends_at: slot.ends_at,
+    room_id: group === "room" ? roomId : slot.room_ids[0],
+    ...(group === "clinician" && {
+      clinician_id: slot.clinician_id,
+      provenance: {
+        ...slot.provenance,
+        site_id: siteId,
+        clinician_id: slot.clinician_id,
+        starts_at: slot.starts_at,
+        ends_at: slot.ends_at,
+        timezone,
+      },
+    }),
+  };
+}
+
+export function SlotProvenance({ booking }: { booking?: CalendarBooking }) {
+  const provenance = booking?.provenance;
+  if (
+    !provenance ||
+    booking.site_id !== provenance.site_id ||
+    booking.clinician_id !== provenance.clinician_id ||
+    booking.starts_at !== provenance.starts_at ||
+    booking.ends_at !== provenance.ends_at
+  )
+    return null;
   return (
     <Stack spacing={0.5} sx={{ mb: 2, overflowWrap: "anywhere" }}>
       <Typography variant="body2" color="text.secondary">
         Selected opening calculated at{" "}
         {new Intl.DateTimeFormat("en-US", {
-          timeZone: timezone,
+          timeZone: provenance.timezone,
           dateStyle: "medium",
           timeStyle: "long",
         }).format(new Date(provenance.generated_at))}
@@ -341,6 +375,13 @@ export function ClinicSchedule({
     routeParams.get("group") === "clinician" ? "clinician" : "room",
   );
   const [booking, setBooking] = useState<CalendarBooking>();
+  const currentBooking =
+    booking?.site_id === Number(siteId) ? booking : undefined;
+  useEffect(() => {
+    setBooking((current) =>
+      current?.site_id === Number(siteId) ? current : undefined,
+    );
+  }, [siteId]);
   const [selected, setSelected] = useState<CalendarAppointment>();
   const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   const [seriesId, setSeriesId] = useState<number | null>(null);
@@ -697,15 +738,15 @@ export function ClinicSchedule({
                           Date.parse(slot.starts_at) > businessNow().getTime(),
                       )
                     : undefined;
-                setBooking({
-                  site_id: Number(siteId),
-                  ...(firstAvailableSlot && {
-                    starts_at: firstAvailableSlot.starts_at,
-                    ends_at: firstAvailableSlot.ends_at,
-                    clinician_id: firstAvailableSlot.clinician_id,
-                    room_id: firstAvailableSlot.room_ids[0],
-                  }),
-                });
+                setBooking(
+                  firstAvailableSlot
+                    ? calendarSlotBooking(
+                        firstAvailableSlot,
+                        Number(siteId),
+                        data?.timezone ?? timezone,
+                      )
+                    : { site_id: Number(siteId) },
+                );
               }}
             >
               {actionLabel}
@@ -1212,18 +1253,15 @@ export function ClinicSchedule({
                                   },
                                 }}
                                 onClick={() =>
-                                  setBooking({
-                                    ...slot,
-                                    site_id: Number(siteId),
-                                    clinician_id:
-                                      group === "room"
-                                        ? undefined
-                                        : slot.clinician_id,
-                                    room_id:
-                                      group === "room"
-                                        ? lane.id
-                                        : slot.room_ids[0],
-                                  })
+                                  setBooking(
+                                    calendarSlotBooking(
+                                      slot,
+                                      Number(siteId),
+                                      data.timezone,
+                                      group,
+                                      lane.id,
+                                    ),
+                                  )
                                 }
                               />
                             )}
@@ -1368,7 +1406,7 @@ export function ClinicSchedule({
         </>
       )}
       <Dialog
-        open={Boolean(booking)}
+        open={Boolean(currentBooking)}
         maxWidth="md"
         fullWidth
         aria-labelledby="schedule-appointment-title"
@@ -1377,13 +1415,10 @@ export function ClinicSchedule({
         }}
       >
         <DialogContent>
-          <SlotProvenance
-            provenance={booking?.provenance}
-            timezone={timezone}
-          />
-          {booking &&
+          <SlotProvenance booking={currentBooking} />
+          {currentBooking &&
             renderBooking(
-              booking,
+              currentBooking,
               booked,
               () => refreshCalendar.current(),
               () => {
