@@ -1461,22 +1461,41 @@ export type ClinicWorkspaceContext = {
   current_site: ClinicSite | null;
   sites: ClinicSite[];
 };
+export type ServiceDisableImpact = {
+  status: "available" | "partial" | "restricted" | "not_mapped" | "unavailable";
+  change_kind: "gated" | "intent_only" | "unmapped";
+  open_records: number | null;
+  open_tasks: number | null;
+  unassigned_tasks: number | null;
+  effect: string;
+  resolution: string;
+  resolution_path: string | null;
+  metrics: Array<{
+    key: string;
+    label: string;
+    status:
+      | "available"
+      | "restricted"
+      | "unknown"
+      | "unavailable"
+      | "not_applicable";
+    count: number | null;
+    note: string;
+    required: boolean;
+  }>;
+  limits: string[];
+};
 export type ServiceDisablePreview = {
   site_id: number | null;
   revision: number;
   generated_at: string;
   impact_digest: string;
   preservation: string;
-  services: Array<{
-    service: ClinicServiceCode;
-    status: "available" | "restricted" | "not_mapped";
-    open_records: number | null;
-    open_tasks: number | null;
-    unassigned_tasks: number | null;
-    effect: string;
-    resolution: string;
-    resolution_path: string | null;
-  }>;
+  review_complete: boolean;
+  coverage: "source_backed_references";
+  limitations: string[];
+  services: Array<ServiceDisableImpact & { service: ClinicServiceCode }>;
+  assessments: Array<ServiceDisableImpact & { assessment: ClinicAssessmentCode }>;
 };
 export type PracticeFeatures = {
   site_id?: number | null;
@@ -1535,7 +1554,12 @@ export type ClinicServiceCode =
   | "infusions"
   | "controlled_medications"
   | "patient_supplied_medications"
-  | "individual_therapy";
+  | "individual_therapy"
+  | "psychiatric_evaluation"
+  | "adhd_evaluation"
+  | "medication_management"
+  | "therapy_referral_coordination"
+  | "urgent_clinical_follow_up";
 export type ClinicAssessmentCode =
   | "depression"
   | "anxiety"
@@ -1544,7 +1568,8 @@ export type ClinicAssessmentCode =
   | "social_needs"
   | "fall_risk"
   | "functional_status"
-  | "cognitive_status";
+  | "cognitive_status"
+  | "psychiatry_assessment";
 export type TelehealthSummary = {
   public_id: string;
   status: string;

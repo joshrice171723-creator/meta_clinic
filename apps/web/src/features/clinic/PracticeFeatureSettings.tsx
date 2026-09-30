@@ -28,6 +28,7 @@ import type {
   ClinicType,
   PracticeFeatures,
   ServiceDisablePreview,
+  ServiceDisableImpact,
 } from "../../api/contracts";
 import { LoadState, useResource } from "../../shared/ui";
 
@@ -80,7 +81,11 @@ const services: Array<{
   code: ClinicServiceCode;
   label: string;
   description: string;
-  readiness: "Base workflow" | "Hardening required" | "Implementation required";
+  readiness:
+    | "Base workflow"
+    | "Hardening required"
+    | "Implementation required"
+    | "Configured intent";
 }> = [
   {
     code: "telehealth",
@@ -158,6 +163,41 @@ const services: Array<{
     readiness: "Implementation required",
   },
   {
+    code: "psychiatric_evaluation",
+    label: "Psychiatric evaluation",
+    description:
+      "Configured service intent; clinic-approved evaluation protocols remain explicit.",
+    readiness: "Configured intent",
+  },
+  {
+    code: "adhd_evaluation",
+    label: "ADHD evaluation",
+    description:
+      "Configured service intent; no evaluation or diagnostic protocol is selected automatically.",
+    readiness: "Configured intent",
+  },
+  {
+    code: "medication_management",
+    label: "Medication management",
+    description:
+      "Configured service intent; existing medication records retain their recorded authority.",
+    readiness: "Configured intent",
+  },
+  {
+    code: "therapy_referral_coordination",
+    label: "Therapy referral coordination",
+    description:
+      "Configured service intent; existing referrals and follow-up remain recorded separately.",
+    readiness: "Configured intent",
+  },
+  {
+    code: "urgent_clinical_follow_up",
+    label: "Urgent clinical follow-up",
+    description:
+      "Configured service intent; urgency, ownership and response rules require clinic-approved protocols.",
+    readiness: "Configured intent",
+  },
+  {
     code: "individual_therapy",
     label: "Individual therapy",
     description:
@@ -207,11 +247,102 @@ const assessments: Array<{
     description: "Clinic-approved functional-status assessment protocol.",
   },
   {
+    code: "psychiatry_assessment",
+    label: "Psychiatry assessment",
+    description:
+      "Clinic-approved psychiatry assessment protocol; no instrument or scoring rule is chosen automatically.",
+  },
+  {
     code: "cognitive_status",
     label: "Cognitive status",
     description: "Clinic-approved cognitive-status assessment protocol.",
   },
 ];
+
+function isScopeRemovalImpact(value: unknown): value is ServiceDisableImpact {
+  if (value === null || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.status === "string" &&
+    ["available", "partial", "restricted", "not_mapped", "unavailable"].includes(row.status) &&
+    typeof row.change_kind === "string" &&
+    ["gated", "intent_only", "unmapped"].includes(row.change_kind) &&
+    typeof row.effect === "string" &&
+    typeof row.resolution === "string" &&
+    (row.resolution_path === null || typeof row.resolution_path === "string") &&
+    Array.isArray(row.limits) &&
+    row.limits.every((limit) => typeof limit === "string") &&
+    Array.isArray(row.metrics) &&
+    row.metrics.every((value: unknown) => {
+      if (value === null || typeof value !== "object") return false;
+      const metric = value as Record<string, unknown>;
+      const validCount = typeof metric.count === "number" &&
+        Number.isFinite(metric.count) && metric.count >= 0;
+      return (
+        typeof metric.key === "string" &&
+        typeof metric.label === "string" &&
+        typeof metric.note === "string" &&
+        typeof metric.required === "boolean" &&
+        typeof metric.status === "string" &&
+        ["available", "restricted", "unknown", "unavailable", "not_applicable"].includes(metric.status) &&
+        (metric.status === "available" ? validCount : metric.count === null || validCount)
+      );
+    })
+  );
+}
+
+function ScopeRemovalImpact({
+  label,
+  impact,
+}: {
+  label: string;
+  impact: ServiceDisableImpact;
+}) {
+  return (
+    <Stack spacing={0.5}>
+      <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
+      <Typography variant="caption">
+        {impact.change_kind === "gated"
+          ? "Existing feature gate"
+          : impact.change_kind === "intent_only"
+            ? "Configured intent; no domain gate claimed"
+            : "Consumer mapping unavailable"}
+        {" · "}
+        {impact.status.replaceAll("_", " ")}
+      </Typography>
+      <Typography variant="body2">{impact.effect}</Typography>
+      {impact.metrics.map((metric) => (
+        <Stack key={metric.key} spacing={0.25}>
+          <Typography variant="body2">
+            {metric.label}:{" "}
+            {metric.status === "available" && typeof metric.count === "number"
+              ? metric.count
+              : metric.status === "not_applicable"
+                ? "not applicable"
+                : `unknown (${metric.status === "restricted" ? "requires domain access" : metric.status === "unavailable" ? "temporarily unavailable" : "not evaluated"})`}
+            {metric.required ? " · required for this review" : ""}
+          </Typography>
+          {metric.note && (
+            <Typography variant="caption" color="text.secondary">
+              {metric.note}
+            </Typography>
+          )}
+        </Stack>
+      ))}
+      {impact.limits.map((limit, index) => (
+        <Typography key={index} variant="body2" color="text.secondary">
+          {limit}
+        </Typography>
+      ))}
+      <Typography variant="body2">{impact.resolution}</Typography>
+      {impact.resolution_path && (
+        <Button size="small" href={impact.resolution_path}>
+          Open authorized domain
+        </Button>
+      )}
+    </Stack>
+  );
+}
 
 function sameSelection<T extends string>(left: T[], right: T[]) {
   return (
@@ -395,8 +526,12 @@ export function PracticeFeatureSettings({
   if (!features) return <LoadState error={error} />;
 
   const disabling =
-    features.finalized === true &&
-    features.service_scope.some((service) => !serviceScope.includes(service));
+    (features.finalized === true &&
+      features.service_scope.some((service) => !serviceScope.includes(service))) ||
+    (features.assessment_configured === true &&
+      features.assessment_scope.some(
+        (assessment) => !assessmentScope.includes(assessment),
+      ));
   const currentPreview = preview?.signature === signature ? preview.data : null;
   const editingLocked = saving || uncertain !== null;
   const reviewConsequences = async () => {
@@ -406,11 +541,14 @@ export function PracticeFeatureSettings({
     setFeedback(null);
     const query = new URLSearchParams({
       preview_service_change: "1",
+      assessment_scope_present: "1",
       expected_revision: String(features.revision),
     });
     if (siteId) query.set("site_id", String(siteId));
     for (const service of serviceScope)
       query.append("service_scope[]", service);
+    for (const assessment of assessmentScope)
+      query.append("assessment_scope[]", assessment);
     try {
       const result = await api<{ preview: ServiceDisablePreview }>(
         `/api/clinic/practice_features?${query}`,
@@ -427,7 +565,38 @@ export function PracticeFeatureSettings({
         throw new Error(
           "The preview belongs to a different profile. Review again.",
         );
-      setPreview({ signature, data: result.preview });
+      const impact = result.preview;
+      if (
+        impact.coverage !== "source_backed_references" ||
+        typeof impact.review_complete !== "boolean" ||
+        typeof impact.impact_digest !== "string" ||
+        !impact.impact_digest ||
+        !Array.isArray(impact.services) ||
+        !Array.isArray(impact.assessments) ||
+        !Array.isArray(impact.limitations) ||
+        !impact.limitations.every((limit) => typeof limit === "string") ||
+        typeof impact.preservation !== "string" ||
+        !impact.services.every((row) => isScopeRemovalImpact(row) && typeof row.service === "string") ||
+        !impact.assessments.every((row) => isScopeRemovalImpact(row) && typeof row.assessment === "string") ||
+        (impact.review_complete && [...impact.services, ...impact.assessments].some(
+          (row) => row.metrics.length === 0 || row.metrics.some(
+            (metric) => metric.required &&
+              !["available", "not_applicable"].includes(metric.status),
+          ),
+        )) ||
+        (features.finalized && features.service_scope.some(
+          (service) => !serviceScope.includes(service) &&
+            !impact.services.some((row) => row.service === service),
+        )) ||
+        (features.assessment_configured && features.assessment_scope.some(
+          (assessment) => !assessmentScope.includes(assessment) &&
+            !impact.assessments.some((row) => row.assessment === assessment),
+        ))
+      )
+        throw new Error(
+          "The impact response is incomplete. Restore the removed selections or refresh the review; this scope removal cannot be saved.",
+        );
+      setPreview({ signature, data: impact });
     } catch (reason) {
       if (
         generation !== previewGeneration.current ||
@@ -439,7 +608,7 @@ export function PracticeFeatureSettings({
         text:
           reason instanceof Error
             ? reason.message
-            : "Unable to review service consequences. Try again.",
+            : "Unable to review scope consequences. Try again.",
       });
     } finally {
       if (generation === previewGeneration.current) setPreviewing(false);
@@ -498,7 +667,8 @@ export function PracticeFeatureSettings({
   };
   const save = async (finalize = false, retry = false) => {
     if (uncertain && !retry) return;
-    if (!retry && disabling && !currentPreview) return;
+    if (!retry && disabling && currentPreview?.review_complete !== true)
+      return;
     setSaving(true);
     setFeedback(null);
     const writeSignature = JSON.stringify([
@@ -775,7 +945,8 @@ export function PracticeFeatureSettings({
             {services.map((service) => {
               const hardening = service.readiness === "Hardening required";
               const implementation =
-                service.readiness === "Implementation required";
+                service.readiness === "Implementation required" ||
+                service.readiness === "Configured intent";
               const therapyRequiresBehavioralHealth =
                 service.code === "individual_therapy" &&
                 clinicType !== "behavioral_health";
@@ -940,7 +1111,7 @@ export function PracticeFeatureSettings({
         {disabling && (
           <Stack spacing={1}>
             <Alert severity="warning">
-              Review the consequences before disabling new service use.
+              Review the consequences before removing service or assessment scope.
               {siteId === null &&
                 " Locations with their own saved profiles keep those settings."}
             </Alert>
@@ -950,56 +1121,72 @@ export function PracticeFeatureSettings({
             >
               {previewing
                 ? "Reviewing consequences…"
-                : "Review service consequences"}
+                : currentPreview
+                  ? "Refresh consequences review"
+                  : "Review scope consequences"}
+            </Button>
+            <Button
+              disabled={!canWrite || editingLocked}
+              onClick={() => {
+                setServiceScope((selected) => [
+                  ...new Set([...selected, ...features.service_scope]),
+                ]);
+                setAssessmentScope((selected) => [
+                  ...new Set([...selected, ...features.assessment_scope]),
+                ]);
+                setPreview(null);
+                setFeedback(null);
+              }}
+            >
+              Restore removed selections
             </Button>
             {currentPreview && (
               <Paper
                 variant="outlined"
-                aria-label="Service-disable consequences"
+                aria-label="Scope-removal consequences"
                 sx={{ p: 2 }}
               >
                 <Stack spacing={2}>
                   <Typography variant="h3">
-                    Service-disable consequences
+                    Scope-removal consequences
                   </Typography>
                   <Typography variant="caption">
                     Profile revision {currentPreview.revision} · reviewed{" "}
                     {new Date(currentPreview.generated_at).toLocaleString()}
                   </Typography>
+                  <Alert
+                    severity={currentPreview.review_complete === true ? "info" : "warning"}
+                  >
+                    {currentPreview.review_complete === true
+                      ? "Required source-backed references were evaluated for this profile change. This does not establish clinical or operational acceptance."
+                      : "The required impact review is incomplete. This scope removal cannot be saved. Restore the affected selections to save independent settings, or obtain authorized domain review and refresh the preview."}
+                  </Alert>
                   {currentPreview.services.map((impact) => (
-                    <Stack key={impact.service} spacing={0.5}>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        {services.find(
-                          (service) => service.code === impact.service,
-                        )?.label ?? impact.service}
-                      </Typography>
-                      <Typography variant="body2">{impact.effect}</Typography>
-                      {impact.status === "available" ? (
-                        <Typography variant="body2">
-                          Open source records: {impact.open_records}.
-                          Source-linked open tasks:{" "}
-                          {impact.open_tasks ?? "not summarized"}.
-                          {impact.unassigned_tasks !== null &&
-                            ` Unassigned tasks: ${impact.unassigned_tasks}.`}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2">
-                          Existing work: unknown (
-                          {impact.status === "restricted"
-                            ? "requires domain access"
-                            : "workflow not mapped"}
-                          ).
-                        </Typography>
-                      )}
-                      <Typography variant="body2">
-                        {impact.resolution}
-                      </Typography>
-                      {impact.resolution_path && (
-                        <Button size="small" href={impact.resolution_path}>
-                          Open existing work
-                        </Button>
-                      )}
-                    </Stack>
+                    <ScopeRemovalImpact
+                      key={`service:${impact.service}`}
+                      label={
+                        services.find((service) => service.code === impact.service)?.label ?? impact.service
+                      }
+                      impact={impact}
+                    />
+                  ))}
+                  {currentPreview.assessments.map((impact) => (
+                    <ScopeRemovalImpact
+                      key={`assessment:${impact.assessment}`}
+                      label={
+                        assessments.find((assessment) => assessment.code === impact.assessment)?.label ?? impact.assessment
+                      }
+                      impact={impact}
+                    />
+                  ))}
+                  {currentPreview.limitations.map((limit, index) => (
+                    <Typography
+                      key={`limit:${index}`}
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      {limit}
+                    </Typography>
                   ))}
                   <Typography variant="body2">
                     {currentPreview.preservation}
@@ -1051,7 +1238,7 @@ export function PracticeFeatureSettings({
               !canWrite ||
               editingLocked ||
               (!changed && features.configured) ||
-              (disabling && !currentPreview)
+              (disabling && currentPreview?.review_complete !== true)
             }
             onClick={() => void save()}
           >

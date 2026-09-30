@@ -134,11 +134,15 @@ module Clinic
             (normalized_scope - current[:selected_services]).any?)
             raise ArgumentError, "Protected profile change: request Meta Clinic review. Unsupported transitions require an FDE assignment. Existing care and permitted clinic settings remain available."
           end
-          if current[:finalized] && (current[:service_scope] - normalized_scope).any?
+          if (current[:finalized] && (current[:service_scope] - normalized_scope).any?) ||
+            (current[:assessment_scope] - normalized_assessments).any?
             impact = ServiceDisablePreview.call(practice:, actor: actor.user, site:,
-              service_scope: normalized_scope, expected_revision:)
+              service_scope: normalized_scope, assessment_scope: normalized_assessments, expected_revision:)
             unless expected_impact_digest.present? && expected_impact_digest == impact.fetch(:impact_digest)
               raise ServiceDisablePreview::Stale, "Service consequences changed or have not been reviewed. Review them again before saving."
+            end
+            unless impact.fetch(:review_complete)
+              raise ServiceDisablePreview::Stale, "Required consequences remain unknown, restricted or unavailable. Restore the removed selection or review its sources with an authorized domain reader before saving."
             end
           end
           old_version = if site
