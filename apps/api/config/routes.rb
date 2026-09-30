@@ -14,6 +14,7 @@ Rails.application.routes.draw do
   post "qa/tasks/:id/transition", to: "qa/workspace#transition"
   post "qa/events", to: "qa/workspace#create_event"
   post "qa/state", to: "qa/workspace#update_state"
+  post "qa/coverage", to: "qa/workspace#import_coverage"
   post "qa/issues/:id/priority", to: "qa/workspace#priority"
   get "qa/evidence/:id", to: "qa/workspace#evidence"
   post "qa/evidence", to: "qa/workspace#create_evidence"

@@ -114,6 +114,14 @@ type Workspace = {
     coverage_total?: number;
     expected_total?: number;
     sources?: RecordData;
+    scheduler?: {
+      source: string;
+      status: "active" | "paused" | "unavailable";
+      schedule_id?: string;
+      observed_at: string;
+      next_run_at?: string;
+      interval_minutes?: number;
+    };
   };
   github: {
     status: string;
@@ -189,6 +197,7 @@ export function QaWorkspace() {
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [file, setFile] = useState<File>();
+  const [coverageFile, setCoverageFile] = useState<File>();
   const [pinDialog, setPinDialog] = useState(false);
   const [reviewTask, setReviewTask] = useState<Task>();
   useEffect(() => {
@@ -288,7 +297,7 @@ export function QaWorkspace() {
             },
           },
         }),
-      "Request saved. Pickup happens on the next scheduled agent run; its claim and verdict will appear here.",
+      "Request saved. Agent pickup is pending; a claim and verdict will appear here when received.",
     );
   const issues = data?.github.issues ?? [];
   const openDefectCount = data
@@ -320,6 +329,13 @@ export function QaWorkspace() {
         id,
         ...item,
       }));
+  const scheduler = data?.state.scheduler;
+  const schedulerStale = Boolean(
+    scheduler &&
+    (!Number.isFinite(Date.parse(scheduler.observed_at)) ||
+      Date.now() - Date.parse(scheduler.observed_at) >
+        Math.max(15, (scheduler.interval_minutes ?? 10) * 2) * 60_000),
+  );
   const mismatch = Boolean(
     data &&
     live?.revision &&
@@ -379,6 +395,18 @@ export function QaWorkspace() {
     }).then((saved) => {
       if (saved) setReport(false);
     });
+  }
+  function importCoverage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!coverageFile) return;
+    void perform(async () => {
+      if (coverageFile.size > 1024 * 1024)
+        throw new Error("Choose a COVERAGE_STATE.json export of 1 MB or less.");
+      await api("/api/qa/coverage", {
+        method: "POST",
+        body: { content: await coverageFile.text() },
+      });
+    }, "Coverage export imported. Original verdicts remain historical.");
   }
   function submitQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -596,7 +624,22 @@ export function QaWorkspace() {
                     count={
                       waiting.filter((task) => task.status === "queued").length
                     }
-                    detail="Next scheduled run"
+                    detail="Pickup requires an agent claim"
+                  />
+                  <Metric
+                    label="Next scheduled run"
+                    count={
+                      scheduler?.status === "active" && !schedulerStale
+                        ? stamp(scheduler.next_run_at)
+                        : schedulerStale
+                          ? "Stale receipt"
+                          : (scheduler?.status ?? "Not connected")
+                    }
+                    detail={
+                      scheduler
+                        ? `${scheduler.source} · observed ${stamp(scheduler.observed_at)}`
+                        : "No scheduler receipt has been synced"
+                    }
                   />
                   <Metric
                     label="Retest verdicts recorded"
@@ -1153,6 +1196,26 @@ export function QaWorkspace() {
                   Missing workflow exports are unassessed. Historical passes
                   retain their original revision.
                 </p>
+                <form onSubmit={importCoverage} className="qa-dialog-fields">
+                  <TextField
+                    type="file"
+                    label="COVERAGE_STATE.json export"
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: { accept: ".json,application/json" },
+                    }}
+                    onChange={(event) =>
+                      setCoverageFile(
+                        (event.target as HTMLInputElement).files?.[0],
+                      )
+                    }
+                    helperText="Upload the expanded export. Importing preserves historical results and does not record a live-build verdict."
+                    required
+                  />
+                  <Button type="submit" disabled={busy || !coverageFile}>
+                    Import coverage export
+                  </Button>
+                </form>
                 <div className="qa-table-wrap">
                   <table>
                     <thead>
@@ -1169,22 +1232,28 @@ export function QaWorkspace() {
                         <tr key={index}>
                           <td>{value(item.id ?? item.workflow)}</td>
                           <td>
-                            <Status status={value(item.result)} />
+                            <Status
+                              status={value(item.result ?? item.status)}
+                            />
                           </td>
                           <td>
                             {stamp(
-                              typeof item.last_attempted_at === "string"
-                                ? item.last_attempted_at
+                              typeof (
+                                item.last_attempted_at ?? item.last_attempt
+                              ) === "string"
+                                ? String(
+                                    item.last_attempted_at ?? item.last_attempt,
+                                  )
                                 : undefined,
                             )}
                           </td>
                           <td>
-                            {value(item.version)}
+                            {value(item.version ?? item.last_version)}
                             <small>
                               <code>{value(item.revision)}</code>
                             </small>
                           </td>
-                          <td>{value(item.evidence_ref)}</td>
+                          <td>{value(item.evidence_ref ?? item.evidence)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1241,9 +1310,10 @@ export function QaWorkspace() {
                   ))}
                 </div>
                 <p>
-                  The scheduled agent uses its QA service token from Secure
-                  Vault. Claim receipt, run id, pickup time, and result appear
-                  in this inbox.
+                  Browser QA can use the existing GitHub handoff. An
+                  authenticated host carrier can mirror scheduler receipts and
+                  submit claims. Queued requests require that carrier to pick
+                  them up; a schedule receipt alone does not prove execution.
                 </p>
               </section>
             )}
