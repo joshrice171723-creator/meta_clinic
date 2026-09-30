@@ -124,7 +124,8 @@ class EstimateInvoiceComparisonTest < ActionDispatch::IntegrationTest
     invoice = practice.invoices.create!(patient: patient, currency: currency, status: "draft", rounding_policy_version: Clinic::Billing::Money::POLICY_VERSION)
     invoice.lines.create!(practice: practice, patient: patient, quantity: "1", unit_amount: amount,
       posted_amount: amount, description_snapshot: "Synthetic posted service")
-    invoice.update!(status: status) unless status == "draft"
+    invoice.update!(status: "posted") unless status == "draft"
+    invoice.update!(status: "void") if status == "void"
     invoice
   end
 
