@@ -7,6 +7,12 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — Anonymous QA desk published and request persistence verified
+
+Joshua's explicit publishing request released the anonymous QA desk at `e2934e93de0e8b41a1ab54f539589effd8e86379`, version 0.2.3. The initial `fac15f24` release exposed a repeat-action bug in audit-user creation; the corrected release reuses that inactive synthetic attribution identity. Matched API/web images, encrypted recovery round-trip and hosted release checks passed; public build.json independently matched. Anonymous /qa and /qa?view=atlas returned HTTP 200. Browser navigation rendered all seven desk views without a login gate; pin confirmation persisted and the retest button saved task #1, queued for Muse on the exact released revision. This is an assisted release and queue receipt, not an agent claim or a passing retest. Ordinary clinic anonymous denial, CSRF denial, credential login and demo Owner PIN requirements passed the release checks. TypeScript/Vite build, Ruby syntax and scoped diff checks passed; no test suites were run.
+
+Remaining observed integration gaps: GitHub refresh reports unavailable; the coverage export is not imported; public /qa/status.json and /qa/batches.json return 502 while /api/qa/status.json and /api/qa/batches.json return 200. Scheduled pickup, service-token availability and current-build verdict recording are unverified. Preserve task #1 rather than queueing a duplicate. Full live revision is the QA identity; unchanged version does not count as a new unattended product cycle. This dated receipt is documentation only and is not another deployment.
+
 ## 2026-09-29 — QA build observation and access feedback released
 
 PR #33 fixes QA build observation independently of workspace access, clears stale workspace records on a failed refresh, disables pin confirmation without workspace data, and explains the existing platform-owner credential requirement. The guarded 0.2.3 release completed at `8e2a8215c1654594eea2c4878707dfbe255f5f24`; independent public build.json matched and /up returned HTTP 200. TypeScript, formatting, encrypted recovery and hosted release checks passed. An anonymous browser was correctly directed to the QA credential form; a signed-in QA build-panel walkthrough and actual platform-owner account login remain unverified. Issue #32 retains that acceptance gap. Demo PIN permissions were not changed. Atlas percentages remain unchanged.
