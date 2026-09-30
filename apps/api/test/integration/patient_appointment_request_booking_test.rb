@@ -114,7 +114,7 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     request_id = @patient_session.response.parsed_body.dig("appointment_request", "id")
 
     @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @staff_membership,
-      status: "non_member", version: 2, effective_from: 1.minute.ago)
+      status: "nonmember", version: 2, effective_from: 1.minute.ago)
     get_patient_requests
     assert_equal false, @patient_session.response.parsed_body.dig("options", "can_request_new_booking")
     original_follow_up = follow_up.attributes
