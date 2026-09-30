@@ -140,3 +140,15 @@ Sage generated schema8170390d1cf1cd1de1d4910b58c915ae017dfef7 directly fromfa967
 Exactly three new migration files remain outside the generatedfa967 cutoff:20260930235500_add_configured_document_provenance.rb;20261001000100_create_subscription_paid_period_resolutions.rb;20261001000200_guard_resolved_allowance_accounting.rb. The first adds category configuration and encrypted closed-write metadata scaffolding; the second adds immutable paid-period resolutions and nullable allowance-resolution/accounted-at references; the third adds the future allowance accounting guard. Existing generated structure is retained exactly as supplied while these new sources await the next isolated generation. No new PR, main merge, deployment or percentage credit.
 
 Remote main was observed advancing todad4e133f504f32a0367b635b907f60b45049cd9 during publication of the preceding provenance wave. That external source was not merged or altered; the product branch preserves its prior5702Office baseline. A later source reconciliation must inspect that delta without treating source publication as a deployment.
+
+## Reconciled Office main before next schema generation
+
+Verified main dad4e133f504f32a0367b635b907f60b45049cd9 is a single continuation of preserved5702: full Office private MCP frontend entrypoint/transport, existing shared Office consumers, pinned dependency/lock and dedicated bundle configuration plus owned evidence. It changes no API backend, migrations, canonical structure or runtime privileges. It merged cleanly with product source; the Office source and product lanes are retained without activation, force push, main mutation or deployment. No test/build/lint or functional proof was executed.
+
+The supplied generated schema8170390d remains unchanged after this merge. Source filename/version comparison identifies all migrations absent from that dump:
+
+- `apps/api/db/migrate/20260930235500_add_configured_document_provenance.rb`
+- `apps/api/db/migrate/20261001000100_create_subscription_paid_period_resolutions.rb`
+- `apps/api/db/migrate/20261001000200_guard_resolved_allowance_accounting.rb`
+
+This is source/artifact accounting for Sage's next isolated generation, not executed migration or functional evidence. Previousfa967 cutoff remains historical; this reconciled source preserves current Office main ancestry. Closed document write authority, unconfigured legacy allowances, disputed estimates and issue34 limitations remain intact.
