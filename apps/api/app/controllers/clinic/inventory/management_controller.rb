@@ -40,7 +40,9 @@ module Clinic
         ability = Ability.new(current_user, practice: current_practice)
         raise Clinic::Authorization::Denied unless ability.role_code_allowed?(Ability::SUPPLIER_PRICING_ROLE_CODES)
 
-        render json: { data: InventoryWire.supplier_pricing(practice: current_practice, actor: current_user, query: params[:q], supplier_id: params[:supplier_id], page: params[:page]) }
+        render json: { data: InventoryWire.supplier_pricing(practice: current_practice, actor: current_user,
+          query: params[:q], supplier_id: params[:supplier_id], page: params[:page],
+          quote_request_page: params[:quote_request_page], quote_request_status: params[:quote_request_status]) }
       end
 
       def exceptions
