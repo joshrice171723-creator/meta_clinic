@@ -102,6 +102,37 @@ export function PrescriptionAttemptEvidence({
     </Typography>
   );
 }
+type LifecycleRequest = {
+  id: number;
+  transmission_attempt_id: number;
+  medication_request_revision_id: number;
+  action: "cancel" | "fill_notice";
+  state: string;
+  source: "local_request";
+  requested_at: string;
+  correlation_id: string;
+  attempt_correlation_id: string;
+  owner: string;
+};
+type ResponseEvent = {
+  id: number;
+  transmission_attempt_id: number;
+  medication_request_revision_id: number;
+  lifecycle_request_id: number | null;
+  event_kind: "received" | "local_outcome";
+  source: "simulation";
+  source_identity: "simulated_pharmacy_network";
+  source_message_id: string | null;
+  transaction_type: "NewRx" | "CancelRx" | "RxFill";
+  outcome: string;
+  response_code: string | null;
+  response_text: string | null;
+  received_at: string | null;
+  recorded_at: string;
+  attempt_correlation_id: string;
+  lifecycle_correlation_id: string | null;
+  resolution_event_id: number | null;
+};
 type Dispense = {
   id: number;
   original_dispense_id: number | null;
@@ -118,6 +149,8 @@ type Evidence = {
   transmission_available: true;
   attempts: TransmissionAttempt[];
   preparations: Preparation[];
+  lifecycle_requests?: LifecycleRequest[];
+  response_events?: ResponseEvent[];
 };
 type Batch = {
   batch_id: number;
@@ -332,6 +365,31 @@ export function PrescriptionFulfillmentPanel({
       },
     });
   }
+  function requestLifecycle(action: "cancel" | "fill_notice", attempt: TransmissionAttempt) {
+    void execute({
+      path: `${path}/lifecycle_requests`,
+      body: {
+        prescription_lifecycle_request: {
+          attempt_id: attempt.id,
+          action,
+          request_key: crypto.randomUUID(),
+        },
+      },
+    });
+  }
+  function receiveResponse(attemptId: number, scenario: string, request?: LifecycleRequest) {
+    void execute({
+      path: `${path}/simulated_responses`,
+      body: {
+        prescription_response: {
+          attempt_id: attemptId,
+          lifecycle_request_id: request?.id,
+          scenario,
+          request_key: crypto.randomUUID(),
+        },
+      },
+    });
+  }
   async function createDestination() {
     const started = generation.current;
     const attempt = destinationAttempt ?? {
@@ -424,6 +482,17 @@ export function PrescriptionFulfillmentPanel({
       "revoked",
       "duplicate",
     ].includes(latest.kind);
+  const latestAttempt = evidence?.attempts.find(
+    (attempt) => attempt.prescription_event_id === latest?.id,
+  );
+  const submissionResponse = (evidence?.response_events ?? []).find(
+    (response) => response.transmission_attempt_id === latestAttempt?.id &&
+      response.transaction_type === "NewRx" && response.event_kind === "received",
+  );
+  const effectiveOutcome = submissionResponse?.outcome ?? latestAttempt?.outcome ?? latest?.kind;
+  const cancellationPending = (evidence?.lifecycle_requests ?? []).some(
+    (request) => request.action === "cancel" && ["pending", "outcome_unknown"].includes(request.state),
+  );
   const preparation = evidence?.preparations
     ?.filter(
       (item) =>
@@ -437,12 +506,12 @@ export function PrescriptionFulfillmentPanel({
             item.reviewer_snapshot.state === reviewerState)),
     )
     .at(-1);
-  const reviewed = evidence?.events.some(
-    (item) =>
-      item.kind === "review" &&
-      item.source === "manual" &&
+  const currentReview = evidence?.events.filter(
+    (item) => item.kind === "review" && item.source === "manual" &&
       item.medication_request_revision_id === orderId,
-  );
+  ).at(-1);
+  const reviewed = currentReview && (!latest ||
+    !["cancelled", "confirmed_not_sent"].includes(latest.kind) || currentReview.id > latest.id);
   const unavailable = busy || pending !== null || !evidence;
   const disabled = unavailable || !canWrite;
   const substitutionUnresolved =
@@ -527,9 +596,9 @@ export function PrescriptionFulfillmentPanel({
               Confirm the previous prescription outcome before changing or
               repeating fulfillment.
             </Alert>
-            {!["acknowledged", "accepted"].includes(latest.kind) && (
+            {!["acknowledged", "accepted"].includes(effectiveOutcome ?? "") && (
               <Button
-                disabled={disabled || !note.trim()}
+                disabled={disabled || cancellationPending || !note.trim()}
                 onClick={() =>
                   event("confirmed_not_sent", latest.source, latest)
                 }
@@ -537,12 +606,14 @@ export function PrescriptionFulfillmentPanel({
                 Record confirmed not sent
               </Button>
             )}
-            <Button
-              disabled={disabled || !note.trim()}
-              onClick={() => event("cancelled", latest.source, latest)}
-            >
-              Record confirmed cancellation
-            </Button>
+            {!latestAttempt?.correlation_id && (
+              <Button
+                disabled={disabled || cancellationPending || !note.trim()}
+                onClick={() => event("cancelled", latest.source, latest)}
+              >
+                Record confirmed cancellation
+              </Button>
+            )}
           </Box>
         ) : order?.fulfillment_route === "outside_pharmacy" ? (
           <Stack spacing={1}>
@@ -721,6 +792,99 @@ export function PrescriptionFulfillmentPanel({
             submission can be simulated.
           </Alert>
         )}
+        {latestAttempt?.correlation_id && unresolved && (
+          <Stack spacing={1}>
+            <Typography variant="subtitle1">
+              Local response and lifecycle simulation · attempt #{latestAttempt.id}
+            </Typography>
+            {!submissionResponse && ["unknown", "outcome_unknown"].includes(latestAttempt.outcome) && (
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+                <Button disabled={disabled} onClick={() => receiveResponse(latestAttempt.id, "acknowledged")}>
+                  Record simulated acknowledgment response
+                </Button>
+                <Button disabled={disabled} onClick={() => receiveResponse(latestAttempt.id, "rejected")}>
+                  Record simulated rejection response
+                </Button>
+              </Stack>
+            )}
+            {["acknowledged", "accepted"].includes(effectiveOutcome ?? "") && (
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+                <Button
+                  disabled={disabled || cancellationPending}
+                  onClick={() => requestLifecycle("cancel", latestAttempt)}
+                >
+                  Save local cancellation request
+                </Button>
+                <Button
+                  disabled={disabled || (evidence?.lifecycle_requests ?? []).some((request) =>
+                    request.transmission_attempt_id === latestAttempt.id && request.action === "fill_notice" &&
+                    ["pending", "outcome_unknown"].includes(request.state))}
+                  onClick={() => requestLifecycle("fill_notice", latestAttempt)}
+                >
+                  Save simulated fill-notice request
+                </Button>
+              </Stack>
+            )}
+          </Stack>
+        )}
+        {(evidence?.lifecycle_requests ?? []).map((request) => {
+          const originalStillOpen = latestAttempt?.id === request.transmission_attempt_id;
+          const superseded = (evidence?.lifecycle_requests ?? []).some((other) =>
+            other.transmission_attempt_id === request.transmission_attempt_id &&
+            other.action === request.action && other.id > request.id,
+          );
+          const canRecordResult = originalStillOpen && !superseded &&
+            ["pending", "outcome_unknown", "unavailable"].includes(request.state);
+          return (
+            <Stack key={request.id} spacing={1}>
+              <Typography variant="body2">
+                Local {request.action === "cancel" ? "cancellation" : "fill-notice simulation"} request #{request.id} ·{" "}
+                {request.state.replaceAll("_", " ")} · attempt #{request.transmission_attempt_id} ·{" "}
+                {new Date(request.requested_at).toLocaleString()} · correlation {request.correlation_id} · {request.owner}
+                {(!originalStillOpen || superseded) && " · Original attempt or request is reconciled/superseded; history retained"}
+              </Typography>
+              {canRecordResult && (
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+                  {(request.action === "cancel"
+                    ? [
+                        ["cancellation_acknowledged", "Simulate cancellation acknowledgment"],
+                        ["cancellation_rejected", "Simulate cancellation rejection"],
+                        ["unknown", "Simulate cancellation outcome unknown"],
+                        ["unavailable", "Simulate cancellation response unavailable"],
+                      ]
+                    : [
+                        ["fill_notice", "Simulate RxFill notice"],
+                        ["unknown", "Simulate notice outcome unknown"],
+                        ["unavailable", "Simulate notice unavailable"],
+                      ]
+                  ).map(([scenario, label]) => (
+                    <Button key={scenario}
+                      disabled={disabled || (request.state === "outcome_unknown" && scenario === "unavailable")}
+                      onClick={() => receiveResponse(request.transmission_attempt_id, scenario, request)}>
+                      {label}
+                    </Button>
+                  ))}
+                </Stack>
+              )}
+            </Stack>
+          );
+        })}
+        {(evidence?.response_events ?? []).map((response) => (
+          <Typography key={response.id} variant="body2" sx={{ overflowWrap: "anywhere" }}>
+            {response.event_kind === "received" ? "Received simulation" : "Local simulator outcome; no response received"} ·{" "}
+            {response.transaction_type} · {response.outcome.replaceAll("_", " ")} · attempt #{response.transmission_attempt_id} ·{" "}
+            version record {response.medication_request_revision_id} · source {response.source_identity} ·{" "}
+            {response.received_at
+              ? new Date(response.received_at).toLocaleString()
+              : `Received time unknown · local outcome recorded ${new Date(response.recorded_at).toLocaleString()}`} ·{" "}
+            original correlation {response.attempt_correlation_id}
+            {response.lifecycle_correlation_id && ` · request correlation ${response.lifecycle_correlation_id}`}
+            {response.source_message_id && ` · simulator message ${response.source_message_id}`}
+            {response.response_code && ` · ${response.response_code}`}
+            {response.response_text && ` · ${response.response_text}`}
+            {response.resolution_event_id && ` · linked simulated cancellation event #${response.resolution_event_id}`}
+          </Typography>
+        ))}
         {evidence?.preparations?.map((item) => (
           <Typography key={item.id} variant="body2">
             Preparation #{item.id} · version record{" "}

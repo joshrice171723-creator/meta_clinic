@@ -2282,7 +2282,17 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/lifecycle_requests(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/prepare(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/simulated_responses(.:format)"
   ],
   [
     null,

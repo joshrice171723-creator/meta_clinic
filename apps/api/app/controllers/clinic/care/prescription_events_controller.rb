@@ -5,6 +5,8 @@ module Clinic
         order = readable_order
         render json: { transmission_available: true, order_encounter_id: order.encounter_id,
           events: PrescriptionWorkflow.events(order).map { |event| PrescriptionWorkflow.serialize(event) },
+          lifecycle_requests: PrescriptionResponseWorkflow.requests(order, readable_by: current_user).map { |request| PrescriptionResponseWorkflow.serialize_request(request) },
+          response_events: PrescriptionResponseWorkflow.response_events(order, readable_by: current_user).map { |response| PrescriptionResponseWorkflow.serialize_response(response) },
           preparations: PrescriptionPreparationWorkflow.preparations(order).map { |preparation| PrescriptionPreparationWorkflow.serialize(preparation, order:) },
           attempts: PrescriptionTransmissionWorkflow.attempts(order).map { |attempt| PrescriptionTransmissionWorkflow.serialize(attempt) },
           dispenses: MedicationDispensing.records(order).map { |event| MedicationDispensing.serialize(event) },
@@ -43,6 +45,27 @@ module Clinic
           request_key: required_string!(input[:request_key], field: :request_key, maximum: 100),
           mode: input[:mode], signer_state: input[:signer_state], reviewer_state: input[:reviewer_state])
         render json: { attempt: PrescriptionTransmissionWorkflow.serialize(attempt) }, status: :created
+      end
+
+      def lifecycle_request
+        order = readable_order
+        input = parameter_hash!(:prescription_lifecycle_request, %i[attempt_id action request_key])
+        record = PrescriptionResponseWorkflow.request(practice: current_practice, actor: current_user, order:,
+          attempt_id: requested_id!(input[:attempt_id], :attempt_id),
+          action: required_string!(input[:action], field: :action, maximum: 32),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100))
+        render json: { lifecycle_request: PrescriptionResponseWorkflow.serialize_request(record) }, status: :created
+      end
+
+      def simulate_response
+        order = readable_order
+        input = parameter_hash!(:prescription_response, %i[attempt_id lifecycle_request_id scenario request_key])
+        response = PrescriptionResponseWorkflow.receive(practice: current_practice, actor: current_user, order:,
+          attempt_id: requested_id!(input[:attempt_id], :attempt_id),
+          lifecycle_request_id: optional_id(input[:lifecycle_request_id], :lifecycle_request_id),
+          scenario: required_string!(input[:scenario], field: :scenario, maximum: 32),
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 100))
+        render json: { response_event: PrescriptionResponseWorkflow.serialize_response(response) }, status: :created
       end
 
       def dispense

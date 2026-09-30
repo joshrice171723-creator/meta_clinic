@@ -41,13 +41,15 @@ module Clinic
           prior_attempt = attempts(order).last
           event = PrescriptionWorkflow.record(practice:, actor:, order:, kind: outcome, source: "simulation",
             request_key: "prescription-event:#{request_key}", simulated_submission: true)
-          PrescriptionTransmissionAttempt.create!(practice:, patient: order.patient, medication_request_revision: order,
+          attempt = PrescriptionTransmissionAttempt.create!(practice:, patient: order.patient, medication_request_revision: order,
             pharmacy_destination: destination, prescription_event: event, preparation:,
             initiated_by_membership: practice.memberships.active.find_by!(user: actor), request_key:,
             adapter: PrescriptionTransmissionAttempt::ADAPTER, outcome:, mode:, signer_snapshot:, reviewer_snapshot:,
             destination_snapshot:, submitted_at: Current.business_time,
             source: "simulation", transaction_type: "NewRx", schema_version: PrescriptionTransmissionAttempt::SCHEMA_VERSION,
             payload_digest: digest, correlation_id: SecureRandom.uuid, review_event: review, prior_attempt:)
+          PrescriptionResponseWorkflow.record_submission_response!(practice:, actor:, attempt:)
+          attempt
         end
         raise Clinic::Idempotency::OutcomeUnconfirmed if result.receipt.outcome_outcome_unconfirmed?
 

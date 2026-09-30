@@ -2063,6 +2063,11 @@ export type PrescriptionReconciliationWorklistContract = {
     source: "simulation";
     adapter: "simulated_pharmacy_network";
     submitted_at: string;
+    response_outcome?: string | null;
+    response_transaction_type?: "NewRx" | "CancelRx" | "RxFill" | null;
+    response_received_at?: string | null;
+    cancellation_state?: string | null;
+    original_correlation_id?: string | null;
     owner: string;
     next_action: string;
     href: string;
