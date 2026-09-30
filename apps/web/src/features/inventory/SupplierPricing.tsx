@@ -578,6 +578,7 @@ export function SupplierPricingScreen({
             select
             size="small"
             label="Quote request status"
+            sx={{ minWidth: 240, maxWidth: "100%" }}
             value={
               loading || readError
                 ? (attemptedRead?.quote_request_status ?? requestPage.status)
