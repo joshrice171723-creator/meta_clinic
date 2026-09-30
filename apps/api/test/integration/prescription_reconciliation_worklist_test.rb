@@ -96,6 +96,11 @@ class PrescriptionReconciliationWorklistTest < ActionDispatch::IntegrationTest
     assert_equal 1, response.parsed_body.fetch("unresolved_count")
     assert_equal false, response.parsed_body.fetch("truncated")
     assert_equal [ own.id ], response.parsed_body.fetch("items").map { |item| item.fetch("id") }
+    get worklist_path, params: { page: 2 }
+    assert_response :success
+    assert_equal 1, response.parsed_body.dig("pagination", "total")
+    assert_equal 1, response.parsed_body.dig("pagination", "page")
+    assert_equal [ own.id ], response.parsed_body.fetch("items").map { |item| item.fetch("id") }
     get worklist_path, params: { site_id: @site.id }
     assert_response :success
     assert_equal @site.id, response.parsed_body.fetch("site_id")
@@ -121,6 +126,19 @@ class PrescriptionReconciliationWorklistTest < ActionDispatch::IntegrationTest
     assert_equal 50, data.fetch("returned_count")
     assert_equal true, data.fetch("truncated")
     assert_equal records.first(50).map(&:id), data.fetch("items").map { |item| item.fetch("id") }
+    assert_equal({ "page" => 1, "per_page" => 50, "total" => 51, "total_pages" => 2 }, data.fetch("pagination"))
+    get worklist_path, params: { page: 2 }
+    assert_response :success
+    second = response.parsed_body
+    assert_equal 51, second.fetch("unresolved_count")
+    assert_equal 1, second.fetch("returned_count")
+    assert_equal 2, second.dig("pagination", "page")
+    assert_equal [ records.last.id ], second.fetch("items").map { |item| item.fetch("id") }
+    assert_includes second.fetch("items").sole.fetch("href"), "prescription_attempt_id=#{records.last.id}"
+    get worklist_path, params: { page: 999_999 }
+    assert_response :success
+    assert_equal 2, response.parsed_body.dig("pagination", "page")
+    assert_equal [ records.last.id ], response.parsed_body.fetch("items").map { |item| item.fetch("id") }
     assert_equal before, ledger
   end
 
@@ -147,6 +165,35 @@ class PrescriptionReconciliationWorklistTest < ActionDispatch::IntegrationTest
     get worklist_path
     assert_response :forbidden
     refute response.parsed_body.key?("items")
+    assert_equal before, ledger
+  end
+
+  test "page input rejects invalid values without changing prescription ledgers" do
+    attempt("unknown")
+    before = ledger
+    [ "0", "-1", "1000000", "1.5", "other" ].each do |page|
+      get worklist_path, params: { page: }
+      assert_response :bad_request
+      refute response.parsed_body.key?("items")
+      assert_equal "page", response.parsed_body.fetch("field")
+      assert_match(/\Apage must be/, response.parsed_body.fetch("error"))
+    end
+    assert_equal before, ledger
+  end
+
+  test "resolved overflow shrinks pages without losing original remaining history" do
+    records = 51.times.map { attempt("unknown") }
+    get worklist_path, params: { page: 2 }
+    assert_response :success
+    assert_equal [ records.last.id ], response.parsed_body.fetch("items").map { |item| item.fetch("id") }
+    resolved = records.first
+    event(resolved.medication_request_revision, "confirmed_not_sent", prior_event: resolved.prescription_event)
+    before = ledger
+    get worklist_path, params: { page: 2 }
+    assert_response :success
+    assert_equal 50, response.parsed_body.fetch("unresolved_count")
+    assert_equal 1, response.parsed_body.dig("pagination", "page")
+    assert_equal records.drop(1).map(&:id), response.parsed_body.fetch("items").map { |item| item.fetch("id") }
     assert_equal before, ledger
   end
 

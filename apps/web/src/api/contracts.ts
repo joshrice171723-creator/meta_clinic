@@ -2042,6 +2042,12 @@ export type PrescriptionReconciliationWorklistContract = {
   unresolved_count: number;
   returned_count: number;
   truncated: boolean;
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
   items: Array<{
     id: number;
     event_id: number;
