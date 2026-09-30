@@ -7,6 +7,15 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 — Reviewed Meta Clinic batch merged and deployed
+
+Josh approved deploy/publish at 13:05 UTC and reiterated merge intent at 13:24 UTC. Relay published PR49/50 and PR52–60 by a normal fast-forward of main at 13:33:38–39 UTC; GitHub confirms all eleven merged. Exact deployed SHA `352e1f24cf84b05bc680b90179d89c9da9cede90`, tree `d9b7326ce4693c123b84faeb2a3b623ae931296f`, version 0.2.3. Canonical Lightsail wrapper ran 13:34:43–13:38:53 UTC (250.08 seconds), using unchanged operations scripts, existing key/recovery storage and matched revision-labelled API/web images. Both disposable database restores/counts, archive checksum and off-host DPAPI CurrentUser roundtrip passed before rollout; hosted login/denial/health and isolated demo checks passed. Fresh read-only checks at 13:40:29 UTC confirmed the exact build and HTTP 200 for /up, /qa?view=room and /api/qa/room. Bridge independently reported the same full SHA at 13:39:54 UTC.
+
+Combined source validation passed 117 related frontend tests, a separate 49-case focused selection (some related-case overlap), ten follow-up browser cases, 29 Rails cases/352 assertions, scoped style, TypeScript, production bundle, Ruby syntax/eager loading, harness and vault checks. No aggregate unique frontend count is claimed. Docker Desktop was initially stopped; its existing engine was started, only the failed backend/remaining gates resumed, and all failure logs preserved. A brief local execution transport disconnect after wrapper completion required only read-only verification; no publication was repeated. CI is billing-blocked before jobs, not passing.
+
+PR35 and full PR36 application work remain separate; all prior candidate packets and uncommitted user work are preserved. The two documentation conflicts were resolved to exact latest preserved Relay tracker/progress blobs, retaining PR36 additions/history. No database reset, credential change, new platform access or unrelated infrastructure change. Scout's connected portal/full clinician-handoff/focused-fix acceptance remains open; no clinical/provider or Muse-connection claim. The earlier release-HOLD preparation notes remain historical; the explicit authorization and successful batch release above supersede their release state.
+
+
 ## 2026-09-30 — MC-09/MC-12 acceptance design linked locally
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) links the revised docs-only PR57 [connected membership and portal packets](../../docs/development/clinic-workflow-plans/membership-portal-connected-acceptance.md) at `2af63b7a0352f752c12796e75b34184e3e96644c` in a separate local documentation candidate. Design includes the planned null-ID manifest and closed-world test clock/gateway recipe. The successful recurring-renewal handler is implemented; missing second-paid-cycle acceptance is a proof gap, not missing product code. Runtime/owned synthetic fixtures and connected execution remain pending; separately authored isolated tests are not counted as passing here. No live fixture/auth changes, charges, outbound messages, provider proof, score change or publication occurred. PR36 notes/history and approved PR55 source remain preserved.
@@ -24,6 +33,54 @@ A Relay-owned documentation candidate preserves the five unmerged PR36 tracker n
 Joshua's explicit publishing request released the anonymous QA desk at `e2934e93de0e8b41a1ab54f539589effd8e86379`, version 0.2.3. The initial `fac15f24` release exposed a repeat-action bug in audit-user creation; the corrected release reuses that inactive synthetic attribution identity. Matched API/web images, encrypted recovery round-trip and hosted release checks passed; public build.json independently matched. Anonymous /qa and /qa?view=atlas returned HTTP 200. Browser navigation rendered all seven desk views without a login gate; pin confirmation persisted and the retest button saved task #1, queued for Muse on the exact released revision. This is an assisted release and queue receipt, not an agent claim or a passing retest. Ordinary clinic anonymous denial, CSRF denial, credential login and demo Owner PIN requirements passed the release checks. TypeScript/Vite build, Ruby syntax and scoped diff checks passed; no test suites were run.
 
 Remaining observed integration gaps: GitHub refresh reports unavailable; the coverage export is not imported; public /qa/status.json and /qa/batches.json return 502 while /api/qa/status.json and /api/qa/batches.json return 200. Scheduled pickup, service-token availability and current-build verdict recording are unverified. Preserve task #1 rather than queueing a duplicate. Full live revision is the QA identity; unchanged version does not count as a new unattended product cycle. This dated receipt is documentation only and is not another deployment.
+
+**Preserved PR36 development-branch history:** The following five original entries are retained verbatim from `d93e9790751ad42897b7cc824ca0fa7cb595c5a0`. Their reported checks and pending acceptance remain historical branch evidence; complete PR36 integration review is still pending.
+
+## 2026-09-29 — MC-14 current-stock reconciliation CSV
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records a
+provenance-bearing export of current stock summaries and selected source pages on
+`codex/persistent-engineering-pilot`, based on `e29f1750`. Pharmacy units, office
+stock, whole-population summaries and selected-page records remain distinct.
+TypeScript, Ruby syntax and scoped lint passed; browser download/reconciliation
+and export policy evidence remain open. No tests, main merge or deployment; scores
+unchanged.
+
+## 2026-09-29 — MC-15 named configuration differences
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the
+read-only snapshot comparison's named records and changed-field details on
+`codex/persistent-engineering-pilot`, based on `1ef7324c`. Stable object comparison,
+duplicate-ID rejection and snapshot-bound evidence preserve review clarity.
+TypeScript and scoped diff review passed; browser acceptance remains open. No
+tests, import, main merge or deployment occurred; scores are unchanged.
+
+## 2026-09-29 — MC-14 clinical-work owner totals
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records
+owner and unassigned totals with overdue counts in the existing clinical-work
+report on `codex/persistent-engineering-pilot`, based on `76512d23`. Existing task
+ownership, tenant/site restrictions and permission gates are preserved. TypeScript,
+Ruby syntax and scoped lint passed; browser acceptance remains open. No tests,
+main merge or deployment occurred; scores are unchanged.
+
+## 2026-09-29 — MC-14 invoice, payment and stock CSV provenance
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the
+remaining daily CSV provenance slice on `codex/persistent-engineering-pilot`, based
+on `7143d95d`. Exports preserve the existing server source/filter/interval contract
+and distinguish full-population summaries from selected source pages. TypeScript
+passed; browser download, role/site acceptance, separate export authorization/audit
+and retention remain open. No tests, main merge or deployment; scores unchanged.
+
+## 2026-09-29 — MC-14 visit CSV provenance on development branch
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md)
+records the bounded visit CSV source/filter/interval and pagination provenance
+slice on `codex/persistent-engineering-pilot`, based on `e17dd689`. TypeScript and
+scoped source review passed. Existing permissions and CSV encoding are preserved;
+browser download, separate export issuance/audit, retention and release remain
+open. No tests, main merge or deployment were performed; completion scores are unchanged.
 
 ## 2026-09-29 — QA build observation and access feedback released
 

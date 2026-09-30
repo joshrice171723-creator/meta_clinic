@@ -1,0 +1,6 @@
+interface:
+  display_name: "Publish Meta Clinic"
+  short_description: "Freeze both loops, verify their merge, and publish on request"
+  default_prompt: "Use $publish to freeze the development and QA loops, collect ready branch handoffs, verify their combined candidate, and publish to aimetaclinic.com through the existing Lightsail release gates."
+policy:
+  allow_implicit_invocation: false

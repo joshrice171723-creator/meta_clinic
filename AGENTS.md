@@ -17,6 +17,14 @@ More-specific instructions may add safeguards or commands; they may not weaken t
 
 See [`agent-harness/README.md`](agent-harness/README.md) for the component map and skill catalog.
 
+For explicitly requested continuing or recurring engineering, use
+[`persistent engineering`](agent-harness/workflows/persistent-engineering.md).
+
+Development and QA loops retain separate owned branches; neither advances main
+or publishes. Joshua explicitly invokes [publish](.agents/skills/publish/SKILL.md)
+to freeze both loops, review/verify their combined candidate and use the existing
+release path. This supersedes automatic loop merge/publication procedures.
+
 ## Non-negotiable boundaries
 
 - Use independently created synthetic data only. Never access, request, copy, upload, log, screenshot or commit patient information or real-derived examples.
