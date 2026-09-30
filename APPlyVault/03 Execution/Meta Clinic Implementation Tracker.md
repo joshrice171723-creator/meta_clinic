@@ -43,6 +43,19 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**2026-09-29 — MC-15 named configuration comparison, development branch:**
+The existing read-only saved-JSON comparison now identifies added/removed/changed
+locations and service offerings by name and ID, and lists changed top-level fields
+for them and clinic settings. Object-key ordering does not create a change;
+duplicate or invalid row IDs are rejected. Comparison evidence is bound to the
+loaded snapshot digest and timestamp. Full counts remain visible; the first 20
+details are shown with an explicit disclosure to review both JSON files for the
+rest. Existing same-clinic/format and 1 MB file limits remain. No settings are
+imported, restored or sent to the API. TypeScript and scoped diff review passed;
+browser file selection, malformed-file recovery, named differences and refresh
+remain unverified. No tests, main merge or publication; all scores unchanged.
+Source base: `1ef7324c`; observed main drift: `57abc7b6`, reserved for publishing.
+
 **2026-09-29 — MC-14 clinical work by owner, development branch:** The existing
 open-clinical-work report now groups active tasks by recorded membership owner,
 with per-owner overdue counts and a separate unassigned row. Owner labels reuse

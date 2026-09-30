@@ -7,6 +7,15 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — MC-15 named configuration differences
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records the
+read-only snapshot comparison's named records and changed-field details on
+`codex/persistent-engineering-pilot`, based on `1ef7324c`. Stable object comparison,
+duplicate-ID rejection and snapshot-bound evidence preserve review clarity.
+TypeScript and scoped diff review passed; browser acceptance remains open. No
+tests, import, main merge or deployment occurred; scores are unchanged.
+
 ## 2026-09-29 — MC-14 clinical-work owner totals
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) records

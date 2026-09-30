@@ -176,15 +176,24 @@ type OpenClinicalWorkReport = {
   }[];
 };
 
+type ConfigurationRecord = {
+  id: number;
+  name?: string;
+  [key: string]: unknown;
+};
+
 type ConfigurationManifest = {
   format: number;
   purpose: string;
   generated_at: string;
   source_digest: string;
   configuration: {
-    practice: { id: number; name: string; features: { revision: number } };
-    sites: { id: number }[];
-    service_offerings: { id: number }[];
+    practice: ConfigurationRecord & {
+      name: string;
+      features: { revision: number };
+    };
+    sites: ConfigurationRecord[];
+    service_offerings: ConfigurationRecord[];
   };
 };
 
@@ -392,7 +401,12 @@ function ConfigurationManifestDownload() {
     "/api/clinic/operations/configuration_manifest",
   );
   const manifest = result.data?.manifest;
-  const [comparison, setComparison] = useState<string | null>(null);
+  const [comparison, setComparison] = useState<{
+    summary: string;
+    details: string[];
+    sourceDigest: string;
+    generatedAt: string;
+  } | null>(null);
   const [comparisonError, setComparisonError] = useState("");
   const compareFile = async (file?: File) => {
     if (!file || !manifest) return;
@@ -410,30 +424,82 @@ function ConfigurationManifestDownload() {
           manifest.configuration.practice.id ||
         !Array.isArray(saved.configuration.sites) ||
         !Array.isArray(saved.configuration.service_offerings) ||
-        [
-          ...saved.configuration.sites,
-          ...saved.configuration.service_offerings,
-        ].some((row) => !Number.isInteger(row?.id))
+        [saved.configuration.sites, saved.configuration.service_offerings].some(
+          (rows) =>
+            rows.some((row) => !Number.isSafeInteger(row?.id) || row.id <= 0) ||
+            new Set(rows.map((row) => row.id)).size !== rows.length,
+        )
       ) {
         throw new Error(
           "Choose a configuration snapshot from this clinic and format.",
         );
       }
-      const changes = (older: { id: number }[], current: { id: number }[]) => {
-        const previous = new Map(
-          older.map((row) => [row.id, JSON.stringify(row)]),
+      const stableJson = (value: unknown) =>
+        JSON.stringify(value, (_key, item: unknown) =>
+          item && typeof item === "object" && !Array.isArray(item)
+            ? Object.fromEntries(
+                Object.entries(item).sort(([a], [b]) => a.localeCompare(b)),
+              )
+            : item,
         );
-        const latest = new Map(
-          current.map((row) => [row.id, JSON.stringify(row)]),
-        );
-        return `${[...latest.keys()].filter((id) => !previous.has(id)).length} added, ${[...previous.keys()].filter((id) => !latest.has(id)).length} removed, ${[...latest.keys()].filter((id) => previous.has(id) && previous.get(id) !== latest.get(id)).length} changed`;
-      };
-      setComparison(
-        JSON.stringify(saved.configuration) ===
-          JSON.stringify(manifest.configuration)
-          ? "Saved snapshot matches the currently loaded clinic configuration."
-          : `Saved snapshot differs: clinic settings ${JSON.stringify(saved.configuration.practice) === JSON.stringify(manifest.configuration.practice) ? "unchanged" : "changed"}; locations ${changes(saved.configuration.sites, manifest.configuration.sites)}; service offerings ${changes(saved.configuration.service_offerings, manifest.configuration.service_offerings)}.`,
+      const fields = (
+        older: ConfigurationRecord,
+        current: ConfigurationRecord,
+      ) =>
+        [...new Set([...Object.keys(older), ...Object.keys(current)])]
+          .filter((key) => stableJson(older[key]) !== stableJson(current[key]))
+          .sort()
+          .map((key) => key.replaceAll("_", " "))
+          .join(", ");
+      const details: string[] = [];
+      const clinicFields = fields(
+        saved.configuration.practice,
+        manifest.configuration.practice,
       );
+      if (clinicFields)
+        details.push(`Clinic settings changed: ${clinicFields}.`);
+      const changes = (
+        group: string,
+        older: ConfigurationRecord[],
+        current: ConfigurationRecord[],
+      ) => {
+        const previous = new Map(older.map((row) => [row.id, row]));
+        const latest = new Map(current.map((row) => [row.id, row]));
+        const label = (row: ConfigurationRecord) =>
+          `${group} ${typeof row.name === "string" ? row.name : "record"} (#${row.id})`;
+        const added = current.filter((row) => !previous.has(row.id));
+        const removed = older.filter((row) => !latest.has(row.id));
+        const changed = current.filter(
+          (row) => previous.has(row.id) && fields(previous.get(row.id)!, row),
+        );
+        added.forEach((row) => details.push(`${label(row)} added.`));
+        removed.forEach((row) => details.push(`${label(row)} removed.`));
+        changed.forEach((row) =>
+          details.push(
+            `${label(row)} changed: ${fields(previous.get(row.id)!, row)}.`,
+          ),
+        );
+        return `${added.length} added, ${removed.length} removed, ${changed.length} changed`;
+      };
+      const locations = changes(
+        "Location",
+        saved.configuration.sites,
+        manifest.configuration.sites,
+      );
+      const offerings = changes(
+        "Service offering",
+        saved.configuration.service_offerings,
+        manifest.configuration.service_offerings,
+      );
+      setComparison({
+        summary:
+          details.length === 0
+            ? "Saved snapshot matches the currently loaded clinic configuration."
+            : `Saved snapshot differs: clinic settings ${clinicFields ? "changed" : "unchanged"}; locations ${locations}; service offerings ${offerings}.`,
+        details,
+        sourceDigest: manifest.source_digest,
+        generatedAt: manifest.generated_at,
+      });
     } catch (error) {
       setComparisonError(
         error instanceof Error
@@ -512,12 +578,27 @@ function ConfigurationManifestDownload() {
               }}
             />
           </Button>
-          {comparison && (
-            <Alert severity="info">
-              {comparison} Comparison is for review only; it does not restore or
-              import settings.
-            </Alert>
-          )}
+          {comparison &&
+            comparison.sourceDigest === manifest.source_digest &&
+            comparison.generatedAt === manifest.generated_at && (
+              <Alert severity="info">
+                {comparison.summary} Comparison is for review only; it does not
+                restore or import settings.
+                <Stack spacing={0.5} sx={{ mt: 1 }}>
+                  {comparison.details.slice(0, 20).map((detail) => (
+                    <Typography key={detail} variant="body2">
+                      {detail}
+                    </Typography>
+                  ))}
+                  {comparison.details.length > 20 && (
+                    <Typography variant="body2">
+                      Showing 20 of {comparison.details.length} changes. Review
+                      both saved and current JSON for the remaining changes.
+                    </Typography>
+                  )}
+                </Stack>
+              </Alert>
+            )}
           {comparisonError && <Alert severity="error">{comparisonError}</Alert>}
         </>
       )}
