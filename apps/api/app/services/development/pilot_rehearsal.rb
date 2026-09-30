@@ -12,7 +12,9 @@ module Development
       clinician = accounts.fetch("clinician")
       site = practice.sites.find_or_create_by!(code: SITE_CODE) do |record|
         record.name = "Main clinic"
+        record.status = "active"
       end
+      visit_type = practice.visit_types.find_or_create_by!(code: VISIT_TYPE_CODE)
       unless Clinic::Configuration::PracticeFeatures.site_specialty_selected?(practice:, site:)
         GuidedClinicDemo.configure_site_profile!(practice:, site:,
           membership: administrator.clinic_membership, clinic_type: "primary_care",
@@ -26,7 +28,6 @@ module Development
       encounter = practice.encounters.open.find_by(patient: patient)
       return encounter if encounter
 
-      visit_type = practice.visit_types.find_or_create_by!(code: VISIT_TYPE_CODE)
       starts_at = as_of - 15.minutes
       appointment = practice.appointments.create!(
         patient: patient,
