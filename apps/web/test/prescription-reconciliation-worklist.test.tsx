@@ -75,6 +75,7 @@ function payload(siteId = 11): Contract {
     unresolved_count: 1,
     returned_count: 1,
     truncated: false,
+    pagination: { page: 1, per_page: 50, total: 1, total_pages: 1 },
     items: [
       {
         id,
@@ -108,9 +109,11 @@ function payload(siteId = 11): Contract {
 type Reply = { status?: number; data?: Contract };
 async function fixture(
   page: Page,
-  reply: (siteId: number, number: number) => Promise<Reply> = async (
-    siteId,
-  ) => ({ data: payload(siteId) }),
+  reply: (
+    siteId: number,
+    number: number,
+    page: number,
+  ) => Promise<Reply> = async (siteId) => ({ data: payload(siteId) }),
   denied = false,
 ) {
   const requests: { method: string; path: string; query: string }[] = [];
@@ -137,6 +140,7 @@ async function fixture(
       const result = await reply(
         Number(url.searchParams.get("site_id")),
         ++reads,
+        Number(url.searchParams.get("page")),
       );
       return route.fulfill({
         status: result.status ?? 200,
@@ -186,13 +190,18 @@ describe(
       });
       try {
         const requests = await fixture(page, async (siteId) => ({
-          data: { ...payload(siteId), unresolved_count: 51, truncated: true },
+          data: {
+            ...payload(siteId),
+            unresolved_count: 51,
+            truncated: true,
+            pagination: { page: 1, per_page: 50, total: 51, total_pages: 2 },
+          },
         }));
         await visible(page);
         const body = await page.locator("body").innerText();
         for (const text of [
           "51 unresolved · 1 shown",
-          "More work remains outside this view",
+          "More work remains outside this page",
           "Prescriber/support queue",
           "Encounter #51 · request #61 · revision 1 · attempt #81",
           "Simulation",
@@ -218,7 +227,7 @@ describe(
           requests
             .filter((request) => request.path.includes("worklist"))
             .map((request) => request.query),
-        ).toEqual(["?site_id=11"]);
+        ).toEqual(["?page=1&site_id=11"]);
       } finally {
         await page.close();
       }
@@ -234,6 +243,12 @@ describe(
                   data: {
                     ...payload(siteId),
                     unresolved_count: 0,
+                    pagination: {
+                      page: 1,
+                      per_page: 50,
+                      total: 0,
+                      total_pages: 1,
+                    },
                     returned_count: 0,
                     items: [],
                   },
@@ -269,7 +284,7 @@ describe(
           requests
             .filter((request) => request.path.includes("worklist"))
             .map((request) => `${request.method}${request.query}`),
-        ).toEqual(Array(3).fill("GET?site_id=11"));
+        ).toEqual(Array(3).fill("GET?page=1&site_id=11"));
       } finally {
         await page.close();
       }
@@ -288,8 +303,9 @@ describe(
         await expect
           .poll(
             () =>
-              requests.filter((request) => request.query === "?site_id=11")
-                .length,
+              requests.filter(
+                (request) => request.query === "?page=1&site_id=11",
+              ).length,
           )
           .toBe(1);
         await page
@@ -402,6 +418,7 @@ describe(
               data: {
                 ...payload(siteId),
                 unresolved_count: 0,
+                pagination: { page: 1, per_page: 50, total: 0, total_pages: 1 },
                 returned_count: 0,
                 items: [],
               },
@@ -443,3 +460,197 @@ describe(
     });
   },
 );
+function pagedPayload(siteId: number, page: number): Contract {
+  const data = payload(siteId);
+  const id = data.items[0].id + (page - 1) * 100;
+  return {
+    ...data,
+    unresolved_count: 51,
+    returned_count: 1,
+    truncated: true,
+    pagination: { page, per_page: 50, total: 51, total_pages: 2 },
+    items: [
+      {
+        ...data.items[0],
+        id,
+        href: `${data.items[0].href.replace(/prescription_attempt_id=\d+/, `prescription_attempt_id=${id}`)}`,
+      },
+    ],
+  };
+}
+describe("prescription reconciliation pages", { timeout: 15000 }, () => {
+  it("navigates both directions retaining exact source links and no writes", async () => {
+    const page = await browser.newPage();
+    try {
+      const requests = await fixture(
+        page,
+        async (site, _number, requested) => ({
+          data: pagedPayload(site, requested),
+        }),
+      );
+      await visible(page);
+      expect(
+        await page
+          .getByRole("button", { name: "Previous prescriptions", exact: true })
+          .isEnabled(),
+      ).toBe(false);
+      await page
+        .getByRole("button", { name: "Next prescriptions", exact: true })
+        .click();
+      await visible(page, 181);
+      expect(
+        await page
+          .getByRole("link", { name: "Review attempt 181 history" })
+          .getAttribute("href"),
+      ).toBe(pagedPayload(11, 2).items[0].href);
+      expect(
+        await page
+          .getByRole("button", { name: "Next prescriptions", exact: true })
+          .isEnabled(),
+      ).toBe(false);
+      await page
+        .getByRole("button", { name: "Previous prescriptions", exact: true })
+        .click();
+      await visible(page);
+      expect(
+        requests.filter((r) => r.path.includes("worklist")).map((r) => r.query),
+      ).toEqual([
+        "?page=1&site_id=11",
+        "?page=2&site_id=11",
+        "?page=1&site_id=11",
+      ]);
+      expect(requests.every((r) => r.method === "GET")).toBe(true);
+    } finally {
+      await page.close();
+    }
+  });
+  it("failed later pages hide old history and retry the same page rather than implying a clear queue", async () => {
+    const page = await browser.newPage();
+    try {
+      const requests = await fixture(page, async (site, number, requested) =>
+        number === 2
+          ? { status: 503 }
+          : { data: pagedPayload(site, requested) },
+      );
+      await visible(page);
+      await page
+        .getByRole("button", { name: "Next prescriptions", exact: true })
+        .click();
+      await expect
+        .poll(() =>
+          page.getByRole("button", { name: "Retry prescriptions" }).count(),
+        )
+        .toBe(1);
+      expect(await page.getByRole("table").count()).toBe(0);
+      expect(await page.locator("body").innerText()).toContain(
+        "queue has not been confirmed clear",
+      );
+      await page.getByRole("button", { name: "Retry prescriptions" }).click();
+      await visible(page, 181);
+      expect(
+        requests.filter((r) => r.path.includes("worklist")).map((r) => r.query),
+      ).toEqual([
+        "?page=1&site_id=11",
+        "?page=2&site_id=11",
+        "?page=2&site_id=11",
+      ]);
+    } finally {
+      await page.close();
+    }
+  });
+  it("resets to page one on site changes and ignores delayed previous-page context", async () => {
+    const page = await browser.newPage();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    try {
+      const requests = await fixture(page, async (site, _number, requested) => {
+        if (site === 11 && requested === 2) await gate;
+        return { data: pagedPayload(site, requested) };
+      });
+      await visible(page);
+      await page
+        .getByRole("button", { name: "Next prescriptions", exact: true })
+        .click();
+      await expect
+        .poll(
+          () => requests.filter((r) => r.query === "?page=2&site_id=11").length,
+        )
+        .toBe(1);
+      await page.getByRole("button", { name: "Switch synthetic site" }).click();
+      await visible(page, 82);
+      release();
+      await page.getByRole("button", { name: "Refresh prescriptions" }).click();
+      await visible(page, 82);
+      expect(
+        await page
+          .getByRole("link", { name: "Review attempt 181 history" })
+          .count(),
+      ).toBe(0);
+      expect(
+        requests
+          .filter((r) => r.query.includes("site_id=12"))
+          .every((r) => r.query.includes("page=1")),
+      ).toBe(true);
+    } finally {
+      release();
+      await page.close();
+    }
+  });
+  it("rejects wrong page metadata and missing pagination instead of displaying the wrong page", async () => {
+    for (const malformed of ["wrong-page", "missing"] as const) {
+      const page = await browser.newPage();
+      try {
+        await fixture(page, async (site, _number, requested) => {
+          const data = pagedPayload(site, requested);
+          if (requested === 2) {
+            if (malformed === "wrong-page") data.pagination.page = 1;
+            else delete (data as Partial<Contract>).pagination;
+          }
+          return { data };
+        });
+        await visible(page);
+        await page
+          .getByRole("button", { name: "Next prescriptions", exact: true })
+          .click();
+        await expect
+          .poll(() =>
+            page.getByRole("button", { name: "Retry prescriptions" }).count(),
+          )
+          .toBe(1);
+        expect(await page.getByRole("table").count()).toBe(0);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+  it("accepts a server-clamped page after reconciliation shrinks the current population", async () => {
+    const page = await browser.newPage();
+    try {
+      await fixture(page, async (site, _number, requested) => ({
+        data: requested === 2 ? payload(site) : pagedPayload(site, requested),
+      }));
+      await visible(page);
+      await page
+        .getByRole("button", { name: "Next prescriptions", exact: true })
+        .click();
+      await expect
+        .poll(async () =>
+          (await page.locator("body").innerText()).includes("Page 1 of 1"),
+        )
+        .toBe(true);
+      await visible(page);
+      expect(
+        await page
+          .getByRole("button", { name: "Previous prescriptions", exact: true })
+          .isEnabled(),
+      ).toBe(false);
+      expect(
+        await page
+          .getByRole("button", { name: "Next prescriptions", exact: true })
+          .isEnabled(),
+      ).toBe(false);
+    } finally {
+      await page.close();
+    }
+  });
+});

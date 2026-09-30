@@ -4,7 +4,7 @@ module Clinic
       LIMIT = 50
       UNRESOLVED_KINDS = %w[unknown acknowledged accepted outcome_unknown rejected unavailable revoked duplicate].freeze
 
-      def self.call(practice:, actor:, site: nil)
+      def self.call(practice:, actor:, site: nil, page: 1)
         Clinic::Authorization.authorize!(actor:, practice:, action: "patients.read")
         Clinic::Authorization.authorize!(actor:, practice:, action: "clinical_records.read", site:, any_site: site.nil?)
         ability = Ability.new(actor, practice:)
@@ -28,8 +28,10 @@ module Clinic
             )
           SQL
         count = attempts.count
+        total_pages = [ (count.to_f / LIMIT).ceil, 1 ].max
+        page = [ [ Integer(page), 1 ].max, total_pages ].min
         rows = attempts.includes(:patient, :prescription_event, :medication_request_revision)
-          .order("clinic_prescription_transmission_attempts.id ASC").limit(LIMIT).map do |attempt|
+          .order("clinic_prescription_transmission_attempts.id ASC").limit(LIMIT).offset((page - 1) * LIMIT).map do |attempt|
             order = attempt.medication_request_revision
             {
               id: attempt.id, event_id: attempt.prescription_event_id,
@@ -46,7 +48,8 @@ module Clinic
         {
           schema_version: "prescription-reconciliation-worklist-v1", practice_id: practice.id, actor_id: actor.id,
           site_id: site&.id, as_of: Time.current.iso8601(6), source: "clinic_prescription_transmission_attempts",
-          limit: LIMIT, unresolved_count: count, returned_count: rows.length, truncated: count > LIMIT, items: rows
+          limit: LIMIT, unresolved_count: count, returned_count: rows.length, truncated: count > LIMIT,
+          pagination: { page:, per_page: LIMIT, total: count, total_pages: }, items: rows
         }
       end
     end

@@ -29,24 +29,43 @@ export function PrescriptionReconciliationWorklist({
   enabled: boolean;
 }) {
   const scope = `${actorId}:${practiceId}:${siteId ?? "all"}`;
+  const [selection, setSelection] = useState({ scope, page: 1 });
+  const page = selection.scope === scope ? selection.page : 1;
+  const requestKey = `${scope}:${page}`;
+  useEffect(() => setSelection({ scope, page: 1 }), [scope, enabled]);
   const [refresh, setRefresh] = useState(0);
   const [state, setState] = useState<{
-    scope: string;
+    requestKey: string;
     data?: PrescriptionReconciliationWorklistContract;
     error?: string;
-  }>({ scope });
+  }>({ requestKey });
   useEffect(() => {
-    setState({ scope });
+    setState({ requestKey });
     if (!enabled) return;
     let active = true;
     const controller = new AbortController();
-    const path = `/api/clinic/prescription_reconciliation_worklist${siteId === null ? "" : `?site_id=${siteId}`}`;
+    const query = new URLSearchParams({ page: String(page) });
+    if (siteId !== null) query.set("site_id", String(siteId));
+    const path = `/api/clinic/prescription_reconciliation_worklist?${query}`;
     api<PrescriptionReconciliationWorklistContract>(path, {
       signal: controller.signal,
     })
       .then((data) => {
         if (!active) return;
+        const pagination = data.pagination;
         if (
+          !pagination ||
+          !Number.isSafeInteger(data.unresolved_count) ||
+          data.unresolved_count < 0 ||
+          !Number.isSafeInteger(pagination.page) ||
+          pagination.page < 1 ||
+          pagination.per_page !== 50 ||
+          pagination.total !== data.unresolved_count ||
+          pagination.total_pages !==
+            Math.max(1, Math.ceil(data.unresolved_count / 50)) ||
+          pagination.page !== Math.min(page, pagination.total_pages) ||
+          data.returned_count !== data.items.length ||
+          data.items.length > 50 ||
           data.schema_version !== "prescription-reconciliation-worklist-v1" ||
           data.practice_id !== practiceId ||
           data.actor_id !== actorId ||
@@ -57,12 +76,12 @@ export function PrescriptionReconciliationWorklist({
             "The prescription worklist changed context. Refresh before reviewing it.",
           );
         }
-        setState({ scope, data });
+        setState({ requestKey, data });
       })
       .catch((error: unknown) => {
         if (active)
           setState({
-            scope,
+            requestKey,
             error:
               error instanceof Error
                 ? error.message
@@ -73,9 +92,9 @@ export function PrescriptionReconciliationWorklist({
       active = false;
       controller.abort();
     };
-  }, [actorId, enabled, practiceId, refresh, scope, siteId]);
+  }, [actorId, enabled, page, practiceId, refresh, requestKey, siteId]);
   if (!enabled) return null;
-  const current = state.scope === scope ? state : { scope };
+  const current = state.requestKey === requestKey ? state : { requestKey };
   return (
     <Paper
       component="section"
@@ -132,15 +151,52 @@ export function PrescriptionReconciliationWorklist({
               {current.data.returned_count} shown · checked{" "}
               {new Date(current.data.as_of).toLocaleString()}
             </Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", flexWrap: "wrap" }}
+            >
+              <Button
+                disabled={current.data.pagination.page <= 1}
+                onClick={() =>
+                  setSelection({
+                    scope,
+                    page: current.data!.pagination.page - 1,
+                  })
+                }
+              >
+                Previous prescriptions
+              </Button>
+              <Typography variant="body2">
+                Page {current.data.pagination.page} of{" "}
+                {current.data.pagination.total_pages}
+              </Typography>
+              <Button
+                disabled={
+                  current.data.pagination.page >=
+                  current.data.pagination.total_pages
+                }
+                onClick={() =>
+                  setSelection({
+                    scope,
+                    page: current.data!.pagination.page + 1,
+                  })
+                }
+              >
+                Next prescriptions
+              </Button>
+            </Stack>
             {current.data.truncated && (
-              <Alert severity="info">
-                Showing the first {current.data.limit} unresolved attempts. More
-                work remains outside this view.
-              </Alert>
+              <Typography variant="body2" color="text.secondary">
+                More work remains outside this page. Counts and pages reflect
+                current authorized records, not a frozen snapshot.
+              </Typography>
             )}
             {current.data.items.length === 0 ? (
               <Typography>
-                No unresolved prescription attempts in this scope.
+                {current.data.unresolved_count === 0
+                  ? "No unresolved prescription attempts in this scope."
+                  : "No attempts returned on this page. Refresh to recheck current work."}
               </Typography>
             ) : (
               <TableContainer>
