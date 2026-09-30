@@ -34,18 +34,16 @@ module Clinic
 
       def link(practice:, actor:, patient:, encounter:, source_kind:, source_revision_id:, target_kind:, target_id:,
         outcome_summary:, request_key:)
-        source = current_source!(practice, patient, encounter, source_kind, source_revision_id)
+        source = owned_source!(practice, patient, encounter, source_kind, source_revision_id)
         target_definition = TARGETS.fetch(target_kind.to_s) { raise ArgumentError, "Choose a supported fulfillment result." }
         unless target_definition.fetch(:source) == source_kind.to_s
           raise ArgumentError, "That result cannot fulfill this request type."
         end
-        validate_target_compatibility!(source, target_kind)
         authorize_source!(practice, actor, encounter, source_kind)
         if target_kind.to_s == "document"
           Clinic::Authorization.authorize!(actor:, practice:, action: "documents.read", any_site: true)
         end
         target = target!(target_definition, practice, patient, encounter, target_id)
-        validate_target_evidence!(source, target_kind, target)
         payload = {
           patient_id: patient.id, encounter_id: encounter.id, source_kind: source_kind.to_s,
           source_revision_id: source.id, target_kind: target_kind.to_s, target_id: target.id,
@@ -54,13 +52,26 @@ module Clinic
         result = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "clinical_plan.fulfillment.link", request_key:, payload:, resource: encounter,
           authorization_action: permission_for(source_kind),
-          authorization: -> { authorize_source!(practice, actor, encounter, source_kind) },
+          authorization: -> {
+            authorize_source!(practice, actor, encounter, source_kind)
+            if target_kind.to_s == "document"
+              Clinic::Authorization.authorize!(actor:, practice:, action: "documents.read", any_site: true)
+            end
+          },
           result_resource: ->(record) { record },
           resource_resolver: ->(practice:, receipt:) {
             ClinicalPlanLink.find_by(practice_id: practice.id, encounter_id: encounter.id, id: receipt.resource_id)
           }
         ) do
           membership = authorize_source!(practice, actor, encounter, source_kind)
+          request_family = source_kind.to_s == "medication_request" ? "medication_requests" : "service_requests"
+          ApplicationRecord.connection.execute(ApplicationRecord.sanitize_sql_array([
+            "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+            "clinical-plan:#{practice.id}:#{request_family}:#{source.series_id}"
+          ]))
+          source = current_source!(practice, patient, encounter, source_kind, source_revision_id)
+          validate_target_compatibility!(source, target_kind)
+          validate_target_evidence!(source, target_kind, target)
           ClinicalPlanLink.create!(
             { practice:, patient:, encounter:, site: encounter.site, source_kind: source_kind.to_s,
               target_kind: target_kind.to_s, outcome_summary: payload[:outcome_summary],
@@ -193,12 +204,17 @@ module Clinic
       end
       private_class_method :current_procedures
 
-      def current_source!(practice, patient, encounter, source_kind, source_revision_id)
+      def owned_source!(practice, patient, encounter, source_kind, source_revision_id)
         model = source_kind.to_s == "medication_request" ? MedicationRequestRevision :
           (source_kind.to_s == "service_request" ? ServiceRequestRevision : nil)
         raise ArgumentError, "Choose a supported request type." unless model
-        source = model.where(practice:, patient:, encounter:).find(source_revision_id)
-        current = model.where(practice:, patient:, encounter:, series_id: source.series_id)
+        model.where(practice:, patient:, encounter:).find(source_revision_id)
+      end
+      private_class_method :owned_source!
+
+      def current_source!(practice, patient, encounter, source_kind, source_revision_id)
+        source = owned_source!(practice, patient, encounter, source_kind, source_revision_id)
+        current = source.class.where(practice:, patient:, encounter:, series_id: source.series_id)
           .order(version_number: :desc, id: :desc).first
         raise ActiveRecord::StaleObjectError.new(source, "link fulfillment") unless current.id == source.id
         source
@@ -220,29 +236,41 @@ module Clinic
       private_class_method :source_column
 
       def validate_target_compatibility!(source, target_kind)
-        return unless source.is_a?(ServiceRequestRevision)
-        allowed = case source.request_kind
+        raise ArgumentError, "That result type does not match this order." unless target_compatible?(source, target_kind)
+      end
+      private_class_method :validate_target_compatibility!
+
+      def target_compatible?(source, target_kind, request_kind: nil)
+        definition = TARGETS[target_kind.to_s]
+        source_kind = source.is_a?(MedicationRequestRevision) ? "medication_request" : "service_request"
+        return false unless definition && definition.fetch(:source) == source_kind
+        return true unless source.is_a?(ServiceRequestRevision)
+
+        allowed = case request_kind || source.request_kind
         when "lab" then %w[lab_report document]
         when "procedure" then %w[procedure document]
         else %w[document]
         end
-        raise ArgumentError, "That result type does not match this order." unless allowed.include?(target_kind.to_s)
+        allowed.include?(target_kind.to_s)
       end
-      private_class_method :validate_target_compatibility!
+      private_class_method :target_compatible?
 
-      def fulfillment_link_evidence?(source, link)
+      def fulfillment_link_evidence?(source, link, request_kind: nil)
         target = link.public_send(TARGETS.fetch(link.target_kind).fetch(:column).to_s.delete_suffix("_id"))
-        target_evidence?(source, link.target_kind, target)
+        target_evidence?(source, link.target_kind, target, request_kind:)
       end
 
-      def target_evidence?(source, target_kind, target)
-        return false unless target
+      def target_evidence?(source, target_kind, target, request_kind: nil)
+        return false unless target && target_compatible?(source, target_kind, request_kind:)
 
         case target_kind.to_s
         when "medication_administration"
           target.status == "completed" && target.movement_links.exists?
         when "procedure"
-          target.status == "completed"
+          target.status == "completed" && !ProcedureRevision.where(
+            practice_id: target.practice_id, patient_id: target.patient_id, encounter_id: target.encounter_id,
+            series_id: target.series_id, status: "entered_in_error"
+          ).where("version_number > ?", target.version_number).exists?
         when "lab_report"
           order = target.service_request_revision
           order && [ order.practice_id, order.patient_id, order.encounter_id, order.series_id ] ==
@@ -257,7 +285,7 @@ module Clinic
         return if target_evidence?(source, target_kind, target)
 
         message = case target_kind.to_s
-        when "procedure" then "Only a completed procedure can be linked as fulfillment."
+        when "procedure" then "Only a completed procedure without a later entered-in-error revision can be linked as fulfillment."
         when "lab_report" then "The lab report must belong to this laboratory order."
         else "Only a completed, stock-linked medication administration can be linked."
         end
