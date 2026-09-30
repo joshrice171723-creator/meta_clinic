@@ -82,6 +82,75 @@ Reuse the [existing six-column matrix](../meta-clinic-build-and-acceptance.md); 
 
 **MC09 finish/limitations:** retain before/after persisted state, IDs and scoped counts for each exercised row plus browser evidence and actual actor. Separate prepared, executed, denied, failed and blocked. The account simulator exposes no successful recurring-renewal scenario; do not equate another initial `paid` event with a renewed paid period. Real successful renewal, provider-signed live outcomes, reader transactions, package permutations and expiry-time enforcement remain explicit uncovered acceptance. Report that source-supported limit to dot; no new feature is assigned by this packet.
 
+### MC09 successful recurring renewal — implemented handler, missing proof
+
+**Diagnosis (source review, not execution):** successful recurring renewal is implemented in [StripeRecurringPayments](../../../apps/api/app/services/clinic/billing/stripe_recurring_payments.rb). `webhook` resolves the existing connection/collection intent/checkout; `sync` validates current subscription and invoice; `apply_paid_invoice` accepts `billing_reason: subscription_cycle`, records a new posted local invoice and verified payment/allocation/cycle/receipt, and appends an active period only when its end is newer than prior paid cycles. Replaying the same invoice is bounded by existing cycle identity. [StripeMembershipPayments.webhook](../../../apps/api/app/services/clinic/billing/stripe_membership_payments.rb) verifies the signed envelope and dispatches `invoice.paid` to this handler. These are implemented source paths, not a runtime pass.
+
+The current [focused service suite](../../../apps/api/test/services/clinic/stripe_memberships_test.rb) has a signed **initial** paid invoice/replay case, an **unpaid** recurring invoice, foreign-route/fee denial and cancellation. It contains no successful second-period `subscription_cycle` assertion. Its `paid_invoice` helper defaults every call to the same period; simply calling it twice with different IDs does not test extended access. The local public simulator has only `paid`, `renewal_failed`, `cancel_at_period_end`; `paid` dispatches checkout completion for the initial invoice. Its gateway can return a paid renewal invoice, but its `subscription.latest_invoice` still points to the initial invoice for that outcome. Repeating the public `paid` action cannot establish a successful new period. This is missing acceptance coverage and limited fixture instrumentation, not evidence that the core renewal implementation is absent. No new public outcome, control, scheduler or product repair is selected.
+
+**Scout readiness evidence supplied by dot:** Scout's owned 5170 guided-demo surface intentionally hides R renewal/cancel controls. Its inspected fixture has no current membership, upcoming reminder or failed/unknown contact history. No fixture manifest, separately authenticated portal A/B pair or API SHA is available. The observed completed-patient-reminder exclusion is auxiliary negative evidence only; it does not execute R/U/P or prove the pilot. Do not reuse that demo identity as a paid account or patient pair. MC12 remains independently blocked until its own manifest/authenticated fixtures exist.
+
+#### Minimal manifest — planned test fixtures only
+
+The runtime/test owner fills actual values after isolated fixture construction. Null means unavailable, not a prepared ID. Store no password, cookie, auth/CSRF token, connection string or signing material in the manifest. No live identity creation is requested by this plan.
+
+```json
+{
+  "status": "planned_not_executed",
+  "fixture_source_revision": "2b0e9db4c9158562130e02555396dd078658ac8a",
+  "api_sha": null,
+  "ui_sha": null,
+  "runtime_owner": null,
+  "test_database_alias": null,
+  "browser_origin": null,
+  "fixture_run_prefix": null,
+  "isolation": "dedicated synthetic test process/database, not shared demo",
+  "outbound": "closed-world injected gateway; no external network/mail/jobs",
+  "practice_id": null,
+  "published_version_id": null,
+  "agreement_id": null,
+  "checkout_id": null,
+  "collection_intent_id": null,
+  "portal_a": { "user_id": null, "patient_id": null, "identity_id": null },
+  "portal_b": { "user_id": null, "patient_id": null, "identity_id": null },
+  "actor_membership_id": null,
+  "gateway_kind": "existing StripeMembershipsTest::Gateway closed-world fixture",
+  "processor_evidence": "synthetic_test_only, not vendor-confirmed",
+  "amount": "25.00",
+  "currency": "USD",
+  "clock_scope": "test process only; restore after each case",
+  "initial_period": ["2026-01-15T12:00:00Z", "2026-02-15T12:00:00Z"],
+  "renewal_period": ["2026-02-15T12:00:00Z", "2026-03-15T12:00:00Z"],
+  "initial_provider_invoice_id": null,
+  "renewal_provider_invoice_id": null,
+  "initial_provider_payment_id": null,
+  "renewal_provider_payment_id": null,
+  "before_scoped_counts": null,
+  "recorded_permission_scopes": null,
+  "browser_readiness": "blocked until owned non-frame origin and authenticated A/B are supplied"
+}
+```
+
+The amount/dates above are proposed independent test inputs matching the existing service fixture; they are not current runtime terms or dates. The implementation's USD/monthly/fee/subscription identity validators must match the fixture exactly. Use a wholly new practice/published agreement and independent A/B users in the isolated **test database**. Account-first browser conversion, MC12 clinical records and reminders are additional fixtures, not inferred from this minimal renewal agreement. Preserve practice→patient→identity→user and agreement→checkout→intent→subscription relationships; B has its own different patient and cannot read A's agreement/receipts. For browser confirmation of the public account `/current`, additionally prepare the account-first prospect with this same agreement/identity via the owning local recipe; a direct service agreement fixture alone does not supply that account relationship.
+
+#### Smallest isolated test-harness plan
+
+1. Existing Rails test owner prepares the dedicated database and current locked dependencies using the established test lifecycle, preserving runtime ownership. Reuse `StripeMembershipsTest` setup, fake gateway, `begin_checkout`, `paid_invoice`, `deliver_invoice` and teardown as the recipe; do not load the test class into a shared live web process or run its setup against demo data. No provisioning, fixture creation or execution occurred in this design run. Synthetic signing configuration remains process-local in the existing harness and is restored; no real vendor credential is read, obtained or installed.
+2. At test clock T0, with `Current.business_date` scoped to T0's date in this isolated process, construct initial `subscription_create` invoice with period `[T0,T1]`, paid-at T0 and unique initial invoice/payment IDs. Deliver the existing signed-envelope path with the injected closed-world gateway. Confirm one paid cycle, allocation, receipt and active event. Snapshot the original invoice/payment/receipt, patient/identity, agreement and unrelated open-task IDs/states. Do not browse the fixture gateway's fake external checkout URL.
+3. At T1, scope both `Time.current` and `Current.business_date` to T1 (restore both afterward), and replace the helper's default dates explicitly: renewal invoice `subscription_cycle`, unique renewal invoice/payment IDs, period `[T1,T2]`, paid-at T1, exact amount/currency/fee. Call `gateway.add_invoice(..., payment_id: ...)`, which updates the fixture subscription's latest invoice; retain the original initial invoice in its map. This avoids the public simulator's initial-invoice pointer limitation. Deliver `invoice.paid` with the same verified-envelope helper and explicit gateway injection. Never use the default gateway or the public HTTP webhook for this fixture: the default adapter may access a provider.
+4. Assert one additional invoice, payment event, allocation, cycle, receipt and newer active-period event, scoped to A/practice/checkout. The original rows remain unchanged. Paid end becomes T2, projected period begins T1, renewal invoice is paid/amount due zero, identity/agreement unchanged. Preserve prior open tasks independently. A local signed fixture is not a provider-confirmed payment or actual charge.
+5. Deliver the exact renewal envelope again, then a different event ID for the same paid invoice, then the earlier initial invoice after the renewal while the gateway still advertises current latest renewal. Assert no further invoice/payment/allocation/cycle/receipt/activation and no regression of paid end or renewal state. Never mark replay coverage from one fresh-key browser click.
+6. In a second isolated case, use a matched amount with a **future** renewal start `> Time.current` or one changed currency/fee/subscription binding. Assert rejection and zero renewal-ledger/entitlement delta; original paid evidence and independent own reads remain available. Existing foreign-account behavior returns no matching work; prove zero mutation separately rather than inventing a service-layer HTTP status. These are proposed acceptance cases, not tests already added or passed.
+7. Browser read extension requires a separately owned synthetic local runtime plus actual API/UI SHA and authenticated A/B. Its owner may materialize the same test-only paid-cycle recipe with an explicit injected closed-world fixture adapter and known past/current intervals, then Scout reads real patient subscriptions/receipt and, only if account-first binding exists, account `/current`, before and after reload. Record server fixture injection separately from browser reads; no browser “renewal succeeded” control is exercised. Show B's denied access/no A rows, exact persisted renewal interval and retained follow-up. Without that adapter/manifest/session pair, report the extension blocked rather than use the guided demo or introduce a public simulator endpoint.
+
+Potential authored acceptance addition is two focused cases in the existing `test/services/clinic/stripe_memberships_test.rb` harness, with date overrides and replay/negative assertions above. This plan does not edit that file or assign a second writer. Sage/test owner should agree ownership with dot before adding those cases; Nova does not repeat already reviewed backend checks. The current-file command below is runnable in the existing owned test runtime, but **does not contain the proposed successful-renewal cases yet**:
+
+```sh
+python ../../bin/agent-resources run -- ruby bin/postgres exec bin/rails test test/services/clinic/stripe_memberships_test.rb
+```
+
+New-case-only commands must use the actual names after authorship; do not claim that the existing eight-case suite proves a second paid cycle. Return full SHA, actual cases/assertions, injected gateway call log (no network), before/after scoped counts/intervals and browser provenance if executed. Until then the result is source evidence plus test design. No successful-renewal test was executed here because Ruby/Bundler and an owned fixture runtime are unavailable.
+
 ### MC12 packet — patient visibility, publication recovery and return visit
 
 **Immediate safe Scout steps:** authenticate P's A and B separately; read `/api/patient_portal/context`, `/api/patient_portal/requests?request_type=message`, `?request_type=refill`, `/api/patient_portal/visit_instructions` and `/api/patient_portal/appointment_requests`. Open `/patient-portal#home`, `#care`, `#billing`, `#appointments`. Context is a billing/bootstrap projection, not the older proposed broad clinical context arrays. Record available options and owning identities; no mutation or outbound is needed.
@@ -116,8 +185,8 @@ Stop the affected slice for unknown fixture ownership, shared/real data, mismatc
 
 ## Checkpoint
 
-Both packets are complete as acceptance design, source reviewed against the recorded baseline. No application source/test/dependency change, fixture creation, browser/API execution, payment or notification occurred. No concrete unowned missing capability was established. Current simulator lacks a successful recurring-renewal scenario; that is an explicit coverage limit for dot, not an implementation assignment. Runtime/fixture readiness and connected results remain Scout's next proof. PR55 correction is preserved in its separate clean author worktree at `1f81a07ed04ef7d7f41034c10167a67634318884`. Canonical tracker link remains Relay's coordinated PR36 edit.
+Both packets are complete as acceptance design, source reviewed against the recorded baseline. No application source/test/dependency change, fixture creation, browser/API execution, payment or notification occurred. Successful recurring renewal exists in the core handler; second-paid-cycle acceptance is missing and the public local simulator has no success trigger. The new manifest/harness design enables isolated proof without product code or live identities. No concrete unowned missing core capability was established. Scout's guided-demo observation is auxiliary only; R/U/P remain unexecuted and blocked on the actual fixture manifest/API SHA/portal pair. Runtime/fixture readiness and connected results remain Scout's next proof. PR55 correction is preserved in its separate clean author worktree at `1f81a07ed04ef7d7f41034c10167a67634318884`. Canonical tracker link remains Relay's coordinated PR36 edit.
 
 ## Last run
 
-2026-09-30 UTC. Inspected baseline `2b0e9db4c9158562130e02555396dd078658ac8a`; resumed the paused design checkpoint after the PR55 correction handoff. Only this assignment document changed. Source/route/policy/test-recipe inspection and primary standards review completed; app tests and acceptance were not run because this is product acceptance design. Next: Scout reads the manifest/prerequisites, begins either immediate safe read-only lane, and records connected results row by row. Relay links this assignment under MC-09 and MC-12 without changing completion percentages. All 28 repository-relative Markdown links resolve and whitespace checks pass. Scoped Prettier completed. The documentation harness reports only the missing tracker link, which remains Relay's PR36 ownership gate; no acceptance pass is inferred.
+2026-09-30 UTC. Investigated successful recurring renewal against main `2b0e9db4c9158562130e02555396dd078658ac8a` (remote main confirmed unchanged), the implemented handler/dispatch and existing test/local gateway source. Only this assignment document changed. Added diagnosis, Scout readiness limits, a null-ID planned fixture manifest and minimal two-case isolated test design; preserved MC09/MC12 packets. No product code, test file, fixture, live identity, browser/API execution, payment, outbound operation or schedule changed. Next: dot assigns the isolated test writer/runtime owner; owner fills the manifest and verifies source/environment before authoring/executing the two acceptance cases; Scout then performs the separately labeled real-API browser read extension. Relay retains tracker-link ownership. All 31 repository-relative links resolve; manifest JSON parses with unavailable IDs explicit; scoped formatting/whitespace pass. Harness still reports only Relay's pending tracker link. No acceptance pass is inferred.
