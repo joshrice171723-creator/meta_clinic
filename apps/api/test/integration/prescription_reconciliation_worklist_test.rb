@@ -219,15 +219,26 @@ class PrescriptionReconciliationWorklistTest < ActionDispatch::IntegrationTest
   def attempt(outcome, order: nil, encounter: @encounter, membership: @membership, destination: @destination, submitted_at: Time.current)
     order ||= revision(encounter:, membership:)
     key = "rx-attempt-#{SecureRandom.hex(12)}"
+    # Read-only worklist fixtures construct fresh synthetic ledger evidence, not a runtime submission path.
+    review = event(order, "review", source: "manual", membership:)
+    digest = Clinic::Care::PrescriptionPreparationWorkflow.digest(order:, review:, destination_snapshot: destination.snapshot,
+      mode: "standard", signer_snapshot: {}, reviewer_snapshot: {})
+    preparation = Clinic::Care::PrescriptionPreparation.create!(practice: order.practice, patient: order.patient,
+      medication_request_revision: order, pharmacy_destination: destination, review_event: review,
+      prepared_by_membership: membership, request_key: "prepare:#{key}", prepared_at: submitted_at,
+      schema_version: Clinic::Care::PrescriptionTransmissionAttempt::SCHEMA_VERSION, payload_digest: digest,
+      mode: "standard", signer_snapshot: {}, reviewer_snapshot: {}, destination_snapshot: destination.snapshot)
     recorded = event(order, outcome, request_key: "prescription-event:#{key}", membership:)
     Clinic::Care::PrescriptionTransmissionAttempt.create!(practice: encounter.practice, patient: encounter.patient, medication_request_revision: order,
-      pharmacy_destination: destination, prescription_event: recorded, initiated_by_membership: membership,
+      pharmacy_destination: destination, prescription_event: recorded, initiated_by_membership: membership, preparation:,
       adapter: Clinic::Care::PrescriptionTransmissionAttempt::ADAPTER, mode: "standard", outcome:, request_key: key,
+      source: "simulation", transaction_type: "NewRx", schema_version: preparation.schema_version,
+      payload_digest: digest, correlation_id: SecureRandom.uuid, review_event: review,
       submitted_at:, destination_snapshot: destination.snapshot)
   end
 
   def ledger
-    [ Clinic::Care::MedicationRequestRevision, Clinic::Care::PrescriptionEvent, Clinic::Care::PrescriptionTransmissionAttempt,
+    [ Clinic::Care::MedicationRequestRevision, Clinic::Care::PrescriptionEvent, Clinic::Care::PrescriptionPreparation, Clinic::Care::PrescriptionTransmissionAttempt,
       Clinic::ClinicalTask, Clinic::Care::MedicationDispense ].map { |model| model.order(:id).map(&:attributes) }
   end
 
