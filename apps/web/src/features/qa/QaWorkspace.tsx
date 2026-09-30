@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
+import { QaAgentRoom } from "./QaAgentRoom";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -381,6 +382,7 @@ export function QaWorkspace() {
     ["coverage", "Workflow coverage"],
     ["inbox", "Agent inbox"],
     ["timeline", "Activity & releases"],
+    ["room", "Agent room"],
   ];
 
   function submitReport(event: FormEvent<HTMLFormElement>) {
@@ -1275,6 +1277,11 @@ export function QaWorkspace() {
                     Muse's full COVERAGE_STATE.json to fill this ledger.
                   </p>
                 )}
+              </section>
+            )}
+            {section === "room" && (
+              <section className="qa-panel">
+                <QaAgentRoom />
               </section>
             )}
             {section === "inbox" && (

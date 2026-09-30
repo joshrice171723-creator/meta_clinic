@@ -10,6 +10,8 @@ Rails.application.routes.draw do
   get "qa/retest.json", to: "qa/workspace#retest"
   get "qa/batches.json", to: "qa/workspace#batches"
   get "qa/tasks", to: "qa/workspace#tasks"
+  get "qa/room", to: "qa/workspace#room"
+  post "qa/room/messages", to: "qa/workspace#create_room_message"
   post "qa/tasks", to: "qa/workspace#create_task"
   post "qa/tasks/:id/transition", to: "qa/workspace#transition"
   post "qa/events", to: "qa/workspace#create_event"
