@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TelehealthMediaAdapterCallbacks } from "../src/features/telehealth/mediaAdapter";
 import type { TelehealthVisit } from "../src/features/telehealth/types";
 
 type StateSlot = {
@@ -192,6 +193,12 @@ type ProviderHarnessValue = {
     status: number,
   ) => Promise<void>;
   leave: (notifyServer?: boolean) => Promise<void>;
+  retryConnection: () => Promise<void>;
+  active: { visitId: string } | null;
+  callState: string;
+  error: string | null;
+  authorizationStatus: string;
+  participants: unknown[];
   registerVisitPolling: (visitId: string) => () => void;
 };
 
@@ -354,6 +361,81 @@ describe("persistent telehealth session authorization", () => {
 
     expect(adapter.destroy).toHaveBeenCalledTimes(1);
     expect(adapter.join).not.toHaveBeenCalled();
+  });
+
+  it("ignores retired adapter events while accepting current connection events", async () => {
+    const provider = await joinStaff();
+    const retired = mediaMocks.createAdapter.mock
+      .calls[0][1] as TelehealthMediaAdapterCallbacks;
+    await provider.retryConnection();
+    const current = mediaMocks.createAdapter.mock
+      .calls[1][1] as TelehealthMediaAdapterCallbacks;
+    current.onState("joined");
+    current.onParticipants([]);
+    retired.onParticipants([{ id: "retired-track" }] as never);
+    retired.onError("Retired transport failed");
+    retired.onState("ended");
+    retired.onState("reconnecting");
+
+    expect(renderProvider()).toMatchObject({
+      active: { visitId: "visit-1" },
+      callState: "joined",
+      participants: [],
+      error: null,
+      authorizationStatus: "confirmed",
+    });
+    current.onState("ended");
+    expect(renderProvider().callState).toBe("error");
+  });
+
+  it("does not let a pending leave clear a newer authorized connection", async () => {
+    const provider = await joinStaff();
+    const disposal = deferred<void>();
+    mediaMocks.instances[0].destroy.mockReturnValueOnce(disposal.promise);
+    const leaving = provider.leave(false);
+    await Promise.resolve();
+    await joinStaff();
+    const current = mediaMocks.createAdapter.mock
+      .calls[1][1] as TelehealthMediaAdapterCallbacks;
+    current.onState("joined");
+    disposal.resolve();
+    await leaving;
+
+    expect(renderProvider()).toMatchObject({
+      active: { visitId: "visit-1" },
+      callState: "joined",
+      authorizationStatus: "confirmed",
+    });
+  });
+
+  it("does not let authorization teardown clear a later freshly authorized join", async () => {
+    const provider = await joinStaff();
+    const disposal = deferred<void>();
+    mediaMocks.instances[0].destroy.mockReturnValueOnce(disposal.promise);
+    const stopping = provider.reconcileAuthorization(visit("removed"), 8);
+    await Promise.resolve();
+    await joinStaff();
+    disposal.resolve();
+    await stopping;
+
+    expect(renderProvider()).toMatchObject({
+      active: { visitId: "visit-1" },
+      authorizationStatus: "confirmed",
+    });
+  });
+
+  it("does not request a reconnect grant after leave supersedes pending disposal", async () => {
+    const provider = await joinStaff();
+    const disposal = deferred<void>();
+    mediaMocks.instances[0].destroy.mockReturnValueOnce(disposal.promise);
+    const retrying = provider.retryConnection();
+    await provider.leave(false);
+    disposal.resolve();
+    await retrying;
+
+    expect(apiMocks.requestStaffJoinGrant).toHaveBeenCalledTimes(1);
+    expect(renderProvider().active).toBeNull();
+    expect(mediaMocks.createAdapter).toHaveBeenCalledTimes(1);
   });
 
   it("stops Scribe before media when the canonical participant is removed", async () => {
