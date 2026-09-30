@@ -5,7 +5,7 @@ module Clinic
       POSITION_PAGE_SIZE = 25
       Positions = Data.define(:batches, :total_count, :filtered_count, :query, :status, :product, :page, :page_count, :unit_totals)
 
-      def self.positions(practice:, query: nil, status: nil, product_id: nil, page: nil)
+      def self.positions(practice:, query: nil, status: nil, product_id: nil, page: nil, export_limit: nil, export_deadline: nil)
         query = query.to_s.strip
         status = status.presence || "all"
         raise ArgumentError, "Search must be 100 characters or fewer." if query.length > 100
@@ -24,12 +24,26 @@ module Clinic
         filtered = filtered.where(available_sql).where("clinic_pharmacy_batches.on_hand > 0") if status == "available"
         filtered = filtered.where("NOT (#{PharmacyBatch::NO_HOLD_SQL})") if status == "held"
         filtered = filtered.where("clinic_pharmacy_batches.expires_on < ?", day) if status == "expired"
+        Clinic::Reports::SourcePage.check_export_deadline!(deadline: export_deadline)
         count = filtered.count
-        page_count = [ (count + POSITION_PAGE_SIZE - 1) / POSITION_PAGE_SIZE, 1 ].max
-        page = [ page.to_i, page_count ].min
+        Clinic::Reports::SourcePage.check_export_deadline!(deadline: export_deadline)
+        if export_limit.nil?
+          page_count = [ (count + POSITION_PAGE_SIZE - 1) / POSITION_PAGE_SIZE, 1 ].max
+          page = [ page.to_i, page_count ].min
+        else
+          Clinic::Reports::SourcePage.check_export_limit!(total: count, export_limit:)
+          page_count = count.zero? ? 0 : 1
+          page = 1
+        end
+        Clinic::Reports::SourcePage.check_export_deadline!(deadline: export_deadline)
         totals = filtered.group("clinic_pharmacy_products.stock_unit").order("clinic_pharmacy_products.stock_unit").pluck("clinic_pharmacy_products.stock_unit",
           Arel.sql("SUM(clinic_pharmacy_batches.on_hand)"), Arel.sql("SUM(CASE WHEN #{available_sql} THEN clinic_pharmacy_batches.on_hand ELSE 0 END)"))
-        Positions.new(batches: filtered.includes(:product, :lot, :location_record).order(:expires_on, :id).limit(POSITION_PAGE_SIZE).offset((page - 1) * POSITION_PAGE_SIZE).to_a,
+        batches = filtered.includes(:product, :lot, :location_record).order(:expires_on, :id)
+        batches = batches.limit(POSITION_PAGE_SIZE).offset((page - 1) * POSITION_PAGE_SIZE) if export_limit.nil?
+        Clinic::Reports::SourcePage.check_export_deadline!(deadline: export_deadline)
+        batches = batches.to_a
+        Clinic::Reports::SourcePage.check_export_deadline!(deadline: export_deadline)
+        Positions.new(batches: batches,
           total_count: scope.count, filtered_count: count, query: query, status: status, product: product, page: page, page_count: page_count, unit_totals: totals)
       end
 

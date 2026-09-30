@@ -1,12 +1,14 @@
 module Clinic
   module Reports
     class CurrentStock
-      def self.call(practice:, actor:, page: 1, office_page: 1, status: "all")
+      def self.call(practice:, actor:, page: 1, office_page: 1, status: "all", export_limit: nil, export_deadline: nil)
         Clinic::Authorization.authorize!(actor:, practice:, action: "inventory.read")
         day = practice.inventory_date
-        positions = Clinic::Inventory::ProductDetailsQuery.positions(practice:, page:, status:)
         office = practice.items
-        office_records, office_pagination = SourcePage.call(scope: office, page: office_page)
+        office_records, office_pagination = SourcePage.call(scope: office, page: office_page, export_limit:, export_deadline:)
+        # Keep the two sections within one budget before either loads detail rows.
+        pharmacy_limit = export_limit.nil? ? nil : Integer(export_limit) - office_pagination.fetch(:total)
+        positions = Clinic::Inventory::ProductDetailsQuery.positions(practice:, page:, status:, export_limit: pharmacy_limit, export_deadline:)
         product_stock = Clinic::Inventory::PharmacyProduct.where(practice_id: practice.id).with_stock(day)
         low_stock = Clinic::Inventory::PharmacyProduct.from("(#{product_stock.to_sql}) clinic_pharmacy_products")
           .where("active AND available_stock <= reorder_point")
@@ -18,8 +20,10 @@ module Clinic
           pharmacy_units: positions.unit_totals.map { |unit, physical, available|
             { unit:, physical: physical.to_d.to_s("F"), available: available.to_d.to_s("F") }
           },
-          pagination: { page: positions.page, per_page: 25, total: positions.filtered_count, total_pages: positions.page_count },
+          pagination: { page: positions.page, per_page: export_limit.nil? ? 25 : [ positions.filtered_count, 1 ].max,
+            total: positions.filtered_count, total_pages: positions.page_count },
           pharmacy_records: positions.batches.map { |batch|
+            SourcePage.check_export_deadline!(deadline: export_deadline)
             { id: batch.id, product_id: batch.product_id, name: batch.product.name,
               lot: batch.lot_number, location: batch.location_record.name,
               unit: batch.product.stock_unit, physical: batch.on_hand.to_d.to_s("F"),
@@ -29,6 +33,7 @@ module Clinic
           office_pagination:, office_quantity: office.sum(:quantity).to_s,
           low_office_count: office.where("quantity <= reorder_level").count,
           office_records: office_records.order(:name, :id).map { |item|
+            SourcePage.check_export_deadline!(deadline: export_deadline)
             { id: item.id, name: item.name, sku: item.sku, quantity: item.quantity.to_s,
               reorder_level: item.reorder_level.to_s, low_stock: item.quantity <= item.reorder_level }
           }

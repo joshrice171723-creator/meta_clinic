@@ -3,7 +3,7 @@ module Clinic
     class DailyVisitsByState
       STATES = Clinic::Appointment::TRANSITIONS.keys.freeze
 
-      def self.call(practice:, actor:, date:, site: nil, page: 1)
+      def self.call(practice:, actor:, date:, site: nil, page: 1, export_limit: nil, export_deadline: nil)
         raise ActiveRecord::RecordNotFound if site && site.practice_id != practice.id
 
         Clinic::Authorization.authorize!(actor: actor, practice: practice, action: "appointments.read", site: site)
@@ -16,7 +16,7 @@ module Clinic
         ends_at = zone.local(next_date.year, next_date.month, next_date.day)
         scope = practice.appointments.where(starts_at: starts_at...ends_at)
         scope = scope.where(site_id: site.id) if site
-        records, pagination = SourcePage.call(scope: scope, page: page)
+        records, pagination = SourcePage.call(scope: scope, page: page, export_limit:, export_deadline:)
         grouped = scope.group(:status, :site_id).count
         counts = STATES.index_with { 0 }
         unknown_state_count = 0
@@ -37,6 +37,7 @@ module Clinic
           as_of: Time.current.iso8601(6),
           freshness: "live_source_query_no_cache",
           records: records.order(:starts_at, :id).pluck(:id, :site_id, :status, :visit_modality, :starts_at).map do |id, site_id, status, visit_modality, starts_at|
+            SourcePage.check_export_deadline!(deadline: export_deadline)
             { id: id, site_id: site_id, status: status, visit_modality: visit_modality,
               local_start: starts_at.in_time_zone(zone).strftime("%H:%M") }
           end,

@@ -775,14 +775,13 @@ function DailyVisitsByState({
             filters={{
               date: report.date,
               ...(report.site_id === null ? {} : { site_id: report.site_id }),
-              page: report.pagination.page,
             }}
-            label="Issue and download CSV"
+            label="Issue and download all matching rows"
           />
           <Typography variant="caption" color="text.secondary">
-            Issued CSV summaries cover all matching source records. Detail rows
-            cover only the requested source pages; the saved receipt records the
-            actual pages and source time captured during issuance.
+            The issued CSV captures all matching source rows in one consistent
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
         </Stack>
       )}
@@ -886,15 +885,13 @@ function DailyPaymentActivity({ date }: { date: string }) {
             reportId="daily_payment_activity"
             filters={{
               date: report.date,
-              payment_page: report.payment_pagination.page,
-              refund_page: report.refund_pagination.page,
             }}
-            label="Issue and download CSV"
+            label="Issue and download all matching rows"
           />
           <Typography variant="caption" color="text.secondary">
-            Issued CSV summaries cover all matching source records. Detail rows
-            cover only the requested source pages; the saved receipt records the
-            actual pages and source time captured during issuance.
+            The issued CSV captures all matching source rows in one consistent
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -973,14 +970,13 @@ function DailyInvoices({ date }: { date: string }) {
             reportId="daily_invoices"
             filters={{
               date: report.date,
-              page: report.pagination.page,
             }}
-            label="Issue and download CSV"
+            label="Issue and download all matching rows"
           />
           <Typography variant="caption" color="text.secondary">
-            Issued CSV summaries cover all matching source records. Detail rows
-            cover only the requested source pages; the saved receipt records the
-            actual pages and source time captured during issuance.
+            The issued CSV captures all matching source rows in one consistent
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1065,14 +1061,13 @@ function DailyStockMovements({ date }: { date: string }) {
             reportId="daily_stock_movements"
             filters={{
               date: report.date,
-              page: report.pagination.page,
             }}
-            label="Issue and download CSV"
+            label="Issue and download all matching rows"
           />
           <Typography variant="caption" color="text.secondary">
-            Issued CSV summaries cover all matching source records. Detail rows
-            cover only the requested source pages; the saved receipt records the
-            actual pages and source time captured during issuance.
+            The issued CSV captures all matching source rows in one consistent
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/inventory/activity"
@@ -1552,15 +1547,13 @@ function CurrentStockReport() {
             reportId="current_stock"
             filters={{
               status: report.status,
-              page: report.pagination.page,
-              office_page: report.office_pagination.page,
             }}
-            label="Issue and download CSV"
+            label="Issue and download all matching rows"
           />
           <Typography variant="caption" color="text.secondary">
-            Issued CSV summaries cover all matching source records. Detail rows
-            cover only the requested source pages; the saved receipt records the
-            actual pages and source time captured during issuance.
+            The issued CSV captures all matching source rows in one consistent
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           {report.pharmacy_units.map((row) => (
             <Typography key={row.unit} variant="body2">
