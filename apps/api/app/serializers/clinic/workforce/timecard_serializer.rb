@@ -49,13 +49,19 @@ module Clinic
         configured = segments.all? { |segment| !segment["overtime_minutes"].nil? }
         {
           "raw_minutes" => segments.sum { |segment| segment["raw_minutes"].to_i },
-          "rounded_minutes" => segments.sum { |segment| segment["rounded_minutes"].to_i },
-          "paid_minutes" => segments.sum { |segment| segment["paid_minutes"].to_i },
+          "rounded_minutes" => known_minutes(segments, "rounded_minutes"),
+          "paid_minutes" => known_minutes(segments, "paid_minutes"),
           "regular_minutes" => configured ? segments.sum { |segment| segment["regular_minutes"].to_i } : nil,
           "overtime_minutes" => configured ? segments.sum { |segment| segment["overtime_minutes"].to_i } : nil
         }
       end
       private_class_method :restricted_totals
+
+      def known_minutes(segments, field)
+        values = segments.map { |segment| segment[field] }
+        values.any?(&:nil?) ? nil : values.sum(&:to_i)
+      end
+      private_class_method :known_minutes
 
       def site_exceptions(snapshot)
         Array(snapshot["segments"]).flat_map { |segment| Array(segment["exception_codes"]) }.uniq

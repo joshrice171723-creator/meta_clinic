@@ -219,7 +219,169 @@ class WorkforceTimecardsTest < ActiveSupport::TestCase
     assert_empty recalculated.time_segments.where(segment_kind: "manual")
   end
 
+  test "unconfigured rounding preserves raw work and unknown derived amounts" do
+    create_punch("clock_in", "2026-09-01T13:00:00Z")
+    create_punch("clock_out", "2026-09-01T13:07:00Z")
+    save_settings_revision(2, "unconfigured", nil)
+
+    card = calculate_card.reload
+    assert_equal 7, card.raw_total_minutes
+    assert_nil card.rounded_total_minutes
+    assert_nil card.snapshot.dig("totals", "paid_minutes")
+    assert_nil card.regular_minutes
+    assert_includes card.unresolved_exceptions, "rounding_policy_unconfigured"
+    segment = card.time_segments.first!
+    assert_equal 7, segment.raw_minutes
+    assert_nil segment.rounded_minutes
+    assert_nil segment.paid_minutes
+    restricted = Clinic::Workforce::TimecardSerializer.call(card, site_id: @site.id)
+    assert_equal 7, restricted.dig(:snapshot, "totals", "raw_minutes")
+    assert_nil restricted.dig(:snapshot, "totals", "rounded_minutes")
+    assert_nil restricted.dig(:snapshot, "totals", "paid_minutes")
+    assert_equal 2, card.snapshot.fetch("source_punch_ids").length
+    card.assign_attributes(status: "approved", submitted_at: Time.current,
+      submitted_by_membership: @employee_membership, approved_at: Time.current,
+      approved_by_membership: @manager_membership)
+    assert_not card.save
+    save_settings_revision(3, "none", nil)
+    successor = calculate_card
+    assert_equal card.id, successor.previous_version_id
+    assert_equal 7, successor.rounded_total_minutes
+    assert_equal 7, successor.snapshot.dig("totals", "paid_minutes")
+    assert_nil card.reload.rounded_total_minutes
+  end
+
+  test "configured rounding mode with missing increment does not invent an increment" do
+    create_punch("clock_in", "2026-09-01T13:00:00Z")
+    create_punch("clock_out", "2026-09-01T13:07:00Z")
+    save_settings_revision(2, "nearest", nil)
+    card = calculate_card
+    assert_includes card.unresolved_exceptions, "rounding_policy_unconfigured"
+    assert_nil card.rounded_total_minutes
+    assert_equal 7, card.raw_total_minutes
+  end
+
+  test "unknown break pay preserves break and makes later overtime categorization unknown" do
+    create_punch("clock_in", "2026-09-01T13:00:00Z")
+    create_punch("break_start", "2026-09-01T17:00:00Z")
+    create_punch("break_end", "2026-09-01T17:30:00Z")
+    create_punch("clock_out", "2026-09-01T22:00:00Z")
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 2,
+      effective_from: Time.utc(2026, 1, 2), created_by_membership: @manager_membership,
+      values: settings.merge("break_paid" => nil, "rounding_mode" => "none"))
+
+    card = calculate_card.reload
+    assert_equal 540, card.raw_total_minutes
+    assert_equal 540, card.rounded_total_minutes
+    assert_nil card.snapshot.dig("totals", "paid_minutes")
+    assert_nil card.time_segments.find_by!(segment_kind: "break").paid_minutes
+    restricted = Clinic::Workforce::TimecardSerializer.call(card, site_id: @site.id)
+    assert_equal 540, restricted.dig(:snapshot, "totals", "rounded_minutes")
+    assert_nil restricted.dig(:snapshot, "totals", "paid_minutes")
+    assert_nil card.time_segments.order(:started_at_utc).last.regular_minutes
+    assert_includes card.unresolved_exceptions, "break_pay_policy_unconfigured"
+    assert_equal 4, Clinic::Workforce::Punch.where(employment: @employment).count
+  end
+
+  test "published schedule variance preserves recorded work and new publication creates successor" do
+    create_punch("clock_in", "2026-09-01T13:00:00Z")
+    create_punch("clock_out", "2026-09-01T21:00:00Z")
+    first_publication = publish_timecard_schedule("2026-09-01T14:00:00Z", "2026-09-01T21:00:00Z")
+    first = calculate_card
+    assert_includes first.unresolved_exceptions, "off_schedule_work"
+    assert_equal 480, first.raw_total_minutes
+    assert_equal [ first_publication.id ], first.snapshot.fetch("schedule_checks").first.fetch("publication_ids")
+
+    publish_timecard_schedule("2026-09-01T13:00:00Z", "2026-09-01T21:00:00Z", prior: first_publication)
+    successor = calculate_card
+    assert_equal first.id, successor.previous_version_id
+    assert_not_equal first.source_digest, successor.source_digest
+    assert_not_includes successor.unresolved_exceptions, "off_schedule_work"
+    assert_includes first.reload.unresolved_exceptions, "off_schedule_work"
+    assert_equal 2, Clinic::Workforce::Punch.where(employment: @employment).count
+  end
+
+  test "missing published schedule is unknown rather than off schedule" do
+    create_punch("clock_in", "2026-09-01T13:00:00Z")
+    create_punch("clock_out", "2026-09-01T21:00:00Z")
+    card = calculate_card
+    assert_not_includes card.unresolved_exceptions, "off_schedule_work"
+    assert_equal "no_published_schedule", card.snapshot.fetch("schedule_checks").first.fetch("status")
+    assert_equal 480, card.raw_total_minutes
+  end
+
+  test "manual correction at another site includes its published schedule in variance provenance" do
+    other_site = Clinic::Site.create!(practice: @practice, code: "CORRECTION", name: "Correction site",
+      status: "active", timezone_override: "America/Chicago")
+    Clinic::Workforce::EmploymentSite.create!(practice: @practice, employment: @employment, site: other_site,
+      effective_from: Time.utc(2026, 8, 1))
+    card = calculate_card
+    publication = publish_timecard_schedule("2026-09-01T14:00:00Z", "2026-09-01T21:00:00Z", site: other_site)
+    adjustment = Clinic::Workforce::AdjustmentRequest.new(practice: @practice, employment: @employment,
+      timecard_version: card, correction_type: "add_segment",
+      proposed_changes: { "site_id" => other_site.id, "started_at_utc" => "2026-09-01T13:00:00Z",
+        "ended_at_utc" => "2026-09-01T21:00:00Z" }, reason: "Synthetic correction", request_key: SecureRandom.uuid)
+    corrected = Clinic::Workforce::CalculateTimecard.call(employment: @employment,
+      period_start: card.period_start, actor_membership: @manager_membership, pending_adjustment: adjustment)
+    assert_includes corrected.unresolved_exceptions, "off_schedule_work"
+    assert_equal 480, corrected.raw_total_minutes
+    assert_includes corrected.snapshot.fetch("schedule_checks").first.fetch("publication_ids"), publication.id
+  end
+
+  test "nonmidnight workweek compares publication containing its ending date" do
+    save_settings_revision(2, "none", nil, day: 0, start_time: "09:00")
+    create_punch("clock_in", "2026-09-06T12:00:00Z")
+    create_punch("clock_out", "2026-09-06T13:00:00Z")
+    publication = publish_timecard_schedule("2026-09-06T13:00:00Z", "2026-09-06T14:00:00Z",
+      week_start: Date.new(2026, 8, 31))
+    card = calculate_card
+    assert_includes card.unresolved_exceptions, "off_schedule_work"
+    assert_equal 60, card.raw_total_minutes
+    assert_includes card.snapshot.fetch("schedule_checks").first.fetch("publication_ids"), publication.id
+  end
+
+  test "prior Monday publication covers overnight work in the following schedule week" do
+    create_punch("clock_in", "2026-08-31T05:30:00Z")
+    create_punch("clock_out", "2026-08-31T06:30:00Z")
+    publication = publish_timecard_schedule("2026-08-31T04:00:00Z", "2026-08-31T07:00:00Z",
+      week_start: Date.new(2026, 8, 24))
+
+    card = calculate_card
+    assert_equal 60, card.raw_total_minutes
+    assert_not_includes card.unresolved_exceptions, "off_schedule_work"
+    check = card.snapshot.fetch("schedule_checks").first
+    assert_equal "compared", check.fetch("status")
+    assert_equal [ publication.id ], check.fetch("publication_ids")
+  end
+
+  test "partially covered prior-week overnight work retains evidence and exact variance" do
+    create_punch("clock_in", "2026-08-31T06:30:00Z")
+    create_punch("clock_out", "2026-08-31T07:30:00Z")
+    publication = publish_timecard_schedule("2026-08-31T04:00:00Z", "2026-08-31T07:00:00Z",
+      week_start: Date.new(2026, 8, 24))
+
+    card = calculate_card
+    assert_equal 60, card.raw_total_minutes
+    assert_includes card.unresolved_exceptions, "off_schedule_work"
+    check = card.snapshot.fetch("schedule_checks").first
+    assert_equal "compared", check.fetch("status")
+    assert_equal [ publication.id ], check.fetch("publication_ids")
+  end
+
   private
+
+  def publish_timecard_schedule(starts_at, ends_at, prior: nil, site: @site, week_start: Date.new(2026, 8, 31))
+    draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: site,
+      created_by_id: @manager.id, week_start_on: week_start, timezone: "America/Chicago",
+      status: "published", revision: 1)
+    snapshot = [ { "id" => SecureRandom.uuid, "employment_id" => @employment.id,
+      "starts_at" => starts_at, "ends_at" => ends_at } ]
+    Clinic::Workforce::SchedulePublication.create!(practice: @practice, site: site,
+      schedule_draft: draft, published_by_id: @manager.id, supersedes: prior,
+      week_start_on: draft.week_start_on, timezone: draft.timezone, version: prior ? prior.version + 1 : 1,
+      shift_snapshot: snapshot, snapshot_digest: Digest::SHA256.hexdigest(JSON.generate(snapshot)),
+      published_at: Time.current, idempotency_key: SecureRandom.uuid, request_digest: SecureRandom.hex(32))
+  end
 
   def calculate_card
     Clinic::Workforce::CalculateTimecard.call(employment: @employment,

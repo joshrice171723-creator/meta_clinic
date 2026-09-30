@@ -194,7 +194,59 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     assert_equal false, settings.fetch("shift_swaps_enabled")
   end
 
+  test "expired swap cannot be accepted but target can decline without losing request" do
+    request = expiring_swap(Current.business_time)
+    before_snapshot = request.schedule_publication.shift_snapshot.deep_dup
+    error = assert_raises(ArgumentError) do
+      decide_expiring_swap(request, "target_accept", @target, 1, "expired-accept")
+    end
+    assert_includes error.message, "expired"
+    assert_equal "submitted", request.reload.status
+    assert_empty request.decision_receipts
+    assert_equal before_snapshot, request.schedule_publication.reload.shift_snapshot
+    assert_equal 1, Clinic::Workforce::SchedulePublication.where(practice: @practice).count
+
+    declined = decide_expiring_swap(request, "target_decline", @target, 1, "expired-decline")
+    assert_equal "declined", declined.request.status
+  end
+
+  test "expiry blocks new approval while preserving exact consent replay and manager denial" do
+    expires_at = Current.business_time + 1.hour
+    request = expiring_swap(expires_at)
+    consent = decide_expiring_swap(request, "target_accept", @target, 1, "consent")
+    assert_equal "accepted", consent.request.status
+    travel_to(expires_at) do
+      replay = decide_expiring_swap(request.reload, "target_accept", @target, 1, "consent")
+      assert replay.replayed
+      assert_equal "accepted", replay.request.status
+      assert_raises(ArgumentError) do
+        decide_expiring_swap(request.reload, "manager_approve", @manager, 2, "expired-approve")
+      end
+      assert_equal "accepted", request.reload.status
+      assert_equal 1, Clinic::Workforce::SchedulePublication.where(practice: @practice).count
+      denied = decide_expiring_swap(request, "manager_deny", @manager, 2, "expired-deny")
+      assert_equal "denied", denied.request.status
+    end
+  end
+
   private
+
+  def expiring_swap(expires_at)
+    draft = draft_with_shift(@site, @employee, "2026-09-07T09:00", "2026-09-07T17:00")
+    publication = Clinic::Workforce::PublishSchedule.call(draft: draft, actor: @manager.membership.user,
+      expected_revision: 1, idempotency_key: SecureRandom.uuid)
+    Clinic::Workforce::ShiftSwapRequest.create!(practice: @practice, site: @site,
+      requester_employment: @employee, target_employment: @target, requested_by_id: @employee.membership.user_id,
+      schedule_publication: publication, offered_shift_public_id: publication.shift_snapshot.first.fetch("id"),
+      status: "submitted", reason: "Synthetic trade requested", submitted_at: Current.business_time, revision: 1,
+      expires_at: expires_at, idempotency_key: SecureRandom.uuid, request_digest: "b" * 64)
+  end
+
+  def decide_expiring_swap(request, decision, employee, revision, key)
+    Clinic::Workforce::DecideWorkforceRequest.call(request: request, decision: decision,
+      actor: employee.membership.user, access: AccessStub.new(employee, employee == @manager),
+      expected_revision: revision, idempotency_key: key)
+  end
 
   def create_employee(label, practice)
     user = User.create!(email_address: "#{label}-#{SecureRandom.hex(4)}@example.invalid", password: SecureRandom.hex(18))

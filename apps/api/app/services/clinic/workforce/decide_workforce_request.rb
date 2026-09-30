@@ -80,6 +80,7 @@ module Clinic
           target = access.own_employment
           raise Clinic::Authorization::Denied unless target&.id == request.target_employment_id
           raise ArgumentError, "Only a submitted swap can be answered." unless request.status == "submitted"
+          ensure_swap_not_expired! if decision == "target_accept"
           ensure_target_eligible!
           if decision == "target_decline"
             request.update!(status: "declined", target_decided_by_id: actor.id, target_reason: reason,
@@ -93,6 +94,7 @@ module Clinic
         when "manager_approve", "manager_deny"
           access.authorize!("workforce.requests.review", site: request.site)
           raise ArgumentError, "Target employee consent is required first." unless request.status == "accepted"
+          ensure_swap_not_expired! if decision == "manager_approve"
           if decision == "manager_deny"
             request.update!(status: "denied", reviewed_by_id: actor.id, decision_reason: reason,
               decided_at: Current.business_time, revision: request.revision + 1)
@@ -102,6 +104,12 @@ module Clinic
           end
         else
           raise ArgumentError, "Decision is not valid for a shift swap."
+        end
+      end
+
+      def ensure_swap_not_expired!
+        if request.expires_at && request.expires_at <= Current.business_time
+          raise ArgumentError, "This shift swap has expired. Cancel it or request a new swap."
         end
       end
 

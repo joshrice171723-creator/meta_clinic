@@ -59,6 +59,14 @@ export function TimecardSummary({
             {card.unresolved_exceptions.map(humanize).join(", ")}.
           </Alert>
         )}
+        {card.snapshot.schedule_checks?.some(
+          (check) => check.status === "no_published_schedule",
+        ) && (
+          <Alert severity="info">
+            Some recorded work has no published schedule to compare. Its time is
+            preserved; no schedule variance has been assumed for those dates.
+          </Alert>
+        )}
         {corrections.map((correction) => (
           <Typography variant="body2" key={correction.id}>
             Correction #{correction.id}: {correction.reason}
