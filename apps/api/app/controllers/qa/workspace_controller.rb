@@ -15,7 +15,8 @@ module Qa
         events: Event.order(created_at: :desc).limit(100), evidence: Evidence.order(created_at: :desc).limit(100).map { |item| evidence_json(item) },
         guardrails: Workspace::GUARDRAILS, baseline: Snapshot.find_by(key: "baseline")&.data,
         pin: Snapshot.find_by(key: "pin")&.data,
-        capabilities: { agent: @service_token.present?, github_questions: ENV["QA_GITHUB_TOKEN"].present? } }
+        capabilities: { agent: @service_token.present?, github_questions: ENV["QA_GITHUB_TOKEN"].present?,
+          record_observation: current_user&.platform_owner? == true } }
     end
 
     def status
@@ -111,7 +112,10 @@ module Qa
 
     def create_event
       input = object!(:event)
-      render json: Workspace.event(user: actor, kind: string!(input, "kind", 60), summary: string!(input, "summary", 500),
+      kind = string!(input, "kind", 60)
+      return record_observation(input) if kind == "observation_recorded"
+
+      render json: Workspace.event(user: actor, kind:, summary: string!(input, "summary", 500),
         revision: revision!(input["revision"]), payload: input.fetch("payload", {}), event_key: input.fetch("event_key", SecureRandom.uuid)), status: :created
     end
 
@@ -248,6 +252,41 @@ module Qa
     end
 
     private
+
+    def record_observation(input)
+      revision = revision!(input["revision"])
+      summary = string!(input, "summary", 500)
+      supplied = input["payload"]
+      raise ArgumentError, "Provide observation details and provenance." unless supplied.is_a?(Hash)
+      provenance = supplied["provenance"]
+      raise ArgumentError, "Choose observed or reported provenance." unless %w[observed reported].include?(provenance)
+      payload = { "provenance" => provenance, "details" => string!(supplied, "details", 5_000), "tester" => actor.email_address }
+      if supplied["task_id"].present?
+        task = task_scope.find(Integer(supplied["task_id"]))
+        raise ArgumentError, "The task belongs to a different revision." unless task.revision == revision
+        payload["task_id"] = task.id
+      end
+      key = "observation:#{string!(input, 'event_key', 100)}"
+      item = Snapshot.transaction do
+        pin = Snapshot.find_by(key: "pin")
+        raise ArgumentError, "Confirm the live build pin before recording an observation." unless pin
+        pin.with_lock do
+          build = verified_build!
+          unless build["revision"] == revision && pin.data["revision"] == revision
+            raise ArgumentError, "Live revision or confirmed pin changed; refresh before recording."
+          end
+          receipt = Workspace.event(user: actor, kind: "observation_recorded", summary:, revision:, payload:, event_key: key)
+          unless receipt.user_id == actor.id && receipt.kind == "observation_recorded" && receipt.summary == summary &&
+              receipt.revision == revision && receipt.payload == payload
+            raise ArgumentError, "This observation key already records different content."
+          end
+          after = verified_build!
+          raise ArgumentError, "Live revision changed while recording; refresh before retrying." unless after["revision"] == revision
+          receipt
+        end
+      end
+      render json: item, status: :created
+    end
 
     def service_authenticated?
       return @service_token.present? if defined?(@service_token)

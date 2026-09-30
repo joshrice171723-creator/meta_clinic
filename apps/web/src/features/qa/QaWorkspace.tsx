@@ -10,6 +10,7 @@ import {
   TextField,
 } from "@mui/material";
 import { api } from "../../api/client";
+import { QaObservationDialog } from "./QaObservationDialog";
 import { githubOpenDefectCount } from "./qaMetrics";
 import "./qa.css";
 
@@ -139,7 +140,7 @@ type Workspace = {
     prepared_at: string;
     note: string;
   };
-  capabilities: { github_questions: boolean };
+  capabilities: { github_questions: boolean; record_observation?: boolean };
   pin?: { revision: string; confirmed_at: string; confirmed_by: string };
 };
 type Build = {
@@ -200,6 +201,7 @@ export function QaWorkspace() {
   const [coverageFile, setCoverageFile] = useState<File>();
   const [pinDialog, setPinDialog] = useState(false);
   const [reviewTask, setReviewTask] = useState<Task>();
+  const [observationRevision, setObservationRevision] = useState<string>();
   useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set("view", section);
@@ -494,6 +496,14 @@ export function QaWorkspace() {
             <h1>{nav.find(([id]) => id === section)?.[1]}</h1>
           </div>
           <div className="qa-actions">
+            {data?.capabilities.record_observation && (
+              <Button
+                disabled={!pinReady || busy}
+                onClick={() => setObservationRevision(live?.revision)}
+              >
+                Record observation
+              </Button>
+            )}
             <Button onClick={() => void refresh(true)} disabled={busy}>
               Refresh sources
             </Button>
@@ -1337,6 +1347,17 @@ export function QaWorkspace() {
                             {event.kind.replaceAll("_", " ")}
                           </small>
                           <h3>{event.summary}</h3>
+                          {event.kind === "observation_recorded" && (
+                            <>
+                              <p>
+                                {event.payload.provenance === "observed"
+                                  ? "Observed directly"
+                                  : "Reported by another source"}{" "}
+                                · {value(event.payload.tester)}
+                              </p>
+                              <p>{value(event.payload.details)}</p>
+                            </>
+                          )}
                           {event.revision && <code>{event.revision}</code>}
                           <details>
                             <summary>Event context</summary>
@@ -1413,6 +1434,21 @@ export function QaWorkspace() {
           </>
         )}
       </div>
+      {observationRevision && data?.capabilities.record_observation && (
+        <QaObservationDialog
+          open
+          revision={observationRevision}
+          tasks={data.tasks}
+          onClose={() => setObservationRevision(undefined)}
+          onSaved={async () => {
+            setSection("timeline");
+            setNotice(
+              "Observation saved to the activity log. Tasks and verdicts are unchanged.",
+            );
+            await refresh();
+          }}
+        />
+      )}
       <Dialog
         open={pinDialog}
         onClose={() => setPinDialog(false)}
