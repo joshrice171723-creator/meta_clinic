@@ -1117,6 +1117,45 @@ export type InvoiceOnlinePayment = {
     | "provider_reconciliation_required"
     | null;
 };
+export type EstimateInvoiceComparison = {
+  schema_version: "estimate-invoice-comparison-v1";
+  patient_id: number;
+  currency: string;
+  generated_at: string;
+  comparison_basis: "posted_charges_before_payments_and_credits";
+  difference_amount: Decimal;
+  estimate: {
+    id: number;
+    revision: number;
+    status: "issued" | "superseded";
+    issued_at: string;
+    total_amount: Decimal;
+    lines: {
+      id: number;
+      description: string;
+      quantity: Decimal;
+      unit_amount: Decimal;
+      expected_amount: Decimal;
+      inclusions: string | null;
+      exclusions: string | null;
+    }[];
+  };
+  invoice: {
+    id: number;
+    status: "posted";
+    created_at: string;
+    updated_at: string;
+    total_amount: Decimal;
+    lines: {
+      id: number;
+      description: string;
+      quantity: Decimal;
+      unit_amount: Decimal;
+      posted_amount: Decimal;
+    }[];
+  };
+};
+
 export type BillingPatientLedger = {
   schema_version: "clinic-patient-ledger-v1";
   patient: Pick<Patient, "id" | "display_name" | "reference">;

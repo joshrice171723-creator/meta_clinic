@@ -267,6 +267,7 @@ Rails.application.routes.draw do
       post :retire, on: :member
     end
     resources :cash_pay_estimates, controller: "billing/cash_pay_estimates", only: %i[index show create] do
+      get :invoice_comparison, on: :member
       post :issue, on: :member
       post :correct, on: :member
       post :deliver, on: :member
