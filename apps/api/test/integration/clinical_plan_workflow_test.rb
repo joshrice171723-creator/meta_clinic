@@ -504,6 +504,60 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert safety_task.reload.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
   end
 
+  test "substitution remains unresolved in drafts and explicit choices retain revision history" do
+    draft = create_record("medication_requests", "medication_request", {
+      medication_name: "Synthetic substitution draft"
+    }, "substitution-draft")
+    assert_nil draft.fetch("substitution_instruction")
+    original = Clinic::Care::MedicationRequestRevision.find(draft.fetch("id"))
+    %w[allowed not_allowed].each_with_index do |choice, index|
+      draft = revise_record("medication_requests", "medication_request", draft, {
+        medication_request: { substitution_instruction: choice, expected_version: draft.fetch("version_number"),
+          request_key: "substitution-choice-#{index}" }
+      })
+      assert_equal choice, draft.fetch("substitution_instruction")
+    end
+    assert_nil original.reload.substitution_instruction
+    assert_equal [nil, "allowed", "not_allowed"], Clinic::Care::MedicationRequestRevision
+      .where(series_id: draft.fetch("series_id")).order(:version_number).pluck(:substitution_instruction)
+    assert_no_difference "Clinic::Care::MedicationRequestRevision.count" do
+      patch "#{workspace_path(@patient)}/medication_requests/#{draft.fetch('series_id')}",
+        params: { medication_request: { substitution_instruction: "automatic", expected_version: draft.fetch("version_number"),
+          request_key: "invalid-substitution-choice" } }, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+  end
+
+  test "outside pharmacy release requires an explicit substitution choice and changing it invalidates exact review" do
+    order = authorized_outside_pharmacy_order("substitution-release")
+    Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: order,
+      kind: "review", source: "manual", request_key: "substitution-original-review")
+    serialized = Clinic::Care::ClinicalPlanWorkflow.serialize(:medication_requests, order).stringify_keys
+    changed = revise_record("medication_requests", "medication_request", serialized, {
+      medication_request: { substitution_instruction: "allowed", expected_version: order.version_number,
+        request_key: "substitution-revised-choice" }
+    })
+    current = Clinic::Care::MedicationRequestRevision.find(changed.fetch("id"))
+    assert_equal "not_allowed", order.reload.substitution_instruction
+    assert_equal "allowed", current.substitution_instruction
+    assert_not Clinic::Care::PrescriptionWorkflow.events(current)
+      .exists?(medication_request_revision_id: current.id, kind: "review")
+    unresolved = revise_record("medication_requests", "medication_request", changed, {
+      medication_request: { substitution_instruction: "", expected_version: current.version_number,
+        request_key: "substitution-unresolved" }
+    })
+    unresolved = Clinic::Care::MedicationRequestRevision.find(unresolved.fetch("id"))
+    assert_nil unresolved.substitution_instruction
+    error = assert_raises(ArgumentError) { Clinic::Care::PrescriptionWorkflow.validate_release!(unresolved) }
+    assert_includes error.message, "Choose whether substitution is allowed"
+    assert_no_difference "Clinic::Care::PrescriptionEvent.count" do
+      assert_raises(ArgumentError) do
+        Clinic::Care::PrescriptionWorkflow.record(practice: @practice, actor: @user, order: unresolved,
+          kind: "review", source: "manual", request_key: "substitution-unresolved-review")
+      end
+    end
+  end
+
   test "controlled prescription simulator snapshots synthetic signer state and fences recovery" do
     Clinic::Configuration::PracticeFeatures.revise(
       practice: @practice, actor: @membership, request_key: "controlled-profile", expected_revision: 0,
@@ -606,7 +660,8 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       medication_form: "tablet", medication_code_system: "test", medication_code: "#{key}-code",
       catalog_source: "synthetic", dose_text: "10 mg", route_text: "Oral", frequency_text: "daily",
       instructions: "Synthetic test instruction", prescribed_quantity: "30", quantity_unit: "tablet", refills: "0",
-      fulfillment_route: "outside_pharmacy", pharmacy_name: "Synthetic Pharmacy", pharmacy_location: "Austin"
+      fulfillment_route: "outside_pharmacy", pharmacy_name: "Synthetic Pharmacy", pharmacy_location: "Austin",
+      substitution_instruction: "not_allowed"
     }, "#{key}-create")
     revise_record("medication_requests", "medication_request", order,
       revision_body("medication_request", order, "authorized", "#{key}-authorize")).then do |result|

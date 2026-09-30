@@ -64,8 +64,13 @@ const fixtures = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/shared/ui", () => ({
-  useResource: () => ({
-    data: fixtures.workspace,
+  useResource: (path: string, options?: { enabled?: boolean }) => ({
+    data:
+      options?.enabled === false
+        ? undefined
+        : path.endsWith("/events")
+          ? { attempts: [] }
+          : fixtures.workspace,
     error: "",
     refresh: vi.fn(),
   }),
@@ -88,6 +93,15 @@ vi.mock("../src/features/clinic/PrescriptionFulfillmentPanel", () => ({
 }));
 
 describe("ClinicalPlanWorkspace", () => {
+  it("keeps substitution unresolved until an explicit prescription choice", () => {
+    const meta = clinicalPlanResourceMeta.medication_requests;
+    expect(meta.initial.substitution_instruction).toBe("");
+    expect(meta.fields).toContainEqual({
+      name: "substitution_instruction",
+      label: "Substitution instruction",
+      options: ["", "allowed", "not_allowed"],
+    });
+  });
   it("parses an exact Patient Flow order target", () => {
     expect(
       clinicalPlanTaskTarget(

@@ -361,7 +361,8 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
         medication_form: "solution", dose_value: "1", dose_unit_code: "mL", route_code: "oral",
         frequency_text: "Synthetic once-only instruction", instructions: "Synthetic directions, not a clinical recommendation",
         prescribed_quantity: "3.00", quantity_unit: "mL", refills: 0, fulfillment_route: route,
-        pharmacy_name: "Synthetic pharmacy", pharmacy_location: "Synthetic location 1"
+        pharmacy_name: "Synthetic pharmacy", pharmacy_location: "Synthetic location 1",
+        substitution_instruction: "not_allowed"
       }.merge(attributes))
     revise(draft, status: "authorized")
   end

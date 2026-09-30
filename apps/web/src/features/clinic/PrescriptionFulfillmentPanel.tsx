@@ -355,6 +355,9 @@ export function PrescriptionFulfillmentPanel({
     ].includes(latest.kind);
   const unavailable = busy || pending !== null || !evidence;
   const disabled = unavailable || !canWrite;
+  const substitutionUnresolved =
+    order?.fulfillment_route === "outside_pharmacy" &&
+    !["allowed", "not_allowed"].includes(order.substitution_instruction ?? "");
   return (
     <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
       <Stack spacing={2}>
@@ -403,6 +406,13 @@ export function PrescriptionFulfillmentPanel({
             Quantity {order.prescribed_quantity ?? "not recorded"}{" "}
             {order.quantity_unit} · Refills {order.refills ?? "not recorded"}
             <br />
+            Substitution:{" "}
+            {order.substitution_instruction === "allowed"
+              ? "Allowed"
+              : order.substitution_instruction === "not_allowed"
+                ? "Not allowed"
+                : "Unresolved — choose before review or submission"}
+            <br />
             {order.fulfillment_route?.replaceAll("_", " ") ??
               "Fulfillment not selected"}{" "}
             · {order.pharmacy_name} {order.pharmacy_location}
@@ -416,7 +426,7 @@ export function PrescriptionFulfillmentPanel({
           onChange={(event) => setNote(event.target.value)}
         />
         <Button
-          disabled={disabled || !!unresolved}
+          disabled={disabled || !!unresolved || substitutionUnresolved}
           onClick={() => event("review", "manual")}
         >
           Confirm current prescription review
@@ -593,7 +603,10 @@ export function PrescriptionFulfillmentPanel({
                   </MenuItem>
                 ))}
               </TextField>
-              <Button disabled={disabled || !destination} onClick={submit}>
+              <Button
+                disabled={disabled || !destination || substitutionUnresolved}
+                onClick={submit}
+              >
                 Submit to pharmacy (simulated)
               </Button>
             </Stack>
