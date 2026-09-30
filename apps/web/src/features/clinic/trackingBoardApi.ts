@@ -189,6 +189,7 @@ export function trackingBoardVisitToBoardVisit(
     id: `${visit.row_type}-${visit.id}`,
     patientId: visit.patient_id,
     encounterId: visit.encounter_id,
+    waitingPolicy: visit.waiting_policy ?? null,
     chartStatus: visit.chart_status,
     patientDisplayName: visit.patient.display_name,
     patientReference: visit.patient.reference,

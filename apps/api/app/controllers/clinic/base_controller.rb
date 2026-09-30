@@ -11,7 +11,8 @@ module Clinic
       "clinic/clinicians" => %w[index create],
       "clinic/workforce/employments" => %w[index create update],
       "clinic/workforce/onboarding" => %w[create update],
-      "clinic/scheduling/site_policies" => %w[show update]
+      "clinic/scheduling/site_policies" => %w[show update],
+      "clinic/scheduling/operational_policies" => %w[show update history]
     }.freeze
 
     before_action :require_prototype

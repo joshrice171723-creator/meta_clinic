@@ -63,6 +63,7 @@ module Clinic
           claim_available: ->(encounter) { intake_write_available_for?(encounter.site) }
         )
         nurse_workflow_batch = Clinic::Care::NurseWorkflow.board_snapshot(encounter_visits)
+        waiting_policies, waiting_policy_unavailable = board_waiting_policies(encounter_visits, as_of)
 
         render json: {
           schema_version: "tracking-board-v2",
@@ -87,6 +88,9 @@ module Clinic
                 intake_ownership: intake_ownership_batch[visit.id],
                 intake_claim_available: intake_write_available_for?(visit.site),
                 nurse_workflow: nurse_workflow_batch[visit.id],
+                waiting_policy: WaitingPolicyProjection.call(encounter: visit,
+                  nurse_stage: nurse_workflow_batch[visit.id]&.fetch(:stage, nil),
+                  policy: waiting_policies[visit.site_id], as_of:, unavailable: waiting_policy_unavailable),
                 exceptions: board_exceptions(visit, intake_ownership_batch[visit.id])
               )
             else
@@ -102,6 +106,18 @@ module Clinic
       end
 
       private
+
+      def board_waiting_policies(encounters, as_of)
+        # Restrict this read to the sites of already-authorized board rows.
+        policies = OperationalPolicyVersion.where(practice: current_practice, site_id: encounters.map(&:site_id).compact.uniq)
+          .where(effective_from: ..as_of).select("DISTINCT ON (site_id) clinic_operational_policy_versions.*")
+          .order(:site_id, revision: :desc).index_by(&:site_id)
+        [ policies, false ]
+      rescue ActiveRecord::StatementInvalid
+        # Failed policy reads are not unconfigured policy and do not hide the
+        # independently authorized board. The row details expose unavailable.
+        [ {}, true ]
+      end
 
       def board_day(as_of)
         as_of.in_time_zone(current_practice.timezone).all_day

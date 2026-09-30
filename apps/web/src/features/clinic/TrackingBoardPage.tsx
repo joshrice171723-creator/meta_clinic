@@ -46,6 +46,7 @@ import {
   type CareSummaryLoadState,
 } from "./CareIndicators";
 import { openSoapHref, previousChartHref } from "./chartNavigation";
+import { WaitingPolicyStatus } from "./WaitingPolicyStatus";
 import {
   VISIT_STAGES,
   clinicianLabel,
@@ -592,6 +593,7 @@ function TrackingBoardRow({
   ) => Promise<void>;
 }) {
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
+  const [waitingDetailsOpen, setWaitingDetailsOpen] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [assignmentPending, setAssignmentPending] = useState(false);
   const [assignmentReloadRequired, setAssignmentReloadRequired] =
@@ -732,6 +734,22 @@ function TrackingBoardRow({
                 })()}
               </Box>
             </Tooltip>
+            {visit.waitingPolicy && visit.waitingPolicy.state !== "not_applicable" && (
+              <>
+                <Button size="small" onClick={() => setWaitingDetailsOpen(true)}
+                  aria-label={`Waiting review details for ${label}`}>
+                  Waiting review
+                </Button>
+                <Dialog open={waitingDetailsOpen} onClose={() => setWaitingDetailsOpen(false)}
+                  aria-labelledby={`waiting-policy-title-${visit.id}`} maxWidth="sm" fullWidth>
+                  <DialogTitle id={`waiting-policy-title-${visit.id}`}>Waiting review · {label}</DialogTitle>
+                  <DialogContent>
+                    <WaitingPolicyStatus projection={visit.waitingPolicy} />
+                  </DialogContent>
+                  <DialogActions><Button onClick={() => setWaitingDetailsOpen(false)}>Close</Button></DialogActions>
+                </Dialog>
+              </>
+            )}
           </TableCell>
         ) : column === "wait" ? (
           <TableCell key={column} data-label={columnLabels[column]}>

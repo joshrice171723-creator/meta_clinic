@@ -129,6 +129,9 @@ Rails.application.routes.draw do
     patch "facilities/:id", to: "facilities#update"
     get "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#show"
     patch "facilities/:site_id/scheduling_policy", to: "scheduling/site_policies#update"
+    get "facilities/:site_id/operational_policy", to: "scheduling/operational_policies#show"
+    patch "facilities/:site_id/operational_policy", to: "scheduling/operational_policies#update"
+    get "facilities/:site_id/operational_policy/history", to: "scheduling/operational_policies#history"
     get "practice_features/history", to: "practice_features#history"
     resource :practice_features, only: %i[show update]
     resources :visit_types, only: %i[create update]

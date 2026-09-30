@@ -5,14 +5,14 @@ module Clinic
         require_capability("appointments.read", any_site: true)
         site_ids = current_practice.sites.select { |site| current_ability.allowed_permission?("appointments.read", site: site) }.map(&:id)
         sites = current_practice.sites.where(id: site_ids).includes(:operating_hours, :hour_exceptions).order(:id)
-        rules = CapacityRule.where(practice: current_practice, site_id: site_ids, active: true).order(:site_id, :clinician_id, :id).limit(200)
+        rules = CapacityRule.where(practice: current_practice, site_id: site_ids, active: true).includes(:site, :operational_policy_version).order(:site_id, :clinician_id, :id).limit(200)
         render json: { rules: rules.map { |rule| serialize(rule) }, timezone: current_practice.timezone,
           site_availability: sites.map { |site| serialize_site_availability(site) },
           can_block: current_ability.practice_scope_for?("facilities.write") && current_ability.practice_scope_for?("appointments.read") }
       end
 
       def create
-        input = parameter_hash!(:capacity, %i[request_key site_id clinician_id kind weekday start_minute end_minute starts_at ends_at reason])
+        input = parameter_hash!(:capacity, %i[request_key site_id clinician_id kind weekday start_minute end_minute starts_at ends_at reason reason_category_key operational_policy_revision])
         site = current_practice.sites.find(requested_id!(input[:site_id], :site_id))
         authorize = -> {
           require_capability("facilities.write", site: site)
@@ -28,6 +28,9 @@ module Clinic
         kind = enum_param!(input[:kind], field: :kind, allowed: %w[weekly block])
         values = { kind: kind, site: site, clinician: clinician, reason: optional_string(input[:reason], field: :reason, maximum: 500) }
         if kind == "weekly"
+          if input[:reason_category_key].present? || input[:operational_policy_revision].present?
+            raise ArgumentError, "Block reason categories do not apply to weekly hours."
+          end
           values.merge!(weekday: bounded_integer!(input[:weekday], field: :weekday, min: 0, max: 6),
             start_minute: bounded_integer!(input[:start_minute], field: :start_minute, min: 0, max: 1439),
             end_minute: bounded_integer!(input[:end_minute], field: :end_minute, min: 1, max: 1440))
@@ -39,6 +42,13 @@ module Clinic
           authorization: authorize, result_resource: ->(value) { value },
           resource_resolver: ->(practice:, receipt:) { CapacityRule.find_by(practice: practice, id: receipt.resource_id) }
         ) do
+          if kind == "block"
+            # Policy selection is revalidated in the existing creation transaction;
+            # preserve the established clinician/resource interval checks below.
+            values.merge!(BlockCategoryReference.resolve(practice: current_practice, site:, actor: current_user,
+              expected_revision: input[:operational_policy_revision].present? ? bounded_integer!(input[:operational_policy_revision], field: :operational_policy_revision, min: 0) : nil,
+              category_key: input[:reason_category_key]))
+          end
           clinician.lock!
           if kind == "block"
             offers = WaitlistEntry.where(practice: current_practice, clinician: clinician, state: "offered")
@@ -79,7 +89,10 @@ module Clinic
         { id: rule.id, site_id: rule.site_id, clinician_id: rule.clinician_id, kind: rule.kind,
           weekday: rule.weekday, start_minute: rule.start_minute, end_minute: rule.end_minute,
           starts_at: rule.starts_at&.iso8601(6), ends_at: rule.ends_at&.iso8601(6), reason: rule.reason,
-          active: rule.active, version: rule.lock_version }
+          active: rule.active, version: rule.lock_version,
+          reason_category: BlockCategoryReference.snapshot(practice: current_practice, site: rule.site,
+            policy_id: rule.operational_policy_version_id, category_key: rule.reason_category_key,
+            policy: rule.operational_policy_version) }
       end
 
       def affected_appointments(rule)

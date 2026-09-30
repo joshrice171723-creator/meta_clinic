@@ -21,9 +21,10 @@ module Clinic
         { operational_policy_version_id: current.id, reason_category_key: category.fetch("key") }
       end
 
-      def self.snapshot(practice:, site:, policy_id:, category_key:)
+      def self.snapshot(practice:, site:, policy_id:, category_key:, policy: nil)
         return { state: "not_recorded", key: nil, label: nil, policy_revision: nil } unless policy_id && category_key
-        policy = OperationalPolicyVersion.find_by(practice:, site:, id: policy_id)
+        policy ||= OperationalPolicyVersion.find_by(practice:, site:, id: policy_id)
+        policy = nil unless policy && policy.practice_id == practice.id && policy.site_id == site.id && policy.id == policy_id
         category = policy&.block_categories&.find { |entry| entry.fetch("key") == category_key }
         return { state: "unavailable", key: category_key, label: nil, policy_revision: nil } unless category
         { state: "recorded", key: category_key, label: category.fetch("label"), policy_revision: policy.revision }

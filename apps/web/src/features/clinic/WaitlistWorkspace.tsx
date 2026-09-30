@@ -16,6 +16,10 @@ import type { Patient } from "../../api/contracts";
 import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import type {
+  OperationalPolicyResponse,
+  RecordedBlockCategory,
+} from "./operationalPolicyContracts";
 
 type Option = { id: number; name: string };
 export type WaitlistItem = {
@@ -85,6 +89,7 @@ type Rule = {
   ends_at: string | null;
   reason: string;
   version: number;
+  reason_category?: RecordedBlockCategory;
 };
 type AffectedAppointment = {
   id: number;
@@ -134,6 +139,27 @@ export function WaitlistWorkspace() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [site, setSite] = useState("");
+  const policy = useResource<OperationalPolicyResponse>(
+    `/api/clinic/facilities/${site}/operational_policy`,
+    { enabled: site !== "" && capabilities.facilities_write === true },
+  );
+  const currentPolicy =
+    policy.data?.policy.site_id === Number(site) ? policy.data.policy : undefined;
+  const [categoryChoice, setCategoryChoice] = useState<{
+    site: string;
+    revision: number;
+    key: string;
+  } | null>(null);
+  const categoryKey =
+    currentPolicy && categoryChoice &&
+    categoryChoice.site === site &&
+    categoryChoice.revision === currentPolicy.revision &&
+    currentPolicy.block_categories.some((entry) => entry.key === categoryChoice.key)
+      ? categoryChoice.key
+      : "";
+  const categoryRequired = (currentPolicy?.block_categories.length ?? 0) > 0;
+  const blockPolicyReady =
+    currentPolicy !== undefined && !policy.error && (!categoryRequired || categoryKey !== "");
   const [clinician, setClinician] = useState("");
   const [visitType, setVisitType] = useState("");
   const [earliest, setEarliest] = useState("");
@@ -166,6 +192,12 @@ export function WaitlistWorkspace() {
     capabilities.appointments_book === true ||
     capabilities.appointments === true;
   const disabled = busy || uncertain;
+
+  useEffect(() => {
+    // A fresh location/revision always requires a fresh explicit choice.
+    // Uncertain mutations retain their original body independently of this draft.
+    setCategoryChoice(null);
+  }, [site, currentPolicy?.revision]);
 
   useEffect(() => {
     let active = true;
@@ -228,7 +260,13 @@ export function WaitlistWorkspace() {
         value.status >= 500 ||
         value.code === "outcome_unconfirmed";
       setUncertain(unknown);
-      if (!unknown) attempt.current = null;
+      if (!unknown) {
+        attempt.current = null;
+        if (current.path === "/api/clinic/capacity") {
+          policy.refresh();
+          setCategoryChoice(null);
+        }
+      }
       setError(
         value instanceof Error ? value.message : "The save outcome is unknown.",
       );
@@ -269,6 +307,11 @@ export function WaitlistWorkspace() {
     });
   }
   function createRule() {
+    if (disabled || !site || !clinician) return;
+    if (
+      kind === "block" &&
+      (!blockPolicyReady || !blockStart || !blockEnd || !capacityReason.trim())
+    ) return;
     const minutes = (value: string) => {
       const [hours, minute] = value.split(":").map(Number);
       return hours * 60 + minute;
@@ -283,6 +326,8 @@ export function WaitlistWorkspace() {
         : {
             starts_at: new Date(blockStart).toISOString(),
             ends_at: new Date(blockEnd).toISOString(),
+            reason_category_key: categoryKey || null,
+            operational_policy_revision: currentPolicy!.revision,
           };
     void submit({
       path: "/api/clinic/capacity",
@@ -769,6 +814,15 @@ export function WaitlistWorkspace() {
                       : `${new Date(rule.starts_at!).toLocaleString()} – ${new Date(rule.ends_at!).toLocaleString()}`}{" "}
                     {rule.reason}
                   </Typography>
+                  {rule.kind === "block" && (
+                    <Typography variant="body2" color="text.secondary">
+                      {rule.reason_category?.state === "recorded"
+                        ? `Recorded category: ${rule.reason_category.label} · Policy revision ${rule.reason_category.policy_revision}`
+                        : rule.reason_category?.state === "not_recorded"
+                          ? "Structured category not recorded."
+                          : "Recorded structured category unavailable."}
+                    </Typography>
+                  )}
                   {capabilities.facilities_write && (
                     <Button
                       disabled={disabled}
@@ -840,6 +894,31 @@ export function WaitlistWorkspace() {
                         stay scheduled and must be reviewed separately after
                         saving.
                       </Alert>
+                      {!site && <Typography>Select a site to load its block categories.</Typography>}
+                      {site && policy.error && (
+                        <Alert severity="error" action={<Button disabled={disabled} onClick={policy.refresh}>Retry policy</Button>}>
+                          Block category policy unavailable: {policy.error} New blocks require a successful policy read. Weekly hours remain available.
+                        </Alert>
+                      )}
+                      {site && !currentPolicy && !policy.error && <Typography role="status">Loading block category policy…</Typography>}
+                      {currentPolicy && !policy.error && (
+                        <>
+                          <Typography variant="body2" color="text.secondary">Location policy revision {currentPolicy.revision}</Typography>
+                          {categoryRequired ? (
+                            <TextField
+                              select
+                              label="Block reason category"
+                              value={categoryKey}
+                              disabled={disabled}
+                              onChange={(event) => setCategoryChoice({ site, revision: currentPolicy.revision, key: event.target.value })}
+                              helperText="Choose a configured category explicitly. A site or policy revision change clears the choice."
+                            >
+                              <MenuItem value="">Choose category</MenuItem>
+                              {currentPolicy.block_categories.map((entry) => <MenuItem key={entry.key} value={entry.key}>{entry.label}</MenuItem>)}
+                            </TextField>
+                          ) : <Typography variant="body2">No structured block categories configured. The free-text reason remains required.</Typography>}
+                        </>
+                      )}
                       <TextField
                         type="datetime-local"
                         label="Block starts"
@@ -872,6 +951,7 @@ export function WaitlistWorkspace() {
                       !clinician ||
                       (kind === "block" &&
                         (!capacity.data?.can_block ||
+                          !blockPolicyReady ||
                           !blockStart ||
                           !blockEnd ||
                           !capacityReason.trim()))

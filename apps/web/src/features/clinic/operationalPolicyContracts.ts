@@ -13,12 +13,13 @@ export type OperationalPolicy = {
 };
 export type OperationalPolicyResponse = { policy: OperationalPolicy; can_write: boolean };
 export type WaitingPolicyProjection = {
-  state: "not_applicable" | "unconfigured" | "origin_unknown" | "below_threshold" | "threshold_met";
-  policy_revision: number;
+  state: "not_applicable" | "unconfigured" | "unavailable" | "origin_unknown" | "below_threshold" | "threshold_met";
+  policy_revision: number | null;
   elapsed_minutes: number | null;
   time_source: "encounter.started_at";
   matched_threshold: WaitingThreshold | null;
   action: "display_only";
+  as_of: string;
 };
 export type RecordedBlockCategory = {
   state: "not_recorded" | "unavailable" | "recorded";

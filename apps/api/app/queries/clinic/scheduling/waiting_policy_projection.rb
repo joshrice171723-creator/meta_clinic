@@ -2,10 +2,12 @@ module Clinic
   module Scheduling
     # A display-only operational comparison, never a clinical escalation action.
     class WaitingPolicyProjection
-      def self.call(encounter:, nurse_stage:, policy:, as_of:)
+      def self.call(encounter:, nurse_stage:, policy:, as_of:, unavailable: false)
         result = { state: "not_applicable", policy_revision: policy&.revision || 0,
-          elapsed_minutes: nil, time_source: "encounter.started_at", matched_threshold: nil, action: "display_only" }
+          elapsed_minutes: nil, time_source: "encounter.started_at", matched_threshold: nil,
+          action: "display_only", as_of: as_of.iso8601(6) }
         return result unless encounter.status == "open" && nurse_stage == "waiting" && encounter.room_id.nil?
+        return result.merge(state: "unavailable", policy_revision: nil) if unavailable
         unless policy && policy.practice_id == encounter.practice_id && policy.site_id == encounter.site_id
           return result.merge(state: "unconfigured")
         end

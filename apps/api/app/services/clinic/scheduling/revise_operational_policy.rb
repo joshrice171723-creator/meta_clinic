@@ -10,7 +10,7 @@ module Clinic
         raise ArgumentError, "request_key is required" unless Clinic::Idempotency::KEY_PATTERN.match?(key)
         categories = normalize(block_categories, thresholds: false)
         thresholds = normalize(waiting_thresholds, thresholds: true)
-        digest = Digest::SHA256.hexdigest([ categories, thresholds ].to_json)
+        digest = Digest::SHA256.hexdigest([ expected_revision, categories, thresholds ].to_json)
         ApplicationRecord.transaction do
           site.lock!
           previous_request = OperationalPolicyVersion.find_by(practice:, site:, request_key: key)
