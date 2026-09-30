@@ -142,6 +142,82 @@ it("walks explicit mapping, missing-source recovery, download and clear without 
   await page.close();
 }, 20000);
 
+it("recovers a valid draft snapshot with a missing visit type and clears old mappings on source replacement", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET") writes.push(request.url());
+  });
+  await page.goto(`${baseUrl}/mapping-fixture`);
+  const choose = (value: unknown) =>
+    page.locator('input[type="file"]').setInputFiles({
+      name: "synthetic-draft.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(value)),
+    });
+  await choose({
+    ...source,
+    configuration: {
+      ...source.configuration,
+      service_offerings: [
+        {
+          ...source.configuration.service_offerings[0],
+          status: "draft",
+          visit_type_id: null,
+        },
+      ],
+    },
+  });
+  await expect
+    .poll(() => page.getByRole("alert").innerText())
+    .toContain("source visit type is not configured");
+  await page
+    .getByRole("combobox", { name: "Location: Source location (#10)" })
+    .click();
+  await page.getByRole("option", { name: "Target location (#20)" }).click();
+  await page
+    .getByRole("combobox", { name: "Service offering: Source offering (#100)" })
+    .click();
+  await page.getByRole("option", { name: "Target offering (#200)" }).click();
+  await expect
+    .poll(() => page.getByRole("alert").innerText())
+    .toContain("1 unresolved");
+  await choose(source);
+  await expect
+    .poll(() => page.getByRole("alert").innerText())
+    .toContain("visit type #1000 needs separate catalog mapping");
+  expect(await page.getByRole("alert").innerText()).not.toContain(
+    "source visit type is not configured",
+  );
+  await expect
+    .poll(() =>
+      page
+        .getByRole("combobox", { name: "Location: Source location (#10)" })
+        .locator("..")
+        .locator("input")
+        .inputValue(),
+    )
+    .toBe("");
+  await expect
+    .poll(() =>
+      page
+        .getByRole("combobox", {
+          name: "Service offering: Source offering (#100)",
+        })
+        .locator("..")
+        .locator("input")
+        .inputValue(),
+    )
+    .toBe("");
+  expect(await page.getByRole("alert").innerText()).toContain(
+    "source location #10 needs a destination mapping",
+  );
+  expect(writes).toEqual([]);
+  await page.close();
+}, 20000);
+
 it("discards a late file read after target component replacement", async () => {
   const page = await browser.newPage();
   await page.addInitScript(

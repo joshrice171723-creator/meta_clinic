@@ -25,6 +25,61 @@ const fixture = (id: number): ConfigurationManifest => ({
 });
 
 describe("configuration mapping review", () => {
+  it("accepts draft offerings without a visit type and identifies the missing source choice without inference", () => {
+    const source = fixture(1);
+    source.configuration.service_offerings[0].status = "draft";
+    source.configuration.service_offerings[0].visit_type_id = null;
+    source.configuration.service_offerings[0].site_ids = [];
+    const before = JSON.stringify(source);
+    const plan = configurationMappingPlan(
+      readMappingSource(source),
+      fixture(2),
+      {
+        sites: { 10: 20 },
+        service_offerings: { 100: 200 },
+      },
+    );
+    expect(plan.blockers.join(" ")).toContain(
+      "source visit type is not configured",
+    );
+    expect(plan.blockers.join(" ")).not.toContain("visit type #null");
+    expect(plan.blockers.join(" ")).toContain("No visit type is inferred");
+    expect(JSON.stringify(source)).toBe(before);
+    source.configuration.service_offerings[0].visit_type_id = 1000;
+    const corrected = configurationMappingPlan(
+      readMappingSource(source),
+      fixture(2),
+      {
+        sites: {},
+        service_offerings: {},
+      },
+    );
+    expect(corrected.blockers.join(" ")).not.toContain(
+      "source visit type is not configured",
+    );
+    expect(corrected.blockers.join(" ")).toContain("separate catalog mapping");
+    expect(corrected.mappings.every((row) => row.target_id === null)).toBe(
+      true,
+    );
+  });
+
+  it("keeps an incomplete destination offering visible and rejects malformed visit references", () => {
+    const target = fixture(2);
+    target.configuration.service_offerings[0].visit_type_id = null;
+    const plan = configurationMappingPlan(fixture(1), target, {
+      sites: { 10: 20 },
+      service_offerings: { 100: 200 },
+    });
+    expect(plan.blockers.join(" ")).toContain(
+      "destination offering #200 has no configured visit type",
+    );
+    for (const invalid of [undefined, "1000", 0, -1, 1.5, true, {}]) {
+      const source = fixture(1);
+      source.configuration.service_offerings[0].visit_type_id = invalid;
+      expect(() => readMappingSource(source)).toThrow("format 1");
+    }
+  });
+
   it("requires explicit destinations even when names match and never mutates either snapshot", () => {
     const source = fixture(1),
       target = fixture(2);
