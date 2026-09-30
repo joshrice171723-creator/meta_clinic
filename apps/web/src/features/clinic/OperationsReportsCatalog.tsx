@@ -23,9 +23,20 @@ type ReportPagination = {
 };
 
 type DailyVisitsReport = {
-  definition: { revision: number; source: string; date_basis: string };
+  definition: {
+    revision: number;
+    source: string;
+    date_basis: string;
+    state_basis: string;
+    population: string;
+    exclusions: string;
+  };
+  practice_id: number;
+  site_id: number | null;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
   freshness: string;
   counts: Record<string, number>;
@@ -46,11 +57,17 @@ type DailyInvoicesReport = {
     revision: number;
     source: string;
     date_basis: string;
+    state_basis: string;
+    population: string;
     exclusions: string;
   };
+  practice_id: number;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
+  freshness: string;
   records: {
     id: number;
     patient_id: number;
@@ -73,11 +90,16 @@ type DailyStockReport = {
     revision: number;
     source: string;
     date_basis: string;
+    population: string;
     exclusions: string;
   };
+  practice_id: number;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
+  freshness: string;
   records: {
     id: number;
     stock_type: string;
@@ -103,11 +125,16 @@ type DailyPaymentReport = {
     revision: number;
     source: string;
     date_basis: string;
+    population: string;
     exclusions: string;
   };
+  practice_id: number;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
+  freshness: string;
   payment_records: {
     id: number;
     patient_id: number;
@@ -141,6 +168,18 @@ type OpenClinicalWorkReport = {
   total: number;
   overdue_count: number;
   kinds: { kind: string; total: number; counts: Record<string, number> }[];
+  owners: {
+    membership_id: number | null;
+    label: string;
+    total: number;
+    overdue_count: number;
+  }[];
+};
+
+type ConfigurationRecord = {
+  id: number;
+  name?: string;
+  [key: string]: unknown;
 };
 
 type ConfigurationManifest = {
@@ -149,9 +188,12 @@ type ConfigurationManifest = {
   generated_at: string;
   source_digest: string;
   configuration: {
-    practice: { id: number; name: string; features: { revision: number } };
-    sites: { id: number }[];
-    service_offerings: { id: number }[];
+    practice: ConfigurationRecord & {
+      name: string;
+      features: { revision: number };
+    };
+    sites: ConfigurationRecord[];
+    service_offerings: ConfigurationRecord[];
   };
 };
 
@@ -320,6 +362,14 @@ function OpenClinicalWork({ siteId }: { siteId?: number }) {
               )
             </Typography>
           ))}
+          <Typography variant="subtitle2" component="h4">
+            By recorded owner
+          </Typography>
+          {report.owners.map((owner) => (
+            <Typography key={owner.membership_id ?? "unassigned"} variant="body2">
+              {owner.label}: {owner.total} active · {owner.overdue_count} past due
+            </Typography>
+          ))}
           <Button
             href="/clinic/operations"
             size="small"
@@ -351,7 +401,12 @@ function ConfigurationManifestDownload() {
     "/api/clinic/operations/configuration_manifest",
   );
   const manifest = result.data?.manifest;
-  const [comparison, setComparison] = useState<string | null>(null);
+  const [comparison, setComparison] = useState<{
+    summary: string;
+    details: string[];
+    sourceDigest: string;
+    generatedAt: string;
+  } | null>(null);
   const [comparisonError, setComparisonError] = useState("");
   const compareFile = async (file?: File) => {
     if (!file || !manifest) return;
@@ -369,30 +424,82 @@ function ConfigurationManifestDownload() {
           manifest.configuration.practice.id ||
         !Array.isArray(saved.configuration.sites) ||
         !Array.isArray(saved.configuration.service_offerings) ||
-        [
-          ...saved.configuration.sites,
-          ...saved.configuration.service_offerings,
-        ].some((row) => !Number.isInteger(row?.id))
+        [saved.configuration.sites, saved.configuration.service_offerings].some(
+          (rows) =>
+            rows.some((row) => !Number.isSafeInteger(row?.id) || row.id <= 0) ||
+            new Set(rows.map((row) => row.id)).size !== rows.length,
+        )
       ) {
         throw new Error(
           "Choose a configuration snapshot from this clinic and format.",
         );
       }
-      const changes = (older: { id: number }[], current: { id: number }[]) => {
-        const previous = new Map(
-          older.map((row) => [row.id, JSON.stringify(row)]),
+      const stableJson = (value: unknown) =>
+        JSON.stringify(value, (_key, item: unknown) =>
+          item && typeof item === "object" && !Array.isArray(item)
+            ? Object.fromEntries(
+                Object.entries(item).sort(([a], [b]) => a.localeCompare(b)),
+              )
+            : item,
         );
-        const latest = new Map(
-          current.map((row) => [row.id, JSON.stringify(row)]),
-        );
-        return `${[...latest.keys()].filter((id) => !previous.has(id)).length} added, ${[...previous.keys()].filter((id) => !latest.has(id)).length} removed, ${[...latest.keys()].filter((id) => previous.has(id) && previous.get(id) !== latest.get(id)).length} changed`;
-      };
-      setComparison(
-        JSON.stringify(saved.configuration) ===
-          JSON.stringify(manifest.configuration)
-          ? "Saved snapshot matches the currently loaded clinic configuration."
-          : `Saved snapshot differs: clinic settings ${JSON.stringify(saved.configuration.practice) === JSON.stringify(manifest.configuration.practice) ? "unchanged" : "changed"}; locations ${changes(saved.configuration.sites, manifest.configuration.sites)}; service offerings ${changes(saved.configuration.service_offerings, manifest.configuration.service_offerings)}.`,
+      const fields = (
+        older: ConfigurationRecord,
+        current: ConfigurationRecord,
+      ) =>
+        [...new Set([...Object.keys(older), ...Object.keys(current)])]
+          .filter((key) => stableJson(older[key]) !== stableJson(current[key]))
+          .sort()
+          .map((key) => key.replaceAll("_", " "))
+          .join(", ");
+      const details: string[] = [];
+      const clinicFields = fields(
+        saved.configuration.practice,
+        manifest.configuration.practice,
       );
+      if (clinicFields)
+        details.push(`Clinic settings changed: ${clinicFields}.`);
+      const changes = (
+        group: string,
+        older: ConfigurationRecord[],
+        current: ConfigurationRecord[],
+      ) => {
+        const previous = new Map(older.map((row) => [row.id, row]));
+        const latest = new Map(current.map((row) => [row.id, row]));
+        const label = (row: ConfigurationRecord) =>
+          `${group} ${typeof row.name === "string" ? row.name : "record"} (#${row.id})`;
+        const added = current.filter((row) => !previous.has(row.id));
+        const removed = older.filter((row) => !latest.has(row.id));
+        const changed = current.filter(
+          (row) => previous.has(row.id) && fields(previous.get(row.id)!, row),
+        );
+        added.forEach((row) => details.push(`${label(row)} added.`));
+        removed.forEach((row) => details.push(`${label(row)} removed.`));
+        changed.forEach((row) =>
+          details.push(
+            `${label(row)} changed: ${fields(previous.get(row.id)!, row)}.`,
+          ),
+        );
+        return `${added.length} added, ${removed.length} removed, ${changed.length} changed`;
+      };
+      const locations = changes(
+        "Location",
+        saved.configuration.sites,
+        manifest.configuration.sites,
+      );
+      const offerings = changes(
+        "Service offering",
+        saved.configuration.service_offerings,
+        manifest.configuration.service_offerings,
+      );
+      setComparison({
+        summary:
+          details.length === 0
+            ? "Saved snapshot matches the currently loaded clinic configuration."
+            : `Saved snapshot differs: clinic settings ${clinicFields ? "changed" : "unchanged"}; locations ${locations}; service offerings ${offerings}.`,
+        details,
+        sourceDigest: manifest.source_digest,
+        generatedAt: manifest.generated_at,
+      });
     } catch (error) {
       setComparisonError(
         error instanceof Error
@@ -471,12 +578,27 @@ function ConfigurationManifestDownload() {
               }}
             />
           </Button>
-          {comparison && (
-            <Alert severity="info">
-              {comparison} Comparison is for review only; it does not restore or
-              import settings.
-            </Alert>
-          )}
+          {comparison &&
+            comparison.sourceDigest === manifest.source_digest &&
+            comparison.generatedAt === manifest.generated_at && (
+              <Alert severity="info">
+                {comparison.summary} Comparison is for review only; it does not
+                restore or import settings.
+                <Stack spacing={0.5} sx={{ mt: 1 }}>
+                  {comparison.details.slice(0, 20).map((detail) => (
+                    <Typography key={detail} variant="body2">
+                      {detail}
+                    </Typography>
+                  ))}
+                  {comparison.details.length > 20 && (
+                    <Typography variant="body2">
+                      Showing 20 of {comparison.details.length} changes. Review
+                      both saved and current JSON for the remaining changes.
+                    </Typography>
+                  )}
+                </Stack>
+              </Alert>
+            )}
           {comparisonError && <Alert severity="error">{comparisonError}</Alert>}
         </>
       )}
@@ -493,7 +615,10 @@ function DailyVisitsByState({
   capabilities: ClinicCapabilities;
   timezone?: string;
 }) {
-  const requestedDate = new URLSearchParams(window.location.search).get("date");
+  const requestedDate =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("date");
   const initialDate =
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
       ? requestedDate
@@ -653,6 +778,12 @@ function DailyVisitsByState({
           >
             Download visit report CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes counts for all {report.total} matching visits and only
+            the {report.records.length} source appointments on page{" "}
+            {report.pagination.page}. Clinic, location, time interval and source
+            details are included in the file.
+          </Typography>
         </Stack>
       )}
       {(capabilities.billing_payment_record ||
@@ -683,9 +814,18 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ["definition_revision", String(report.definition.revision)],
     ["source", report.definition.source],
     ["date_basis", report.definition.date_basis],
+    ["state_basis", report.definition.state_basis],
+    ["population", report.definition.population],
+    ["exclusions", report.definition.exclusions],
+    ["practice_id", String(report.practice_id)],
+    ["site_id", report.site_id === null ? "all" : String(report.site_id)],
     ["clinic_date", report.date],
     ["timezone", report.timezone],
+    ["interval_start_inclusive", report.interval_start],
+    ["interval_end_exclusive", report.interval_end],
     ["as_of", report.as_of],
+    ["freshness", report.freshness],
+    ["counts_scope", "all matching appointments"],
     ["state", "count"],
     ...Object.entries(report.counts).map(([state, count]) => [
       state,
@@ -694,9 +834,12 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ["unknown_state", String(report.unknown_state_count)],
     ["total", String(report.total)],
     [],
+    ["records_scope", "current page only"],
     ["record_page", String(report.pagination.page)],
     ["records_per_page", String(report.pagination.per_page)],
     ["records_total", String(report.pagination.total)],
+    ["record_pages_total", String(report.pagination.total_pages)],
+    ["records_exported", String(report.records.length)],
     ["visit_id", "site_id", "status", "visit_modality", "local_start"],
     ...report.records.map((record) => [
       String(record.id),
@@ -706,7 +849,10 @@ function downloadVisitCsv(report: DailyVisitsReport) {
       record.local_start,
     ]),
   ];
-  downloadCsv(rows, `daily-visits-${report.date}.csv`);
+  downloadCsv(
+    rows,
+    `daily-visits-clinic-${report.practice_id}-site-${report.site_id ?? "all"}-${report.date}-page-${report.pagination.page}.csv`,
+  );
 }
 
 function downloadCsv(rows: string[][], filename: string) {
@@ -815,9 +961,16 @@ function DailyPaymentActivity({ date }: { date: string }) {
                   ["definition_revision", String(report.definition.revision)],
                   ["source", report.definition.source],
                   ["date_basis", report.definition.date_basis],
+                  ["population", report.definition.population],
+                  ["exclusions", report.definition.exclusions],
+                  ["practice_id", String(report.practice_id)],
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
+                  ["interval_start_inclusive", report.interval_start],
+                  ["interval_end_exclusive", report.interval_end],
                   ["as_of", report.as_of],
+                  ["freshness", report.freshness],
+                  ["summary_scope", "all matching payments and refunds"],
                   [
                     "currency",
                     "payment_count",
@@ -833,6 +986,7 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     row.refund_amount,
                   ]),
                   [],
+                  ["records_scope", "current payment and refund pages only"],
                   [
                     "payment_record_page",
                     String(report.payment_pagination.page),
@@ -845,6 +999,14 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     "payment_records_total",
                     String(report.payment_pagination.total),
                   ],
+                  [
+                    "payment_record_pages_total",
+                    String(report.payment_pagination.total_pages),
+                  ],
+                  [
+                    "payment_records_exported",
+                    String(report.payment_records.length),
+                  ],
                   ["refund_record_page", String(report.refund_pagination.page)],
                   [
                     "refund_records_per_page",
@@ -853,6 +1015,14 @@ function DailyPaymentActivity({ date }: { date: string }) {
                   [
                     "refund_records_total",
                     String(report.refund_pagination.total),
+                  ],
+                  [
+                    "refund_record_pages_total",
+                    String(report.refund_pagination.total_pages),
+                  ],
+                  [
+                    "refund_records_exported",
+                    String(report.refund_records.length),
                   ],
                   [
                     "record_type",
@@ -882,12 +1052,19 @@ function DailyPaymentActivity({ date }: { date: string }) {
                     record.created_at,
                   ]),
                 ],
-                `daily-payment-activity-${report.date}.csv`,
+                `daily-payment-activity-clinic-${report.practice_id}-${report.date}-payments-page-${report.payment_pagination.page}-refunds-page-${report.refund_pagination.page}.csv`,
               )
             }
           >
             Download payment activity CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes totals for all matching payments and refunds, with only{" "}
+            {report.payment_records.length} payments from page{" "}
+            {report.payment_pagination.page} and {report.refund_records.length}{" "}
+            refunds from page {report.refund_pagination.page}. Clinic, time
+            interval and source details are included in the file.
+          </Typography>
           <Button
             href="/clinic/billing"
             size="small"
@@ -972,10 +1149,17 @@ function DailyInvoices({ date }: { date: string }) {
                   ["definition_revision", String(report.definition.revision)],
                   ["source", report.definition.source],
                   ["date_basis", report.definition.date_basis],
+                  ["state_basis", report.definition.state_basis],
+                  ["population", report.definition.population],
                   ["exclusions", report.definition.exclusions],
+                  ["practice_id", String(report.practice_id)],
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
+                  ["interval_start_inclusive", report.interval_start],
+                  ["interval_end_exclusive", report.interval_end],
                   ["as_of", report.as_of],
+                  ["freshness", report.freshness],
+                  ["summary_scope", "all matching invoices"],
                   [
                     "currency",
                     "state",
@@ -1000,9 +1184,12 @@ function DailyInvoices({ date }: { date: string }) {
                     ],
                   ]),
                   [],
+                  ["records_scope", "current page only"],
                   ["record_page", String(report.pagination.page)],
                   ["records_per_page", String(report.pagination.per_page)],
                   ["records_total", String(report.pagination.total)],
+                  ["record_pages_total", String(report.pagination.total_pages)],
+                  ["records_exported", String(report.records.length)],
                   [
                     "invoice_id",
                     "patient_id",
@@ -1020,12 +1207,18 @@ function DailyInvoices({ date }: { date: string }) {
                     record.current_outstanding_balance,
                   ]),
                 ],
-                `daily-invoices-${report.date}.csv`,
+                `daily-invoices-clinic-${report.practice_id}-${report.date}-page-${report.pagination.page}.csv`,
               )
             }
           >
             Download invoice report CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes summaries for all {report.pagination.total} matching
+            invoices and only the {report.records.length} source invoices on
+            page {report.pagination.page}. Clinic, time interval and source
+            details are included in the file.
+          </Typography>
           <Button
             href="/clinic/billing"
             size="small"
@@ -1116,10 +1309,19 @@ function DailyStockMovements({ date }: { date: string }) {
                   ["definition_revision", String(report.definition.revision)],
                   ["source", report.definition.source],
                   ["date_basis", report.definition.date_basis],
+                  ["population", report.definition.population],
                   ["exclusions", report.definition.exclusions],
+                  ["practice_id", String(report.practice_id)],
                   ["clinic_date", report.date],
                   ["timezone", report.timezone],
+                  ["interval_start_inclusive", report.interval_start],
+                  ["interval_end_exclusive", report.interval_end],
                   ["as_of", report.as_of],
+                  ["freshness", report.freshness],
+                  [
+                    "summary_scope",
+                    "all matching stock entries, grouped by type and unit",
+                  ],
                   [
                     "stock_type",
                     "stock_unit",
@@ -1135,9 +1337,12 @@ function DailyStockMovements({ date }: { date: string }) {
                     row.signed_quantity,
                   ]),
                   [],
+                  ["records_scope", "current page only"],
                   ["record_page", String(report.pagination.page)],
                   ["records_per_page", String(report.pagination.per_page)],
                   ["records_total", String(report.pagination.total)],
+                  ["record_pages_total", String(report.pagination.total_pages)],
+                  ["records_exported", String(report.records.length)],
                   [
                     "entry_id",
                     "stock_type",
@@ -1159,12 +1364,18 @@ function DailyStockMovements({ date }: { date: string }) {
                     record.occurred_at,
                   ]),
                 ],
-                `daily-stock-movements-${report.date}.csv`,
+                `daily-stock-movements-clinic-${report.practice_id}-${report.date}-page-${report.pagination.page}.csv`,
               )
             }
           >
             Download stock movements CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes summaries for all {report.pagination.total} matching
+            stock entries and only the {report.records.length} source entries on
+            page {report.pagination.page}. Stock types and units remain
+            separate; clinic, time interval and source details are included.
+          </Typography>
           <Button
             href="/clinic/inventory/activity"
             size="small"
@@ -1559,6 +1770,8 @@ function DayEndReviews({ date }: { date: string }) {
 }
 
 type StockSnapshot = {
+  practice_id: number;
+  status: string;
   as_of: string;
   inventory_date: string;
   timezone: string;
@@ -1600,6 +1813,108 @@ function CurrentStockReport() {
     `/api/clinic/reports/current_stock?page=${page}&office_page=${officePage}&status=${status}`,
   );
   const report = result.data?.report;
+  const download = () => {
+    if (!report) return;
+    downloadCsv(
+      [
+        ["report", "current_stock"],
+        ["practice_id", String(report.practice_id)],
+        ["source", report.source],
+        ["as_of", report.as_of],
+        ["inventory_date", report.inventory_date],
+        ["timezone", report.timezone],
+        ["pharmacy_status_filter", report.status],
+        [
+          "snapshot_basis",
+          "Current balances, not a historical or immutable snapshot",
+        ],
+        [
+          "availability_basis",
+          "Existing hold, expiry, product and location rules",
+        ],
+        [
+          "summary_scope",
+          "All pharmacy positions matching the status filter; all office items",
+        ],
+        [
+          "low_stock_scope",
+          "All clinic products and office items, independent of pharmacy status filter",
+        ],
+        ["low_pharmacy_products", String(report.low_product_count)],
+        ["low_office_items", String(report.low_office_count)],
+        ["stock_type", "unit", "physical_quantity", "available_quantity"],
+        ...report.pharmacy_units.map((row) => [
+          "pharmacy",
+          row.unit,
+          row.physical,
+          row.available,
+        ]),
+        ["office", "each", report.office_quantity, ""],
+        [],
+        ["pharmacy_records_scope", "Selected page only"],
+        ["pharmacy_page", String(report.pagination.page)],
+        ["pharmacy_per_page", String(report.pagination.per_page)],
+        ["pharmacy_records_total", String(report.pagination.total)],
+        ["pharmacy_pages_total", String(report.pagination.total_pages)],
+        ["pharmacy_records_exported", String(report.pharmacy_records.length)],
+        [
+          "batch_id",
+          "product_id",
+          "name",
+          "lot",
+          "location",
+          "unit",
+          "physical_quantity",
+          "available_for_use",
+          "status",
+          "expires_on",
+          "expiring_within_30_days",
+        ],
+        ...report.pharmacy_records.map((row) => [
+          String(row.id),
+          String(row.product_id),
+          row.name,
+          row.lot,
+          row.location,
+          row.unit,
+          row.physical,
+          String(row.available),
+          row.status,
+          row.expires_on,
+          String(row.expiring),
+        ]),
+        [],
+        [
+          "office_records_scope",
+          "Selected page only; no location or expiry tracking",
+        ],
+        ["office_page", String(report.office_pagination.page)],
+        ["office_per_page", String(report.office_pagination.per_page)],
+        ["office_records_total", String(report.office_pagination.total)],
+        ["office_pages_total", String(report.office_pagination.total_pages)],
+        ["office_records_exported", String(report.office_records.length)],
+        [
+          "item_id",
+          "name",
+          "sku",
+          "unit",
+          "quantity",
+          "reorder_level",
+          "low_stock",
+        ],
+        ...report.office_records.map((row) => [
+          String(row.id),
+          row.name,
+          row.sku,
+          "each",
+          row.quantity,
+          row.reorder_level,
+          String(row.low_stock),
+        ]),
+      ],
+      `current-stock-clinic-${report.practice_id}-${report.inventory_date}-${report.status}-pharmacy-page-${report.pagination.page}-office-page-${report.office_pagination.page}.csv`,
+    );
+  };
   return (
     <Stack spacing={1} sx={{ mt: 3 }}>
       <Divider />
@@ -1637,9 +1952,24 @@ function CurrentStockReport() {
             {report.low_office_count} office items at or below their reorder
             level across the clinic.
           </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={download}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Download stock CSV
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV summaries cover all matching pharmacy positions and all office
+            items. Source rows include pharmacy page {report.pagination.page} of{" "}
+            {report.pagination.total_pages} and office page{" "}
+            {report.office_pagination.page} of{" "}
+            {report.office_pagination.total_pages} only.
+          </Typography>
           {report.pharmacy_units.map((row) => (
             <Typography key={row.unit} variant="body2">
-              Pharmacy ({status}): {row.physical} {row.unit} on hand;{" "}
+              Pharmacy ({report.status}): {row.physical} {row.unit} on hand;{" "}
               {row.available} available.
             </Typography>
           ))}
