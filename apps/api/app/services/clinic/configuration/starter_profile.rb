@@ -35,10 +35,17 @@ module Clinic
         selected_visits = recipe.fetch("visits").reject do |key, _definition|
           key == "individual_therapy" && !service_scope.include?("individual_therapy")
         end
-        visits = selected_visits.transform_values do |definition|
-          visit = practice.visit_types.active.find_by(code: definition.fetch("name")) ||
-            practice.visit_types.create!(code: definition.fetch("name"))
-          definition.merge("visit_type_id" => visit.id)
+        visits = selected_visits.each_with_object({}) do |(key, definition), result|
+          linked = (previous || {}).fetch("visits", {})[key]
+          visit = if linked&.key?("visit_type_id")
+            practice.visit_types.find_by(id: linked.fetch("visit_type_id")) ||
+              raise(ArgumentError, "The linked starter visit is unavailable. Review the saved profile before applying it again.")
+          else
+            practice.visit_types.active.find_by(code: definition.fetch("name")) ||
+              practice.visit_types.create!(code: definition.fetch("name"))
+          end
+          # Linked identity survives rename/retirement; replay never reactivates it.
+          result[key] = definition.merge(linked || {}).merge("name" => visit.code, "visit_type_id" => visit.id)
         end
         recipe.except("visits").merge(previous || {}).merge(
           "version" => recipe.fetch("version"),
