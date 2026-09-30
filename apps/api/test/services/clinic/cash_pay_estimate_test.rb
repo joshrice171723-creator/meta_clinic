@@ -16,10 +16,13 @@ class CashPayEstimateTest < ActiveSupport::TestCase
       lines: [ { billing_service_id: @service.id, quantity: "2", inclusions: "Visit" } ])
     assert_equal "draft", estimate.status
     assert_equal "150.0", estimate.lines.sole.expected_amount.to_s("F")
+    assert_equal 0, estimate.lines.sole.source_price_revision
     @service.update!(unit_amount: "90.00")
     assert_equal "75.0", estimate.reload.lines.sole.unit_amount.to_s("F")
+    assert_equal 0, estimate.lines.sole.source_price_revision
+    assert_equal 1, @service.reload.lock_version
     assert_raises(ArgumentError) { Clinic::Billing::IssueCashPayEstimate.call(estimate: estimate, practice: @practice, actor: @actor, policy_version: "", delivery_method: "portal", request_key: "estimate-issue-empty") }
-    issued = Clinic::Billing::IssueCashPayEstimate.call(estimate: estimate, practice: @practice, actor: @actor, policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "estimate-issue")
+    issued = Clinic::Billing::IssueCashPayEstimate.call(estimate: estimate, practice: @practice, actor: @actor, context: recorded_context, policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "estimate-issue")
     assert_equal "issued_gfe", issued.classification
     assert_equal "issued", issued.status
   end
@@ -44,7 +47,7 @@ class CashPayEstimateTest < ActiveSupport::TestCase
     end
 
     issued = Clinic::Billing::IssueCashPayEstimate.call(estimate: estimate, practice: @practice, actor: @actor,
-      policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "linked-offering-issue")
+      context: recorded_context, policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "linked-offering-issue")
     correction = Clinic::Billing::CorrectCashPayEstimate.call(predecessor: issued, practice: @practice, actor: @actor,
       reason: "Revised estimate", lines: lines, request_key: "linked-offering-correct")
     assert_equal offering.id, correction.lines.sole.service_offering_id
@@ -79,20 +82,24 @@ class CashPayEstimateTest < ActiveSupport::TestCase
     assert_equal 2, correction.revision
     assert_equal "Catalog price changed", correction.correction_reason
     assert_equal "95.0", correction.lines.sole.unit_amount.to_s("F")
+    assert_equal @service.reload.lock_version, correction.lines.sole.source_price_revision
+    assert_equal 0, original.reload.lines.sole.source_price_revision
     assert_equal "75.0", original.reload.lines.sole.unit_amount.to_s("F")
     assert_equal "issued", original.status
     assert_raises(ActiveRecord::RecordInvalid) { original.update!(policy_version: "changed") }
 
     issued = Clinic::Billing::IssueCashPayEstimate.call(estimate: correction, practice: @practice, actor: @actor,
-      policy_version: "synthetic-policy-v2", delivery_method: "portal", request_key: "correction-issue")
+      context: recorded_context, policy_version: "synthetic-policy-v2", delivery_method: "portal", request_key: "correction-issue")
     assert_equal "issued", issued.status
     assert_equal "superseded", original.reload.status
     assert_equal original_issued_at, original.issued_at
     assert_equal original_policy, original.policy_version
     assert_equal "75.0", original.lines.sole.unit_amount.to_s("F")
     assert_equal issued.id, Clinic::Billing::IssueCashPayEstimate.call(estimate: issued, practice: @practice, actor: @actor,
-      policy_version: "synthetic-policy-v2", delivery_method: "portal", request_key: "correction-issue").id
+      context: recorded_context, policy_version: "synthetic-policy-v2", delivery_method: "portal", request_key: "correction-issue").id
     assert_not original.lines.sole.update(unit_amount: "1.00")
+    assert_not original.lines.sole.update(source_price_revision: 99)
+    assert_equal 0, original.reload.lines.sole.source_price_revision
   end
 
   test "correction replay returns its first snapshot after price changes" do
@@ -102,6 +109,8 @@ class CashPayEstimateTest < ActiveSupport::TestCase
     replay = correct(original, request_key: "correction-replay")
     assert_equal first.id, replay.id
     assert_equal "75.0", replay.lines.sole.unit_amount.to_s("F")
+    assert_equal first.lines.sole.source_price_revision, replay.lines.sole.source_price_revision
+    assert_not_equal @service.reload.lock_version, replay.lines.sole.source_price_revision
     assert_raises(Clinic::Idempotency::Conflict) do
       Clinic::Billing::CorrectCashPayEstimate.call(predecessor: original, practice: @practice, actor: @actor,
         reason: "Another reason", lines: correction_lines, request_key: "correction-replay")
@@ -124,7 +133,37 @@ class CashPayEstimateTest < ActiveSupport::TestCase
     end
   end
 
+  test "catalog source revision is server derived and exact create replay retains it" do
+    lines = [ { billing_service_id: @service.id, quantity: "1", source_price_revision: 999 } ]
+    estimate = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+      classification: "general_estimate", currency: "USD", request_key: "revision-replay", lines: lines)
+    assert_equal 0, estimate.lines.sole.source_price_revision
+    @service.update!(unit_amount: "90.00")
+    replay = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+      classification: "general_estimate", currency: "USD", request_key: "revision-replay", lines: lines)
+    assert_equal estimate.id, replay.id
+    assert_equal 0, replay.lines.sole.source_price_revision
+    assert_equal "75.0", replay.lines.sole.unit_amount.to_s("F")
+  end
+
+  test "historical revision may be unknown but invalid revisions are rejected" do
+    estimate = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
+      classification: "general_estimate", currency: "USD", request_key: "revision-validation", lines: correction_lines)
+    line = estimate.lines.sole
+    assert line.update(source_price_revision: nil)
+    assert_not line.update(source_price_revision: -1)
+    assert_raises(ActiveRecord::StatementInvalid) do
+      ApplicationRecord.transaction(requires_new: true) { line.update_columns(source_price_revision: -1) }
+    end
+    assert_nil line.reload.source_price_revision
+    assert_not line.update(billing_service: nil, source_price_revision: 0)
+  end
+
   private
+
+  def recorded_context
+    { payment_context: "self_pay", request_context: "Requested 2026-09-30", scheduled_context: "No service scheduled" }
+  end
 
   def published_offering
     site = @practice.sites.create!(code: "ESTIMATE", name: "Estimate site", status: "draft")
@@ -144,7 +183,7 @@ class CashPayEstimateTest < ActiveSupport::TestCase
     estimate = Clinic::Billing::CreateCashPayEstimate.call(practice: @practice, actor: @actor, patient: @patient,
       classification: "gfe_candidate", currency: "USD", request_key: "original-create", lines: correction_lines)
     Clinic::Billing::IssueCashPayEstimate.call(estimate: estimate, practice: @practice, actor: @actor,
-      policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "original-issue")
+      context: recorded_context, policy_version: "synthetic-policy-v1", delivery_method: "portal", request_key: "original-issue")
   end
 
   def correct(predecessor, practice: @practice, actor: @actor, request_key:)

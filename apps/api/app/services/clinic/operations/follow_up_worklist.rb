@@ -5,16 +5,22 @@ module Clinic
       FILTERS = %w[all mine overdue unassigned offboarded].freeze
       LIMIT = 50
 
-      def self.call(practice:, actor:, filter: "all", site_id: nil, page: 1, at: Current.business_time)
-        new(practice: practice, actor: actor, filter: filter, site_id: site_id, page: page, at: at).call
+      def self.call(practice:, actor:, filter: "all", site_id: nil, page: 1,
+        staff_requests_page: 1, encounter_follow_ups_page: 1, renewal_exceptions_page: 1, at: Current.business_time)
+        new(practice: practice, actor: actor, filter: filter, site_id: site_id, page: page,
+          staff_requests_page: staff_requests_page, encounter_follow_ups_page: encounter_follow_ups_page,
+          renewal_exceptions_page: renewal_exceptions_page, at: at).call
       end
 
-      def initialize(practice:, actor:, filter:, site_id:, page:, at:)
+      def initialize(practice:, actor:, filter:, site_id:, page:, staff_requests_page:, encounter_follow_ups_page:, renewal_exceptions_page:, at:)
         @practice = practice
         @actor = actor
         @filter = filter.to_s
         @site_id = site_id
         @page = page
+        @staff_requests_page = staff_requests_page
+        @encounter_follow_ups_page = encounter_follow_ups_page
+        @renewal_exceptions_page = renewal_exceptions_page
         @at = at
       end
 
@@ -47,10 +53,9 @@ module Clinic
           member: member
         )
 
-        requests = filtered(base_scope, member)
+        requests, requests_pagination = paged(filtered(base_scope, member)
           .includes(:assignee_membership, message: { conversation: { members: { membership: :user } } })
-          .order(:due_at, :id)
-          .limit(LIMIT)
+          .order(:due_at, :id), @staff_requests_page)
 
         encounter_scope = can_manage_encounters ? accessible_encounter_follow_ups(ability) : Clinic::EncounterFollowUp.none
         encounter_summary = summary_for(
@@ -59,9 +64,9 @@ module Clinic
           assignee_column: "assigned_to_membership_id",
           member: member
         )
-        encounter_follow_ups = filtered_encounter_follow_ups(encounter_scope, member)
+        encounter_follow_ups, encounter_pagination = paged(filtered_encounter_follow_ups(encounter_scope, member)
           .includes(:patient, :encounter, :follow_up_appointment, assigned_to_membership: :user)
-          .order(:due_at, :id).limit(LIMIT)
+          .order(:due_at, :id), @encounter_follow_ups_page)
 
         task_scope = can_manage_encounters ? accessible_clinical_tasks(ability) : Clinic::ClinicalTask.none
         clinical_task_summary = summary_for(
@@ -79,16 +84,20 @@ module Clinic
           .order(:due_at, :id).limit(LIMIT).offset(filter == "offboarded" ? (offboarded_page - 1) * LIMIT : 0)
         recorded_appointment_keys = recorded_appointment_keys_for(clinical_tasks)
 
-        renewals = can_read_renewals && !site_id && filter.in?(%w[all unassigned]) ? renewal_exceptions : []
+        renewal_scope = can_read_renewals && !site_id && filter.in?(%w[all unassigned]) ? renewal_exceptions_scope : Clinic::Billing::StripeCheckout.none
+        renewal_rows, renewal_pagination = paged(renewal_scope, @renewal_exceptions_page)
+        renewals = serialize_renewal_exceptions(renewal_rows)
 
         {
           summary: summary,
           requests: requests.map { |request| serialize(request, member) },
+          staff_requests_page: requests_pagination,
           actor_membership_id: member.id,
           can_manage_staff_requests: ability.allowed_permission?("staff_messaging.transition", any_site: true),
           can_escalate_staff_requests: ability.allowed_permission?("staff_messaging.escalate", any_site: true),
           encounter_summary: encounter_summary,
           encounter_follow_ups: encounter_follow_ups.map { |follow_up| serialize_encounter_follow_up(follow_up, member) },
+          encounter_follow_ups_page: encounter_pagination,
           clinical_task_summary: clinical_task_summary,
           offboarded_tasks_page: { page: offboarded_page, per_page: LIMIT, total: offboarded_total, total_pages: offboarded_page_count },
           clinical_tasks: clinical_tasks.map do |task|
@@ -96,7 +105,8 @@ module Clinic
               has_recorded_appointment: has_recorded_appointment?(task, recorded_appointment_keys))
           end,
           reminder_attention_count: reminder_attention_count,
-          renewal_exceptions: renewals.first(LIMIT), renewal_exceptions_truncated: renewals.length > LIMIT
+          renewal_exceptions: renewals, renewal_exceptions_page: renewal_pagination,
+          renewal_exceptions_truncated: renewal_pagination[:total] > renewals.length
         }
       end
 
@@ -104,28 +114,45 @@ module Clinic
 
       attr_reader :practice, :actor, :filter, :site_id, :page, :at
 
-      def renewal_exceptions
+      def paged(scope, requested_page)
+        unless requested_page.is_a?(Integer) && requested_page.between?(1, 1_000_000)
+          raise ArgumentError, "The follow-up page must be a positive bounded integer."
+        end
+        total = scope.except(:includes, :order).count
+        total_pages = (total.to_f / LIMIT).ceil
+        selected_page = [ requested_page, [ total_pages, 1 ].max ].min
+        [ scope.limit(LIMIT).offset((selected_page - 1) * LIMIT),
+          { page: selected_page, per_page: LIMIT, total: total, total_pages: total_pages } ]
+      end
+
+      def renewal_exceptions_scope
+        Clinic::Billing::StripeCheckout.where(practice:)
+          .where("subscription_status IN (?) OR renewal_invoice_status = ? OR (renewal_invoice_status = ? AND renewal_amount_due > 0)",
+            %w[past_due unpaid incomplete_expired], "uncollectible", "open")
+          .includes(agreement: :patient).order(:updated_at, :id)
+      end
+
+      def serialize_renewal_exceptions(rows)
+        return [] if rows.empty?
+
         coverage = practice.memberships.active.includes(:user).any? do |membership|
           next false unless membership.user.active?
           permission = Ability.new(membership.user, practice:)
           permission.practice_scope_for?("billing.payment_record") || permission.practice_scope_for?("billing.write")
         end
-        Clinic::Billing::StripeCheckout.where(practice:)
-          .where("subscription_status IN (?) OR renewal_invoice_status = ? OR (renewal_invoice_status = ? AND renewal_amount_due > 0)",
-            %w[past_due unpaid incomplete_expired], "uncollectible", "open")
-          .includes(agreement: :patient).order(:updated_at, :id).limit(LIMIT + 1).map do |checkout|
-            agreement = checkout.agreement
-            {
-              id: checkout.id, agreement_id: agreement.id, patient_id: agreement.patient_id,
-              patient_display_name: agreement.patient.display_name, patient_reference: agreement.patient.reference,
-              status: checkout.subscription_status, invoice_status: checkout.renewal_invoice_status,
-              amount_due: checkout.renewal_amount_due&.to_s("F"), currency: agreement.currency,
-              updated_at: checkout.updated_at.iso8601(6), owner: "Billing team",
-              assignment_exception: coverage ? nil : "No eligible billing coverage is configured.",
-              next_action: "Reconcile the current renewal invoice before collecting again. Clinical follow-up remains available.",
-              href: "/clinic/billing?tab=subscriptions"
-            }
-          end
+        rows.map do |checkout|
+          agreement = checkout.agreement
+          {
+            id: checkout.id, agreement_id: agreement.id, patient_id: agreement.patient_id,
+            patient_display_name: agreement.patient.display_name, patient_reference: agreement.patient.reference,
+            status: checkout.subscription_status, invoice_status: checkout.renewal_invoice_status,
+            amount_due: checkout.renewal_amount_due&.to_s("F"), currency: agreement.currency,
+            updated_at: checkout.updated_at.iso8601(6), owner: "Billing team",
+            assignment_exception: coverage ? nil : "No eligible billing coverage is configured.",
+            next_action: "Reconcile the current renewal invoice before collecting again. Clinical follow-up remains available.",
+            href: "/clinic/billing?tab=subscriptions"
+          }
+        end
       end
 
       def accessible_conversations(member)

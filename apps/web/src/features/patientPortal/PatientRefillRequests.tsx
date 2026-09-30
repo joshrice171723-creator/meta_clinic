@@ -12,8 +12,13 @@ import {
   Typography,
 } from "@mui/material";
 import type { PatientRefillRequest } from "../../api/contracts";
-import { api, ApiError } from "../../api/client";
+import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
+
+import {
+  RefillRequestSubmission,
+  type RefillRequestAcknowledgement,
+} from "./refillRequestSubmission";
 
 const statusLabels: Record<PatientRefillRequest["status"], string> = {
   pending: "Received",
@@ -32,68 +37,59 @@ export function PatientRefillRequests() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const pendingAttempt = useRef<{
-    requestKey: string;
-    medicationName: string;
-    pharmacyDestination: string;
-    requestNote: string;
-  } | null>(null);
+  const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
+  const submission = useRef<RefillRequestSubmission | null>(null);
+  submission.current ??= new RefillRequestSubmission(async (attempt) => {
+    const response = await api<{ request: RefillRequestAcknowledgement }>(
+      "/api/patient_portal/requests",
+      {
+        method: "POST",
+        body: {
+          patient_portal_request: {
+            request_key: attempt.requestKey,
+            request_type: "refill",
+            medication_name: attempt.medicationName,
+            pharmacy_destination: attempt.pharmacyDestination,
+            request_note: attempt.requestNote || undefined,
+          },
+        },
+      },
+    );
+    return response.request;
+  });
 
   const submit = async () => {
-    const values = {
-      medicationName: medicationName.trim(),
-      pharmacyDestination: pharmacyDestination.trim(),
-      requestNote: requestNote.trim(),
-    };
-    if (!values.medicationName || !values.pharmacyDestination || busy) return;
-    const retained = pendingAttempt.current;
-    const attempt =
-      retained &&
-      retained.medicationName === values.medicationName &&
-      retained.pharmacyDestination === values.pharmacyDestination &&
-      retained.requestNote === values.requestNote
-        ? retained
-        : { requestKey: crypto.randomUUID(), ...values };
-    pendingAttempt.current = attempt;
+    const current = submission.current!;
+    if (current.busy) return;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      await api<{ request: PatientRefillRequest }>(
-        "/api/patient_portal/requests",
-        {
-          method: "POST",
-          body: {
-            patient_portal_request: {
-              request_key: attempt.requestKey,
-              request_type: "refill",
-              medication_name: attempt.medicationName,
-              pharmacy_destination: attempt.pharmacyDestination,
-              request_note: attempt.requestNote || undefined,
-            },
-          },
-        },
-      );
-      pendingAttempt.current = null;
+      if (
+        !(await current.submit({
+          medicationName,
+          pharmacyDestination,
+          requestNote,
+        }))
+      )
+        return;
       setMedicationName("");
       setPharmacyDestination("");
       setRequestNote("");
-      setNotice("Your refill request was received for clinical review.");
+      setNotice(
+        "Your refill request is saved. Check its current status below.",
+      );
       requests.refresh();
     } catch (reason) {
-      const unknown =
-        reason instanceof ApiError &&
-        (reason.status === 408 ||
-          reason.status >= 500 ||
-          reason.code === "outcome_unconfirmed");
       setError(
-        unknown
-          ? "We could not confirm the request outcome. Retry the same request before changing it."
+        current.outcomeUnconfirmed
+          ? "We could not confirm the request outcome. Your refill details are kept unchanged. Retry the same request before starting another."
           : reason instanceof Error
             ? reason.message
             : "Your refill request could not be sent.",
       );
     } finally {
+      setOutcomeUnconfirmed(current.outcomeUnconfirmed);
       setBusy(false);
     }
   };
@@ -123,7 +119,7 @@ export function PatientRefillRequests() {
           label="Medication name"
           value={medicationName}
           onChange={(event) => setMedicationName(event.target.value)}
-          disabled={busy}
+          disabled={busy || outcomeUnconfirmed}
           slotProps={{ htmlInput: { maxLength: 240 } }}
         />
         <TextField
@@ -132,7 +128,7 @@ export function PatientRefillRequests() {
           label="Pharmacy destination"
           value={pharmacyDestination}
           onChange={(event) => setPharmacyDestination(event.target.value)}
-          disabled={busy}
+          disabled={busy || outcomeUnconfirmed}
           helperText="Enter the pharmacy name and location the clinic should review."
           slotProps={{ htmlInput: { maxLength: 500 } }}
         />
@@ -143,7 +139,7 @@ export function PatientRefillRequests() {
           label="Note for the clinic (optional)"
           value={requestNote}
           onChange={(event) => setRequestNote(event.target.value)}
-          disabled={busy}
+          disabled={busy || outcomeUnconfirmed}
           helperText={`${requestNote.length}/2,000 characters`}
           slotProps={{ htmlInput: { maxLength: 2_000 } }}
         />
@@ -158,7 +154,11 @@ export function PatientRefillRequests() {
             busy ? <CircularProgress size={18} color="inherit" /> : undefined
           }
         >
-          {busy ? "Sending request…" : "Send refill request"}
+          {busy
+            ? "Sending request…"
+            : outcomeUnconfirmed
+              ? "Retry same request"
+              : "Send refill request"}
         </Button>
 
         <Divider />

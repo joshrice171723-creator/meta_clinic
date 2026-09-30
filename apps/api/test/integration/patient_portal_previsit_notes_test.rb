@@ -47,6 +47,7 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     assert_response :created
     first_note = response.parsed_body.fetch("note")
     assert_equal 1, first_note.fetch("version_number")
+    assert_equal "previsit-first", first_note.fetch("request_key")
     assert_equal "I have had headaches for two days.", first_note.fetch("text")
     assert_equal true, response.parsed_body.fetch("can_edit")
     assert_equal original_updated_at, appointment.reload.updated_at
@@ -76,12 +77,14 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     post portal_path(appointment), params: clear, headers: csrf_headers, as: :json
     assert_response :created
     assert_equal 2, response.parsed_body.dig("note", "version_number")
+    assert_equal "previsit-clear", response.parsed_body.dig("note", "request_key")
     assert_equal "", response.parsed_body.dig("note", "text")
     assert_equal original_updated_at, appointment.reload.updated_at
 
     get portal_path(appointment), headers: @headers
     assert_response :success
     assert_equal 2, response.parsed_body.dig("note", "version_number")
+    assert_equal "previsit-clear", response.parsed_body.dig("note", "request_key")
     assert_equal "", response.parsed_body.dig("note", "text")
     assert_equal 2, appointment.previsit_notes.count
     assert_equal 2, @practice.audit_events.where(

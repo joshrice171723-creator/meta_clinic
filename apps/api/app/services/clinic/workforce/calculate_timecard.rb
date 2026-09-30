@@ -2,6 +2,7 @@ module Clinic
   module Workforce
     class CalculateTimecard
       class InvalidPunchSequence < StandardError; end
+      CALCULATION_VERSION = "explicit-policy-and-schedule-v2".freeze
 
       def self.call(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil)
         new(employment: employment, period_start: period_start, actor_membership: actor_membership,
@@ -74,6 +75,8 @@ module Clinic
 
       def source_digest
         payload = {
+          calculation_version: CALCULATION_VERSION,
+          schedule_publications: schedule_variance.source_versions,
           punches: punches.map { |p| [ p.id, p.site_id, p.event_type, p.occurred_at_utc.utc.iso8601(6) ] },
           adjustments: effective_adjustments.map { |adjustment| adjustment_source_tuple(adjustment) },
           settings: settings_sources,
@@ -142,8 +145,21 @@ module Clinic
           raw_seconds = (interval.fetch(:ended_at_utc) - interval.fetch(:started_at_utc)).to_i
           raw_minutes = (raw_seconds / 60.0).round
           rounded = round_minutes(raw_seconds, values)
-          paid = interval.fetch(:segment_kind) == "break" && !values.fetch("break_paid", false) ? 0 : rounded
-          segment_exceptions = Array(interval[:exception_codes])
+          segment_exceptions = Array(interval[:exception_codes]).dup
+          segment_exceptions << "rounding_policy_unconfigured" if rounded.nil?
+          is_break = interval.fetch(:segment_kind) == "break"
+          break_configured = [ true, false ].include?(values["break_paid"])
+          segment_exceptions << "break_pay_policy_unconfigured" if is_break && !break_configured
+          paid = if is_break && !break_configured
+            nil
+          elsif is_break && values["break_paid"] == false
+            0
+          else
+            rounded
+          end
+          if !is_break && values["schedule_enabled"] == true && schedule_variance.off_schedule?(interval)
+            segment_exceptions << "off_schedule_work"
+          end
           daily_key = interval.fetch(:started_at_utc).in_time_zone(workweek_zone).to_date
           regular, overtime, overtime_exception = categorize_overtime(paid, values, daily_key, overtime_state)
           segment_exceptions << overtime_exception if overtime_exception
@@ -348,13 +364,14 @@ module Clinic
         return (raw_seconds / 60.0).round if values["rounding_mode"] == "none"
 
         exact = raw_seconds / 60.0
-        increment = integer_setting(values["rounding_increment_minutes"]) || 1
+        return nil unless %w[up down nearest].include?(values["rounding_mode"])
+        increment = integer_setting(values["rounding_increment_minutes"])
+        return nil unless increment
         scaled = exact / increment
         units = case values["rounding_mode"]
         when "up" then scaled.ceil
         when "down" then scaled.floor
         when "nearest" then scaled.round
-        else exact.round.fdiv(increment).round
         end
         units * increment
       end
@@ -365,6 +382,8 @@ module Clinic
       end
 
       def categorize_overtime(paid, values, daily_key, state)
+        state[:paid_unconfigured] = true if paid.nil?
+        return [ nil, nil, nil ] if state[:paid_unconfigured]
         return [ 0, 0, nil ] if paid.zero?
 
         daily_threshold = integer_setting(values["daily_overtime_threshold_minutes"])
@@ -422,15 +441,28 @@ module Clinic
         end
       end
 
+      def schedule_variance
+        @schedule_variance ||= ScheduleVariance.new(employment: employment,
+          period_start: period_start, period_end: period_end,
+          site_ids: (punches.map(&:site_id) + effective_adjustments.filter_map do |adjustment|
+            Integer(adjustment.proposed_changes["site_id"], exception: false)
+          end).uniq)
+      end
+
       def build_totals(rows)
         overtime_configured = rows.all? { |row| !row[:overtime_minutes].nil? }
         {
           raw_minutes: rows.sum { |row| row.fetch(:raw_minutes) },
-          rounded_minutes: rows.sum { |row| row.fetch(:rounded_minutes) },
-          paid_minutes: rows.sum { |row| row.fetch(:paid_minutes) },
+          rounded_minutes: known_total(rows, :rounded_minutes),
+          paid_minutes: known_total(rows, :paid_minutes),
           regular_minutes: overtime_configured ? rows.sum { |row| row.fetch(:regular_minutes) } : nil,
           overtime_minutes: overtime_configured ? rows.sum { |row| row.fetch(:overtime_minutes) } : nil
         }
+      end
+
+      def known_total(rows, key)
+        values = rows.map { |row| row.fetch(key) }
+        values.any?(&:nil?) ? nil : values.sum
       end
 
       def snapshot_for(version, segments, totals)
@@ -438,6 +470,7 @@ module Clinic
           "period" => { "start" => period_start.iso8601, "end" => period_end.iso8601 },
           "totals" => totals.transform_keys(&:to_s),
           "source_punch_ids" => punches.map(&:id),
+          "schedule_checks" => schedule_variance.checks,
           "segments" => segments.map do |segment|
             {
               "id" => segment.id, "site_id" => segment.site_id, "segment_kind" => segment.segment_kind,

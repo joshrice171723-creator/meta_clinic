@@ -156,6 +156,9 @@ export type InventorySupplierProduct = {
   imported_at: string;
   updated_at: string;
   price_source: "price_sheet" | "manual_quote";
+  quoted_fee_amount?: string | null;
+  quoted_fee_currency?: string | null;
+  quoted_fee_basis?: string | null;
   quote_reference: string | null;
   quoted_on: string | null;
   eligible?: boolean;
@@ -247,6 +250,9 @@ export type InventoryPurchaseOrderLine = {
   ordered_units: Decimal;
   package_price: Decimal;
   currency: string;
+  quoted_fee_amount?: string | null;
+  quoted_fee_currency?: string | null;
+  quoted_fee_basis?: string | null;
   quote_reference?: string | null;
   quoted_on?: string | null;
   received_units: Decimal;
@@ -571,6 +577,9 @@ export type InventorySupplierQuoteRequest = {
   status: "open" | "quoted";
   request_key: string;
   created_at: string;
+  quoted_fee_amount?: string | null;
+  quoted_fee_currency?: string | null;
+  quoted_fee_basis?: string | null;
   quote_reference: string | null;
   quoted_on: string | null;
 };

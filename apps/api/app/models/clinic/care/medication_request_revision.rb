@@ -7,6 +7,7 @@ module Clinic
       STATUSES = %w[draft authorized on_hold completed cancelled entered_in_error].freeze
       INTENTS = %w[proposal plan order].freeze
       TRANSMISSION_STATES = %w[not_requested pending accepted rejected failed unknown].freeze
+      SUBSTITUTION_INSTRUCTIONS = %w[allowed not_allowed].freeze
       DOSE_UNITS = {
         "mg" => "mg", "ug" => "mcg", "g" => "g", "mL" => "mL", "[iU]" => "unit",
         "{tablet}" => "tablet", "{capsule}" => "capsule", "{puff}" => "puff", "{drop}" => "drop"
@@ -27,6 +28,7 @@ module Clinic
       validates :status, inclusion: { in: STATUSES }
       validates :intent, inclusion: { in: INTENTS }
       validates :transmission_state, inclusion: { in: TRANSMISSION_STATES }
+      validates :substitution_instruction, inclusion: { in: SUBSTITUTION_INSTRUCTIONS }, allow_nil: true
       validates :medication_name, presence: true, length: { maximum: 400 }
       validates :dose_text, :route_text, :frequency_text, :quantity_text, length: { maximum: 400 }, allow_nil: true
       validates :instructions, :reason_text, length: { maximum: 2_000 }, allow_nil: true

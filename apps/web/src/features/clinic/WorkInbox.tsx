@@ -36,6 +36,12 @@ import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
 import { PrescriptionReconciliationWorklist } from "./PrescriptionReconciliationWorklist";
 import { useClinicRealtimeTopic } from "./ClinicRealtime";
+import {
+  freshInboxPages,
+  inboxPageCount,
+  usePagedInboxSource,
+  type InboxPage,
+} from "./workInboxPaging";
 
 type AssignmentFilter = "all" | "mine" | "overdue" | "offboarded";
 type WorkType =
@@ -94,6 +100,9 @@ type ClinicalTaskItem = ClinicalTask & {
 };
 
 type FollowUpResponse = {
+  staff_requests_page: InboxPage;
+  encounter_follow_ups_page: InboxPage;
+  renewal_exceptions_page: InboxPage;
   renewal_exceptions_truncated?: boolean;
   renewal_exceptions?: Array<{
     id: number;
@@ -1462,7 +1471,87 @@ function PatientFlowCard({
   );
 }
 
+function QueuePageControls({
+  label,
+  page,
+  requestedPage,
+  loading,
+  error,
+  onPage,
+  onRetry,
+}: {
+  label: string;
+  page?: InboxPage;
+  requestedPage: number;
+  loading: boolean;
+  error?: string;
+  onPage: (page: number) => void;
+  onRetry: () => void;
+}) {
+  const currentPage = page?.page ?? requestedPage;
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      useFlexGap
+      sx={{ alignItems: "center", flexWrap: "wrap" }}
+    >
+      <Typography variant="body2" role="status">
+        {label}:{" "}
+        {loading
+          ? `Loading page ${requestedPage}…`
+          : error
+            ? `Page ${requestedPage} unavailable`
+            : page
+              ? `${page.total} source items · Page ${page.page} of ${inboxPageCount(page)}`
+              : "Unavailable"}
+      </Typography>
+      <Button
+        size="small"
+        aria-label={`Previous ${label} page`}
+        disabled={loading || currentPage <= 1}
+        onClick={() => onPage(currentPage - 1)}
+      >
+        Previous
+      </Button>
+      <Button
+        size="small"
+        aria-label={`Next ${label} page`}
+        disabled={
+          loading ||
+          Boolean(error) ||
+          !page ||
+          currentPage >= inboxPageCount(page)
+        }
+        onClick={() => onPage(currentPage + 1)}
+      >
+        Next
+      </Button>
+      {error && (
+        <Button
+          size="small"
+          onClick={onRetry}
+          aria-label={`Retry ${label} page`}
+        >
+          Retry page
+        </Button>
+      )}
+    </Stack>
+  );
+}
+
 export function WorkInbox() {
+  const { capabilities, current_site, practice, user_id } = useClinic();
+  const scope = JSON.stringify([
+    practice.id,
+    user_id,
+    current_site?.id,
+    capabilities,
+  ]);
+  return <ScopedWorkInbox key={scope} />;
+}
+
+function ScopedWorkInbox() {
   const { capabilities, current_site, practice, user_id } = useClinic();
   const canLoadWork =
     capabilities.billing_read === true ||
@@ -1492,16 +1581,44 @@ export function WorkInbox() {
   const [offboardedPage, setOffboardedPage] = useState(1);
   const [workType, setWorkType] = useState<WorkType>("all");
   const [refreshRevision, setRefreshRevision] = useState(0);
-  const workScope = useRef("");
-  const [work, setWork] = useState<SourceState<FollowUpResponse>>({
-    loading: canLoadWork,
+  const filterScope = `${assignment}:${workType}`;
+  const [pageState, setPageState] = useState(() =>
+    freshInboxPages(filterScope),
+  );
+  const pages =
+    pageState.scope === filterScope ? pageState : freshInboxPages(filterScope);
+  function changePage(
+    queue: "staff" | "encounters" | "renewals" | "labReview" | "labFollowUp",
+    page: number,
+  ) {
+    setPageState({ ...pages, [queue]: page });
+  }
+  const workParams = new URLSearchParams({
+    filter: assignment,
+    page: String(offboardedPage),
+    staff_requests_page: String(pages.staff),
+    encounter_follow_ups_page: String(pages.encounters),
+    renewal_exceptions_page: String(pages.renewals),
   });
-  const [labReviews, setLabReviews] = useState<SourceState<LabReviewResponse>>({
-    loading: canLoadLabs,
-  });
-  const [labFollowUps, setLabFollowUps] = useState<
-    SourceState<LabFollowUpResponse>
-  >({ loading: canLoadLabs });
+  if (current_site?.id) workParams.set("site_id", String(current_site.id));
+  const work = usePagedInboxSource<FollowUpResponse>(
+    `/api/clinic/operations/follow_ups?${workParams}`,
+    canLoadWork,
+    refreshRevision,
+    filterScope,
+  );
+  const labReviews = usePagedInboxSource<LabReviewResponse>(
+    `/api/clinic/lab_reports/review_queue?page=${pages.labReview}&per_page=50`,
+    canLoadLabs,
+    refreshRevision,
+    filterScope,
+  );
+  const labFollowUps = usePagedInboxSource<LabFollowUpResponse>(
+    `/api/clinic/lab_reports/follow_up_queue?page=${pages.labFollowUp}&per_page=50`,
+    canLoadLabs,
+    refreshRevision,
+    filterScope,
+  );
   const [refills, setRefills] = useState<SourceState<RefillResponse>>({
     loading: canLoadRefills,
   });
@@ -1547,79 +1664,6 @@ export function WorkInbox() {
       });
     return () => abort.abort();
   }, [canLoadCallbacks, refreshRevision]);
-
-  useEffect(() => {
-    if (!canLoadWork) return;
-    const abort = new AbortController();
-    const params = new URLSearchParams({ filter: assignment });
-    if (assignment === "offboarded") params.set("page", String(offboardedPage));
-    if (current_site?.id) params.set("site_id", String(current_site.id));
-    const scope = params.toString();
-    const retain = workScope.current === scope;
-    workScope.current = scope;
-    setWork((current) => ({
-      ...(retain ? current : {}),
-      loading: true,
-      error: undefined,
-    }));
-    api<FollowUpResponse>(`/api/clinic/operations/follow_ups?${params}`, {
-      signal: abort.signal,
-    })
-      .then((data) => setWork({ loading: false, data }))
-      .catch((error: unknown) => {
-        if (!abort.signal.aborted)
-          setWork((current) => ({
-            ...current,
-            loading: false,
-            error: errorMessage(error),
-          }));
-      });
-    return () => abort.abort();
-  }, [
-    assignment,
-    canLoadWork,
-    current_site?.id,
-    offboardedPage,
-    refreshRevision,
-  ]);
-
-  useEffect(() => {
-    if (!canLoadLabs) return;
-    const abort = new AbortController();
-    setLabReviews((current) => ({
-      ...current,
-      loading: true,
-      error: undefined,
-    }));
-    setLabFollowUps((current) => ({
-      ...current,
-      loading: true,
-      error: undefined,
-    }));
-    api<LabReviewResponse>(
-      "/api/clinic/lab_reports/review_queue?page=1&per_page=50",
-      {
-        signal: abort.signal,
-      },
-    )
-      .then((data) => setLabReviews({ loading: false, data }))
-      .catch((error: unknown) => {
-        if (!abort.signal.aborted)
-          setLabReviews({ loading: false, error: errorMessage(error) });
-      });
-    api<LabFollowUpResponse>(
-      "/api/clinic/lab_reports/follow_up_queue?page=1&per_page=50",
-      {
-        signal: abort.signal,
-      },
-    )
-      .then((data) => setLabFollowUps({ loading: false, data }))
-      .catch((error: unknown) => {
-        if (!abort.signal.aborted)
-          setLabFollowUps({ loading: false, error: errorMessage(error) });
-      });
-    return () => abort.abort();
-  }, [canLoadLabs, refreshRevision]);
 
   useEffect(() => {
     if (!canLoadRefills) return;
@@ -2019,31 +2063,14 @@ export function WorkInbox() {
           ...exceptionSourceErrors,
         ]
   ).filter(Boolean);
-  const returnedWorkCount = work.data
-    ? work.data.requests.length +
-      work.data.encounter_follow_ups.length +
-      work.data.clinical_tasks.length
-    : 0;
-  const expectedWorkCount = work.data
-    ? assignment === "offboarded"
-      ? work.data.clinical_tasks.length
-      : work.data.summary[assignment === "all" ? "open" : assignment] +
-        work.data.encounter_summary[
-          assignment === "all" ? "open" : assignment
-        ] +
-        work.data.clinical_task_summary[
-          assignment === "all" ? "open" : assignment
-        ]
-    : 0;
   const queuesTruncated =
-    work.data?.renewal_exceptions_truncated === true ||
-    expectedWorkCount > returnedWorkCount ||
+    (assignment !== "offboarded" &&
+      work.data &&
+      work.data.clinical_task_summary[
+        assignment === "all" ? "open" : assignment
+      ] > work.data.clinical_tasks.length) ||
     (assignment === "all" &&
-      ((labReviews.data?.pagination.total ?? 0) >
-        (labReviews.data?.items.length ?? 0) ||
-        (labFollowUps.data?.pagination.total ?? 0) >
-          (labFollowUps.data?.items.length ?? 0) ||
-        exceptions.data?.sources.unsigned_notes.truncated === true ||
+      (exceptions.data?.sources.unsigned_notes.truncated === true ||
         exceptions.data?.sources.payment_exceptions.truncated === true));
   const hasAnyAccess =
     canLoadCallbacks ||
@@ -2052,6 +2079,23 @@ export function WorkInbox() {
     canLoadRefills ||
     canLoadExceptions ||
     canLoadScheduledVisits;
+  const hasOtherSourcePages = Boolean(
+    (work.data &&
+      (work.data.staff_requests_page.total > work.data.requests.length ||
+        work.data.encounter_follow_ups_page.total >
+          work.data.encounter_follow_ups.length ||
+        work.data.renewal_exceptions_page.total >
+          (work.data.renewal_exceptions?.length ?? 0) ||
+        (assignment === "offboarded" &&
+          work.data.offboarded_tasks_page.total >
+            work.data.clinical_tasks.length))) ||
+    (assignment === "all" &&
+      labReviews.data &&
+      labReviews.data.pagination.total > labReviews.data.items.length) ||
+    ((assignment === "all" || assignment === "overdue") &&
+      labFollowUps.data &&
+      labFollowUps.data.pagination.total > labFollowUps.data.items.length),
+  );
 
   const flowItems = useMemo(() => {
     const patientFlowItems = items.filter((item) => !item.patientFlowHidden);
@@ -2160,9 +2204,9 @@ export function WorkInbox() {
       )}
       {queuesTruncated && (
         <Alert severity="info">
-          This view shows the first available items from one or more queues.
-          Open the linked workspaces or dedicated Operations queues to continue
-          the full list.
+          Some additional clinical tasks or exception sources have a limited
+          inbox preview. Open the linked workspaces or dedicated Operations
+          queues to continue the full list.
         </Alert>
       )}
 
@@ -2180,6 +2224,7 @@ export function WorkInbox() {
           onChange={(_, value: AssignmentFilter) => {
             setAssignment(value);
             setOffboardedPage(1);
+            setPageState(freshInboxPages(`${value}:${workType}`));
             const url = new URL(window.location.href);
             if (value === "offboarded")
               url.searchParams.set("assignment", value);
@@ -2213,7 +2258,9 @@ export function WorkInbox() {
                 of {Math.max(1, work.data.offboarded_tasks_page.total_pages)}
               </Typography>
               <Button
-                disabled={work.data.offboarded_tasks_page.page <= 1}
+                disabled={
+                  work.loading || work.data.offboarded_tasks_page.page <= 1
+                }
                 onClick={() =>
                   setOffboardedPage(work.data!.offboarded_tasks_page.page - 1)
                 }
@@ -2231,6 +2278,68 @@ export function WorkInbox() {
               >
                 Next
               </Button>
+            </Stack>
+          )}
+          {assignment !== "offboarded" && (
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              {canLoadWork && (
+                <>
+                  <QueuePageControls
+                    label="Staff requests"
+                    page={work.data?.staff_requests_page}
+                    requestedPage={pages.staff}
+                    loading={work.loading}
+                    error={work.error}
+                    onPage={(page) => changePage("staff", page)}
+                    onRetry={() => setRefreshRevision((value) => value + 1)}
+                  />
+                  <QueuePageControls
+                    label="Encounter follow-ups"
+                    page={work.data?.encounter_follow_ups_page}
+                    requestedPage={pages.encounters}
+                    loading={work.loading}
+                    error={work.error}
+                    onPage={(page) => changePage("encounters", page)}
+                    onRetry={() => setRefreshRevision((value) => value + 1)}
+                  />
+                  {assignment === "all" && !current_site && (
+                    <QueuePageControls
+                      label="Renewal exceptions"
+                      page={work.data?.renewal_exceptions_page}
+                      requestedPage={pages.renewals}
+                      loading={work.loading}
+                      error={work.error}
+                      onPage={(page) => changePage("renewals", page)}
+                      onRetry={() => setRefreshRevision((value) => value + 1)}
+                    />
+                  )}
+                </>
+              )}
+              {canLoadLabs && assignment === "all" && (
+                <>
+                  <QueuePageControls
+                    label="Lab review"
+                    page={labReviews.data?.pagination}
+                    requestedPage={pages.labReview}
+                    loading={labReviews.loading}
+                    error={labReviews.error}
+                    onPage={(page) => changePage("labReview", page)}
+                    onRetry={() => setRefreshRevision((value) => value + 1)}
+                  />
+                </>
+              )}
+              {canLoadLabs &&
+                (assignment === "all" || assignment === "overdue") && (
+                  <QueuePageControls
+                    label="Lab follow-up"
+                    page={labFollowUps.data?.pagination}
+                    requestedPage={pages.labFollowUp}
+                    loading={labFollowUps.loading}
+                    error={labFollowUps.error}
+                    onPage={(page) => changePage("labFollowUp", page)}
+                    onRetry={() => setRefreshRevision((value) => value + 1)}
+                  />
+                )}
             </Stack>
           )}
           <Stack
@@ -2256,9 +2365,12 @@ export function WorkInbox() {
                 labelId="work-type-filter-label"
                 label="Work type"
                 value={workType}
-                onChange={(event) =>
-                  setWorkType(event.target.value as WorkType)
-                }
+                onChange={(event) => {
+                  const value = event.target.value as WorkType;
+                  setWorkType(value);
+                  setOffboardedPage(1);
+                  setPageState(freshInboxPages(`${assignment}:${value}`));
+                }}
               >
                 {(Object.keys(workTypeLabels) as WorkType[]).map((value) => (
                   <MenuItem key={value} value={value}>
@@ -2285,10 +2397,15 @@ export function WorkInbox() {
               <AssignmentOutlinedIcon
                 sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
               />
-              <Typography variant="h6">No matching work</Typography>
+              <Typography variant="h6">
+                {hasOtherSourcePages
+                  ? "No matching work on the loaded pages"
+                  : "No matching work"}
+              </Typography>
               <Typography color="text.secondary">
-                Try another scope or work type. New authorized work will appear
-                here when it is created.
+                {hasOtherSourcePages
+                  ? "Filters apply to the loaded pages. Navigate source pages to check the remaining work."
+                  : "Try another scope or work type. New authorized work will appear here when it is created."}
               </Typography>
             </Box>
           )}

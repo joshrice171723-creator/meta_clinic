@@ -419,6 +419,17 @@ export type PatientCareSummary = {
   review_needed: boolean | null;
   review_needed_topics: string[] | null;
 };
+export type IntakeQuestionFollowUpRecord = {
+  reason: string;
+  next_action: string;
+  question: import("../features/patientPortal/IntakeQuestions").IntakeField;
+  source_answer: import("../features/patientPortal/IntakeQuestions").IntakeAnswer;
+  source_form_id: string;
+  source_questionnaire_version: number;
+  source_revision_version: number;
+  recorded_by_membership_id: number;
+  recorded_at: string;
+};
 export type EncounterIntakeRevision = {
   questionnaire?: {
     answers: import("../features/patientPortal/IntakeQuestions").IntakeAnswers;
@@ -429,6 +440,7 @@ export type EncounterIntakeRevision = {
     confirmed_chunks?: number[];
     recorder?: "patient" | "staff";
     staff_confirmation?: boolean;
+    question_follow_up?: Record<string, IntakeQuestionFollowUpRecord>;
     evidence_references?: Array<{
       key: string;
       kind: string;
@@ -629,6 +641,7 @@ export type ClinicalRevisionBase = {
   recorded_at: string;
 };
 export type MedicationRequestRevision = ClinicalRevisionBase & {
+  substitution_instruction?: "allowed" | "not_allowed" | null;
   fulfillment_route?:
     "outside_pharmacy" | "take_home" | "administration" | null;
   medication_strength?: string | null;
@@ -1407,6 +1420,23 @@ export type ClinicWorkspaceContext = {
   current_site: ClinicSite | null;
   sites: ClinicSite[];
 };
+export type ServiceDisablePreview = {
+  site_id: number | null;
+  revision: number;
+  generated_at: string;
+  impact_digest: string;
+  preservation: string;
+  services: Array<{
+    service: ClinicServiceCode;
+    status: "available" | "restricted" | "not_mapped";
+    open_records: number | null;
+    open_tasks: number | null;
+    unassigned_tasks: number | null;
+    effect: string;
+    resolution: string;
+    resolution_path: string | null;
+  }>;
+};
 export type PracticeFeatures = {
   site_id?: number | null;
   site_specialty_configured?: boolean;
@@ -1534,6 +1564,11 @@ export type CalendarSlot = {
   ends_at: string;
   clinician_id: number;
   room_ids: number[];
+  /** Read-only source metadata; booking still rechecks current capacity. */
+  provenance: {
+    generated_at: string;
+    source_rules: { id: number; version: number }[];
+  };
 };
 export type CalendarHold = {
   id: number;

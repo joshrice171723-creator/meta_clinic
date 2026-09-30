@@ -160,7 +160,9 @@ Rails.application.routes.draw do
     get "reports/prescription_simulator_activity", to: "reports/prescription_simulator_activity#show"
     get "reports/current_stock", to: "reports/current_stock#show"
     get "reports/daily_cash_drawers", to: "reports/daily_cash_drawers#show"
-    resources :day_end_reviews, controller: "reports/day_end_reviews", only: %i[index create]
+    resources :day_end_reviews, controller: "reports/day_end_reviews", only: %i[index create] do
+      get :preview, on: :collection
+    end
     get "reports/scribe_activity", to: "reports/scribe_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
@@ -197,6 +199,7 @@ Rails.application.routes.draw do
     get "patients/:patient_id/medication_request_series", to: "care/prescription_order_series#index"
     get "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#index"
     post "patients/:patient_id/medication_requests/:medication_request_id/events", to: "care/prescription_events#create"
+    post "patients/:patient_id/medication_requests/:medication_request_id/prepare", to: "care/prescription_events#prepare"
     post "patients/:patient_id/medication_requests/:medication_request_id/submit", to: "care/prescription_events#submit"
     post "patients/:patient_id/medication_requests/:medication_request_id/dispenses", to: "care/prescription_events#dispense"
     get "patients/:patient_id/encounters/:encounter_id/clinical_plan_workspace",
@@ -314,6 +317,8 @@ Rails.application.routes.draw do
     post "subscription_catalog/packages/:id/publish", to: "care/subscription_catalog#publish"
     post "subscription_catalog/:kind/:id/retire", to: "care/subscription_catalog#retire"
     resources :subscriptions, controller: "billing/subscriptions", only: :index do
+      post :entitlement, on: :member
+      get :entitlements, on: :member
       post :reconcile_ledger, on: :member
       post :review, on: :member
       post :reconcile, on: :member
@@ -383,6 +388,8 @@ Rails.application.routes.draw do
       post "purchase-orders/:id/returns", to: "inventory/reconciliations#return_stock"
       post "purchase-orders/:id/credits", to: "inventory/reconciliations#credit"
       post "purchase-orders/:id/invoices", to: "inventory/reconciliations#invoice"
+      get "purchase-orders/:id/delivery-preparations", to: "inventory/delivery_preparations#index"
+      post "purchase-orders/:id/delivery-preparations", to: "inventory/delivery_preparations#create"
       post "purchase-orders/:id/transition", to: "inventory/management#transition_purchase_order"
       post "purchase-orders/:id/cancel-remainder", to: "inventory/management#cancel_remainder"
       post "shipments", to: "inventory/management#create_shipment"

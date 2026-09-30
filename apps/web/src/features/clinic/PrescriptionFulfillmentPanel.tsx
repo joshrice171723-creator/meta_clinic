@@ -34,6 +34,26 @@ type PharmacyDestination = {
   pharmacy_identifier: string | null;
   active: boolean;
 };
+type Preparation = {
+  id: number;
+  medication_request_revision_id: number;
+  pharmacy_destination_id: number;
+  review_event_id: number;
+  payload_digest: string;
+  prepared_at: string;
+  source: "local_preparation";
+  state: "prepared" | "submitted";
+  current: boolean;
+  submission_attempt_id: number | null;
+  submission_outcome: string | null;
+  mode: "standard" | "controlled_test";
+  signer_snapshot: Record<string, string>;
+  reviewer_snapshot: Record<string, string>;
+  destination_snapshot: Pick<
+    PharmacyDestination,
+    "id" | "name" | "city" | "state_code" | "postal_code"
+  >;
+};
 type TransmissionAttempt = {
   id: number;
   medication_request_revision_id: number;
@@ -42,6 +62,15 @@ type TransmissionAttempt = {
   adapter: "simulated_pharmacy_network";
   mode: "standard" | "controlled_test";
   outcome: string;
+  request_key: string;
+  source: "simulation" | null;
+  transaction_type: "NewRx" | null;
+  schema_version: string | null;
+  payload_digest: string | null;
+  correlation_id: string | null;
+  review_event_id: number | null;
+  prior_attempt_id: number | null;
+  preparation_id: number | null;
   signer_snapshot: Record<string, string>;
   reviewer_snapshot: Record<string, string>;
   destination_snapshot: Pick<
@@ -50,6 +79,29 @@ type TransmissionAttempt = {
   >;
   submitted_at: string;
 };
+
+export function PrescriptionAttemptEvidence({
+  attempt,
+}: {
+  attempt: TransmissionAttempt;
+}) {
+  return (
+    <Typography variant="body2">
+      Simulated pharmacy network · {attempt.mode.replaceAll("_", " ")} ·{" "}
+      {attempt.outcome.replaceAll("_", " ")} ·{" "}
+      {attempt.destination_snapshot.name} ·{" "}
+      {new Date(attempt.submitted_at).toLocaleString()}
+      {attempt.review_event_id && attempt.correlation_id
+        ? ` · ${attempt.transaction_type} · version record ${attempt.medication_request_revision_id} · review #${attempt.review_event_id} · correlation ${attempt.correlation_id}${attempt.prior_attempt_id ? ` · follows attempt #${attempt.prior_attempt_id}` : ""}`
+        : " · Historical attempt provenance unavailable"}
+      {attempt.preparation_id
+        ? ` · preparation #${attempt.preparation_id}`
+        : " · Historical preparation unavailable"}
+      {attempt.mode === "controlled_test" &&
+        ` · signer ${attempt.signer_snapshot.state ?? "unknown"} · reviewer ${attempt.reviewer_snapshot.state ?? "unknown"}`}
+    </Typography>
+  );
+}
 type Dispense = {
   id: number;
   original_dispense_id: number | null;
@@ -65,6 +117,7 @@ type Evidence = {
   remaining_quantity: string | null;
   transmission_available: true;
   attempts: TransmissionAttempt[];
+  preparations: Preparation[];
 };
 type Batch = {
   batch_id: number;
@@ -238,10 +291,27 @@ export function PrescriptionFulfillmentPanel({
       },
     });
   }
+  function prepare() {
+    if (!destination) return;
+    void execute({
+      path: `${path}/prepare`,
+      body: {
+        prescription_preparation: {
+          pharmacy_destination_id: destination.id,
+          mode: simulationMode,
+          signer_state:
+            simulationMode === "controlled_test" ? signerState : undefined,
+          reviewer_state:
+            simulationMode === "controlled_test" ? reviewerState : undefined,
+          request_key: crypto.randomUUID(),
+        },
+      },
+    });
+  }
   function submit() {
-    if (!destination) {
+    if (!destination || !preparation) {
       setError(
-        "Choose the pharmacy that should receive this simulated submission.",
+        "Save a current preparation for this prescription and pharmacy first.",
       );
       return;
     }
@@ -249,6 +319,7 @@ export function PrescriptionFulfillmentPanel({
       path: `${path}/submit`,
       body: {
         prescription_submission: {
+          preparation_id: preparation.id,
           pharmacy_destination_id: destination.id,
           scenario,
           mode: simulationMode,
@@ -353,8 +424,30 @@ export function PrescriptionFulfillmentPanel({
       "revoked",
       "duplicate",
     ].includes(latest.kind);
+  const preparation = evidence?.preparations
+    ?.filter(
+      (item) =>
+        item.current &&
+        item.state === "prepared" &&
+        item.medication_request_revision_id === orderId &&
+        item.pharmacy_destination_id === destination?.id &&
+        item.mode === simulationMode &&
+        (simulationMode === "standard" ||
+          (item.signer_snapshot.state === signerState &&
+            item.reviewer_snapshot.state === reviewerState)),
+    )
+    .at(-1);
+  const reviewed = evidence?.events.some(
+    (item) =>
+      item.kind === "review" &&
+      item.source === "manual" &&
+      item.medication_request_revision_id === orderId,
+  );
   const unavailable = busy || pending !== null || !evidence;
   const disabled = unavailable || !canWrite;
+  const substitutionUnresolved =
+    order?.fulfillment_route === "outside_pharmacy" &&
+    !["allowed", "not_allowed"].includes(order.substitution_instruction ?? "");
   return (
     <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
       <Stack spacing={2}>
@@ -403,6 +496,13 @@ export function PrescriptionFulfillmentPanel({
             Quantity {order.prescribed_quantity ?? "not recorded"}{" "}
             {order.quantity_unit} · Refills {order.refills ?? "not recorded"}
             <br />
+            Substitution:{" "}
+            {order.substitution_instruction === "allowed"
+              ? "Allowed"
+              : order.substitution_instruction === "not_allowed"
+                ? "Not allowed"
+                : "Unresolved — choose before review or submission"}
+            <br />
             {order.fulfillment_route?.replaceAll("_", " ") ??
               "Fulfillment not selected"}{" "}
             · {order.pharmacy_name} {order.pharmacy_location}
@@ -416,7 +516,7 @@ export function PrescriptionFulfillmentPanel({
           onChange={(event) => setNote(event.target.value)}
         />
         <Button
-          disabled={disabled || !!unresolved}
+          disabled={disabled || !!unresolved || substitutionUnresolved}
           onClick={() => event("review", "manual")}
         >
           Confirm current prescription review
@@ -593,7 +693,24 @@ export function PrescriptionFulfillmentPanel({
                   </MenuItem>
                 ))}
               </TextField>
-              <Button disabled={disabled || !destination} onClick={submit}>
+              <Button
+                disabled={
+                  disabled ||
+                  !destination ||
+                  !reviewed ||
+                  substitutionUnresolved ||
+                  !!preparation
+                }
+                onClick={prepare}
+              >
+                Save prescription preparation
+              </Button>
+              <Button
+                disabled={
+                  disabled || !destination || !preparation || substitutionUnresolved
+                }
+                onClick={submit}
+              >
                 Submit to pharmacy (simulated)
               </Button>
             </Stack>
@@ -604,15 +721,21 @@ export function PrescriptionFulfillmentPanel({
             submission can be simulated.
           </Alert>
         )}
-        {evidence?.attempts.map((attempt) => (
-          <Typography key={attempt.id} variant="body2">
-            Simulated pharmacy network · {attempt.mode.replaceAll("_", " ")} ·{" "}
-            {attempt.outcome.replaceAll("_", " ")} ·{" "}
-            {attempt.destination_snapshot.name} ·{" "}
-            {new Date(attempt.submitted_at).toLocaleString()}
-            {attempt.mode === "controlled_test" &&
-              ` · signer ${attempt.signer_snapshot.state ?? "unknown"} · reviewer ${attempt.reviewer_snapshot.state ?? "unknown"}`}
+        {evidence?.preparations?.map((item) => (
+          <Typography key={item.id} variant="body2">
+            Preparation #{item.id} · version record{" "}
+            {item.medication_request_revision_id} · review #{item.review_event_id} ·{" "}
+            {item.destination_snapshot.name} ·{" "}
+            {new Date(item.prepared_at).toLocaleString()} ·{" "}
+            {item.state === "submitted"
+              ? `Linked simulated attempt #${item.submission_attempt_id}: ${item.submission_outcome?.replaceAll("_", " ")}`
+              : item.current
+                ? "Prepared locally; not submitted"
+                : "Source changed; prepare again"}
           </Typography>
+        ))}
+        {evidence?.attempts.map((attempt) => (
+          <PrescriptionAttemptEvidence key={attempt.id} attempt={attempt} />
         ))}
         {evidence?.events.map((item) => (
           <Typography key={item.id} variant="body2">

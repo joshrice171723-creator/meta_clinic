@@ -1,5 +1,8 @@
 module Clinic
   class PracticeFeaturesController < ApiController
+    rescue_from Clinic::Configuration::ServiceDisablePreview::Stale do |error|
+      render json: { error: error.message, code: "service_impact_changed" }, status: :conflict
+    end
     before_action -> { require_capability_with_legacy("facilities.read", "appointments.book", any_site: true) }, only: :show
     before_action -> { require_capability_with_legacy("facilities.write", "appointments.write", any_site: true) }, only: :update
 
@@ -20,6 +23,14 @@ module Clinic
 
     def show
       site = feature_site
+      if params[:preview_service_change] == "1"
+        site = feature_site(params[:site_id], current_fallback: false)
+        render json: { preview: Clinic::Configuration::ServiceDisablePreview.call(
+          practice: current_practice, actor: current_user, site:,
+          service_scope: params[:service_scope], expected_revision: bounded_integer!(params[:expected_revision], field: :expected_revision)
+        ) }
+        return
+      end
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
         action: "facilities.read", site:) if site
       render json: { features: feature_snapshot(site:) }
@@ -28,7 +39,7 @@ module Clinic
     def update
       input = parameter_hash!(
         :features,
-        %i[insurance_workflows_enabled clinic_type expected_revision request_key finalize site_id],
+        %i[insurance_workflows_enabled clinic_type expected_revision request_key finalize site_id expected_impact_digest],
         arrays: %i[service_scope assessment_scope]
       )
       raise ArgumentError, "insurance_workflows_enabled is required" unless input.key?(:insurance_workflows_enabled)
@@ -41,7 +52,8 @@ module Clinic
         request_key: input[:request_key], expected_revision: input[:expected_revision],
         insurance_workflows_enabled: input[:insurance_workflows_enabled],
         clinic_type: input[:clinic_type], service_scope: input[:service_scope],
-        assessment_scope: input[:assessment_scope], finalize: input[:finalize] == true
+        assessment_scope: input[:assessment_scope], finalize: input[:finalize] == true,
+        expected_impact_digest: input[:expected_impact_digest]
       )
       render json: { features: features }
     end

@@ -20,13 +20,14 @@ import {
 } from "@mui/material";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import { isDemoFrame } from "../demo/frame";
 import type {
   ClinicAssessmentCode,
   ClinicServiceCode,
   ClinicType,
   PracticeFeatures,
+  ServiceDisablePreview,
 } from "../../api/contracts";
 import { LoadState, useResource } from "../../shared/ui";
 
@@ -329,6 +330,22 @@ export function PracticeFeatureSettings({
   const [insuranceEnabled, setInsuranceEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const request = useRef<{ signature: string; key: string } | null>(null);
+  const [preview, setPreview] = useState<{
+    signature: string;
+    data: ServiceDisablePreview;
+  } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [uncertain, setUncertain] = useState<{
+    signature: string;
+    body: Record<string, unknown>;
+    finalized: boolean;
+  } | null>(null);
+  const mutationLocked = useRef(false);
+  mutationLocked.current = saving || uncertain !== null;
+  const previewGeneration = useRef(0);
+  const scopeGeneration = useRef(0);
+  const scopeRef = useRef(siteId);
+  scopeRef.current = siteId;
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     text: string;
@@ -336,12 +353,33 @@ export function PracticeFeatureSettings({
 
   const features = data?.features;
   useEffect(() => {
-    if (!features) return;
+    if (!features || mutationLocked.current) return;
     setClinicType(features.clinic_type ?? features.recommended_clinic_type);
     setServiceScope(features.service_scope);
     setAssessmentScope(features.assessment_scope);
     setInsuranceEnabled(features.insurance_workflows_enabled);
   }, [features]);
+
+  useEffect(() => {
+    scopeGeneration.current += 1;
+    previewGeneration.current += 1;
+    setPreview(null);
+    setPreviewing(false);
+    setUncertain(null);
+    request.current = null;
+    setSaving(false);
+    setFeedback(null);
+  }, [siteId]);
+  const signature = JSON.stringify([
+    clinicType,
+    serviceScope,
+    assessmentScope,
+    insuranceEnabled,
+    features?.revision,
+    siteId,
+  ]);
+  const signatureRef = useRef(signature);
+  signatureRef.current = signature;
 
   const changed = useMemo(
     () =>
@@ -355,6 +393,58 @@ export function PracticeFeatureSettings({
   );
 
   if (!features) return <LoadState error={error} />;
+
+  const disabling =
+    features.finalized === true &&
+    features.service_scope.some((service) => !serviceScope.includes(service));
+  const currentPreview = preview?.signature === signature ? preview.data : null;
+  const editingLocked = saving || uncertain !== null;
+  const reviewConsequences = async () => {
+    const generation = ++previewGeneration.current;
+    setPreview(null);
+    setPreviewing(true);
+    setFeedback(null);
+    const query = new URLSearchParams({
+      preview_service_change: "1",
+      expected_revision: String(features.revision),
+    });
+    if (siteId) query.set("site_id", String(siteId));
+    for (const service of serviceScope)
+      query.append("service_scope[]", service);
+    try {
+      const result = await api<{ preview: ServiceDisablePreview }>(
+        `/api/clinic/practice_features?${query}`,
+      );
+      if (
+        generation !== previewGeneration.current ||
+        signatureRef.current !== signature
+      )
+        return;
+      if (
+        result.preview.site_id !== siteId ||
+        result.preview.revision !== features.revision
+      )
+        throw new Error(
+          "The preview belongs to a different profile. Review again.",
+        );
+      setPreview({ signature, data: result.preview });
+    } catch (reason) {
+      if (
+        generation !== previewGeneration.current ||
+        signatureRef.current !== signature
+      )
+        return;
+      setFeedback({
+        tone: "error",
+        text:
+          reason instanceof Error
+            ? reason.message
+            : "Unable to review service consequences. Try again.",
+      });
+    } finally {
+      if (generation === previewGeneration.current) setPreviewing(false);
+    }
+  };
 
   const setupSteps = [
     {
@@ -378,6 +468,7 @@ export function PracticeFeatureSettings({
   const nextSetupStep = setupSteps[nextSetupStepIndex];
 
   const toggleService = (code: ClinicServiceCode, selected: boolean) => {
+    if (!canWrite || editingLocked) return;
     setServiceScope((current) =>
       selected
         ? [...current, code].filter(
@@ -388,6 +479,7 @@ export function PracticeFeatureSettings({
     setFeedback(null);
   };
   const toggleAssessment = (code: ClinicAssessmentCode, selected: boolean) => {
+    if (!canWrite || editingLocked) return;
     setAssessmentScope((current) =>
       selected
         ? [...current, code].filter(
@@ -404,45 +496,76 @@ export function PracticeFeatureSettings({
     setInsuranceEnabled(false);
     setFeedback(null);
   };
-  const save = async (finalize = false) => {
+  const save = async (finalize = false, retry = false) => {
+    if (uncertain && !retry) return;
+    if (!retry && disabling && !currentPreview) return;
     setSaving(true);
     setFeedback(null);
-    const signature = JSON.stringify([
-      clinicType,
-      serviceScope,
-      assessmentScope,
-      insuranceEnabled,
-      features.revision,
-      siteId,
+    const writeSignature = JSON.stringify([
+      signature,
       finalize,
+      currentPreview?.impact_digest,
     ]);
-    if (request.current?.signature !== signature)
-      request.current = { signature, key: crypto.randomUUID() };
+    if (!retry && request.current?.signature !== writeSignature)
+      request.current = { signature: writeSignature, key: crypto.randomUUID() };
+    const attempt =
+      retry && uncertain
+        ? uncertain
+        : {
+            signature: writeSignature,
+            finalized: finalize,
+            body: {
+              ...(siteId ? { site_id: siteId } : {}),
+              clinic_type: clinicType,
+              service_scope: [...serviceScope],
+              assessment_scope: [...assessmentScope],
+              insurance_workflows_enabled: insuranceEnabled,
+              expected_revision: features.revision,
+              request_key: request.current!.key,
+              finalize,
+              ...(disabling
+                ? { expected_impact_digest: currentPreview!.impact_digest }
+                : {}),
+            },
+          };
+    const attemptSite = siteId;
+    const attemptGeneration = scopeGeneration.current;
     try {
       await api("/api/clinic/practice_features", {
         method: "PUT",
-        body: {
-          features: {
-            ...(siteId ? { site_id: siteId } : {}),
-            clinic_type: clinicType,
-            service_scope: serviceScope,
-            assessment_scope: assessmentScope,
-            insurance_workflows_enabled: insuranceEnabled,
-            expected_revision: features.revision,
-            request_key: request.current.key,
-            finalize,
-          },
-        },
+        body: { features: attempt.body },
       });
+      if (
+        scopeRef.current !== attemptSite ||
+        scopeGeneration.current !== attemptGeneration
+      )
+        return;
+      setUncertain(null);
+      setPreview(null);
+      request.current = null;
       setFeedback({
         tone: "success",
-        text: finalize
+        text: attempt.finalized
           ? "Setup finalized. Clinic-managed settings remain available."
           : "Clinic profile saved. The selected starter forms and visit types are ready to configure.",
       });
-      onProfileSaved?.(finalize);
+      onProfileSaved?.(attempt.finalized);
       refresh();
     } catch (reason) {
+      if (
+        scopeRef.current !== attemptSite ||
+        scopeGeneration.current !== attemptGeneration
+      )
+        return;
+      const rejected =
+        reason instanceof ApiError &&
+        reason.code !== "outcome_unconfirmed" &&
+        [400, 401, 403, 404, 409, 422].includes(reason.status);
+      setUncertain(rejected ? null : attempt);
+      if (rejected) {
+        setPreview(null);
+        request.current = null;
+      }
       setFeedback({
         tone: "error",
         text:
@@ -451,7 +574,11 @@ export function PracticeFeatureSettings({
             : "Unable to save the clinic profile.",
       });
     } finally {
-      setSaving(false);
+      if (
+        scopeRef.current === attemptSite &&
+        scopeGeneration.current === attemptGeneration
+      )
+        setSaving(false);
     }
   };
 
@@ -479,11 +606,7 @@ export function PracticeFeatureSettings({
               ? `Next: ${nextSetupStep.label}.`
               : `${siteId ? "Location" : "Clinic"} profile setup is complete. Workforce settings are managed separately under Workforce.`}
           </Typography>
-          <Stack
-            component="ol"
-            spacing={0.5}
-            sx={{ m: 0, pl: 2.5 }}
-          >
+          <Stack component="ol" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
             {setupSteps.map((step, index) => (
               <li key={step.label}>
                 <Stack
@@ -588,7 +711,9 @@ export function PracticeFeatureSettings({
             ))}
         </Stack>
 
-        <FormControl disabled={!canWrite || saving || features.finalized}>
+        <FormControl
+          disabled={!canWrite || editingLocked || features.finalized}
+        >
           <FormLabel id="clinic-type-label">
             1. {siteId ? "Location specialty" : "Clinic type"}
           </FormLabel>
@@ -634,7 +759,7 @@ export function PracticeFeatureSettings({
 
         <Divider />
 
-        <FormControl disabled={!canWrite || saving}>
+        <FormControl disabled={!canWrite || editingLocked}>
           <FormLabel component="legend">
             {`2. Services this ${siteId ? "location" : "clinic"} intends to provide`}
           </FormLabel>
@@ -672,6 +797,8 @@ export function PracticeFeatureSettings({
                     control={
                       <Checkbox
                         disabled={
+                          editingLocked ||
+                          !canWrite ||
                           (features.finalized &&
                             !features.selected_services?.includes(
                               service.code,
@@ -723,7 +850,7 @@ export function PracticeFeatureSettings({
 
         <Divider />
 
-        <FormControl disabled={!canWrite || saving}>
+        <FormControl disabled={!canWrite || editingLocked}>
           <FormLabel component="legend">
             3. Screening and assessment scope
           </FormLabel>
@@ -787,7 +914,7 @@ export function PracticeFeatureSettings({
           ) : (
             <>
               <FormControlLabel
-                disabled={!canWrite || saving || features.finalized}
+                disabled={!canWrite || editingLocked || features.finalized}
                 control={
                   <Switch
                     checked={insuranceEnabled}
@@ -810,6 +937,87 @@ export function PracticeFeatureSettings({
           )}
         </Stack>
 
+        {disabling && (
+          <Stack spacing={1}>
+            <Alert severity="warning">
+              Review the consequences before disabling new service use.
+              {siteId === null &&
+                " Locations with their own saved profiles keep those settings."}
+            </Alert>
+            <Button
+              disabled={!canWrite || editingLocked || previewing}
+              onClick={() => void reviewConsequences()}
+            >
+              {previewing
+                ? "Reviewing consequences…"
+                : "Review service consequences"}
+            </Button>
+            {currentPreview && (
+              <Paper
+                variant="outlined"
+                aria-label="Service-disable consequences"
+                sx={{ p: 2 }}
+              >
+                <Stack spacing={2}>
+                  <Typography variant="h3">
+                    Service-disable consequences
+                  </Typography>
+                  <Typography variant="caption">
+                    Profile revision {currentPreview.revision} · reviewed{" "}
+                    {new Date(currentPreview.generated_at).toLocaleString()}
+                  </Typography>
+                  {currentPreview.services.map((impact) => (
+                    <Stack key={impact.service} spacing={0.5}>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {services.find(
+                          (service) => service.code === impact.service,
+                        )?.label ?? impact.service}
+                      </Typography>
+                      <Typography variant="body2">{impact.effect}</Typography>
+                      {impact.status === "available" ? (
+                        <Typography variant="body2">
+                          Open source records: {impact.open_records}.
+                          Source-linked open tasks:{" "}
+                          {impact.open_tasks ?? "not summarized"}.
+                          {impact.unassigned_tasks !== null &&
+                            ` Unassigned tasks: ${impact.unassigned_tasks}.`}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2">
+                          Existing work: unknown (
+                          {impact.status === "restricted"
+                            ? "requires domain access"
+                            : "workflow not mapped"}
+                          ).
+                        </Typography>
+                      )}
+                      <Typography variant="body2">
+                        {impact.resolution}
+                      </Typography>
+                      {impact.resolution_path && (
+                        <Button size="small" href={impact.resolution_path}>
+                          Open existing work
+                        </Button>
+                      )}
+                    </Stack>
+                  ))}
+                  <Typography variant="body2">
+                    {currentPreview.preservation}
+                  </Typography>
+                </Stack>
+              </Paper>
+            )}
+          </Stack>
+        )}
+        {uncertain && (
+          <Alert severity="warning">
+            The save outcome is unknown. Your original request is retained and
+            editing is paused.
+            <Button disabled={saving} onClick={() => void save(false, true)}>
+              Retry original profile save
+            </Button>
+          </Alert>
+        )}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1}
@@ -819,7 +1027,7 @@ export function PracticeFeatureSettings({
             type="button"
             color="inherit"
             startIcon={<AutoFixHighOutlinedIcon />}
-            disabled={!canWrite || saving || features.finalized}
+            disabled={!canWrite || editingLocked || features.finalized}
             onClick={applyRecommendation}
           >
             Use recommended starting scope
@@ -828,7 +1036,7 @@ export function PracticeFeatureSettings({
             <Button
               id="clinic-setup-finalize"
               data-demo-next
-              disabled={!canWrite || saving || changed}
+              disabled={!canWrite || editingLocked || changed}
               onClick={() => void save(true)}
             >
               Finalize {siteId ? "location" : "clinic"} setup
@@ -839,13 +1047,18 @@ export function PracticeFeatureSettings({
             variant="contained"
             data-demo-next
             startIcon={<SaveOutlinedIcon />}
-            disabled={!canWrite || saving || (!changed && features.configured)}
+            disabled={
+              !canWrite ||
+              editingLocked ||
+              (!changed && features.configured) ||
+              (disabling && !currentPreview)
+            }
             onClick={() => void save()}
           >
             {saving ? "Saving profile…" : "Save clinic profile"}
           </Button>
         </Stack>
-        {canWrite && features.revision > 1 && (
+        {canWrite && !editingLocked && features.revision > 1 && (
           <FeatureHistory
             key={siteId ?? "clinic"}
             siteId={siteId}

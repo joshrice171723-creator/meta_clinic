@@ -3,6 +3,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -52,6 +53,7 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
 import { useWorkingDraft } from "./useWorkingDraft";
+import { registrationLanguageSuggestions } from "./registrationLanguageSuggestions";
 
 type LegacyNote = {
   id: number;
@@ -556,8 +558,10 @@ function PatientSubmittedIdentityReview({
   values,
   onEdit,
   onProceed,
+  correction,
 }: {
   values: RegistrationValues;
+  correction?: { patientId: number; before: RegistrationValues };
   onEdit: () => void;
   onProceed: () => void;
 }) {
@@ -589,6 +593,7 @@ function PatientSubmittedIdentityReview({
             new Map(
               responses
                 .flatMap((response) => response.patients)
+                .filter((patient) => patient.id !== correction?.patientId)
                 .map((patient) => [patient.id, patient]),
             ).values(),
           ),
@@ -609,12 +614,40 @@ function PatientSubmittedIdentityReview({
         });
       });
     return () => abort.abort();
-  }, [searchSignature, revision]);
+  }, [searchSignature, revision, correction?.patientId]);
 
   return (
     <Stack spacing={1.5}>
+      {correction && (
+        <TableContainer>
+          <Table size="small" aria-label="Identity correction comparison">
+            <TableHead>
+              <TableRow>
+                <TableCell>Identity field</TableCell>
+                <TableCell>Currently saved</TableCell>
+                <TableCell>Proposed correction</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {registrationIdentityFields.map(([field, label]) => (
+                <TableRow key={field}>
+                  <TableCell component="th" scope="row">
+                    {label}
+                  </TableCell>
+                  <TableCell>
+                    {correction.before[field] || "Not recorded"}
+                  </TableCell>
+                  <TableCell>{values[field] || "Not recorded"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
       <Alert severity="info">
-        Review the identity entered in registration before creating a chart:{" "}
+        {correction
+          ? "Review the correction for this patient before saving: "
+          : "Review the identity entered in registration before creating a chart: "}
         {values.display_name || "Name not entered"} · DOB{" "}
         {values.date_of_birth || "not recorded"} · clinic reference{" "}
         {values.reference || "not entered"}.
@@ -675,19 +708,23 @@ function PatientSubmittedIdentityReview({
             </Stack>
           ) : (
             <Typography>
-              No matching patients were found for the submitted details.
+              {correction
+                ? "No other matching patients were found for the proposed identity."
+                : "No matching patients were found for the submitted details."}
             </Typography>
           )}
           {result.incomplete && (
             <Alert severity="warning">
               A search returned more than 100 records. Narrow the identity
-              details before registering.
+              details before{" "}
+              {correction ? "saving this correction" : "registering"}.
             </Alert>
           )}
           {!result.incomplete && (
             <Alert severity="warning">
-              Open an existing record if it belongs to this person. Register a
-              separate patient only after confirming these are different people.
+              {correction
+                ? "Keep editing if another record might belong to this person. Save only after confirming the correction belongs to this patient and any matches are different people. This action does not merge or relink records."
+                : "Open an existing record if it belongs to this person. Register a separate patient only after confirming these are different people."}
             </Alert>
           )}
         </>
@@ -701,7 +738,9 @@ function PatientSubmittedIdentityReview({
           onClick={onProceed}
           variant="contained"
         >
-          Register a separate patient
+          {correction
+            ? "Save identity correction"
+            : "Register a separate patient"}
         </Button>
       </Stack>
     </Stack>
@@ -1230,17 +1269,41 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
 
 type RegistrationValues = Record<string, string>;
 
+const registrationIdentityFields = [
+  ["display_name", "Name shown in chart"],
+  ["legal_name", "Legal name"],
+  ["preferred_name", "Preferred name"],
+  ["reference", "Clinic reference"],
+  ["date_of_birth", "Date of birth"],
+  ["contact_type", "Contact type"],
+  ["contact_value", "Contact value"],
+] as const;
+
 export function registrationIdentitySignature(values: RegistrationValues) {
   return JSON.stringify(
-    [
-      "display_name",
-      "legal_name",
-      "preferred_name",
-      "reference",
-      "date_of_birth",
-      "contact_type",
-      "contact_value",
-    ].map((field) => values[field]?.trim().toLocaleLowerCase() ?? ""),
+    registrationIdentityFields.map(
+      ([field]) => values[field]?.trim().toLocaleLowerCase() ?? "",
+    ),
+  );
+}
+
+function registrationIdentityCorrectionSignature(values: RegistrationValues) {
+  return JSON.stringify(
+    registrationIdentityFields.map(([field]) => values[field] ?? ""),
+  );
+}
+
+export function registrationIdentityCorrectionRequired(
+  values: RegistrationValues,
+  baseline: RegistrationValues,
+  reviewedIdentity: string | null,
+  exactRetry: boolean,
+) {
+  return (
+    !exactRetry &&
+    registrationIdentityCorrectionSignature(values) !==
+      registrationIdentityCorrectionSignature(baseline) &&
+    registrationIdentityCorrectionSignature(values) !== reviewedIdentity
   );
 }
 
@@ -1502,14 +1565,55 @@ function RegistrationConflictReview({
   );
 }
 
+function RegistrationLanguageField({
+  initialValue,
+  onSelectionChange,
+}: {
+  initialValue: string;
+  onSelectionChange: (form: HTMLFormElement) => void;
+}) {
+  const [language, setLanguage] = useState(initialValue);
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <Autocomplete
+      freeSolo
+      options={registrationLanguageSuggestions}
+      value={language || null}
+      inputValue={language}
+      onInputChange={(_event, value, reason) => {
+        if (reason === "input" || reason === "clear") setLanguage(value);
+      }}
+      onChange={(_event, value) => {
+        flushSync(() => setLanguage(value ?? ""));
+        if (input.current?.form) onSelectionChange(input.current.form);
+      }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          inputRef={input}
+          name="clinic_patient[primary_language]"
+          label="Preferred language"
+          helperText="Search suggestions or enter the patient's language in their own words."
+          slotProps={{
+            ...params.slotProps,
+            htmlInput: { ...params.slotProps.htmlInput, maxLength: 80 },
+          }}
+        />
+      )}
+    />
+  );
+}
+
 function PatientFields({
   values,
   onSaveSection,
   onCompletionChange,
+  onFieldChange,
 }: {
   values: RegistrationValues;
   onSaveSection: (form: HTMLFormElement) => Promise<boolean>;
   onCompletionChange: (complete: boolean) => void;
+  onFieldChange: (form: HTMLFormElement) => void;
 }) {
   const [expanded, setExpanded] = useState("demographics");
   const [unlocked, setUnlocked] = useState(0);
@@ -1593,12 +1697,9 @@ function PatientFields({
                 ["unknown", "Unknown"],
               ]}
             />
-            <Field
-              name="clinic_patient[primary_language]"
-              label="Preferred language"
-              required={false}
-              value={values.primary_language}
-              maxLength={80}
+            <RegistrationLanguageField
+              initialValue={values.primary_language}
+              onSelectionChange={onFieldChange}
             />
             <Field
               name="clinic_patient[interpreter_required]"
@@ -1886,6 +1987,11 @@ function PatientRegistrationEditor({
   );
   const requestKey = useRef(initialDraft?.requestKey || crypto.randomUUID());
   const expectedUpdatedAt = useRef(patient?.updated_at);
+  const formRef = useRef<HTMLFormElement>(null);
+  const identityBaseline = useRef(registrationValues(patient));
+  const reviewedCorrection = useRef<string | null>(null);
+  const [identityCorrection, setIdentityCorrection] =
+    useState<RegistrationValues | null>(null);
   const attempt = useRef<RegistrationDraft | null>(
     initialDraft?.pending ? initialDraft : null,
   );
@@ -1899,6 +2005,7 @@ function PatientRegistrationEditor({
   );
   const autosaveTimer = useRef<number | undefined>(undefined);
   const inFlight = useRef(false);
+  const completed = useRef(false);
   const [dirty, setDirty] = useState(Boolean(initialDraft));
   const [busy, setBusy] = useState(false);
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(
@@ -1985,6 +2092,7 @@ function PatientRegistrationEditor({
   return (
     <Box
       component="form"
+      ref={formRef}
       id={patient ? undefined : "patient-registration-form"}
       onInput={(event) => {
         setSectionsComplete(false);
@@ -1992,7 +2100,7 @@ function PatientRegistrationEditor({
       }}
       onSubmit={async (event) => {
         event.preventDefault();
-        if (inFlight.current) return;
+        if (inFlight.current || completed.current) return;
         const form = event.currentTarget;
         inFlight.current = true;
         if (autosaveTimer.current) {
@@ -2035,6 +2143,28 @@ function PatientRegistrationEditor({
           inFlight.current = false;
           return;
         }
+        if (
+          patient &&
+          registrationIdentityCorrectionRequired(
+            current.body.clinic_patient,
+            identityBaseline.current,
+            reviewedCorrection.current,
+            Boolean(attempt.current),
+          )
+        ) {
+          lastSnapshot.current = current;
+          if (!(await workingDraft.save(current))) {
+            setError(
+              "The working copy could not be saved. Keep this page open and retry the identity review.",
+            );
+          } else {
+            setDirty(true);
+            setError("");
+            setIdentityCorrection(current.body.clinic_patient);
+          }
+          inFlight.current = false;
+          return;
+        }
         const pending = { ...current, pending: true };
         lastSnapshot.current = pending;
         if (!(await workingDraft.save(pending))) {
@@ -2069,6 +2199,7 @@ function PatientRegistrationEditor({
             );
             return;
           }
+          completed.current = true;
           attempt.current = null;
           requestKey.current = crypto.randomUUID();
           form.reset();
@@ -2124,6 +2255,10 @@ function PatientRegistrationEditor({
                     "The latest patient version could not be confirmed.",
                   );
                 expectedUpdatedAt.current = refreshed.patient.updated_at;
+                identityBaseline.current = registrationValues(
+                  refreshed.patient,
+                );
+                reviewedCorrection.current = null;
                 const rebased = {
                   ...editable,
                   body: {
@@ -2293,6 +2428,10 @@ function PatientRegistrationEditor({
               values={initialValues}
               onCompletionChange={setSectionsComplete}
               onSaveSection={saveSection}
+              onFieldChange={(form) => {
+                setSectionsComplete(false);
+                queueAutosave(form);
+              }}
             />
           </Stack>
         </Box>
@@ -2336,7 +2475,9 @@ function PatientRegistrationEditor({
           type="submit"
           variant="contained"
           disabled={
-            busy || (!patient && !sectionsComplete && !outcomeUnconfirmed)
+            busy ||
+            completed.current ||
+            (!patient && !sectionsComplete && !outcomeUnconfirmed)
           }
         >
           {busy
@@ -2347,6 +2488,35 @@ function PatientRegistrationEditor({
                 ? "Save registration details"
                 : "Register patient"}
         </Button>
+        <Dialog
+          open={Boolean(identityCorrection)}
+          onClose={() => setIdentityCorrection(null)}
+          fullWidth
+          maxWidth="md"
+          aria-labelledby="identity-correction-title"
+        >
+          <DialogTitle id="identity-correction-title">
+            Review identity correction
+          </DialogTitle>
+          <DialogContent>
+            {patient && identityCorrection && (
+              <PatientSubmittedIdentityReview
+                values={identityCorrection}
+                correction={{
+                  patientId: patient.id,
+                  before: identityBaseline.current,
+                }}
+                onEdit={() => setIdentityCorrection(null)}
+                onProceed={() => {
+                  reviewedCorrection.current =
+                    registrationIdentityCorrectionSignature(identityCorrection);
+                  setIdentityCorrection(null);
+                  formRef.current?.requestSubmit();
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </Stack>
     </Box>
   );

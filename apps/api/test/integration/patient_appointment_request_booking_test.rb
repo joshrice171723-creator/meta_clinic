@@ -99,6 +99,57 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
       @patient_session.response.parsed_body.fetch("appointment_requests").map { |request| request.fetch("id") }
   end
 
+  test "an existing return request replays after membership changes without completing prior follow-up" do
+    grant_permissions!(@staff_membership, "patients.read", "encounters.write")
+    encounter = @practice.encounters.create!(patient: @patient, site: @site,
+      started_at: 2.days.ago, ended_at: 2.days.ago + 1.hour, status: "completed")
+    follow_up = Clinic::EncounterFollowUp.create!(practice: @practice, patient: @patient, encounter: encounter,
+      source_kind: "in_person", state: "needed", plan: "Synthetic outstanding return follow-up", outcome: "",
+      assigned_to_membership: @staff_membership,
+      recorded_by_membership: @staff_membership, updated_by_membership: @staff_membership)
+    starts_at = 2.days.from_now.change(usec: 0)
+    payload = patient_request_payload("return-before-membership-change", starts_at, starts_at + 1.hour)
+    @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    request_id = @patient_session.response.parsed_body.dig("appointment_request", "id")
+
+    @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @staff_membership,
+      status: "nonmember", version: 2, effective_from: 1.minute.ago)
+    get_patient_requests
+    assert_equal false, @patient_session.response.parsed_body.dig("options", "can_request_new_booking")
+    original_follow_up = follow_up.attributes
+    original_encounter = encounter.attributes
+    assert_no_difference "Clinic::PatientPortal::AppointmentRequest.count" do
+      assert_no_difference "Clinic::Appointment.count" do
+        @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+        assert_equal 200, @patient_session.response.status
+        assert_equal request_id, @patient_session.response.parsed_body.dig("appointment_request", "id")
+        assert_equal "pending", @patient_session.response.parsed_body.dig("appointment_request", "status")
+        assert_nil @patient_session.response.parsed_body.dig("appointment_request", "appointment")
+      end
+    end
+    assert_equal original_follow_up, follow_up.reload.attributes
+    assert_equal original_encounter, encounter.reload.attributes
+
+    @patient_session.post patient_requests_path,
+      params: patient_request_payload("fresh-return-after-membership-change", starts_at, starts_at + 1.hour),
+      headers: @patient_headers, as: :json
+    assert_equal 422, @patient_session.response.status
+    assert_equal 1, @practice.patient_portal_appointment_requests.where(request_key: "return-before-membership-change").count
+    assert_equal "needed", follow_up.reload.state
+
+    other_patient = @practice.patients.create!(display_name: "Synthetic Return Patient B", reference: "RETURN-B")
+    other_password = SecureRandom.hex(18)
+    other_user = User.create!(email_address: "synthetic-return-b@example.invalid", password: other_password)
+    Clinic::PatientPortal::Identity.create!(practice: @practice, patient: other_patient, user: other_user,
+      status: :active, invited_at: 1.day.ago, activated_at: 1.day.ago)
+    other_session, other_headers = authenticated_session(other_user, other_password)
+    other_session.post patient_requests_path, params: payload, headers: other_headers, as: :json
+    assert_equal 409, other_session.response.status
+    assert_not other_session.response.parsed_body.key?("appointment_request")
+    assert_equal original_follow_up, follow_up.reload.attributes
+  end
+
   test "inactive membership blocks new booking while callback and existing visit cancellation remain available" do
     @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @staff_membership,
       status: "nonmember", version: 2, effective_from: 1.minute.ago)
@@ -154,6 +205,14 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
 
     assert_equal 1, setting_queries.length, setting_queries.join("\n")
     assert_equal 9, @patient_session.response.parsed_body.dig("options", "visit_types").length
+  end
+
+  test "reschedule exact request replays its original snapshot after current appointment changes" do
+    assert_change_request_recovery("reschedule")
+  end
+
+  test "cancel exact request replays its original snapshot after current appointment changes" do
+    assert_change_request_recovery("cancel")
   end
 
   test "patient reschedule request updates the same appointment and is idempotent" do
@@ -448,6 +507,57 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def assert_change_request_recovery(kind)
+    source = create_appointment(starts_at: 3.days.from_now.change(usec: 0))
+    payload = appointment_change_payload("synthetic-#{kind}-snapshot-recovery", kind, source,
+      starts_at: kind == "reschedule" ? source.starts_at + 3.hours : nil,
+      ends_at: kind == "reschedule" ? source.ends_at + 3.hours : nil)
+    @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+    assert_equal 201, @patient_session.response.status
+    saved = @patient_session.response.parsed_body.fetch("appointment_request")
+    request = Clinic::PatientPortal::AppointmentRequest.find(saved.fetch("id"))
+    original_request_attributes = request.attributes
+    assert_equal kind, saved.fetch("request_kind")
+    assert_equal source.updated_at.iso8601(6), saved.dig("source_appointment", "updated_at")
+    assert_nil saved.fetch("appointment")
+    if kind == "cancel"
+      assert_nil saved.fetch("starts_at")
+      assert_nil saved.fetch("ends_at")
+    end
+
+    source.update!(starts_at: source.starts_at + 1.hour, ends_at: source.ends_at + 1.hour)
+    current_source_attributes = source.reload.attributes
+    assert_no_difference "Clinic::PatientPortal::AppointmentRequest.count" do
+      assert_no_difference "Clinic::Appointment.count" do
+        @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+        assert_equal 200, @patient_session.response.status
+        assert_equal saved, @patient_session.response.parsed_body.fetch("appointment_request")
+        assert_equal original_request_attributes, request.reload.attributes
+        assert_equal current_source_attributes, source.reload.attributes
+
+        changed = payload.deep_dup
+        changed[:appointment_request][:source_appointment_updated_at] = source.updated_at.iso8601(6)
+        @patient_session.post patient_requests_path, params: changed, headers: @patient_headers, as: :json
+        assert_equal 409, @patient_session.response.status
+        refute @patient_session.response.parsed_body.key?("appointment_request")
+
+        fresh = payload.deep_dup
+        fresh[:appointment_request][:request_key] = "synthetic-#{kind}-fresh-stale-source"
+        @patient_session.post patient_requests_path, params: fresh, headers: @patient_headers, as: :json
+        assert_equal 409, @patient_session.response.status
+        assert_equal "stale_record", @patient_session.response.parsed_body.fetch("code")
+      end
+    end
+    @identity.update!(status: "revoked", revoked_at: Time.current)
+    assert_no_difference "Clinic::PatientPortal::AppointmentRequest.count" do
+      @patient_session.post patient_requests_path, params: payload, headers: @patient_headers, as: :json
+      assert_equal 404, @patient_session.response.status
+      refute @patient_session.response.parsed_body.key?("appointment_request")
+    end
+    assert_equal original_request_attributes, request.reload.attributes
+    assert_equal current_source_attributes, source.reload.attributes
+  end
 
   def patient_requests_path
     "/api/patient_portal/appointment_requests"

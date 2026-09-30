@@ -706,6 +706,44 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
       kind: "provider", query: "")[:references]
   end
 
+  test "question follow-up is staff authorized versioned replay safe and visible to clinician" do
+    base = { status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+      history_state: "not_recorded", vitals_state: "not_recorded", observation_ids: [], history_review_ids: [] }
+    questionnaire = { text: "", status: "draft", answers: { "goals" => { "state" => "unknown", "value" => "" } },
+      question_follow_up: { "goals" => { "reason" => "Synthetic source uncertainty", "next_action" => "Discuss the recorded goal" } } }
+    request = { intake: base.merge(expected_version: 0, request_key: "question-follow-up-v1", questionnaire:) }
+    assert_no_difference "Clinic::ClinicalTask.count" do
+      post intake_path, params: request, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    original = response.parsed_body.fetch("intake")
+    assert_equal "unknown", original.dig("questionnaire", "question_follow_up", "goals", "source_answer", "state")
+    assert_equal @membership.id, original.dig("questionnaire", "question_follow_up", "goals", "recorded_by_membership_id")
+    assert_no_difference "Clinic::EncounterIntakeRevision.count" do
+      post intake_path, params: request, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal original["id"], response.parsed_body.dig("intake", "id")
+    end
+    questionnaire[:answers]["goals"] = { "state" => "declined", "value" => "" }
+    post intake_path, params: { intake: base.merge(expected_version: 1, request_key: "question-follow-up-v2", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :created
+    corrected = response.parsed_body.fetch("intake")
+    assert_equal original.dig("questionnaire", "question_follow_up"), corrected.dig("questionnaire", "question_follow_up")
+    assert_includes corrected["questionnaire_text"], "Answer changed since"
+    assert_equal "unknown", Clinic::Care::PrevisitIntake.decode(Clinic::EncounterIntakeRevision.find(original["id"]).encrypted_questionnaire).dig("answers", "goals", "state")
+    post intake_path, params: { intake: base.merge(expected_version: 1, request_key: "question-follow-up-stale", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :conflict
+    login(@clinician)
+    get workspace_path(@patient, @encounter), headers: @headers
+    assert_response :success
+    assert_includes response.parsed_body.dig("intake", "questionnaire_text"), "Discuss the recorded goal"
+    post intake_path, params: { intake: base.merge(expected_version: 2, request_key: "question-follow-up-denied", questionnaire:) },
+      headers: csrf_headers, as: :json
+    assert_response :forbidden
+  end
+
   private
 
   def workspace_path(patient, encounter)

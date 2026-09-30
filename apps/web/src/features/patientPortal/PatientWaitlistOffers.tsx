@@ -1,16 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
-import { api, ApiError } from "../../api/client";
+import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import type { WaitlistItem } from "../clinic/WaitlistWorkspace";
+import {
+  WaitlistReplySubmission,
+  type WaitlistReplyAcknowledgement,
+  type WaitlistReplyOffer,
+} from "./waitlistReplySubmission";
 
 type Offer = Omit<WaitlistItem, "patient_id" | "patient_name" | "reason">;
-type Reply = {
-  id: number;
-  action: "accept" | "decline";
-  version: number;
-  requestKey: string;
-};
 type OffersResponse = {
   entries: Offer[];
   can_accept: boolean;
@@ -22,55 +21,74 @@ export function PatientWaitlistOffers() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [statusNotice, setStatusNotice] = useState("");
   const [uncertain, setUncertain] = useState(false);
-  const attempt = useRef<Reply | null>(null);
+  const submission = useRef<WaitlistReplySubmission | null>(null);
+  useEffect(() => {
+    const owner = new WaitlistReplySubmission(async (attempt) => {
+      const result = await api<{ entry: WaitlistReplyAcknowledgement }>(
+        `/api/patient_portal/waitlist/${attempt.offer.id}`,
+        { method: "PATCH", body: attempt.body },
+      );
+      return result.entry;
+    });
+    submission.current = owner;
+    return () => {
+      owner.dispose();
+      if (submission.current === owner) submission.current = null;
+    };
+  }, []);
   const [callbackKey, setCallbackKey] = useState(() => crypto.randomUUID());
   const [callbackRequested, setCallbackRequested] = useState(false);
-  async function reply(next: Reply) {
-    if (busy) return;
-    const current = attempt.current ?? next;
-    attempt.current = current;
+  async function reply(
+    offer: WaitlistReplyOffer,
+    action: "accept" | "decline",
+  ) {
+    const owner = submission.current;
+    if (busy || !owner || owner.busy) return;
     setBusy(true);
     setError("");
     setNotice("");
+    setStatusNotice("");
     try {
-      const result = await api<{ entry: Offer }>(
-        `/api/patient_portal/waitlist/${current.id}`,
-        {
-          method: "PATCH",
-          body: {
-            waitlist: {
-              action: current.action,
-              expected_version: current.version,
-              request_key: current.requestKey,
-            },
-          },
-        },
+      const result = await owner.submit(
+        offer,
+        action,
+        resource.data?.can_accept === true,
       );
-      attempt.current = null;
+      if (submission.current !== owner || !result) return;
       setUncertain(false);
       setNotice(
-        result.entry.state === "booked"
+        result.state === "booked"
           ? "Your appointment is booked. Refresh Appointments to see the updated schedule."
           : "The offer was declined. You remain on the waitlist for another opening.",
       );
       resource.refresh();
     } catch (value) {
-      const unknown = !(value instanceof ApiError) || value.status >= 500;
-      if (unknown && current.action === "decline") {
+      if (submission.current !== owner) return;
+      const current = owner.pendingReply;
+      setUncertain(owner.outcomeUnconfirmed);
+      setError(
+        value instanceof Error
+          ? value.message
+          : "The response could not be confirmed.",
+      );
+      if (
+        owner.outcomeUnconfirmed &&
+        current?.body.waitlist.action === "decline"
+      ) {
         try {
           const refreshed = await api<OffersResponse>(
             "/api/patient_portal/waitlist",
           );
           const latest = refreshed.entries.find(
-            (entry) => entry.id === current.id,
+            (entry) => entry.id === current.offer.id,
           );
+          if (submission.current !== owner) return;
           resource.refresh();
           if (latest?.state === "waiting") {
-            attempt.current = null;
-            setUncertain(false);
-            setNotice(
-              "The offer is no longer active. The latest status shows you remain on the waitlist for another opening.",
+            setStatusNotice(
+              "The latest status shows you remain on the waitlist. This does not confirm the original decline; retry that exact response before choosing another action.",
             );
             return;
           }
@@ -78,23 +96,22 @@ export function PatientWaitlistOffers() {
           // Keep the same request key available when the authoritative refresh also fails.
         }
       }
-      setUncertain(unknown);
-      if (!unknown) {
-        attempt.current = null;
+      if (!owner.outcomeUnconfirmed) {
         resource.refresh();
       }
-      setError(
-        value instanceof Error
-          ? value.message
-          : "The response could not be confirmed.",
-      );
     } finally {
-      setBusy(false);
+      if (submission.current === owner) setBusy(false);
     }
   }
 
   async function requestWaitlistCallback() {
-    if (busy || callbackRequested) return;
+    if (
+      busy ||
+      callbackRequested ||
+      submission.current?.busy ||
+      submission.current?.outcomeUnconfirmed
+    )
+      return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -141,6 +158,7 @@ export function PatientWaitlistOffers() {
         )}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
+        {statusNotice && <Alert severity="info">{statusNotice}</Alert>}
         {resource.data && !resource.data.can_accept && (
           <Alert severity="info">
             {resource.data.booking_requirement} You can still decline an offered
@@ -153,7 +171,11 @@ export function PatientWaitlistOffers() {
             action={
               <Button
                 disabled={busy}
-                onClick={() => attempt.current && void reply(attempt.current)}
+                onClick={() => {
+                  const pending = submission.current?.pendingReply;
+                  if (pending)
+                    void reply(pending.offer, pending.body.waitlist.action);
+                }}
               >
                 Retry response
               </Button>
@@ -174,7 +196,7 @@ export function PatientWaitlistOffers() {
             </Typography>
             <Button
               variant="outlined"
-              disabled={busy || callbackRequested}
+              disabled={busy || uncertain || callbackRequested}
               onClick={() => void requestWaitlistCallback()}
             >
               {callbackRequested
@@ -210,27 +232,13 @@ export function PatientWaitlistOffers() {
                   <Button
                     variant="contained"
                     disabled={busy || uncertain || !resource.data?.can_accept}
-                    onClick={() =>
-                      void reply({
-                        id: entry.id,
-                        action: "accept",
-                        version: entry.version,
-                        requestKey: crypto.randomUUID(),
-                      })
-                    }
+                    onClick={() => void reply(entry, "accept")}
                   >
                     Accept and book
                   </Button>
                   <Button
                     disabled={busy || uncertain}
-                    onClick={() =>
-                      void reply({
-                        id: entry.id,
-                        action: "decline",
-                        version: entry.version,
-                        requestKey: crypto.randomUUID(),
-                      })
-                    }
+                    onClick={() => void reply(entry, "decline")}
                   >
                     Decline this time
                   </Button>

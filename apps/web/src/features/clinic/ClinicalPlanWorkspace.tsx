@@ -135,6 +135,7 @@ const RESOURCE_META: Record<
       refills: "",
       starts_on: "",
       duration_text: "",
+      substitution_instruction: "",
       scheduled_for: "",
       reason_text: "",
       instructions: "",
@@ -179,6 +180,11 @@ const RESOURCE_META: Record<
       { name: "refills", label: "Refills" },
       { name: "starts_on", label: "Start date, when applicable", type: "date" },
       { name: "duration_text", label: "Duration, when applicable" },
+      {
+        name: "substitution_instruction",
+        label: "Substitution instruction",
+        options: ["", "allowed", "not_allowed"],
+      },
       { name: "pharmacy_name", label: "Pharmacy name" },
       { name: "pharmacy_location", label: "Pharmacy location" },
       {
@@ -1837,7 +1843,11 @@ export function ClinicalPlanWorkspace({
                       dynamicOptions ??
                       field.options?.map((option) => ({
                         code: option,
-                        label: humanize(option),
+                        label:
+                          field.name === "substitution_instruction" &&
+                          option === ""
+                            ? "Unresolved — draft only"
+                            : humanize(option),
                       })) ??
                       []
                     ).map((option) => (

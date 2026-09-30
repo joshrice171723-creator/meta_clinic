@@ -30,6 +30,7 @@ import {
   type Subscription,
 } from "./contracts";
 import { catalogDisplayLabel } from "./catalogDisplayLabel";
+import { PackageEntitlements } from "./PackageEntitlements";
 
 const FILTER_STATES = [
   "pending_review",
@@ -213,6 +214,10 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState<SubscriptionActionNotice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [entitlementTarget, setEntitlementTarget] = useState<number | null>(
+    null,
+  );
+  const [entitlementPending, setEntitlementPending] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Subscription | null>(null);
   const [pendingAttempt, setPendingAttempt] =
     useState<SubscriptionActionAttempt | null>(null);
@@ -287,7 +292,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
   };
 
   const data = resource.data;
-  const actionsLocked = busy || outcomeUnconfirmed;
+  const actionsLocked = busy || outcomeUnconfirmed || entitlementPending;
   const cancelRetryPending =
     outcomeUnconfirmed &&
     pendingAttempt?.action === "cancel" &&
@@ -348,7 +353,9 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                   cancellations from authoritative billing records.
                 </Typography>
               </Box>
-              <Button onClick={resource.refresh}>Refresh records</Button>
+              <Button disabled={entitlementPending} onClick={resource.refresh}>
+                Refresh records
+              </Button>
             </Stack>
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -356,6 +363,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                 label="Search memberships"
                 placeholder="Program, package, tier, or service"
                 value={search}
+                disabled={actionsLocked}
                 onChange={(event) => setSearch(event.target.value)}
                 fullWidth
               />
@@ -363,6 +371,7 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                 select
                 label="Membership status"
                 value={state}
+                disabled={actionsLocked}
                 onChange={(event) => setState(event.target.value)}
                 sx={{ minWidth: { md: 230 } }}
               >
@@ -662,6 +671,16 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
                       )}
 
                       <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
+                        {!!subscription.entitlements?.length && (
+                          <Button
+                            disabled={actionsLocked}
+                            onClick={() =>
+                              setEntitlementTarget(subscription.id)
+                            }
+                          >
+                            Review package services
+                          </Button>
+                        )}
                         <Button
                           href={`/clinic/billing/patients?patient_id=${subscription.patient_id}`}
                         >
@@ -844,6 +863,21 @@ export function SubscriptionBilling({ onChanged }: { onChanged: () => void }) {
           </Stack>
         </Paper>
       </Stack>
+
+      {entitlementTarget !== null && (
+        <PackageEntitlements
+          key={entitlementTarget}
+          subscriptionId={entitlementTarget}
+          canWrite={data?.capabilities.reconcile === true}
+          disabled={busy || outcomeUnconfirmed}
+          onClose={() => setEntitlementTarget(null)}
+          onChanged={() => {
+            resource.refresh();
+            onChanged();
+          }}
+          onPendingChange={setEntitlementPending}
+        />
+      )}
 
       <Dialog
         open={Boolean(cancelTarget)}

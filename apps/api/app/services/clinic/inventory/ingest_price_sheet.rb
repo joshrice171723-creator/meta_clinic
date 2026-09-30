@@ -205,7 +205,7 @@ module Clinic
             product_id: product_id,
             imported_at: imported_at,
             price_source: "price_sheet",
-            quote_reference: nil,
+            quote_reference: nil, quoted_fee_amount: nil, quoted_fee_currency: nil, quoted_fee_basis: nil,
             quoted_on: nil,
             created_at: imported_at,
             updated_at: imported_at,

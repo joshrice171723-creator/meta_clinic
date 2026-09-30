@@ -61,6 +61,10 @@ module Clinic
 
       def validate_release!(order, destination: nil)
         raise ArgumentError, "Authorize the current prescription first." unless order.status == "authorized"
+        if order.fulfillment_route == "outside_pharmacy" &&
+            !MedicationRequestRevision::SUBSTITUTION_INSTRUCTIONS.include?(order.substitution_instruction)
+          raise ArgumentError, "Choose whether substitution is allowed before reviewing or submitting this prescription. The unresolved draft remains saved."
+        end
         required = %i[medication_name medication_strength medication_form dose_text route_text frequency_text instructions prescribed_quantity quantity_unit fulfillment_route]
         required += %i[pharmacy_name pharmacy_location] if order.fulfillment_route == "outside_pharmacy" && destination.nil?
         missing = required.select { |field| order.public_send(field).blank? }

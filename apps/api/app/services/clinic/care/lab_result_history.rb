@@ -99,6 +99,11 @@ module Clinic
           unit_code: normalized_optional(result["unit_code"]),
           reference_range: normalized_optional(result["reference_range"]),
           flag: normalized_optional(result["flag"]),
+          performing_organization: result["performing_organization"],
+          issuing_organization: result["issuing_organization"],
+          method: result["method"],
+          resulted_at: result["resulted_at"],
+          received_at: result["received_at"],
           reviewed_at: version.reviewed_at&.iso8601(6)
         }
       end

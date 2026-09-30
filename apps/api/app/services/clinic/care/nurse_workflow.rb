@@ -127,11 +127,20 @@ module Clinic
         input = normalize_intake(attributes, form_id: form[:id], previous_intake: previous_intake, encounter:, observations:)
         PrevisitIntake.validate_medication_references!(input[:encrypted_questionnaire], practice:)
         raw = (attributes[:questionnaire] || attributes["questionnaire"]).to_h.stringify_keys
+        question_follow_up = if raw.key?("question_follow_up")
+          IntakeQuestionFollowUp.normalize(raw["question_follow_up"], form_id: form[:id])
+        end
+        prior_follow_up = previous_intake && PrevisitIntake.decode(previous_intake.encrypted_questionnaire)&.fetch("question_follow_up", {})
+        if input.key?(:encrypted_questionnaire) && PrevisitIntake.decode(input[:encrypted_questionnaire]).nil? &&
+          (question_follow_up.present? || (!raw.key?("question_follow_up") && prior_follow_up.present?))
+          raise ArgumentError, "Save question follow-up with a structured intake draft."
+        end
         history_reviews = history_reviews_for(practice, patient, encounter, history_review_ids)
         validate_intake_evidence!(input, observations, history_reviews)
         evidence = { observation_ids: observations.map(&:id).sort, history_review_ids: history_reviews.map(&:id).sort }
         payload = { patient_id: patient.id, encounter_id: encounter.id, expected_version:, intake: input, evidence:,
           evidence_keys: raw["evidence_keys"] }
+        payload[:question_follow_up] = question_follow_up if raw.key?("question_follow_up")
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "care.encounter_intake.revise", request_key:, resource: encounter,
           authorization_action: "intake.write", authorization: -> { authorize!(practice, actor, "intake.write", encounter) },
@@ -146,6 +155,8 @@ module Clinic
               questionnaire = PrevisitIntake.decode(input[:encrypted_questionnaire])
               if questionnaire
                 prior_payload = current && PrevisitIntake.decode(current.encrypted_questionnaire)
+                IntakeQuestionFollowUp.attach!(payload: questionnaire, prior: prior_payload,
+                  entries: question_follow_up, member:, revision_version: (current&.version_number || 0) + 1)
                 questionnaire["evidence_references"] = if raw.key?("evidence_keys")
                   IntakeEvidence.normalize(raw["evidence_keys"], practice:, actor:, patient:, encounter:)
                 else

@@ -1,0 +1,46 @@
+# Source-only combined integration — 2026-09-30
+
+This is a source-accounting cutoff for the single combined PR66, not a release-readiness claim. Main and live are unchanged. Josh's 21:08 UTC instruction changed the sprint target to 95% Build and deferred new tests/builds/lint. No new verification job was started after that instruction. Independent scoring owns percentages; tests do not earn Build credit.
+
+## Retained source heads
+
+| Lane | Exact retained source |
+| --- | --- |
+| MC01 starter-service recovery | 357ccf0d8ed953324e5bec82374ac58f729ed27c |
+| MC02 atomic paid conversion | 445a8a2607f44011a877e7bf2ff3c111dbccd4a3 |
+| MC03 identity/language | e6e6535a73fb4a4343bd2681f831e33273261426; matrix43b3b000e2fb9e3db4f2a08c10572a372234f893 |
+| MC04 provenance | 2d96bed50ea815e294e3e80aea246926136d94bc |
+| MC04 overbook | ONLY a98cd14fa845169823acad39649e3ca13f99d046 cherry-picked; no other source from its branch |
+| MC05 question context/manual recovery and patient intake retry | 142599baf63fdd310021fc51176456f66d06c63e, retaining20995/d5c5/784 |
+| MC06 lab provenance | 0bf6584dd9a5d68c20692dbac63ca91d09b07c4f |
+| MC06 repaired closure/type/replay guards | a0326be8ad494a40e9d260eeb226fd038bb2d957; replaces unrepaireddbef final source |
+| MC07 repaired telehealth lifecycle | a1c118ac15fed8f78bb977334a77f66ed6e1231c, already retained at6099 |
+| MC08 price/date/context | d9082a1f63b39b963be63d5a277c320267339a20, retainingd19 |
+| MC09 entitlement source/scoped schema | 6ee0f3cc6c2ff8656dbec1fd7b24c54bf193f240 and schema795bde81a1bed44d82b1ac838a682137db7cacb2, already retained at1b9 |
+| MC10 substitution/provenance/durable preparation | 067a984f8ea82ce137a5d2378a049379b91413df, retaining10afe/a325/60158 |
+| MC11 quote/local supplier preparation | 07121a53607f0176cf503deee635cf5ab351622d, retainingba08 |
+| MC12 paging/return/refill/reschedule/callback | 25f296a83a09739dc5c5c29ed0a24dd5104528fa, retaining6caa/900/8b6/ed421/repaired8715 |
+| MC12 waitlist | 7e58880a3cbfeaaec84d861254ffb0b355c66a75; original branch ancestry retained after earlier isolated cherry-pick |
+| MC13 corrected unknown policy/overnight | 667338bdc74a984e27d9611732b9e5d04ffb1d3f plus correction460caf7d486ebc53ec9254088021be48e13facc9 |
+| MC14 corrected source reconciliation | a11c737c67388860289782933594a66ba71829ea |
+| MC15 corrected bounded text import | 6c81eaf09cff499a73be66867e96af1b880381ef; prior mapping review5383 remains |
+
+All original branches/history are preserved. Old blocked source heads may remain as historical ancestors; the corrected final source above is the accounting target. No percentage credit is assigned by this manifest.
+
+## Integration resolutions and source limits
+
+- MC03 matrices conflicted because both source branches added the same path. The combined file retains both authored texts under labeled historical cutoffs; no source accounting, limitations or prior review statements were discarded.
+- Supplied verified MC08 schema commit51111f92e2eca3ef0b9c65130cf51e43d8e8ebff contributes exactly three lines: price-revision column/check and migrationversion. Its migration-list conflict was resolved additively, preserving all existing combined schema content, including MC09's177added lines. No generated dump was fabricated or rewritten.
+- MC08 and MC13 originally duplicated migrationversion20260930230000. Sage's unchanged-content rename460caf7d fixes MC13 to20260930230200; MC08 remains230000/230100. Static inventory now has unique versions. No migration ran during this source-only batch.
+- Remaining new migration/schema stages are unfinished/unverified: MC04 overbook trigger; MC08 date/context; MC10 substitution/attempt provenance/durable preparation; MC11 quote/delivery preparation; MC13 nullable policy totals. The committed structure is not claimed to be a freshly regenerated complete schema for this batch. Preserve scoped generated artifacts when supplied; do not fill unknown values or backfill historical clinical choices.
+- MC10's current UI submits preparation_id; both existing synthetic application callers create a preparation and pass its ID. Newer caller/route/regression follow-up5f8ea8d2c5d3c7e57de12e845a9f82f08d48293a and legacy-owned-receipt compatibility remain with the author for the next increment. No historical preparation is inferred or fabricated; current durable-preparation source is not a runtime-completion claim.
+- Shared ClinicalPlanWorkflow retains prescription substitution handling and corrected proposed-kind/closure evidence checks. Routes/contracts were merged additively. These are concise source inspections, not runtime/type/build passes.
+- PR4, actor credentials/activation, new Office scope, unrelated646bc531 and unfinished fast-builder increments are excluded. Original main recovery infrastructure is preserved.
+
+## Verification and scoring cutoff
+
+Latest independent score documents c18d37fa44a1de4efffeca47e5241bd330cb38cf assess ONLY6099fc5523b5d82ac2437767bec10f168aceeafd: Build80.5%, local Validation49.5%, External0%. This larger source batch is outside that frozen cutoff and awaits independent source scoring; no95% claim.
+
+Existing completed evidence remains valid only at its tested source:6099 cloud45/45,types/build/style;1b9 cloud108tests/types/build/format completed before stop per parent handoff; isolated MC09 schema-bearing4401 restore27Rails/3641assertions,lint/eager/syntax. None is a combined runtime pass for this later batch.
+
+Three MC09 architecture-contract failures independently reproduce identically at baseline8c. They remain disclosed pre-existing contract debt, not passing tests. MC03 backend failures likewise reproduce on baseline per Sage's disposition. CI billing fails before jobs; full CI is not green. New runtime, migration, type/build, connected/browser/provider and release/recovery verification is deferred. No main merge, production deployment, fixture reset, charges/provider calls, credentials/access changes or host automation activation occurred.

@@ -6,7 +6,7 @@ module Clinic
           dose_unit_code dose_text route_code route_text frequency_text quantity_text scheduled_for reason_text
           instructions source_medication_statement_id completion_exception fulfillment_route medication_strength medication_form
           medication_code_system medication_code medication_code_version catalog_source pharmacy_name pharmacy_location
-          pharmacy_identifier prescribed_quantity quantity_unit refills starts_on duration_text refill_of_series_id],
+          pharmacy_identifier prescribed_quantity quantity_unit refills starts_on duration_text refill_of_series_id substitution_instruction],
         service_requests: %i[status request_kind intent priority requested_code_system requested_code requested_display
           destination reason_text due_at completion_exception],
         diagnoses: %i[status classification code_system diagnosis_code diagnosis_display clinical_note],

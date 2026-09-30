@@ -19,6 +19,7 @@ module Clinic
         project(
           agreement,
           events: agreement.events.order(:id).to_a,
+          entitlement_entries: SubscriptionEntitlements.records(agreement).order(:id).to_a,
           stripe_checkout: Clinic::Billing::StripeCheckout.find_by(practice: agreement.practice, agreement: agreement)
         )
       end
@@ -35,16 +36,20 @@ module Clinic
           practice_id: values.first.practice_id,
           agreement_id: values.map(&:id)
         ).index_by(&:agreement_id)
+        entitlement_entries = SubscriptionEntitlementEntry.where(
+          practice_id: values.first.practice_id, agreement_id: values.map(&:id)
+        ).order(:id).group_by(&:agreement_id)
         values.map do |agreement|
           project(
             agreement,
             events: agreement.events.to_a.sort_by(&:id),
+            entitlement_entries: entitlement_entries.fetch(agreement.id, []),
             stripe_checkout: checkouts[agreement.id]
           )
         end
       end
 
-      def self.project(agreement, events:, stripe_checkout:)
+      def self.project(agreement, events:, stripe_checkout:, entitlement_entries:)
         invoice = agreement.invoice
         active = events.reverse.find { |event| event.kind == "active" }
         canceled = events.find { |event| event.kind == "canceled" }
@@ -60,6 +65,7 @@ module Clinic
         result = {
           id: agreement.id, invoice_id: invoice.id, patient_id: agreement.patient_id,
           version_id: agreement.version_id, state: state_for(events),
+          entitlements: SubscriptionEntitlements.project(agreement: agreement, entries: entitlement_entries, state: state_for(events)),
           terms: agreement.snapshot, amount: agreement.amount.to_s("F"), currency: agreement.currency,
           processor: processor,
           renewal_status: stripe_checkout&.subscription_status,

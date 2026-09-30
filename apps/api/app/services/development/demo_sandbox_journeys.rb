@@ -63,6 +63,7 @@ module Development
           intent: "order", dose_text: "10 mg", route_text: "oral", frequency_text: "daily",
           instructions: "Follow the demonstration care plan", prescribed_quantity: "30",
           quantity_unit: "tablet", refills: 0, fulfillment_route: "outside_pharmacy",
+          substitution_instruction: "not_allowed",
           pharmacy_name: "Example Community Pharmacy", pharmacy_location: "Austin"
         }
       )
@@ -79,8 +80,10 @@ module Development
       )
       Clinic::Care::PrescriptionWorkflow.record(practice:, actor:, order:, kind: "review",
         source: "manual", request_key: "#{key}-review")
+      preparation = Clinic::Care::PrescriptionPreparationWorkflow.prepare(practice:, actor:, order:,
+        pharmacy_destination_id: destination.id, request_key: "#{key}-prepare")
       Clinic::Care::PrescriptionTransmissionWorkflow.submit(
-        practice:, actor:, order:, pharmacy_destination_id: destination.id,
+        practice:, actor:, order:, preparation_id: preparation.id, pharmacy_destination_id: destination.id,
         scenario: "accepted", request_key: "#{key}-simulation"
       )
     end

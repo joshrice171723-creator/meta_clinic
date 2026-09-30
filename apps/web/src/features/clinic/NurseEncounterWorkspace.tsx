@@ -45,6 +45,11 @@ import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
 import { PatientCareCoordination } from "./PatientCareCoordination";
 import { IntakeAnswerProvenance } from "./IntakeAnswerProvenance";
+import {
+  IntakeQuestionFollowUp,
+  questionFollowUpDrafts,
+  type QuestionFollowUpDraft,
+} from "./IntakeQuestionFollowUp";
 
 type IntakeForm = Pick<
   EncounterIntakeRevision,
@@ -61,6 +66,7 @@ type IntakeForm = Pick<
     confirmed: boolean;
     confirmed_chunks: number[];
     evidence_keys?: string[];
+    question_follow_up?: Record<string, QuestionFollowUpDraft>;
   };
 };
 
@@ -325,6 +331,9 @@ export function NurseEncounterWorkspaceContent({
       vitals_state: intake.vitals_state,
       questionnaire: {
         answers: intake.questionnaire?.answers ?? {},
+        question_follow_up: questionFollowUpDrafts(
+          intake.questionnaire?.question_follow_up,
+        ),
         text: intake.questionnaire?.text ?? "",
         status: intake.questionnaire?.status ?? "draft",
         confirmed: false,
@@ -426,6 +435,9 @@ export function NurseEncounterWorkspaceContent({
     (task) =>
       task.task_kind !== "handoff" &&
       !["completed", "cancelled"].includes(task.state),
+  );
+  const cancelledManualTasks = workspace.tasks.filter(
+    (task) => task.state === "cancelled" && task.source_type === "manual",
   );
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
   const confirmedChunkIndexes = form.questionnaire?.confirmed_chunks ?? [];
@@ -565,6 +577,9 @@ export function NurseEncounterWorkspaceContent({
         vitals_state: response.intake.vitals_state,
         questionnaire: {
           answers: response.intake.questionnaire?.answers ?? {},
+          question_follow_up: questionFollowUpDrafts(
+            response.intake.questionnaire?.question_follow_up,
+          ),
           text: response.intake.questionnaire?.text ?? "",
           status: response.intake.questionnaire?.status ?? "draft",
           confirmed: false,
@@ -680,7 +695,7 @@ export function NurseEncounterWorkspaceContent({
 
   async function transitionTask(
     task: ClinicalTask,
-    action: "claim" | "start" | "complete",
+    action: "claim" | "start" | "complete" | "reopen",
   ) {
     await perform(async () => {
       const response = await api<{ task: ClinicalTask }>(
@@ -1218,6 +1233,39 @@ export function NurseEncounterWorkspaceContent({
                                 scopeId={chunk.id}
                               />
                             )}
+                            <IntakeQuestionFollowUp
+                              fields={(
+                                workspace.questionnaire_form?.fields ?? []
+                              ).filter((field) =>
+                                chunk.fields.includes(field.id),
+                              )}
+                              answers={form.questionnaire?.answers ?? {}}
+                              saved={
+                                latestIntake?.questionnaire?.question_follow_up
+                              }
+                              drafts={
+                                form.questionnaire?.question_follow_up ?? {}
+                              }
+                              writable={workspace.capabilities.intake_write}
+                              disabled={busy || intakeConflict}
+                              onChange={(question_follow_up) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  questionnaire: {
+                                    ...current.questionnaire,
+                                    answers:
+                                      current.questionnaire?.answers ?? {},
+                                    text: current.questionnaire?.text ?? "",
+                                    status: "draft",
+                                    confirmed: false,
+                                    confirmed_chunks:
+                                      current.questionnaire?.confirmed_chunks ??
+                                      [],
+                                    question_follow_up,
+                                  },
+                                }))
+                              }
+                            />
                             {intakeChunks[activeChunkIndex].id ===
                               "patient_coordination" && (
                               <PatientCareCoordination patientId={patient.id} />
@@ -1906,6 +1954,37 @@ export function NurseEncounterWorkspaceContent({
                 );
               })
             )}
+            {workspace.capabilities.tasks_write &&
+              cancelledManualTasks.length > 0 && (
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    Cancelled follow-up work ({cancelledManualTasks.length})
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Reopening returns deliberately created work to the
+                        available team pool. An authorized owner must claim it.
+                      </Typography>
+                      {cancelledManualTasks.map((task) => (
+                        <Stack key={task.id} direction="row" spacing={1}>
+                          <Typography sx={{ flex: 1 }}>
+                            Task #{task.id} · {taskLabels[task.task_kind]} ·{" "}
+                            {stateLabel(task.pool_code)} pool
+                          </Typography>
+                          <Button
+                            disabled={busy}
+                            onClick={() => void transitionTask(task, "reopen")}
+                            aria-label={`Reopen task ${task.id}`}
+                          >
+                            Reopen
+                          </Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              )}
           </Stack>
         </Box>
       </Stack>

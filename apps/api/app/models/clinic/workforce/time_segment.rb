@@ -10,8 +10,9 @@ module Clinic
 
       validates :segment_kind, inclusion: { in: %w[work break manual] }
       validates :started_at_utc, :ended_at_utc, :local_date, presence: true
-      validates :raw_minutes, :rounded_minutes, :paid_minutes,
-        numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+      validates :raw_minutes, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+      validates :rounded_minutes, :paid_minutes,
+        numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
       validate :ends_after_start
 
       private

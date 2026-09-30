@@ -1858,6 +1858,46 @@ END $$;
 
 
 --
+-- Name: subscription_entitlement_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.subscription_entitlement_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE terms jsonb; component jsonb; opening integer; used integer;
+BEGIN
+  SELECT snapshot INTO terms FROM clinic_subscription_agreements
+    WHERE practice_id = NEW.practice_id AND id = NEW.agreement_id FOR UPDATE;
+  SELECT item INTO component FROM jsonb_array_elements(terms -> 'selected_components') item
+    WHERE (item ->> 'service_id')::bigint = NEW.service_id;
+  IF component IS NULL OR component ->> 'frequency' <> 'term' OR terms ->> 'renewal' = 'automatic' THEN
+    RAISE EXCEPTION 'Only purchased fixed-term service units may be recorded';
+  END IF;
+  IF NEW.kind = 'opening' THEN
+    IF NEW.quantity > (component ->> 'quantity')::integer THEN
+      RAISE EXCEPTION 'Opening balance exceeds the purchased quantity';
+    END IF;
+  ELSIF NEW.kind = 'use' THEN
+    SELECT quantity INTO opening FROM clinic_subscription_entitlement_entries
+      WHERE practice_id = NEW.practice_id AND agreement_id = NEW.agreement_id
+        AND service_id = NEW.service_id AND kind = 'opening';
+    SELECT COALESCE(SUM(CASE WHEN kind = 'use' THEN quantity WHEN kind = 'reversal' THEN -quantity ELSE 0 END), 0)
+      INTO used FROM clinic_subscription_entitlement_entries WHERE practice_id = NEW.practice_id
+        AND agreement_id = NEW.agreement_id AND service_id = NEW.service_id;
+    IF opening IS NULL OR NEW.quantity > opening - used THEN
+      RAISE EXCEPTION 'Service use exceeds the recorded remaining quantity';
+    END IF;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM clinic_subscription_entitlement_entries WHERE id = NEW.reversed_entry_id AND kind = 'use'
+  ) THEN
+    RAISE EXCEPTION 'Only a service use entry may be reversed';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: telehealth_join_grant_freeze(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2719,6 +2759,8 @@ CREATE TABLE public.clinic_cash_pay_estimate_lines (
     exclusions character varying(500),
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    source_price_revision integer,
+    CONSTRAINT cash_pay_estimate_lines_price_revision CHECK (((source_price_revision IS NULL) OR ((source_price_revision >= 0) AND (billing_service_id IS NOT NULL)))),
     CONSTRAINT clinic_cash_pay_estimate_lines_values CHECK (((quantity > (0)::numeric) AND (unit_amount >= (0)::numeric) AND (expected_amount >= (0)::numeric) AND (length(TRIM(BOTH FROM description_snapshot)) > 0)))
 );
 
@@ -10669,6 +10711,46 @@ ALTER SEQUENCE public.clinic_subscription_agreements_id_seq OWNED BY public.clin
 
 
 --
+-- Name: clinic_subscription_entitlement_entries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_entitlement_entries (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    agreement_id bigint NOT NULL,
+    service_id bigint NOT NULL,
+    actor_id bigint NOT NULL,
+    kind character varying(16) NOT NULL,
+    quantity integer NOT NULL,
+    reversed_entry_id bigint,
+    request_key character varying(160) NOT NULL,
+    source_reference character varying(160) CONSTRAINT clinic_subscription_entitlement_entri_source_reference_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT subscription_entitlement_values CHECK ((((kind)::text = ANY ((ARRAY['opening'::character varying, 'use'::character varying, 'reversal'::character varying])::text[])) AND ((quantity >= 0) AND (quantity <= 10000)) AND (((kind)::text = 'opening'::text) OR (quantity > 0)) AND (((kind)::text = 'reversal'::text) = (reversed_entry_id IS NOT NULL)) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text) AND (length(btrim((source_reference)::text)) > 0)))
+);
+
+
+--
+-- Name: clinic_subscription_entitlement_entries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_entitlement_entries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_entitlement_entries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_entitlement_entries_id_seq OWNED BY public.clinic_subscription_entitlement_entries.id;
+
+
+--
 -- Name: clinic_subscription_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -14700,6 +14782,13 @@ ALTER TABLE ONLY public.clinic_subscription_agreements ALTER COLUMN id SET DEFAU
 
 
 --
+-- Name: clinic_subscription_entitlement_entries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_entitlement_entries_id_seq'::regclass);
+
+
+--
 -- Name: clinic_subscription_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -16840,6 +16929,14 @@ ALTER TABLE ONLY public.clinic_stripe_membership_cycles
 
 ALTER TABLE ONLY public.clinic_subscription_agreements
     ADD CONSTRAINT clinic_subscription_agreements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_entitlement_entries clinic_subscription_entitlement_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
+    ADD CONSTRAINT clinic_subscription_entitlement_entries_pkey PRIMARY KEY (id);
 
 
 --
@@ -22855,6 +22952,34 @@ CREATE UNIQUE INDEX stripe_cycle_provider_identity ON public.clinic_stripe_membe
 
 
 --
+-- Name: subscription_entitlement_one_reversal; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_entitlement_one_reversal ON public.clinic_subscription_entitlement_entries USING btree (reversed_entry_id) WHERE (reversed_entry_id IS NOT NULL);
+
+
+--
+-- Name: subscription_entitlement_opening; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_entitlement_opening ON public.clinic_subscription_entitlement_entries USING btree (practice_id, agreement_id, service_id) WHERE ((kind)::text = 'opening'::text);
+
+
+--
+-- Name: subscription_entitlement_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_entitlement_request ON public.clinic_subscription_entitlement_entries USING btree (practice_id, agreement_id, request_key);
+
+
+--
+-- Name: subscription_entitlement_reversal_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_entitlement_reversal_identity ON public.clinic_subscription_entitlement_entries USING btree (practice_id, agreement_id, service_id, quantity, id);
+
+
+--
 -- Name: subscription_event_request; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -24567,6 +24692,20 @@ CREATE TRIGGER stripe_connection_routing BEFORE DELETE OR UPDATE ON public.clini
 --
 
 CREATE TRIGGER stripe_cycles_immutable BEFORE DELETE OR UPDATE ON public.clinic_stripe_membership_cycles FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_subscription_entitlement_entries subscription_entitlement_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER subscription_entitlement_guard BEFORE INSERT ON public.clinic_subscription_entitlement_entries FOR EACH ROW EXECUTE FUNCTION public.subscription_entitlement_guard();
+
+
+--
+-- Name: clinic_subscription_entitlement_entries subscription_entitlement_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER subscription_entitlement_immutable BEFORE DELETE OR UPDATE ON public.clinic_subscription_entitlement_entries FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -28205,6 +28344,14 @@ ALTER TABLE ONLY public.clinic_scribe_exports
 
 
 --
+-- Name: clinic_subscription_entitlement_entries fk_rails_2717f7927f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
+    ADD CONSTRAINT fk_rails_2717f7927f FOREIGN KEY (actor_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_billing_receipts fk_rails_273fc7946f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -29525,6 +29672,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_products
 
 
 --
+-- Name: clinic_subscription_entitlement_entries fk_rails_7d7746c199; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
+    ADD CONSTRAINT fk_rails_7d7746c199 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_appointment_series_occurrences fk_rails_801e5572cc; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30213,6 +30368,14 @@ ALTER TABLE ONLY public.clinic_workforce_employment_sites
 
 
 --
+-- Name: clinic_subscription_entitlement_entries fk_rails_b0b421bdfd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
+    ADD CONSTRAINT fk_rails_b0b421bdfd FOREIGN KEY (practice_id, service_id) REFERENCES public.clinic_service_options(practice_id, id);
+
+
+--
 -- Name: clinic_prescription_transmission_attempts fk_rails_b0ca05a71b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30578,6 +30741,14 @@ ALTER TABLE ONLY public.clinic_workforce_employee_invitations
 
 ALTER TABLE ONLY public.clinic_prescription_events
     ADD CONSTRAINT fk_rails_cb82e87e61 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_subscription_entitlement_entries fk_rails_cba9fbb325; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
+    ADD CONSTRAINT fk_rails_cba9fbb325 FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
 
 
 --
@@ -32878,8 +33049,17 @@ ALTER TABLE ONLY public.qa_tasks
 ALTER TABLE ONLY public.qa_service_tokens
     ADD CONSTRAINT fk_rails_de1504344e FOREIGN KEY (user_id) REFERENCES public.users(id);
 
+--
+-- Name: clinic_subscription_entitlement_entries subscription_entitlement_reversal_scope; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
+    ADD CONSTRAINT subscription_entitlement_reversal_scope FOREIGN KEY (practice_id, agreement_id, service_id, quantity, reversed_entry_id) REFERENCES public.clinic_subscription_entitlement_entries(practice_id, agreement_id, service_id, quantity, id);
+
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930230000'),
 ('20260930160000'),
+('20260930000900'),
 ('20260930000100'),
 ('20260929000200'),
 ('20260929000100'),
