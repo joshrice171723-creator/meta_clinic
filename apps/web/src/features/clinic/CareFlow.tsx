@@ -6120,7 +6120,10 @@ export function VisitWrapUp({
                 <Button
                   variant="contained"
                   color="warning"
-                  onClick={() => setConfirmation("close")}
+                  onClick={() => {
+                    setError("");
+                    setConfirmation("close");
+                  }}
                   disabled={formLocked || !completion.evidence.follow_up}
                 >
                   {busy ? "Completing encounter…" : "Complete encounter"}
