@@ -408,7 +408,9 @@ function ConfigurationManifestDownload() {
     generatedAt: string;
   } | null>(null);
   const [comparisonError, setComparisonError] = useState("");
+  const comparisonGeneration = useRef(0);
   const compareFile = async (file?: File) => {
+    const generation = ++comparisonGeneration.current;
     if (!file || !manifest) return;
     setComparison(null);
     setComparisonError("");
@@ -491,6 +493,7 @@ function ConfigurationManifestDownload() {
         saved.configuration.service_offerings,
         manifest.configuration.service_offerings,
       );
+      if (generation !== comparisonGeneration.current) return;
       setComparison({
         summary:
           details.length === 0
@@ -501,12 +504,19 @@ function ConfigurationManifestDownload() {
         generatedAt: manifest.generated_at,
       });
     } catch (error) {
+      if (generation !== comparisonGeneration.current) return;
       setComparisonError(
         error instanceof Error
           ? error.message
           : "The snapshot could not be read.",
       );
     }
+  };
+  const refreshSnapshot = () => {
+    comparisonGeneration.current += 1;
+    setComparison(null);
+    setComparisonError("");
+    result.refresh();
   };
   const download = () => {
     if (!manifest) return;
@@ -530,7 +540,9 @@ function ConfigurationManifestDownload() {
       <Typography variant="h6" component="h3">
         Clinic configuration snapshot
       </Typography>
-      {!manifest && <LoadState error={result.error} onRetry={result.refresh} />}
+      {!manifest && (
+        <LoadState error={result.error} onRetry={refreshSnapshot} />
+      )}
       {manifest && (
         <>
           <Typography variant="body2">
@@ -553,11 +565,7 @@ function ConfigurationManifestDownload() {
           <Button
             size="small"
             sx={{ alignSelf: "flex-start" }}
-            onClick={() => {
-              setComparison(null);
-              setComparisonError("");
-              result.refresh();
-            }}
+            onClick={refreshSnapshot}
           >
             Refresh snapshot
           </Button>
