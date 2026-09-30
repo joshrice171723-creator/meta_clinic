@@ -20,6 +20,7 @@ module Clinic
           agreement,
           events: agreement.events.order(:id).to_a,
           entitlement_entries: SubscriptionEntitlements.records(agreement).order(:id).to_a,
+          allowance_entries: SubscriptionAllowances.records(agreement).order(:id).to_a,
           stripe_checkout: Clinic::Billing::StripeCheckout.find_by(practice: agreement.practice, agreement: agreement)
         )
       end
@@ -39,17 +40,21 @@ module Clinic
         entitlement_entries = SubscriptionEntitlementEntry.where(
           practice_id: values.first.practice_id, agreement_id: values.map(&:id)
         ).order(:id).group_by(&:agreement_id)
+        allowance_entries = SubscriptionAllowanceEntry.where(
+          practice_id: values.first.practice_id, agreement_id: values.map(&:id)
+        ).order(:id).group_by(&:agreement_id)
         values.map do |agreement|
           project(
             agreement,
             events: agreement.events.to_a.sort_by(&:id),
             entitlement_entries: entitlement_entries.fetch(agreement.id, []),
+            allowance_entries: allowance_entries.fetch(agreement.id, []),
             stripe_checkout: checkouts[agreement.id]
           )
         end
       end
 
-      def self.project(agreement, events:, stripe_checkout:, entitlement_entries:)
+      def self.project(agreement, events:, stripe_checkout:, entitlement_entries:, allowance_entries:)
         invoice = agreement.invoice
         active = events.reverse.find { |event| event.kind == "active" }
         canceled = events.find { |event| event.kind == "canceled" }
@@ -65,7 +70,7 @@ module Clinic
         result = {
           id: agreement.id, invoice_id: invoice.id, patient_id: agreement.patient_id,
           version_id: agreement.version_id, state: state_for(events),
-          entitlements: SubscriptionEntitlements.project(agreement: agreement, entries: entitlement_entries, state: state_for(events)),
+          entitlements: SubscriptionEntitlements.project(agreement: agreement, entries: entitlement_entries, state: state_for(events), allowance_entries: allowance_entries),
           terms: agreement.snapshot, amount: agreement.amount.to_s("F"), currency: agreement.currency,
           processor: processor,
           renewal_status: stripe_checkout&.subscription_status,

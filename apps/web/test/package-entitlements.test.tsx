@@ -462,3 +462,66 @@ describe("fixed-term package actions", () => {
     ).toThrow();
   });
 });
+
+describe("retained recurring allowance requests", () => {
+  const window = "71:2026-09-30T20:00:00.000000Z:2026-10-01T20:00:00.000000Z";
+  const recurring: PackageEntitlement = {
+    ...available,
+    frequency: "day",
+    source: "retained_recurring_allowance",
+    allowance_window: window,
+  };
+  const automatic: Subscription = {
+    ...subscription,
+    terms: {
+      ...subscription.terms,
+      renewal: "automatic",
+      selected_components: [{
+        service_id: 4, name: "Synthetic recurring unit", description: "", mode: "included",
+        group: "", min: 0, max: 1, quantity: 3, frequency: "day", price_adjustment: "0",
+        eligibility_review: false,
+        allowance: { anchor: "paid_period_start", timezone: "UTC", reset: "discard_unused",
+          renewal: "verified_paid_period", partial_window: "full_quantity" },
+      }],
+    },
+    entitlements: [recurring],
+  };
+
+  it("requires explicit configured windows and freezes the original window for retry", () => {
+    expect(entitlementActionAllowed(automatic, recurring, true, "opening")).toBe(false);
+    expect(entitlementActionAllowed(automatic, recurring, true, "use")).toBe(true);
+    const attempt = createEntitlementAttempt(automatic, recurring, true, "use", "1", "Synthetic use", undefined, "recurring-use");
+    expect(attempt.body.entitlement.allowance_window).toBe(window);
+    const pending = entitlementAttemptAfterFailure(attempt, new ApiError(503, "Unknown"));
+    expect(entitlementAttemptAfterFailure(attempt, new ApiError(422, "Window expired"), pending)).toBe(attempt);
+    expect(attempt.body.entitlement.allowance_window).toBe(window);
+    expect(() => createEntitlementAttempt(automatic, { ...recurring, allowance_window: null }, true,
+      "use", "1", "Synthetic use", undefined, "missing-window")).toThrow("exact retained allowance window");
+  });
+
+  it("rejects a response for another window even when the units and service match", () => {
+    const attempt = createEntitlementAttempt(automatic, recurring, true, "use", "1", "Synthetic use", undefined, "recurring-use");
+    const entry: PackageEntitlementEntry = {
+      id: 8, kind: "use", service_id: 4, quantity: 1, reversed_entry_id: null,
+      source_reference: "Synthetic use", occurred_at: "2026-09-30T20:01:00Z",
+      ledger: "recurring", allowance_window: window,
+    };
+    expect(entitlementResponse({ entry, subscription: automatic }, attempt).entry.id).toBe(8);
+    expect(() => entitlementResponse({ entry: { ...entry, allowance_window: "replacement-window" },
+      subscription: automatic }, attempt)).toThrow("exact request");
+  });
+
+  it("reverses the historic window after access ends without attaching it to the current window", () => {
+    const expired = { ...automatic, state: "expired" };
+    const original: PackageEntitlementEntry = {
+      id: 8, kind: "use", service_id: 4, quantity: 1, reversed_entry_id: null,
+      source_reference: "Synthetic use", occurred_at: "2026-09-30T20:01:00Z",
+      ledger: "recurring", allowance_window: window,
+    };
+    const attempt = createEntitlementAttempt(expired, { ...recurring, allowance_window: null }, true,
+      "reversal", "", "Synthetic correction", original, "recurring-reversal");
+    expect(attempt.body.entitlement.allowance_window).toBe(window);
+    expect(attempt.body.entitlement.reversed_entry_id).toBe(8);
+    expect(attempt.body.entitlement.quantity).toBeUndefined();
+  });
+});

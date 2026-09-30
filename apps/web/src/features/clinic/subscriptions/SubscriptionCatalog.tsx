@@ -1185,6 +1185,36 @@ export function SubscriptionCatalog() {
                                   </MenuItem>
                                 ))}
                               </TextField>
+                              <Typography variant="body2">
+                                Recurring allowance accounting is unconfigured until all five choices are selected.
+                                Month windows keep the anchor day, clamped to the last day of shorter months.
+                                These terms apply to new purchases of the published revision; existing agreements keep their purchased terms.
+                              </Typography>
+                              {([
+                                ["anchor", "Allowance anchor", "paid_period_start", "Verified paid period start"],
+                                ["timezone", "Allowance timezone", "UTC", "UTC"],
+                                ["reset", "Unused allowance", "discard_unused", "Discard at each window boundary"],
+                                ["renewal", "Allowance on renewal", "verified_paid_period", "Restart with each verified paid period"],
+                                ["partial_window", "Short final window", "full_quantity", "Full quantity until paid period ends"],
+                              ] as const).map(([field, label, value, description]) => (
+                                <TextField
+                                  key={field}
+                                  select
+                                  label={label}
+                                  value={c.allowance?.[field] || ""}
+                                  onChange={(e) => componentChange(index, "allowance", {
+                                    ...c.allowance, [field]: e.target.value,
+                                  })}
+                                >
+                                  <MenuItem value="">Unconfigured</MenuItem>
+                                  <MenuItem value={value}>{description}</MenuItem>
+                                </TextField>
+                              ))}
+                              {c.allowance && (
+                                <Button onClick={() => componentChange(index, "allowance", null)}>
+                                  Leave allowance unconfigured
+                                </Button>
+                              )}
                               {c.mode !== "included" && (
                                 <TextField
                                   label={

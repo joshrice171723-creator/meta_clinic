@@ -107,6 +107,11 @@ export function PackageCard({
               )}
               <Typography variant="body2" color="text.secondary">
                 {c.quantity} per {c.frequency}
+                {c.allowance
+                  ? " · Allowance windows start with the verified paid period in UTC; unused units expire at each boundary and a new paid period restarts the allowance. Month boundaries clamp the anchor day in shorter months; a short final window retains the full quantity until paid access ends."
+                  : (c.frequency !== "term" || terms.renewal === "automatic")
+                    ? " · Allowance accounting is unconfigured."
+                    : ""}
                 {!/^0(?:\.0+)?$/.test(c.price_adjustment)
                   ? ` · +${subscriptionMoney(c.price_adjustment, terms.currency)}`
                   : ""}

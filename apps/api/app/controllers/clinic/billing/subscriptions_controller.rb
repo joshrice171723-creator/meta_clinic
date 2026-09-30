@@ -90,29 +90,30 @@ module Clinic
       end
 
       def entitlement
-        input = parameter_hash!(:entitlement, %i[kind service_id quantity reversed_entry_id source_reference request_key])
-        entry = Care::SubscriptionEntitlements.record(agreement: agreement, actor: current_user,
+        input = parameter_hash!(:entitlement, %i[kind service_id quantity reversed_entry_id source_reference request_key allowance_window])
+        arguments = { agreement: agreement, actor: current_user,
           kind: input[:kind], service_id: input[:service_id], quantity: input[:quantity],
           reversed_entry_id: input[:reversed_entry_id], source_reference: input[:source_reference],
-          request_key: input[:request_key])
-        render json: { entry: { id: entry.id, kind: entry.kind, service_id: entry.service_id,
-          quantity: entry.quantity, reversed_entry_id: entry.reversed_entry_id,
-          source_reference: entry.source_reference, occurred_at: entry.created_at.iso8601 },
+          request_key: input[:request_key] }
+        entry = if input.key?(:allowance_window)
+          Care::SubscriptionAllowances.record(**arguments, allowance_window: input[:allowance_window])
+        else
+          Care::SubscriptionEntitlements.record(**arguments)
+        end
+        render json: { entry: Care::SubscriptionEntitlementHistory.entry(entry),
           subscription: Care::SubscriptionProjection.agreement(agreement) }
       end
 
       def entitlements
         page = bounded_integer!(params.fetch(:page, 1), field: :page, min: 1, max: 1_000_000)
         records = Care::SubscriptionEntitlements.records(agreement)
-        total = records.count
-        entries = records.order(id: :desc).offset((page - 1) * 50).limit(50)
+        total = records.count + Care::SubscriptionAllowances.records(agreement).count
+        entries = Care::SubscriptionEntitlementHistory.page(agreement: agreement, page: page)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
           action_code: "subscriptions.entitlements.read", outcome: :released,
           resource_version_ref: "subscription:#{agreement.id}")
         render json: { subscription: Care::SubscriptionProjection.agreement(agreement),
-          entries: entries.map { |entry| { id: entry.id, kind: entry.kind, service_id: entry.service_id,
-            quantity: entry.quantity, reversed_entry_id: entry.reversed_entry_id,
-            source_reference: entry.source_reference, occurred_at: entry.created_at.iso8601 } },
+          entries: entries.map { |entry| Care::SubscriptionEntitlementHistory.entry(entry) },
           page: page, per_page: 50, total_count: total, total_pages: (total / 50.0).ceil }
       end
 

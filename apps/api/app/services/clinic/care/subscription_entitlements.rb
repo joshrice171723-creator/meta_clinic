@@ -19,6 +19,9 @@ module Clinic
           agreement.practice.lock!
           agreement.patient.lock!
           agreement.lock!
+          if SubscriptionAllowances.records(agreement).exists?(request_key: key)
+            raise ArgumentError, "Request key was already used in the recurring ledger."
+          end
           entries = records(agreement).order(:id).to_a
           original = if kind == "reversal"
             id = SubscriptionDefinition.integer(reversed_entry_id, 1..9_223_372_036_854_775_807, "Use entry ID")
@@ -38,7 +41,7 @@ module Clinic
           component = components(agreement).find { |item| item.fetch("service_id") == service }
           raise ArgumentError, "This service was not purchased in the package." unless component
           raise ArgumentError, "Only fixed-term, term-frequency package units are supported." unless
-            agreement.snapshot.fetch("renewal") != "automatic" && component.fetch("frequency") == "term"
+            agreement.snapshot.fetch("renewal") != "automatic" && component.fetch("frequency") == "term" && !component["allowance"]
           balance = project(agreement: agreement, entries: entries).find { |item| item[:service_id] == service }
           case kind
           when "opening"
@@ -68,14 +71,18 @@ module Clinic
         agreement.snapshot.fetch("selected_components", [])
       end
 
-      def self.project(agreement:, entries:, state: agreement.current_state)
+      def self.project(agreement:, entries:, state: agreement.current_state, allowance_entries: nil)
+        allowance_entries ||= SubscriptionAllowances.records(agreement).order(:id).to_a
         by_service = entries.group_by(&:service_id)
         components(agreement).map do |component|
+          if component["allowance"] || component.fetch("frequency") != "term" || agreement.snapshot.fetch("renewal") == "automatic"
+            next SubscriptionAllowances.project(agreement: agreement, component: component, entries: allowance_entries, state: state)
+          end
           rows = by_service.fetch(component.fetch("service_id"), [])
           opening = rows.find { |entry| entry.kind == "opening" }
           used = rows.select { |entry| entry.kind == "use" }.sum(&:quantity)
           restored = rows.select { |entry| entry.kind == "reversal" }.sum(&:quantity)
-          supported = agreement.snapshot.fetch("renewal") != "automatic" && component.fetch("frequency") == "term"
+          supported = agreement.snapshot.fetch("renewal") != "automatic" && component.fetch("frequency") == "term" && !component["allowance"]
           remaining = supported && opening ? opening.quantity - used + restored : nil
           status = if !supported
             "unsupported_frequency"

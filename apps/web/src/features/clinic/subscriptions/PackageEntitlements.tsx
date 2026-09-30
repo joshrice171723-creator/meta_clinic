@@ -62,8 +62,10 @@ export function PackageEntitlementBalances({
             Purchased: {balance.purchased_quantity} units / {balance.frequency}.
             Remaining:{" "}
             {balance.remaining_quantity === null
-              ? balance.status === "unsupported_frequency"
-                ? "Unknown — allowance period unsupported"
+              ? balance.source === "retained_recurring_allowance"
+                ? balance.status === "allowance_unconfigured"
+                  ? "Unknown — purchased allowance policy unconfigured"
+                  : "Unknown — verified paid period unavailable"
                 : "Unknown — opening balance not recorded"
               : `${balance.remaining_quantity} units`}
             .
@@ -76,11 +78,19 @@ export function PackageEntitlementBalances({
           ) : (
             balance.remaining_quantity !== null && (
               <Typography variant="body2">
-                Reviewed opening: {balance.opening_quantity}; recorded use:{" "}
+                {balance.source === "retained_recurring_allowance"
+                  ? "Window allowance"
+                  : "Reviewed opening"}: {balance.opening_quantity}; recorded use:{" "}
                 {balance.used_quantity}; reversed use:{" "}
                 {balance.reversed_quantity}.
               </Typography>
             )
+          )}
+          {balance.window_start && balance.window_end && (
+            <Typography variant="body2">
+              Allowance window (UTC): {balance.window_start} through {balance.window_end} (end excluded).
+              Unused units expire at the boundary. Reversals restore only their original window.
+            </Typography>
           )}
           {balance.status === "inactive" && (
             <Typography variant="body2">
@@ -442,11 +452,12 @@ export function PackageEntitlements({
                   (item) => item.service_id === entry.service_id,
                 );
                 const alreadyReversed = data.entries.some(
-                  (row) => row.reversed_entry_id === entry.id,
+                  (row) =>
+                    row.reversed_entry_id === entry.id && row.ledger === entry.ledger,
                 );
                 return (
                   <Stack
-                    key={entry.id}
+                    key={`${entry.ledger || "fixed"}:${entry.id}`}
                     direction={{ xs: "column", sm: "row" }}
                     spacing={1}
                     sx={{ justifyContent: "space-between" }}
@@ -457,6 +468,7 @@ export function PackageEntitlements({
                       {entry.quantity} units ·{" "}
                       {subscriptionDate(entry.occurred_at, true)} · Source:{" "}
                       {entry.source_reference}
+                      {entry.allowance_window ? ` · Window: ${entry.allowance_window}` : ""}
                       {entry.reversed_entry_id
                         ? ` · Reverses #${entry.reversed_entry_id}`
                         : ""}

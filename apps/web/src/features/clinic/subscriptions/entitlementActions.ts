@@ -18,6 +18,7 @@ export type EntitlementAttempt = {
       reversed_entry_id?: number;
       source_reference: string;
       request_key: string;
+      allowance_window?: string;
     }>;
   };
 };
@@ -30,11 +31,18 @@ export function entitlementActionAllowed(
 ) {
   if (
     !canWrite ||
-    subscription.terms.renewal === "automatic" ||
-    balance.frequency !== "term"
+    (balance.source !== "retained_recurring_allowance" &&
+      (subscription.terms.renewal === "automatic" || balance.frequency !== "term"))
   )
     return false;
-  if (kind === "reversal") return true;
+  if (kind === "reversal") {
+    return balance.source === "staff_recorded_package_ledger" ||
+      !!subscription.terms.selected_components?.find(
+        (item) => item.service_id === balance.service_id,
+      )?.allowance;
+  }
+  if (kind === "opening" && balance.source === "retained_recurring_allowance")
+    return false;
   if (subscription.state !== "active") return false;
   return kind === "opening"
     ? balance.status === "not_recorded" && balance.remaining_quantity === null
@@ -89,6 +97,11 @@ export function createEntitlementAttempt(
       );
     fields = { service_id: balance.service_id, quantity: units };
   }
+  if (
+    balance.source === "retained_recurring_allowance" &&
+    !(kind === "reversal" ? original?.allowance_window : balance.allowance_window)
+  )
+    throw new Error("An exact retained allowance window is required.");
   return Object.freeze({
     subscriptionId: subscription.id,
     serviceId: balance.service_id,
@@ -99,6 +112,13 @@ export function createEntitlementAttempt(
         ...fields,
         source_reference,
         request_key: requestKey,
+        ...(balance.source === "retained_recurring_allowance"
+          ? {
+              allowance_window: kind === "reversal"
+                ? original?.allowance_window || undefined
+                : balance.allowance_window || undefined,
+            }
+          : {}),
       }),
     }),
   });
@@ -145,6 +165,9 @@ export function entitlementResponse(
     entry.source_reference !== expected.source_reference ||
     entry.service_id !== attempt.serviceId ||
     entry.quantity !== attempt.quantity ||
+    (expected.allowance_window !== undefined
+      ? entry.ledger !== "recurring" || entry.allowance_window !== expected.allowance_window
+      : entry.ledger === "recurring") ||
     (expected.kind === "reversal"
       ? entry.reversed_entry_id !== expected.reversed_entry_id
       : entry.service_id !== expected.service_id ||
