@@ -100,3 +100,7 @@ MC06 source8b5c69b0d4d377e95fe0337ded8c8f262b2e138d retains configured mappingsd
 Docs follow-upb40e1c02132bfb55f08af2feee33e93bae348d67 corrects the fixed-fe6 staff-transaction inference while leaving numeric history unchanged. The ordinary staff caller already grouped local writes; laterb3a source separates GET evidence and receipt delivery. These cutoffs must not be conflated.
 
 The export231000 and response235900 migrations add two ungenerated schema stages, now sixteen pending. Runtime, migration/schema, type/build/browser/conformance and release verification remain unrun. No new tests/build/lint, provider actions, main merge, new PR, deployment, activation or score award.
+
+## Known release limitation: sandbox reset, issue34
+
+[Open issue34](https://github.com/joshrice171723-creator/meta_clinic/issues/34) remains a known readiness limitation. Parent directly read tester evidence reporting a failed sandbox-reset retest on released7ded2cfe at approximately2026-09-30 21:40UTC: progress followed by a one-minute timeout and temporary500 before Retry. The old synthetic edits did clear. This is tester-reported evidence, not Relay reproduction; it does not establish later5702fee0 behavior. No demo-ready claim is supported by this report. Source-only integration neither reruns QA nor repairs this historical issue; any later readiness summary must retain the open limitation and exact evidence boundary.
