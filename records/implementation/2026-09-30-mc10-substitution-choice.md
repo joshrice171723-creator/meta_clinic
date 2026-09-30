@@ -33,3 +33,16 @@ python ../../bin/agent-resources run -- ../../bin/postgres exec bundle exec rail
 Two new Rails recipes cover unresolved draft preservation, both explicit choices, immutable prior revisions, invalid-choice rejection, exact-review invalidation and unresolved release/review denial. They have not run. Complete scoped migration/rollback and runtime constraint checks in disposable, explicitly named test databases owned by Sage; no protected development database is targeted by this handoff.
 
 The sprint coordinator authorized committing and publishing this tested source and evidence on the dedicated same-repository branch. Backend/schema verification remains an integration blocker, not a source-publication blocker. No real prescribing, provider call, clinical substitution decision, credential, policy, main change, PR, deployment or score update is authorized or performed by this source-publication step.
+
+## Independent review repair
+
+Independent review rejected `6b161c77ecf3f762cb68bc7c50a0b9f8a055c45e`: the editor sent `substitution_instruction`, but the controller rejected it before workflow validation; two synthetic sandbox prescription builders also omitted the choice before invoking review. The corrected source adds the field to the controller allowlist and an explicit `not_allowed` fixture choice to `DemoSandboxJourneys` and `DemoSandboxPrescriptionOutcomes`. These fixture definitions create wholly synthetic examples; no historical row is changed, inferred or backfilled, and no sandbox reset was executed.
+
+The portable editor/API/workflow boundary regression failed against the unchanged controller at `6b161` and passes on the correction. Request-level Rails recipes now cover blank draft creation, both explicit create choices, invalid create/revision rejection and append-only choices. Two additional Rails recipes invoke the bounded synthetic prescription builders and assert exact review plus simulated outcome. Rails runtime evidence remains pending Sage; passing source/frontend checks do not validate these API or seed executions.
+
+Run the original migration/test commands above against the corrected branch. Expand changed-file RuboCop with:
+
+```sh
+cd apps/api
+python ../../bin/agent-resources run -- bundle exec rubocop app/controllers/clinic/care/clinical_plan_workspace_controller.rb app/services/development/demo_sandbox_journeys.rb app/services/development/demo_sandbox_prescription_outcomes.rb test/integration/clinical_plan_workflow_test.rb
+```

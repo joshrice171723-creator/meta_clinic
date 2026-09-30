@@ -506,7 +506,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
   test "substitution remains unresolved in drafts and explicit choices retain revision history" do
     draft = create_record("medication_requests", "medication_request", {
-      medication_name: "Synthetic substitution draft"
+      medication_name: "Synthetic substitution draft", substitution_instruction: ""
     }, "substitution-draft")
     assert_nil draft.fetch("substitution_instruction")
     original = Clinic::Care::MedicationRequestRevision.find(draft.fetch("id"))
@@ -526,6 +526,46 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
           request_key: "invalid-substitution-choice" } }, headers: csrf_headers, as: :json
       assert_response :unprocessable_entity
     end
+  end
+
+  test "substitution create boundary accepts explicit choices and rejects unsupported choices" do
+    %w[allowed not_allowed].each do |choice|
+      draft = create_record("medication_requests", "medication_request", {
+        medication_name: "Synthetic explicit substitution draft", substitution_instruction: choice
+      }, "substitution-create-#{choice}")
+      assert_equal choice, draft.fetch("substitution_instruction")
+    end
+    assert_no_difference "Clinic::Care::MedicationRequestRevision.count" do
+      post "#{workspace_path(@patient)}/medication_requests", params: { medication_request: {
+        medication_name: "Synthetic invalid substitution draft", substitution_instruction: "automatic",
+        request_key: "substitution-create-invalid"
+      } }, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+  end
+
+  test "synthetic prescription journey has an explicit fixture choice before review" do
+    Development::DemoSandboxJourneys.send(:medication_story!, practice: @practice, actor: @user,
+      patient: @patient, encounter: @encounter, transmit: true)
+    order = Clinic::Care::MedicationRequestRevision.where(practice: @practice, patient: @patient)
+      .order(:id).last!
+    assert_equal "not_allowed", order.substitution_instruction
+    assert Clinic::Care::PrescriptionWorkflow.events(order).exists?(medication_request_revision_id: order.id, kind: "review")
+    assert_equal "accepted", Clinic::Care::PrescriptionTransmissionWorkflow.attempts(order).last!.outcome
+  end
+
+  test "synthetic prescription outcome example has an explicit fixture choice before review" do
+    @site.rooms.create!(practice: @practice, code: "SYNTHETIC-RX")
+    destination = Clinic::Care::PharmacyDestination.create!(practice: @practice, name: "Synthetic outcome destination",
+      address_line1: "100 Synthetic Way", city: "Austin", state_code: "TX", postal_code: "78701")
+    run = Struct.new(:id).new("synthetic-substitution-test")
+    Development::DemoSandboxPrescriptionOutcomes.send(:prepare_outcome!, run:, practice: @practice,
+      site: @site, patient: @other_patient, actor: @user, destination:, outcome: "unknown")
+    order = Clinic::Care::MedicationRequestRevision.where(practice: @practice, patient: @other_patient)
+      .order(:id).last!
+    assert_equal "not_allowed", order.substitution_instruction
+    assert Clinic::Care::PrescriptionWorkflow.events(order).exists?(medication_request_revision_id: order.id, kind: "review")
+    assert_equal "unknown", Clinic::Care::PrescriptionTransmissionWorkflow.attempts(order).last!.outcome
   end
 
   test "outside pharmacy release requires an explicit substitution choice and changing it invalidates exact review" do

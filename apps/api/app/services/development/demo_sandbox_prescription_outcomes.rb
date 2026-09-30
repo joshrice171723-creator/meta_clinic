@@ -38,6 +38,7 @@ module Development
           catalog_source: "synthetic", intent: "order", dose_text: "10 mg", route_text: "oral",
           frequency_text: "daily", instructions: "For local workflow demonstration only",
           prescribed_quantity: "30", quantity_unit: "tablet", refills: 0,
+          substitution_instruction: "not_allowed",
           fulfillment_route: "outside_pharmacy", pharmacy_name: destination.name,
           pharmacy_location: destination.city })
       order = Clinic::Care::ClinicalPlanWorkflow.revise(kind: :medication_requests,
