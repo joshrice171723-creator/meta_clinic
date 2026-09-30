@@ -125,6 +125,14 @@ module Development
       render json: active_payload(run)
     end
 
+    def prepare_sandbox
+      run = current_run!
+      require_run_user!(run)
+      raise ActiveRecord::RecordNotFound unless run.visitor_id == current_visitor&.id
+
+      render json: { complete: SharedDemoLesson.prepare_sandbox_step!(run) }
+    end
+
     def enrollment
       run = current_run!
       require_run_user!(run)

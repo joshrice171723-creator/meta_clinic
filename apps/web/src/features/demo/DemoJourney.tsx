@@ -274,6 +274,7 @@ export function DemoJourney() {
   };
   const selectLesson = async (lesson_key: string | null, restart = false) => {
     const startingSandbox = lesson_key === "sandbox";
+    let sandboxRunCreated = false;
     if (startingSandbox) {
       sandboxStartedAt.current = Date.now();
       setSandboxElapsed(0);
@@ -290,11 +291,28 @@ export function DemoJourney() {
         body: { lesson_key, restart },
         timeoutMs: lesson_key === "sandbox" ? 240_000 : undefined,
       });
-      setState({ status: "ready", value: response });
+      if (startingSandbox) {
+        sandboxRunCreated = true;
+        let complete = false;
+        while (!complete) {
+          const preparation = await api<{ complete: boolean }>(
+            "/api/demo/sandbox/prepare",
+            { method: "POST", body: {}, timeoutMs: 240_000 },
+          );
+          complete = preparation.complete;
+        }
+        setState({
+          status: "ready",
+          value: await api<DemoRunResponse>("/api/demo/run"),
+        });
+      } else {
+        setState({ status: "ready", value: response });
+      }
       setRestartOpen(false);
     } catch (reason) {
       if (
         lesson_key === "sandbox" &&
+        !sandboxRunCreated &&
         reason instanceof ApiError &&
         reason.code === "outcome_unconfirmed"
       ) {

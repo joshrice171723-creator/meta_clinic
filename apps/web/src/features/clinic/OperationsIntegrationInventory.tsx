@@ -117,7 +117,7 @@ export function OperationsIntegrationInventory({
   const activity = prescriptions.data?.report;
 
   return (
-    <Card title="Integration inventory">
+    <Card id="connectors-transmissions" title="Connectors & transmissions">
       <Stack spacing={1.5}>
         {canReadScribe && <ScribeActivitySummary />}
         <Stack spacing={0.75}>

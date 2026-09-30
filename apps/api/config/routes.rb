@@ -52,6 +52,7 @@ Rails.application.routes.draw do
   post "public/clinic_services/:slug/inquiries", to: "public/clinic_services#create"
   get "demo/run", to: "development/demo_runs#show"
   post "demo/lesson", to: "development/demo_runs#lesson"
+  post "demo/sandbox/prepare", to: "development/demo_runs#prepare_sandbox"
   post "demo/lesson/complete", to: "development/demo_runs#complete"
   post "demo/run/view", to: "development/demo_runs#view"
   post "demo/run/resume", to: "development/demo_runs#resume"
