@@ -212,12 +212,32 @@ module Clinic
             "interpretation" => optional_text(values[:interpretation], "result interpretation", 80),
             "reference_range" => optional_text(values[:reference_range], "reference_range", 200),
             "flag" => optional_text(values[:flag], "result flag", 80)
-          }
+          }.merge({
+            "performing_organization" => optional_text(values[:performing_organization], "performing organization", 200),
+            "issuing_organization" => optional_text(values[:issuing_organization], "issuing organization", 200),
+            "method" => optional_text(values[:method], "result method", 200),
+            "resulted_at" => optional_source_time(values[:resulted_at], "Result time"),
+            "received_at" => optional_source_time(values[:received_at], "Received time")
+          }.compact)
         end
       rescue NoMethodError
         raise ArgumentError, "Each result must be an object."
       end
       private_class_method :normalize_results
+
+      def self.optional_source_time(value, field)
+        text = optional_text(value, field, 80)
+        return nil unless text
+        unless text.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\z/)
+          raise ArgumentError, "#{field} must be an ISO 8601 timestamp with an offset."
+        end
+        Date.iso8601(text[0, 10])
+        Time.iso8601(text)
+        text
+      rescue ArgumentError
+        raise ArgumentError, "#{field} must be an ISO 8601 timestamp with an offset."
+      end
+      private_class_method :optional_source_time
 
       def self.create_version!(report:, member:, number:, attributes:)
         report.report_versions.create!(

@@ -1,4 +1,8 @@
 import {
+  LabResultProvenanceView,
+  type LabResultProvenance,
+} from "./LabResultProvenance";
+import {
   Alert,
   Box,
   Button,
@@ -31,7 +35,7 @@ type Source = {
   source_name: string | null;
 };
 
-type ResultHistoryItem = {
+type ResultHistoryItem = LabResultProvenance & {
   report_id: number;
   version_id: number;
   result_index: number;
@@ -258,6 +262,7 @@ export function LabResultHistory({
                                 <Typography variant="body2">
                                   {item.title}
                                 </Typography>
+                                <LabResultProvenanceView row={item} />
                                 <Typography
                                   variant="body2"
                                   color="text.secondary"

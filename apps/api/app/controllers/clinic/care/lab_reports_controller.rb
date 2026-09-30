@@ -6,7 +6,7 @@ module Clinic
         only: %i[index show review_queue follow_up_queue result_history]
 
       VERSION_FIELDS = %i[title status result_priority collected_at issued_at].freeze
-      RESULT_FIELDS = %i[name code code_system code_version value unit unit_code interpretation reference_range flag value_kind absent_reason value_code value_code_system].freeze
+      RESULT_FIELDS = %i[name code code_system code_version value unit unit_code interpretation reference_range flag value_kind absent_reason value_code value_code_system performing_organization issuing_organization method resulted_at received_at].freeze
 
       def index
         patient = readable_patient!
