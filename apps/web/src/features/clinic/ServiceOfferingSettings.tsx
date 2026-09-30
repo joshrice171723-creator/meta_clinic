@@ -32,6 +32,7 @@ import type { ClinicSite, VisitType } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { ServiceOfferingTextImport } from "./ServiceOfferingTextImport";
+import { ServiceOfferingBulkTextImport } from "./ServiceOfferingBulkTextImport";
 
 type BillingService = { id: number; name: string; active: boolean };
 type ServiceOffering = {
@@ -108,6 +109,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
   );
   const [dialog, setDialog] = useState<ServiceOffering | "new" | null>(null);
   const [retiring, setRetiring] = useState<ServiceOffering | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -129,7 +131,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
   );
 
   const perform = async (attempt: Attempt) => {
-    if (busy) return;
+    if (busy || bulkImportOpen) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -168,6 +170,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
   };
 
   const open = (offering: ServiceOffering | "new") => {
+    if (bulkImportOpen) return;
     setDialog(offering);
     setForm(
       offering === "new"
@@ -193,7 +196,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!dialog || !canManage || retryAttempt) return;
+    if (!dialog || !canManage || retryAttempt || bulkImportOpen) return;
     const creating = dialog === "new";
     const body = {
       request_key: crypto.randomUUID(),
@@ -228,7 +231,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
   };
 
   const publish = (offering: ServiceOffering) => {
-    if (!canManage || retryAttempt) return;
+    if (!canManage || retryAttempt || bulkImportOpen) return;
     void perform({
       method: "POST",
       path: `/api/clinic/service_offerings/${offering.id}/publish`,
@@ -243,7 +246,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
   };
 
   const retire = (offering: ServiceOffering) => {
-    if (!canManage || retryAttempt) return;
+    if (!canManage || retryAttempt || bulkImportOpen) return;
     setRetiring(null);
     void perform({
       method: "POST",
@@ -279,7 +282,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
     );
   }
 
-  const controlsDisabled = busy || retryAttempt !== null;
+  const controlsDisabled = busy || retryAttempt !== null || bulkImportOpen;
   return (
     <Stack spacing={2} sx={{ mb: 3 }}>
       {feedback && dialog === null && (
@@ -307,6 +310,16 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
           are shown.
         </Alert>
       )}
+      {bulkImportOpen && (
+        <ServiceOfferingBulkTextImport
+          targets={data.service_offerings}
+          canApply={canManage}
+          onClose={() => {
+            setBulkImportOpen(false);
+            refresh();
+          }}
+        />
+      )}
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -321,14 +334,31 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
             </Typography>
           </Box>
           {canManage && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              disabled={controlsDisabled}
-              onClick={() => open("new")}
-            >
-              Add service offering
-            </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                variant="outlined"
+                disabled={
+                  controlsDisabled ||
+                  dialog !== null ||
+                  retiring !== null ||
+                  !!loadError ||
+                  !data.service_offerings.some(
+                    (offering) => offering.status === "draft",
+                  )
+                }
+                onClick={() => setBulkImportOpen(true)}
+              >
+                Import text into selected drafts
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                disabled={controlsDisabled}
+                onClick={() => open("new")}
+              >
+                Add service offering
+              </Button>
+            </Stack>
           )}
         </Stack>
         <Typography color="text.secondary" sx={{ mt: 2, maxWidth: 760 }}>
