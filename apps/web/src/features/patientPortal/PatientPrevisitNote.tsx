@@ -42,6 +42,7 @@ function hasAnswers(answers: Answers) {
 type Note = {
   id: number;
   version_number: number;
+  request_key?: string;
   text: string;
   additional_text?: string;
   intake_answers?: Answers;
@@ -75,6 +76,8 @@ type Response = {
   } | null;
 };
 type Attempt = {
+  appointment_id: number;
+  uncertain: boolean;
   body: {
     previsit_note: {
       text: string;
@@ -88,6 +91,32 @@ type Attempt = {
     };
   };
 };
+
+export function isUncertainPrevisitSave(reason: unknown) {
+  return (
+    !(reason instanceof ApiError) ||
+    reason.status === 408 ||
+    reason.status >= 500 ||
+    reason.code === "outcome_unconfirmed" ||
+    reason.code === "session_changed"
+  );
+}
+
+export function matchesPrevisitSave(
+  result: Pick<Response, "appointment_id" | "note">,
+  current: Attempt,
+) {
+  const note = result.note;
+  return (
+    result.appointment_id === current.appointment_id &&
+    note !== null &&
+    Number.isSafeInteger(note.id) &&
+    note.id > 0 &&
+    note.request_key === current.body.previsit_note.request_key &&
+    note.version_number === current.body.previsit_note.expected_version + 1 &&
+    note.status === current.body.previsit_note.status
+  );
+}
 
 export function isCurrentPrevisitLoad(
   currentAppointmentId: number,
@@ -157,6 +186,7 @@ export function PatientPrevisitNote({
   const [latestRefreshFailed, setLatestRefreshFailed] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const attempt = useRef<Attempt | null>(null);
+  const inFlight = useRef<Attempt | null>(null);
   const appointmentIdRef = useRef(appointmentId);
   const loadSequenceRef = useRef(0);
   appointmentIdRef.current = appointmentId;
@@ -172,7 +202,30 @@ export function PatientPrevisitNote({
     setOutcomeUnknown(false);
     setBusy(false);
     attempt.current = null;
+    inFlight.current = null;
   }, [appointmentId]);
+
+  const acceptSaved = (result: Response) => {
+    const saved = savedText(result.note);
+    const savedAnswers = result.note?.intake_answers ?? {};
+    setData(result);
+    setText(saved);
+    setAnswers(savedAnswers);
+    setReusedNoteId(result.note?.inherited_from?.note_id ?? null);
+    setAttested(false);
+    setBaseline(draftKey(saved, savedAnswers));
+    setNotice(
+      result.note?.status === "draft"
+        ? "Saved as a draft. Confirm when you are ready to send it."
+        : result.note?.text
+          ? "Your intake and visit note were saved."
+          : "Your intake and visit note were cleared.",
+    );
+    attempt.current = null;
+    setOutcomeUnknown(false);
+    setConflict(false);
+    setError("");
+  };
 
   const load = async (preserveDraft = false) => {
     const requestAppointmentId = appointmentId;
@@ -197,6 +250,16 @@ export function PatientPrevisitNote({
       if (result.appointment_id !== appointmentId)
         throw new Error("The saved visit note did not match this appointment.");
       if (!requestIsCurrent()) return;
+      if (attempt.current?.uncertain) {
+        if (matchesPrevisitSave(result, attempt.current)) acceptSaved(result);
+        else {
+          setData(result);
+          setError(
+            "The latest saved note does not acknowledge the original request. Its outcome remains unknown; retry the same request.",
+          );
+        }
+        return;
+      }
       setData(result);
       if (!preserveDraft || data === null) {
         const saved = savedText(result.note);
@@ -224,6 +287,7 @@ export function PatientPrevisitNote({
   };
 
   const openEditor = () => {
+    if (inFlight.current || attempt.current?.uncertain) return;
     setOpen(true);
     setNotice("");
     setError("");
@@ -235,7 +299,13 @@ export function PatientPrevisitNote({
     void load();
   };
   const closeEditor = () => {
-    if (busy || outcomeUnknown) return;
+    if (
+      busy ||
+      outcomeUnknown ||
+      inFlight.current ||
+      attempt.current?.uncertain
+    )
+      return;
     loadSequenceRef.current += 1;
     setLoading(false);
     setOpen(false);
@@ -247,7 +317,13 @@ export function PatientPrevisitNote({
     setConfirmDiscard(false);
   };
   const requestClose = () => {
-    if (busy || outcomeUnknown) return;
+    if (
+      busy ||
+      outcomeUnknown ||
+      inFlight.current ||
+      attempt.current?.uncertain
+    )
+      return;
     if (data && hasUnsavedPrevisitDraft(text, answers, baseline)) {
       setConfirmDiscard(true);
       return;
@@ -255,6 +331,7 @@ export function PatientPrevisitNote({
     closeEditor();
   };
   const useLatestSaved = () => {
+    if (inFlight.current || attempt.current?.uncertain) return;
     const saved = savedText(data?.note);
     const savedAnswers = data?.note?.intake_answers ?? {};
     setText(saved);
@@ -268,6 +345,7 @@ export function PatientPrevisitNote({
     setLatestRefreshFailed(false);
   };
   const keepDraft = () => {
+    if (inFlight.current || attempt.current?.uncertain) return;
     setBaseline(
       draftKey(savedText(data?.note), data?.note?.intake_answers ?? {}),
     );
@@ -278,6 +356,8 @@ export function PatientPrevisitNote({
     setLatestRefreshFailed(false);
   };
   const save = async (status: "draft" | "submitted" = "submitted") => {
+    if (inFlight.current) return;
+    const retrying = attempt.current?.uncertain === true;
     const normalizedText = text.trim() ? text : "";
     const hasContent = normalizedText !== "" || hasAnswers(answers);
     if (
@@ -288,21 +368,23 @@ export function PatientPrevisitNote({
       (!outcomeUnknown &&
         draftKey(normalizedText, answers) === baseline &&
         !(data.note?.status === "draft" && status === "submitted")) ||
-      (normalizedText === "" && !hasAnswers(answers) && !data.note)
+      (!retrying && normalizedText === "" && !hasAnswers(answers) && !data.note)
     )
       return;
-    if (status === "submitted" && hasContent && !attested) {
+    if (!retrying && status === "submitted" && hasContent && !attested) {
       setError(
         "Confirm the intake is current and may be shared with your care team before saving.",
       );
       return;
     }
     const current = attempt.current ?? {
+      appointment_id: appointmentId,
+      uncertain: false,
       body: {
         previsit_note: {
           form_id: data.intake_form?.id,
           text: normalizedText,
-          intake_answers: answers,
+          intake_answers: structuredClone(answers),
           status,
           reused_note_id: reusedNoteId,
           attestation: attested,
@@ -312,6 +394,7 @@ export function PatientPrevisitNote({
       },
     };
     attempt.current = current;
+    inFlight.current = current;
     const requestAppointmentId = appointmentId;
     setBusy(true);
     setError("");
@@ -321,29 +404,36 @@ export function PatientPrevisitNote({
         `/api/patient_portal/appointments/${appointmentId}/previsit_note`,
         { method: "POST", body: current.body },
       );
-      if (result.appointment_id !== appointmentId)
-        throw new Error("The saved visit note did not match this appointment.");
-      if (appointmentIdRef.current !== requestAppointmentId) return;
-      const saved = savedText(result.note);
-      const savedAnswers = result.note?.intake_answers ?? {};
-      setData(result);
-      setText(saved);
-      setAnswers(savedAnswers);
-      setAttested(false);
-      setBaseline(draftKey(saved, savedAnswers));
-      setNotice(
-        result.note?.status === "draft"
-          ? "Saved as a draft. Confirm when you are ready to send it."
-          : result.note?.text
-            ? "Your intake and visit note were saved."
-            : "Your intake and visit note were cleared.",
-      );
-      attempt.current = null;
-      setOutcomeUnknown(false);
-      setConflict(false);
+      if (!matchesPrevisitSave(result, current)) {
+        throw new ApiError(
+          502,
+          "The saved note did not acknowledge this exact request.",
+          "outcome_unconfirmed",
+        );
+      }
+      if (
+        appointmentIdRef.current !== requestAppointmentId ||
+        attempt.current !== current
+      )
+        return;
+      acceptSaved(result);
     } catch (reason) {
-      if (appointmentIdRef.current !== requestAppointmentId) return;
-      if (reason instanceof ApiError && reason.status === 409) {
+      if (
+        appointmentIdRef.current !== requestAppointmentId ||
+        attempt.current !== current
+      )
+        return;
+      if (current.uncertain || isUncertainPrevisitSave(reason)) {
+        current.uncertain = true;
+        setOutcomeUnknown(true);
+        setError(
+          "The original save outcome is still unknown. Retry this exact request or check its saved revision before editing or closing it.",
+        );
+      } else if (
+        reason instanceof ApiError &&
+        reason.status === 409 &&
+        reason.code === "stale_record"
+      ) {
         attempt.current = null;
         setOutcomeUnknown(false);
         setConflict(true);
@@ -353,23 +443,20 @@ export function PatientPrevisitNote({
           "This visit note changed elsewhere. The latest saved note was refreshed; your draft is still here until you choose which version to use.",
         );
         void load(true);
-      } else if (
-        reason instanceof ApiError &&
-        reason.status >= 400 &&
-        reason.status < 500 &&
-        reason.code !== "outcome_unconfirmed"
-      ) {
+      } else {
         attempt.current = null;
         setOutcomeUnknown(false);
-        setError(reason.message);
-      } else {
-        setOutcomeUnknown(true);
         setError(
-          "The save outcome is unknown. Retry this exact visit note request before editing or closing it.",
+          reason instanceof Error
+            ? reason.message
+            : "Your visit note could not be saved.",
         );
       }
     } finally {
-      if (appointmentIdRef.current === requestAppointmentId) setBusy(false);
+      if (inFlight.current === current) {
+        inFlight.current = null;
+        if (appointmentIdRef.current === requestAppointmentId) setBusy(false);
+      }
     }
   };
   const canSave =
@@ -385,7 +472,12 @@ export function PatientPrevisitNote({
 
   return (
     <>
-      <Button size="small" variant="outlined" onClick={openEditor}>
+      <Button
+        size="small"
+        variant="outlined"
+        disabled={busy || outcomeUnknown}
+        onClick={openEditor}
+      >
         Complete intake / visit note
       </Button>
       <Dialog
@@ -558,6 +650,11 @@ export function PatientPrevisitNote({
               Clear intake and note
             </Button>
           )}
+          {outcomeUnknown && (
+            <Button disabled={busy || loading} onClick={() => void load(true)}>
+              Check saved intake
+            </Button>
+          )}
           {error && !outcomeUnknown && (
             <Button disabled={busy || loading} onClick={() => void load(true)}>
               Retry loading note
@@ -581,7 +678,7 @@ export function PatientPrevisitNote({
           {data && (
             <Button
               variant="contained"
-              disabled={busy || (!canSave && !outcomeUnknown)}
+              disabled={busy || loading || (!canSave && !outcomeUnknown)}
               onClick={() => void save()}
             >
               {busy
