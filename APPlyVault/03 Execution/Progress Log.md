@@ -7,6 +7,13 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 - Approved combined source, final release hold
+
+The single [release PR66](https://github.com/joshrice171723-creator/meta_clinic/pull/66) retains main PR61 history and approved PR35/64/65, Office `9efdbb75352adc212999dba3492b605e057ed574`, and preserved PR36 `29601ee0caea7361b531206362015db61a09e078` plus Sage-approved race repair `26d24d47d63741d65fc7b2409047a377819c5cdb`. The one Progress Log conflict retains both complete entries; SSR and feature additions remain. Joshua dropped PR4: it is closed, branch preserved, and all PR4-only source is excluded. PR3 is closed as fully superseded; PR35/64/65 were closed only after source retention in PR66 was verified. Original branches, evidence and tracker percentages remain preserved.
+
+Core combined checks passed 38 Rails cases/656 assertions and 19 controlled frontend cases, plus 3 mocked Sandbox progress cases. Office combined checks passed 3 Rails cases/39 assertions, 14 frontend cases, and 3 additional navigation regressions; TypeScript/build and scoped style passed. Those results cover their recorded exact trees; final PR36-intersection checks are now pending. Hosted CI remains billing-blocked, connected two-visitor/clinical/provider acceptance remains open, and no Muse no-writes acknowledgment is asserted. Parent requires explicit final-candidate confirmation before main merge or deployment; no partial PR61 rollout or fixture reset is authorized.
+
+
 ## 2026-09-30 - One combined release preparation, no partial deployment
 
 - Joshua chose one target-main combined release PR and same-revision canonical publication. Live remains `4eed814c524449bb6c0b0b5948d2b4f37c565e7a`; main already retains reviewed PR61 at `c2d30609d656cf71ab3c7a8806b1ac3585923f04`. Neither main history nor the live baseline was rewritten. Relay's isolated branch locally retains independently approved PR35, PR64 and PR65 without merge conflicts, with MC-08/MC-10 workflow-brief links added and existing tracker scores/history preserved.
