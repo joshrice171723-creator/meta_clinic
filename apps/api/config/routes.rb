@@ -268,7 +268,12 @@ Rails.application.routes.draw do
     resources :documents, controller: "documents", only: :show do
       get :download, on: :member
     end
-    resources :document_categories, controller: "document_categories", only: :index
+    resources :document_categories, controller: "document_categories", only: :index do
+      get :provenance_configuration, on: :member
+      post :provenance_configuration, on: :member, action: :configure_provenance
+    end
+    get "patients/:patient_id/documents/:document_id/provenance", to: "document_provenance#index"
+    post "patients/:patient_id/documents/:document_id/provenance", to: "document_provenance#create"
     resources :message_intents, controller: "messaging/message_intents", only: :show do
       post :delivery_events, on: :member, action: :record_delivery
     end
