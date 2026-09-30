@@ -9,7 +9,7 @@ class PreserveSupplierQuoteFeeEvidence < ActiveRecord::Migration[8.0]
         "(quoted_fee_amount IS NOT NULL AND quoted_fee_amount >= 0 AND " \
         "quoted_fee_currency IS NOT NULL AND quoted_fee_currency ~ '^[A-Z]{3}$' AND quoted_fee_currency <> 'UNK' AND " \
         "quoted_fee_basis IS NOT NULL AND length(trim(quoted_fee_basis)) BETWEEN 1 AND 160)",
-        name: "#{table.delete_prefix('clinic_inventory_')}_quote_fee_evidence"
+        name: "#{table.to_s.delete_prefix('clinic_inventory_')}_quote_fee_evidence"
     end
     add_check_constraint :clinic_inventory_supplier_products,
       "quoted_fee_amount IS NULL OR (price_source = 'manual_quote' AND quoted_fee_currency = currency)",
