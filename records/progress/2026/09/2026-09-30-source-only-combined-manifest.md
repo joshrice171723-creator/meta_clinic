@@ -12,7 +12,7 @@ This is a source-accounting cutoff for the single product integration branch, no
 | MC04 provenance | 2d96bed50ea815e294e3e80aea246926136d94bc |
 | MC04 overbook | ONLY a98cd14fa845169823acad39649e3ca13f99d046 cherry-picked; no other source from its branch |
 | MC05 question context/manual recovery and patient intake retry | 142599baf63fdd310021fc51176456f66d06c63e, retaining20995/d5c5/784 |
-| MC06 lab provenance | 0bf6584dd9a5d68c20692dbac63ca91d09b07c4f |
+| MC06 lab provenance/configured units | 0bf6584dd9a5d68c20692dbac63ca91d09b07c4f plusd40d584aa55b7ef3cc68facbc91ee89eb0555501 |
 | MC06 repaired closure/type/replay guards | a0326be8ad494a40e9d260eeb226fd038bb2d957; replaces unrepaireddbef final source |
 | MC07 repaired telehealth lifecycle | a1c118ac15fed8f78bb977334a77f66ed6e1231c, already retained at6099 |
 | MC08 price/date/context | d9082a1f63b39b963be63d5a277c320267339a20, retainingd19 |
@@ -23,7 +23,7 @@ This is a source-accounting cutoff for the single product integration branch, no
 | MC12 waitlist | 7e58880a3cbfeaaec84d861254ffb0b355c66a75; original branch ancestry retained after earlier isolated cherry-pick |
 | MC13 corrected unknown policy/overnight | 667338bdc74a984e27d9611732b9e5d04ffb1d3f plus correction460caf7d486ebc53ec9254088021be48e13facc9 |
 | MC14 corrected source reconciliation | a11c737c67388860289782933594a66ba71829ea |
-| MC15 corrected bounded text import | 6c81eaf09cff499a73be66867e96af1b880381ef; prior mapping review5383 remains |
+| MC15 corrected single/bulk bounded text import | f38cfea3e0a94c74b1fbfd11f31211d5cca709f8, retaining6c81; prior mapping review5383 remains |
 
 All original branches/history are preserved. Old blocked source heads may remain as historical ancestors; the corrected final source above is the accounting target. No percentage credit is assigned by this manifest.
 
@@ -48,3 +48,9 @@ Three MC09 architecture-contract failures independently reproduce identically at
 ## External Office baseline reconciliation
 
 Branch: `codex/relay-product-source-20260930`. Product source snapshot98d16213 remains preserved on the old local integration branch; the merged PR66 branch was not pushed again. The new branch retains main7ded2cfe and all its Office identity/task/UI, harness and infrastructure source. The sole baseline conflict was the schema-migration list; Office160000, MC09 000900 and MC08 230000 entries were retained together. Product schema changes remain additive to the supplied Office schema. No new PR, main merge, deployment, actor activation or credential action was performed. New product percentages require an independent frozen-cutoff assessment.
+
+## Source increments after published1818a691 cutoff
+
+MC15 f38cfea3 adds explicit source/destination/four-text-field mapping across existing drafts, frozen per-item exact requests and sequential partial application. Unknown items retain exact identity across denial; unresolved items never count as all applied. Recovery is in memory, not atomic or rollback-capable; no new offerings, catalog application or protected configuration changes. Nine authored regressions were not run.
+
+MC06 d40d584a adds revisioned clinic-supplied lab unit mapping configuration through existing permission boundaries. Numeric/range results store their captured configured-pair validation receipt; unconfigured/unmapped remains explicitly unvalidated. No conversions, authoritative catalog values or clinical approval is supplied. Human mapping approval earns no source credit. The two frontend integration conflicts were resolved by preserving LabResultProvenance type extension and view plus adding the unit-validation receipt property and view. Backend, configuration and route additions merged without dropping existing provenance or repaired closure guards. No schema mutation or new tests/builds/lint were run for these increments.
