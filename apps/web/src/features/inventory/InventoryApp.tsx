@@ -3373,34 +3373,38 @@ export function CatalogScreen({
           </p>
         </div>
         <div className="inventory-catalog-actions">
-          <Button
-            variant="outlined"
-            href="/clinic/inventory/catalog/new"
-            sx={{
-              minHeight: 44,
-              borderColor: "var(--inventory-control)",
-              color: "var(--inventory-blue)",
-              textTransform: "none",
-              fontWeight: 700,
-            }}
-          >
-            Add catalog item
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<MoveToInboxOutlinedIcon />}
-            href="/clinic/inventory/receiving"
-            sx={{
-              minHeight: 44,
-              backgroundColor: "var(--inventory-blue)",
-              textTransform: "none",
-              fontWeight: 700,
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "var(--inventory-blue)" },
-            }}
-          >
-            Receive stock
-          </Button>
+          {capability(data, "inventory.catalog") && (
+            <Button
+              variant="outlined"
+              href="/clinic/inventory/catalog/new"
+              sx={{
+                minHeight: 44,
+                borderColor: "var(--inventory-control)",
+                color: "var(--inventory-blue)",
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              Add catalog item
+            </Button>
+          )}
+          {capability(data, "inventory.receive") && (
+            <Button
+              variant="contained"
+              startIcon={<MoveToInboxOutlinedIcon />}
+              href="/clinic/inventory/receiving"
+              sx={{
+                minHeight: 44,
+                backgroundColor: "var(--inventory-blue)",
+                textTransform: "none",
+                fontWeight: 700,
+                boxShadow: "none",
+                "&:hover": { backgroundColor: "var(--inventory-blue)" },
+              }}
+            >
+              Receive stock
+            </Button>
+          )}
         </div>
       </div>
       <p className="inventory-flow-note">

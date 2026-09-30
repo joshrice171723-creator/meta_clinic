@@ -116,6 +116,25 @@ describe("inventory integration", () => {
     expect(html).toContain("25");
     expect(html).toContain("Catalog pagination");
     expect(html).toContain("product_id=21");
+    expect(html).not.toContain('href="/clinic/inventory/catalog/new"');
+    expect(html).not.toContain('href="/clinic/inventory/receiving"');
+    expect(html).toContain('href="/clinic/inventory/lots?product_id=21"');
+    for (const catalogAllowed of [false, true]) {
+      for (const receivingAllowed of [false, true]) {
+        data.capabilities = {
+          "inventory.catalog": catalogAllowed,
+          "inventory.receive": receivingAllowed,
+        };
+        const permittedHtml = render();
+        expect(
+          permittedHtml.includes('href="/clinic/inventory/catalog/new"'),
+        ).toBe(catalogAllowed);
+        expect(
+          permittedHtml.includes('href="/clinic/inventory/receiving"'),
+        ).toBe(receivingAllowed);
+      }
+    }
+    data.capabilities = {};
     expect(render({ error: "Read failed" })).toContain(
       "The previous catalog page remains visible.",
     );
