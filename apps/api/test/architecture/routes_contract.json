@@ -1310,6 +1310,16 @@
     "/api/workforce/kiosk/enroll(.:format)"
   ],
   [
+    "entitlement_api_clinic_subscription",
+    "POST",
+    "/api/clinic/subscriptions/:id/entitlement(.:format)"
+  ],
+  [
+    "entitlements_api_clinic_subscription",
+    "GET",
+    "/api/clinic/subscriptions/:id/entitlements(.:format)"
+  ],
+  [
     "events_api_clinic_recall",
     "POST",
     "/api/clinic/recalls/:id/events(.:format)"

@@ -301,6 +301,8 @@ Rails.application.routes.draw do
     post "subscription_catalog/packages/:id/publish", to: "care/subscription_catalog#publish"
     post "subscription_catalog/:kind/:id/retire", to: "care/subscription_catalog#retire"
     resources :subscriptions, controller: "billing/subscriptions", only: :index do
+      post :entitlement, on: :member
+      get :entitlements, on: :member
       post :reconcile_ledger, on: :member
       post :review, on: :member
       post :reconcile, on: :member
