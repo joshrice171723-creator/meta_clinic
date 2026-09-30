@@ -97,6 +97,12 @@ branch. Both wake every five minutes; neither duplicates an active pass, merges 
 main, publishes, or merges the other's work each cycle. Fetch for awareness and
 record drift for the publishing handoff.
 
+An open PR or pending QA review is a handoff, not a stop condition. Development
+continues independent tracker slices on its branch and records each completed
+commit. QA reviews exact SHAs; later changes require affected evidence to be
+refreshed when Joshua freezes the final publishing candidate. Neither loop waits
+for the other to merge work after each cycle.
+
 Development PRs carry `engineering-loop` plus the outcome, owned files, revision and
 actual non-test evidence. QA reviews that separate integration lane explicitly;
 it must not invent Muse issue markers or use the Muse approval helper on those PRs.

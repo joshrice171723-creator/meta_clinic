@@ -79,6 +79,14 @@ independently reviewable branch. Build health supports delivery. Preserve separa
 Build, Validation and external/human acceptance measures; source changes do not
 close browser findings.
 
+Pending PR review or unpublished completed work does not stop development. After
+checkpointing a completed slice, continue the next independent feasible tracker
+slice on the same owned branch. Bind QA handoffs to exact commit SHAs; subsequent
+changes invalidate affected review evidence, not the loop's authority to continue.
+An explicit publishing freeze, overlapping ownership, native budget limit or
+concrete blocker stops only the affected path. Do not wait for QA integration
+between development cycles.
+
 The existing QA loop owns eligible Muse repair batches and independent review on
 its own branch. Neither loop merges into main or publishes. Both loops wake
 every five minutes; existing Muse browser monitoring remains separately owned.
