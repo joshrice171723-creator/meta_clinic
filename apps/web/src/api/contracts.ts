@@ -438,6 +438,11 @@ export type EncounterIntakeRevision = {
     items?: Record<
       string,
       {
+        question?: import("../features/patientPortal/IntakeQuestions").IntakeField & {
+          question_version?: number;
+        };
+        questionnaire_version?: number;
+        original_response?: import("../features/patientPortal/IntakeQuestions").IntakeAnswer;
         source: string;
         recorded_at: string;
         recorded_by_membership_id: number;

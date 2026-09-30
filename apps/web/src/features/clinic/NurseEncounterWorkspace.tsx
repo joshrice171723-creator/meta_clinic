@@ -44,6 +44,7 @@ import { VitalSignsEntry } from "./VitalSignsEntry";
 import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
 import { PatientCareCoordination } from "./PatientCareCoordination";
+import { IntakeAnswerProvenance } from "./IntakeAnswerProvenance";
 
 type IntakeForm = Pick<
   EncounterIntakeRevision,
@@ -1204,6 +1205,18 @@ export function NurseEncounterWorkspaceContent({
                                   </Stack>
                                 </AccordionDetails>
                               </Accordion>
+                            )}
+                            {latestIntake && (
+                              <IntakeAnswerProvenance
+                                intake={latestIntake}
+                                patientId={patient.id}
+                                encounterId={encounter.id}
+                                fields={
+                                  workspace.questionnaire_form?.fields ?? []
+                                }
+                                questionIds={chunk.fields}
+                                scopeId={chunk.id}
+                              />
                             )}
                             {intakeChunks[activeChunkIndex].id ===
                               "patient_coordination" && (
