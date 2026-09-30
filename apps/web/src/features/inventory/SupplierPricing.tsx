@@ -859,6 +859,7 @@ export function SupplierPricingScreen({
                     ...applied,
                     supplier_id: event.target.value || undefined,
                     page: 1,
+                    quote_request_page: 1,
                   });
                 }}
                 disabled={!canManage || loading}

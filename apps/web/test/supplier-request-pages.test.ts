@@ -211,6 +211,87 @@ async function withScreen(
 }
 
 describe("supplier request paging with controlled HTTP responses", () => {
+  it("resets both pages when switching suppliers through the dropdown and hides stale rows during recovery", async () => {
+    const initial = data(2, "open");
+    initial.capabilities["inventory.catalog"] = true;
+    initial.suppliers.push({ id: "2", name: "Synthetic second supplier" });
+    initial.supplier_page = {
+      ...initial.supplier_page,
+      supplier_id: "1",
+      page: 2,
+      query: "synthetic",
+    };
+    let fail = true;
+    await withScreen(
+      initial,
+      () => {
+        if (fail)
+          return { status: 503, error: "Controlled supplier switch failure" };
+        const result = data(1, "open");
+        result.capabilities["inventory.catalog"] = true;
+        result.suppliers = initial.suppliers;
+        result.supplier_page = {
+          ...result.supplier_page,
+          supplier_id: "2",
+          query: "synthetic",
+        };
+        result.quote_requests[0] = {
+          ...result.quote_requests[0],
+          id: "200",
+          supplier_id: "2",
+          supplier_name: "Synthetic second supplier",
+          note: "SYN_SECOND_SUPPLIER_FIRST_REQUEST",
+        };
+        return { data: result };
+      },
+      async (page, reads) => {
+        const section = page.getByRole("region", {
+          name: "Local quote requests",
+        });
+        const supplier = page.getByRole("combobox", {
+          name: "Supplier",
+          exact: true,
+        });
+        await section.getByText("SYN_OLDER_REQUEST").waitFor();
+        await supplier.selectOption("2");
+        expect(await supplier.isDisabled()).toBe(true);
+        expect(await section.textContent()).not.toMatch(
+          /SYN_OLDER_REQUEST|matching requests/,
+        );
+        await section
+          .getByRole("button", { name: "Retry", exact: true })
+          .waitFor();
+        expect(reads.at(-1)?.get("supplier_id")).toBe("2");
+        expect(reads.at(-1)?.get("page")).toBe("1");
+        expect(reads.at(-1)?.get("quote_request_page")).toBe("1");
+        expect(reads.at(-1)?.get("quote_request_status")).toBe("open");
+        expect(reads.at(-1)?.get("q")).toBe("synthetic");
+        expect(await supplier.inputValue()).toBe("2");
+        expect(await section.textContent()).not.toMatch(
+          /SYN_OLDER_REQUEST|matching requests|No quote requests/,
+        );
+        expect(
+          await section
+            .getByRole("combobox", { name: "Quote request status" })
+            .textContent(),
+        ).toContain("Awaiting response");
+        fail = false;
+        await section
+          .getByRole("button", { name: "Retry", exact: true })
+          .click();
+        await section.getByText("SYN_SECOND_SUPPLIER_FIRST_REQUEST").waitFor();
+        expect(reads.at(-1)?.get("supplier_id")).toBe("2");
+        expect(reads.at(-1)?.get("quote_request_page")).toBe("1");
+        expect(reads.at(-1)?.get("quote_request_status")).toBe("open");
+        expect(await section.textContent()).not.toMatch(
+          /SYN_OLDER_REQUEST|SYN_NEWER_REQUEST/,
+        );
+        expect(await section.textContent()).toContain("26 matching requests");
+        expect(await supplier.inputValue()).toBe("2");
+      },
+    );
+  }, 15000);
+
   it("pages independently, displays filtered counts and retains exact request snapshots", async () => {
     await withScreen(
       data(),
