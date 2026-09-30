@@ -7,6 +7,10 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-30 — MC-09/MC-12 acceptance design linked locally
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) links the revised docs-only PR57 [connected membership and portal packets](../../docs/development/clinic-workflow-plans/membership-portal-connected-acceptance.md) at `2af63b7a0352f752c12796e75b34184e3e96644c` in a separate local documentation candidate. Design includes the planned null-ID manifest and closed-world test clock/gateway recipe. The successful recurring-renewal handler is implemented; missing second-paid-cycle acceptance is a proof gap, not missing product code. Runtime/owned synthetic fixtures and connected execution remain pending; separately authored isolated tests are not counted as passing here. No live fixture/auth changes, charges, outbound messages, provider proof, score change or publication occurred. PR36 notes/history and approved PR55 source remain preserved.
+
 ## 2026-09-30 — PR55 approved-source and tracker integration preparation
 
 A separate Relay-owned local candidate combines Sage-approved PR55 `1f81a07ed04ef7d7f41034c10167a67634318884` with the preserved PR36 tracker notes and MC-05/06 M11 assignment link. The approved corrected brief supersedes its older copied version in this candidate; the earlier documentation packet remains preserved. Sage passed both retained/failed-refresh browser regressions and reused unchanged-backend two-case / 51-assertion evidence. The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) retains connected Rails/browser acceptance, clinical-review boundaries and the release HOLD. No completion scores, access, upstream merge or deployment changed.
