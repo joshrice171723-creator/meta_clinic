@@ -10,6 +10,8 @@ This is a source-accounting cutoff for the single product integration branch, no
 | MC02 atomic paid conversion | 445a8a2607f44011a877e7bf2ff3c111dbccd4a3 |
 | MC03 identity/language | e6e6535a73fb4a4343bd2681f831e33273261426; matrix43b3b000e2fb9e3db4f2a08c10572a372234f893 |
 | MC04 provenance | 2d96bed50ea815e294e3e80aea246926136d94bc |
+| MC04 configured resources | ONLY080f183f1a5c5afe7e08d3da66d8ac795e74535a cherry-picked asf5d80322; provenance retained separately |
+| MC04 operational policy | 8d9a0bbe98cbf7c7e7c199889485f102cf8ba4ec, superseding incomplete081f wiring state |
 | MC04 overbook | ONLY a98cd14fa845169823acad39649e3ca13f99d046 cherry-picked; no other source from its branch |
 | MC05 question context/manual recovery and patient intake retry | 0dc95c5299a0f3aac76fce275747293631f1c17c, retaining142599/20995/d5c5/784 |
 | MC06 lab provenance/configured units | 0bf6584dd9a5d68c20692dbac63ca91d09b07c4f plusd40d584aa55b7ef3cc68facbc91ee89eb0555501 |
@@ -74,3 +76,9 @@ While publishing the recurring/carrier wave, remote main advanced to5702fee0d757
 ## MC05 explicit saved-question task linkage
 
 Source0dc95c5299a0f3aac76fce275747293631f1c17c retains the intake recovery source and adds explicit create/link against an immutable saved question/revision, eligible staff selection, transfer acknowledgement, status/history and cancelled-only reopen. Original answer references and exact uncertain receipt retries remain protected. This merge was conflict-free and adds no migration. Static source inspection does not establish runtime completion; no new tests/build/lint, automatic task assignment, clinical approval or percentage credit. Ten prior schema-artifact stages remain pending.
+
+## Completed MC04 source paths in the next wave
+
+ONLY compatibility commit080f183f was applied, followed by complete operational-policy head8d9a0bbe. Both integrations were conflict-free. Source inspection confirmed both route sets, Facilities operational editor alongside the scheduling editor, nested resource-compatibility editor, booking/rescheduling/series allocation methods, and preserved historical category and waiting projections. Compatibility is explicitly clinic-configured; absent policy is unconfigured. Waiting comparison is display-only, with missing/failed policy explicit and no automatic escalation or clinical defaults. Source receipts remain in the original contributed records. No runtime completeness, clinical values, percentage credit or release readiness is inferred.
+
+Four additional unapplied migrations are authored: resource configuration212000 and operational policy213000/category213100/provenance213200. Generated SQL was not invented or appended. This wave now has fourteen pending schema-artifact stages. No test/build/lint, migration, main merge, new PR, deployment or access activation was performed; all prior source and frozen scoring cutoffs remain preserved.
