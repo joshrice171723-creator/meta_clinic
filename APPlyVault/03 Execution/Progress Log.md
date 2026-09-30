@@ -7,6 +7,15 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+## 2026-09-29 — MC-14 visit CSV provenance on development branch
+
+The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md)
+records the bounded visit CSV source/filter/interval and pagination provenance
+slice on `codex/persistent-engineering-pilot`, based on `e17dd689`. TypeScript and
+scoped source review passed. Existing permissions and CSV encoding are preserved;
+browser download, separate export issuance/audit, retention and release remain
+open. No tests, main merge or deployment were performed; completion scores are unchanged.
+
 ## 2026-09-29 — QA build observation and access feedback released
 
 PR #33 fixes QA build observation independently of workspace access, clears stale workspace records on a failed refresh, disables pin confirmation without workspace data, and explains the existing platform-owner credential requirement. The guarded 0.2.3 release completed at `8e2a8215c1654594eea2c4878707dfbe255f5f24`; independent public build.json matched and /up returned HTTP 200. TypeScript, formatting, encrypted recovery and hosted release checks passed. An anonymous browser was correctly directed to the QA credential form; a signed-in QA build-panel walkthrough and actual platform-owner account login remain unverified. Issue #32 retains that acceptance gap. Demo PIN permissions were not changed. Atlas percentages remain unchanged.

@@ -23,9 +23,20 @@ type ReportPagination = {
 };
 
 type DailyVisitsReport = {
-  definition: { revision: number; source: string; date_basis: string };
+  definition: {
+    revision: number;
+    source: string;
+    date_basis: string;
+    state_basis: string;
+    population: string;
+    exclusions: string;
+  };
+  practice_id: number;
+  site_id: number | null;
   date: string;
   timezone: string;
+  interval_start: string;
+  interval_end: string;
   as_of: string;
   freshness: string;
   counts: Record<string, number>;
@@ -653,6 +664,12 @@ function DailyVisitsByState({
           >
             Download visit report CSV
           </Button>
+          <Typography variant="caption" color="text.secondary">
+            CSV includes counts for all {report.total} matching visits and only
+            the {report.records.length} source appointments on page{" "}
+            {report.pagination.page}. Clinic, location, time interval and source
+            details are included in the file.
+          </Typography>
         </Stack>
       )}
       {(capabilities.billing_payment_record ||
@@ -683,9 +700,18 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ["definition_revision", String(report.definition.revision)],
     ["source", report.definition.source],
     ["date_basis", report.definition.date_basis],
+    ["state_basis", report.definition.state_basis],
+    ["population", report.definition.population],
+    ["exclusions", report.definition.exclusions],
+    ["practice_id", String(report.practice_id)],
+    ["site_id", report.site_id === null ? "all" : String(report.site_id)],
     ["clinic_date", report.date],
     ["timezone", report.timezone],
+    ["interval_start_inclusive", report.interval_start],
+    ["interval_end_exclusive", report.interval_end],
     ["as_of", report.as_of],
+    ["freshness", report.freshness],
+    ["counts_scope", "all matching appointments"],
     ["state", "count"],
     ...Object.entries(report.counts).map(([state, count]) => [
       state,
@@ -694,9 +720,12 @@ function downloadVisitCsv(report: DailyVisitsReport) {
     ["unknown_state", String(report.unknown_state_count)],
     ["total", String(report.total)],
     [],
+    ["records_scope", "current page only"],
     ["record_page", String(report.pagination.page)],
     ["records_per_page", String(report.pagination.per_page)],
     ["records_total", String(report.pagination.total)],
+    ["record_pages_total", String(report.pagination.total_pages)],
+    ["records_exported", String(report.records.length)],
     ["visit_id", "site_id", "status", "visit_modality", "local_start"],
     ...report.records.map((record) => [
       String(record.id),
@@ -706,7 +735,10 @@ function downloadVisitCsv(report: DailyVisitsReport) {
       record.local_start,
     ]),
   ];
-  downloadCsv(rows, `daily-visits-${report.date}.csv`);
+  downloadCsv(
+    rows,
+    `daily-visits-clinic-${report.practice_id}-site-${report.site_id ?? "all"}-${report.date}-page-${report.pagination.page}.csv`,
+  );
 }
 
 function downloadCsv(rows: string[][], filename: string) {

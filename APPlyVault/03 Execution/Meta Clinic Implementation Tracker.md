@@ -43,6 +43,18 @@ Consolidated 2026-09-13 around the founder-approved strategy. Older records supp
 
 ## Workflow inventory and next proof
 
+**2026-09-29 — MC-14 visit export provenance, development branch:** The daily visit
+CSV now retains the API's clinic/site filter, inclusive start and exclusive end of
+the report interval, timezone, freshness, definition revision, population and
+exclusions. It explicitly distinguishes full-population counts from the current
+page of source appointments, records exported-row/page totals, and includes clinic,
+site, date and page in the filename. The download caption exposes this same scope.
+TypeScript passed; source review matched the existing Rails report projection and
+preserved CSV escaping/formula protection. Browser download/reload and role/site
+acceptance remain unverified; separately authorized/audited export issuance and
+retention policy remain open. No tests, main integration or publication occurred;
+MC-14 and overall scores are unchanged.
+
 ### Clinic workflow planning coverage — 2026-09-22 audit
 
 Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked from its owning item even when the plan itself is the only changed artifact. A plan is not implementation or acceptance evidence. The dedicated [assignment folder](../../docs/development/clinic-workflow-plans/README.md) currently contains three assignment briefs plus the organization-wide sandbox coverage matrix; earlier briefs remain at their established owning paths and are linked below.
