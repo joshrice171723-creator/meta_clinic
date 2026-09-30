@@ -2133,6 +2133,65 @@ $$;
 
 
 --
+-- Name: subscription_allowance_resolution_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.subscription_allowance_resolution_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE resolution clinic_subscription_paid_period_resolutions%ROWTYPE;
+  original clinic_subscription_allowance_entries%ROWTYPE;
+  accounted timestamp; competing bigint[]; retained bigint[];
+BEGIN
+  PERFORM 1 FROM clinic_subscription_agreements
+    WHERE practice_id = NEW.practice_id AND id = NEW.agreement_id FOR UPDATE;
+  IF NEW.kind = 'reversal' THEN
+    SELECT * INTO original FROM clinic_subscription_allowance_entries WHERE id = NEW.reversed_entry_id;
+    IF NEW.period_resolution_id IS DISTINCT FROM original.period_resolution_id THEN
+      RAISE EXCEPTION 'Reversal must retain original paid-period resolution identity';
+    END IF;
+    RETURN NEW;
+  END IF;
+  accounted := COALESCE(NEW.accounted_at, NEW.created_at);
+  SELECT array_agg(id ORDER BY id) INTO competing FROM clinic_subscription_events
+    WHERE practice_id = NEW.practice_id AND agreement_id = NEW.agreement_id AND kind = 'active'
+      AND ((details ->> 'starts_at')::timestamptz AT TIME ZONE 'UTC') <= accounted
+      AND accounted < ((details ->> 'ends_at')::timestamptz AT TIME ZONE 'UTC');
+  IF competing IS NULL OR NOT NEW.paid_event_id = ANY(competing) THEN
+    RAISE EXCEPTION 'Allowance use requires a paid period covering the accounting time';
+  END IF;
+  IF cardinality(competing) > 1 AND NEW.period_resolution_id IS NULL THEN
+    RAISE EXCEPTION 'Competing paid periods require an explicit resolution';
+  END IF;
+  IF NEW.period_resolution_id IS NOT NULL THEN
+    SELECT * INTO resolution FROM clinic_subscription_paid_period_resolutions
+      WHERE id = NEW.period_resolution_id AND practice_id = NEW.practice_id
+        AND agreement_id = NEW.agreement_id AND service_id = NEW.service_id;
+    SELECT array_agg(value::text::bigint ORDER BY value::text::bigint) INTO retained
+      FROM jsonb_array_elements(resolution.candidate_event_ids);
+    IF resolution.id IS NULL OR resolution.selected_paid_event_id <> NEW.paid_event_id
+      OR resolution.effective_at > accounted OR accounted < resolution.overlap_start
+      OR accounted >= resolution.overlap_end OR competing IS DISTINCT FROM retained
+      OR resolution.effective_at >= NEW.window_end OR resolution.overlap_end <= NEW.window_start THEN
+      RAISE EXCEPTION 'Allowance use does not match selected paid-period resolution';
+    END IF;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM clinic_subscription_allowance_entries used
+    WHERE used.practice_id = NEW.practice_id AND used.agreement_id = NEW.agreement_id
+      AND used.service_id = NEW.service_id AND used.kind = 'use' AND used.paid_event_id <> NEW.paid_event_id
+      AND used.window_start < NEW.window_end AND NEW.window_start < used.window_end
+      AND NOT EXISTS (SELECT 1 FROM clinic_subscription_allowance_entries reversal
+        WHERE reversal.reversed_entry_id = used.id)
+  ) THEN
+    RAISE EXCEPTION 'Another paid-period window retains unreversed allowance use';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: subscription_entitlement_guard(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2195,6 +2254,81 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: subscription_paid_resolution_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.subscription_paid_resolution_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE candidate jsonb; candidate_id bigint; paid jsonb; retained jsonb; period_start timestamp; period_end timestamp;
+  terms jsonb; component jsonb; actual bigint[];
+  seen bigint[] := ARRAY[]::bigint[];
+BEGIN
+  SELECT snapshot INTO terms FROM clinic_subscription_agreements
+    WHERE practice_id = NEW.practice_id AND id = NEW.agreement_id FOR UPDATE;
+  SELECT item INTO component FROM jsonb_array_elements(terms -> 'selected_components') item
+    WHERE (item ->> 'service_id')::bigint = NEW.service_id;
+  IF component IS NULL OR component -> 'allowance' IS DISTINCT FROM
+    '{"anchor":"paid_period_start","timezone":"UTC","reset":"discard_unused","renewal":"verified_paid_period","partial_window":"full_quantity"}'::jsonb THEN
+    RAISE EXCEPTION 'Purchased allowance policy is unconfigured';
+  END IF;
+  IF jsonb_typeof(NEW.candidate_event_ids) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Paid period candidates must be an array';
+  END IF;
+  IF jsonb_array_length(NEW.candidate_event_ids) < 2 THEN
+    RAISE EXCEPTION 'Paid period resolution requires competing events';
+  END IF;
+  IF jsonb_typeof(NEW.evidence_snapshot -> 'events') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Resolution snapshot must retain paid events';
+  END IF;
+  IF jsonb_array_length(NEW.evidence_snapshot -> 'events') <> jsonb_array_length(NEW.candidate_event_ids) THEN
+    RAISE EXCEPTION 'Resolution snapshot must retain every competing event exactly once';
+  END IF;
+  FOR candidate IN SELECT value FROM jsonb_array_elements(NEW.candidate_event_ids) LOOP
+    IF jsonb_typeof(candidate) IS DISTINCT FROM 'number' OR candidate::text !~ '^[1-9][0-9]{0,18}$' THEN
+      RAISE EXCEPTION 'Paid period candidate must be a positive integer ID';
+    END IF;
+    candidate_id := candidate::text::bigint;
+    IF candidate_id = ANY(seen) THEN
+      RAISE EXCEPTION 'Paid period candidates must be distinct';
+    END IF;
+    seen := array_append(seen, candidate_id);
+    SELECT details INTO paid FROM clinic_subscription_events
+      WHERE practice_id = NEW.practice_id AND agreement_id = NEW.agreement_id
+        AND id = candidate_id AND kind = 'active';
+    IF paid IS NULL THEN
+      RAISE EXCEPTION 'Paid period candidate must be retained scoped activation evidence';
+    END IF;
+    SELECT item INTO retained FROM jsonb_array_elements(NEW.evidence_snapshot -> 'events') item
+      WHERE item -> 'id' = to_jsonb(candidate_id);
+    IF retained IS NULL OR retained -> 'details' IS DISTINCT FROM paid OR
+      (SELECT count(*) FROM jsonb_array_elements(NEW.evidence_snapshot -> 'events') item
+        WHERE item -> 'id' = to_jsonb(candidate_id)) <> 1 THEN
+      RAISE EXCEPTION 'Resolution snapshot must preserve exact retained paid event details';
+    END IF;
+    period_start := (paid ->> 'starts_at')::timestamptz AT TIME ZONE 'UTC';
+    period_end := (paid ->> 'ends_at')::timestamptz AT TIME ZONE 'UTC';
+    IF period_start IS NULL OR period_end IS NULL OR period_start >= period_end
+      OR NEW.overlap_start < period_start OR NEW.overlap_end > period_end THEN
+      RAISE EXCEPTION 'Resolution overlap must remain within every retained paid period';
+    END IF;
+  END LOOP;
+  SELECT array_agg(id ORDER BY id) INTO actual FROM clinic_subscription_events
+    WHERE practice_id = NEW.practice_id AND agreement_id = NEW.agreement_id AND kind = 'active'
+      AND ((details ->> 'starts_at')::timestamptz AT TIME ZONE 'UTC') <= NEW.effective_at
+      AND NEW.effective_at < ((details ->> 'ends_at')::timestamptz AT TIME ZONE 'UTC');
+  IF actual IS DISTINCT FROM ARRAY(SELECT value FROM unnest(seen) value ORDER BY value) THEN
+    RAISE EXCEPTION 'Resolution must retain the complete competing paid-event set';
+  END IF;
+  IF NOT NEW.selected_paid_event_id = ANY(seen) THEN
+    RAISE EXCEPTION 'Selected paid event must belong to the competing set';
+  END IF;
+  RETURN NEW;
+END;
+$_$;
 
 
 --
@@ -3771,6 +3905,84 @@ CREATE SEQUENCE public.clinic_document_categories_id_seq
 --
 
 ALTER SEQUENCE public.clinic_document_categories_id_seq OWNED BY public.clinic_document_categories.id;
+
+
+--
+-- Name: clinic_document_metadata_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_document_metadata_revisions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    document_id bigint NOT NULL,
+    configuration_id bigint NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_document_metadata_rev_recorded_by_membership_id_not_null NOT NULL,
+    prior_revision_id bigint,
+    revision integer NOT NULL,
+    object_version character varying NOT NULL,
+    checksum character varying NOT NULL,
+    request_key character varying NOT NULL,
+    content text NOT NULL,
+    recorded_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT document_metadata_revision_values CHECK (((revision > 0) AND (length(TRIM(BOTH FROM object_version)) > 0) AND (length(TRIM(BOTH FROM checksum)) > 0) AND (((revision = 1) AND (prior_revision_id IS NULL)) OR ((revision > 1) AND (prior_revision_id IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_document_metadata_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_document_metadata_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_document_metadata_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_document_metadata_revisions_id_seq OWNED BY public.clinic_document_metadata_revisions.id;
+
+
+--
+-- Name: clinic_document_provenance_configurations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_document_provenance_configurations (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    category_id bigint NOT NULL,
+    recorded_by_membership_id bigint CONSTRAINT clinic_document_provenance_c_recorded_by_membership_id_not_null NOT NULL,
+    revision integer NOT NULL,
+    applicable boolean NOT NULL,
+    fields jsonb NOT NULL,
+    request_key character varying NOT NULL,
+    recorded_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT document_provenance_configuration_values CHECK (((revision > 0) AND (jsonb_typeof(fields) = 'array'::text) AND (fields <@ '["source", "issuer", "issued_date", "received_date"]'::jsonb) AND ((applicable AND (jsonb_array_length(fields) > 0)) OR ((NOT applicable) AND (jsonb_array_length(fields) = 0)))))
+);
+
+
+--
+-- Name: clinic_document_provenance_configurations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_document_provenance_configurations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_document_provenance_configurations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_document_provenance_configurations_id_seq OWNED BY public.clinic_document_provenance_configurations.id;
 
 
 --
@@ -11527,6 +11739,8 @@ CREATE TABLE public.clinic_subscription_allowance_entries (
     source_reference character varying(160) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    period_resolution_id bigint,
+    accounted_at timestamp(6) without time zone,
     CONSTRAINT subscription_allowance_values CHECK ((((kind)::text = ANY ((ARRAY['use'::character varying, 'reversal'::character varying])::text[])) AND ((quantity >= 1) AND (quantity <= 10000)) AND (window_end > window_start) AND (((kind)::text = 'reversal'::text) = (reversed_entry_id IS NOT NULL)) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text) AND (length(btrim((source_reference)::text)) > 0)))
 );
 
@@ -11699,6 +11913,50 @@ CREATE SEQUENCE public.clinic_subscription_packages_id_seq
 --
 
 ALTER SEQUENCE public.clinic_subscription_packages_id_seq OWNED BY public.clinic_subscription_packages.id;
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_subscription_paid_period_resolutions (
+    id bigint NOT NULL,
+    practice_id bigint CONSTRAINT clinic_subscription_paid_period_resolution_practice_id_not_null NOT NULL,
+    agreement_id bigint CONSTRAINT clinic_subscription_paid_period_resolutio_agreement_id_not_null NOT NULL,
+    service_id bigint NOT NULL,
+    selected_paid_event_id bigint CONSTRAINT clinic_subscription_paid_period_selected_paid_event_id_not_null NOT NULL,
+    actor_id bigint NOT NULL,
+    candidate_event_ids jsonb CONSTRAINT clinic_subscription_paid_period_re_candidate_event_ids_not_null NOT NULL,
+    evidence_snapshot jsonb CONSTRAINT clinic_subscription_paid_period_reso_evidence_snapshot_not_null NOT NULL,
+    evidence_token character varying(64) CONSTRAINT clinic_subscription_paid_period_resolut_evidence_token_not_null NOT NULL,
+    overlap_start timestamp(6) without time zone CONSTRAINT clinic_subscription_paid_period_resoluti_overlap_start_not_null NOT NULL,
+    overlap_end timestamp(6) without time zone CONSTRAINT clinic_subscription_paid_period_resolution_overlap_end_not_null NOT NULL,
+    effective_at timestamp(6) without time zone CONSTRAINT clinic_subscription_paid_period_resolutio_effective_at_not_null NOT NULL,
+    reason character varying(1000) NOT NULL,
+    request_key character varying(160) CONSTRAINT clinic_subscription_paid_period_resolution_request_key_not_null NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT subscription_paid_resolution_values CHECK (((jsonb_typeof(candidate_event_ids) = 'array'::text) AND (jsonb_typeof(evidence_snapshot) = 'object'::text) AND ((evidence_token)::text ~ '^[0-9a-f]{64}$'::text) AND (overlap_start <= effective_at) AND (effective_at < overlap_end) AND ((reason)::text ~ '[^[:space:]]'::text) AND ((request_key)::text ~ '^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,159}$'::text)))
+);
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_subscription_paid_period_resolutions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_subscription_paid_period_resolutions_id_seq OWNED BY public.clinic_subscription_paid_period_resolutions.id;
 
 
 --
@@ -14624,6 +14882,20 @@ ALTER TABLE ONLY public.clinic_document_categories ALTER COLUMN id SET DEFAULT n
 
 
 --
+-- Name: clinic_document_metadata_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_metadata_revisions ALTER COLUMN id SET DEFAULT nextval('public.clinic_document_metadata_revisions_id_seq'::regclass);
+
+
+--
+-- Name: clinic_document_provenance_configurations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_provenance_configurations ALTER COLUMN id SET DEFAULT nextval('public.clinic_document_provenance_configurations_id_seq'::regclass);
+
+
+--
 -- Name: clinic_documents id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15926,6 +16198,13 @@ ALTER TABLE ONLY public.clinic_subscription_packages ALTER COLUMN id SET DEFAULT
 
 
 --
+-- Name: clinic_subscription_paid_period_resolutions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions ALTER COLUMN id SET DEFAULT nextval('public.clinic_subscription_paid_period_resolutions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_subscription_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -16682,6 +16961,22 @@ ALTER TABLE ONLY public.clinic_departments
 
 ALTER TABLE ONLY public.clinic_document_categories
     ADD CONSTRAINT clinic_document_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_document_metadata_revisions clinic_document_metadata_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_metadata_revisions
+    ADD CONSTRAINT clinic_document_metadata_revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_document_provenance_configurations clinic_document_provenance_configurations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_provenance_configurations
+    ADD CONSTRAINT clinic_document_provenance_configurations_pkey PRIMARY KEY (id);
 
 
 --
@@ -18202,6 +18497,14 @@ ALTER TABLE ONLY public.clinic_subscription_families
 
 ALTER TABLE ONLY public.clinic_subscription_packages
     ADD CONSTRAINT clinic_subscription_packages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions clinic_subscription_paid_period_resolutions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions
+    ADD CONSTRAINT clinic_subscription_paid_period_resolutions_pkey PRIMARY KEY (id);
 
 
 --
@@ -21099,6 +21402,34 @@ CREATE UNIQUE INDEX diagnosis_request_key ON public.clinic_encounter_diagnosis_r
 --
 
 CREATE UNIQUE INDEX diagnosis_series_version ON public.clinic_encounter_diagnosis_revisions USING btree (practice_id, encounter_id, series_id, version_number);
+
+
+--
+-- Name: document_metadata_revision_context; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX document_metadata_revision_context ON public.clinic_document_metadata_revisions USING btree (practice_id, document_id, id);
+
+
+--
+-- Name: document_metadata_revision_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX document_metadata_revision_number ON public.clinic_document_metadata_revisions USING btree (practice_id, document_id, revision);
+
+
+--
+-- Name: document_provenance_configuration_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX document_provenance_configuration_revision ON public.clinic_document_provenance_configurations USING btree (practice_id, category_id, revision);
+
+
+--
+-- Name: document_provenance_configuration_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX document_provenance_configuration_tenant ON public.clinic_document_provenance_configurations USING btree (practice_id, id);
 
 
 --
@@ -24693,6 +25024,27 @@ CREATE UNIQUE INDEX subscription_event_request ON public.clinic_subscription_eve
 
 
 --
+-- Name: subscription_paid_resolution_evidence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_paid_resolution_evidence ON public.clinic_subscription_paid_period_resolutions USING btree (practice_id, agreement_id, service_id, evidence_token);
+
+
+--
+-- Name: subscription_paid_resolution_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_paid_resolution_identity ON public.clinic_subscription_paid_period_resolutions USING btree (practice_id, agreement_id, service_id, id);
+
+
+--
+-- Name: subscription_paid_resolution_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX subscription_paid_resolution_request ON public.clinic_subscription_paid_period_resolutions USING btree (practice_id, agreement_id, request_key);
+
+
+--
 -- Name: subscription_purchase_invoice; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -25257,6 +25609,20 @@ CREATE TRIGGER clinic_departments_preserve_identity BEFORE UPDATE ON public.clin
 --
 
 CREATE TRIGGER clinic_document_categories_preserve_identity BEFORE UPDATE ON public.clinic_document_categories FOR EACH ROW EXECUTE FUNCTION public.erd_preserve_identity('practice_id');
+
+
+--
+-- Name: clinic_document_metadata_revisions clinic_document_metadata_revisions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_document_metadata_revisions_immutable BEFORE DELETE OR UPDATE ON public.clinic_document_metadata_revisions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_document_provenance_configurations clinic_document_provenance_configurations_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_document_provenance_configurations_immutable BEFORE DELETE OR UPDATE ON public.clinic_document_provenance_configurations FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -26548,6 +26914,13 @@ CREATE TRIGGER subscription_allowance_immutable BEFORE DELETE OR UPDATE ON publi
 
 
 --
+-- Name: clinic_subscription_allowance_entries subscription_allowance_resolution_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER subscription_allowance_resolution_guard BEFORE INSERT ON public.clinic_subscription_allowance_entries FOR EACH ROW EXECUTE FUNCTION public.subscription_allowance_resolution_guard();
+
+
+--
 -- Name: clinic_subscription_entitlement_entries subscription_entitlement_guard; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -26566,6 +26939,20 @@ CREATE TRIGGER subscription_entitlement_immutable BEFORE DELETE OR UPDATE ON pub
 --
 
 CREATE TRIGGER subscription_fixed_allowance_guard BEFORE INSERT ON public.clinic_subscription_entitlement_entries FOR EACH ROW EXECUTE FUNCTION public.subscription_fixed_allowance_guard();
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions subscription_paid_resolution_guard; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER subscription_paid_resolution_guard BEFORE INSERT ON public.clinic_subscription_paid_period_resolutions FOR EACH ROW EXECUTE FUNCTION public.subscription_paid_resolution_guard();
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions subscription_paid_resolution_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER subscription_paid_resolution_immutable BEFORE DELETE OR UPDATE ON public.clinic_subscription_paid_period_resolutions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
 
 
 --
@@ -26769,6 +27156,54 @@ ALTER TABLE ONLY public.clinic_medication_dispenses
 
 ALTER TABLE ONLY public.clinic_medication_dispenses
     ADD CONSTRAINT dispense_order_context FOREIGN KEY (practice_id, patient_id, encounter_id, medication_request_revision_id) REFERENCES public.clinic_medication_request_revisions(practice_id, patient_id, encounter_id, id);
+
+
+--
+-- Name: clinic_document_metadata_revisions document_metadata_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_metadata_revisions
+    ADD CONSTRAINT document_metadata_actor FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_document_metadata_revisions document_metadata_configuration; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_metadata_revisions
+    ADD CONSTRAINT document_metadata_configuration FOREIGN KEY (practice_id, configuration_id) REFERENCES public.clinic_document_provenance_configurations(practice_id, id);
+
+
+--
+-- Name: clinic_document_metadata_revisions document_metadata_document; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_metadata_revisions
+    ADD CONSTRAINT document_metadata_document FOREIGN KEY (practice_id, patient_id, document_id) REFERENCES public.clinic_documents(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_document_metadata_revisions document_metadata_prior; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_metadata_revisions
+    ADD CONSTRAINT document_metadata_prior FOREIGN KEY (practice_id, document_id, prior_revision_id) REFERENCES public.clinic_document_metadata_revisions(practice_id, document_id, id);
+
+
+--
+-- Name: clinic_document_provenance_configurations document_provenance_configuration_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_provenance_configurations
+    ADD CONSTRAINT document_provenance_configuration_actor FOREIGN KEY (practice_id, recorded_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
+-- Name: clinic_document_provenance_configurations document_provenance_configuration_category; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_document_provenance_configurations
+    ADD CONSTRAINT document_provenance_configuration_category FOREIGN KEY (practice_id, category_id) REFERENCES public.clinic_document_categories(practice_id, id);
 
 
 --
@@ -29876,6 +30311,14 @@ ALTER TABLE ONLY public.clinic_workforce_schedule_templates
 
 
 --
+-- Name: clinic_subscription_paid_period_resolutions fk_rails_01f3752f8e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions
+    ADD CONSTRAINT fk_rails_01f3752f8e FOREIGN KEY (actor_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_subscription_packages fk_rails_031ea5adc0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32412,6 +32855,14 @@ ALTER TABLE ONLY public.clinic_inventory_shipment_lines
 
 
 --
+-- Name: clinic_subscription_paid_period_resolutions fk_rails_a5a37f071c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions
+    ADD CONSTRAINT fk_rails_a5a37f071c FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_telehealth_policy_versions fk_rails_a5b9e703f8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32449,6 +32900,14 @@ ALTER TABLE ONLY public.clinic_staff_members
 
 ALTER TABLE ONLY public.clinic_stripe_checkouts
     ADD CONSTRAINT fk_rails_a725a2de24 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions fk_rails_a72b91cefc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions
+    ADD CONSTRAINT fk_rails_a72b91cefc FOREIGN KEY (practice_id, agreement_id) REFERENCES public.clinic_subscription_agreements(practice_id, id);
 
 
 --
@@ -32860,6 +33319,14 @@ ALTER TABLE ONLY public.clinic_resource_compatibilities
 
 
 --
+-- Name: clinic_subscription_paid_period_resolutions fk_rails_c0ede215b6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions
+    ADD CONSTRAINT fk_rails_c0ede215b6 FOREIGN KEY (practice_id, agreement_id, selected_paid_event_id) REFERENCES public.clinic_subscription_events(practice_id, agreement_id, id);
+
+
+--
 -- Name: clinic_inventory_receipts fk_rails_c34fa1ffdc; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -33249,6 +33716,14 @@ ALTER TABLE ONLY public.clinic_inventory_recalls
 
 ALTER TABLE ONLY public.development_demo_runs
     ADD CONSTRAINT fk_rails_dcff165385 FOREIGN KEY (membership_prospect_id) REFERENCES public.clinic_membership_prospects(id);
+
+
+--
+-- Name: clinic_subscription_paid_period_resolutions fk_rails_dda99ffb2d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_paid_period_resolutions
+    ADD CONSTRAINT fk_rails_dda99ffb2d FOREIGN KEY (practice_id, service_id) REFERENCES public.clinic_service_options(practice_id, id);
 
 
 --
@@ -35028,6 +35503,14 @@ ALTER TABLE ONLY public.clinic_subscription_agreements
 
 
 --
+-- Name: clinic_subscription_allowance_entries subscription_allowance_resolution_scope; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_subscription_allowance_entries
+    ADD CONSTRAINT subscription_allowance_resolution_scope FOREIGN KEY (practice_id, agreement_id, service_id, period_resolution_id) REFERENCES public.clinic_subscription_paid_period_resolutions(practice_id, agreement_id, service_id, id);
+
+
+--
 -- Name: clinic_subscription_packages subscription_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -35050,7 +35533,10 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261001000200'),
+('20261001000100'),
 ('20260930235900'),
+('20260930235500'),
 ('20260930234515'),
 ('20260930234500'),
 ('20260930231000'),
