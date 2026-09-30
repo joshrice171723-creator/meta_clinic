@@ -47,8 +47,10 @@ module Development
         request_key: "#{key}-authorize")
       Clinic::Care::PrescriptionWorkflow.record(practice:, actor:, order:, kind: "review",
         source: "manual", request_key: "#{key}-review")
+      preparation = Clinic::Care::PrescriptionPreparationWorkflow.prepare(practice:, actor:, order:,
+        pharmacy_destination_id: destination.id, request_key: "#{key}-prepare")
       Clinic::Care::PrescriptionTransmissionWorkflow.submit(practice:, actor:, order:,
-        pharmacy_destination_id: destination.id, scenario: outcome, request_key: "#{key}-#{outcome}")
+        preparation_id: preparation.id, pharmacy_destination_id: destination.id, scenario: outcome, request_key: "#{key}-#{outcome}")
     end
     private_class_method :prepare_outcome!
   end
