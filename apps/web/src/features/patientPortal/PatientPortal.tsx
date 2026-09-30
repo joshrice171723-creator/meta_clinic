@@ -967,7 +967,9 @@ export function PatientPortal({
                             </Stack>
                           </Paper>
 
-                          <PatientBillingSupport />
+                          <PatientBillingSupport
+                            key={`billing-support-${context.practice.id}-${context.patient.id}`}
+                          />
 
                           <Paper
                             component="section"
