@@ -579,7 +579,14 @@ describe("inventory integration", () => {
     expect(source).toContain("Search begins automatically after 3 characters.");
     expect(source).not.toContain("Search directory");
     expect(source).toContain("No catalog items yet");
-    expect(source).toContain("Mark delivered → Receiving");
+    expect(source).toContain(
+      "`/api/clinic/inventory/shipments/${shipment.id}/events`",
+    );
+    expect(source).toContain("Record status update");
+    expect(source).toContain("Open receiving record");
+    expect(source).toContain(
+      "`/clinic/inventory/receiving?shipment_id=${shipment.id}&delivery_status=all`",
+    );
     expect(source).toContain('"/api/clinic/inventory_configuration"');
     expect(source).toContain("Initial clinic inventory setup");
     expect(source).toContain("Enable purchasing and receiving");
