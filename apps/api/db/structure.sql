@@ -33056,47 +33056,7 @@ ALTER TABLE ONLY public.qa_service_tokens
 ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
     ADD CONSTRAINT subscription_entitlement_reversal_scope FOREIGN KEY (practice_id, agreement_id, service_id, quantity, reversed_entry_id) REFERENCES public.clinic_subscription_entitlement_entries(practice_id, agreement_id, service_id, quantity, id);
 
--- MC14 report-export issuance source schema; migration 20260930231000.
-CREATE TABLE public.clinic_report_exports (
-    id bigint NOT NULL,
-    practice_id bigint NOT NULL,
-    issued_by_id bigint NOT NULL,
-    site_id bigint,
-    report_id character varying NOT NULL,
-    request_key character varying NOT NULL,
-    source_digest character varying NOT NULL,
-    artifact_digest character varying NOT NULL,
-    filename character varying NOT NULL,
-    filters jsonb NOT NULL,
-    snapshot jsonb NOT NULL,
-    serializer_revision integer NOT NULL,
-    artifact_bytes integer NOT NULL,
-    artifact_csv text NOT NULL,
-    issued_at timestamp(6) without time zone NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT clinic_report_exports_values CHECK (report_id IN ('daily_visits_by_state', 'daily_invoices', 'daily_payment_activity', 'daily_stock_movements', 'current_stock') AND (site_id IS NULL OR report_id = 'daily_visits_by_state') AND jsonb_typeof(filters) = 'object' AND jsonb_typeof(snapshot) = 'object' AND serializer_revision > 0 AND artifact_bytes BETWEEN 1 AND 2000000 AND artifact_bytes = octet_length(artifact_csv) AND source_digest ~ '^[0-9a-f]{64}$' AND artifact_digest ~ '^[0-9a-f]{64}$' AND length(request_key) BETWEEN 1 AND 160 AND length(filename) > 0)
-);
-CREATE SEQUENCE public.clinic_report_exports_id_seq AS bigint START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.clinic_report_exports_id_seq OWNED BY public.clinic_report_exports.id;
-ALTER TABLE ONLY public.clinic_report_exports ALTER COLUMN id SET DEFAULT nextval('public.clinic_report_exports_id_seq'::regclass);
-ALTER TABLE ONLY public.clinic_report_exports ADD CONSTRAINT clinic_report_exports_pkey PRIMARY KEY (id);
-CREATE UNIQUE INDEX clinic_report_exports_retry ON public.clinic_report_exports USING btree (practice_id, issued_by_id, request_key);
-CREATE INDEX clinic_report_exports_history ON public.clinic_report_exports USING btree (practice_id, issued_by_id, report_id, id);
-ALTER TABLE ONLY public.clinic_report_exports ADD CONSTRAINT clinic_report_exports_practice_fk FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
-ALTER TABLE ONLY public.clinic_report_exports ADD CONSTRAINT clinic_report_exports_actor_fk FOREIGN KEY (issued_by_id) REFERENCES public.users(id);
-ALTER TABLE ONLY public.clinic_report_exports ADD CONSTRAINT clinic_report_exports_site_fk FOREIGN KEY (site_id) REFERENCES public.clinic_sites(id);
-ALTER TABLE ONLY public.clinic_report_exports ADD CONSTRAINT clinic_report_exports_site_scope_fk FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
-CREATE FUNCTION public.clinic_report_export_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
-    RAISE EXCEPTION 'Report export issuance history is append-only';
-END;
-$$;
-CREATE TRIGGER clinic_report_exports_immutable BEFORE UPDATE OR DELETE ON public.clinic_report_exports FOR EACH ROW EXECUTE FUNCTION public.clinic_report_export_immutable();
-CREATE TRIGGER clinic_report_exports_no_truncate BEFORE TRUNCATE ON public.clinic_report_exports FOR EACH STATEMENT EXECUTE FUNCTION public.clinic_report_export_immutable();
-
 INSERT INTO "schema_migrations" (version) VALUES
-('20260930231000'),
 ('20260930230000'),
 ('20260930160000'),
 ('20260930000900'),
