@@ -102,6 +102,9 @@ module Clinic
         values[:name] = required_text(attributes[:name], field: "name", maximum: 160) if creating || attributes.key?(:name)
         values[:code] = optional_text(attributes[:code], field: "code", maximum: 50) if attributes.key?(:code)
         values[:description] = optional_text(attributes[:description], field: "description", maximum: 500) if attributes.key?(:description)
+        %i[contact_instructions referral_instructions].each do |field|
+          values[field] = optional_text(attributes[field], field: field.to_s, maximum: 500) if attributes.key?(field)
+        end
         values[:visit_type_id] = optional_id(attributes[:visit_type_id], field: "visit_type_id") if attributes.key?(:visit_type_id)
         values[:billing_service_id] = optional_id(attributes[:billing_service_id], field: "billing_service_id") if attributes.key?(:billing_service_id)
         values[:duration_minutes] = optional_duration(attributes[:duration_minutes]) if attributes.key?(:duration_minutes)

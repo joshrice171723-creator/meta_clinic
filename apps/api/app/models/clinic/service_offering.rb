@@ -15,7 +15,7 @@ module Clinic
 
     validates :name, presence: true, length: { maximum: 160 }
     validates :code, length: { maximum: 50 }, uniqueness: { scope: :practice_id }, allow_nil: true
-    validates :description, length: { maximum: 500 }, allow_nil: true
+    validates :description, :contact_instructions, :referral_instructions, length: { maximum: 500 }, allow_nil: true
     validates :duration_minutes, numericality: { only_integer: true, in: 5..1440 }, allow_nil: true
     validates :modality, inclusion: { in: %w[in_person video either] }
     validates :status, inclusion: { in: %w[draft published retired] }

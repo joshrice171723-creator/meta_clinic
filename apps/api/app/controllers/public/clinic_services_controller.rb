@@ -29,7 +29,9 @@ module Public
           logo_path: practice.public_page_logo_data.present? ? "/api/public/clinic_services/#{slug}/logo" : nil },
         membership_path: practice.membership_storefront_enabled? ? "/memberships/#{slug}" : nil,
         services: offerings.map { |offering|
-          { id: offering.id, name: offering.name, description: offering.description, duration_minutes: offering.duration_minutes, modality: offering.modality }
+          { id: offering.id, name: offering.name, description: offering.description,
+            contact_instructions: offering.contact_instructions, referral_instructions: offering.referral_instructions,
+            duration_minutes: offering.duration_minutes, modality: offering.modality }
         }
       }
     end
