@@ -76,13 +76,13 @@ if ($ImageSource -eq 'local') {
           Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
         Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
         Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
-        & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
+        & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
         if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
       } finally {
         if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
       }
     } else {
-      & docker build --platform linux/amd64 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
+      & docker build --platform linux/amd64 --add-host api:127.0.0.1 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
       if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
     }
     & docker save -o $localImages $apiImage $webImage
