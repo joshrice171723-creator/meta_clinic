@@ -19,7 +19,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def call(path, payload=None):
-    if not re.fullmatch(r"/api/qa/(?:office(?:/actors|/work|/check-ins|/position|/work/[1-9]\d*/transition)?|room(?:/messages)?|tasks)", path):
+    if not re.fullmatch(r"/api/qa/(?:office(?:/actors|/work|/check-ins|/position|/work/[1-9]\d*/transition|/qa(?:/ledger|/defects|/retests|/batches/poll)?)?|room(?:/messages)?|tasks)", path):
         raise ValueError("Unsupported Office operation")
     token_file = Path(os.environ["OFFICE_TOKEN_FILE"]).expanduser()
     metadata = token_file.lstat()
@@ -31,8 +31,9 @@ def call(path, payload=None):
     if not re.fullmatch(r"qa_[A-Za-z0-9_-]{43}", token):
         raise ValueError("Invalid Office credential file")
     encoded = None if payload is None else json.dumps(payload).encode()
-    if encoded and len(encoded) > 16000:
-        raise ValueError("Office request exceeds 16 KB")
+    maximum = 1_000_000 if path == "/api/qa/office/qa/ledger" else 16000
+    if encoded and len(encoded) > maximum:
+        raise ValueError("Office request exceeds its size limit")
     request = urllib.request.Request("https://aimetaclinic.com" + path, data=encoded,
         headers={"Authorization": "Bearer " + token, "Content-Type": "application/json", "Accept": "application/json"})
     with urllib.request.build_opener(NoRedirect).open(request, timeout=8) as response:

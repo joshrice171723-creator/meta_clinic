@@ -25,7 +25,22 @@ type OfficeTask = {
   created_at: string;
   lease_expires_at?: string | null;
   allowed_transitions?: string[];
-  payload: { description?: string };
+  lease_expired?: boolean;
+  receipts?: {
+    id: number | string;
+    status: string;
+    actor: string;
+    created_at: string;
+    summary?: string;
+  }[];
+  payload: {
+    description?: string;
+    assigned_actor?: string;
+    requester_actor?: string;
+    owner_decision?: string;
+    decision_at?: string;
+    handoff_summary?: string;
+  };
   result: { summary?: string; evidence_refs?: number[] };
 };
 type Work = {
@@ -35,18 +50,21 @@ type Work = {
 };
 type Room = { messages: RoomMessage[]; can_post: boolean };
 const actions: Record<string, string> = {
+  picked_up: "Record pickup",
   acknowledged: "Acknowledge pickup",
   working: "Start / update work",
   blocked: "Report blocker",
   completed: "Submit result",
   result_confirmed: "Confirm result received",
   recover: "Return expired work to queue",
+  handoff: "Hand off work",
+  decision: "Record Josh's decision",
 };
 const person = (value: string) =>
   value === "muse"
     ? "Muse"
     : value === "codex"
-      ? "dot"
+      ? "Codex"
       : value === "josh"
         ? "Josh"
         : value;
@@ -76,6 +94,8 @@ export function QaOfficeWork({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [recipient, setRecipient] = useState("muse");
+  const [handoffActor, setHandoffActor] = useState("muse");
+  const [lane, setLane] = useState("all");
   const [body, setBody] = useState("");
   const [summary, setSummary] = useState("");
   const [evidenceRefs, setEvidenceRefs] = useState("");
@@ -133,12 +153,17 @@ export function QaOfficeWork({
     setEvidenceRefs("");
   }, [selectedId]);
   const task = work?.tasks.find((item) => item.id === selectedId);
-  const visibleTasks = (work?.tasks ?? []).filter((item) =>
-    destination === "muse"
-      ? item.recipient === "muse"
-      : destination === "dot"
-        ? item.recipient === "codex"
-        : true,
+  const visibleTasks = (work?.tasks ?? []).filter(
+    (item) =>
+      (lane !== "josh" ||
+        item.office_status === "blocked" ||
+        (item.status === "completed" &&
+          item.office_status !== "result_confirmed") ||
+        item.lease_expired) &&
+      (!["muse", "dot", "codex"].includes(destination ?? "") ||
+        (item.payload.assigned_actor ??
+          (item.recipient === "codex" ? "dot" : item.recipient)) ===
+          destination),
   );
   const messages = (room?.messages ?? []).filter((item) =>
     task ? item.message.task_id === task.id : !item.message.task_id,
@@ -189,7 +214,13 @@ export function QaOfficeWork({
   };
   const transition = async (status: string) => {
     if (!task) return;
-    const needsResult = ["working", "blocked", "completed"].includes(status);
+    const needsResult = [
+      "working",
+      "blocked",
+      "completed",
+      "handoff",
+      "decision",
+    ].includes(status);
     const refs = evidenceRefs.trim()
       ? evidenceRefs.split(",").map((value) => Number(value.trim()))
       : [];
@@ -209,6 +240,7 @@ export function QaOfficeWork({
         `/api/qa/office/work/${task.id}/transition`,
         {
           status,
+          ...(status === "handoff" ? { assigned_actor: handoffActor } : {}),
           ...(needsResult
             ? { result: { summary: summary.trim(), evidence_refs: refs } }
             : {}),
@@ -293,7 +325,14 @@ export function QaOfficeWork({
           disabled={!canPost || busy}
           onClick={() => setCompose(!compose)}
         >
-          {compose ? "Close new work" : "New shared work"}
+          {compose ? "Close command box" : "New shared work"}
+        </Button>
+        <Button
+          size="small"
+          variant={lane === "josh" ? "contained" : "outlined"}
+          onClick={() => setLane(lane === "josh" ? "all" : "josh")}
+        >
+          Needs Josh
         </Button>
       </Stack>
       {compose && (
@@ -307,7 +346,8 @@ export function QaOfficeWork({
               {
                 kind: "coordination",
                 title: title.trim(),
-                recipient,
+                recipient: recipient === "muse" ? "muse" : "codex",
+                assigned_actor: recipient,
                 revision,
                 payload: { description: description.trim() },
               },
@@ -321,6 +361,11 @@ export function QaOfficeWork({
             });
           }}
         >
+          <Typography variant="subtitle1">Command box</Typography>
+          <Typography variant="caption">
+            Assign a clear request and expected result. This submits shared
+            work; the recipient must record pickup and acknowledgment.
+          </Typography>
           <TextField
             label="What needs doing?"
             value={title}
@@ -337,7 +382,8 @@ export function QaOfficeWork({
             disabled={busy}
           >
             <MenuItem value="muse">Muse</MenuItem>
-            <MenuItem value="codex">dot</MenuItem>
+            <MenuItem value="dot">dot</MenuItem>
+            <MenuItem value="codex">Codex</MenuItem>
           </TextField>
           <TextField
             label="Instructions and expected result"
@@ -387,7 +433,12 @@ export function QaOfficeWork({
                 #{item.id} · {item.title}
               </Typography>
               <Typography variant="caption">
-                To {person(item.recipient)} · {stateLabel(item)}
+                To{" "}
+                {person(
+                  item.payload.assigned_actor ??
+                    (item.recipient === "codex" ? "dot" : item.recipient),
+                )}{" "}
+                · {stateLabel(item)}
                 {item.lease_expires_at &&
                 new Date(item.lease_expires_at).getTime() < Date.now() &&
                 item.status === "claimed"
@@ -457,10 +508,34 @@ export function QaOfficeWork({
                 ))}
               </Box>
             )}
+            {task.payload.owner_decision && (
+              <Alert severity="info">
+                <Typography variant="subtitle2">
+                  Josh's decision ·{" "}
+                  {new Date(task.payload.decision_at ?? "").toLocaleString()}
+                </Typography>
+                {task.payload.owner_decision}
+                <Typography variant="caption" component="p">
+                  The worker must explicitly resume; this decision does not
+                  start QA or grant deployment authority.
+                </Typography>
+              </Alert>
+            )}
+            {task.payload.handoff_summary && (
+              <Typography variant="body2">
+                Latest handoff: {task.payload.handoff_summary}
+              </Typography>
+            )}
             {!!task.allowed_transitions?.length && canPost && (
               <>
                 {task.allowed_transitions.some((status) =>
-                  ["working", "blocked", "completed"].includes(status),
+                  [
+                    "working",
+                    "blocked",
+                    "completed",
+                    "handoff",
+                    "decision",
+                  ].includes(status),
                 ) && (
                   <>
                     <TextField
@@ -472,6 +547,36 @@ export function QaOfficeWork({
                       disabled={busy}
                       slotProps={{ htmlInput: { maxLength: 2000 } }}
                     />
+                    {task.allowed_transitions.includes("handoff") && (
+                      <TextField
+                        label="Hand off to"
+                        select
+                        value={handoffActor}
+                        onChange={(event) =>
+                          setHandoffActor(event.target.value)
+                        }
+                        disabled={busy}
+                      >
+                        <MenuItem
+                          value="muse"
+                          disabled={work.controlled_actor === "muse"}
+                        >
+                          Muse
+                        </MenuItem>
+                        <MenuItem
+                          value="dot"
+                          disabled={work.controlled_actor === "dot"}
+                        >
+                          dot
+                        </MenuItem>
+                        <MenuItem
+                          value="codex"
+                          disabled={work.controlled_actor === "codex"}
+                        >
+                          Codex
+                        </MenuItem>
+                      </TextField>
+                    )}
                     <TextField
                       label="Stored evidence IDs (optional)"
                       value={evidenceRefs}
@@ -494,7 +599,11 @@ export function QaOfficeWork({
                             ? "contained"
                             : "outlined"
                         }
-                        disabled={busy}
+                        disabled={
+                          busy ||
+                          (status === "handoff" &&
+                            handoffActor === work.controlled_actor)
+                        }
                         onClick={() => void transition(status)}
                       >
                         {actions[status]}
@@ -506,6 +615,40 @@ export function QaOfficeWork({
             <Typography variant="caption">
               Request {task.request_key} · build {task.revision.slice(0, 12)}
             </Typography>
+            {!!task.receipts?.length && (
+              <Box>
+                <Typography variant="subtitle2">
+                  Handoff and receipt timeline
+                </Typography>
+                {task.receipts.map((receipt) => (
+                  <Box
+                    key={receipt.id}
+                    sx={{
+                      borderLeft: "2px solid",
+                      borderColor: "divider",
+                      pl: 1.5,
+                      py: 0.75,
+                    }}
+                  >
+                    <Typography variant="body2">
+                      {person(receipt.actor)} ·{" "}
+                      {receipt.status.replaceAll("_", " ")}
+                    </Typography>
+                    <Typography variant="caption">
+                      {new Date(receipt.created_at).toLocaleString()}
+                    </Typography>
+                    {receipt.summary && (
+                      <Typography
+                        variant="body2"
+                        sx={{ overflowWrap: "anywhere" }}
+                      >
+                        {receipt.summary}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
           </Stack>
         </Paper>
       )}
@@ -576,8 +719,12 @@ export function QaOfficeWork({
             void mutate(
               "/api/qa/room/messages",
               {
-                agent: person(work?.controlled_actor ?? "Josh"),
-                recipient: task ? person(task.recipient) : "Office",
+                recipient: task
+                  ? person(
+                      task.payload.assigned_actor ??
+                        (task.recipient === "codex" ? "dot" : task.recipient),
+                    )
+                  : "Office",
                 body: body.trim(),
                 ...(task
                   ? { task_id: task.id, correlation_nonce: task.request_key }

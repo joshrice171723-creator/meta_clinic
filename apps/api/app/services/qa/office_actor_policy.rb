@@ -9,11 +9,12 @@ module Qa
       if token
         raise Denied, "Office writes require an Office-only credential." unless token.office?
         raise Denied, "A current dedicated service principal is required." if token.revoked_at || token.user_id != user.id
-        muse = positive_id(config["QA_OFFICE_MUSE_TOKEN_ID"])
-        dot = positive_id(config["QA_OFFICE_DOT_TOKEN_ID"])
-        raise Denied, "Office service bindings must be distinct." if muse && muse == dot
-        return "muse" if muse == token.id && token.recipient == "muse"
-        return "dot" if dot == token.id && token.recipient == "codex"
+        bindings = { "muse" => [ "QA_OFFICE_MUSE_TOKEN_ID", "muse" ], "dot" => [ "QA_OFFICE_DOT_TOKEN_ID", "codex" ], "codex" => [ "QA_OFFICE_CODEX_TOKEN_ID", "codex" ] }
+        ids = bindings.values.filter_map { |key, _recipient| positive_id(config[key]) }
+        raise Denied, "Office service bindings must be distinct." unless ids.uniq == ids
+        bindings.each do |name, (key, recipient)|
+          return name if positive_id(config[key]) == token.id && token.recipient == recipient
+        end
       elsif positive_id(config["QA_OFFICE_JOSH_USER_ID"]) == user.id
         return "josh"
       end

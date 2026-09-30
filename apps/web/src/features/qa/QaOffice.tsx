@@ -26,7 +26,7 @@ import {
 } from "./museCheckIn";
 import type { OfficeActorState } from "./sharedOffice";
 import { QaOfficeWork } from "./QaOfficeWork";
-import { QaOfficeConnections } from "./QaOfficeConnections";
+import { QaOfficeQa } from "./QaOfficeQa";
 
 export type QaOfficeProps = {
   tasks: {
@@ -37,6 +37,8 @@ export type QaOfficeProps = {
     revision: string;
     claimed_at?: string;
     claimed_by?: string;
+    kind?: string;
+    payload?: { assigned_actor?: string };
   }[];
   evidence: {
     id: number;
@@ -63,8 +65,9 @@ export type QaOfficeProps = {
 };
 const destinations = [
   { id: "josh", label: "Josh desk", x: 2, y: 2, icon: LaptopMacRounded },
-  { id: "dot", label: "dot desk", x: 5, y: 2, icon: LaptopMacRounded },
-  { id: "muse", label: "Muse desk", x: 8, y: 2, icon: LaptopMacRounded },
+  { id: "dot", label: "dot desk", x: 4, y: 2, icon: LaptopMacRounded },
+  { id: "muse", label: "Muse desk", x: 6, y: 2, icon: LaptopMacRounded },
+  { id: "codex", label: "Codex desk", x: 8, y: 2, icon: LaptopMacRounded },
   { id: "tasks", label: "Task board", x: 2, y: 6, icon: AssignmentRounded },
   {
     id: "evidence",
@@ -76,7 +79,12 @@ const destinations = [
   { id: "meeting", label: "Meeting room", x: 8, y: 6, icon: ForumRounded },
 ] as const;
 type Destination = (typeof destinations)[number]["id"];
-const actorColors = { josh: "#527663", dot: "#b27843", muse: "#616ca4" };
+const actorColors = {
+  josh: "#527663",
+  dot: "#b27843",
+  muse: "#616ca4",
+  codex: "#4f8190",
+};
 function stamp(value?: string) {
   if (!value) return "Not recorded";
   const date = new Date(value);
@@ -97,6 +105,8 @@ export function QaOffice({
   onRefresh,
   onNavigate,
 }: QaOfficeProps) {
+  const [buildBannerTarget, setBuildBannerTarget] =
+    useState<HTMLDivElement | null>(null);
   const [position, setPosition] = useState({ x: 5, y: 5 });
   const [selected, setSelected] = useState<Destination>();
   const [writeError, setWriteError] = useState("");
@@ -266,7 +276,23 @@ export function QaOffice({
       control: "uncontrolled",
       principal_id: null,
     },
+    {
+      id: "codex" as const,
+      name: "Codex",
+      position: null,
+      receipt: null,
+      control: "uncontrolled",
+      principal_id: null,
+    },
   ];
+  const deskActor = roster.find((actor) => actor.id === selected);
+  const heldTasks = tasks.filter(
+    (task) =>
+      task.kind === "coordination" &&
+      task.status === "claimed" &&
+      (task.payload?.assigned_actor ??
+        (task.recipient === "muse" ? "muse" : "dot")) === selected,
+  );
   return (
     <Box
       component="section"
@@ -289,7 +315,7 @@ export function QaOffice({
           bgcolor: "#fffdf8",
           boxShadow: "0 6px 0 #c7b89d,0 12px 16px #4b493817",
           borderColor: "#b5a486",
-          width: "25%",
+          width: "19%",
           display: "flex",
           flexDirection: "column",
           gap: 0.5,
@@ -325,6 +351,7 @@ export function QaOffice({
         },
       }}
     >
+      <div ref={setBuildBannerTarget} />
       <Stack
         direction="row"
         sx={{
@@ -350,7 +377,8 @@ export function QaOffice({
             Office
           </Typography>
           <Typography color="text.secondary">
-            A place for Muse and dot to pick up work, share results, and meet.
+            A place for Muse, dot, and Codex to pick up work, share results, and
+            meet.
           </Typography>
         </Box>
         <Button
@@ -490,14 +518,15 @@ export function QaOffice({
               </Button>
             ))}
             {roster.map((actor) => {
-              const expected = actor.id === "muse" ? cadence : 60000;
+              const expected = actor.id === "muse" ? cadence : undefined;
               const valid =
                 !!actor.receipt &&
                 actor.receipt.authenticatedActorId === actor.principal_id &&
                 actor.receipt.receivedAtMs <= now;
               const stale =
                 valid &&
-                now - actor.receipt!.receivedAtMs > (expected ?? 60000);
+                !!expected &&
+                now - actor.receipt!.receivedAtMs > expected;
               const status = error
                 ? "State unavailable"
                 : !valid
@@ -641,16 +670,6 @@ export function QaOffice({
               </Button>
             </AccordionDetails>
           </Accordion>
-          {actorState?.can_enroll && (
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreRounded />}>
-                Connect Muse or dot
-              </AccordionSummary>
-              <AccordionDetails>
-                <QaOfficeConnections disabled={!!error} onSaved={onRefresh} />
-              </AccordionDetails>
-            </Accordion>
-          )}
         </div>
         <section
           className="qa-office-detail"
@@ -681,6 +700,43 @@ export function QaOffice({
               ? `${title} selected. Details follow.`
               : "Choose a desk to see its shared work, or start at the table."}
           </Typography>
+          {deskActor && (
+            <Box
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2,
+                p: 1.5,
+              }}
+            >
+              <Typography variant="subtitle2">
+                {deskActor.name} ·{" "}
+                {deskActor.control === "bound"
+                  ? "Verified binding"
+                  : "Not bound"}
+              </Typography>
+              <Typography variant="caption" component="p">
+                Last authenticated check-in:{" "}
+                {deskActor.receipt &&
+                deskActor.receipt.authenticatedActorId ===
+                  deskActor.principal_id
+                  ? new Date(deskActor.receipt.receivedAtMs).toLocaleString()
+                  : "Not connected"}
+              </Typography>
+              <Typography variant="caption" component="p">
+                Recorded position:{" "}
+                {deskActor.position
+                  ? `${deskActor.position.x}, ${deskActor.position.y}`
+                  : "Not recorded"}{" "}
+                · {heldTasks.length} held coordination tasks
+              </Typography>
+              {heldTasks.map((task) => (
+                <Typography key={task.id} variant="body2">
+                  #{task.id} · {task.title}
+                </Typography>
+              ))}
+            </Box>
+          )}
           {selected === "evidence" ? (
             <>
               <Typography>
@@ -718,6 +774,7 @@ export function QaOffice({
           )}
         </section>
       </div>
+      <QaOfficeQa buildBannerTarget={buildBannerTarget} />
     </Box>
   );
 }

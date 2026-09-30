@@ -76,6 +76,33 @@ const officeFixture = {
   receipts: null,
   cadence: null,
 };
+const officeQaFixture = {
+  build,
+  pin: { revision },
+  diff_url: null,
+  ledger: {
+    source: null,
+    imported_at: null,
+    counts: null,
+    defects: [],
+    pending_requests: [],
+  },
+  coverage: {
+    source: null,
+    imported_at: null,
+    workflows: [],
+    pointer: null,
+    expected_total: 116,
+  },
+  batches: [],
+  active_batch: null,
+  capabilities: {
+    file_defect: false,
+    request_retest: false,
+    poll_batch: false,
+    import_ledger: false,
+  },
+};
 let server: ViteDevServer;
 let browser: Browser;
 let base: string;
@@ -175,6 +202,8 @@ async function open(
       return route.fulfill({
         json: { tasks: [], can_post: false, controlled_actor: null },
       });
+    if (url.pathname === "/api/qa/office/qa")
+      return route.fulfill({ json: officeQaFixture });
     if (url.pathname === "/api/qa/office") {
       if (mode === "loading") return;
       if (mode === "error")
@@ -216,7 +245,7 @@ it("bootstraps Office with one current navigation item and no inferred live pres
         .getByRole("button", { name: /Office$/ })
         .getAttribute("aria-current"),
     ).toBe("page");
-    for (const leader of ["Josh", "dot", "Muse"])
+    for (const leader of ["Josh", "dot", "Muse", "Codex"])
       await page
         .getByRole("button", { name: new RegExp(`${leader}.*desk`, "i") })
         .first()
@@ -226,21 +255,21 @@ it("bootstraps Office with one current navigation item and no inferred live pres
         .getByRole("group", { name: "Office floor" })
         .getByRole("button", { name: /desk$/ })
         .count(),
-    ).toBe(3);
+    ).toBe(4);
     expect(
       await page
         .getByText(/Receipt timing shows the last authenticated contact/i)
         .count(),
     ).toBeGreaterThan(0);
     const floor = page.getByRole("group", { name: "Office floor" });
-    for (const actor of ["Josh", "Muse", "dot"]) {
+    for (const actor of ["Josh", "Muse", "dot", "Codex"]) {
       const avatar = floor.getByRole("group", {
         name: `${actor} avatar: Not connected, Uncontrolled`,
         exact: true,
       });
       expect(await avatar.locator("strong").textContent()).toBe(actor);
     }
-    expect(await floor.locator(".qa-office-avatar").count()).toBe(3);
+    expect(await floor.locator(".qa-office-avatar").count()).toBe(4);
     expect(await floor.locator(".qa-office-player").textContent()).toBe(
       "Preview",
     );
@@ -649,6 +678,196 @@ it("queues shared work with the task envelope, retains the retry key, and render
         .getByRole("button", { name: "Confirm result received" })
         .count(),
     ).toBe(0);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("shows only current-revision workflow passes and preserves unavailable historical defect counts", async () => {
+  const { page, writes } = await open();
+  try {
+    await page.route("**/api/qa/office/qa", (route) =>
+      route.fulfill({
+        json: {
+          ...officeQaFixture,
+          ledger: {
+            ...officeQaFixture.ledger,
+            source: "Historical import",
+            defects: [
+              {
+                id: "historical-id",
+                title: "Historical defect",
+                status: "open",
+                notes: "Reported old notes",
+                evidence_refs: [],
+              },
+            ],
+          },
+          coverage: {
+            ...officeQaFixture.coverage,
+            source: "Historical import",
+            workflows: [
+              {
+                id: "WF-001",
+                result: "passed",
+                revision,
+                last_attempted_at: observed,
+              },
+              {
+                id: "WF-002",
+                result: "passed",
+                revision: "b".repeat(40),
+                last_attempted_at: observed,
+              },
+              {
+                id: "WF-003",
+                status: "in_progress",
+                revision,
+                last_attempted_at: observed,
+              },
+            ],
+          },
+        },
+      }),
+    );
+    await page.getByRole("button", { name: "Refresh QA desk" }).click();
+    await page
+      .getByText("1/116 passed on this revision", { exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("button", { name: "WF-002: passed, stale revision" })
+        .count(),
+    ).toBe(1);
+    expect(
+      await page.getByRole("button", { name: "WF-003: in progress" }).count(),
+    ).toBe(1);
+    expect(
+      await page.getByText("open: Unavailable", { exact: true }).count(),
+    ).toBe(1);
+    await page
+      .getByRole("button", { name: "Historical defect", exact: true })
+      .click();
+    await page.getByText("Reported old notes", { exact: true }).waitFor();
+    expect(
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Request retest" })
+        .isDisabled(),
+    ).toBe(true);
+    expect(writes).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("files a structured defect as a submitted request without incrementing ledger counts", async () => {
+  const { page } = await open();
+  try {
+    const ledger = {
+      ...officeQaFixture,
+      capabilities: { ...officeQaFixture.capabilities, file_defect: true },
+    };
+    await page.route("**/api/qa/office/qa", (route) =>
+      route.fulfill({ json: ledger }),
+    );
+    let report: Record<string, any> | undefined;
+    await page.route("**/api/qa/office/qa/defects", (route) => {
+      report = route.request().postDataJSON();
+      return route.fulfill({
+        json: {
+          task: { id: 88 },
+          receipt_id: "synthetic-defect-receipt",
+          delivery: "submitted",
+          ledger_recorded: false,
+        },
+      });
+    });
+    await page.getByRole("button", { name: "Refresh QA desk" }).click();
+    await page.getByRole("button", { name: "File a defect" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog
+      .getByRole("textbox", { name: "Defect title" })
+      .fill("Synthetic structured issue");
+    await dialog
+      .getByRole("textbox", { name: "Reproduction steps" })
+      .fill("Open the synthetic screen.");
+    await dialog
+      .getByRole("textbox", { name: "Expected behavior" })
+      .fill("Show the expected synthetic label.");
+    await dialog
+      .getByRole("textbox", { name: "Actual behavior" })
+      .fill("Observed a different synthetic label.");
+    await dialog.getByRole("button", { name: "Submit defect report" }).click();
+    await page
+      .getByText(/Defect report submitted to Muse.*Request #88/)
+      .waitFor();
+    expect(report?.report).toMatchObject({
+      title: "Synthetic structured issue",
+      severity: "medium",
+      workflow: null,
+      repro_steps: "Open the synthetic screen.",
+      expected: "Show the expected synthetic label.",
+      actual: "Observed a different synthetic label.",
+    });
+    expect(report?.report.request_key).toMatch(/^[A-Za-z0-9_-]{8,100}$/);
+    expect(
+      await page.getByText("open: Unavailable", { exact: true }).count(),
+    ).toBe(1);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("posts owner Office messages without self-reported identity and puts the full build above the floor", async () => {
+  const { page } = await open();
+  try {
+    await page.route("**/api/qa/office/work", (route) =>
+      route.fulfill({
+        json: { tasks: [], can_post: true, controlled_actor: "josh" },
+      }),
+    );
+    await page.route("**/api/qa/room", (route) =>
+      route.fulfill({
+        json: {
+          messages: [],
+          next_cursor: 0,
+          has_more: false,
+          can_post: true,
+          notice: "Owner fixture",
+        },
+      }),
+    );
+    let posted: Record<string, any> | undefined;
+    await page.route("**/api/qa/room/messages", (route) => {
+      posted = route.request().postDataJSON();
+      return route.fulfill({ json: { id: 99 } });
+    });
+    const details = page.getByRole("region", { name: "Office details" });
+    await details.getByRole("button", { name: "Refresh", exact: true }).click();
+    await details
+      .getByRole("textbox", { name: "Message to the Office" })
+      .fill("Owner coordination message");
+    await details
+      .getByRole("button", { name: "Send to Office", exact: true })
+      .click();
+    await details.getByText(/Message persisted in the shared Office/).waitFor();
+    expect(posted?.message).toMatchObject({
+      recipient: "Office",
+      body: "Owner coordination message",
+    });
+    expect(posted?.message).not.toHaveProperty("agent");
+    expect(posted?.message).not.toHaveProperty("authenticated_actor");
+    expect(posted?.message.message_key).toMatch(/^[A-Za-z0-9_-]{8,100}$/);
+    const banner = await page
+      .getByText("Current build verified", { exact: true })
+      .boundingBox();
+    const header = await page
+      .getByRole("heading", { level: 2, name: "Office", exact: true })
+      .boundingBox();
+    expect(banner).toBeTruthy();
+    expect(header).toBeTruthy();
+    expect(banner!.y).toBeLessThan(header!.y);
   } finally {
     await page.close();
   }

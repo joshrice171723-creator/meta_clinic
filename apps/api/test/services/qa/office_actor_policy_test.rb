@@ -11,7 +11,7 @@ class OfficeActorPolicyTest < Minitest::Test
   end
   def setup
     @config = { "QA_OFFICE_ACTORS_ENABLED" => "1", "QA_OFFICE_JOSH_USER_ID" => "10",
-      "QA_OFFICE_MUSE_TOKEN_ID" => "20", "QA_OFFICE_DOT_TOKEN_ID" => "30" }
+      "QA_OFFICE_MUSE_TOKEN_ID" => "20", "QA_OFFICE_DOT_TOKEN_ID" => "30", "QA_OFFICE_CODEX_TOKEN_ID" => "40" }
     @owner = User.new(10, true, true)
   end
 
@@ -32,6 +32,7 @@ class OfficeActorPolicyTest < Minitest::Test
   def test_dedicated_tokens_control_only_their_server_mapped_actor
     assert_equal "muse", actor(Token.new(20, 10, "muse", nil))
     assert_equal "dot", actor(Token.new(30, 10, "codex", nil))
+    assert_equal "codex", actor(Token.new(40, 10, "codex", nil))
   end
 
   def test_recipient_labels_and_shared_owner_do_not_select_muse
@@ -49,6 +50,10 @@ class OfficeActorPolicyTest < Minitest::Test
 
   def test_duplicate_token_binding_is_rejected
     assert_raises(Qa::OfficeActorPolicy::Denied) { actor(Token.new(20, 10, "muse", nil), config: @config.merge("QA_OFFICE_DOT_TOKEN_ID" => "20")) }
+  end
+
+  def test_dot_and_codex_cannot_share_a_binding
+    assert_raises(Qa::OfficeActorPolicy::Denied) { actor(Token.new(30, 10, "codex", nil), config: @config.merge("QA_OFFICE_CODEX_TOKEN_ID" => "30")) }
   end
 
   def test_binding_ids_are_strict_nonsecret_positive_references

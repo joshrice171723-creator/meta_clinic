@@ -37,7 +37,7 @@ module Qa
 
     def self.post(actor, input, source:, authenticated_actor: nil)
       key = text!(input, "message_key", 100)
-      payload = { "agent" => text!(input, "agent", 80), "recipient" => text!(input, "recipient", 80),
+      payload = { "agent" => authenticated_actor ? OfficeActors::NAMES.fetch(authenticated_actor) : text!(input, "agent", 80), "recipient" => text!(input, "recipient", 80),
         "body" => text!(input, "body", 2000), "identity" => "self_reported", "authenticated_source" => source,
         "provenance" => "reported" }
       if authenticated_actor
@@ -61,7 +61,7 @@ module Qa
       end
       if input["correlation_nonce"].present?
         nonce = text!(input, "correlation_nonce", 100)
-        raise ArgumentError, "Use 8–100 letters, digits, underscores or hyphens for the non-secret nonce." unless nonce.match?(/\A[A-Za-z0-9_-]{8,100}\z/)
+        raise ArgumentError, "Use 8â€“100 letters, digits, underscores or hyphens for the non-secret nonce." unless nonce.match?(/\A[A-Za-z0-9_-]{8,100}\z/)
         payload["correlation_nonce"] = nonce
       end
       if input["reply_to"].present?
@@ -82,7 +82,7 @@ module Qa
         end
         build = Workspace.build
         payload.merge!("build_at_send" => build["revision"], "build_dirty" => !!build["dirty"], "build_available" => build["revision"].present?)
-        item = Workspace.event(user: actor, kind: KIND, summary: "#{payload['agent']} → #{payload['recipient']}",
+        item = Workspace.event(user: actor, kind: KIND, summary: "#{payload['agent']} â†’ #{payload['recipient']}",
           revision: build["dirty"] ? nil : build["revision"], payload:, event_key: "room:#{key}")
         raise Conflict, "Message key already records different content or another author." unless matches?(item, actor, payload)
         receipt(item)

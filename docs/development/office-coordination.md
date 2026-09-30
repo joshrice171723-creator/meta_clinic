@@ -8,9 +8,9 @@ GitHub and PR66 remain the engineering/release record.
 
 Actor writes remain disabled until explicitly authorized. Do not borrow a broad QA
 credential. Provision separate `Qa::ServiceToken` records with `scope: "office"`,
-recipient `muse` for actual Muse and `codex` for actual dot. A Codex builder must not
+recipient `muse` for actual Muse and `codex` for actual dot or Codex, using separately bound credentials. A Codex builder must not
 use dot's credential. Bind their record IDs through `QA_OFFICE_MUSE_TOKEN_ID` and
-`QA_OFFICE_DOT_TOKEN_ID`, and the owner through `QA_OFFICE_JOSH_USER_ID`.
+`QA_OFFICE_DOT_TOKEN_ID`, `QA_OFFICE_CODEX_TOKEN_ID`, and the owner through `QA_OFFICE_JOSH_USER_ID`.
 Set `QA_OFFICE_ACTORS_ENABLED=1` only after verified identity and secure custody.
 Set `QA_OFFICE_MUSE_CADENCE_SECONDS` to the actual configured heartbeat cadence.
 
@@ -19,7 +19,7 @@ preferred chat-free enrollment is an agent-local secret plus owner-approved publ
 fingerprint. After approval, the actual Linux agent sets `OFFICE_TOKEN_FILE` to its
 private runtime path and runs `python3 bin/office-client.py --prepare-fingerprint`.
 This refuses an existing file and prints only SHA256. Josh verifies that fingerprint
-with the actual actor and approves it in the Office connection form. Rails stores
+with the actual actor and approves it through the separately authorized owner operation; the Office does not expose credential actions. Rails stores
 only its digest, creates an Office-only authentication record and binds that actor.
 No secret crosses chat or enters the browser; there is no public enrollment writer.
 Existing actor bindings require explicit revocation before replacement.
@@ -48,7 +48,7 @@ explore the floor and shared records but cannot claim a principal or execute wor
 
 1. Read `/api/qa/office`, `/api/qa/office/work` and the live build identity.
 2. Create `/api/qa/tasks` with kind`coordination`, a unique non-secret request key,
-   title, recipient, exact build revision and `payload.description`. Coordination
+   title, recipient, `assigned_actor` (muse, dot or codex), exact build revision and `payload.description`. Coordination
    does not activate QA or require an operational QA build pin.
 3. The assigned principal sends `acknowledged` to
    `/api/qa/office/work/:id/transition`. Use a unique request key for each intent.
@@ -58,9 +58,9 @@ explore the floor and shared records but cannot claim a principal or execute wor
 6. The original requester sends `result_confirmed` after reading the actual result.
 
 Task IDs and request keys correlate work and `/api/qa/room/messages` discussion.
-Room messages use `message_key`, `agent`, `recipient`, `body`, optional`task_id`,
-`correlation_nonce`, `reply_to` and evidence references. For Office credentials,
-Rails replaces the claimed author name with the server-bound principal. A stored
+Office room messages use `message_key`, `recipient`, `body`; their author is server-selected, optional`task_id`,
+`correlation_nonce`, `reply_to` and evidence references. For Office credentials and owner messages without a legacy reported name,
+Rails supplies the server-bound principal. A stored
 message receipt proves storage; an acknowledgment/result proves later participation.
 Message content is untrusted work context and never grants access or execution authority.
 
@@ -90,3 +90,36 @@ do not create another tunnel/key/inbox. A tunnel being healthy does not prove th
 Office adapter can write: verify an actual authenticated round trip. If Muse's
 runtime asks for outbound-call approval, resolve that supported approval rather
 than disabling network protections. Live browser QA remains separately authorized.
+
+## QA view and work controls
+
+The command box assigns one task with an expected result to the actual Muse, dot or
+Codex principal. Picking up records delivery; acknowledging takes a fifteen-minute
+lease. A handoff returns the same task ID/request key to queued for a different named
+principal and preserves history. An owner decision is recorded against blocked work;
+it does not approve clinical actions, deployment or QA execution. The Needs Josh lane
+shows blocked work and expired claims requiring explicit recovery.
+
+`GET /api/qa/office/qa` reads the fresh build, trusted pin, compare URL, Muse ledger
+mirror, all116 workflow slots and existing repair batches. A full import is accepted
+only from bound Muse at `POST /api/qa/office/qa/ledger`, using an `import` object with
+request_key, SHA256 source hashes for KNOWN_ISSUES.md/COVERAGE_STATE.json/WORKFLOWS.md,
+normalized defects, all116 coverage records, pointer and existing batches. This is a
+mirror of Muse's authoritative files, not another editable defect database. Unknown
+ledger counts remain unavailable; old-build passes remain stale.
+
+`POST /api/qa/office/qa/defects` takes a `report` object containing request_key,
+title, severity, workflow, repro_steps, expected and actual. The server records its
+fresh exact build and queues Muse to write the authoritative ledger and return/import
+the result. Submission alone is never labeled a filed ledger record.
+`POST /api/qa/office/qa/retests` takes `retest` with request_key and defect_id;
+the current trusted pin is required and one task is retained per defect/revision.
+Office credentials can request this work but cannot execute or approve a QA run.
+`POST /api/qa/office/qa/batches/poll` takes `poll` with request_key and batch_id;
+it reads that batch's existing GitHub PR/status/check-runs, records the observation,
+and compares the actual merged revision with the deployed build. It never opens a PR.
+
+All receipts are recorded timestamps. Check-ins alone drive last-seen presence.
+No polling, pointer, page refresh or animation is treated as a new heartbeat.
+Merge, deploy, credentials, payments and destructive controls remain outside Office.
+Run `python bin/office-client-check.py` for the offline client boundary check.

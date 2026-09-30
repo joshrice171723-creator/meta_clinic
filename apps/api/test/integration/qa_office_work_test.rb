@@ -2,7 +2,7 @@ require "test_helper"
 
 class QaOfficeWorkTest < ActionDispatch::IntegrationTest
   setup do
-    @keys = %w[QA_OFFICE_ACTORS_ENABLED QA_OFFICE_MUSE_TOKEN_ID QA_OFFICE_DOT_TOKEN_ID]
+    @keys = %w[QA_OFFICE_ACTORS_ENABLED QA_OFFICE_MUSE_TOKEN_ID QA_OFFICE_DOT_TOKEN_ID QA_OFFICE_CODEX_TOKEN_ID QA_OFFICE_JOSH_USER_ID]
     @saved = @keys.to_h { |key| [ key, ENV[key] ] }
     @owner = User.create!(email_address: "office-work-owner@example.invalid", password: "Independent-office-only!", platform_owner: true)
     @muse_raw = "qa_#{SecureRandom.urlsafe_base64(32)}"
@@ -12,6 +12,7 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     ENV["QA_OFFICE_ACTORS_ENABLED"] = "1"
     ENV["QA_OFFICE_MUSE_TOKEN_ID"] = @muse.id.to_s
     ENV["QA_OFFICE_DOT_TOKEN_ID"] = @dot.id.to_s
+    ENV["QA_OFFICE_JOSH_USER_ID"] = @owner.id.to_s
     @revision = "a" * 40
     @build = { "revision" => @revision, "version" => "office-test", "dirty" => false }
     @input = { kind: "coordination", request_key: "office-work-request", title: "Return a useful result", recipient: "muse", revision: @revision, payload: { description: "Report one observed capability." } }
@@ -36,9 +37,10 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     end
   end
 
-  def advance(id, status, raw = @muse_raw, key: "transition-#{status}", result: nil)
+  def advance(id, status, raw = @muse_raw, key: "transition-#{status}", result: nil, assignee: nil)
     input = { request_key: key, status: }
     input[:result] = result if result
+    input[:assigned_actor] = assignee if assignee
     post "/api/qa/office/work/#{id}/transition", params: input, headers: { "Authorization" => "Bearer #{raw}" }, as: :json
   end
 
@@ -166,4 +168,45 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     assert_nil Qa::ServiceToken.authenticate(raw)
     assert_nil Qa::OfficeActors.read[:actors].find { |item| item[:id] == "muse" }[:receipt]
   end
+  test "four principals hand off one task and owner decisions retain recorded history" do
+    codex_raw = "qa_#{SecureRandom.urlsafe_base64(32)}"
+    codex = Qa::ServiceToken.create!(user: @owner, recipient: "codex", scope: "office", name: "Actual Codex", digest: Digest::SHA256.hexdigest(codex_raw))
+    ENV["QA_OFFICE_CODEX_TOKEN_ID"] = codex.id.to_s
+    send_request
+    id = response.parsed_body.fetch("id")
+    advance(id, "picked_up")
+    assert_response :success
+    assert_nil Qa::Task.find(id).lease_expires_at
+    advance(id, "acknowledged")
+    assert_response :success
+    assert Qa::Task.find(id).lease_expires_at.between?(14.minutes.from_now, 16.minutes.from_now)
+    advance(id, "blocked", result: { summary: "Need Joshua's direction" })
+    assert_response :success
+    decision = Qa::OfficeWork.transition(user: @owner, token: nil, id:, input: { "request_key" => "owner-specific-decision", "status" => "decision", "result" => { "summary" => "Report read-only capability" } })
+    assert_equal "blocked", decision["office_status"]
+    assert_equal "Report read-only capability", decision.dig("payload", "owner_decision")
+    advance(id, "handoff", result: { summary: "Codex can inspect the local implementation" }, assignee: "codex")
+    assert_response :success
+    assert_equal "queued", response.parsed_body["status"]
+    assert_equal "codex", response.parsed_body.dig("payload", "assigned_actor")
+    assert_nil Qa::Task.find(id).claim_principal
+    advance(id, "acknowledged", @dot_raw, key: "dot-cannot-claim-codex")
+    assert_response :forbidden
+    advance(id, "acknowledged", codex_raw, key: "codex-acknowledges-handoff")
+    assert_response :success
+    post "/api/qa/room/messages", params: { message: { message_key: "codex-author-without-client-name", recipient: "Muse", body: "Checking the assigned handoff", task_id: id } }, headers: { "Authorization" => "Bearer #{codex_raw}" }, as: :json
+    assert_response :created
+    assert_equal "Codex", response.parsed_body.dig("message", "agent")
+    advance(id, "completed", codex_raw, result: { summary: "Read-only capability verified" })
+    assert_response :success
+    advance(id, "result_confirmed", @dot_raw)
+    assert_response :success
+    get "/api/qa/office/work"
+    receipts = response.parsed_body["tasks"].find { |task| task["id"] == id }.fetch("receipts")
+    assert_equal %w[submitted picked_up acknowledged blocked decision handoff acknowledged completed result_confirmed], receipts.map { |receipt| receipt["status"] }
+    assert_equal %w[dot muse muse muse josh muse codex codex dot], receipts.map { |receipt| receipt["actor"] }
+    assert receipts.all? { |receipt| receipt["created_at"].present? }
+    assert_equal id, Qa::Task.find_by!(request_key: @input[:request_key]).id
+  end
+
 end

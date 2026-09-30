@@ -4,7 +4,7 @@ module Qa
   # Uses existing snapshots/events. Provisioning is a separate authorized action.
   class OfficeActors
     KEY = "office:actors".freeze
-    NAMES = { "josh" => "Josh", "muse" => "Muse", "dot" => "dot" }.freeze
+    NAMES = { "josh" => "Josh", "muse" => "Muse", "dot" => "dot", "codex" => "Codex" }.freeze
     class Conflict < StandardError; end
 
     def self.configuration
@@ -25,7 +25,7 @@ module Qa
       rescue OfficeActorPolicy::Denied
         # Invalid/revoked/absent bindings remain unavailable.
       end
-      %w[QA_OFFICE_MUSE_TOKEN_ID QA_OFFICE_DOT_TOKEN_ID].each do |key|
+      %w[QA_OFFICE_MUSE_TOKEN_ID QA_OFFICE_DOT_TOKEN_ID QA_OFFICE_CODEX_TOKEN_ID].each do |key|
         token = ServiceToken.includes(:user).find_by(id: OfficeActorPolicy.positive_id(config[key]))
         next unless token
         begin

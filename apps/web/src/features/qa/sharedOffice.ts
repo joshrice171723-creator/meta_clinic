@@ -3,7 +3,7 @@ import type { MuseReceipt } from "./museCheckIn";
 import type { RoomMessage } from "./QaAgentRoom";
 
 export type OfficeActor = {
-  id: "josh" | "muse" | "dot";
+  id: "josh" | "muse" | "dot" | "codex";
   name: string;
   control: "bound" | "uncontrolled";
   connection: "check_in_recorded" | "not_connected";
@@ -74,12 +74,16 @@ export function sharedOffice(input: unknown): SharedOffice {
     if (
       state.contract_version !== 1 ||
       !["server_bound", "not_configured"].includes(state.actor_binding) ||
-      ![null, "josh", "muse", "dot"].includes(state.controlled_actor) ||
+      ![null, "josh", "muse", "dot", "codex"].includes(
+        state.controlled_actor,
+      ) ||
       (state.can_enroll !== undefined &&
         typeof state.can_enroll !== "boolean") ||
       !Array.isArray(state.actors) ||
-      state.actors.length !== 3 ||
-      !Object.entries(names).every(
+      ![3, 4].includes(state.actors.length) ||
+      !Object.entries(
+        state.actors.length === 4 ? { ...names, codex: "Codex" } : names,
+      ).every(
         ([id, name]) =>
           state.actors.filter(
             (actor) => actor?.id === id && actor?.name === name,

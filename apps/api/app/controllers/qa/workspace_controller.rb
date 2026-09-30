@@ -84,6 +84,26 @@ module Qa
       render json: OfficeEnrollment.approve(user: actor, input: object!(:enrollment)), status: :created
     end
 
+    def office_qa
+      render json: OfficeQa.read(user: @service_token&.user || current_user, token: @service_token)
+    end
+
+    def office_qa_ledger
+      render json: OfficeQa.import_ledger(user: actor, token: @service_token, input: object!(:import))
+    end
+
+    def office_qa_defect
+      render json: OfficeQa.file_defect(user: actor, token: @service_token, input: object!(:report)), status: :created
+    end
+
+    def office_qa_retest
+      render json: OfficeQa.request_retest(user: actor, token: @service_token, input: object!(:retest)), status: :created
+    end
+
+    def office_qa_poll
+      render json: OfficeQa.poll_batch(user: actor, token: @service_token, input: object!(:poll))
+    end
+
     def issues = render(json: Workspace.github)
     def atlas = render(json: Atlas.read)
     def retest = render(json: { retest: Workspace.state.fetch("retest", []), coverage: Workspace.state.fetch("coverage", []) })
@@ -99,10 +119,10 @@ module Qa
 
     def create_room_message
       input = object!(:message)
-      if @service_token&.office?
+      if @service_token&.office? || !input.key?("agent")
         result = OfficeWork.locked(actor, @service_token) do
           identity = OfficeActorPolicy.actor(config: OfficeActors.configuration, user: actor, token: @service_token)
-          AgentRoom.post(actor, input, source: "office_service:#{@service_token.id}", authenticated_actor: identity)
+          AgentRoom.post(actor, input, source: @service_token ? "office_service:#{@service_token.id}" : "owner_session", authenticated_actor: identity)
         end
       else
         result = AgentRoom.post(actor, input, source: @service_token ? "qa_service:#{@service_token.id}:#{@service_token.recipient}" : "owner_session")
@@ -166,7 +186,7 @@ module Qa
           if task.status != "queued" || Event.exists?(event_key: "claim:#{run_id}")
             conflict = "Task already claimed, or this run has already claimed its one task."
           else
-            task.update!(status: "claimed", claimed_by: actor, claim_principal: OfficeActors.principal_key(actor, @service_token), claim_run_id: run_id, claimed_at: Time.current, lease_expires_at: 30.minutes.from_now,
+            task.update!(status: "claimed", claimed_by: actor, claim_principal: OfficeActors.principal_key(actor, @service_token), claim_run_id: run_id, claimed_at: Time.current, lease_expires_at: 15.minutes.from_now,
               payload: task.payload.merge("qa_baseline" => Snapshot.find_by(key: "baseline")&.data))
             Workspace.event(user: actor, kind: "run_started", summary: "#{run_id} claimed #{task.title}", revision:, payload: { task_id: task.id, run_id: }, event_key: "claim:#{run_id}")
           end
@@ -182,7 +202,7 @@ module Qa
             task.update!(status: outcome == "aborted" ? "queued" : outcome, result: result || {},
               **(outcome == "aborted" ? { claimed_by: nil, claim_principal: nil, lease_expires_at: nil, claim_run_id: nil, claimed_at: nil } : { lease_expires_at: nil }))
             Workspace.event(user: actor, kind: outcome == "aborted" ? "run_aborted" : "retest_#{outcome == 'completed' ? 'passed' : 'failed'}",
-              summary: "#{run_id}: #{task.title} — #{outcome}", revision:, payload: { task_id: task.id, run_id:, result: result || {} })
+              summary: "#{run_id}: #{task.title} â€” #{outcome}", revision:, payload: { task_id: task.id, run_id:, result: result || {} })
           end
         else
           raise ArgumentError, "Choose claimed, completed, failed, or aborted."
@@ -420,7 +440,7 @@ module Qa
 
     def require_qa_access
       if service_authenticated?
-        if @service_token.office? && !%w[office office_actors office_work office_work_transition office_position office_check_in room create_room_message tasks create_task].include?(action_name)
+        if @service_token.office? && !%w[office office_actors office_work office_work_transition office_position office_check_in office_qa office_qa_ledger office_qa_defect office_qa_retest office_qa_poll room create_room_message tasks create_task].include?(action_name)
           render json: { error: "This Office credential cannot access QA operations." }, status: :forbidden
         end
         return

@@ -8,11 +8,11 @@ module Qa
       raise ArgumentError, "Use a unique approval key." unless key.match?(/\A[A-Za-z0-9_-]{8,100}\z/)
       name = AgentRoom.text!(input, "name", 80)
       target = input["actor"]
-      raise ArgumentError, "Only actual Muse or dot can be enrolled." unless %w[muse dot].include?(target)
+      raise ArgumentError, "Only actual Muse, dot or Codex can be enrolled." unless %w[muse dot codex].include?(target)
       digest = input["digest"]
       raise ArgumentError, "Provide the agent's SHA256 fingerprint, never its secret." unless digest.is_a?(String) && digest.match?(/\A[0-9a-f]{64}\z/)
       cadence = input["cadence_seconds"]
-      raise ArgumentError, "Cadence must match the real Muse schedule (10–86400 seconds)." if cadence && (!cadence.is_a?(Integer) || !cadence.between?(10, 86_400) || target != "muse")
+      raise ArgumentError, "Cadence must match the real Muse schedule (10â€“86400 seconds)." if cadence && (!cadence.is_a?(Integer) || !cadence.between?(10, 86_400) || target != "muse")
       AgentRoom.reject_credentials!(name)
       user.with_lock do
         event_key = "office:enrollment:#{key}"
@@ -24,7 +24,7 @@ module Qa
         Snapshot.insert_all([ { key: "office:bindings", data: {}, created_at: Time.current, updated_at: Time.current } ], unique_by: :key)
         bindings = Snapshot.find_by!(key: "office:bindings")
         bindings.with_lock do
-          config_key = target == "muse" ? "QA_OFFICE_MUSE_TOKEN_ID" : "QA_OFFICE_DOT_TOKEN_ID"
+          config_key = { "muse" => "QA_OFFICE_MUSE_TOKEN_ID", "dot" => "QA_OFFICE_DOT_TOKEN_ID", "codex" => "QA_OFFICE_CODEX_TOKEN_ID" }.fetch(target)
           config = OfficeActors.configuration
           prior = ServiceToken.find_by(id: OfficeActorPolicy.positive_id(config[config_key]), revoked_at: nil)
           raise OfficeWork::Conflict, "This actor is already bound. Revoke its old credential before replacement." if prior
