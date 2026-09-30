@@ -137,7 +137,12 @@ class ServiceOfferingInstructionsTest < ActionDispatch::IntegrationTest
     private_record.offering_sites.create!(practice: @practice, site: @site)
     private_record.update!(status: "published", published_at: Time.current)
     @practice.service_offerings.create!(name: "Draft offering", contact_instructions: "Draft contact", public_visible: true)
-    @other_practice.service_offerings.create!(name: "Foreign offering", contact_instructions: "Foreign contact", public_visible: true)
+    foreign_site = @other_practice.sites.create!(code: "FOREIGN", name: "Foreign site", status: "draft")
+    foreign_visit_type = @other_practice.visit_types.create!(code: "Foreign service visit")
+    foreign = @other_practice.service_offerings.create!(name: "Foreign offering", visit_type: foreign_visit_type,
+      duration_minutes: 30, contact_instructions: "Foreign contact", public_visible: true)
+    foreign.offering_sites.create!(practice: @other_practice, site: foreign_site)
+    foreign.update!(status: "published", published_at: Time.current)
     get public_path
     assert_response :success
     assert_equal [ visible.id ], response.parsed_body.fetch("services").map { |item| item.fetch("id") }

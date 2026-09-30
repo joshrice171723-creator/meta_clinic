@@ -59,10 +59,12 @@ Source implementation and authored frontend verification complete for the bounde
 
 Backend migration execution and generated `db/structure.sql` remain blocked by absent Ruby/Bundler and must run on Sage's existing isolated synthetic runtime. Do not load the old structure and claim this migration was verified. No data rewrite/backfill is needed. `bin/verify-agent-harness` ran and failed only for this brief's missing tracker link; Relay owns that tracker path in PR36 and must add the link before that gate can pass. Four repository-relative links resolve. No broad suite, connected Rails-backed browser, clinical/vendor or release acceptance ran.
 
+On resumption, the public-exclusion regression's foreign fixture was strengthened to be published and public-visible with its own practice's eligible site and visit type. It can no longer pass merely because the foreign offering is a draft. Product source and the five passing controlled frontend cases are unchanged. GitHub Actions did not execute its checks: the run's annotation reports an account billing/spending-limit block, which requires separate account-owner resolution.
+
 ## Last run
 
 - Date: 2026-09-30 UTC.
-- Inspected source baseline: `2b0e9db4c9158562130e02555396dd078658ac8a`; current open PR ownership checked before edits.
-- Changed paths: only this slice's owned source, migration, new tests and brief.
-- Outcome: five focused controlled frontend cases, TypeScript, Prettier, bundle and diff checks passed; Ruby checks/schema generation unavailable; tracker-link harness gate open; no deployment/merge/provider/outbound operation.
+- Inspected preserved PR61 head: `6d57bf59ddecb343425ec8eda13c2b398d27438a`; branch clean on resumption, draft open without reviews, current main `352e1f24cf84b05bc680b90179d89c9da9cede90` has no schema drift against this branch.
+- Changed paths on resumption: only the authored API regression's foreign fixture and this brief; no product behavior change.
+- Outcome: strengthened tenant-negative fixture awaiting Ruby execution. Scoped diff hygiene, brief formatting and four relative links passed on resumption; harness verification again failed only for the missing tracker link. Prior unchanged-source evidence remains five controlled frontend cases, TypeScript, Prettier and bundle passes. Ruby checks/schema generation remain unavailable; GitHub account billing/spending-limit block remains open. No deployment/merge/provider/outbound operation.
 - Next: route the additive migration/schema dump, four new API cases plus existing offering tests, scoped Ruby style and eager loading to Sage; return generated schema to Nova for the authored branch, then obtain independent review. Relay adds the tracker link.
