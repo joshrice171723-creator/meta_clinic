@@ -382,6 +382,12 @@ export function ClinicNavigation({
           Icon: SettingsIcon,
           allowed: true,
         },
+        {
+          href: "/clinic/audit",
+          label: "Practice audit",
+          Icon: ReceiptLongIcon,
+          allowed: capabilities.roles === true,
+        },
       ],
     },
   ];

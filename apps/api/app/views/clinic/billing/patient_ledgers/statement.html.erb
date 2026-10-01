@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patient statement · <%= @practice.name %></title>
+  <style nonce="<%= content_security_policy_nonce %>">
+    body { color: #182d3c; font: 15px/1.6 system-ui, sans-serif; margin: 24px; }
+    main { max-width: 900px; margin: auto; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    th, td { padding: 8px; border-bottom: 1px solid #dce2e7; text-align: left; }
+    .amount { font-variant-numeric: tabular-nums; }
+    button { font: inherit; padding: 10px 16px; }
+    @media print { .actions { display: none; } @page { margin: 18mm; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="actions"><button id="print-statement" type="button">Print statement</button></div>
+  <header>
+    <strong><%= @practice.name %></strong>
+    <h1>Patient statement</h1>
+    <p><%= @ledger.fetch(:patient).fetch(:display_name) %></p>
+    <% if @ledger.fetch(:patient).fetch(:reference).present? %><p>Clinic reference: <%= @ledger.fetch(:patient).fetch(:reference) %></p><% end %>
+    <p>As of <%= @issued_at.strftime("%B %-d, %Y · %-I:%M %p %Z") %> · <%= @practice.timezone %></p>
+  </header>
+  <h2>Balance by currency</h2>
+  <% if @ledger.fetch(:currencies).empty? %><p>No invoice or payment activity has been recorded.</p><% end %>
+  <% @ledger.fetch(:currencies).each do |summary| %>
+    <p class="amount"><strong><%= summary.fetch(:currency) %> <%= number_with_precision(summary.fetch(:balance_amount), precision: 2, delimiter: ",") %> due</strong></p>
+    <p>Invoiced: <%= summary.fetch(:invoiced_amount) %> · Applied payments: <%= summary.fetch(:allocated_amount) %> · Credits: <%= summary.fetch(:credited_amount) %> · Refunds: <%= summary.fetch(:refunded_amount) %></p>
+  <% end %>
+  <h2>Posted invoices</h2>
+  <table><thead><tr><th>Invoice</th><th>Description</th><th>Total</th><th>Applied</th><th>Credits</th><th>Balance</th></tr></thead><tbody>
+  <% @ledger.fetch(:invoices).select { |invoice| invoice.fetch(:status) == "posted" }.each do |invoice| %>
+    <tr><td>#<%= invoice.fetch(:id) %></td><td><%= invoice.fetch(:lines).map { |line| line.fetch(:description) }.join("; ") %></td>
+    <% %i[total_amount allocated_amount credit_amount balance_amount].each do |field| %><td class="amount"><%= invoice.fetch(:currency) %> <%= number_with_precision(invoice.fetch(field), precision: 2, delimiter: ",") %></td><% end %></tr>
+  <% end %>
+  </tbody></table>
+  <h2>Payments</h2>
+  <table><thead><tr><th>Payment</th><th>Recorded</th><th>Paid</th><th>Unapplied</th></tr></thead><tbody>
+  <% @ledger.fetch(:payments).each do |payment| %>
+    <tr><td>#<%= payment.fetch(:id) %></td><td><%= Time.iso8601(payment.fetch(:created_at)).in_time_zone(@practice.timezone).strftime("%B %-d, %Y") %></td>
+    <% %i[amount unapplied_amount].each do |field| %><td class="amount"><%= payment.fetch(:currency) %> <%= number_with_precision(payment.fetch(field), precision: 2, delimiter: ",") %></td><% end %></tr>
+  <% end %>
+  </tbody></table>
+  <p>Balances include posted invoices, applied payments and credits. Refunds and unapplied payments are shown separately. Amounts in different currencies are not combined.</p>
+</main>
+<%= javascript_tag nonce: true do %>
+  document.getElementById("print-statement").addEventListener("click", function () { window.print(); });
+<% end %>
+</body>
+</html>

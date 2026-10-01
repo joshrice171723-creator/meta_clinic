@@ -484,8 +484,7 @@ export function PatientClinicalHistory({
         >
           {kinds.map((kind) => {
             const records = lists?.[kind] || [];
-            const reviewItem =
-              kind === "conditions" ? undefined : data.reviews[kind];
+            const reviewItem = data.reviews[kind];
             return (
               <Paper
                 key={kind}
@@ -577,8 +576,7 @@ export function PatientClinicalHistory({
                     ))}
                   </List>
                 )}
-                {kind !== "conditions" && (
-                  <>
+                <>
                     <Divider />
                     <Stack
                       id={`clinical-history-${kind}-review`}
@@ -601,12 +599,41 @@ export function PatientClinicalHistory({
                         </Button>
                       )}
                     </Stack>
-                  </>
-                )}
+                </>
               </Paper>
             );
           })}
         </Box>
+        <Paper component="section" variant="outlined" sx={{ p: 1.25 }}>
+          <Stack spacing={1}>
+            <Typography variant="subtitle1">Health conditions recorded in intake</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Intake answers are separate from the longitudinal condition list. Recording or reviewing intake does not add a diagnosis.
+            </Typography>
+            {data.reported_intake_conditions?.state === "restricted" ? (
+              <Typography>Intake conditions are unavailable with your current access.</Typography>
+            ) : data.reported_intake_conditions?.source ? (
+              <>
+                <Typography variant="caption" color="text.secondary">
+                  Encounter #{data.reported_intake_conditions.source.encounter_id} · Intake revision {data.reported_intake_conditions.source.version} · {displayTime(data.reported_intake_conditions.source.recorded_at)}
+                </Typography>
+                {data.reported_intake_conditions.questions.map((question) => (
+                  <Stack key={question.id} spacing={0.5}>
+                    <Typography variant="body2">{question.label} · {humanize(question.answer_state)}{question.source ? ` · ${humanize(question.source)}` : ""}</Typography>
+                    {question.entries.length ? question.entries.map((entry, index) => (
+                      <Typography key={`${question.id}-${index}`} variant="body2">
+                        {entry.name}{entry.current_status ? ` · ${humanize(entry.current_status)}` : ""}{entry.certainty ? ` · ${humanize(entry.certainty)}` : ""}
+                      </Typography>
+                    )) : <Typography variant="body2" color="text.secondary">No condition entries recorded in this intake answer. No absence has been inferred.</Typography>}
+                  </Stack>
+                ))}
+                <Button size="small" sx={{ alignSelf: "flex-start" }} href={`/clinic/patients/${patientId}/encounters/${data.reported_intake_conditions.source.encounter_id}?focus=nurse-workspace`}>
+                  Open source intake
+                </Button>
+              </>
+            ) : <Typography variant="body2" color="text.secondary">No saved intake condition source is available. No absence has been inferred.</Typography>}
+          </Stack>
+        </Paper>
         <Paper component="section" variant="outlined">
           <Stack
             id="clinical-history-care_needs-review"

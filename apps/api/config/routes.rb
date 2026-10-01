@@ -185,6 +185,9 @@ Rails.application.routes.draw do
     get "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#show"
     put "encounters/:encounter_id/follow_up", to: "operations/encounter_follow_ups#upsert"
     get "operation_receipts/:request_key", to: "operation_receipts#show", as: :operation_receipt
+    get "audit_events", to: "audit_events#index"
+    get "reminder_policy", to: "reminder_policies#show"
+    patch "reminder_policy", to: "reminder_policies#update"
     get "offering_text_batches/catalog", to: "offering_text_batches#catalog"
     resources :offering_text_batches, only: %i[index show create], param: :id do
       post "items/:item/:operation", on: :member, to: "offering_text_batches#change", constraints: { operation: /prepare|reconcile|apply/ }
@@ -455,6 +458,7 @@ Rails.application.routes.draw do
       get :lookup, on: :collection, to: "care/patients#lookup"
       post :merge, on: :member
       get :billing_ledger, on: :member, to: "billing/patient_ledgers#show"
+      get :billing_statement, on: :member, to: "billing/patient_ledgers#statement"
       post :note, on: :member
       get "previous_signed_soap", on: :member, to: "care/patient_chart_history#show"
       resource :care_summary, controller: "care/patient_care_summaries", only: :show

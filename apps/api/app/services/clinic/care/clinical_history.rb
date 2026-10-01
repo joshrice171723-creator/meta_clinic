@@ -6,7 +6,7 @@ module Clinic
         "medications" => { model: MedicationStatement, singular: "medication" },
         "conditions" => { model: Condition, singular: "condition" }
       }.freeze
-      REVIEW_TOPICS = %w[allergies medications care_needs].freeze
+      REVIEW_TOPICS = %w[allergies medications conditions care_needs].freeze
 
       def self.create(practice:, actor:, patient:, encounter:, kind:, attributes:, request_key:)
         definition = definition!(kind)
@@ -135,6 +135,7 @@ module Clinic
         case topic
         when "allergies" then patient.allergies.recorded_details.where(clinical_status: "active")
         when "medications" then patient.medication_statements.recorded_details.where(status: "active")
+        when "conditions" then patient.conditions.recorded_details.where(clinical_status: "active")
         when "care_needs" then patient.care_needs.active_at(at)
         end
       end

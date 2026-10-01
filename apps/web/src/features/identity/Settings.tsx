@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Switch from "@mui/material/Switch";
 import Button from "@mui/material/Button";
 import { useClinic } from "../clinic/Workspace";
+import { ReminderSettings } from "../clinic/ReminderSettings";
 import type { User, UserSettings } from "../../api/contracts";
 import { api } from "../../api/client";
 import { Card, ErrorMessage, Field, Form, LoadState } from "../../shared/ui";
@@ -314,6 +315,7 @@ export function Settings({ user }: { user: User }) {
         accept={appearance.accept}
         systemDark={appearance.systemDark}
       />
+      {clinic.capabilities.roles && <ReminderSettings />}
     </>
   );
 }

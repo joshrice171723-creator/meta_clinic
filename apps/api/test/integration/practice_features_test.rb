@@ -503,6 +503,35 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_includes response.parsed_body.fetch("error"), "Protected profile change"
   end
 
+  test "inherited clinic default saves an independent location revision and exact replay" do
+    practice = @membership.practice
+    defaults = profile_payload(service_scope: %w[telehealth], request_key: "inherited-default")
+    put "/api/clinic/practice_features", params: { features: defaults }, headers: csrf_headers, as: :json
+    assert_response :success
+    site = practice.sites.create!(code: "INHERITED-QA", status: "active")
+    get "/api/clinic/practice_features", params: { site_id: site.id }, headers: @headers
+    assert_response :success
+    inherited = response.parsed_body.fetch("features")
+    assert_equal "clinic_default", inherited.fetch("profile_scope")
+    assert_equal 0, inherited.fetch("revision")
+    assert_equal false, inherited.fetch("configured")
+    assert_equal %w[telehealth], inherited.fetch("service_scope")
+    payload = profile_payload(site_id: site.id, service_scope: inherited.fetch("recommended_service_scope"),
+      expected_revision: 0, request_key: "inherited-location-save")
+    2.times do
+      put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal 1, response.parsed_body.dig("features", "revision")
+      assert_equal true, response.parsed_body.dig("features", "configured")
+    end
+    assert_equal 1, Clinic::PracticeFeatureVersion.where(practice:, site:).count
+    assert_equal 1, Clinic::PracticeFeatureVersion.where(practice:, site: nil).count
+    assert_equal %w[telehealth], Clinic::PracticeFeatureVersion.where(practice:, site: nil).first.optional_features.fetch("service_scope")
+    put "/api/clinic/practice_features", params: { features: payload.merge(service_scope: []) }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal 1, Clinic::PracticeFeatureVersion.where(practice:, site:).count
+  end
+
   private
 
   def login_service_impact_reader!(*domain_permissions)

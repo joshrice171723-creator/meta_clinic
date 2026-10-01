@@ -177,6 +177,54 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
     Clinic::Idempotency.define_singleton_method(:execute, original_execute) if original_execute
   end
 
+  test "Muse 71 practice audit projects bounded immutable evidence and isolates switched practice snapshots" do
+    grant_permissions!(@membership, "roles.manage")
+    first = Clinic::AuditRecorder.record!(practice: @practice, actor: @user, action_code: "synthetic.audit.projection", outcome: :committed, resource_version_ref: "synthetic-note:1:revision:1")
+    second = Clinic::AuditRecorder.record!(practice: @practice, actor: @user, action_code: "synthetic.audit.projection", outcome: :committed, resource_version_ref: "synthetic-note:1:revision:2")
+    other = Clinic::Practice.create!(name: "Synthetic Other Audit Practice", organization: @practice.organization)
+    other_membership = other.memberships.create!(user: @user)
+    grant_permissions!(other_membership, "roles.manage")
+    foreign = Clinic::AuditRecorder.record!(practice: other, actor: @user, action_code: "synthetic.audit.projection", outcome: :committed, resource_version_ref: "synthetic-other-note:1")
+    get "/api/clinic/audit_events", params: { action_code: first.action_code, outcome: "committed", per_page: 1 }, headers: @headers
+    assert_response :success
+    payload = response.parsed_body
+    row = payload.fetch("events").sole
+    assert_equal second.id, row.fetch("id")
+    assert_equal %w[action_code actor_reference id occurred_at outcome policy_version resource_references], row.keys.sort
+    assert_equal "user:#{@user.id}", row.fetch("actor_reference")
+    assert_equal [ "synthetic-note:1:revision:2" ], row.fetch("resource_references")
+    assert_equal 2, payload.fetch("pagination").fetch("total")
+    snapshot = payload.fetch("snapshot_id")
+    Clinic::AuditRecorder.record!(practice: @practice, actor: @user, action_code: first.action_code, outcome: :committed)
+    get "/api/clinic/audit_events", params: { action_code: first.action_code, outcome: "committed", per_page: 1, page: 2, snapshot_id: snapshot }, headers: @headers
+    assert_response :success
+    assert_equal [ first.id ], response.parsed_body.fetch("events").map { |event| event.fetch("id") }
+    assert_equal 2, response.parsed_body.fetch("pagination").fetch("total")
+    patch "/api/clinic/context", params: { practice_id: other.id }, headers: csrf_headers, as: :json
+    assert_response :success
+    get "/api/clinic/audit_events", params: { action_code: first.action_code }, headers: @headers
+    assert_response :success
+    assert_equal [ foreign.id ], response.parsed_body.fetch("events").map { |event| event.fetch("id") }
+    assert_equal 1, other.audit_events.where(action_code: "audit.events.read", outcome: "released").count
+    revoke_all_permissions!(other_membership)
+    get "/api/clinic/audit_events", headers: @headers
+    assert_response :forbidden
+    assert_not_includes response.body, "synthetic-other-note"
+  end
+
+  test "Muse 71 practice audit fails closed when read evidence cannot be recorded" do
+    grant_permissions!(@membership, "roles.manage")
+    Clinic::AuditRecorder.record!(practice: @practice, actor: @user, action_code: "synthetic.audit.protected", outcome: :committed, resource_version_ref: "synthetic-hidden-reference")
+    original_record = Clinic::AuditRecorder.method(:record!)
+    Clinic::AuditRecorder.define_singleton_method(:record!) { |**| raise Clinic::AuditRecorder::Unavailable }
+    get "/api/clinic/audit_events", headers: @headers
+    assert_response :service_unavailable
+    assert_equal "audit_unavailable", response.parsed_body.fetch("code")
+    assert_not_includes response.body, "synthetic-hidden-reference"
+  ensure
+    Clinic::AuditRecorder.define_singleton_method(:record!, original_record) if original_record
+  end
+
   private
 
   def denied_allergy_params

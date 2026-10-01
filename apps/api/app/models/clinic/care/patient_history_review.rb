@@ -9,7 +9,7 @@ module Clinic
       belongs_to :encounter, class_name: "Clinic::Encounter"
       belongs_to :reviewer_membership, class_name: "Clinic::Membership"
 
-      enum :topic, { allergies: "allergies", medications: "medications", care_needs: "care_needs" }, prefix: true, validate: true
+      enum :topic, { allergies: "allergies", medications: "medications", conditions: "conditions", care_needs: "care_needs" }, prefix: true, validate: true
       enum :outcome, {
         current_list_confirmed: "current_list_confirmed", none_reported: "none_reported",
         follow_up_needed: "follow_up_needed", unable_to_obtain: "unable_to_obtain"

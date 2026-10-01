@@ -19,7 +19,8 @@ module Clinic
           action_code: "clinical_history.read", outcome: :released,
           resource_version_ref: "Clinic::Care::Patient/#{patient.id}:encounter/#{encounter&.id || 'none'}"
         )
-        render json: ClinicalHistorySerializer.call(patient, encounter:, can_write:)
+        render json: ClinicalHistorySerializer.call(patient, encounter:, can_write:,
+          reported_intake_conditions: reported_intake_conditions(patient, encounter))
       end
 
       def create
@@ -74,6 +75,21 @@ module Clinic
       end
 
       private
+
+      def reported_intake_conditions(patient, encounter)
+        revisions = Clinic::EncounterIntakeRevision.where(practice: current_practice, patient: patient)
+          .includes(:encounter).order(recorded_at: :desc, id: :desc)
+        revision = encounter && revisions.where(encounter: encounter).first
+        revision ||= revisions.first
+        return { state: "not_recorded", source: nil, questions: [] } unless revision
+        unless current_ability.allowed_permission?("patients.read", site: revision.encounter.site)
+          return { state: "restricted", source: nil, questions: [] }
+        end
+        Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
+          action_code: "clinical_history.intake_conditions.read", outcome: :released,
+          resource_version_ref: "Clinic::EncounterIntakeRevision/#{revision.id}:version/#{revision.version_number}:patient/#{patient.id}")
+        ClinicalHistorySerializer.intake_conditions(revision)
+      end
 
       def readable_patient!
         current_practice.patients.accessible_by(current_ability, :read)

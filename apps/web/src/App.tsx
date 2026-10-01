@@ -167,6 +167,10 @@ const Overview = lazyNamed(
   () => import("./features/clinic/TrackingBoardPage"),
   (m) => m.Overview,
 );
+const AuditEvents = lazyNamed(
+  () => import("./features/clinic/AuditEvents"),
+  (m) => m.AuditEvents,
+);
 const Operations = lazyNamed(
   () => import("./features/clinic/Operations"),
   (m) => m.Operations,
@@ -603,6 +607,8 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         <RecallWorklist />
       ) : path === "/clinic/refills" ? (
         <RefillRequestQueue />
+      ) : path === "/clinic/audit" ? (
+        <AuditEvents />
       ) : path === "/clinic/operations" ? (
         <Operations />
       ) : path === "/clinic/setup" || path === "/clinic/facilities" ? (

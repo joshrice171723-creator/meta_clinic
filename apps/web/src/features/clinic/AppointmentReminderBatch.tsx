@@ -37,7 +37,7 @@ type PreviewItem = {
   preview_digest: string | null;
 };
 
-type BatchPreview = { items: PreviewItem[]; ready_count: number };
+type BatchPreview = { items: PreviewItem[]; ready_count: number; configuration: { enabled: boolean; lead_hours: number; revision: number } };
 type ScheduleResult = {
   appointment_id: number;
   status: "scheduled" | "already_scheduled" | "skipped";
@@ -311,7 +311,7 @@ export function AppointmentReminderBatch({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info">
-              Ready reminders are scheduled for 24 hours before the appointment.
+              Ready reminders are scheduled for {preview?.configuration?.lead_hours ?? 24} hours before the appointment.
               They are not sent now. If an appointment moves, its scheduled
               message is cancelled; preview and schedule the updated visit
               again.

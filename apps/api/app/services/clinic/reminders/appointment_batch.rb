@@ -11,7 +11,7 @@ module Clinic
         "endpoint_unverified" => "A verified text-message destination is required.",
         "endpoint_channel_mismatch" => "The selected destination cannot receive text reminders.",
         "patient_opted_out" => "The patient opted out of operational text messages.",
-        "quiet_hours" => "The 24-hour reminder time falls within the patient's quiet hours.",
+        "quiet_hours" => "The reminder time falls within the patient's quiet hours.",
         "source_cancelled" => "The appointment is no longer eligible for a reminder.",
         "expired" => "The reminder would already be expired."
       }.freeze
@@ -19,8 +19,10 @@ module Clinic
       def self.preview(practice:, actor:, appointment_ids:, at: Current.business_time)
         ids = validate_ids!(appointment_ids)
         appointments = authorized_appointments!(practice:, actor:, ids:)
-        items = ids.map { |id| preview_item(practice:, appointment: appointments.fetch(id), at:).except(:endpoint_id) }
-        { items: items, ready_count: items.count { |item| item[:status] == "ready" } }
+        practice.with_lock do
+          items = ids.map { |id| preview_item(practice:, appointment: appointments.fetch(id), at:).except(:endpoint_id) }
+          { items: items, ready_count: items.count { |item| item[:status] == "ready" }, configuration: PolicyVersion.snapshot(PolicyVersion.current(practice:, at:)) }
+        end
       end
 
       def self.schedule(practice:, actor:, items:, at: Current.business_time)
@@ -28,29 +30,31 @@ module Clinic
         appointments = authorized_appointments!(practice:, actor:, ids: entries.map { |item| item.fetch(:appointment_id) })
         results = entries.map do |entry|
           appointment = appointments.fetch(entry.fetch(:appointment_id))
-          appointment.with_lock do
-            plan = preview_item(practice:, appointment:, at:)
-            if plan[:status] == "already_scheduled"
-              existing = existing_reminder(practice, appointment)
-              next { appointment_id: appointment.id, status: "already_scheduled",
-                reminder_id: existing&.id, reason: nil }
-            end
-            unless plan[:status] == "ready"
-              next { appointment_id: appointment.id, status: "skipped", reminder_id: nil, reason: plan[:reason] }
-            end
-            unless ActiveSupport::SecurityUtils.secure_compare(plan.fetch(:preview_digest), entry.fetch(:preview_digest))
-              next { appointment_id: appointment.id, status: "skipped", reminder_id: nil,
-                reason: "Appointment reminder details changed. Preview again." }
-            end
+          practice.with_lock do
+            appointment.with_lock do
+              plan = preview_item(practice:, appointment:, at:)
+              if plan[:status] == "already_scheduled"
+                existing = existing_reminder(practice, appointment)
+                next { appointment_id: appointment.id, status: "already_scheduled",
+                  reminder_id: existing&.id, reason: nil }
+              end
+              unless plan[:status] == "ready"
+                next { appointment_id: appointment.id, status: "skipped", reminder_id: nil, reason: plan[:reason] }
+              end
+              unless ActiveSupport::SecurityUtils.secure_compare(plan.fetch(:preview_digest), entry.fetch(:preview_digest))
+                next { appointment_id: appointment.id, status: "skipped", reminder_id: nil,
+                  reason: "Appointment reminder details changed. Preview again." }
+              end
 
-            reminder = Create.call(
-              practice:, actor:, patient: appointment.patient,
-              request_key: "appointment-batch:#{appointment.id}:#{plan.fetch(:preview_digest)}",
-              category: "appointment", channel: CHANNEL, scheduled_at: Time.iso8601(plan.fetch(:scheduled_at)),
-              endpoint_id: plan.fetch(:endpoint_id), appointment:, expires_at: appointment.starts_at,
-              content: plan.fetch(:message)
-            )
-            { appointment_id: appointment.id, status: "scheduled", reminder_id: reminder.id, reason: nil }
+              reminder = Create.call(
+                practice:, actor:, patient: appointment.patient,
+                request_key: "appointment-batch:#{appointment.id}:#{plan.fetch(:preview_digest)}",
+                category: "appointment", channel: CHANNEL, scheduled_at: Time.iso8601(plan.fetch(:scheduled_at)),
+                endpoint_id: plan.fetch(:endpoint_id), appointment:, expires_at: appointment.starts_at,
+                content: plan.fetch(:message)
+              )
+              { appointment_id: appointment.id, status: "scheduled", reminder_id: reminder.id, reason: nil }
+            end
           end
         rescue ArgumentError => error
           { appointment_id: appointment.id, status: "skipped", reminder_id: nil, reason: error.message }
@@ -76,9 +80,11 @@ module Clinic
           return base.merge(reason: "The appointment is no longer eligible for a reminder.")
         end
 
-        scheduled_at = appointment.starts_at - 24.hours
+        configuration = PolicyVersion.snapshot(PolicyVersion.current(practice:, at:))
+        return base.merge(reason: "Appointment reminder scheduling is disabled in clinic settings.") unless configuration.fetch(:enabled)
+        scheduled_at = appointment.starts_at - configuration.fetch(:lead_hours).hours
         base[:scheduled_at] = scheduled_at.iso8601(6)
-        return base.merge(reason: "Appointments inside 24 hours use the manual reminder flow.") if scheduled_at <= at
+        return base.merge(reason: "Appointments inside #{configuration.fetch(:lead_hours)} hours use the manual reminder flow.") if scheduled_at <= at
 
         endpoint = Create.endpoint_for(practice:, patient: appointment.patient, channel: CHANNEL)
         base[:masked_destination] = endpoint.masked_value
@@ -93,7 +99,7 @@ module Clinic
         return base.merge(reason: POLICY_REASONS.fetch(decision.fetch(:code), "This reminder is not currently eligible.")) unless
           decision.fetch(:allowed)
 
-        digest = preview_digest(appointment:, endpoint:, scheduled_at:, message:,
+        digest = preview_digest(appointment:, endpoint:, scheduled_at:, message:, configuration:,
           cancelled_reminder: latest_cancelled_reminder(practice, appointment))
         base.merge(status: "ready", message:, reason: nil, preview_digest: digest, endpoint_id: endpoint.id)
       rescue ArgumentError
@@ -133,8 +139,9 @@ module Clinic
       end
       private_class_method :message_for
 
-      def self.preview_digest(appointment:, endpoint:, scheduled_at:, message:, cancelled_reminder:)
+      def self.preview_digest(appointment:, endpoint:, scheduled_at:, message:, configuration:, cancelled_reminder:)
         payload = {
+          reminder_policy_revision: configuration.fetch(:revision),
           appointment_id: appointment.id, appointment_updated_at: source_version(appointment),
           starts_at: appointment.starts_at.iso8601(6),
           endpoint_id: endpoint.id, endpoint_updated_at: endpoint.updated_at.utc.iso8601(6),

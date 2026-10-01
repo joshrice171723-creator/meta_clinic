@@ -191,6 +191,107 @@ class ClinicalHistoryApiTest < ActionDispatch::IntegrationTest
     assert_empty foreign_patient.allergies.reload
   end
 
+  test "Muse172 Conditions review retains prior attestations without changing condition verification" do
+    request = { clinical_history: {
+      encounter_id: @encounter.id, request_key: "synthetic-condition-review-create",
+      condition_name: "Independent synthetic reported concern", clinical_status: "active",
+      verification_status: "unconfirmed", affects_current_care: false
+    } }
+    post history_path("conditions"), params: request, headers: csrf_headers, as: :json
+    assert_response :created
+    record = response.parsed_body.fetch("record")
+    path = "/api/clinic/patients/#{@patient.id}/clinical_history/reviews"
+    review = { review: { encounter_id: @encounter.id, request_key: "synthetic-condition-review-none",
+      topic: "conditions", outcome: "none_reported", information_source: "patient" } }
+    assert_no_difference "Clinic::Care::PatientHistoryReview.count" do
+      post path, params: review, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+    assert_includes response.parsed_body.fetch("error"), "Active conditions remain recorded"
+    review[:review].merge!(request_key: "synthetic-condition-review-confirm", outcome: "current_list_confirmed")
+    assert_difference "Clinic::Care::PatientHistoryReview.count", 1 do
+      post path, params: review, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    first = response.parsed_body.fetch("review")
+    assert_no_difference "Clinic::Care::PatientHistoryReview.count" do
+      post path, params: review, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    assert_equal first, response.parsed_body.fetch("review")
+    review[:review].merge!(request_key: "synthetic-condition-review-followup", outcome: "follow_up_needed")
+    assert_difference "Clinic::Care::PatientHistoryReview.count", 1 do
+      post path, params: review, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    second = response.parsed_body.fetch("review")
+    assert_equal first, Clinic::Care::ClinicalHistorySerializer.review(Clinic::Care::PatientHistoryReview.find(first.fetch("id"))).deep_stringify_keys
+    assert_equal 2, @patient.history_reviews.where(topic: "conditions", encounter: @encounter).count
+    get "/api/clinic/patients/#{@patient.id}/clinical_history", params: { encounter_id: @encounter.id }, headers: @headers
+    assert_response :success
+    assert_equal second, response.parsed_body.dig("reviews", "conditions")
+    current = response.parsed_body.fetch("conditions").find { |condition| condition.fetch("id") == record.fetch("id") }
+    assert_equal ["active", "unconfirmed", false], current.values_at("clinical_status", "verification_status", "affects_current_care")
+    assert_equal first.fetch("reviewed_at"), current.fetch("last_reviewed_at")
+    review[:review].merge!(encounter_id: @closed_encounter.id, request_key: "synthetic-condition-review-closed")
+    assert_no_difference "Clinic::Care::PatientHistoryReview.count" do
+      post path, params: review, headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+    end
+  end
+
+  test "Muse220 intake condition projection uses exact source and does not fall back around denied newest intake" do
+    grant_permissions!(@membership, "intake.write")
+    @patient.update!(primary_site: @site)
+    save_conditions = lambda do |encounter, names|
+      answers = Clinic::Care::PrevisitIntake.fields.to_h { |field| [field.fetch(:id), { state: "not_asked", value: "" }] }
+      answers["history"] = { state: "answered", value: "", entries: names.map { |name|
+        { kind: "other", name: name, date_precision: "unknown", current_status: "current", review_route: "unknown" }
+      } }
+      3.times do |chunk|
+        Clinic::Care::NurseWorkflow.revise_intake(practice: @practice, actor: @clinician, patient: @patient, encounter: encounter,
+          request_key: "synthetic-reported-conditions-#{encounter.id}-#{chunk}", expected_version: chunk,
+          observation_ids: [], history_review_ids: [], attributes: {
+            status: "incomplete", identity_state: "not_confirmed", visit_reason_state: "not_recorded",
+            history_state: "not_recorded", vitals_state: "not_recorded",
+            questionnaire: { text: "", answers: answers, status: "submitted", confirmed: true, confirmed_chunks: (0..chunk).to_a }
+          })
+      end
+    end
+    names = ["Independent first intake concern", "Independent second intake concern"]
+    save_conditions.call(@closed_encounter, names)
+    path = "/api/clinic/patients/#{@patient.id}/clinical_history"
+    get path, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("conditions")
+    projection = response.parsed_body.fetch("reported_intake_conditions")
+    assert_equal "available", projection.fetch("state")
+    assert_equal [@closed_encounter.id, 3], projection.fetch("source").values_at("encounter_id", "version")
+    assert_equal names, projection.fetch("questions").flat_map { |question| question.fetch("entries").pluck("name") }
+    get path, params: { encounter_id: @encounter.id }, headers: @headers
+    assert_response :success
+    assert_equal projection, response.parsed_body.fetch("reported_intake_conditions")
+    save_conditions.call(@encounter, ["Independent own encounter concern"])
+    save_conditions.call(@other_site_encounter, ["Independent restricted newest concern"])
+    reader = User.create!(email_address: "synthetic-condition-site-reader@example.invalid", password: @password)
+    member = @practice.memberships.create!(user: reader)
+    grant_permissions!(member, "patients.read", scope_kind: "site", site: @site)
+    login(reader)
+    get path, headers: @headers
+    assert_response :success
+    assert_equal({ "state" => "restricted", "source" => nil, "questions" => [] }, response.parsed_body.fetch("reported_intake_conditions"))
+    refute_includes response.body, "Independent restricted newest concern"
+    refute_includes response.body, names.first
+    get path, params: { encounter_id: @encounter.id }, headers: @headers
+    assert_response :success
+    own = response.parsed_body.fetch("reported_intake_conditions")
+    assert_equal @encounter.id, own.dig("source", "encounter_id")
+    assert_equal ["Independent own encounter concern"], own.fetch("questions").flat_map { |question| question.fetch("entries").pluck("name") }
+    other = @practice.patients.create!(display_name: "Independent unrelated condition patient", reference: "SYN-CONDITION-OTHER", primary_site: @site)
+    get "/api/clinic/patients/#{other.id}/clinical_history", params: { encounter_id: @encounter.id }, headers: @headers
+    assert_response :not_found
+  end
+
   private
 
   def history_path(kind = nil, id = nil, patient: @patient)

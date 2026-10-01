@@ -113,6 +113,60 @@ class AppointmentReminderBatchTest < ActionDispatch::IntegrationTest
     assert_empty @practice.patient_reminders
   end
 
+  test "Muse 55 reminder configuration persists replay safety and drives current preview scheduling" do
+    grant_permissions!(@membership, "roles.manage")
+    get "/api/clinic/reminder_policy", headers: @headers
+    assert_response :success
+    assert_equal 24, response.parsed_body.fetch("policy").fetch("lead_hours")
+    appointment = appointment_for(eligible_patient("SYN-POLICY-READY"), starts_at: 5.days.from_now)
+    input = { expected_revision: 0, request_key: "synthetic-reminder-policy-1", enabled: true, lead_hours: 48 }
+    2.times do
+      patch "/api/clinic/reminder_policy", params: { policy: input }, headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal 1, response.parsed_body.fetch("policy").fetch("revision")
+    end
+    assert_equal 1, Clinic::Reminders::PolicyVersion.where(practice: @practice).count
+    policy = Clinic::Reminders::PolicyVersion.find_by!(practice: @practice)
+    assert_raises(ActiveRecord::RecordNotSaved) { policy.update!(lead_hours: 72) }
+    assert_raises(ActiveRecord::RecordNotDestroyed) { policy.destroy! }
+    patch "/api/clinic/reminder_policy", params: { policy: input.merge(lead_hours: 72) }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    patch "/api/clinic/reminder_policy", params: { policy: input.merge(request_key: "synthetic-stale-policy") }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    get "/api/clinic/reminder_policy", headers: @headers
+    assert_response :success
+    assert_equal 48, response.parsed_body.fetch("policy").fetch("lead_hours")
+    old_preview = preview(appointment)
+    assert_equal (appointment.starts_at - 48.hours).iso8601(6), old_preview.fetch("scheduled_at")
+    patch "/api/clinic/reminder_policy", params: { policy: input.merge(expected_revision: 1, request_key: "synthetic-reminder-policy-2", lead_hours: 72) }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "skipped", schedule(old_preview).fetch("status")
+    assert_empty appointment_reminders(appointment)
+    fresh_preview = preview(appointment)
+    assert_equal (appointment.starts_at - 72.hours).iso8601(6), fresh_preview.fetch("scheduled_at")
+    result = schedule(fresh_preview)
+    assert_equal "scheduled", result.fetch("status")
+    reminder = @practice.patient_reminders.find(result.fetch("reminder_id"))
+    assert_equal (appointment.starts_at - 72.hours).iso8601(6), reminder.scheduled_at.iso8601(6)
+    assert_empty reminder.delivery_attempts
+    patch "/api/clinic/reminder_policy", params: { policy: input.merge(expected_revision: 2, request_key: "synthetic-reminder-policy-3", enabled: false) }, headers: csrf_headers, as: :json
+    assert_response :success
+    next_appointment = appointment_for(eligible_patient("SYN-POLICY-DISABLED"), starts_at: 6.days.from_now)
+    blocked = preview(next_appointment)
+    assert_equal "unavailable", blocked.fetch("status")
+    assert_includes blocked.fetch("reason"), "disabled"
+    assert_empty appointment_reminders(next_appointment)
+    assert_equal "already_scheduled", preview(appointment).fetch("status")
+    assert_equal (appointment.starts_at - 72.hours).iso8601(6), reminder.reload.scheduled_at.iso8601(6)
+    assert_equal 3, Clinic::Reminders::PolicyVersion.where(practice: @practice).count
+    revoke_all_permissions!(@membership)
+    get "/api/clinic/reminder_policy", headers: @headers
+    assert_response :forbidden
+    patch "/api/clinic/reminder_policy", params: { policy: input }, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_equal 3, Clinic::Reminders::PolicyVersion.where(practice: @practice).count
+  end
+
   private
 
   def eligible_patient(reference)

@@ -566,6 +566,15 @@ function LedgerDetails({
         <Typography component="h2" variant="h2">
           {ledger.patient.display_name}
         </Typography>
+        <Button
+          component="a"
+          href={`/api/clinic/patients/${ledger.patient.id}/billing_statement`}
+          target="_blank"
+          rel="noopener noreferrer"
+          size="small"
+        >
+          Print patient statement
+        </Button>
         {referenceLabel && (
           <Typography color="text.secondary" variant="body2">
             Clinic reference · {referenceLabel}

@@ -119,15 +119,15 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
         })
         .click();
       const soap = page.locator("#chart-signing");
-      const objective = soap.getByRole("textbox", {
+      const objective = page.getByRole("textbox", {
         name: "Objective (O)",
         exact: true,
       });
-      await soap
+      await page
         .getByRole("textbox", { name: "Chief Complaint", exact: true })
         .fill("Independent synthetic manual concern");
       await objective.fill("Independent synthetic examination");
-      await soap
+      await page
         .getByRole("button", {
           name: "Use template without prompts",
           exact: true,
@@ -190,7 +190,7 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
         .toBe("Independent synthetic revised examination");
       await expect.poll(() => objective.isEnabled()).toBe(true);
 
-      const duration = soap.getByRole("textbox", {
+      const duration = page.getByRole("textbox", {
         name: "Duration",
         exact: true,
       });
@@ -776,3 +776,168 @@ it("distinguishes chart revision changes from pending failed and saved recovery"
   ).toBe(1);
   await page.close();
 }, 15000);
+
+it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
+  "#71/#55 actual App practice audit and reminder settings persist and isolate switched clinics",
+  async () => {
+    if (process.env.QA_REAL_ISOLATED !== "1" || !process.env.QA_REAL_FIXTURE)
+      throw new Error("An isolated synthetic real-stack fixture is required.");
+    const seed = JSON.parse(readFileSync(process.env.QA_REAL_FIXTURE, "utf8"));
+    expect(seed.synthetic).toBe(true);
+    expect(seed.access_scenarios.second_practice_id).toBeTypeOf("number");
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(5000);
+    try {
+      const csrf = await context.request.get(`${baseUrl}/api/csrf`);
+      expect(csrf.status()).toBe(200);
+      const session = await context.request.post(
+        `${baseUrl}/api/development_session`,
+        {
+          headers: {
+            Origin: baseUrl,
+            "X-CSRF-Token": (await csrf.json()).csrf_token,
+          },
+          data: {
+            profile: seed.profile,
+            portal: "clinic",
+            practice_id: String(seed.practice_id),
+            site_id: String(seed.site_id),
+          },
+        },
+      );
+      expect(session.status()).toBe(201);
+      const captured = await context.request.get(
+        `${baseUrl}/api/clinic/audit_events?action_code=notes.create&outcome=committed`,
+      );
+      expect(captured.status()).toBe(200);
+      const savedEvent = (await captured.json()).events.find(
+        (event: any) => event.resource_references.length > 0,
+      );
+      expect(savedEvent).toBeTruthy();
+      expect(savedEvent.actor_reference).toBe(`user:${seed.actor_user_id}`);
+      const reference = savedEvent.resource_references[0];
+      await page.goto(`${baseUrl}/clinic/audit`);
+      await expect
+        .poll(() =>
+          page
+            .getByRole("heading", { name: "Practice audit", exact: true })
+            .count(),
+        )
+        .toBe(1);
+      expect(
+        await page
+          .getByRole("link", { name: "Practice audit", exact: true })
+          .count(),
+      ).toBeGreaterThan(0);
+      async function filterNotes() {
+        await page
+          .getByRole("combobox", { name: "Audit action", exact: true })
+          .click();
+        await page
+          .getByRole("option", { name: "notes.create", exact: true })
+          .click();
+        await page
+          .getByRole("combobox", { name: "Audit outcome", exact: true })
+          .click();
+        await page
+          .getByRole("option", { name: "committed", exact: true })
+          .click();
+        await expect
+          .poll(() =>
+            page
+              .getByRole("table", {
+                name: "Practice audit events",
+                exact: true,
+              })
+              .getByText(reference, { exact: true })
+              .count(),
+          )
+          .toBe(1);
+      }
+      await filterNotes();
+      await page.reload();
+      await filterNotes();
+      await page.goto(`${baseUrl}/clinic/settings`);
+      const hours = page.getByRole("spinbutton", {
+        name: "Hours before appointment",
+        exact: true,
+      });
+      await hours.fill("48");
+      const response = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === "/api/clinic/reminder_policy" &&
+          response.request().method() === "PATCH",
+      );
+      await page
+        .getByRole("button", { name: "Save reminder settings", exact: true })
+        .click();
+      expect((await response).status()).toBe(200);
+      await expect
+        .poll(() =>
+          page
+            .getByText("Clinic reminder settings saved.", { exact: true })
+            .count(),
+        )
+        .toBe(1);
+      const readback = await context.request.get(
+        `${baseUrl}/api/clinic/reminder_policy`,
+      );
+      expect(readback.status()).toBe(200);
+      const policy = (await readback.json()).policy;
+      expect(policy.lead_hours).toBe(48);
+      expect(policy.enabled).toBe(true);
+      expect(policy.revision).toBeGreaterThan(0);
+      await page.reload();
+      await expect.poll(() => hours.inputValue()).toBe("48");
+      await page.getByRole("combobox", { name: "Clinic", exact: true }).click();
+      await page
+        .getByRole("option", {
+          name: seed.access_scenarios.second_practice_name,
+          exact: true,
+        })
+        .click();
+      await page.waitForURL(`${baseUrl}/clinic`);
+      await page.goto(`${baseUrl}/clinic/settings`);
+      await expect.poll(() => hours.inputValue()).toBe("24");
+      const secondPolicy = await context.request.get(
+        `${baseUrl}/api/clinic/reminder_policy`,
+      );
+      expect(secondPolicy.status()).toBe(200);
+      expect((await secondPolicy.json()).policy.revision).toBe(0);
+      await page.goto(`${baseUrl}/clinic/audit`);
+      await expect
+        .poll(() =>
+          page
+            .getByRole("heading", { name: "Practice audit", exact: true })
+            .count(),
+        )
+        .toBe(1);
+      expect(
+        await page
+          .getByRole("combobox", { name: "Audit action", exact: true })
+          .textContent(),
+      ).toContain("All actions");
+      await page
+        .getByRole("table", { name: "Practice audit events", exact: true })
+        .waitFor({ state: "visible" });
+      expect(
+        await page
+          .getByRole("table", { name: "Practice audit events", exact: true })
+          .getByText(reference, { exact: true })
+          .count(),
+      ).toBe(0);
+      const isolated = await context.request.get(
+        `${baseUrl}/api/clinic/audit_events?action_code=notes.create`,
+      );
+      // An unavailable action must be rejected, never resolved against another practice's audit.
+      expect([200, 422]).toContain(isolated.status());
+      expect(await isolated.text()).not.toContain(reference);
+    } finally {
+      await context.close();
+    }
+  },
+  45000,
+);

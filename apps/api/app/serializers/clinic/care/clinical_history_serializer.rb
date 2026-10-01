@@ -1,7 +1,7 @@
 module Clinic
   module Care
     module ClinicalHistorySerializer
-      def self.call(patient, encounter:, can_write:)
+      def self.call(patient, encounter:, can_write:, reported_intake_conditions: { state: "not_recorded", source: nil, questions: [] })
         {
           schema_version: "patient-clinical-history-v1",
           patient_id: patient.id,
@@ -10,8 +10,33 @@ module Clinic
           allergies: patient.allergies.recorded_details.order(recorded_at: :desc, id: :desc).map { |record| allergy(record) },
           medications: patient.medication_statements.recorded_details.order(recorded_at: :desc, id: :desc).map { |record| medication(record) },
           conditions: patient.conditions.recorded_details.order(recorded_at: :desc, id: :desc).map { |record| condition(record) },
-          reviews: latest_reviews(patient, encounter)
+          reviews: latest_reviews(patient, encounter),
+          reported_intake_conditions: reported_intake_conditions
         }
+      end
+
+      def self.intake_conditions(revision)
+        payload = PrevisitIntake.decode(revision.encrypted_questionnaire)
+        return { state: "not_recorded", source: nil, questions: [] } unless payload
+        questions = PrevisitIntake.fields(payload.fetch("form_id", PrevisitIntake::FORM_ID))
+          .select { |field| field[:history_kind] == "condition" }.map do |field|
+            id = field.fetch(:id)
+            answer = payload.fetch("answers", {})[id]
+            detail = answer.is_a?(Hash) ? answer : {}
+            entries = Array(detail["entries"]).filter_map do |entry|
+              next unless entry.is_a?(Hash) && entry["name"].is_a?(String) && entry["name"].present?
+              entry.slice("name", "kind", "current_status", "certainty")
+            end
+            if entries.empty? && answer.is_a?(String) && answer.present?
+              entries = answer.lines.map(&:strip).reject(&:blank?).map { |name| { "name" => name } }
+            end
+            answer_state = detail["state"] || (answer.is_a?(String) && answer.present? ? "answered" : "unanswered")
+            { id: id, label: field.fetch(:label), answer_state: answer_state,
+              source: payload.dig("items", id, "source"), entries: entries }
+          end
+        { state: "available", source: { encounter_id: revision.encounter_id, revision_id: revision.id,
+            version: revision.version_number, recorded_at: revision.recorded_at.iso8601(6),
+            recorder: payload["recorder"] }, questions: questions }
       end
 
       def self.record(kind, value)

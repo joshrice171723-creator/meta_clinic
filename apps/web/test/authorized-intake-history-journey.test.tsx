@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Browser } from "playwright-core";
 import type { NurseWorkspace, Observation, EncounterIntakeRevision } from "../src/api/contracts";
 import type { ClinicalHistoryResponse } from "../src/features/clinic/clinicalHistory";
-import { launchRealBrowser, loginReal, readRealFixture, realGet, selectReal, realStackEnabled, type RealFixture } from "./support/authorizedRealStack";
+import { launchRealBrowser, loginReal, readRealFixture, realGet, selectReal, realMutation, realUrl, realStackEnabled, type RealFixture } from "./support/authorizedRealStack";
 
 type ClinicalFixture = RealFixture & { clinical_scenarios: {
   site_id: number; site_name: string; site_code: string;
@@ -128,6 +128,99 @@ it("authorized location timezone overrides practice in vitals review while persi
     await page.reload();
     const persisted = await realGet<{ observations: Observation[] }>(page, `/api/clinic/patients/${scenario.patient_id}/observations?encounter_id=${scenario.open_encounter_id}`);
     expect(persisted.observations.find(observation => observation.id === pulse!.id)).toEqual(pulse);
+  } finally { await context.close(); }
+}, 60000);
+
+it("authorized Conditions review is explicit durable and preserves reported verification", async () => {
+  const seed = readRealFixture<ClinicalFixture>();
+  const scenario = seed.clinical_scenarios;
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  page.setDefaultTimeout(5000);
+  try {
+    const route = `/clinic/patients/${scenario.patient_id}/encounters/${scenario.open_encounter_id}`;
+    const scoped = { ...seed, site_id: scenario.site_id, site_name: scenario.site_name, site_code: scenario.site_code };
+    await loginReal(page, scoped, route);
+    const historyPath = `/api/clinic/patients/${scenario.patient_id}/clinical_history`;
+    const created = await realMutation(page, `${historyPath}/conditions`, { clinical_history: {
+      encounter_id: scenario.open_encounter_id, request_key: `synthetic-conditions-review-record-${scenario.open_encounter_id}`,
+      condition_name: "Synthetic reported coastal concern", clinical_status: "active", verification_status: "unconfirmed",
+      affects_current_care: false,
+    } });
+    expect(created.status()).toBe(201);
+    await page.reload();
+    await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
+    const section = page.locator("#clinical-history-conditions-review");
+    await section.getByText("Not reviewed in this encounter", { exact: true }).waitFor();
+    const denied = await realMutation(page, `${historyPath}/reviews`, { review: {
+      encounter_id: scenario.open_encounter_id, request_key: `synthetic-conditions-no-inference-${scenario.open_encounter_id}`,
+      topic: "conditions", outcome: "none_reported", information_source: "patient",
+    } });
+    expect(denied.status()).toBe(422);
+    expect((await denied.json()).error).toContain("Active conditions remain recorded");
+    await section.getByRole("button", { name: "Review list", exact: true }).click();
+    await selectReal(page, "Review outcome", "Current list confirmed");
+    await selectReal(page, "Information source", "Patient");
+    const recorded = page.waitForResponse(response => response.url().endsWith(`${historyPath}/reviews`) && response.request().method() === "POST");
+    await page.getByRole("dialog", { name: "Review Conditions", exact: true }).getByRole("button", { name: "Record review", exact: true }).click();
+    const response = await recorded;
+    expect(response.status()).toBe(201);
+    const receipt = await response.json();
+    expect(receipt.review).toEqual(expect.objectContaining({ topic: "conditions", outcome: "current_list_confirmed", information_source: "patient", encounter_id: scenario.open_encounter_id }));
+    await page.getByText("Conditions review recorded.", { exact: true }).waitFor();
+    await page.reload();
+    await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
+    await expect.poll(() => section.innerText()).toContain("Current list confirmed");
+    const readback = await realGet<ClinicalHistoryResponse>(page, `${historyPath}?encounter_id=${scenario.open_encounter_id}`);
+    expect(readback.reviews.conditions?.id).toBe(receipt.review.id);
+    expect(readback.conditions).toEqual([expect.objectContaining({ condition_name: "Synthetic reported coastal concern", clinical_status: "active", verification_status: "unconfirmed", affects_current_care: false, last_reviewed_at: receipt.review.reviewed_at })]);
+    const closed = await realMutation(page, `${historyPath}/reviews`, { review: {
+      encounter_id: scenario.completed_encounter_id, request_key: `synthetic-conditions-closed-${scenario.completed_encounter_id}`,
+      topic: "conditions", outcome: "follow_up_needed", information_source: "patient",
+    } });
+    expect(closed.status()).toBe(422);
+  } finally { await context.close(); }
+}, 60000);
+
+it("authorized reported intake conditions remain visible with source without creating longitudinal diagnoses", async () => {
+  const seed = readRealFixture<ClinicalFixture & { reported_condition_scenarios: {
+    patient_id: number; patient_name: string; completed_encounter_id: number; open_encounter_id: number;
+    source_version: number; names: string[];
+  } }>();
+  const scenario = seed.reported_condition_scenarios;
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  page.setDefaultTimeout(5000);
+  try {
+    const clinical = seed.clinical_scenarios;
+    const scoped = { ...seed, site_id: clinical.site_id, site_name: clinical.site_name, site_code: clinical.site_code };
+    await loginReal(page, scoped, `/clinic/patients/${scenario.patient_id}`);
+    const history = page.locator("#clinical-history");
+    const reported = history.locator("section").filter({ has: page.getByText("Health conditions recorded in intake", { exact: true }) });
+    await reported.getByText(scenario.names[0], { exact: false }).waitFor();
+    for (const name of scenario.names) expect(await reported.getByText(name, { exact: false }).count()).toBe(1);
+    const conditions = history.locator("section").filter({ has: page.getByText("Conditions", { exact: true }) });
+    expect(await conditions.getByText("0 recorded", { exact: true }).count()).toBe(1);
+    expect(await conditions.getByText("Not reviewed in this encounter", { exact: true }).count()).toBe(1);
+    expect(await reported.innerText()).toContain(`Encounter #${scenario.completed_encounter_id} · Intake revision ${scenario.source_version}`);
+    const path = `/api/clinic/patients/${scenario.patient_id}/clinical_history`;
+    const actual = await realGet<ClinicalHistoryResponse>(page, path);
+    expect(actual.conditions).toEqual([]);
+    expect(actual.reported_intake_conditions?.source).toEqual(expect.objectContaining({ encounter_id: scenario.completed_encounter_id, version: scenario.source_version }));
+    expect(actual.reported_intake_conditions?.questions.flatMap(question => question.entries.map(entry => entry.name))).toEqual(scenario.names);
+    await page.reload();
+    await reported.getByText(scenario.names[0], { exact: false }).waitFor();
+    for (const name of scenario.names) expect(await reported.getByText(name, { exact: false }).count()).toBe(1);
+    await reported.getByRole("button", { name: "Open source intake", exact: true }).click();
+    await page.waitForURL(`**/clinic/patients/${scenario.patient_id}/encounters/${scenario.completed_encounter_id}?focus=nurse-workspace`);
+    await page.locator("#nurse-workspace").getByRole("button", { name: "Intake", exact: true }).click();
+    const readback = await realGet<NurseWorkspace>(page, `/api/clinic/patients/${scenario.patient_id}/encounters/${scenario.completed_encounter_id}/nurse_workspace`);
+    expect(readback.intake?.version).toBe(scenario.source_version);
+    expect(readback.intake?.questionnaire?.answers.history).toEqual(expect.objectContaining({ entries: scenario.names.map(name => expect.objectContaining({ name })) }));
+    await page.goto(realUrl(`/clinic/patients/${scenario.patient_id}/encounters/${scenario.open_encounter_id}`));
+    await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
+    const fallback = page.locator("#clinical-history").getByText(`Encounter #${scenario.completed_encounter_id} · Intake revision ${scenario.source_version}`, { exact: false });
+    await fallback.waitFor();
   } finally { await context.close(); }
 }, 60000);
 });

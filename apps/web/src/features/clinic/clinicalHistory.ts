@@ -1,5 +1,5 @@
 export type HistoryKind = "allergies" | "medications" | "conditions";
-export type ReviewTopic = "allergies" | "medications" | "care_needs";
+export type ReviewTopic = HistoryKind | "care_needs";
 
 export type HistoryRecordBase = {
   id: number;
@@ -56,6 +56,13 @@ export type HistoryReview = {
   reviewed_at: string;
 };
 
+export type ReportedIntakeConditions = {
+  state: "available" | "not_recorded" | "restricted";
+  source: { encounter_id: number; revision_id: number; version: number; recorded_at: string; recorder: string | null } | null;
+  questions: Array<{ id: string; label: string; answer_state: string; source: string | null;
+    entries: Array<{ name: string; kind?: string; current_status?: string; certainty?: string }> }>;
+};
+
 export type ClinicalHistoryResponse = {
   schema_version: "patient-clinical-history-v1";
   patient_id: number;
@@ -65,6 +72,7 @@ export type ClinicalHistoryResponse = {
   medications: MedicationRecord[];
   conditions: ConditionRecord[];
   reviews: Partial<Record<ReviewTopic, HistoryReview>>;
+  reported_intake_conditions?: ReportedIntakeConditions;
 };
 
 export const HISTORY_LABELS: Record<HistoryKind, string> = {

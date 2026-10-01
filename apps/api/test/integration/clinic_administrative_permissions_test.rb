@@ -444,6 +444,75 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "patient statement renders authoritative currency ledger with tenant permission CSP and no store fences" do
+    actor = @users.fetch("billing_operator")
+    posted_invoice = invoice
+    Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: actor)
+    allocation = Clinic::Billing::AllocatePayment.call(
+      practice: @practice, actor: actor, patient: @patient, invoice: posted_invoice,
+      external_event_reference: "SYN-STATEMENT-PAYMENT", currency: "USD", amount: "7.00"
+    )
+    Clinic::CreditNote.create!(practice: @practice, patient: @patient, invoice: posted_invoice, currency: "USD", amount: "2.00")
+    Clinic::RefundEvent.create!(practice: @practice, patient: @patient, payment_event: allocation.payment_event,
+      currency: "USD", amount: "1.50", reason: "Synthetic statement refund")
+    euro = Clinic::Billing::DraftInvoice.call(practice: @practice, actor: actor, patient: @patient,
+      currency: "EUR", lines: [ { quantity: "1", unit_amount: "3.25", description_snapshot: "Synthetic separate currency service" } ])
+    Clinic::Billing::PostInvoice.call(invoice: euro, actor: actor)
+    draft = Clinic::Billing::DraftInvoice.call(practice: @practice, actor: actor, patient: @patient,
+      currency: "USD", lines: [ { quantity: "1", unit_amount: "900", description_snapshot: "Synthetic unposted excluded charge" } ])
+    login(actor)
+    get "/api/clinic/patients/#{@patient.id}/billing_ledger", headers: @headers
+    assert_response :success
+    currencies = response.parsed_body.fetch("currencies").index_by { |row| row.fetch("currency") }
+    assert_equal "1.0", currencies.fetch("USD").fetch("balance_amount")
+    assert_equal "3.25", currencies.fetch("EUR").fetch("balance_amount")
+    assert_no_difference [ -> { Clinic::Invoice.count }, -> { Clinic::PaymentEvent.count },
+      -> { Clinic::CreditNote.count }, -> { Clinic::RefundEvent.count } ] do
+      get "/api/clinic/patients/#{@patient.id}/billing_statement", headers: @headers
+      assert_response :success
+    end
+    assert_equal "text/html", response.media_type
+    assert_equal "no-store", response.headers.fetch("Cache-Control")
+    document = Nokogiri::HTML(response.body)
+    assert_includes document.text, @patient.display_name
+    assert_includes document.text, "USD 1.00 due"
+    assert_includes document.text, "EUR 3.25 due"
+    assert_includes document.text, "Applied payments: 7.0"
+    assert_includes document.text, "Credits: 2.0"
+    assert_includes document.text, "Refunds: 1.5"
+    assert_not_includes document.text, "Synthetic unposted excluded charge"
+    assert_includes document.text, "Synthetic separate currency service"
+    invoice_rows = document.css("table").first.css("tbody tr")
+    assert_equal 2, invoice_rows.length
+    assert_not invoice_rows.any? { |row| row.css("td").first.text == "##{draft.id}" }
+    nonce = document.at_css("style")["nonce"]
+    assert nonce.present?
+    assert_includes response.headers.fetch("Content-Security-Policy"), "'nonce-#{nonce}'"
+    assert_not_includes response.headers.fetch("Content-Security-Policy"), "'unsafe-inline'"
+    assert_equal 1, document.css("script[nonce]").length
+    assert_equal nonce, document.at_css("script[nonce]")["nonce"]
+    assert_includes document.at_css("script[nonce]").text, "window.print()"
+    assert_equal "Print statement", document.at_css("button#print-statement").text
+
+    foreign = Clinic::Practice.create!(name: "Synthetic foreign statement practice").patients.create!(
+      display_name: "Synthetic foreign statement patient", reference: "SYN-FOREIGN-STATEMENT")
+    get "/api/clinic/patients/#{foreign.id}/billing_statement", headers: @headers
+    assert_response :not_found
+    assert_not_includes response.body, foreign.display_name
+    login(@users.fetch("front_desk"))
+    get "/api/clinic/patients/#{@patient.id}/billing_statement", headers: @headers
+    assert_response :forbidden
+    assert_not_includes response.body, @patient.display_name
+    billing_only = administrative_user("statement-billing-only", "billing.read")
+    login(billing_only)
+    get "/api/clinic/patients/#{@patient.id}/billing_statement", headers: @headers
+    assert_response :success
+    legacy = administrative_user("statement-legacy-billing", "billing.write")
+    login(legacy)
+    get "/api/clinic/patients/#{@patient.id}/billing_statement", headers: @headers
+    assert_response :success
+  end
+
   private
 
   def invoice
