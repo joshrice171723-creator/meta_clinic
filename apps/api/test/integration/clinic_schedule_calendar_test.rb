@@ -61,7 +61,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       end
       assert_equal encounter_id, response.parsed_body.fetch("encounter").fetch("id")
       assert_equal actual_start, Time.iso8601(response.parsed_body.fetch("encounter").fetch("started_at"))
-      get "/api/clinic/patients/#{@patient.id}/encounters/#{encounter_id}", headers: @headers
+      get "/api/clinic/encounters/#{encounter_id}", params: { patient_id: @patient.id }, headers: @headers
       assert_response :success
       assert_equal actual_start, Time.iso8601(response.parsed_body.fetch("encounter").fetch("started_at"))
       get "/api/clinic/appointments/#{appointment_id}", headers: @headers
@@ -72,6 +72,11 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     get "/api/clinic/tracking_board", headers: @headers
     assert_response :success
     assert_equal [ @patient.id ], response.parsed_body.fetch("visits").map { |v| v.fetch("patient_id") }
+    visit = response.parsed_body.fetch("visits").sole
+    assert_equal encounter_id, visit.fetch("encounter").fetch("id")
+    assert_equal actual_start, Time.iso8601(visit.fetch("encounter").fetch("started_at"))
+    assert_equal @start, Time.iso8601(visit.fetch("appointment").fetch("starts_at"))
+    assert_not_equal @start, actual_start
     get_calendar
     assert_equal "checked_in", day.fetch("appointments").first.fetch("calendar_status")
   end

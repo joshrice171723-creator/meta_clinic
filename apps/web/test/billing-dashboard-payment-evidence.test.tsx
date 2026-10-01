@@ -41,7 +41,10 @@ beforeAll(async () => {
             return `import React from "react";
           import {createRoot} from "react-dom/client";
           import {BillingDashboard} from "/src/features/clinic/BillingDashboard";
-          createRoot(document.getElementById("root")).render(React.createElement(BillingDashboard));`;
+          import {BillingPayments} from "/src/features/clinic/BillingInsights";
+          import {useResource} from "/src/shared/ui";
+          function Payments() {const {data}=useResource("/api/clinic/billing");return data ? React.createElement(BillingPayments,{data,canOpenPatient:false}) : null;}
+          createRoot(document.getElementById("root")).render(React.createElement(new URLSearchParams(location.search).has("payments") ? Payments : BillingDashboard));`;
         },
         configureServer(vite) {
           vite.middlewares.use("/qa", async (_request, response) => {
@@ -67,6 +70,76 @@ beforeAll(async () => {
     headless: true,
   });
 }, 15000);
+
+it.each(["America/Chicago", "Asia/Tokyo"])(
+  "#87 keeps the recorded payment time through reload in browser timezone %s",
+  async (timezoneId) => {
+    const page = await browser.newPage({ timezoneId, locale: "en-US" });
+    const recordedAt = "2026-09-28T09:47:00Z";
+    const expectedTime = "Sep 28, 2026, 4:47 AM";
+    await page.clock.install({ time: new Date("2026-09-28T10:23:00Z") });
+    await page.route(`${base}/api/**`, async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      expect(route.request().method()).toBe("GET");
+      await route.fulfill({
+        json:
+          path === "/api/csrf"
+            ? { csrf_token: "synthetic-token" }
+            : {
+                practice: { id: 701, timezone: "America/Chicago" },
+                payment_count: 1,
+                payment_activity: [
+                  {
+                    id: 88,
+                    patient_id: 706,
+                    currency: "USD",
+                    amount: "25.00",
+                    refunded: "0.00",
+                    net_amount: "25.00",
+                    created_at: recordedAt,
+                    method: "cash",
+                    allocations: [{ invoice_id: 705, amount: "25.00" }],
+                    receipts: [
+                      {
+                        id: 89,
+                        kind: "cash_payment",
+                        amount: "25.00",
+                        issued_at: recordedAt,
+                      },
+                    ],
+                  },
+                ],
+              },
+      });
+    });
+    try {
+      await page.goto(`${base}/qa?payments`);
+      const row = page
+        .getByRole("table", { name: "Recorded payments" })
+        .getByRole("row")
+        .filter({ hasText: "Payment #88" });
+      await expect
+        .poll(() => row.getByRole("cell").nth(1).innerText())
+        .toBe(expectedTime);
+      await row
+        .getByRole("button", { name: "Payment #88", exact: true })
+        .click();
+      await expect
+        .poll(() => page.getByRole("dialog").innerText())
+        .toContain(`Received ${expectedTime}`);
+      expect(await page.getByRole("dialog").innerText()).not.toContain(
+        "4:11 AM",
+      );
+      await page.reload();
+      await expect
+        .poll(() => row.getByRole("cell").nth(1).innerText())
+        .toBe(expectedTime);
+    } finally {
+      await page.close();
+    }
+  },
+  15000,
+);
 afterAll(async () => {
   await browser?.close();
   await server?.close();

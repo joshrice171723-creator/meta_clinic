@@ -45,6 +45,7 @@ beforeAll(async () => {
             return `
           import React from "react"; import {createRoot} from "react-dom/client";
           import {Schedule} from "/src/features/clinic/CareFlow";
+          import {WaitlistWorkspace} from "/src/features/clinic/WaitlistWorkspace";
           import {SchedulingTestApplication} from "/src/App";
           import {SchedulingTestAppointmentRow} from "/src/features/clinic/FrontDesk";
           function NoShowRow() {
@@ -71,6 +72,7 @@ beforeAll(async () => {
               ends_at:past?"2026-09-01T14:30:00Z":"2026-10-06T14:30:00Z"},()=>{},()=>{},()=>{},()=>setClosed(true));
           }
           createRoot(document.getElementById("root")).render(
+            location.pathname === "/fixture/capacity" ? React.createElement(WaitlistWorkspace) :
             location.pathname === "/fixture/no-show" ? React.createElement(NoShowRow) :
             location.pathname.startsWith("/fixture") ? React.createElement(Booking) :
             React.createElement(SchedulingTestApplication,{user:{id:1},developmentAccounts:[],environment:"test",businessDate:"2026-10-01",ownerPinRequired:false})
@@ -81,7 +83,7 @@ beforeAll(async () => {
           import {useClinicNavigation} from "./clinicNavigation";
           export function useClinic(){return {practice:{id:1,timezone:"America/Chicago"},current_site:{id:4},
             sites:[{id:4,code:"SYN",timezone_override:"America/Chicago"}],
-            capabilities:{appointments:true,appointments_book:true,appointments_read:true,patients:true,front_desk:true,appointments_status_transition:true,clinic_setup_write:new URLSearchParams(location.search).has("setup")}};}
+            capabilities:{appointments:true,appointments_book:true,appointments_read:true,patients:true,front_desk:true,appointments_status_transition:true,facilities_write:location.pathname==="/fixture/capacity",clinic_setup_write:new URLSearchParams(location.search).has("setup")}};}
           export function useClinicOverview(){return {};}
           export function Workspace({children}){const {navigate}=useClinicNavigation();return React.createElement("main",{onClick:(event)=>{
             const link=event.target.closest("a[href]"); if(link && link.getAttribute("href").startsWith("/clinic")){event.preventDefault();navigate(link.getAttribute("href"));}
@@ -513,6 +515,152 @@ async function selectBookingPatientAndType(page: Page) {
     .getByRole("option", { name: "Synthetic visit", exact: true })
     .click();
 }
+it("#99 submits Blocked time and renders the saved rule after API refresh", async () => {
+  const page = await browser.newPage({ timezoneId: "UTC" });
+  const posts: Record<string, unknown>[] = [];
+  const rules: Record<string, unknown>[] = [];
+  let capacityReads = 0;
+  try {
+    page.setDefaultTimeout(7000);
+    await page.route(`${baseUrl}/api/**`, async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === "/api/csrf")
+        return route.fulfill({
+          json: {
+            csrf_token: "synthetic",
+            business_date: "2026-10-01",
+            environment: "test",
+          },
+        });
+      if (path === "/api/clinic/waitlist")
+        return route.fulfill({
+          json: {
+            entries: [],
+            total: 0,
+            ranking: "earliest",
+            cancellations: [],
+            sites: [{ id: 4, name: "Synthetic block site" }],
+            clinicians: [{ id: 9, name: "Synthetic block clinician" }],
+            visit_types: [],
+          },
+        });
+      if (path === "/api/clinic/facilities/4/operational_policy")
+        return route.fulfill({
+          json: {
+            policy: {
+              site_id: 4,
+              revision: 0,
+              configured: false,
+              block_categories: [],
+              waiting_thresholds: [],
+              effective_from: null,
+              written_by_membership_id: null,
+              waiting_time_source: "encounter.started_at",
+              waiting_action: "display_only",
+            },
+            can_write: true,
+          },
+        });
+      if (path === "/api/clinic/capacity" && request.method() === "POST") {
+        const input = request.postDataJSON().capacity;
+        posts.push(input);
+        const saved = {
+          ...input,
+          id: 701,
+          site_id: Number(input.site_id),
+          clinician_id: Number(input.clinician_id),
+          version: 0,
+          weekday: null,
+          start_minute: null,
+          end_minute: null,
+          reason_category: {
+            state: "not_recorded",
+            key: null,
+            label: null,
+            policy_revision: null,
+          },
+        };
+        rules.push(saved);
+        return route.fulfill({
+          status: 201,
+          json: { rule: saved, affected_appointments: [] },
+        });
+      }
+      if (path === "/api/clinic/capacity") {
+        capacityReads++;
+        return route.fulfill({
+          json: {
+            rules,
+            timezone: "UTC",
+            site_availability: [],
+            can_block: true,
+          },
+        });
+      }
+      return route.fulfill({
+        status: 404,
+        json: { error: "Unexpected synthetic capacity route" },
+      });
+    });
+    await page.goto(`${baseUrl}/fixture/capacity`);
+    await page.getByRole("combobox", { name: "Site", exact: true }).click();
+    await page
+      .getByRole("option", { name: "Synthetic block site", exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Clinician", exact: true })
+      .click();
+    await page
+      .getByRole("option", { name: "Synthetic block clinician", exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Rule type", exact: true })
+      .click();
+    await page
+      .getByRole("option", { name: "Blocked time", exact: true })
+      .click();
+    await page
+      .getByLabel("Block starts", { exact: true })
+      .fill("2026-10-06T14:00");
+    await page
+      .getByLabel("Block ends", { exact: true })
+      .fill("2026-10-06T14:30");
+    await page
+      .getByRole("textbox", { name: "Capacity reason", exact: true })
+      .fill("Synthetic staff meeting");
+    await page
+      .getByRole("button", { name: "Save capacity rule", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Saved. The queue is refreshing" })
+      .waitFor();
+    await page
+      .getByText(/Synthetic block clinician.*Synthetic staff meeting/)
+      .waitFor();
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toMatchObject({
+      site_id: "4",
+      clinician_id: "9",
+      kind: "block",
+      starts_at: "2026-10-06T14:00:00.000Z",
+      ends_at: "2026-10-06T14:30:00.000Z",
+      reason: "Synthetic staff meeting",
+      reason_category_key: null,
+      operational_policy_revision: 0,
+    });
+    expect(posts[0].request_key).toEqual(expect.any(String));
+    expect(capacityReads).toBeGreaterThanOrEqual(2);
+    await page.reload();
+    await page
+      .getByText(/Synthetic block clinician.*Synthetic staff meeting/)
+      .waitFor();
+    expect(posts).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+}, 20000);
 it("#72 blocks First available series preview before sending an invalid clinician ID", async () => {
   const page = await browser.newPage();
   try {

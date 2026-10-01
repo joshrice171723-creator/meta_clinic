@@ -369,3 +369,41 @@ it("Muse67 no eligible employees offers management recovery and blocks calculati
   ).toBe("/clinic/workforce/employees");
   await page.close();
 });
+
+it.each([
+  [
+    "badges",
+    "The one-time enrollment code creates a secure, clock-only session. It does not sign the device into the clinic workspace.",
+  ],
+  [
+    "payroll",
+    "Custom CSV. Column headings and employee payroll IDs are saved for this location. Enable payroll exports in Location rules before generating a file.",
+  ],
+])(
+  "Muse18 %s renders the complete explanatory paragraph without clipping",
+  async (mode, sentence) => {
+    const page = await open(mode);
+    try {
+      const paragraph = page.getByText(sentence, { exact: true });
+      await paragraph.waitFor();
+      await paragraph.scrollIntoViewIfNeeded();
+      expect(await paragraph.isVisible()).toBe(true);
+      expect((await paragraph.innerText()).replace(/\s+/g, " ").trim()).toBe(
+        sentence,
+      );
+      expect(
+        await paragraph.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return (
+            element.scrollWidth <= element.clientWidth + 1 &&
+            element.scrollHeight <= element.clientHeight + 1 &&
+            style.textOverflow !== "ellipsis" &&
+            ["none", "", "0"].includes(style.webkitLineClamp)
+          );
+        }),
+      ).toBe(true);
+    } finally {
+      await page.close();
+    }
+  },
+);

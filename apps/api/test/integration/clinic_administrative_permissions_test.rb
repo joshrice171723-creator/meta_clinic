@@ -103,6 +103,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
   end
 
   test "cash collection, refund, receipt, and drawer close preserve the recorded cash trail" do
+    @practice.update!(timezone: "America/Chicago")
     posted_invoice = invoice
     Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
     login(@users.fetch("billing_operator"))
@@ -120,15 +121,30 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
         request_key: "SYN-CASH-001"
       }
     }
-    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
-      headers: csrf_headers, as: :json
-    assert_response :created
+    recorded_at = Time.utc(2026, 10, 1, 9, 47)
+    travel_to recorded_at do
+      post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
+        headers: csrf_headers, as: :json
+      assert_response :created
+    end
     payment_event_id = Clinic::PaymentEvent.find_by!(external_event_reference: "cash:#{drawer_id}:SYN-CASH-001").id
     assert_equal "5.0", response.parsed_body.dig("cash_tender", "change_amount")
+    payment_receipt = Clinic::BillingReceipt.find_by!(payment_event_id: payment_event_id, kind: "cash_payment")
+    assert_equal recorded_at, Clinic::PaymentEvent.find(payment_event_id).created_at
+    assert_equal recorded_at, payment_receipt.issued_at
 
-    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
-      headers: csrf_headers, as: :json
-    assert_response :created
+    travel_to recorded_at + 36.minutes do
+      post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
+        headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal recorded_at, Clinic::PaymentEvent.find(payment_event_id).created_at
+      assert_equal recorded_at, payment_receipt.reload.issued_at
+      get "/api/clinic/payment_events/#{payment_event_id}/receipt", headers: @headers
+      assert_response :success
+      issued = Nokogiri::HTML(response.body).at_xpath("//dt[normalize-space()='Issued']/following-sibling::dd")
+      assert issued, "Receipt must retain the Issued field"
+      assert_equal "October 1, 2026 · 4:47 AM CDT", issued.text.strip
+    end
     assert_equal 1, Clinic::CashTender.count
     assert_equal 1, Clinic::BillingReceipt.where(kind: "cash_payment").count
 

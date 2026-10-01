@@ -51,7 +51,7 @@ const entry = `
     request(path, options = {}) {
       if (path.startsWith('/api/clinic/billing_services?'))
         return Promise.resolve({ services: [] });
-      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post)$/.test(path))
+      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post|write_offs)$/.test(path))
         throw new Error('Unexpected synthetic request: ' + path);
       return new Promise(resolve => this.requests.push({
         path, options, resolve, done: false
@@ -390,6 +390,83 @@ async function openAdjustableInvoice(
   return { page, dialog };
 }
 
+it("#83 submits an authorized write-off and shows its refreshed ledger history", async () => {
+  const { page, dialog } = await openAdjustableInvoice();
+  try {
+    await dialog
+      .getByRole("button", {
+        name: "Write off bad debt · available USD 50.00",
+        exact: true,
+      })
+      .click();
+    await dialog.getByLabel("Write-off amount", { exact: true }).fill("5.00");
+    await dialog
+      .getByLabel("Reason", { exact: true })
+      .fill("Synthetic bad debt");
+    await dialog
+      .getByRole("button", { name: "Write off bad debt", exact: true })
+      .click();
+    await waitRequests(page, 3);
+    expect((await requests(page))[2]).toMatchObject({
+      path: "/api/clinic/invoices/77/write_offs",
+      method: "POST",
+      body: {
+        write_off: {
+          amount: "5.00",
+          reason: "Synthetic bad debt",
+          request_key: expect.any(String),
+        },
+      },
+    });
+    await resolve(page, 2, { write_off: { id: 89, amount: "5.00" } });
+    await waitRequests(page, 5);
+    await resolve(page, 3, {
+      ...ledger,
+      invoices: [
+        {
+          ...invoice,
+          status: "posted",
+          total_amount: "50.00",
+          credit_amount: "5.00",
+          balance_amount: "45.00",
+          adjustment_limits: {
+            credit_available_amount: "45.00",
+            void_eligible: false,
+          },
+          credits: [
+            {
+              id: 89,
+              amount: "5.00",
+              created_at: "2026-10-01T00:00:00Z",
+              adjustment_type: "write_off",
+              reason: "Synthetic bad debt",
+            },
+          ],
+        },
+      ],
+    });
+    await resolve(page, 4, {
+      invoices: [{ id: 77, encounter_id: 9, status: "posted" }],
+    });
+    await expect.poll(() => dialog.isVisible()).toBe(false);
+    await details(page).click();
+    await expect
+      .poll(() => page.getByText(/Write-off · USD 5.00/).count())
+      .toBe(1);
+    expect(
+      await page
+        .getByText("Reason: Synthetic bad debt", { exact: true })
+        .count(),
+    ).toBe(1);
+    expect(await details(page).textContent()).toContain("USD 45.00 balance");
+    expect(
+      (await requests(page)).filter((request) => request.method !== "GET"),
+    ).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+}, 15000);
+
 it("#120 labels write-off submission separately from invoice void", async () => {
   const { page, dialog } = await openAdjustableInvoice();
   try {
@@ -542,7 +619,7 @@ it("#146 links charge adjustments to the executable cash refund workflow", async
     });
     await confirmation.waitFor();
     expect(
-      await confirmation.getByText("Synthetic return", { exact: true }).count(),
+      await confirmation.getByText(/Reason:\s*Synthetic return/).count(),
     ).toBe(1);
     expect(
       await confirmation
