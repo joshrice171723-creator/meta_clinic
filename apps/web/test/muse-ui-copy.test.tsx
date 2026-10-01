@@ -186,7 +186,7 @@ it("Muse232 explains the care-plan prerequisite on the GOALS tab", async () => {
     await page.getByRole("button", { name: "Add care goal" }).isDisabled(),
   ).toBe(true);
   expect(
-    await page.getByRole("button", { name: "Create plan" }).isDisabled(),
+    await page.getByRole("button", { name: "Add care plan" }).isDisabled(),
   ).toBe(true);
   expect(await page.getByRole("alert").innerText()).toContain(
     "Reopen the encounter before creating a care plan or adding a care goal.",

@@ -713,11 +713,7 @@ function AnswerStateMenu({
           <Typography variant="body2" color="text.secondary" role="status">
             {`Recorded as ${stateLabel(state)}`}
           </Typography>
-          <Button
-            size="small"
-            disabled={disabled}
-            onClick={onEnterAnswer}
-          >
+          <Button size="small" disabled={disabled} onClick={onEnterAnswer}>
             {editing ? "Keep recorded answer" : "Enter an answer"}
           </Button>
         </>

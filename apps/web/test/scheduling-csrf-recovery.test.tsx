@@ -69,7 +69,7 @@ createRoot(document.getElementById("root")).render(React.createElement(BookingFo
   if (!a || typeof a === "string") throw Error("No port");
   base = `http://127.0.0.1:${a.port}`;
   browser = await chromium.launch({
-    executablePath: "/usr/bin/chromium",
+    executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
     headless: true,
   });
 }, 15000);

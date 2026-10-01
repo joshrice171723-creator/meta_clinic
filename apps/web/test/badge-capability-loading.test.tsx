@@ -62,7 +62,7 @@ beforeAll(async () => {
   if (!addr || typeof addr === "string") throw Error("No port");
   base = `http://127.0.0.1:${addr.port}`;
   browser = await chromium.launch({
-    executablePath: "/usr/bin/chromium",
+    executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
     headless: true,
   });
 }, 15000);

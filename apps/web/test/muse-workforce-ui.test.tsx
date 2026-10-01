@@ -54,7 +54,7 @@ beforeAll(async () => {
           if (id === "\0qa-navigation")
             return "export const useClinicNavigation = () => ({ navigate: path => { window.qaDestination = path; } });";
           if (id === "\0qa-context")
-            return `export const useClinic = () => ({ current_site: ${JSON.stringify(sites[0])}, sites: ${JSON.stringify(sites)}, practice: { timezone: 'UTC' }, capabilities: { workforce_admin: !location.search.includes("denied"), workforce_settings: !location.search.includes('denied'), workforce_timecards_read: true, workforce_timecards_review: !location.search.includes('denied'), workforce_timecards_approve: false, workforce_payroll_configure: true, workforce_payroll_export: true } });`;
+            return `export const useClinic = () => ({ current_site: ${JSON.stringify(sites[0])}, sites: ${JSON.stringify(sites)}, practice: { timezone: 'UTC' }, capabilities: { workforce_admin: !location.search.includes("denied"), workforce_badges: !location.search.includes("denied"), workforce_settings: !location.search.includes('denied'), workforce_timecards_read: true, workforce_timecards_review: !location.search.includes('denied'), workforce_timecards_approve: false, workforce_payroll_configure: true, workforce_payroll_export: true } });`;
         },
         configureServer(vite) {
           vite.middlewares.use((request, response, next) => {

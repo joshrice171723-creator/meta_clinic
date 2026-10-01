@@ -505,20 +505,31 @@ function TaskActions({
     setBusy(action);
     setError("");
     try {
-      const response = await api<{ task: ClinicalTaskItem }>(`/api/clinic/clinical_tasks/${task.id}`, {
-        method: "PATCH",
-        body: {
-          task: {
-            action,
-            expected_version: attempt.version,
-            request_key: attempt.key,
-            ...values,
+      const response = await api<{ task: ClinicalTaskItem }>(
+        `/api/clinic/clinical_tasks/${task.id}`,
+        {
+          method: "PATCH",
+          body: {
+            task: {
+              action,
+              expected_version: attempt.version,
+              request_key: attempt.key,
+              ...values,
+            },
           },
         },
-      });
-      if (response.task?.id !== task.id || !Number.isSafeInteger(response.task.version) || response.task.version <= attempt.version ||
-          (action === "complete" && response.task.state !== "completed"))
-        throw new ApiError(503, "The task update was not confirmed. Refresh before retrying.", "outcome_unconfirmed");
+      );
+      if (
+        response.task?.id !== task.id ||
+        !Number.isSafeInteger(response.task.version) ||
+        response.task.version <= attempt.version ||
+        (action === "complete" && response.task.state !== "completed")
+      )
+        throw new ApiError(
+          503,
+          "The task update was not confirmed. Refresh before retrying.",
+          "outcome_unconfirmed",
+        );
       attempts.current.delete(signature);
       onChanged(action === "complete" ? "Clinical task resolved." : undefined);
     } catch (reason) {

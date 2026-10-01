@@ -119,9 +119,8 @@ function LocationSelectionDialog({
           id="location-picker-description"
           variant="body2"
         >
-          This is a staff workspace.
-          Choose a location you are authorized to use before entering the clinic
-          workspace.
+          This is a staff workspace. Choose a location you are authorized to use
+          before entering the clinic workspace.
         </Typography>
         <List aria-label="Available locations" sx={{ mt: 1 }}>
           {sites.map((site) => (
@@ -598,11 +597,28 @@ export function Workspace({
     if (landingDestination) navigate(landingDestination, { replace: true });
   }, [landingDestination, navigate]);
   useEffect(() => {
-    if (setupRequired && path !== "/clinic/setup" && !staffSetupPath && data?.current_site) {
-      setSetupRedirect({ path, siteId: data.current_site.id, practiceId: data.practice.id });
+    if (
+      setupRequired &&
+      path !== "/clinic/setup" &&
+      !staffSetupPath &&
+      data?.current_site
+    ) {
+      setSetupRedirect({
+        path,
+        siteId: data.current_site.id,
+        practiceId: data.practice.id,
+      });
       navigate("/clinic/setup", { replace: true });
-    } else if (staffSetupPath || (data && !setupRequired)) setSetupRedirect(null);
-  }, [navigate, path, setupRequired, staffSetupPath, data?.current_site?.id, data?.practice.id]);
+    } else if (staffSetupPath || (data && !setupRequired))
+      setSetupRedirect(null);
+  }, [
+    navigate,
+    path,
+    setupRequired,
+    staffSetupPath,
+    data?.current_site?.id,
+    data?.practice.id,
+  ]);
   useEffect(() => {
     document.getElementById("main")?.focus({ preventScroll: true });
   }, [path, homeView]);
@@ -711,9 +727,10 @@ export function Workspace({
                     <Alert severity="info" sx={{ my: 2 }}>
                       {setupRedirect.path === "/clinic/refills"
                         ? "Refill requests are unavailable"
-                        : "The requested workspace is unavailable"} until setup
-                      is complete for {locationName}. You were taken to Clinic
-                      Setup. {data.capabilities.clinic_setup_write !== true &&
+                        : "The requested workspace is unavailable"}{" "}
+                      until setup is complete for {locationName}. You were taken
+                      to Clinic Setup.{" "}
+                      {data.capabilities.clinic_setup_write !== true &&
                         "Ask a clinic administrator to complete setup."}
                     </Alert>
                   )}

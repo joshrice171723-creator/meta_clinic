@@ -196,10 +196,10 @@ function RecallWorklistContent() {
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
           To create a recall, open a patient encounter and save Follow-up as
-          Needed with the clinician-entered plan and due date.
-          Work due dates here, document outreach, and keep deferrals and
-          completion evidence with the patient record. This queue does not infer
-          screening intervals or send messages.
+          Needed with the clinician-entered plan and due date. Work due dates
+          here, document outreach, and keep deferrals and completion evidence
+          with the patient record. This queue does not infer screening intervals
+          or send messages.
         </Typography>
         <Button href="/clinic/patients" variant="outlined" sx={{ mt: 2 }}>
           Open patient register to record follow-up
@@ -236,9 +236,11 @@ function RecallWorklistContent() {
             variant="outlined"
           />
           <Chip
-            label={resource.data.summary.due > 0
-              ? "Next action: work due recalls first"
-              : "No recalls are due now"}
+            label={
+              resource.data.summary.due > 0
+                ? "Next action: work due recalls first"
+                : "No recalls are due now"
+            }
             size="small"
             variant="outlined"
           />

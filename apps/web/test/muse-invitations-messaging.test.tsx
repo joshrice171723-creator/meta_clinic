@@ -61,7 +61,7 @@ beforeAll(async () => {
   await server.listen();
   base = server.resolvedUrls!.local[0];
   browser = await chromium.launch({
-    executablePath: "/usr/bin/chromium",
+    executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
     args: ["--no-sandbox"],
   });
 }, 60000);

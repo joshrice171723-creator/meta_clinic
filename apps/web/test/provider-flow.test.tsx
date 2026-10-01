@@ -583,7 +583,9 @@ describe("provider encounter workflow", () => {
           noteWorkspace={<div>Protected SOAP editor</div>}
         />,
       );
-      expect(html).toContain(recorded ? "Chart In progress" : "Chart Not started");
+      expect(html).toContain(
+        recorded ? "Chart In progress" : "Chart Not started",
+      );
       expect(html).not.toContain("Protected SOAP editor");
       expect(html).toContain(
         recorded ? "Confirm and open chart" : "Confirm and begin charting",
