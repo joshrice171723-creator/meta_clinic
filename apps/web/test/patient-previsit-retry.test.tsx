@@ -346,6 +346,11 @@ it("#197 resolves an empty clinical previsit read and shows the current note aft
         });
       },
     );
+    await page.route("**/api/csrf", (route) =>
+      route.fulfill({
+        json: { csrf_token: "synthetic-fixture-not-a-credential" },
+      }),
+    );
     await page.goto(`${baseUrl}/retry-test?mode=clinical`);
     const loading = page
       .getByRole("status")
@@ -403,6 +408,11 @@ it("#197 replaces a failed clinical previsit read with an actionable retry", asy
             });
       },
     );
+    await page.route("**/api/csrf", (route) =>
+      route.fulfill({
+        json: { csrf_token: "synthetic-fixture-not-a-credential" },
+      }),
+    );
     await page.goto(`${baseUrl}/retry-test?mode=clinical`);
     const error = page.getByText(
       "The patient's pre-visit note could not be loaded.",
@@ -443,6 +453,11 @@ it("#197 resolves a stalled clinical previsit read at the actual transport deadl
           },
         });
       },
+    );
+    await page.route("**/api/csrf", (route) =>
+      route.fulfill({
+        json: { csrf_token: "synthetic-fixture-not-a-credential" },
+      }),
     );
     await page.goto(`${baseUrl}/retry-test?mode=clinical`);
     await page
