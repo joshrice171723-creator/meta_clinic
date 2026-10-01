@@ -247,12 +247,32 @@ module Development
             destination: "/clinic",
             organization: membership.practice.organization && { id: membership.practice.organization.id, name: membership.practice.organization.name },
             clinic: { id: membership.practice.id, name: membership.practice.name },
-            locations: membership.practice.sites.sort_by { |site| [ site.name, site.id ] }
+            locations: employee_location_sites(membership).sort_by { |site| [ site.name, site.id ] }
               .map { |site| { id: site.id, name: site.name, code: site.code } }
           }
         end
     end
     private_class_method :employee_accounts
+
+    # Match Clinic::ContextController#context_sites; preview choices do not grant access.
+    def self.employee_location_sites(membership)
+      practice = membership.practice
+      ability = Ability.new(membership.user, practice: practice)
+      practice_permissions = %w[facilities.read appointments.book facilities.write] +
+        Ability::PERMISSION_RULES.keys.grep(/\Aworkforce\./)
+      return practice.sites if practice_permissions.any? { |permission| ability.practice_scope_for?(permission) }
+
+      sites = practice.sites.where(id: ability.accessible_site_ids)
+      if defined?(Clinic::Workforce::Employment) && Clinic::Workforce::Employment.table_exists?
+        employment = Clinic::Workforce::Employment.find_by(practice_id: practice.id, membership_id: membership.id)
+        if employment&.active_for_work?
+          assigned_ids = employment.employment_sites.active.effective_at(Current.business_time).select(:site_id)
+          sites = sites.or(practice.sites.where(id: assigned_ids))
+        end
+      end
+      sites
+    end
+    private_class_method :employee_location_sites
 
     def self.pending_employee_accounts
       Clinic::Workforce::EmployeeInvitation.pending
