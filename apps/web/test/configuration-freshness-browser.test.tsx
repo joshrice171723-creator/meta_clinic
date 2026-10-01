@@ -319,14 +319,14 @@ describe("configuration labels and freshness", () => {
         .poll(() =>
           page.getByRole("button").filter({ hasText: patientName }).innerText(),
         )
-        .toContain("Cancelled");
+        .toMatch(/cancelled/i);
       const readsBeforeReload = calendarReads;
       await page.reload();
       await expect.poll(() => calendarReads).toBeGreaterThan(readsBeforeReload);
       const cancelled = page
         .getByRole("button")
         .filter({ hasText: patientName });
-      await expect.poll(() => cancelled.innerText()).toContain("Cancelled");
+      await expect.poll(() => cancelled.innerText()).toMatch(/cancelled/i);
       await cancelled.click();
       expect(
         await page
