@@ -346,6 +346,113 @@ it("Muse122 PIN clears when selecting another site", async () => {
   await page.close();
 });
 
+it("Muse67 configured employees can calculate and reload saved timecard hours", async () => {
+  const page = await browser.newPage();
+  const mutations: unknown[] = [];
+  const card = {
+    id: 67,
+    employment_id: 7,
+    employee_name: "Synthetic Timecard Employee",
+    period_start: "2026-09-28",
+    period_end: "2026-10-05",
+    version_number: 1,
+    status: "draft",
+    unresolved_exceptions: [],
+    source_digest: "a".repeat(64),
+    lock_version: 0,
+    settings_provenance: {},
+    submitted_at: null,
+    approved_at: null,
+    snapshot: {
+      period: { start: "2026-09-28", end: "2026-10-05" },
+      segments: [],
+      totals: {
+        raw_minutes: 480,
+        rounded_minutes: 480,
+        paid_minutes: 480,
+        regular_minutes: 480,
+        overtime_minutes: 0,
+      },
+    },
+  };
+  let saved = false;
+  try {
+    await page.route(
+      (url) => url.pathname.startsWith("/api/"),
+      (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        let body: unknown;
+        let status = 200;
+        if (path === "/api/csrf") body = { csrf_token: "synthetic-only" };
+        else if (path === "/api/clinic/workforce/adjustments")
+          body = { adjustments: [] };
+        else if (path === "/api/clinic/workforce/timecards")
+          body = {
+            employees: [{ id: 7, name: card.employee_name }],
+            default_period_start: card.period_start,
+            timecards: saved ? [card] : [],
+          };
+        else if (
+          path === "/api/clinic/workforce/timecards/calculate" &&
+          request.method() === "POST"
+        ) {
+          mutations.push(request.postDataJSON());
+          saved = true;
+          status = 201;
+          body = { timecard: card };
+        } else {
+          status = 404;
+          body = { error: "Unexpected synthetic API request" };
+        }
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify(body),
+        });
+      },
+    );
+    await page.goto(base + "qa-workforce?mode=timecards");
+    const calculate = page.getByRole("button", {
+      name: "Calculate",
+      exact: true,
+    });
+    await expect.poll(() => calculate.isEnabled()).toBe(true);
+    expect(await page.getByLabel("Week starting").inputValue()).toBe(
+      card.period_start,
+    );
+    await calculate.click();
+    await page
+      .getByText(
+        "The employee timecard was calculated from saved workforce records.",
+        { exact: true },
+      )
+      .waitFor();
+    await page
+      .getByRole("heading", { name: card.employee_name, exact: true })
+      .waitFor();
+    expect(mutations).toEqual([
+      { employment_id: 7, site_id: 1, period_start: card.period_start },
+    ]);
+    const paid = page.getByText("Paid", { exact: true }).first().locator("..");
+    expect(await paid.innerText()).toContain("8h 00m");
+    await page.reload();
+    await page
+      .getByRole("heading", { name: card.employee_name, exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByText("Paid", { exact: true })
+        .first()
+        .locator("..")
+        .innerText(),
+    ).toContain("8h 00m");
+    expect(mutations).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+});
+
 it("Muse67 no eligible employees offers management recovery and blocks calculation", async () => {
   const page = await open("timecards&empty=1");
   const button = page.getByRole("button", { name: "Manage employees" });

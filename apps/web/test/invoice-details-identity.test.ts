@@ -51,10 +51,10 @@ const entry = `
     request(path, options = {}) {
       if (path.startsWith('/api/clinic/billing_services?'))
         return Promise.resolve({ services: [] });
-      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post|write_offs)$/.test(path))
+      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post|write_offs|credits)$/.test(path))
         throw new Error('Unexpected synthetic request: ' + path);
-      return new Promise(resolve => this.requests.push({
-        path, options, resolve, done: false
+      return new Promise((resolve,reject) => this.requests.push({
+        path, options, resolve, reject, done: false
       }));
     },
     resolve(index, value) {
@@ -390,78 +390,133 @@ async function openAdjustableInvoice(
   return { page, dialog };
 }
 
-it("#83 submits an authorized write-off and shows its refreshed ledger history", async () => {
+it.each([
+  ["#83", "write_off", "Write off bad debt", "Write-off amount", "Write-off"],
+  ["#42", "credit", "Credit charges", "Credit amount", "Credit"],
+] as const)(
+  "%s submits an authorized %s and shows its refreshed ledger history",
+  async (_issue, action, actionLabel, amountLabel, historyLabel) => {
+    const { page, dialog } = await openAdjustableInvoice();
+    try {
+      await dialog
+        .getByRole("button", {
+          name: `${actionLabel} · available USD 50.00`,
+          exact: true,
+        })
+        .click();
+      await dialog.getByLabel(amountLabel, { exact: true }).fill("5.00");
+      await dialog
+        .getByRole("textbox", { name: /^Reason/ })
+        .fill("Synthetic bad debt");
+      await dialog
+        .getByRole("button", {
+          name: action === "write_off" ? "Write off bad debt" : "Record credit",
+          exact: true,
+        })
+        .click();
+      await waitRequests(page, 3);
+      expect((await requests(page))[2]).toMatchObject({
+        path: `/api/clinic/invoices/77/${action === "write_off" ? "write_offs" : "credits"}`,
+        method: "POST",
+        body: {
+          [action]: {
+            amount: "5.00",
+            reason: "Synthetic bad debt",
+            request_key: expect.any(String),
+          },
+        },
+      });
+      await resolve(page, 2, { [action]: { id: 89, amount: "5.00" } });
+      await waitRequests(page, 5);
+      await resolve(page, 3, {
+        ...ledger,
+        invoices: [
+          {
+            ...invoice,
+            status: "posted",
+            total_amount: "50.00",
+            credit_amount: "5.00",
+            balance_amount: "45.00",
+            adjustment_limits: {
+              credit_available_amount: "45.00",
+              void_eligible: false,
+            },
+            credits: [
+              {
+                id: 89,
+                amount: "5.00",
+                created_at: "2026-10-01T00:00:00Z",
+                adjustment_type: action,
+                reason: "Synthetic bad debt",
+              },
+            ],
+          },
+        ],
+      });
+      await resolve(page, 4, {
+        invoices: [{ id: 77, encounter_id: 9, status: "posted" }],
+      });
+      await expect.poll(() => dialog.isVisible()).toBe(false);
+      await details(page).click();
+      await expect
+        .poll(() =>
+          page.getByText(new RegExp(`${historyLabel} · USD 5.00`)).count(),
+        )
+        .toBe(1);
+      expect(
+        await page
+          .getByText("Reason: Synthetic bad debt", { exact: true })
+          .count(),
+      ).toBe(1);
+      expect(await details(page).textContent()).toContain("USD 45.00 balance");
+      expect(
+        (await requests(page)).filter((request) => request.method !== "GET"),
+      ).toHaveLength(1);
+    } finally {
+      await page.close();
+    }
+  },
+  15000,
+);
+
+it("#42 preserves a failed credit and recovers through its exact retry", async () => {
   const { page, dialog } = await openAdjustableInvoice();
   try {
+    await dialog.getByLabel("Credit amount", { exact: true }).fill("5.00");
     await dialog
-      .getByRole("button", {
-        name: "Write off bad debt · available USD 50.00",
-        exact: true,
-      })
-      .click();
-    await dialog.getByLabel("Write-off amount", { exact: true }).fill("5.00");
+      .getByRole("textbox", { name: /^Reason/ })
+      .fill("Synthetic credit correction");
     await dialog
-      .getByLabel("Reason", { exact: true })
-      .fill("Synthetic bad debt");
-    await dialog
-      .getByRole("button", { name: "Write off bad debt", exact: true })
+      .getByRole("button", { name: "Record credit", exact: true })
       .click();
     await waitRequests(page, 3);
-    expect((await requests(page))[2]).toMatchObject({
-      path: "/api/clinic/invoices/77/write_offs",
-      method: "POST",
-      body: {
-        write_off: {
-          amount: "5.00",
-          reason: "Synthetic bad debt",
-          request_key: expect.any(String),
-        },
-      },
+    const original = (await requests(page))[2];
+    expect(original.path).toBe("/api/clinic/invoices/77/credits");
+    await page.evaluate(() => {
+      (window as any).qa.requests[2].reject(new Error("Internal Server Error"));
     });
-    await resolve(page, 2, { write_off: { id: 89, amount: "5.00" } });
     await waitRequests(page, 5);
-    await resolve(page, 3, {
-      ...ledger,
-      invoices: [
-        {
-          ...invoice,
-          status: "posted",
-          total_amount: "50.00",
-          credit_amount: "5.00",
-          balance_amount: "45.00",
-          adjustment_limits: {
-            credit_available_amount: "45.00",
-            void_eligible: false,
-          },
-          credits: [
-            {
-              id: 89,
-              amount: "5.00",
-              created_at: "2026-10-01T00:00:00Z",
-              adjustment_type: "write_off",
-              reason: "Synthetic bad debt",
-            },
-          ],
-        },
-      ],
-    });
-    await resolve(page, 4, {
-      invoices: [{ id: 77, encounter_id: 9, status: "posted" }],
-    });
-    await expect.poll(() => dialog.isVisible()).toBe(false);
-    await details(page).click();
-    await expect
-      .poll(() => page.getByText(/Write-off · USD 5.00/).count())
-      .toBe(1);
+    await dialog.getByText(/Internal Server Error/).waitFor();
     expect(
-      await page
-        .getByText("Reason: Synthetic bad debt", { exact: true })
-        .count(),
-    ).toBe(1);
-    expect(await details(page).textContent()).toContain("USD 45.00 balance");
+      await dialog.getByLabel("Credit amount", { exact: true }).inputValue(),
+    ).toBe("5.00");
+    expect(
+      await dialog.getByRole("textbox", { name: /^Reason/ }).inputValue(),
+    ).toBe("Synthetic credit correction");
+    await dialog
+      .getByRole("button", { name: "Retry exact adjustment", exact: true })
+      .click();
+    await waitRequests(page, 6);
+    expect((await requests(page))[5]).toMatchObject({
+      path: original.path,
+      method: original.method,
+      body: original.body,
+    });
+    await resolve(page, 5, { credit: { id: 89, amount: "5.00" } });
+    await expect.poll(() => dialog.isVisible()).toBe(false);
     expect(
       (await requests(page)).filter((request) => request.method !== "GET"),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   } finally {
     await page.close();
   }
@@ -577,7 +632,14 @@ it("#146 links charge adjustments to the executable cash refund workflow", async
       unapplied_amount: "0",
       created_at: "2026-10-01T00:00:00Z",
       allocations: [],
-      refunds: [],
+      refunds: [
+        {
+          id: 90,
+          amount: "3.00",
+          reason: "Synthetic earlier refund",
+          created_at: "2026-10-01T00:00:00Z",
+        },
+      ],
       cash_payment: true,
       receipt_available: true,
       cash_refund_available: true,
@@ -594,6 +656,9 @@ it("#146 links charge adjustments to the executable cash refund workflow", async
     await expect.poll(() => dialog.isVisible()).toBe(false);
     expect(new URL(page.url()).hash).toBe("#billing-payment-history");
     const history = page.locator("#billing-payment-history");
+    expect(await history.locator("#billing-refund-90").textContent()).toMatch(
+      /^Refund #90 · USD 3\.00 on \S/,
+    );
     expect(
       await history
         .getByRole("heading", {
@@ -654,6 +719,12 @@ it("#93 replaces the draft details heading after posting and ledger refresh", as
     await page
       .getByRole("button", { name: "Review and post invoice #77", exact: true })
       .click();
+    expect(
+      await page
+        .getByRole("dialog", { name: "Post invoice #77" })
+        .getByText("Confirm the recorded total of USD 50.00.", { exact: true })
+        .textContent(),
+    ).toBe("Confirm the recorded total of USD 50.00.");
     await page
       .getByRole("button", { name: "Confirm and post", exact: true })
       .click();

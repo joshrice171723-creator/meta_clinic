@@ -21,6 +21,56 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
     Clinic::Workforce::KioskEnrollment.create!(practice: practice, site: site,
       token_digest: Clinic::Workforce::IssueBadge.digest(@enrollment_token), issued_by_membership: manager_membership,
       expires_at: 1.hour.from_now)
+    @practice, @manager, @manager_membership, @site, @employment = practice, manager, manager_membership, site, employment
+  end
+
+  test "Muse45 configured administrator issues a badge and creates usable enrollment with sanitized readback" do
+    grant_permissions!(@manager_membership, "workforce.badges", "workforce.settings")
+    post "/api/session", params: { email_address: @manager.email_address, password: "Manager-password-123!" },
+      headers: csrf_headers, as: :json
+    assert_response :success
+
+    assert_difference "Clinic::Workforce::BadgeCredential.count", 1 do
+      post "/api/clinic/workforce/badges", params: { employment_id: @employment.id, site_id: @site.id },
+        headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    badge_id = response.parsed_body.fetch("badge").fetch("id")
+    printable = response.parsed_body.fetch("printable")
+    token = printable.fetch("token")
+    assert token.present?
+    assert_equal false, printable.fetch("reprintable")
+    assert printable.fetch("barcode_svg").include?("<svg")
+    badge = Clinic::Workforce::BadgeCredential.find(badge_id)
+    assert_equal @employment.id, badge.employment_id
+    assert_equal Clinic::Workforce::IssueBadge.digest(token), badge.secret_digest
+    assert_equal "replaced", @badge.badge.reload.status
+    get "/api/clinic/workforce/badges", params: { site_id: @site.id }, headers: @headers
+    assert_response :success
+    assert response.parsed_body.fetch("badges").any? { |row| row.fetch("id") == badge_id && row.fetch("status") == "issued" }
+    assert !response.body.include?(token), "Badge index must not expose the creation token"
+    assert !response.body.include?("secret_digest"), "Badge index must remain metadata-only"
+
+    assert_difference "Clinic::Workforce::KioskEnrollment.count", 1 do
+      post "/api/clinic/workforce/kiosks", params: { site_id: @site.id }, headers: csrf_headers, as: :json
+      assert_response :created
+    end
+    enrollment_id = response.parsed_body.fetch("kiosk").fetch("id")
+    enrollment_token = response.parsed_body.fetch("enrollment_token")
+    assert enrollment_token.present?
+    enrollment = Clinic::Workforce::KioskEnrollment.find(enrollment_id)
+    assert_equal @practice.id, enrollment.practice_id
+    assert_equal @site.id, enrollment.site_id
+    assert_equal Clinic::Workforce::IssueBadge.digest(enrollment_token), enrollment.token_digest
+    get "/api/clinic/workforce/kiosks", params: { site_id: @site.id }, headers: @headers
+    assert_response :success
+    assert response.parsed_body.fetch("kiosks").any? { |row| row.fetch("id") == enrollment_id }
+    assert !response.body.include?(enrollment_token), "Enrollment index must not expose the creation code"
+    assert !response.body.include?("token_digest"), "Enrollment index must remain metadata-only"
+    post "/api/workforce/kiosk/enroll", params: { enrollment_token: enrollment_token }, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal true, response.parsed_body.fetch("enrolled")
+    assert_equal "enrolled", enrollment.reload.status
   end
 
   test "enrolled kiosk resolves a badge and replays one saved punch" do

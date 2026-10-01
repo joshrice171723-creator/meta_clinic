@@ -1,18 +1,17 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T19:38:48.902461+00:00",
+    "generated_at": "2026-10-01T19:47:11.366185+00:00",
     "source_revision": "62f52c4d9e1d775cebf647ce33439108247ee0ea",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 106,
-    "remaining": 135,
+    "closed": 113,
+    "remaining": 128,
     "counts": {
-      "mixed": 62,
-      "fixed_and_verified": 98,
-      "unverified": 48,
+      "mixed": 60,
+      "fixed_and_verified": 105,
+      "unverified": 44,
       "deferred": 5,
       "blocked": 19,
-      "policy_resolved": 1,
       "proven_invalid": 8
     },
     "all_original_dispositions_recorded": true,
@@ -134,6 +133,141 @@
           "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/reconciliation/run-6758b7b33b59-20261001T193608Z-671ecd/focused-disposition-backend-qa.json"
         ],
         "scope": "Current local action metadata persistence/projection and actual rendered labels verified; historical hosted replay separate."
+      },
+      {
+        "key": "12 | Encounter Date of Visit defaults to today",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Accepted actual visit date policy now verified: default encounter start persists as actual clock, differs from scheduled date, repeated check-in keeps identical encounter/start, actual show and appointment APIs retain each timestamp."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\run-1bfa1d5aaaf1-20261001T194211Z-3f0570\\focused-disposition-backend-qa.json"
+        ],
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "18 | Truncated copy",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual badges and payroll pages render both complete explanatory sentences visibly without internal clipping, ellipsis or line clamp at 1440x1000. Two targeted browser cases pass; original hosted viewport remains historical."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue18\\frozen-1bfa-results.json"
+        ],
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "99 | Capacity \"Blocked time\" rule cannot be saved",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual Blocked time form submits selected site, clinician, dates, reason and policy identity; refreshed rule persists across browser reload. Actual isolated Rails create/readback and booking-prevention checks passed at6758; no relevant product changes. Composed local proof, synthetic browser transport."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-99-browser-1bfa1d5aaaf1.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\run-6758b7b33b59-20261001T193608Z-671ecd\\focused-disposition-backend-qa.json"
+        ],
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "146 | \"Separate cash refund workflow\" named but not linked",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual adjustment link reaches payment history, Refund cash, amount/reason, review and enabled confirmation. Focused browser case passes; previously passing actual Rails cash refund case proves authorized persistence. No actual money or hosted replay."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue83\\result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue54\\receipt-outcome.md"
+        ],
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "remaining_qa_input": null,
+        "key": "210 | Tracking board shows scheduled time as arrival time (WF-055)",
+        "disposition": "fixed_and_verified",
+        "scope": "Current persisted check-in through board API plus unchanged executed mapper proof; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Actual arrival and waiting time",
+            "status": "locally_verified",
+            "detail": "Actual appointment-only check-in persists actual start, retries preserve start and board API separates it from scheduled timestamp. Unchanged mapper cases verify03:01 arrival versus14:00 slot and2minute wait; missing actual start never fabricates scheduled arrival."
+          }
+        ],
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-evidence-continuation/issue-210-result.json"
+        ],
+        "evidence_label": "whole_current_local_claim_verified; reused_6659_mapper_proof; hosted_acceptance_separate"
+      },
+      {
+        "key": "72 | Recurring appointments blocked by missing clinicians",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated original local defect resolved with recorded reused execution and source boundaries; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "The original invalid clinician numeric error is replaced by executed actionable prerequisite guidance and no invalid mutation. Recurring series requires an explicit configured clinician; existing safe retry preserves clinician/key. Source and original cases unchanged since6659. Setup navigation source-reviewed; no new configured staff invented."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-72-final-proof.json"
+        ],
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "evidence_label": "whole_current_local_claim_verified; reused_execution; hosted_acceptance_separate"
+      },
+      {
+        "key": "101 | No \"mark as no-show\" action",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated original local defect resolved with recorded reused execution and source boundaries; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual authorized front-desk no-show action and readback pass, denied/future actions blocked; real Rails scheduled/confirmed transition persistence passes. Actual schedule link navigates to front desk. Date/site/search filters select other appointments; no claim of automatic selected-context preservation."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue101-disposition.json"
+        ],
+        "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
+        "evidence_label": "whole_current_local_claim_verified; reused_execution; hosted_acceptance_separate"
       }
     ]
   },
@@ -981,21 +1115,21 @@
       "key": "12 | Encounter Date of Visit defaults to today",
       "title": "Encounter Date of Visit defaults to today",
       "source_line": 101,
-      "disposition": "policy_resolved",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
       "components": [
         {
-          "claim_scope": "Date of Visit semantics",
-          "status": "delegated_policy_resolved_source_conformant",
-          "detail": "Actual encounter start is the selected policy; scheduled appointment date remains distinct. Existing tests do not directly assert default actual timestamp versus scheduled timestamp. That optional proof is not a missing product decision."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Accepted actual visit date policy now verified: default encounter start persists as actual clock, differs from scheduled date, repeated check-in keeps identical encounter/start, actual show and appointment APIs retain each timestamp."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue12-disposition.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\run-1bfa1d5aaaf1-20261001T194211Z-3f0570\\focused-disposition-backend-qa.json"
       ],
       "integrator_review_note": null
     },
@@ -1070,14 +1204,22 @@
       "key": "18 | Truncated copy",
       "title": "Truncated copy",
       "source_line": 109,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual badges and payroll pages render both complete explanatory sentences visibly without internal clipping, ellipsis or line clamp at 1440x1000. Two targeted browser cases pass; original hosted viewport remains historical."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Capture original badges/payroll clipping at reported viewport and verify complete rendered sentences; complete source text alone is insufficient.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue18\\frozen-1bfa-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -1971,25 +2113,22 @@
       "key": "72 | Recurring appointments blocked by missing clinicians",
       "title": "Recurring appointments blocked by missing clinicians",
       "source_line": 191,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated original local defect resolved with recorded reused execution and source boundaries; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Missing-clinician validation repaired and checked locally."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "A fully eligible configured clinician completing a persisted recurring series is a separate claim."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "The original invalid clinician numeric error is replaced by executed actionable prerequisite guidance and no invalid mutation. Recurring series requires an explicit configured clinician; existing safe retry preserves clinician/key. Source and original cases unchanged since6659. Setup navigation source-reviewed; no new configured staff invented."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "A fully eligible configured clinician completing a persisted recurring series is a separate claim.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-72-final-proof.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2180,14 +2319,23 @@
       "key": "99 | Capacity \"Blocked time\" rule cannot be saved",
       "title": "Capacity \"Blocked time\" rule cannot be saved",
       "source_line": 211,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual Blocked time form submits selected site, clinician, dates, reason and policy identity; refreshed rule persists across browser reload. Actual isolated Rails create/readback and booking-prevention checks passed at6758; no relevant product changes. Composed local proof, synthetic browser transport."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Verify Blocked time rule persists and prevents matching synthetic bookings on exact build; reuse backend evidence without assuming fresh whole-suite pass.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-99-browser-1bfa1d5aaaf1.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\run-6758b7b33b59-20261001T193608Z-671ecd\\focused-disposition-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2212,14 +2360,22 @@
       "key": "101 | No \"mark as no-show\" action",
       "title": "No \"mark as no-show\" action",
       "source_line": 215,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated original local defect resolved with recorded reused execution and source boundaries; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual authorized front-desk no-show action and readback pass, denied/future actions blocked; real Rails scheduled/confirmed transition persistence passes. Actual schedule link navigates to front desk. Date/site/search filters select other appointments; no claim of automatic selected-context preservation."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Verify no-show action visibility, eligibility and persisted transition in the intended hosted workflow.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue101-disposition.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2908,14 +3064,23 @@
       "key": "146 | \"Separate cash refund workflow\" named but not linked",
       "title": "\"Separate cash refund workflow\" named but not linked",
       "source_line": 285,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified within recorded proof; no new hosted acceptance.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual adjustment link reaches payment history, Refund cash, amount/reason, review and enabled confirmation. Focused browser case passes; previously passing actual Rails cash refund case proves authorized persistence. No actual money or hosted replay."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Refund link reaches executable authorized refund workflow, including original invoice state. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue83\\result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue54\\receipt-outcome.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -4064,25 +4229,22 @@
       "key": "210 | Tracking board shows scheduled time as arrival time (WF-055)",
       "title": "Tracking board shows scheduled time as arrival time (WF-055)",
       "source_line": 403,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Current persisted check-in through board API plus unchanged executed mapper proof; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Local mapper uses encounter.started_at and synthetic wait/absence cases pass."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original persisted check-in provenance and board arrival/wait cannot be inferred from mapper-only proof."
+          "claim_scope": "Actual arrival and waiting time",
+          "status": "locally_verified",
+          "detail": "Actual appointment-only check-in persists actual start, retries preserve start and board API separates it from scheduled timestamp. Unchanged mapper cases verify03:01 arrival versus14:00 slot and2minute wait; missing actual start never fabricates scheduled arrival."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original persisted check-in provenance and board arrival/wait cannot be inferred from mapper-only proof.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-evidence-continuation/issue-210-result.json"
+      ],
       "integrator_review_note": null
     },
     {

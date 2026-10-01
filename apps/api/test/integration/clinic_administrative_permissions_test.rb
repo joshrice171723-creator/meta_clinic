@@ -103,6 +103,10 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
   end
 
   test "cash collection, refund, receipt, and drawer close preserve the recorded cash trail" do
+    receipt_zone = Time.find_zone!("America/Chicago")
+    receipt_date = Time.current.in_time_zone(receipt_zone).to_date.next_day
+    recorded_at = receipt_zone.local(receipt_date.year, receipt_date.month, receipt_date.day, 4, 47).utc
+    travel_to recorded_at
     @practice.update!(timezone: "America/Chicago")
     posted_invoice = invoice
     Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
@@ -121,12 +125,9 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
         request_key: "SYN-CASH-001"
       }
     }
-    recorded_at = Time.utc(2026, 10, 1, 9, 47)
-    travel_to recorded_at do
-      post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
-        headers: csrf_headers, as: :json
-      assert_response :created
-    end
+    post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments", params: cash_payment,
+      headers: csrf_headers, as: :json
+    assert_response :created
     payment_event_id = Clinic::PaymentEvent.find_by!(external_event_reference: "cash:#{drawer_id}:SYN-CASH-001").id
     assert_equal "5.0", response.parsed_body.dig("cash_tender", "change_amount")
     payment_receipt = Clinic::BillingReceipt.find_by!(payment_event_id: payment_event_id, kind: "cash_payment")
@@ -143,7 +144,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
       assert_response :success
       issued = Nokogiri::HTML(response.body).at_xpath("//dt[normalize-space()='Issued']/following-sibling::dd")
       assert issued, "Receipt must retain the Issued field"
-      assert_equal "October 1, 2026 · 4:47 AM CDT", issued.text.strip
+      assert_equal "#{receipt_date.strftime('%B %-d, %Y')} · 4:47 AM #{recorded_at.in_time_zone(receipt_zone).strftime('%Z')}", issued.text.strip
     end
     assert_equal 1, Clinic::CashTender.count
     assert_equal 1, Clinic::BillingReceipt.where(kind: "cash_payment").count

@@ -58,7 +58,23 @@ beforeAll(async () => {
         load(id) {
           if (id === "\0qa-fields") return entry;
           if (id === "\0qa-calendar-resource")
-            return "export const useResource = () => ({ refresh() {} });";
+            return `const calendar = {
+              site_id: 4, month: '2026-10', timezone: 'UTC', slot_minutes: 30,
+              capacity_configured: true, clinicians: [{id: 9, name: 'Synthetic clinician'}],
+              rooms: [], days: [{date: '2026-10-01', scheduled: 1, confirmed: 0,
+                available: 0, conflicts: 0, slots: [], holds: [], appointments: [{
+                  id: 901, patient_id: 801, site_id: 4, booked_clinician_id: 9,
+                  room_id: null, starts_at: '2026-10-01T14:00:00Z',
+                  ends_at: '2026-10-01T14:30:00Z', status: 'scheduled',
+                  calendar_status: 'scheduled', conflict: false,
+                  patient: {id: 801, display_name: 'Synthetic patient', reference: 'SYN-801'},
+                  clinician_name: 'Synthetic clinician', room_name: null, visit_type_name: null
+                }]}]
+            };
+            export const useResource = (path) => ({
+              data: new URLSearchParams(location.search).has('count') && path.includes('schedule_calendar') ? calendar : undefined,
+              refresh() {}
+            });`;
           if (id === "\0qa-context")
             return "export const useClinic = () => ({ capabilities: { facilities_write: true }, practice: { timezone: 'UTC' }, sites: [], refreshWorkspace() {} });";
           if (id === "\0qa-resource")
@@ -243,4 +259,23 @@ it("Muse24 tracking board separates the timezone from its introductory copy", as
   expect(await label.textContent()).toBe("All times shown in UTC");
   expect(await label.ariaSnapshot()).toContain("All times shown in UTC");
   await page.close();
+});
+
+it("Muse24 schedule separates the appointment count from its label", async () => {
+  const page = await open(
+    "schedule&count=1&view=day&group=clinician&site_id=4&month=2026-10&day=2026-10-01",
+  );
+  try {
+    const summary = page.getByText(
+      "1 appointments · Select an open time to book. Capacity counts clinician time, not additional room capacity.",
+      { exact: true },
+    );
+    await summary.waitFor();
+    expect(await summary.textContent()).toBe(
+      "1 appointments · Select an open time to book. Capacity counts clinician time, not additional room capacity.",
+    );
+    expect(await summary.ariaSnapshot()).toContain("1 appointments ·");
+  } finally {
+    await page.close();
+  }
 });

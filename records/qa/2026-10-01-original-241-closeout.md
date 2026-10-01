@@ -1,6 +1,6 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 106/241. Original dispositions recorded: 241/241.**
+**Issues closed: 113/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
@@ -28,11 +28,10 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 98 |
-| mixed | 62 |
-| policy_resolved | 1 |
+| fixed_and_verified | 105 |
+| mixed | 60 |
 | proven_invalid | 8 |
-| unverified | 48 |
+| unverified | 44 |
 
 ## Every original entry
 
@@ -80,11 +79,11 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 40 | #8 | "Workspace tools TEST" dev button | mixed | Original non-admin visibility needs nonsecret effective capabilities, deployment/demo mode and authorized owner-switch context. |
 | 41 | #10 | Site selector shows cryptic code | fixed_and_verified | Configured descriptive location selector name verified in the three-case browser batch; historical abbreviated-code observation preserved. |
 | 42 | #11 | Date/datetime pickers reject typed input | mixed | Intake date/datetime typing is outside the recorded booking coverage. |
-| 43 | #12 | Encounter Date of Visit defaults to today | policy_resolved | Actual encounter start is the selected policy; scheduled appointment date remains distinct. Existing tests do not directly assert default actual timestamp versus scheduled timestamp. That optional proof is not a missing product decision. |
+| 43 | #12 | Encounter Date of Visit defaults to today | fixed_and_verified | Accepted actual visit date policy now verified: default encounter start persists as actual clock, differs from scheduled date, repeated check-in keeps identical encounter/start, actual show and appointment APIs retain each timestamp. |
 | 44 | #14 | Location picker leaks ineligible locations | unverified | Verify the original Verify Admin location picker against effective eligibility on the hosted build; independent employee-preview repair is narrower evidence. |
 | 45 | #15 | Scheduling silently no-ops for unassigned clinician | fixed_and_verified | Local booking rejection gives explicit feedback and retains draft in145-related/16-browser batch. Capacity/site guards remain enforced; reschedule is beyond this original booking claim. |
 | 46 | #16 | Cash payment records nothing (CRITICAL) | mixed | Original payment500 and alleged no-write cause are unproved; correlate original response, receipt and persisted records. |
-| 47 | #18 | Truncated copy | unverified | Capture original badges/payroll clipping at reported viewport and verify complete rendered sentences; complete source text alone is insufficient. |
+| 47 | #18 | Truncated copy | fixed_and_verified | Actual badges and payroll pages render both complete explanatory sentences visibly without internal clipping, ellipsis or line clamp at 1440x1000. Two targeted browser cases pass; original hosted viewport remains historical. |
 | 48 | #19 | Team schedule "Could not load" | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 49 | #20 | Direct URL navigation loses location context | unverified | Capture cookies/session and direct-entry navigation showing location retention on the exact build; synthetic context characterization is not historical proof. |
 | 50 | #21 | Staff conversation composer has empty participant list | unverified | CONFIG:Establish eligible staff recipients for the original location/account and verify real recipient readback in isolated hosted QA, without creating real messages. |
@@ -125,7 +124,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 85 | #68 | Payroll runs dead-end | mixed | Actual configured payroll preparation from approved timecards remains unproved. |
 | 86 | #70 | No patient-facing messaging; reminders sending dead-end | mixed | Existing reminder queue/send/recovery under current grants and suppressed local provider. |
 | 87 | #71 | No practice-level audit trail | mixed | Required existing audit capture operation-to-persisted-record mapping; no pending new-screen decision. |
-| 88 | #72 | Recurring appointments blocked by missing clinicians | mixed | A fully eligible configured clinician completing a persisted recurring series is a separate claim. |
+| 88 | #72 | Recurring appointments blocked by missing clinicians | fixed_and_verified | The original invalid clinician numeric error is replaced by executed actionable prerequisite guidance and no invalid mutation. Recurring series requires an explicit configured clinician; existing safe retry preserves clinician/key. Source and original cases unchanged since6659. Setup navigation source-reviewed; no new configured staff invented. |
 | 89 | #73 | No intake forms attached to booking | unverified | Verify booking-to-intake form attachment and durable readback on exact build; targeted backend1/9 is limited evidence. |
 | 90 | #74 | Hollow staffing model cascades | blocked | Approved synthetic staffing/profile/site prerequisites for the aggregate affected workflows. |
 | 91 | #85 | Tracking Board provider assignment offers no clinicians | mixed | This guard does not establish the historical empty-provider picker cause. |
@@ -135,9 +134,9 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 95 | #91 | Inventory wizard skips step 3 | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 96 | #92 | Recurring-series preview lacks the assign-clinician-to-site action | unverified | Verify recurring preview offers assignment action only to an authorized actor and permits retry after valid clinician-site assignment. |
 | 97 | #93 | Stale ledger headings after posting an invoice | fixed_and_verified | Existing invoice-heading refresh regression verifies current local headings within21-test batch; no need historical cause to verify current display. |
-| 98 | #99 | Capacity "Blocked time" rule cannot be saved | unverified | Verify Blocked time rule persists and prevents matching synthetic bookings on exact build; reuse backend evidence without assuming fresh whole-suite pass. |
+| 98 | #99 | Capacity "Blocked time" rule cannot be saved | fixed_and_verified | Actual Blocked time form submits selected site, clinician, dates, reason and policy identity; refreshed rule persists across browser reload. Actual isolated Rails create/readback and booking-prevention checks passed at6758; no relevant product changes. Composed local proof, synthetic browser transport. |
 | 99 | #100 | Patient portal has no access path | unverified | Verify intended patient login entry with approved synthetic account and actual authentication/portal destination; rendered entry is not authentication proof. |
-| 100 | #101 | No "mark as no-show" action | unverified | Verify no-show action visibility, eligibility and persisted transition in the intended hosted workflow. |
+| 100 | #101 | No "mark as no-show" action | fixed_and_verified | Actual authorized front-desk no-show action and readback pass, denied/future actions blocked; real Rails scheduled/confirmed transition persistence passes. Actual schedule link navigates to front desk. Date/site/search filters select other appointments; no claim of automatic selected-context preservation. |
 | 101 | #106 | "Inventory locations →" link is a dead end | unverified | Follow Inventory locations link through actual storage-management destination and authorization, not merely rendered href. |
 | 102 | #109 | Visitor sandbox "Reset Sandbox" fails — baseline not restored | mixed | Reported hosted reset timeout and full browser/two-visitor context are not disproved by local backend proof. |
 | 103 | #112 | Staff conversation creation denied for Administrator — "Your account does not have permission for this clinic action" | mixed | Original Administrator effective grant is unknown; do not invalidate denial from role label or manufacture a grant. |
@@ -172,7 +171,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 132 | #143 | "Recorded as Not asked" indicator missing from the accessibility tree | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 133 | #144 | Patient activity entries show only a timestamp with no record name/title | fixed_and_verified | Real backend query checks persist Appointment versions and assert their source/exact record IDs; deterministic query mapping supplies section/type and the actual controller serializes it directly. Actual frontend assertions verify appointment title/action and record identity. Backend section/type values are source-traced, not independently asserted; hosted acceptance is separate. |
 | 134 | #145 | Cash-drawer warning sentence renders twice with a stray " | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 135 | #146 | "Separate cash refund workflow" named but not linked | unverified | Refund link reaches executable authorized refund workflow, including original invoice state. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
+| 135 | #146 | "Separate cash refund workflow" named but not linked | fixed_and_verified | Actual adjustment link reaches payment history, Refund cash, amount/reason, review and enabled confirmation. Focused browser case passes; previously passing actual Rails cash refund case proves authorized persistence. No actual money or hosted replay. |
 | 136 | #147 | No client-side validation in the credit dialog | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 137 | #148 | "Void untouched unpaid invoice" offered on a touched invoice | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 138 | #149 | Invoice #3 (SIMT) shows Settled with allocated USD 25.00 ≠ total USD 30.00 and no visible credit | mixed | Original invoice30/allocation25/balance0 needs persisted credit/adjustment reconciliation. |
@@ -231,7 +230,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 191 | #207 | Handoff "Save preparation" silently fails (WF-056) | mixed | Original connected preparation persistence/readback and unsaved-state clearing are unproved. |
 | 192 | #208 | Encounter page intermittently redirects to /clinic/setup (WF-056) | unverified | Original intermittent chooser/setup redirect with session/context response evidence and stable selected location. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 193 | #209 | "This time is outside the site's operating hours." warning fires for every booking time tried (WF-056) | unverified | Original site hours, timezone and tested intervals distinguish misconfiguration from false validation. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
-| 194 | #210 | Tracking board shows scheduled time as arrival time (WF-055) | mixed | Original persisted check-in provenance and board arrival/wait cannot be inferred from mapper-only proof. |
+| 194 | #210 | Tracking board shows scheduled time as arrival time (WF-055) | fixed_and_verified | Actual appointment-only check-in persists actual start, retries preserve start and board API separates it from scheduled timestamp. Unchanged mapper cases verify03:01 arrival versus14:00 slot and2minute wait; missing actual start never fabricates scheduled arrival. |
 | 195 | #211 | "Live updates are reconnecting" banner never resolves (WF-055) | mixed | Connected stream behavior and reported indefinite live banner are unproved. |
 | 196 | #212 | Checked-in visit has no cancellation or resolution path (WF-054 FAIL) | mixed | Explanation alone does not prove a checked-in visit can complete an authorized resolution journey. |
 | 197 | #213 | "Changed in another window" conflict flow silently switches organizations (#56 edge case) | mixed | The original chooser/second-window organization transition and actual setup-page sign-out recovery remain unverified. |

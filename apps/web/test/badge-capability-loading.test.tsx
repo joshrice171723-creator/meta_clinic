@@ -135,6 +135,184 @@ async function fixture(
     .waitFor();
   return { page, reads, release: () => release?.() };
 }
+it("Muse45 reports unconfigured refusals then issues a badge and enrollment with refreshed readback", async () => {
+  const page = await browser.newPage();
+  const badges: Record<string, unknown>[] = [];
+  const kiosks: Record<string, unknown>[] = [];
+  const mutations: { path: string; body: unknown }[] = [];
+  let configured = false;
+  try {
+    page.setDefaultTimeout(5000);
+    await page.route(/^https?:\/\/[^/]+\/api\//, async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === "/api/csrf")
+        return route.fulfill({ json: { csrf_token: "synthetic" } });
+      if (request.method() === "POST") {
+        mutations.push({ path, body: request.postDataJSON() });
+        if (!configured)
+          return route.fulfill({
+            status: 422,
+            json: {
+              error:
+                "Workforce settings have not been configured for this practice.",
+              code: "workforce_settings_unconfigured",
+            },
+          });
+        if (path.endsWith("/badges")) {
+          const badge = {
+            id: 701,
+            employment_id: 501,
+            status: "issued",
+            issued_at: "2026-10-01T12:00:00Z",
+            pin_required: false,
+            employee_name: "Configured synthetic employee",
+          };
+          badges.push(badge);
+          return route.fulfill({
+            status: 201,
+            json: {
+              badge,
+              printable: {
+                token: "synthetic-nonfunctional-badge",
+                barcode_svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+                reprintable: false,
+              },
+            },
+          });
+        }
+        if (path.endsWith("/kiosks")) {
+          const kiosk = {
+            id: 702,
+            site_id: 101,
+            site_name: "Configured synthetic kiosk",
+            status: "issued",
+            expires_at: "2026-10-02T12:00:00Z",
+          };
+          kiosks.push(kiosk);
+          return route.fulfill({
+            status: 201,
+            json: {
+              kiosk,
+              enrollment_token: "synthetic-nonfunctional-enrollment",
+            },
+          });
+        }
+      }
+      if (path.endsWith("/badges"))
+        return route.fulfill({
+          json: {
+            employees: [
+              {
+                id: 501,
+                employee_name: "Configured synthetic employee",
+                active_for_work: true,
+              },
+            ],
+            badges,
+          },
+        });
+      if (path.endsWith("/kiosks")) return route.fulfill({ json: { kiosks } });
+      return route.fulfill({
+        status: 404,
+        json: { error: "Unexpected synthetic badge route" },
+      });
+    });
+    await page.goto(
+      `${base}/fixture?caps=${encodeURIComponent(JSON.stringify({ workforce_badges: true, workforce_settings: true }))}`,
+    );
+    await page.getByRole("combobox", { name: "Employee", exact: true }).click();
+    await page
+      .getByRole("option", {
+        name: "Configured synthetic employee",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Issue or replace badge", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Workforce settings have not been configured" })
+      .waitFor();
+    expect(await page.getByRole("dialog").count()).toBe(0);
+    await page
+      .getByRole("button", { name: "Create enrollment code", exact: true })
+      .click();
+    await expect.poll(() => mutations.length).toBe(2);
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Workforce settings have not been configured" })
+      .waitFor();
+    expect(
+      await page
+        .getByLabel("One-time enrollment code", { exact: true })
+        .count(),
+    ).toBe(0);
+    configured = true;
+    await page
+      .getByRole("button", { name: "Issue or replace badge", exact: true })
+      .click();
+    const printable = page.getByRole("dialog", {
+      name: "Print employee clock badge",
+      exact: true,
+    });
+    await printable.waitFor();
+    expect(
+      await printable
+        .getByRole("img", { name: "Employee clock badge barcode", exact: true })
+        .count(),
+    ).toBe(1);
+    await printable.getByRole("button", { name: "Close", exact: true }).click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Badge issued. Print it now" })
+      .waitFor();
+    await page.getByText("issued", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "Create enrollment code", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Kiosk enrollment created" })
+      .waitFor();
+    expect(
+      await page
+        .getByLabel("One-time enrollment code", { exact: true })
+        .inputValue(),
+    ).toBe("synthetic-nonfunctional-enrollment");
+    await page
+      .getByText("Configured synthetic kiosk", { exact: true })
+      .waitFor();
+    expect(mutations.map((row) => row.path)).toEqual([
+      "/api/clinic/workforce/badges",
+      "/api/clinic/workforce/kiosks",
+      "/api/clinic/workforce/badges",
+      "/api/clinic/workforce/kiosks",
+    ]);
+    expect(mutations[2].body).toEqual({
+      employment_id: "501",
+      site_id: "101",
+      pin: null,
+    });
+    expect(mutations[3].body).toEqual({ site_id: "101" });
+    await page.reload();
+    await page
+      .getByText("Configured synthetic kiosk", { exact: true })
+      .waitFor();
+    await page.getByText("issued", { exact: true }).waitFor();
+    expect(await page.getByRole("dialog").count()).toBe(0);
+    expect(
+      await page
+        .getByLabel("One-time enrollment code", { exact: true })
+        .count(),
+    ).toBe(0);
+    expect(mutations).toHaveLength(4);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
 it.each([
   [true, false],
   [false, true],

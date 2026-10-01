@@ -126,7 +126,7 @@ it.each(["America/Chicago", "Asia/Tokyo"])(
         .click();
       await expect
         .poll(() => page.getByRole("dialog").innerText())
-        .toContain(`Received ${expectedTime}`);
+        .toContain(`Received · ${expectedTime}`);
       expect(await page.getByRole("dialog").innerText()).not.toContain(
         "4:11 AM",
       );
