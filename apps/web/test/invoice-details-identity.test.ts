@@ -351,3 +351,68 @@ it.each([true, false])(
   },
   20000,
 );
+
+async function openAdjustableInvoice() {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  await page.addInitScript(() => {
+    (window as any).qaCashPending = false;
+  });
+  await page.goto(`${base}qa?patient_id=77&encounter_id=9`);
+  await waitRequests(page, 2);
+  await resolve(page, 0, {
+    ...ledger,
+    invoices: [
+      {
+        ...invoice,
+        status: "posted",
+        total_amount: "50.00",
+        balance_amount: "50.00",
+        adjustment_limits: {
+          credit_available_amount: "50.00",
+          void_eligible: true,
+        },
+      },
+    ],
+  });
+  await resolve(page, 1, {
+    invoices: [{ id: 77, encounter_id: 9, status: "posted" }],
+  });
+  await page
+    .getByRole("button", { name: "Adjust charges", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Adjust invoice charges" });
+  await dialog.waitFor();
+  return { page, dialog };
+}
+
+it("#120 labels write-off submission separately from invoice void", async () => {
+  const { page, dialog } = await openAdjustableInvoice();
+  try {
+    await dialog
+      .getByRole("button", {
+        name: "Write off bad debt · available USD 50.00",
+        exact: true,
+      })
+      .click();
+    expect(
+      await dialog
+        .getByRole("button", { name: "Write off bad debt", exact: true })
+        .count(),
+    ).toBe(1);
+    expect(
+      await dialog
+        .getByRole("button", { name: "Void invoice", exact: true })
+        .count(),
+    ).toBe(0);
+    expect(
+      await dialog.getByLabel("Write-off amount", { exact: true }).count(),
+    ).toBe(1);
+    expect((await requests(page)).filter((r) => r.method !== "GET")).toEqual(
+      [],
+    );
+  } finally {
+    await page.close();
+  }
+}, 15000);
