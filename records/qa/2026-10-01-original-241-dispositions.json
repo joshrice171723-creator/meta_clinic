@@ -1,16 +1,16 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T20:48:59.816420+00:00",
-    "source_revision": "cdd4f117e9612343b31666fcfab6c75b6c06aa8a",
+    "generated_at": "2026-10-01T21:16:17.207117+00:00",
+    "source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 137,
-    "remaining": 104,
+    "closed": 148,
+    "remaining": 93,
     "counts": {
-      "mixed": 49,
-      "fixed_and_verified": 129,
+      "mixed": 43,
+      "fixed_and_verified": 140,
       "deferred": 5,
-      "unverified": 31,
+      "unverified": 26,
       "blocked": 19,
       "proven_invalid": 8
     },
@@ -872,6 +872,221 @@
         ],
         "integrated_source_revision": "cdd4f117e9612343b31666fcfab6c75b6c06aa8a",
         "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "137 | Per-slot \"Assign clinician\" demanded despite a covering weekly capacity rule",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "A broad valid site assignment plus weekly capacity permits real booking, persisted readback and calendar display without per-slot assignment. Separate weekly-capacity-only and limited-assignment refusal cases preserve eligibility. Existing passing evidence and unchanged relevant source reused; original site configuration cause not inferred."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\scheduling.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "209 | \"This time is outside the site's operating hours.\" warning fires for every booking time tried (WF-056)",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Configured Chicago operating hours reject the three reported out-of-hours UTC inputs without writes, accept an in-hours appointment, and retain exact time on authenticated GET. Existing passing source-equivalent proof reused; original environment configuration not inferred."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\scheduling.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "153 | Recovered booking draft overrides the clicked slot",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "The recovered draft is explicitly identified; confirmed Start new restores the clicked slot and room. Failed clear and uncertain retry preserve saved values and exact request identity. Existing passed interactions and unchanged recovery spans reused."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\booking.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "196 | Draft recovery is path-dependent and undocumented",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Generic and clicked-slot entrypoints share the same appointment draft scope and recover the same stored values. Visible instructions explain review or explicit Start new; confirmed-clear replacement and failure preservation are covered by existing passed interactions."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\booking.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "27 | Pre-finalization invite gate",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual Workspace allows Employees navigation at an unfinished selected site. Actual invitation form succeeds; real backend explicitly verifies finalized=false and persists a creation receipt/token, followed by revoke and replacement. Existing navigation proof composes with focused current checks."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "214 | Pending invitation rows show no activation link or code (WF-011 FAIL, regression)",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Pending invitations explain creation-only activation values and provide revoke/create replacement recovery. Actual UI creation, reload secrecy, revoke and replacement pass; real backend persists digest-only tokens and replaces revoked invitations. No old token recovery introduced."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "41 | Patient registration silently fails (CRITICAL)",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual existing registration handlers show refusal and require a confirmed receipt before navigation. Real registration POST and exact replay create one patient and committed receipt; repeated patient detail and site-directory GETs verify persistence."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\registration.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "219 | Registration editor dialog undismissable in unknown-outcome state; bricked working copy survives reload",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual patient registration dialog with actual working-draft hook can dismiss an uncertain outcome, reload and reopen without automatic official replay, deliberately retry the exact retained request, clear the draft after matching receipt, and refresh patient readback. Initial selector failure preserved; focused repaired case passes."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\registration.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "154 | Catalog shows \"At reorder point\" when no reorder point is set",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Zero available stock with zero threshold displays Out of stock rather than At reorder point; positive configured threshold equality retains At reorder point and lower inventory remains Below reorder point. Actual catalog render passes without changing quantities or low-stock arithmetic."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\inventory.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "156 | \"First inventory run\" step 6 has no navigation link",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Every unfinished first-run step exposes its existing destination. Actual native bin-step link opens Receiving even with earlier steps incomplete; receiving permissions and missing-destination guard remain enforced. Static and browser checks pass."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\inventory.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "102 | Inventory receiving blocked — \"Create an active leaf location before receiving stock\" with no leaf-location/bin creation path",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual native receiving screen exposes storage management, creates an active leaf, returns to receiving, selects the created destination and sends an exact acknowledged receipt. Real clinic location creation and clinic receipt endpoint persistence, hold and replay cases pass separately. No same-leaf-across-fixtures or unrestricted-availability claim is inferred."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\inventory.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+        "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
       }
     ]
   },
@@ -3547,14 +3762,22 @@
       "key": "137 | Per-slot \"Assign clinician\" demanded despite a covering weekly capacity rule",
       "title": "Per-slot \"Assign clinician\" demanded despite a covering weekly capacity rule",
       "source_line": 267,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "A broad valid site assignment plus weekly capacity permits real booking, persisted readback and calendar display without per-slot assignment. Separate weekly-capacity-only and limited-assignment refusal cases preserve eligibility. Existing passing evidence and unchanged relevant source reused; original site configuration cause not inferred."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Original site assignment and weekly capacity records plus successful new slot; capacity and assignment are separate contracts. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\scheduling.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3866,25 +4089,22 @@
       "key": "153 | Recovered booking draft overrides the clicked slot",
       "title": "Recovered booking draft overrides the clicked slot",
       "source_line": 299,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Scoped booking draft payload verified."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Clicked slot versus stale draft replacement and persisted appointment payload lack complete original context."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "The recovered draft is explicitly identified; confirmed Start new restores the clicked slot and room. Failed clear and uncertain retry preserve saved values and exact request identity. Existing passed interactions and unchanged recovery spans reused."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Clicked slot versus stale draft replacement and persisted appointment payload lack complete original context.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\booking.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3893,21 +4113,22 @@
       "key": "154 | Catalog shows \"At reorder point\" when no reorder point is set",
       "title": "Catalog shows \"At reorder point\" when no reorder point is set",
       "source_line": 301,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Current assigned continuation proof",
-          "status": "locally_verified_component",
-          "detail": "Actual Catalog rendering passes recorded-zero/equality, positive-stock and below-positive-threshold states. Source confirms default0 non-null stored threshold; no application arithmetic defect established."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Zero available stock with zero threshold displays Out of stock rather than At reorder point; positive configured threshold equality retains At reorder point and lower inventory remains Below reorder point. Actual catalog render passes without changing quantities or low-stock arithmetic."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original implicit-default versus unset expectation/clarity remains unresolved; source and SSR are not historical invalidation.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\inventory.json"
       ],
       "integrator_review_note": null
     },
@@ -3933,21 +4154,22 @@
       "key": "156 | \"First inventory run\" step 6 has no navigation link",
       "title": "\"First inventory run\" step 6 has no navigation link",
       "source_line": 305,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Current assigned continuation proof",
-          "status": "locally_verified_component",
-          "detail": "Actual Catalog rendering exposes exact step6 receiving link when prior steps complete, hides it when earlier step incomplete, hides guide whenallcomplete."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Every unfinished first-run step exposes its existing destination. Actual native bin-step link opens Receiving even with earlier steps incomplete; receiving permissions and missing-destination guard remain enforced. Static and browser checks pass."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Receiving destination interaction and original prerequisite state remain unverified; SSR does not claim native navigation.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\inventory.json"
       ],
       "integrator_review_note": null
     },
@@ -4646,14 +4868,22 @@
       "key": "196 | Draft recovery is path-dependent and undocumented",
       "title": "Draft recovery is path-dependent and undocumented",
       "source_line": 377,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Generic and clicked-slot entrypoints share the same appointment draft scope and recover the same stored values. Visible instructions explain review or explicit Start new; confirmed-clear replacement and failure preservation are covered by existing passed interactions."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Documented generic versus explicit-slot recovery contract plus both paths with same persisted draft. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\booking.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -4888,14 +5118,22 @@
       "key": "209 | \"This time is outside the site's operating hours.\" warning fires for every booking time tried (WF-056)",
       "title": "\"This time is outside the site's operating hours.\" warning fires for every booking time tried (WF-056)",
       "source_line": 401,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Configured Chicago operating hours reject the three reported out-of-hours UTC inputs without writes, accept an in-hours appointment, and retain exact time on authenticated GET. Existing passing source-equivalent proof reused; original environment configuration not inferred."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Original site hours, timezone and tested intervals distinguish misconfiguration from false validation. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\scheduling.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5011,25 +5249,23 @@
       "key": "214 | Pending invitation rows show no activation link or code (WF-011 FAIL, regression)",
       "title": "Pending invitation rows show no activation link or code (WF-011 FAIL, regression)",
       "source_line": 411,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Creation-only token display and digest-only storage contract preserved; frontend/backend scoped cases pass."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original creation/reissue journey is not newly accepted; existing pending rows must not expose old tokens."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Pending invitations explain creation-only activation values and provide revoke/create replacement recovery. Actual UI creation, reload secrecy, revoke and replacement pass; real backend persists digest-only tokens and replaces revoked invitations. No old token recovery introduced."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original creation/reissue journey is not newly accepted; existing pending rows must not expose old tokens.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5110,25 +5346,22 @@
       "key": "219 | Registration editor dialog undismissable in unknown-outcome state; bricked working copy survives reload",
       "title": "Registration editor dialog undismissable in unknown-outcome state; bricked working copy survives reload",
       "source_line": 419,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Cancel/Escape dismissal and21 focused recovery tests pass; active saves remain protected."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original bricked working-copy state/reload reconciliation needs its full context."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual patient registration dialog with actual working-draft hook can dismiss an uncertain outcome, reload and reopen without automatic official replay, deliberately retry the exact retained request, clear the draft after matching receipt, and refresh patient readback. Initial selector failure preserved; focused repaired case passes."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original bricked working-copy state/reload reconciliation needs its full context.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\registration.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5297,14 +5530,23 @@
       "key": "27 | Pre-finalization invite gate",
       "title": "Pre-finalization invite gate",
       "source_line": 439,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual Workspace allows Employees navigation at an unfinished selected site. Actual invitation form succeeds; real backend explicitly verifies finalized=false and persists a creation receipt/token, followed by revoke and replacement. Existing navigation proof composes with focused current checks."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Owner can reach accepted pre-finalization invitation path without bypassing setup gate. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5313,14 +5555,23 @@
       "key": "41 | Patient registration silently fails (CRITICAL)",
       "title": "Patient registration silently fails (CRITICAL)",
       "source_line": 441,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual existing registration handlers show refusal and require a confirmed receipt before navigation. Real registration POST and exact replay create one patient and committed receipt; repeated patient detail and site-directory GETs verify persistence."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Original complete registration journey persists patient once, supplies visible receipt and directory reload. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\registration.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5608,25 +5859,23 @@
       "key": "102 | Inventory receiving blocked — \"Create an active leaf location before receiving stock\" with no leaf-location/bin creation path",
       "title": "Inventory receiving blocked — \"Create an active leaf location before receiving stock\" with no leaf-location/bin creation path",
       "source_line": 471,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Receiving/storage navigation link locally verified."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Actual leaf-location creation, receipt posting and stock persistence are not proved by a link."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual native receiving screen exposes storage management, creates an active leaf, returns to receiving, selects the created destination and sends an exact acknowledged receipt. Real clinic location creation and clinic receipt endpoint persistence, hold and replay cases pass separately. No same-leaf-across-fixtures or unrestricted-availability claim is inferred."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual leaf-location creation, receipt posting and stock persistence are not proved by a link.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\inventory.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-d0e50e2288fe-20261001T210713Z-41093c\\focused-closeout-batch-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
