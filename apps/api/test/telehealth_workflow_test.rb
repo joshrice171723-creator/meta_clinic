@@ -354,6 +354,46 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, TEST_API_KEY
   end
 
+  test "Muse235 saved draft rule survives a fresh settings read without publishing" do
+    @visit_type.update!(code: "Verification Visit")
+    @other_site.update!(name: "Verification Test Location")
+    rule = { visit_type_id: @visit_type.id, site_id: @other_site.id, enabled: true,
+      allowed_region_codes: [ "US-TX" ] }
+
+    put "/api/clinic/telehealth/settings/draft", headers: @headers, as: :json, params: {
+      request_key: "muse235-save-readback", expected_version: @setting.lock_version,
+      settings: { provider_account_ref: TEST_ACCOUNT_REF, enabled: false },
+      policy: policy_payload, visit_type_rules: [ rule ]
+    }
+    assert_response :success
+    saved = response.parsed_body.fetch("data")
+    assert_equal "draft", saved.dig("draft", "status")
+    assert_equal @policy.id, @setting.reload.active_policy_version_id
+
+    get "/api/clinic/telehealth/settings", headers: @headers
+    assert_response :success
+    reloaded = response.parsed_body.fetch("data")
+    assert_equal saved.fetch("draft"), reloaded.fetch("draft")
+    assert_equal saved.fetch("visit_type_rules"), reloaded.fetch("visit_type_rules")
+    actual_rule = reloaded.fetch("visit_type_rules").find { |value| value.fetch("site_id") == @other_site.id }
+    assert_equal rule.stringify_keys, actual_rule.slice(*rule.stringify_keys.keys)
+  end
+
+  test "Muse235 incomplete policy rejects the rule save without reporting success or persisting it" do
+    put "/api/clinic/telehealth/settings/draft", headers: @headers, as: :json, params: {
+      request_key: "muse235-incomplete-policy", expected_version: @setting.lock_version,
+      settings: { provider_account_ref: TEST_ACCOUNT_REF, enabled: false },
+      policy: policy_payload.merge(consent_title: "", consent_body: "", patient_instructions: "", support_label: ""),
+      visit_type_rules: [ { visit_type_id: @visit_type.id, site_id: @other_site.id, enabled: true,
+        allowed_region_codes: [ "US-TX" ] } ]
+    }
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Consent title"
+    assert_empty @setting.policy_versions.draft
+    assert_not Clinic::Telehealth::VisitTypeRule.exists?(practice: @practice, site: @other_site)
+    assert_predicate @setting.reload, :enabled?
+  end
+
   test "settings draft batches visit type and site rule lookups" do
     visit_types = [ @visit_type ] + 2.times.map do |index|
       @practice.visit_types.create!(code: "VIDEO-BATCH-#{index}")
