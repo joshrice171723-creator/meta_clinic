@@ -431,18 +431,43 @@ export function DevelopmentDatePicker({
   );
 }
 
+export function developmentLoginDestination(
+  portal: DevelopmentPortal,
+  destination: string,
+  returnTo?: string | null,
+) {
+  const requested = loginDestination(returnTo ?? null);
+  const root =
+    portal === "clinic"
+      ? "/clinic"
+      : portal === "patient"
+        ? "/patient-portal"
+        : portal === "owner"
+          ? "/owner"
+          : "/portal";
+  const samePortal =
+    requested === root ||
+    requested.startsWith(`${root}/`) ||
+    requested.startsWith(`${root}?`);
+  return returnTo && requested !== "/portal" && samePortal
+    ? requested
+    : loginDestination(destination);
+}
+
 export function DevelopmentControls({
   accounts,
   activeId,
   businessDate,
   initialPortal = "clinic",
   ownerPinRequired = false,
+  returnTo,
 }: {
   accounts: DevelopmentAccount[];
   activeId?: string | null;
   businessDate: string;
   initialPortal?: DevelopmentPortal;
   ownerPinRequired?: boolean;
+  returnTo?: string | null;
 }) {
   const activeAccount = accounts.find((account) => account.id === activeId);
   const [portal, setPortal] = useState<DevelopmentPortal>(initialPortal);
@@ -539,7 +564,7 @@ export function DevelopmentControls({
       const destination =
         portal === "clinic" && newOrganization
           ? "/clinic/setup"
-          : result.destination;
+          : developmentLoginDestination(portal, result.destination, returnTo);
       openWorkspace(loginDestination(destination));
     } catch (caught) {
       setError(

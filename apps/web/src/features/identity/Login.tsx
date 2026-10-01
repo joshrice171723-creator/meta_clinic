@@ -140,6 +140,7 @@ export function Login({
               accounts={developmentAccounts}
               businessDate={businessDate}
               initialPortal={developmentPortalFor(returnTo)}
+              returnTo={returnTo}
               ownerPinRequired={ownerPinRequired}
             />
             <Button href="/login?next=%2Fpatient-portal" variant="outlined">
