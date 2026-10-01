@@ -246,7 +246,14 @@ export async function api<T>(
           "session_changed",
         );
       if (!response.ok) {
-        if (data?.code === "session_changed") reportSessionChanged();
+        if (
+          data?.code === "session_changed" ||
+          (response.status === 401 &&
+            method !== "GET" &&
+            method !== "HEAD" &&
+            /^\/api\/clinic(?:\/|$)/.test(path))
+        )
+          reportSessionChanged();
         if (response.status === 401 || response.status === 422) clearCsrf();
         throw new ApiError(
           response.status,

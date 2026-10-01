@@ -261,3 +261,46 @@ it("#187 follows the provided idle deadline and preserves context through ordina
     await page.close();
   }
 }, 15000);
+
+it("#215 immediately locks a denied expired-session mutation without replaying it", async () => {
+  const page = await browser.newPage();
+  try {
+    const { control, mutations } = await fixture(page);
+    control.mutationStatus = 401;
+    await page
+      .getByRole("button", { name: "Synthetic protected submit", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Session locked", exact: true })
+      .waitFor();
+    expect(mutations).toEqual([{ request_key: "synthetic-request" }]);
+    expect(
+      await page
+        .getByRole("button", { name: "Sign in again", exact: true })
+        .count(),
+    ).toBe(1);
+  } finally {
+    await page.close();
+  }
+}, 12000);
+it("#215 permission denial remains visible without locking a valid session", async () => {
+  const page = await browser.newPage();
+  try {
+    const { control, mutations } = await fixture(page);
+    control.mutationStatus = 403;
+    await page
+      .getByRole("button", { name: "Synthetic protected submit", exact: true })
+      .click();
+    await page
+      .getByText("Synthetic permission denied", { exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("heading", { name: "Session locked", exact: true })
+        .count(),
+    ).toBe(0);
+    expect(mutations).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+}, 12000);
