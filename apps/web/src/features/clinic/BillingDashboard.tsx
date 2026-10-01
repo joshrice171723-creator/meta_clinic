@@ -1206,6 +1206,12 @@ export function BillingDashboard() {
                     </strong>
                   </div>
                   <div>
+                    <span>Credits and write-offs</span>
+                    <strong>
+                      {money(selectedInvoice.credited, selectedInvoice.currency)}
+                    </strong>
+                  </div>
+                  <div>
                     <span>Remaining balance</span>
                     <strong>
                       {money(selectedInvoice.balance, selectedInvoice.currency)}
