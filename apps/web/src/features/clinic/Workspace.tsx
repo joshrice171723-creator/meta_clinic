@@ -49,7 +49,7 @@ import type {
 } from "../../api/contracts";
 import { api, setClinicPractice } from "../../api/client";
 import { ClinicScopeSelector } from "./ClinicScopeSelector";
-import { LoadState, useResource } from "../../shared/ui";
+import { Form, LoadState, useResource } from "../../shared/ui";
 import { ClinicFrame } from "./ClinicFrame";
 import {
   clinicTarget,
@@ -756,6 +756,15 @@ export function Workspace({
                   <Typography color="text.secondary">
                     Complete Clinic Setup for this location to continue.
                   </Typography>
+                )}
+                {!user.development_demo && !isDemoFrame() && (
+                  <Form
+                    className="clinic-sign-out"
+                    endpoint="/api/session"
+                    method="DELETE"
+                    submit="Sign out"
+                    onSuccess={() => window.location.replace("/login")}
+                  />
                 )}
               </main>
             </ClinicOverviewContext>

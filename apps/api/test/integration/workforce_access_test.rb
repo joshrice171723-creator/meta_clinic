@@ -96,6 +96,12 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal @other_site.id, response.parsed_body.dig("current_site", "id")
     patch "/api/clinic/context", params: { site_id: @foreign_site.id }, headers: csrf_headers, as: :json
     assert_response :not_found
+    get "/api/session", headers: @headers
+    assert_response :success
+    assert_equal @employee.id, response.parsed_body.dig("user", "id")
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal @other_site.id, response.parsed_body.dig("current_site", "id")
   end
 
   test "preloaded employment sites preserve eligibility without per-site queries" do

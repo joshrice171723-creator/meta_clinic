@@ -39,7 +39,7 @@ beforeAll(async () => {
           if (id === "\0setup-shell")
             return "export const ClinicFrame=({children})=>children;export const ScribeRecordingProvider=({children})=>children;export const TelehealthSessionProvider=({children})=>children;export const TelehealthDock=()=>null;export const PatientContextBar=()=>null;";
           if (id === "\0setup-resource")
-            return 'export const useResource=(path)=>({data:path==="/api/clinic/context"?window.syntheticContext:null,refresh:()=>{}});export const LoadState=()=>null;';
+            return 'export {Form} from "/src/shared/ui";export const useResource=(path)=>({data:path==="/api/clinic/context"?window.syntheticContext:null,refresh:()=>{}});export const LoadState=()=>null;';
           if (id === "\0setup-navigation")
             return 'const navigate=(path)=>window.testNavigate(path);export const clinicTarget=()=>"/clinic";export const useClinicNavigation=()=>({navigate});';
           if (id === "\0setup-appearance")
@@ -55,7 +55,7 @@ beforeAll(async () => {
             window.setTestContext=(loading)=>{window.syntheticContext=loading?null:initialContext;setTick(v=>v+1);};
             const [path,setPath]=React.useState("/clinic/refills");
             window.testNavigate=setPath;
-            return React.createElement(Workspace,{user:{id:1},path},React.createElement("p",null,path==="/clinic/setup"?"Synthetic setup screen":path==="/clinic/workforce/employees"?"Synthetic employees screen":"Forbidden refill screen"));
+            return React.createElement(Workspace,{user:{id:1,development_demo:new URLSearchParams(location.search).has("demo")},path},React.createElement("p",null,path==="/clinic/setup"?"Synthetic setup screen":path==="/clinic/workforce/employees"?"Synthetic employees screen":"Forbidden refill screen"));
           }
           createRoot(document.getElementById("root")).render(React.createElement(App));`;
         },
@@ -88,6 +88,29 @@ afterAll(async () => {
   await browser?.close();
   await server?.close();
 });
+
+it("#213 signs out from required setup through the actual session form and preserves the demo guard", async () => {
+  const page = await browser.newPage();
+  const deletes: { method: string; csrf: string | undefined }[] = [];
+  await page.route("**/api/csrf", (route) =>
+    route.fulfill({ json: { csrf_token: "synthetic-setup-signout-csrf" } }),
+  );
+  await page.route("**/api/session", (route) => {
+    const request = route.request();
+    deletes.push({ method: request.method(), csrf: request.headers()["x-csrf-token"] });
+    return route.fulfill({ status: 200, json: {} });
+  });
+  await page.goto(`${baseUrl}/setup-redirect`);
+  await page.getByText("Synthetic setup screen", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === "/login");
+  expect(deletes).toEqual([{ method: "DELETE", csrf: "synthetic-setup-signout-csrf" }]);
+  await page.goto(`${baseUrl}/setup-redirect?demo`);
+  await page.getByText("Synthetic setup screen", { exact: true }).waitFor();
+  expect(await page.getByRole("button", { name: "Sign out", exact: true }).count()).toBe(0);
+  expect(deletes).toHaveLength(1);
+  await page.close();
+}, 20000);
 
 it.each([false, true])(
   "keeps the refill setup-redirect explanation for mixed ready/draft locations (reader=%s)",

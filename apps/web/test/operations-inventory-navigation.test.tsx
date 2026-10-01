@@ -101,6 +101,7 @@ beforeAll(async () => {
                 "/clinic/inventory",
                 "/clinic/inventory/locations",
                 "/clinic/inventory/receiving",
+                "/clinic/inventory/configure",
               ].includes(pathname)
             )
               return next();
@@ -626,6 +627,151 @@ it("Muse102 receiving exposes native leaf creation and posts a receipt to that e
     expect(posts[1].body.receipt.request_key).toMatch(/^[0-9a-f-]{36}$/i);
     expect(unexpected).toEqual([]);
     expect(errors).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 20_000);
+
+it("Muse43 authorized inventory setup posts the exact initial configuration and returns to configured catalog", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+  });
+  page.setDefaultTimeout(5_000);
+  const { delivery_page, delivery_options, ...bootstrap } = receivingFixture();
+  bootstrap.capabilities = { "inventory.configure": true };
+  bootstrap.configuration = {
+    status: "unconfigured",
+    version: 1,
+    reason: "Not configured",
+  };
+  const catalog = catalogFixture();
+  catalog.capabilities = { "inventory.configure": true };
+  const posts: { path: string; body: any }[] = [];
+  const unexpected: string[] = [];
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      let body: unknown;
+      if (
+        request.method() === "POST" &&
+        path === "/api/clinic/inventory_configuration"
+      ) {
+        const input = request.postDataJSON();
+        posts.push({ path, body: input });
+        bootstrap.configuration = {
+          status: "configured",
+          version: 2,
+          reason: input.reason,
+        };
+        body = { data: bootstrap };
+      } else
+        body =
+          path === "/api/csrf"
+            ? { csrf_token: "synthetic-inventory-proof" }
+            : path === "/api/clinic/inventory/bootstrap"
+              ? { data: bootstrap }
+              : path === "/api/clinic/inventory/catalog"
+                ? { data: catalog }
+                : undefined;
+      if (!body) unexpected.push(request.method() + " " + path);
+      await route.fulfill({
+        status: body ? 200 : 500,
+        json: body ?? { error: "Unexpected synthetic request" },
+      });
+    },
+  );
+  try {
+    await page.goto(base + "clinic/inventory/configure");
+    const configure = page.getByRole("button", {
+      name: "Configure inventory →",
+      exact: true,
+    });
+    await configure.waitFor();
+    expect(await configure.isDisabled()).toBe(true);
+    await page
+      .getByRole("combobox", { name: /^Configuration reason/ })
+      .selectOption("initial_setup");
+    expect(await configure.isDisabled()).toBe(false);
+    await configure.click();
+    await page
+      .getByRole("dialog", { name: "Confirm inventory action", exact: true })
+      .getByRole("button", { name: "Confirm action", exact: true })
+      .click();
+    await page.waitForURL(base + "clinic/inventory");
+    await page.getByRole("heading", { name: "Catalog", exact: true }).waitFor();
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body).toMatchObject({
+      status: "configured",
+      reason: "Initial clinic inventory setup",
+    });
+    expect(posts[0].body.request_key).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(errors).toEqual([]);
+    expect(unexpected).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 20_000);
+
+it("Muse138 the updated banner preserves the server timestamp and labels its clinic timezone across reload", async () => {
+  const page = await browser.newPage({
+    timezoneId: "UTC",
+    locale: "en-US",
+    viewport: { width: 1440, height: 1000 },
+  });
+  page.setDefaultTimeout(5_000);
+  const data: InventoryLocationData = structuredClone(locations);
+  data.as_of = "2026-09-28T23:41:46Z";
+  data.timezone = data.practice.timezone = "America/Chicago";
+  const errors: string[] = [];
+  const unexpected: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      const body =
+        path === "/api/csrf"
+          ? { csrf_token: "synthetic-inventory-proof" }
+          : path === "/api/clinic/inventory/locations"
+            ? { data }
+            : undefined;
+      if (!body) unexpected.push(path);
+      await route.fulfill({
+        status: body ? 200 : 500,
+        json: body ?? { error: "Unexpected synthetic request" },
+      });
+    },
+  );
+  try {
+    await page.goto(base + "clinic/inventory/locations");
+    await page
+      .getByRole("heading", {
+        name: "Inventory storage locations",
+        exact: true,
+      })
+      .waitFor();
+    const banner = page.locator(".inventory-header-meta");
+    expect((await banner.innerText()).replace(/\s+/g, " ")).toBe(
+      "Updated Sep 28, 6:41 PM · America/Chicago",
+    );
+    data.timezone = data.practice.timezone = "UTC";
+    await page.reload();
+    await page
+      .getByRole("heading", {
+        name: "Inventory storage locations",
+        exact: true,
+      })
+      .waitFor();
+    expect((await banner.innerText()).replace(/\s+/g, " ")).toBe(
+      "Updated Sep 28, 11:41 PM · UTC",
+    );
+    expect(data.as_of).toBe("2026-09-28T23:41:46Z");
+    expect(errors).toEqual([]);
+    expect(unexpected).toEqual([]);
   } finally {
     await page.close();
   }

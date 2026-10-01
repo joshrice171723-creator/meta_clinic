@@ -3096,7 +3096,8 @@ export function InventoryApp({ path }: { path: string }) {
                 aria-label="Inventory configuration status"
               />
               <span className="inventory-header-meta">
-                Updated {inventoryDateTime(data.as_of, data.timezone)}
+                Updated {inventoryDateTime(data.as_of, data.timezone)} ·{" "}
+                {data.timezone}
               </span>
               <Button
                 variant="outlined"
@@ -3661,6 +3662,9 @@ function inventoryFirstRunComplete(
 
 function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
   const firstRun = data.first_run;
+  const canSetUpSuppliers =
+    data.capabilities.supplier_pricing === true &&
+    capability(data, "inventory.catalog");
   const productQuery = firstRun.product_id
     ? `?product_id=${encodeURIComponent(firstRun.product_id)}&wizard=1`
     : "?wizard=1";
@@ -3684,6 +3688,7 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
       title: "Add a supplier",
       detail: "Create the vendor that will appear on purchase orders.",
       href: "/clinic/inventory/suppliers?wizard=1",
+      requiresSupplierSetup: true,
       action: "Open suppliers",
       complete: firstRun.supplier,
     },
@@ -3698,6 +3703,7 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
       title: "Record the supplier offer",
       detail: "Save the supplier SKU, package, price, and currency.",
        href: `/clinic/inventory/suppliers?${offerParams}`,
+      requiresSupplierSetup: true,
       action: "Record offer",
       complete: firstRun.offer,
     },
@@ -3747,9 +3753,15 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
                   : "Not started"}: {step.title}
             </strong>{" "}
             — {step.detail}{" "}
-            {!step.complete && (
-              <a href={step.href}>Continue to {step.title} →</a>
-            )}
+            {!step.complete &&
+              (step.requiresSupplierSetup && !canSetUpSuppliers ? (
+                <PermissionNote
+                  allowed={false}
+                  permission="Supplier setup access"
+                />
+              ) : (
+                <a href={step.href}>Continue to {step.title} →</a>
+              ))}
           </li>
         ))}
       </ol>

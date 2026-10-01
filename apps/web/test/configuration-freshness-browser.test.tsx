@@ -41,8 +41,10 @@ beforeAll(async () => {
           };
           const mode = new URLSearchParams(location.search).get("mode");
           if (mode === "capacity") context.capabilities.facilities_write = true;
+          if (new URLSearchParams(location.search).has("cancelProof")) context.capabilities.appointments_status_transition = true;
+          const bookingProof = new URLSearchParams(location.search).has("bookingProof");
           const root = createRoot(document.getElementById("root"));
-          root.render(mode === "capacity" ? React.createElement(WaitlistWorkspace) : mode === "schedule" ? React.createElement(ClinicSchedule, {}) : mode === "reports" ? React.createElement(OperationsReportsCatalog, {capabilities: context.capabilities, siteId: 1, timezone: context.practice.timezone}) : React.createElement(ClinicFrame,
+          root.render(mode === "capacity" ? React.createElement(WaitlistWorkspace) : mode === "schedule" ? React.createElement(ClinicSchedule, bookingProof ? {canBook: true, renderBooking: slot => React.createElement("output", {id: "booking-proof"}, JSON.stringify(slot))} : {}) : mode === "reports" ? React.createElement(OperationsReportsCatalog, {capabilities: context.capabilities, siteId: 1, timezone: context.practice.timezone}) : React.createElement(ClinicFrame,
             {practiceName: context.practice.name, timezone: context.practice.timezone, navigation: null,
              scopeSelector: React.createElement(ClinicScopeSelector, {context, onPracticeChange: () => {}, onLocationChange: () => {}})}, "Synthetic content"));`;
         },
@@ -110,6 +112,241 @@ async function open(page: Page, mode: string) {
 }
 
 describe("configuration labels and freshness", () => {
+  it("#180 preserves the selected day's real opening across calendar views", async () => {
+    const page = await browser.newPage({
+      timezoneId: "Asia/Tokyo",
+      viewport: { width: 1440, height: 1000 },
+    });
+    const slot = {
+      starts_at: "2030-10-06T14:30:00Z",
+      ends_at: "2030-10-06T15:00:00Z",
+      clinician_id: 9,
+      room_ids: [6],
+      provenance: {
+        generated_at: "2030-10-01T13:00:00Z",
+        source_rules: [{ id: 41, version: 2 }],
+      },
+    };
+    let mutations = 0;
+    try {
+      await page.route(
+        (url) => url.pathname.startsWith("/api/"),
+        (route) => {
+          const request = route.request();
+          if (request.method() !== "GET") mutations++;
+          const path = new URL(request.url()).pathname;
+          if (path === "/api/csrf")
+            return route.fulfill({ json: { csrf_token: "synthetic" } });
+          if (path === "/api/clinic/schedule_calendar")
+            return route.fulfill({
+              json: {
+                site_id: 1,
+                month: "2030-10",
+                timezone: "America/Chicago",
+                slot_minutes: 30,
+                as_of: slot.provenance.generated_at,
+                capacity_configured: true,
+                clinicians: [{ id: 9, name: "Synthetic opening clinician" }],
+                rooms: [
+                  { id: 6, name: "Synthetic opening room", kind: "physical" },
+                ],
+                days: [
+                  {
+                    date: "2030-10-06",
+                    scheduled: 0,
+                    confirmed: 0,
+                    available: 1,
+                    conflicts: 0,
+                    slots: [slot],
+                    holds: [],
+                    appointments: [],
+                  },
+                ],
+              },
+            });
+          return route.fulfill({
+            status: 404,
+            json: { error: "Unexpected synthetic opening route" },
+          });
+        },
+      );
+      for (const view of ["month", "day"]) {
+        await page.goto(
+          `${baseUrl}/configuration-freshness-fixture?mode=schedule&month=2030-10&day=2030-10-06&view=${view}&bookingProof=1`,
+        );
+        await page.getByText(/Schedule as of/).waitFor();
+        await page
+          .getByRole("button", { name: "Book appointment", exact: true })
+          .click();
+        const output = page.locator("#booking-proof");
+        await output.waitFor();
+        expect(JSON.parse(await output.innerText())).toEqual({
+          site_id: 1,
+          clinician_id: 9,
+          room_id: 6,
+          starts_at: slot.starts_at,
+          ends_at: slot.ends_at,
+          provenance: {
+            ...slot.provenance,
+            site_id: 1,
+            clinician_id: 9,
+            starts_at: slot.starts_at,
+            ends_at: slot.ends_at,
+            timezone: "America/Chicago",
+          },
+        });
+      }
+      expect(mutations).toBe(0);
+    } finally {
+      await page.close();
+    }
+  }, 20000);
+
+  it("#107 cancels from the actual schedule dialog and retains cancellation after reload", async () => {
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 1000 },
+    });
+    const patientName = "Synthetic schedule cancellation patient";
+    let status = "scheduled";
+    let calendarReads = 0;
+    const transitions: unknown[] = [];
+    try {
+      await page.route(
+        (url) => url.pathname.startsWith("/api/"),
+        (route) => {
+          const request = route.request();
+          const path = new URL(request.url()).pathname;
+          if (path === "/api/csrf")
+            return route.fulfill({ json: { csrf_token: "synthetic" } });
+          if (path === "/api/clinic/appointments/901/transition") {
+            expect(request.method()).toBe("POST");
+            expect(request.headers()["x-csrf-token"]).toBe("synthetic");
+            transitions.push(request.postDataJSON());
+            status = "cancelled";
+            return route.fulfill({
+              json: {
+                appointment: { id: 901, status },
+                transition: { from: "scheduled", to: status },
+              },
+            });
+          }
+          if (path === "/api/clinic/schedule_calendar") {
+            calendarReads++;
+            return route.fulfill({
+              json: {
+                site_id: 1,
+                month: "2026-10",
+                timezone: "America/Chicago",
+                slot_minutes: 30,
+                as_of: "2026-10-01T13:00:00Z",
+                capacity_configured: true,
+                clinicians: [
+                  { id: 9, name: "Synthetic cancellation clinician" },
+                ],
+                rooms: [],
+                days: [
+                  {
+                    date: "2026-10-01",
+                    scheduled: status === "scheduled" ? 1 : 0,
+                    confirmed: 0,
+                    available: 0,
+                    conflicts: 0,
+                    slots: [],
+                    holds: [],
+                    appointments: [
+                      {
+                        id: 901,
+                        patient_id: 801,
+                        site_id: 1,
+                        booked_clinician_id: 9,
+                        room_id: null,
+                        starts_at: "2026-10-01T14:00:00Z",
+                        ends_at: "2026-10-01T14:30:00Z",
+                        status,
+                        calendar_status: status,
+                        conflict: false,
+                        encounter_id: null,
+                        patient: {
+                          id: 801,
+                          display_name: patientName,
+                          reference: "SYN-107-PATIENT",
+                        },
+                        clinician_name: "Synthetic cancellation clinician",
+                        room_name: null,
+                        visit_type_name: "Synthetic cancellation visit",
+                      },
+                    ],
+                  },
+                ],
+              },
+            });
+          }
+          return route.fulfill({
+            status: 404,
+            json: { error: "Unexpected synthetic cancellation route" },
+          });
+        },
+      );
+      await page.goto(
+        `${baseUrl}/configuration-freshness-fixture?mode=schedule&month=2026-10&day=2026-10-01&view=day&cancelProof=1`,
+      );
+      await page.getByRole("button").filter({ hasText: patientName }).click();
+      const cancel = page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Cancel appointment", exact: true });
+      expect(await cancel.isEnabled()).toBe(true);
+      await cancel.click();
+      expect(transitions).toHaveLength(0);
+      await page
+        .getByRole("alertdialog")
+        .getByRole("button", { name: "Go back", exact: true })
+        .click();
+      expect(transitions).toHaveLength(0);
+      await cancel.click();
+      await page
+        .getByRole("alertdialog")
+        .getByRole("button", { name: "Confirm cancellation", exact: true })
+        .click();
+      await expect.poll(() => transitions.length).toBe(1);
+      expect(transitions[0]).toEqual({
+        transition: {
+          to: "cancelled",
+          expected_status: "scheduled",
+          cancellation_message_acknowledged: true,
+        },
+      });
+      await expect
+        .poll(() =>
+          page.getByRole("button").filter({ hasText: patientName }).innerText(),
+        )
+        .toContain("Cancelled");
+      const readsBeforeReload = calendarReads;
+      await page.reload();
+      await expect.poll(() => calendarReads).toBeGreaterThan(readsBeforeReload);
+      const cancelled = page
+        .getByRole("button")
+        .filter({ hasText: patientName });
+      await expect.poll(() => cancelled.innerText()).toContain("Cancelled");
+      await cancelled.click();
+      expect(
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: "Cancel appointment", exact: true })
+          .isDisabled(),
+      ).toBe(true);
+      expect(transitions).toHaveLength(1);
+    } catch (error) {
+      console.error(
+        "#107 actual schedule diagnostic",
+        page.url(),
+        await page.locator("body").innerText(),
+      );
+      throw error;
+    } finally {
+      await page.close();
+    }
+  }, 20000);
+
   it("#136 renders an unnamed capacity profile and a named saved calendar appointment through reload", async () => {
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },

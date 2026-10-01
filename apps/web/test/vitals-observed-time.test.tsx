@@ -36,8 +36,13 @@ beforeAll(async () => {
           return `import React from "react";
           import {createRoot} from "react-dom/client";
           import {VitalSignsEntry} from "/src/features/clinic/VitalSignsEntry";
+          import {StaffIntakeSections} from "/src/features/clinic/StaffIntakeSections";
           function App() {
             const [recorded,setRecorded]=React.useState(false);
+            const [answers,setAnswers]=React.useState({date:{state:"answered",value:""},datetime:{state:"answered",value:""}});
+            if(new URLSearchParams(location.search).has("intake")) return React.createElement(React.Fragment,null,
+              React.createElement(StaffIntakeSections,{sectionId:"synthetic_dates",fields:[{id:"date",label:"Intake date",input_type:"date"},{id:"datetime",label:"Intake time",input_type:"datetime-local"}],answers,disabled:false,onChange:setAnswers}),
+              React.createElement("output",{id:"answers"},JSON.stringify(answers)));
             return React.createElement(React.Fragment,null,
               React.createElement(VitalSignsEntry,{patientId:12,patientName:"Synthetic Patient",encounterId:30,onRecorded:()=>setRecorded(true)}),
               React.createElement("p",{id:"recorded"},String(recorded)));
@@ -187,3 +192,37 @@ it.each(["UTC", "America/Chicago", "Asia/Kolkata"])(
   },
   15000,
 );
+
+it("#11 intake date and datetime accept direct entry without calendar arrows or Enter", async () => {
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  try {
+    await page.goto(`${baseUrl}/vitals-time?intake=1`);
+    const date = page.getByLabel("Intake date", { exact: true });
+    const datetime = page.getByLabel("Intake time", { exact: true });
+    await date.waitFor();
+    expect(await date.getAttribute("type")).toBe("date");
+    expect(await datetime.getAttribute("type")).toBe("datetime-local");
+    await date.fill("2030-10-29");
+    await datetime.fill("2030-10-29T14:35");
+    await datetime.press("Tab");
+    expect(await date.inputValue()).toBe("2030-10-29");
+    expect(await datetime.inputValue()).toBe("2030-10-29T14:35");
+    await expect
+      .poll(async () => JSON.parse(await page.locator("#answers").innerText()))
+      .toEqual({
+        date: { state: "answered", value: "2030-10-29" },
+        datetime: { state: "answered", value: "2030-10-29T14:35" },
+      });
+    await date.fill("2030-11-02");
+    expect(await date.inputValue()).toBe("2030-11-02");
+    await expect
+      .poll(
+        async () =>
+          JSON.parse(await page.locator("#answers").innerText()).date.value,
+      )
+      .toBe("2030-11-02");
+  } finally {
+    await page.close();
+  }
+}, 20000);

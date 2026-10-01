@@ -204,6 +204,14 @@ class NamedTestAccountsTest < ActionDispatch::IntegrationTest
       assert_equal "omni", response.parsed_body.dig("user", "development_account_id")
       assert_equal practice.id, session[:clinic_membership_id] && Clinic::Membership.find(session[:clinic_membership_id]).practice_id
       assert_equal second_site.id, session[:clinic_site_id]
+      selected_user_id = response.parsed_body.fetch("user").fetch("id")
+      get "/api/session", headers: @headers
+      assert_response :success
+      assert_equal selected_user_id, response.parsed_body.dig("user", "id")
+      get "/api/clinic/context", headers: @headers
+      assert_response :success
+      assert_equal practice.id, response.parsed_body.dig("practice", "id")
+      assert_equal second_site.id, response.parsed_body.dig("current_site", "id")
     end
   end
 

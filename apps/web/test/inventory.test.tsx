@@ -106,6 +106,33 @@ function catalogFixture(): InventoryCatalogData {
 }
 
 describe("inventory integration", () => {
+  it("#161 supplier guide actions require both projected pricing and catalog access", () => {
+    const data = catalogFixture();
+    for (const pricing of [false, true]) {
+      for (const catalog of [false, true]) {
+        data.capabilities = {
+          supplier_pricing: pricing,
+          "inventory.catalog": catalog,
+        };
+        const html = renderToStaticMarkup(
+          <CatalogScreen data={data} onRead={async () => {}} />,
+        );
+        const allowed = pricing && catalog;
+        expect(
+          html.includes('href="/clinic/inventory/suppliers?wizard=1"'),
+        ).toBe(allowed);
+        expect(
+          html.includes('href="/clinic/inventory/suppliers?wizard=offer'),
+        ).toBe(allowed);
+        expect(
+          html.includes("Supplier setup access is required for this action."),
+        ).toBe(!allowed);
+        expect(html).toContain("Continue to Put stock in a bin");
+        expect(html).toContain("Continue to Create the purchase order");
+      }
+    }
+  });
+
   it("#154 renders the recorded zero threshold and compares stock with that value", () => {
     const data = catalogFixture();
     const render = () =>

@@ -733,13 +733,10 @@ export function ClinicSchedule({
               variant="contained"
               disabled={!siteId}
               onClick={() => {
-                const firstAvailableSlot =
-                  view === "day"
-                    ? selectedDay?.slots.find(
-                        (slot) =>
-                          Date.parse(slot.starts_at) > businessNow().getTime(),
-                      )
-                    : undefined;
+                const firstAvailableSlot = selectedDay?.slots.find(
+                  (slot) =>
+                    Date.parse(slot.starts_at) > businessNow().getTime(),
+                );
                 setBooking(
                   firstAvailableSlot
                     ? calendarSlotBooking(

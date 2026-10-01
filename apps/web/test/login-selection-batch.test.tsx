@@ -19,7 +19,7 @@ beforeAll(async () => {
           if (value === id)
             return `import React from "react";import {createRoot} from "react-dom/client";import {Login} from "/src/features/identity/Login";
  const accounts=[{id:"employee-independent",label:"Independent synthetic team",account_type:"employee",destination:"/clinic",clinic:{id:82,name:"Omni Test Clinic"},locations:[{id:201,name:"Verify",code:"VERF"},{id:202,name:"QA Gate Test",code:"QAGT"}]},{id:"employee-synthetic",label:"Synthetic clinician",account_type:"employee",destination:"/clinic",organization:{id:1,name:"Synthetic organization"},clinic:{id:81,name:"Synthetic clinic"},locations:[{id:101,name:"Synthetic location",code:"SYN"}]},{id:"patient-synthetic",label:"Synthetic patient",account_type:"patient",destination:"/patient-portal"}];
- createRoot(document.getElementById("root")).render(React.createElement(Login,{developmentLogin:!new URLSearchParams(location.search).has("credentials"),developmentAccounts:accounts,environment:"test",businessDate:"2026-10-01"}));`;
+ createRoot(document.getElementById("root")).render(React.createElement(Login,{developmentLogin:!new URLSearchParams(location.search).has("credentials"),developmentAccounts:new URLSearchParams(location.search).has("noPatient")?accounts.filter(account=>account.account_type!=="patient"):accounts,environment:"test",businessDate:"2026-10-01"}));`;
         },
         configureServer(s) {
           s.middlewares.use("/login", async (_request, response) => {
@@ -203,3 +203,70 @@ it("#59 Independent clinics grouping exposes its own VERF and QAGT without mixin
     await page.close();
   }
 });
+
+it("#100 patient sign-in remains reachable without preview accounts and sends credentials to the patient destination", async () => {
+  const page = await browser.newPage();
+  const postPaths: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST")
+      postPaths.push(new URL(request.url()).pathname);
+  });
+  try {
+    await page.route(`${baseUrl}/patient-portal`, (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<main><h1>Patient destination reached</h1></main>",
+      }),
+    );
+    const writes = await fixture(page, "/clinic");
+    await page.goto(`${baseUrl}/login?next=%2Fclinic&noPatient=1`);
+    await page
+      .getByRole("link", {
+        name: "Sign in with patient portal account",
+        exact: true,
+      })
+      .click();
+    await page.waitForURL("**/login?next=%2Fpatient-portal");
+    await page
+      .getByRole("heading", { name: "Patient portal", exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByText("No patient accounts are available.", { exact: true })
+        .count(),
+    ).toBe(0);
+    expect(
+      await page
+        .getByText(
+          "Patients use the account activated from their clinic invitation.",
+          { exact: true },
+        )
+        .isVisible(),
+    ).toBe(true);
+    await page
+      .getByLabel("Email address", { exact: true })
+      .fill("synthetic-patient@example.invalid");
+    await page
+      .getByLabel("Password", { exact: true })
+      .fill("Synthetic-patient-password-123!");
+    const signIn = page.getByRole("button", { name: "Sign in", exact: true });
+    expect(await signIn.isEnabled()).toBe(true);
+    await signIn.click();
+    await page.waitForURL((url) => url.pathname === "/patient-portal");
+    await page
+      .getByRole("heading", {
+        name: "Patient destination reached",
+        exact: true,
+      })
+      .waitFor();
+    expect(postPaths).toEqual(["/api/session"]);
+    expect(writes).toEqual([
+      {
+        email_address: "synthetic-patient@example.invalid",
+        password: "Synthetic-patient-password-123!",
+      },
+    ]);
+  } finally {
+    await page.close();
+  }
+}, 20000);
