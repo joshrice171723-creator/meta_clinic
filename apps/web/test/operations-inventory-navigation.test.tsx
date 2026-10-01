@@ -487,6 +487,7 @@ it("Muse102 receiving exposes native leaf creation and posts a receipt to that e
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
   });
+  page.setDefaultTimeout(5_000);
   const receiving = receivingFixture();
   const locationData: InventoryLocationData = structuredClone(locations);
   locationData.capabilities = { "inventory.configure": true };
@@ -588,7 +589,7 @@ it("Muse102 receiving exposes native leaf creation and posts a receipt to that e
     });
     await page.getByRole("link", { name: "← Back", exact: true }).click();
     await page.waitForURL(base + "clinic/inventory/receiving");
-    const destination = page.getByLabel("Destination", { exact: true });
+    const destination = page.getByRole("combobox", { name: /^Destination/ });
     await destination.waitFor();
     expect(await destination.inputValue()).toBe("901");
     expect(await destination.locator("option").innerText()).toBe(
