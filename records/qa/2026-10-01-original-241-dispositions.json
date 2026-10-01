@@ -1,15 +1,15 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T19:27:13.492271+00:00",
+    "generated_at": "2026-10-01T19:38:48.902461+00:00",
     "source_revision": "62f52c4d9e1d775cebf647ce33439108247ee0ea",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 103,
-    "remaining": 138,
+    "closed": 106,
+    "remaining": 135,
     "counts": {
-      "mixed": 64,
-      "fixed_and_verified": 95,
-      "unverified": 49,
+      "mixed": 62,
+      "fixed_and_verified": 98,
+      "unverified": 48,
       "deferred": 5,
       "blocked": 19,
       "policy_resolved": 1,
@@ -73,7 +73,69 @@
       }
     ],
     "preserved_failures": "c25 consolidated168/2189 had2failures1error before clock fixtures; receipt first attempt1/3 failed before render because fixture omitted required currency. Narrow corrected reruns supersede only affected failures; no fresh entire-suite pass claimed.",
-    "release": "Existing branch only; no main merge/deployment. Owner/publisher freeze, held source and exact-build Muse verification remain unresolved. Demo/redesign queued."
+    "release": "Existing branch only; no main merge/deployment. Owner/publisher freeze, held source and exact-build Muse verification remain unresolved. Demo/redesign queued.",
+    "progress_reviews": [
+      {
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate",
+        "blocking_input": null,
+        "disposition": "fixed_and_verified",
+        "integrator_evidence": [
+          "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-frontend/issue193/frozen-6758-login-results.json"
+        ],
+        "key": "193 | Sign-in ignores the `next` return URL",
+        "remaining_qa_input": null,
+        "components": [
+          {
+            "detail": "Actual session lock creates next; actual Login returns to exact encounter URL including mode=previous and selected practice/site. Five browser checks pass. Destination chart contents and real backend authentication are outside this URL defect proof.",
+            "status": "locally_verified",
+            "claim_scope": "Session lock return URL"
+          }
+        ],
+        "scope": "Original return-URL defect verified locally through actual SessionGuard and Login; synthetic API responses, no hosted acceptance.",
+        "integrated_source_revision": "6758b7b33b59c3f48eced9f5534323d3755cf9af"
+      },
+      {
+        "scope": "Original ambiguity corrected by explicit overlap explanation, verified in rendered current unchanged component.",
+        "disposition": "fixed_and_verified",
+        "integrator_evidence": [
+          "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-frontend/issue117/disposition.json"
+        ],
+        "key": "117 | Morning view drawer summary counts overlap — categories don't sum to sessions",
+        "evidence_label": "whole_current_local_claim_verified; reused_6659_proof; hosted_acceptance_separate",
+        "components": [
+          {
+            "claim_scope": "Drawer summary overlap",
+            "detail": "Existing actual Catalog rendering checks four distinct drawers, one open, three awaiting reconciliation, one overlapping variance and explicit overlap explanation. Relevant component, test and query unchanged since passing 6659 proof.",
+            "status": "locally_verified"
+          }
+        ],
+        "remaining_qa_input": null,
+        "integrated_source_revision": "6758b7b33b59c3f48eced9f5534323d3755cf9af",
+        "blocking_input": null,
+        "integrator_review_note": "Counted corrected explanatory copy, not invalidation of historical confusion. Git diff confirms component/test/query unchanged from verified revision."
+      },
+      {
+        "components": [
+          {
+            "detail": "Persisted create/update/destroy/touch metadata across eight authorized sources retains action/identity/actor; invalid actions rejected without stored rows. Actual Patients browser renders all supported actions including metadata-only touch. Existing coordination recorded-action check passes. Nine query cases and one focused browser case pass.",
+            "claim_scope": "Activity action labels",
+            "status": "locally_verified"
+          }
+        ],
+        "disposition": "fixed_and_verified",
+        "blocking_input": null,
+        "remaining_qa_input": null,
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate",
+        "integrated_source_revision": "6758b7b33b59c3f48eced9f5534323d3755cf9af",
+        "key": "243 | Activity feed entries missing action labels (WF-115)",
+        "integrator_evidence": [
+          "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-evidence-continuation/issue-243-disposition.md",
+          "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-evidence-continuation/issue-243-browser-6758.json",
+          "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/reconciliation/run-6758b7b33b59-20261001T193608Z-671ecd/focused-disposition-backend-qa.json"
+        ],
+        "scope": "Current local action metadata persistence/projection and actual rendered labels verified; historical hosted replay separate."
+      }
+    ]
   },
   "entries": [
     {
@@ -487,26 +549,23 @@
       "key": "243 | Activity feed entries missing action labels (WF-115)",
       "title": "Activity feed entries missing action labels (WF-115)",
       "source_line": 55,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Partial local behavior verified; remaining material original-claim behavior unverified. Excluded from the closed count.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Current local action metadata persistence/projection and actual rendered labels verified; historical hosted replay separate.",
       "components": [
         {
-          "claim_scope": "Supported local part",
-          "status": "locally_verified",
-          "detail": "Create/update action lines render in an executed browser fixture; current query/formatter source supports nonblank valid events."
-        },
-        {
-          "claim_scope": "Remaining original claim",
-          "status": "unverified",
-          "detail": "The reported missing-action entry variants are not covered by the generic two-event fixture."
+          "detail": "Persisted create/update/destroy/touch metadata across eight authorized sources retains action/identity/actor; invalid actions rejected without stored rows. Actual Patients browser renders all supported actions including metadata-only touch. Existing coordination recorded-action check passes. Nine query cases and one focused browser case pass.",
+          "claim_scope": "Activity action labels",
+          "status": "locally_verified"
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "The reported missing-action entry variants are not covered by the generic two-event fixture.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-243-result.json"
+        "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-evidence-continuation/issue-243-disposition.md",
+        "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-evidence-continuation/issue-243-browser-6758.json",
+        "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/reconciliation/run-6758b7b33b59-20261001T193608Z-671ecd/focused-disposition-backend-qa.json"
       ],
       "integrator_review_note": null
     },
@@ -2285,15 +2344,23 @@
       "key": "117 | Morning view drawer summary counts overlap — categories don't sum to sessions",
       "title": "Morning view drawer summary counts overlap — categories don't sum to sessions",
       "source_line": 227,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Original ambiguity corrected by explicit overlap explanation, verified in rendered current unchanged component.",
+      "components": [
+        {
+          "claim_scope": "Drawer summary overlap",
+          "detail": "Existing actual Catalog rendering checks four distinct drawers, one open, three awaiting reconciliation, one overlapping variance and explicit overlap explanation. Relevant component, test and query unchanged since passing 6659 proof.",
+          "status": "locally_verified"
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Confirm overlapping variance category is clearly explained in rendered summary; arithmetic semantics are verified locally but original UX interpretation is not a current hosted test.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
-      "integrator_review_note": null
+      "integrator_evidence": [
+        "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-frontend/issue117/disposition.json"
+      ],
+      "integrator_review_note": "Counted corrected explanatory copy, not invalidation of historical confusion. Git diff confirms component/test/query unchanged from verified revision."
     },
     {
       "index": 106,
@@ -3715,25 +3782,22 @@
       "key": "193 | Sign-in ignores the `next` return URL",
       "title": "Sign-in ignores the `next` return URL",
       "source_line": 375,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Partial local behavior verified; remaining material original-claim behavior unverified. Excluded from the closed count.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Original return-URL defect verified locally through actual SessionGuard and Login; synthetic API responses, no hosted acceptance.",
       "components": [
         {
-          "claim_scope": "Supported local part",
+          "detail": "Actual session lock creates next; actual Login returns to exact encounter URL including mode=previous and selected practice/site. Five browser checks pass. Destination chart contents and real backend authentication are outside this URL defect proof.",
           "status": "locally_verified",
-          "detail": "Four browser checks verify Login uses a supplied safe encounter return URL and original selected practice/site."
-        },
-        {
-          "claim_scope": "Remaining original claim",
-          "status": "unverified",
-          "detail": "The original session-lock transition, generated return URL, real session restoration and destination encounter access are not exercised by the mocked Login-only fixture."
+          "claim_scope": "Session lock return URL"
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "The original session-lock transition, generated return URL, real session restoration and destination encounter access are not exercised by the mocked Login-only fixture.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:/Users/joshr/Documents/Codex/2026-10-01/finish-and-close-out-the-meta/work/sol-frontend/issue193/frozen-6758-login-results.json"
+      ],
       "integrator_review_note": null
     },
     {

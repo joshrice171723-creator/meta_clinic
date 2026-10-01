@@ -1,6 +1,6 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 103/241. Original dispositions recorded: 241/241.**
+**Issues closed: 106/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
@@ -28,11 +28,11 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 95 |
-| mixed | 64 |
+| fixed_and_verified | 98 |
+| mixed | 62 |
 | policy_resolved | 1 |
 | proven_invalid | 8 |
-| unverified | 49 |
+| unverified | 48 |
 
 ## Every original entry
 
@@ -58,7 +58,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 18 | #232 | GOALS tab disabled-state copy references the wrong entity | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 19 | #234 | Duplicated Scribe consent helper text on /clinic/settings/telehealth | unverified | An authorized intact dependency graph or permitted hydrated DOM/accessibility evidence for Scribe enabled and disabled; unchanged static rendering alone does not prove hydration behavior. |
 | 20 | #238 | Intermittent 502 Bad Gateway on /clinic and /clinic/setup (nginx) | unverified | Capture timestamped nginx/upstream logs and full live revision during502 on clinic/setup; later recovery does not identify or fix cause. |
-| 21 | #243 | Activity feed entries missing action labels (WF-115) | mixed | The reported missing-action entry variants are not covered by the generic two-event fixture. |
+| 21 | #243 | Activity feed entries missing action labels (WF-115) | fixed_and_verified | Persisted create/update/destroy/touch metadata across eight authorized sources retains action/identity/actor; invalid actions rejected without stored rows. Actual Patients browser renders all supported actions including metadata-only touch. Existing coordination recorded-action check passes. Nine query cases and one focused browser case pass. |
 | 22 | #244 | Care coordination changes not recorded in patient activity feed (WF-115) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 23 | #245 | Patient directory "Open QAGT" link inconsistent (WF-115) | fixed_and_verified | Actual directory rendering uses Open patient with the correct patient-ID href for both ordinary and QAGT-shaped names; the existing passing test and current source agree. Historical hosted observation remains preserved. |
 | 24 | #246 | Dev-speak "Workspace tools TEST" heading on /owner (WF-116) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
@@ -143,7 +143,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 103 | #112 | Staff conversation creation denied for Administrator — "Your account does not have permission for this clinic action" | mixed | Original Administrator effective grant is unknown; do not invalidate denial from role label or manufacture a grant. |
 | 104 | #113 | Cash drawer close accepts a zero count with no validation — closes with a -$100 discrepancy silently | fixed_and_verified | Zero is valid; local cash-drawer discrepancy warning/confirmation behavior verified in five-case113-117 batch; historical silent-close claim retained. |
 | 105 | #116 | Closed-drawer summary does not re-render after reload | fixed_and_verified | Actual synthetic reload summary case verifies counted amount/discrepancy in five-case113-117 batch. |
-| 106 | #117 | Morning view drawer summary counts overlap — categories don't sum to sessions | unverified | Confirm overlapping variance category is clearly explained in rendered summary; arithmetic semantics are verified locally but original UX interpretation is not a current hosted test. |
+| 106 | #117 | Morning view drawer summary counts overlap — categories don't sum to sessions | fixed_and_verified | Existing actual Catalog rendering checks four distinct drawers, one open, three awaiting reconciliation, one overlapping variance and explicit overlap explanation. Relevant component, test and query unchanged since passing 6659 proof. |
 | 107 | #118 | Selecting "QA Gate Test" from the location chooser locks the session instead of switching | unverified | Capture original location-switch response, actor generation and cookies to distinguish legitimate denial from unintended session lock. |
 | 108 | #119 | VERF shows "Clinic setup is complete" while workforce claims unconfigured | fixed_and_verified | Setup-profile completeness distinguished from workforce readiness in locally passing guidance case; affected053 case passed. |
 | 109 | #120 | Write-off submit button mislabeled "Void invoice" | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
@@ -217,7 +217,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 177 | #190 | Contradictory save-state copy | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 178 | #191 | Enabled "Create plan" is a dead end that always fails on save | mixed | Original valid open/facility-qualified save workflow and full UI-to-persistence mapping are not fully proven. |
 | 179 | #192 | "Assessment" naming overlap confuses two different features | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 180 | #193 | Sign-in ignores the `next` return URL | mixed | The original session-lock transition, generated return URL, real session restoration and destination encounter access are not exercised by the mocked Login-only fixture. |
+| 180 | #193 | Sign-in ignores the `next` return URL | fixed_and_verified | Actual session lock creates next; actual Login returns to exact encounter URL including mode=previous and selected practice/site. Five browser checks pass. Destination chart contents and real backend authentication are outside this URL defect proof. |
 | 181 | #196 | Draft recovery is path-dependent and undocumented | unverified | Documented generic versus explicit-slot recovery contract plus both paths with same persisted draft. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 182 | #197 | "Checking for a pre-visit note…" loader never resolves | unverified | Original previsit-history request completes or exposes failure/retry; no indefinitely unresolved loader. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 183 | #198 | Chart fields render read-only after "Save new revision" until reload | mixed | The actual chart parent refresh/rehydration callback after Save new revision is absent from the fixture. |
