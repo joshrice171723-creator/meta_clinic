@@ -883,8 +883,8 @@ function DeliveryMethodField({
         </RadioGroup>
         {!smsAvailable && (
           <Typography variant="caption" color="text.secondary">
-            Text delivery becomes available after the Twilio Messaging sender is
-            configured on this server.
+            Text messages are not available yet. Send the activation link by
+            email.
           </Typography>
         )}
       </FormControl>

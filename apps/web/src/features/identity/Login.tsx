@@ -80,7 +80,13 @@ export function Login({
         <p>Your clinics, your team, and your workflows in one place.</p>
       </div>
       <section className="form-card login-card">
-        <EnvironmentLabel environment={environment} />
+        {environment === "test" ? (
+          <Typography color="text.secondary" variant="body2">
+            This workspace is for testing.
+          </Typography>
+        ) : (
+          <EnvironmentLabel environment={environment} />
+        )}
         {configurationError && (
           <Alert
             severity="error"

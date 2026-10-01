@@ -1039,7 +1039,7 @@ export function ClinicalPlanWorkspace({
     (targetKind !== "assessments" || data.assessment_scope.length > 0);
   const carePlanCreateBlockedReason =
     encounter.status !== "open" || encounter.ended_at !== null
-      ? "Reopen the encounter before creating a care plan."
+      ? "Reopen the encounter before creating a care plan or adding a care goal."
       : !encounter.site_id
         ? "Assign a facility to the encounter before creating a care plan."
         : !data.capabilities.care_plans

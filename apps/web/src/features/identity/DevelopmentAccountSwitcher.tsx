@@ -700,10 +700,17 @@ export function DevelopmentToolbar({
             <Typography component="span" sx={{ fontSize: 14, fontWeight: 700 }}>
               Workspace tools
             </Typography>
-            <EnvironmentLabel environment={environment} />
+            {environment !== "test" && (
+              <EnvironmentLabel environment={environment} />
+            )}
           </Stack>
         </AccordionSummary>
         <AccordionDetails sx={{ px: 0, pb: 0 }}>
+          {environment === "test" && (
+            <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
+              This workspace is for testing.
+            </Typography>
+          )}
           <DevelopmentControls
             accounts={accounts}
             activeId={activeId}
