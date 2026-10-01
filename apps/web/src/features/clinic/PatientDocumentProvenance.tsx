@@ -91,7 +91,7 @@ function useExplicitSave(onSaved: (acknowledgement: Record<string, unknown>) => 
 }
 
 function Pages({ pagination, onPage, disabled = false }: { pagination: Pagination; onPage: (page: number) => void; disabled?: boolean }) {
-  return <Stack direction="row" spacing={1} alignItems="center">
+  return <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
     <Button disabled={disabled || pagination.page <= 1} onClick={() => onPage(pagination.page - 1)}>Previous page</Button>
     <Typography variant="body2">Page {pagination.page} of {Math.max(1, pagination.total_pages)}</Typography>
     <Button disabled={disabled || pagination.page >= pagination.total_pages} onClick={() => onPage(pagination.page + 1)}>Next page</Button>
@@ -122,7 +122,7 @@ function DocumentWorkspace({ patientId }: { patientId: number }) {
       <CategoryConfiguration />
       {!documents.data ? <LoadState error={documents.error} onRetry={documents.refresh} /> : <>
         {documents.data.documents.length === 0 && <Typography>No documents were returned on this page.</Typography>}
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
           {documents.data.documents.map((document) => <Button key={document.id} variant={selected === document.id ? "contained" : "outlined"} disabled={detailLocked && selected !== document.id} onClick={() => setSelected(document.id)}>{document.category.name} · Document #{document.id}</Button>)}
         </Stack>
         <Pages pagination={documents.data.pagination} onPage={(next) => { setSelected(null); setPage(next); }} disabled={detailLocked} />
@@ -188,7 +188,7 @@ function ConfigurationEditor({ category, onSaved, onLock }: { category: Category
       <FormControlLabel label="Supplied metadata applies to this category" control={<Checkbox checked={draft.applicable} disabled={mutation.busy || Boolean(mutation.pending)} onChange={(_, checked) => setDraft({ ...draft, applicable: checked, fields: checked ? draft.fields : [] })} />} />
       <Typography variant="body2">Turning applicability off clears selected fields. Turning it on requires explicitly selecting at least one field.</Typography>
       {draft.applicable && draft.fields.length === 0 && <Alert severity="warning">Select at least one supplied metadata field before saving an applicable category.</Alert>}
-      {FIELDS.map((field) => <FormControlLabel key={field} label={label(field)} control={<Checkbox checked={draft.fields.includes(field)} disabled={!draft.applicable || mutation.busy || Boolean(mutation.pending)} onChange={(_, checked) => setDraft({ ...draft, fields: FIELDS.filter((value) => value === field ? checked : draft.fields.includes(value)) })} />} />
+      {FIELDS.map((field) => <FormControlLabel key={field} label={label(field)} control={<Checkbox checked={draft.fields.includes(field)} disabled={!draft.applicable || mutation.busy || Boolean(mutation.pending)} onChange={(_, checked) => setDraft({ ...draft, fields: FIELDS.filter((value) => value === field ? checked : draft.fields.includes(value)) })} />} />)}
       <Stack direction="row" spacing={1}>
         <Button disabled={!category.can_configure || mutation.busy || Boolean(mutation.pending) || mutation.stale || draft.revision !== saved.revision || (draft.applicable && draft.fields.length === 0)} onClick={save}>Save configuration</Button>
         <Button disabled={mutation.busy || Boolean(mutation.pending)} onClick={() => setDraft(null)}>Cancel edits</Button>
