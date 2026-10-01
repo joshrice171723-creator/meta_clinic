@@ -152,7 +152,7 @@ it.skipIf(!process.env.QA_REAL_BASE_URL)("#189/#118 actual App first scoped logi
     await choose(page, "Select clinic team account", account.label);
     await page.getByRole("button", { name: "Log in", exact: true }).click();
     await page.waitForURL((url) => url.pathname === "/clinic", { timeout: 35000 });
-    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    await page.locator(".clinic-shell").waitFor({ state: "visible" });
     expect(writes).toEqual([{ body: {
       profile: account.id, portal: "clinic",
       practice_id: String(account.clinic.id), site_id: String(site.id),
@@ -170,8 +170,9 @@ it.skipIf(!process.env.QA_REAL_BASE_URL)("#189/#118 actual App first scoped logi
       return actor.user.id;
     };
     const actorId = await readback();
+    expect(actorId).toBe(seed.actor_user_id);
     await page.reload();
-    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    await page.locator(".clinic-shell").waitFor({ state: "visible" });
     expect(new URL(page.url()).pathname).toBe("/clinic");
     expect(await readback()).toBe(actorId);
     expect(writes).toHaveLength(1);
@@ -191,7 +192,7 @@ it.skipIf(!process.env.QA_REAL_BASE_URL)("#189/#118 actual App first scoped logi
     expect(denied.status()).toBe(404);
     expect(await readback(seed.second_site_id)).toBe(actorId);
     await page.reload();
-    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    await page.locator(".clinic-shell").waitFor({ state: "visible" });
     expect(await readback(seed.second_site_id)).toBe(actorId);
     expect(await page.getByText("Session locked", { exact: true }).count()).toBe(0);
     expect(writes).toHaveLength(1);

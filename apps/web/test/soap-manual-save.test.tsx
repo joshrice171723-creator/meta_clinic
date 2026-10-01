@@ -105,6 +105,13 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
       const encounterId = seed.note_scenarios.open_encounter_id;
       const path = `/clinic/patients/${seed.patient_id}/encounters/${encounterId}`;
       await page.goto(`${baseUrl}${path}`);
+      await page.locator(".clinic-shell").waitFor({ timeout: 30000 });
+      await page
+        .getByRole("button", {
+          name: "Confirm and begin charting",
+          exact: true,
+        })
+        .waitFor({ timeout: 30000 });
       await page
         .getByRole("button", {
           name: "Confirm and begin charting",
@@ -328,7 +335,10 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
       const scenario = seed.note_scenarios;
       const path = `/clinic/patients/${seed.patient_id}/encounters/${scenario.signed_encounter_id}`;
       await page.goto(`${baseUrl}${path}`);
-      await page.getByText("Chart Signed", { exact: true }).waitFor();
+      await page.locator(".clinic-shell").waitFor({ timeout: 30000 });
+      await page
+        .getByText("Chart Signed", { exact: true })
+        .waitFor({ timeout: 30000 });
       await page
         .getByRole("button", {
           name: "Confirm and view signed chart",

@@ -109,7 +109,7 @@ export async function loginReal(
   });
   expect(response.status()).toBe(201);
   await page.goto(realUrl(route));
-  await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  await page.locator(".clinic-shell").waitFor({ state: "visible", timeout: 30000 });
   const session = await realGet<{ user: { id: number } }>(page, "/api/session");
   expect(session.user.id).toBe(fixture.actor_user_id);
   const context = await realGet<{

@@ -89,7 +89,11 @@ it.skipIf(!process.env.QA_REAL_BASE_URL)("#58 actual App cross-window clinic cha
     await selectReal(first, "Access role", "Clinic Administrator");
     await first.getByRole("checkbox", { name: seed.site_name, exact: true }).check();
     await second.goto(realUrl("/clinic/workforce/employees"));
-    await second.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    await second.locator(".clinic-shell").waitFor({ state: "visible" });
+    expect((await realGet<{ user: { id: number } }>(second, "/api/session")).user.id).toBe(seed.actor_user_id);
+    const secondContext = await realGet<{ practice: { id: number }; current_site: { id: number } }>(second, "/api/clinic/context");
+    expect(secondContext.practice.id).toBe(seed.practice_id);
+    expect(secondContext.current_site.id).toBe(seed.site_id);
     const switched = second.waitForResponse((response) => new URL(response.url()).pathname === "/api/clinic/context" && response.request().method() === "PATCH");
     await selectReal(second, "Clinic", access.second_practice_name);
     expect((await switched).status()).toBe(200);
