@@ -352,7 +352,9 @@ it.each([true, false])(
   20000,
 );
 
-async function openAdjustableInvoice() {
+async function openAdjustableInvoice(
+  payments: BillingPatientLedger["payments"] = [],
+) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
@@ -363,6 +365,7 @@ async function openAdjustableInvoice() {
   await waitRequests(page, 2);
   await resolve(page, 0, {
     ...ledger,
+    payments,
     invoices: [
       {
         ...invoice,
@@ -487,8 +490,23 @@ it("#147 flags an excessive credit inline and disables submission until correcte
   }
 }, 15000);
 
-it("#146 links charge adjustments to the existing payment and refund history", async () => {
-  const { page, dialog } = await openAdjustableInvoice();
+it("#146 links charge adjustments to the executable cash refund workflow", async () => {
+  const { page, dialog } = await openAdjustableInvoice([
+    {
+      id: 88,
+      amount: "25",
+      currency: "USD",
+      allocated_amount: "25",
+      unapplied_amount: "0",
+      created_at: "2026-10-01T00:00:00Z",
+      allocations: [],
+      refunds: [],
+      cash_payment: true,
+      receipt_available: true,
+      cash_refund_available: true,
+      cash_refund_unavailable_reason: null,
+    },
+  ]);
   try {
     const link = dialog.getByRole("link", {
       name: "Review payments and refunds",
@@ -507,11 +525,30 @@ it("#146 links charge adjustments to the existing payment and refund history", a
         })
         .count(),
     ).toBe(1);
+    await history
+      .getByRole("button", { name: "Refund cash", exact: true })
+      .click();
+    await history
+      .getByRole("textbox", { name: "Cash refund amount" })
+      .fill("3.00");
+    await history
+      .getByRole("textbox", { name: "Refund reason" })
+      .fill("Synthetic return");
+    await history
+      .getByRole("button", { name: "Review refund", exact: true })
+      .click();
+    const confirmation = page.getByRole("dialog", {
+      name: "Confirm cash refund",
+    });
+    await confirmation.waitFor();
     expect(
-      await history
-        .getByText("No payments were returned for this patient.")
-        .count(),
+      await confirmation.getByText("Synthetic return", { exact: true }).count(),
     ).toBe(1);
+    expect(
+      await confirmation
+        .getByRole("button", { name: "Confirm refund", exact: true })
+        .isEnabled(),
+    ).toBe(true);
     expect((await requests(page)).filter((r) => r.method !== "GET")).toEqual(
       [],
     );

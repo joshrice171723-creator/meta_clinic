@@ -23,7 +23,9 @@ import {Patients} from '/src/features/clinic/Patients.tsx';
 const patient={id:77,display_name:'Synthetic activity patient',reference:'QA-ACTIVITY',demographics:{},contacts:[],emergency_contacts:[],social_histories:[]};
 const activity={coverage:[{source:'appointments',label:'Appointments',status:'included'},{source:'notes',label:'Encounter notes',status:'not_authorized'},{source:'care_coordination',label:'Care coordination',status:'included'}],has_more:true,entries:[
 {id:1,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:88,event:'create',actor_reference:'user:901',occurred_at:'2026-10-01T01:00:00Z',changed_fields:['starts_at']},
-{id:2,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:88,event:'update',actor_reference:'user:902',occurred_at:'2026-10-01T02:00:00Z',changed_fields:['status']} ]};
+{id:2,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:88,event:'update',actor_reference:'user:902',occurred_at:'2026-10-01T02:00:00Z',changed_fields:['status']},
+{id:3,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:89,event:'destroy',actor_reference:'user:903',occurred_at:'2026-10-01T02:10:00Z',changed_fields:['status']},
+{id:4,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:89,event:'touch',actor_reference:'user:904',occurred_at:'2026-10-01T02:20:00Z',changed_fields:[]} ]};
 let coordination={coordination:{id:1,patient_id:77,revision:1,payload:Object.fromEntries(['primary_care','specialists','pharmacy'].map(k=>[k,{state:'none',entries:[]}])),recorded_at:'2026-10-01T00:00:00Z',recorded_by_membership_id:9},can_write:true,limits:{primary_care:1,specialists:20,pharmacy:1}};
 window.qa={requests:[],mode:'success',request(path,options={}){
  this.requests.push({path,method:options.method||'GET'});
@@ -167,3 +169,25 @@ it.each(["success", "failure"])(
   },
   30000,
 );
+
+it("#243 keeps action labels on destroy and touch metadata-only activity", async () => {
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  await page.goto(base + "qa");
+  await page
+    .getByRole("button", { name: "Patient activity", exact: true })
+    .click();
+  for (const action of ["Created", "Updated", "destroy", "touch"])
+    expect(
+      await page
+        .getByText(`Appointments · ${action}`, { exact: true })
+        .isVisible(),
+    ).toBe(true);
+  const touched = page
+    .locator("li")
+    .filter({ has: page.getByText("Appointments · touch", { exact: true }) });
+  expect(await touched.innerText()).toContain("Actor reference: user:904");
+  expect(await touched.innerText()).toContain("Record: Appointment #89");
+  expect(await touched.innerText()).toContain("Record version updated");
+  await page.close();
+}, 15000);

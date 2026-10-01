@@ -90,6 +90,38 @@ class PatientActivityHistoryTest < ActiveSupport::TestCase
     assert_equal @patient.versions.reorder(occurred_at: :desc, id: :desc).limit(25).pluck(:id), result[:entries].map { |entry| entry[:id] }
   end
 
+  test "QA243 preserves action metadata including destroy and touch across authorized sources" do
+    grant_permissions!(@membership, "appointments.read", "notes.read", "encounters.read", "billing.read",
+      "subscriptions.review", "reminders.read", "reminders.write")
+    records = activity_source_records
+    events = %w[create update destroy touch]
+    records.each_with_index do |(source, label, record), source_index|
+      versions = events.each_with_index.map do |event, event_index|
+        Clinic::ModelVersion.create!(practice: @practice, item_type: record.class.base_class.name,
+          item_id: record.id, event: event, actor_reference: "user:#{@user.id}",
+          occurred_at: 1.day.from_now + (source_index * 10 + event_index).seconds, changed_fields: ["status"])
+      end
+      rows = history[:entries].select { |entry| versions.map(&:id).include?(entry[:id]) && entry[:source] == source }
+      assert_equal events.sort, rows.map { |entry| entry[:event] }.sort, source
+      assert rows.all? { |entry| entry[:section] == label && entry[:record_type] == record.class.base_class.name &&
+        entry[:record_id] == record.id && entry[:actor_reference] == "user:#{@user.id}" && entry[:changed_fields] == ["status"] }, source
+    end
+  end
+
+  test "QA243 rejects missing or unknown action metadata without retaining an unlabeled event" do
+    [nil, "", "   ", "unexpected_action"].each do |event|
+      assert_no_difference "Clinic::ModelVersion.count" do
+        assert_raises(ActiveRecord::StatementInvalid) do
+          Clinic::ModelVersion.transaction(requires_new: true) do
+            Clinic::ModelVersion.insert_all!([{ practice_id: @practice.id, item_type: @patient.class.base_class.name,
+              item_id: @patient.id, event: event, occurred_at: Time.current, changed_fields: [] }])
+          end
+        end
+      end
+    end
+    assert history[:entries].all? { |entry| %w[create update destroy touch recorded].include?(entry[:event]) }
+  end
+
   test "QA244 projects persisted coordination metadata without values and isolates patient and practice" do
     other = @practice.patients.create!(display_name: "Other synthetic", reference: "COORD-OTHER")
     other_practice = Clinic::Practice.create!(name: "Other coordination clinic")
@@ -129,6 +161,34 @@ class PatientActivityHistoryTest < ActiveSupport::TestCase
   end
 
   private
+
+  def activity_source_records
+    site = @practice.sites.create!(code: "ACTION-METADATA")
+    appointment = @patient.appointments.create!(practice: @practice, site: site,
+      starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes, status: "scheduled", visit_modality: "in_person")
+    encounter = @patient.encounters.create!(practice: @practice, appointment: appointment, site: site,
+      started_at: Time.current, status: "open")
+    note = encounter.notes.create!(practice: @practice, patient: @patient, note_kind: "soap")
+    invoice = @patient.invoices.create!(practice: @practice, currency: "USD", status: "posted", rounding_policy_version: "v1")
+    payment = @patient.payment_events.create!(practice: @practice, amount: 99, currency: "USD",
+      external_event_reference: "evt_action_metadata")
+    family = Clinic::Care::SubscriptionFamily.create!(practice: @practice, name: "Action metadata memberships")
+    package = Clinic::Care::SubscriptionPackage.create!(practice: @practice, family: family, name: "Action metadata plan")
+    version = Clinic::Care::SubscriptionVersion.create!(practice: @practice, package: package, number: 1,
+      snapshot: {}, request_key: "action-metadata-version", request_digest: "action-metadata-digest")
+    subscription = Clinic::Care::SubscriptionAgreement.create!(practice: @practice, patient: @patient,
+      package_version: version, invoice: invoice, snapshot: {}, amount: "99.00", currency: "USD",
+      request_key: "action-metadata-agreement", request_digest: "action-metadata-agreement-digest")
+    endpoint = @practice.communication_endpoints.create!(patient: @patient, endpoint_type: "email",
+      value: "action-metadata@example.invalid", value_digest: Digest::SHA256.hexdigest("action-metadata@example.invalid"),
+      verified_at: Time.current)
+    reminder = Clinic::Reminders::Create.call(practice: @practice, actor: @user, patient: @patient,
+      request_key: "action-metadata-reminder", category: "appointment", channel: "email",
+      scheduled_at: 1.day.from_now, endpoint_id: endpoint.id)
+    [["registration", "Patient identity", @patient], ["appointments", "Appointments", appointment],
+      ["notes", "Encounter notes", note], ["encounters", "Encounters", encounter], ["invoices", "Invoices", invoice],
+      ["payments", "Payments", payment], ["subscriptions", "Memberships", subscription], ["reminders", "Reminders", reminder]]
+  end
 
   def coordination_revision(patient, membership, number)
     payload = Clinic::Care::PatientCareCoordinationRevision.empty_payload

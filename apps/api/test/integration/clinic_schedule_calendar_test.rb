@@ -40,8 +40,35 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     get "/api/clinic/tracking_board", headers: @headers
     assert_response :success
     assert_empty response.parsed_body.fetch("visits")
-    post "/api/clinic/patients/#{@patient.id}/encounters", params: { encounter: { appointment_id: appointment_id } }, headers: csrf_headers, as: :json
-    assert_response :created
+    actual_start = Time.current.change(usec: 0)
+    encounter_input = { encounter: { appointment_id: appointment_id } }
+    encounter_id = nil
+    travel_to actual_start do
+      assert_difference -> { @practice.encounters.count }, 1 do
+        post "/api/clinic/patients/#{@patient.id}/encounters", params: encounter_input, headers: csrf_headers, as: :json
+        assert_response :created
+      end
+      encounter = response.parsed_body.fetch("encounter")
+      encounter_id = encounter.fetch("id")
+      assert_equal actual_start, Time.iso8601(encounter.fetch("started_at"))
+      assert_equal actual_start, @practice.encounters.find(encounter_id).started_at
+      assert_not_equal @date, actual_start.in_time_zone(@practice.timezone).to_date
+    end
+    travel_to actual_start + 5.minutes do
+      assert_no_difference -> { @practice.encounters.count } do
+        post "/api/clinic/patients/#{@patient.id}/encounters", params: encounter_input, headers: csrf_headers, as: :json
+        assert_response :created
+      end
+      assert_equal encounter_id, response.parsed_body.fetch("encounter").fetch("id")
+      assert_equal actual_start, Time.iso8601(response.parsed_body.fetch("encounter").fetch("started_at"))
+      get "/api/clinic/patients/#{@patient.id}/encounters/#{encounter_id}", headers: @headers
+      assert_response :success
+      assert_equal actual_start, Time.iso8601(response.parsed_body.fetch("encounter").fetch("started_at"))
+      get "/api/clinic/appointments/#{appointment_id}", headers: @headers
+      assert_response :success
+      assert_equal @start, Time.iso8601(response.parsed_body.fetch("appointment").fetch("starts_at"))
+      assert_equal actual_start, Time.iso8601(response.parsed_body.fetch("appointment").fetch("encounter_started_at"))
+    end
     get "/api/clinic/tracking_board", headers: @headers
     assert_response :success
     assert_equal [ @patient.id ], response.parsed_body.fetch("visits").map { |v| v.fetch("patient_id") }

@@ -28,6 +28,7 @@ beforeAll(async () => {
               React.createElement("button",{disabled:!draft.ready,onClick:()=>draft.save({text:"Synthetic earlier edit"})},"Save earlier"),
               React.createElement("button",{disabled:!draft.ready,onClick:()=>draft.save({text:"Synthetic replacement edit"})},"Save replacement"),
               React.createElement("button",{disabled:!draft.ready,onClick:()=>draft.clear()},"Clear copy"),
+              React.createElement("p",{id:"restored"},JSON.stringify(draft.restored)),
               React.createElement("p",{id:"status"},draft.status));
           }
           createRoot(document.getElementById("root")).render(React.createElement(App));`;
@@ -114,5 +115,76 @@ it.each([false, true])(
     );
     expect(puts).toBe(2);
     await page.close();
+  },
+);
+
+it.each([false, true])(
+  "keeps a deletion queued behind a pending save through response loss and repeated remount (lost=%s)",
+  async (lost) => {
+    const page = await browser.newPage();
+    let version = 0;
+    let payload: unknown = null;
+    const writes: unknown[] = [];
+    let releaseFirst!: () => void;
+    const firstPending = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    await page.route("**/api/csrf", (route) =>
+      route.fulfill({ json: { csrf_token: "synthetic-csrf" } }),
+    );
+    await page.route("**/api/clinic/working_drafts/soap?*", async (route) => {
+      if (route.request().method() === "PUT") {
+        const body = route.request().postDataJSON();
+        expect(body.expected_version).toBe(version);
+        writes.push(body.payload);
+        payload = body.payload;
+        version++;
+        if (writes.length === 1) {
+          await firstPending;
+          if (lost) return route.abort("failed");
+        }
+      }
+      await route.fulfill({
+        json: {
+          kind: "soap",
+          patient_id: 12,
+          encounter_id: 30,
+          record_id: null,
+          scope: "main",
+          version,
+          payload,
+          updated_at: null,
+        },
+      });
+    });
+    try {
+      await page.goto(`${baseUrl}/draft-latest`);
+      await page
+        .getByRole("button", { name: "Save earlier", exact: true })
+        .click();
+      await expect.poll(() => writes.length).toBe(1);
+      await page
+        .getByRole("button", { name: "Clear copy", exact: true })
+        .click();
+      expect(await page.locator("#status").innerText()).toBe("saving");
+      expect(writes).toEqual([{ text: "Synthetic earlier edit" }]);
+      releaseFirst();
+      await expect.poll(() => writes.length).toBe(2);
+      await expect
+        .poll(() => page.locator("#status").innerText())
+        .toBe("saved");
+      expect(writes).toEqual([{ text: "Synthetic earlier edit" }, null]);
+      for (let reload = 0; reload < 2; reload++) {
+        await page.reload();
+        await expect
+          .poll(() => page.locator("#status").innerText())
+          .toBe("idle");
+        expect(await page.locator("#restored").innerText()).toBe("null");
+      }
+      expect(writes).toHaveLength(2);
+    } finally {
+      releaseFirst();
+      await page.close();
+    }
   },
 );
