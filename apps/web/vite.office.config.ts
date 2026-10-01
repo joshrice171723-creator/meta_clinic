@@ -27,6 +27,7 @@ const officeResource: Plugin = {
 
 export default defineConfig({
   plugins: [officeResource],
+  define: { "process.env.NODE_ENV": JSON.stringify("production") },
   build: {
     outDir: "dist/assets",
     emptyOutDir: false,
