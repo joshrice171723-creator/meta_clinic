@@ -3614,6 +3614,9 @@ export function SoapNoteForm({
   const skipNextDraftSave = useRef(false);
   const draftSaveTimer = useRef<number | null>(null);
   const hasWorkingDraftEdits = useRef(false);
+  const [workingCopyPending, setWorkingCopyPending] = useState(false);
+  const workingCopyGeneration = useRef(0);
+  const latestWorkingSnapshot = useRef<string | null>(null);
   const templateChanged =
     appliedTemplate?.id !== baseline.template?.id ||
     appliedTemplate?.version !== baseline.template?.version;
@@ -3675,6 +3678,21 @@ export function SoapNoteForm({
           correction_target: correctionTarget,
           pending_attempt: pendingAttempt,
         };
+  latestWorkingSnapshot.current = JSON.stringify(workingSnapshot());
+
+  const persistWorkingSnapshot = async (snapshot: SoapWorkingDraft) => {
+    const generation = ++workingCopyGeneration.current;
+    const encoded = JSON.stringify(snapshot);
+    setWorkingCopyPending(true);
+    const acknowledged = await workingDraft.save(snapshot);
+    if (
+      acknowledged &&
+      generation === workingCopyGeneration.current &&
+      encoded === latestWorkingSnapshot.current
+    )
+      setWorkingCopyPending(false);
+    return acknowledged;
+  };
 
   const cancelPendingDraftSave = () => {
     if (draftSaveTimer.current !== null) {
@@ -3693,7 +3711,7 @@ export function SoapNoteForm({
   const retryWorkingDraft = async () => {
     cancelPendingDraftSave();
     const snapshot = workingSnapshot();
-    if (!snapshot || !(await workingDraft.save(snapshot)))
+    if (!snapshot || !(await persistWorkingSnapshot(snapshot)))
       setError(
         "The current working note is still only in this window. Keep it open and retry when the connection is available.",
       );
@@ -3841,10 +3859,11 @@ export function SoapNoteForm({
     const snapshot = workingSnapshot();
     if (!snapshot) return;
     cancelPendingDraftSave();
+    setWorkingCopyPending(true);
     draftSaveTimer.current = window.setTimeout(() => {
       draftSaveTimer.current = null;
-      void workingDraft.save(snapshot);
-    }, 650);
+      void persistWorkingSnapshot(snapshot);
+    }, dirty ? 650 : 0);
     return cancelPendingDraftSave;
   }, [
     appliedTemplate,
@@ -3859,21 +3878,23 @@ export function SoapNoteForm({
   ]);
 
   useEffect(() => {
-    if (!dirty || typeof window === "undefined") return;
+    if ((!dirty && !workingCopyPending) || typeof window === "undefined") return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, workingCopyPending]);
 
   useEffect(
     () =>
       registerBlocker(
-        dirty
+        dirty || workingCopyPending
           ? () =>
-              "This SOAP draft has unsaved changes. Leave the chart and discard them?"
+              dirty
+                ? "This SOAP draft has unsaved changes. Leave the chart and discard them?"
+                : "The latest working-note changes are not confirmed for refresh recovery. Leave the chart and discard them?"
           : null,
       ),
-    [dirty, registerBlocker],
+    [dirty, workingCopyPending, registerBlocker],
   );
 
   const save = async () => {
@@ -4109,6 +4130,8 @@ export function SoapNoteForm({
       return;
     }
     hasWorkingDraftEdits.current = false;
+    workingCopyGeneration.current += 1;
+    setWorkingCopyPending(false);
     setSaveState("idle");
     setNotice(
       attempt.operationCode === "notes.correct"
@@ -4574,6 +4597,13 @@ export function SoapNoteForm({
         <Typography variant="caption" role="status" color="text.secondary">
           Saving protected working note…
         </Typography>
+      )}
+      {workingCopyPending && !dirty && (
+        <Alert severity="warning">
+          The latest working-note changes are not confirmed for refresh recovery.
+          Keep this chart open until they are saved; leaving now may restore the
+          earlier working copy.
+        </Alert>
       )}
       {currentNote?.current_revision?.created_at && !signed && (
         <Typography variant="body2" color="text.secondary">

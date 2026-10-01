@@ -132,7 +132,9 @@ module Clinic
         products = current_practice.pharmacy_products.where(active: true).where.not(ndc: nil)
         if query.present?
           pattern = "%#{Clinic::Inventory::PharmacyProduct.sanitize_sql_like(query)}%"
-          products = products.where("name ILIKE :query OR sku ILIKE :query OR ndc ILIKE :query", query: pattern)
+          normalized_ndc = IngestPriceSheet.normalize_ndc(query)
+          products = products.where("name ILIKE :query OR sku ILIKE :query OR ndc ILIKE :query OR ndc = :normalized_ndc",
+            query: pattern, normalized_ndc: normalized_ndc)
         end
         rows = products.order(:name, :id).limit(25).filter_map do |product|
           ndc = IngestPriceSheet.normalize_ndc(product.ndc)

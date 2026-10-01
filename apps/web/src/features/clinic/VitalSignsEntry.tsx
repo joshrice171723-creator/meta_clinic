@@ -168,7 +168,8 @@ export function VitalSignsEntry({
   encounterId: number;
   onRecorded: (observations: Observation[]) => void;
 }) {
-  const { practice } = useClinic();
+  const { practice, current_site } = useClinic();
+  const timezone = current_site?.timezone_override || practice.timezone;
   const { registerBlocker } = useClinicNavigation();
   const workingDraft = useWorkingDraft<VitalWorkingDraft>({
     kind: "vitals",
@@ -694,7 +695,7 @@ export function VitalSignsEntry({
                   helperText={
                     error === "Record when these measurements were observed."
                       ? error
-                      : `Enter device-local time; review shows clinic time (${practice.timezone}).`
+                      : `Enter device-local time; review shows clinic time (${timezone}).`
                   }
                   fullWidth
                 />
@@ -729,11 +730,11 @@ export function VitalSignsEntry({
                     </Typography>
                     <Typography>
                       <strong>
-                        Observed (clinic time · {practice.timezone}):
+                        Observed (clinic time · {timezone}):
                       </strong>{" "}
                       {dateLabel(
                         new Date(observedAt).toISOString(),
-                        practice.timezone,
+                        timezone,
                       )}
                     </Typography>
                     <Divider />

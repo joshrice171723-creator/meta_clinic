@@ -2,10 +2,22 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { fileURLToPath } from "node:url";
+import { readRealFixture } from "./support/authorizedRealStack";
 let server: ViteDevServer;
 let browser: Browser;
 let baseUrl: string;
 beforeAll(async () => {
+  if (process.env.QA_REAL_BASE_URL) {
+    const url = new URL(process.env.QA_REAL_BASE_URL);
+    if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname))
+      throw new Error("Access journey requires an isolated loopback runtime.");
+    baseUrl = url.origin;
+    browser = await chromium.launch({
+      executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      headless: true,
+    });
+    return;
+  }
   const id = "\0login-selection-batch.tsx";
   server = await createServer({
     configFile: false,
@@ -108,6 +120,85 @@ async function clinicLogin(page: Page) {
   await choose(page, "Select clinic team account", "Synthetic clinician");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
 }
+
+it.skipIf(!process.env.QA_REAL_BASE_URL)("#189/#118 actual App first scoped login and authorized location switch preserve the session", async () => {
+  if (!process.env.QA_REAL_BASE_URL || process.env.QA_REAL_ISOLATED !== "1" || !process.env.QA_REAL_FIXTURE)
+    throw new Error("This real-stack case requires the isolated access runtime and profile.");
+  const seed = readRealFixture();
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const writes: { body: Record<string, unknown>; status: number }[] = [];
+  page.on("response", async (response) => {
+    const request = response.request();
+    if (new URL(response.url()).pathname === "/api/development_session" && request.method() === "POST")
+      writes.push({ body: request.postDataJSON(), status: response.status() });
+  });
+  try {
+    await page.goto(`${baseUrl}/login?next=%2Fclinic`);
+    const configuration = await context.request.get(`${baseUrl}/api/csrf`);
+    expect(configuration.status()).toBe(200);
+    const account = (await configuration.json()).development_accounts.find(
+      (candidate: { id: string }) => candidate.id === seed.profile,
+    );
+    expect(account?.clinic?.id).toBeTruthy();
+    expect(account.clinic.id).toBe(seed.practice_id);
+    expect(account.locations.length).toBeGreaterThan(0);
+    const site = account.locations[0];
+    await choose(page, "Organization", account.organization
+      ? `${account.organization.name} · ID ${account.organization.id}`
+      : "Independent clinics · ID independent");
+    await choose(page, "Clinic", `${account.clinic.name} · ID ${account.clinic.id}`);
+    await choose(page, "Location", `${site.name} · ID ${site.id}`);
+    await choose(page, "Select clinic team account", account.label);
+    await page.getByRole("button", { name: "Log in", exact: true }).click();
+    await page.waitForURL((url) => url.pathname === "/clinic", { timeout: 35000 });
+    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    expect(writes).toEqual([{ body: {
+      profile: account.id, portal: "clinic",
+      practice_id: String(account.clinic.id), site_id: String(site.id),
+    }, status: 201 }]);
+    const readback = async (expectedSite = site.id) => {
+      const session = await context.request.get(`${baseUrl}/api/session`);
+      const clinic = await context.request.get(`${baseUrl}/api/clinic/context`);
+      expect(session.status()).toBe(200);
+      expect(clinic.status()).toBe(200);
+      const actor = await session.json();
+      const workspace = await clinic.json();
+      expect(workspace.user_id).toBe(actor.user.id);
+      expect(workspace.practice.id).toBe(account.clinic.id);
+      expect(workspace.current_site.id).toBe(expectedSite);
+      return actor.user.id;
+    };
+    const actorId = await readback();
+    await page.reload();
+    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    expect(new URL(page.url()).pathname).toBe("/clinic");
+    expect(await readback()).toBe(actorId);
+    expect(writes).toHaveLength(1);
+    expect(await page.getByRole("combobox", { name: "Select clinic team account", exact: true }).count()).toBe(0);
+    const switchResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/clinic/context" && response.request().method() === "PATCH",
+    );
+    await choose(page, "Location", seed.second_site_name);
+    expect((await switchResponse).status()).toBe(200);
+    await expect.poll(() => readback(seed.second_site_id)).toBe(actorId);
+    const csrfResponse = await context.request.get(`${baseUrl}/api/csrf`);
+    const csrf = (await csrfResponse.json()).csrf_token;
+    const denied = await context.request.patch(`${baseUrl}/api/clinic/context`, {
+      headers: { "X-CSRF-Token": csrf, Origin: baseUrl },
+      data: { site_id: seed.foreign_site_id },
+    });
+    expect(denied.status()).toBe(404);
+    expect(await readback(seed.second_site_id)).toBe(actorId);
+    await page.reload();
+    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    expect(await readback(seed.second_site_id)).toBe(actorId);
+    expect(await page.getByText("Session locked", { exact: true }).count()).toBe(0);
+    expect(writes).toHaveLength(1);
+  } finally {
+    await context.close();
+  }
+}, 60000);
 
 it("#189 first fully scoped LOG IN sends one request without resetting selections", async () => {
   const page = await browser.newPage();

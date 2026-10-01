@@ -2,7 +2,7 @@ class Ability
   include CanCan::Ability
 
   SUPPLIER_PRICING_ROLE_CODES = %w[
-    admin administrator omni_admin omni_administrator inventory
+    admin administrator omni_admin omni_administrator inventory clinic-administrator inventory-coordinator
     dev-seed-administrator development-omni-administrator dev-seed-inventory
   ].freeze
 

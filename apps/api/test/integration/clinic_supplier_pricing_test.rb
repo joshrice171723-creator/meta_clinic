@@ -111,6 +111,55 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("1.23"), order.lines.sole.quoted_fee_amount
   end
 
+  test "first run manual quote search normalizes NDC and preserves same session capability enforcement" do
+    legacy_grant = @membership.role_grants.joins(:role_version).find_by!(role_versions: { role_code: "dev-seed-inventory" })
+    legacy_grant.update!(revoked_at: Time.current, revision: legacy_grant.revision + 1)
+    Clinic::Authorization::PilotRoleCatalog.install!
+    role = RoleVersion.find_by!(role_code: "clinic-administrator", version: Clinic::Authorization::PilotRoleCatalog::VERSION)
+    admin_grant = @membership.role_grants.create!(practice: @practice, role_version: role, scope_kind: "practice", effective_from: 1.day.ago, revision: 1)
+    @product.update_catalog!({ name: "Synthetic Aspirin", sku: "SYN-ASPIRIN", ndc: "00904705699" }, actor: @user)
+    [ "Aspirin", "SYN-ASPIRIN", "0904-7056-99", "00904-7056-99", "00904705699" ].each do |query|
+      get "/api/clinic/inventory/supplier-catalog-products", params: { q: query }, headers: @headers
+      assert_response :success
+      assert_equal [ @product.id.to_s ], response.parsed_body.fetch("products").map { |product| product.fetch("id") }
+    end
+    get "/api/clinic/inventory/catalog", params: { view: "table" }, headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("data").fetch("capabilities").fetch("supplier_pricing")
+
+    post "/api/clinic/inventory/suppliers", params: { supplier: { name: "Synthetic first run supplier" } }, headers: csrf_headers, as: :json
+    assert_response :created
+    supplier = @practice.inventory_suppliers.find_by!(name: "Synthetic first run supplier")
+    post "/api/clinic/inventory/supplier-products/manual-quote?response=ack", params: {
+      offer: { supplier_id: supplier.id, product_id: @product.id, supplier_sku: "SYN-QUOTE", description: @product.name,
+        package_quantity: "90", quote_reference: "SYN-FIRST-RUN", quoted_on: @practice.inventory_date.iso8601,
+        wholesale_unit_cost: "12.50", currency: "USD", contract_status: "active", available: "true" }
+    }, headers: csrf_headers, as: :json
+    assert_response :created
+    offer = supplier.supplier_products.find(response.parsed_body.fetch("id"))
+    assert_equal @product.id, offer.product_id
+    assert_equal BigDecimal("12.50"), offer.wholesale_unit_cost
+    get "/api/clinic/inventory/catalog", params: { view: "table" }, headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("data").fetch("first_run").fetch("offer")
+
+    coordinator_role = RoleVersion.find_by!(role_code: "inventory-coordinator", version: Clinic::Authorization::PilotRoleCatalog::VERSION)
+    coordinator_grant = @membership.role_grants.create!(practice: @practice, role_version: coordinator_role, scope_kind: "practice", effective_from: 1.day.ago, revision: 1)
+    admin_grant.update!(revoked_at: Time.current, revision: admin_grant.revision + 1)
+    get "/api/clinic/inventory/supplier-pricing", headers: @headers
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("data").fetch("capabilities").fetch("supplier_pricing")
+    coordinator_grant.update!(revoked_at: Time.current, revision: coordinator_grant.revision + 1)
+    get "/api/clinic/inventory/catalog", params: { view: "table" }, headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.fetch("data").fetch("capabilities").fetch("supplier_pricing")
+    get "/api/clinic/inventory/supplier-pricing", headers: @headers
+    assert_response :forbidden
+    get "/api/clinic/inventory/supplier-catalog-products", params: { q: "0904-7056-99" }, headers: @headers
+    assert_response :forbidden
+    assert_equal 1, supplier.supplier_products.count
+  end
+
   test "supplier pricing endpoints reject accounts outside the approved roles" do
     grant = @membership.role_grants.joins(:role_version).find_by!(role_versions: { role_code: "dev-seed-inventory" })
     grant.update!(revoked_at: Time.current, revision: grant.revision + 1)

@@ -640,7 +640,7 @@ it("Muse43 authorized inventory setup posts the exact initial configuration and 
   const { delivery_page, delivery_options, ...bootstrap } = receivingFixture();
   bootstrap.capabilities = { "inventory.configure": true };
   bootstrap.configuration = {
-    status: "unconfigured",
+    status: "draft",
     version: 1,
     reason: "Not configured",
   };

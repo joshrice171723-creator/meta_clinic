@@ -2,12 +2,22 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser } from "playwright-core";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 
 let server: ViteDevServer;
 let browser: Browser;
 let baseUrl: string;
 
 beforeAll(async () => {
+  if (process.env.QA_REAL_BASE_URL) {
+    baseUrl = process.env.QA_REAL_BASE_URL;
+    browser = await chromium.launch({
+      executablePath:
+        process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      headless: true,
+    });
+    return;
+  }
   const virtualId = "\0soap-manual-save.tsx";
   server = await createServer({
     configFile: false,
@@ -59,6 +69,398 @@ afterAll(async () => {
   await browser?.close();
   await server?.close();
 });
+
+it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
+  "#231/#63/#198/#81 actual App chart save recovery refresh and completed unsigned signing survive reload",
+  async () => {
+    if (process.env.QA_REAL_ISOLATED !== "1" || !process.env.QA_REAL_FIXTURE)
+      throw new Error("An isolated synthetic real-stack fixture is required.");
+    const seed = JSON.parse(readFileSync(process.env.QA_REAL_FIXTURE, "utf8"));
+    expect(seed.synthetic).toBe(true);
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(5000);
+    let releaseDeletion: (() => void) | undefined;
+    try {
+      const csrf = await context.request.get(`${baseUrl}/api/csrf`);
+      expect(csrf.status()).toBe(200);
+      const session = await context.request.post(
+        `${baseUrl}/api/development_session`,
+        {
+          headers: {
+            Origin: baseUrl,
+            "X-CSRF-Token": (await csrf.json()).csrf_token,
+          },
+          data: {
+            profile: seed.profile,
+            portal: "clinic",
+            practice_id: String(seed.practice_id),
+            site_id: String(seed.site_id),
+          },
+        },
+      );
+      expect(session.status()).toBe(201);
+      const encounterId = seed.note_scenarios.open_encounter_id;
+      const path = `/clinic/patients/${seed.patient_id}/encounters/${encounterId}`;
+      await page.goto(`${baseUrl}${path}`);
+      await page
+        .getByRole("button", {
+          name: "Confirm and begin charting",
+          exact: true,
+        })
+        .click();
+      const objective = page.getByRole("textbox", {
+        name: "Objective (O)",
+        exact: true,
+      });
+      await page
+        .getByRole("textbox", { name: "Chief Complaint", exact: true })
+        .fill("Independent synthetic manual concern");
+      await objective.fill("Independent synthetic examination");
+      await page
+        .getByRole("button", {
+          name: "Use template without prompts",
+          exact: true,
+        })
+        .click();
+      const created = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname ===
+            `/api/clinic/encounters/${encounterId}/notes` &&
+          response.request().method() === "POST",
+      );
+      await page
+        .getByRole("button", { name: "Save draft", exact: true })
+        .click();
+      const creation = await created;
+      expect(creation.status()).toBe(201);
+      const noteId = (await creation.json()).note.id;
+      await page.getByText("Chart In progress", { exact: true }).waitFor();
+      await expect.poll(() => objective.isEnabled()).toBe(true);
+      await objective.fill("Independent synthetic revised examination");
+      const revised = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname ===
+            `/api/clinic/notes/${noteId}/revisions` &&
+          response.request().method() === "POST",
+      );
+      await page
+        .getByRole("button", { name: "Save new revision", exact: true })
+        .click();
+      expect((await revised).status()).toBe(201);
+      await expect.poll(() => objective.isEnabled()).toBe(true);
+      expect(await objective.inputValue()).toBe(
+        "Independent synthetic revised examination",
+      );
+      const persisted = await context.request.get(
+        `${baseUrl}/api/clinic/notes/${noteId}`,
+      );
+      expect(persisted.status()).toBe(200);
+      expect((await persisted.json()).note).toMatchObject({
+        patient_id: seed.patient_id,
+        encounter_id: encounterId,
+        current_revision: {
+          revision_no: 2,
+          signed: false,
+          body: {
+            sections: {
+              objective: "Independent synthetic revised examination",
+            },
+          },
+        },
+      });
+      await page.reload();
+      await page.getByText("Chart In progress", { exact: true }).waitFor();
+      // Identity confirmation is a deliberate reload safeguard, not lost chart state.
+      await page
+        .getByRole("button", { name: "Confirm and open chart", exact: true })
+        .click();
+      await expect
+        .poll(() => objective.inputValue())
+        .toBe("Independent synthetic revised examination");
+      await expect.poll(() => objective.isEnabled()).toBe(true);
+
+      const duration = page.getByRole("textbox", {
+        name: "Duration",
+        exact: true,
+      });
+      await duration.fill("Independent synthetic interim duration");
+      const recoveryPath = `/api/clinic/working_drafts/soap?patient_id=${seed.patient_id}&encounter_id=${encounterId}`;
+      await expect
+        .poll(
+          async () =>
+            (
+              await (
+                await context.request.get(`${baseUrl}${recoveryPath}`)
+              ).json()
+            ).payload?.sections.subjective,
+        )
+        .toContain("Independent synthetic interim duration");
+      const deletionHold = new Promise<void>((resolve) => {
+        releaseDeletion = resolve;
+      });
+      let deletionStarted = false;
+      // Stall transport only; after release the unchanged request reaches real Rails.
+      await page.route("**/api/clinic/working_drafts/soap?*", async (route) => {
+        if (
+          route.request().method() === "PUT" &&
+          !route
+            .request()
+            .postDataJSON()
+            .payload?.sections.subjective.includes(
+              "Independent synthetic interim duration",
+            )
+        ) {
+          deletionStarted = true;
+          await deletionHold;
+        }
+        await route.continue();
+      });
+      await duration.fill("");
+      await expect.poll(() => deletionStarted).toBe(true);
+      await page
+        .getByText(
+          /The latest working-note changes are not confirmed for refresh recovery/,
+        )
+        .waitFor();
+      let reloadWarned = false;
+      page.once("dialog", async (dialog) => {
+        expect(dialog.type()).toBe("beforeunload");
+        reloadWarned = true;
+        await dialog.dismiss();
+      });
+      await page.reload().catch(() => undefined);
+      expect(reloadWarned).toBe(true);
+      expect(await duration.inputValue()).toBe("");
+      releaseDeletion?.();
+      await expect
+        .poll(
+          async () =>
+            (
+              await (
+                await context.request.get(`${baseUrl}${recoveryPath}`)
+              ).json()
+            ).payload?.sections.subjective,
+        )
+        .not.toContain("Independent synthetic interim duration");
+      await expect
+        .poll(() =>
+          page
+            .getByText(
+              /The latest working-note changes are not confirmed for refresh recovery/,
+            )
+            .count(),
+        )
+        .toBe(0);
+      await page.unroute("**/api/clinic/working_drafts/soap?*");
+      for (let reload = 0; reload < 2; reload++) {
+        await page.reload();
+        await page
+          .getByRole("button", { name: "Confirm and open chart", exact: true })
+          .click();
+        await expect.poll(() => duration.isEnabled()).toBe(true);
+        expect(await duration.inputValue()).toBe("");
+        expect(await objective.inputValue()).toBe(
+          "Independent synthetic revised examination",
+        );
+      }
+
+      await page.goto(
+        `${baseUrl}/clinic/patients/${seed.patient_id}/encounters/${seed.note_scenarios.completed_unsigned_encounter_id}`,
+      );
+      await page.getByText("Visit Completed", { exact: true }).waitFor();
+      await page.getByText("Chart In progress", { exact: true }).waitFor();
+      await page.getByRole("link", { name: "Signing", exact: true }).click();
+      expect(new URL(page.url()).hash).toBe("#chart-signing");
+      await page
+        .locator("#chart-signing")
+        .getByRole("button", { name: "Review and sign", exact: true })
+        .waitFor();
+      await page.reload();
+      await page
+        .locator("#chart-signing")
+        .getByRole("button", { name: "Review and sign", exact: true })
+        .waitFor();
+      expect(
+        await page.getByText("Chart Not started", { exact: true }).count(),
+      ).toBe(0);
+    } finally {
+      releaseDeletion?.();
+      await context.close();
+    }
+  },
+  45000,
+);
+
+it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
+  "#165/#200 actual App signed chart correction and interactive immutable history survive reload",
+  async () => {
+    if (process.env.QA_REAL_ISOLATED !== "1" || !process.env.QA_REAL_FIXTURE)
+      throw new Error("An isolated synthetic real-stack fixture is required.");
+    const seed = JSON.parse(readFileSync(process.env.QA_REAL_FIXTURE, "utf8"));
+    expect(seed.synthetic).toBe(true);
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(5000);
+    try {
+      const csrf = await context.request.get(`${baseUrl}/api/csrf`);
+      expect(csrf.status()).toBe(200);
+      const session = await context.request.post(
+        `${baseUrl}/api/development_session`,
+        {
+          headers: {
+            Origin: baseUrl,
+            "X-CSRF-Token": (await csrf.json()).csrf_token,
+          },
+          data: {
+            profile: seed.profile,
+            portal: "clinic",
+            practice_id: String(seed.practice_id),
+            site_id: String(seed.site_id),
+          },
+        },
+      );
+      expect(session.status()).toBe(201);
+      const scenario = seed.note_scenarios;
+      const path = `/clinic/patients/${seed.patient_id}/encounters/${scenario.signed_encounter_id}`;
+      await page.goto(`${baseUrl}${path}`);
+      await page.getByText("Chart Signed", { exact: true }).waitFor();
+      await page
+        .getByRole("button", {
+          name: "Confirm and view signed chart",
+          exact: true,
+        })
+        .click();
+      const objective = page.getByRole("textbox", {
+        name: "Objective (O)",
+        exact: true,
+      });
+      await expect.poll(() => objective.isDisabled()).toBe(true);
+      expect(
+        await page
+          .getByRole("button", { name: "Review and sign", exact: true })
+          .count(),
+      ).toBe(0);
+      expect(
+        await page
+          .getByText(
+            /Not signed \(finalize\)|A clinician signature is required to finalize/,
+          )
+          .count(),
+      ).toBe(0);
+      await page
+        .getByRole("button", { name: "Start correction", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", {
+        name: "Start correction to signed SOAP note",
+        exact: true,
+      });
+      await dialog
+        .getByRole("textbox", { name: "Reason for correction", exact: true })
+        .fill("Independent synthetic transcription correction");
+      await dialog
+        .getByRole("checkbox", {
+          name: "I confirmed the displayed patient, encounter, signed revision, and copied note content.",
+          exact: true,
+        })
+        .check();
+      await dialog
+        .getByRole("button", { name: "Start correction", exact: true })
+        .click();
+      await expect.poll(() => objective.isEnabled()).toBe(true);
+      await objective.fill("Independent synthetic corrected examination");
+      const correctionResponse = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname ===
+            `/api/clinic/notes/${scenario.signed_note_id}/corrections` &&
+          response.request().method() === "POST",
+      );
+      await page
+        .getByRole("button", { name: "Save unsigned correction", exact: true })
+        .click();
+      expect((await correctionResponse).status()).toBe(201);
+      await page.getByText("Chart In progress", { exact: true }).waitFor();
+      await expect.poll(() => objective.isEnabled()).toBe(true);
+      await page
+        .getByRole("button", { name: "Review and sign", exact: true })
+        .waitFor();
+      const readback = await context.request.get(
+        `${baseUrl}/api/clinic/notes/${scenario.signed_note_id}`,
+      );
+      expect(readback.status()).toBe(200);
+      const note = (await readback.json()).note;
+      expect(note).toMatchObject({
+        patient_id: seed.patient_id,
+        encounter_id: scenario.signed_encounter_id,
+        current_revision_signed: false,
+        has_signed_history: true,
+        current_revision: {
+          revision_no: 2,
+          signed: false,
+          body: {
+            sections: {
+              objective: "Independent synthetic corrected examination",
+            },
+            correction: {
+              corrected_revision_id: scenario.signed_revision_id,
+              corrected_revision_no: 1,
+              reason: "Independent synthetic transcription correction",
+            },
+          },
+        },
+      });
+      expect(note.revisions).toHaveLength(2);
+      expect(note.revisions[0]).toMatchObject({
+        id: scenario.signed_revision_id,
+        signed: true,
+        body: { sections: { objective: "Synthetic completed examination" } },
+      });
+      await page
+        .getByRole("button", { name: "Revision 1 · signed", exact: true })
+        .click();
+      const history = page.getByRole("dialog", {
+        name: "Saved revision 1",
+        exact: true,
+      });
+      await history
+        .getByText("Synthetic completed examination", { exact: true })
+        .waitFor();
+      expect(await history.getByRole("textbox").count()).toBe(0);
+      await history.getByRole("button", { name: "Close history", exact: true }).click();
+      expect(await objective.inputValue()).toBe(
+        "Independent synthetic corrected examination",
+      );
+      await page.reload();
+      await page.getByText("Chart In progress", { exact: true }).waitFor();
+      await page
+        .getByRole("button", { name: "Confirm and open chart", exact: true })
+        .click();
+      await expect
+        .poll(() => objective.inputValue())
+        .toBe("Independent synthetic corrected examination");
+      await page
+        .getByRole("button", { name: "Review and sign", exact: true })
+        .waitFor();
+      await page
+        .getByRole("button", { name: "Revision 1 · signed", exact: true })
+        .click();
+      await page
+        .getByRole("dialog", { name: "Saved revision 1", exact: true })
+        .getByText("Synthetic completed examination", { exact: true })
+        .waitFor();
+      expect(
+        await page.getByText("Chart Signed", { exact: true }).count(),
+      ).toBe(0);
+    } finally {
+      await context.close();
+    }
+  },
+  45000,
+);
 
 async function fixture(unavailable = false, existing = false) {
   const page = await browser.newPage({

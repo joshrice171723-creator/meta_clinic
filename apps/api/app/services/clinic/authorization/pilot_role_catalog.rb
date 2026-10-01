@@ -1,7 +1,7 @@
 module Clinic
   module Authorization
     class PilotRoleCatalog
-      VERSION = 12
+      VERSION = 13
 
       DEFINITIONS = {
         "workforce-employee" => {
@@ -42,7 +42,7 @@ module Clinic
         "front-desk-coordinator" => {
           label: "Front Desk Coordinator",
           permissions: %w[patients.read patients.identity.read patients.write appointments.read appointments.write
-            appointments.book appointments.capacity_override appointments.status_transition encounters.read encounters.write staff.read subscriptions.review]
+            appointments.book appointments.capacity_override appointments.status_transition encounters.read encounters.write staff.read subscriptions.review reminders.read]
         },
         "clinician" => {
           label: "Clinician",

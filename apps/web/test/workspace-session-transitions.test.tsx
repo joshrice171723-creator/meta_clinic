@@ -2,11 +2,17 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { fileURLToPath } from "node:url";
+import { loginReal, readRealFixture, realGet, realMutation, realUrl, selectReal } from "./support/authorizedRealStack";
 let server: ViteDevServer;
 let browser: Browser;
 let baseUrl: string;
 const encounterPath = "/clinic/patients/71/encounters/72";
 beforeAll(async () => {
+  if (process.env.QA_REAL_BASE_URL) {
+    readRealFixture();
+    browser = await chromium.launch({ executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium", headless: true });
+    return;
+  }
   const id = "\0workspace-session-transitions.tsx";
   server = await createServer({
     configFile: false,
@@ -60,6 +66,55 @@ afterAll(async () => {
   await browser?.close();
   await server?.close();
 });
+
+it.skipIf(!process.env.QA_REAL_BASE_URL)("#58 actual App cross-window clinic change rejects an invitation without losing its draft or writing it", async () => {
+  const seed = readRealFixture();
+  const access = seed.access_scenarios as { second_practice_id: number; second_practice_name: string };
+  expect(access.second_practice_id).toBeTruthy();
+  const context = await browser.newContext();
+  const first = await context.newPage();
+  const second = await context.newPage();
+  const email = "synthetic-cross-window-invite@example.invalid";
+  const submissions: unknown[] = [];
+  first.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/clinic/workforce/onboarding" && request.method() === "POST") submissions.push(request.postDataJSON());
+  });
+  try {
+    await loginReal(first, seed, "/clinic/workforce/employees");
+    const baseline = await realGet<{ invitations: { email_address: string }[] }>(first, "/api/clinic/workforce/employments");
+    await first.getByRole("radio", { name: "Create a new employee login", exact: true }).check();
+    await first.getByLabel("Employee name", { exact: false }).fill("Synthetic cross-window employee");
+    await first.getByLabel("Job title", { exact: false }).fill("Synthetic access test");
+    await first.getByLabel("Employee email", { exact: false }).fill(email);
+    await selectReal(first, "Access role", "Clinic Administrator");
+    await first.getByRole("checkbox", { name: seed.site_name, exact: true }).check();
+    await second.goto(realUrl("/clinic/workforce/employees"));
+    await second.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    const switched = second.waitForResponse((response) => new URL(response.url()).pathname === "/api/clinic/context" && response.request().method() === "PATCH");
+    await selectReal(second, "Clinic", access.second_practice_name);
+    expect((await switched).status()).toBe(200);
+    await expect.poll(async () => (await realGet<{ practice: { id: number } }>(second, "/api/clinic/context")).practice.id).toBe(access.second_practice_id);
+    await first.bringToFront();
+    const rejected = first.waitForResponse((response) => new URL(response.url()).pathname === "/api/clinic/workforce/onboarding" && response.request().method() === "POST");
+    await first.getByRole("button", { name: "Create employee invitation", exact: true }).click();
+    expect((await rejected).status()).toBe(409);
+    await first.getByText("Your clinic changed in another window. Reload before continuing.", { exact: true }).waitFor();
+    expect(await first.getByLabel("Employee name", { exact: false }).inputValue()).toBe("Synthetic cross-window employee");
+    expect(await first.getByLabel("Employee email", { exact: false }).inputValue()).toBe(email);
+    expect(await first.getByLabel("Job title", { exact: false }).inputValue()).toBe("Synthetic access test");
+    expect(await first.getByRole("checkbox", { name: seed.site_name, exact: true }).isChecked()).toBe(true);
+    expect(await first.getByRole("button", { name: "Create employee invitation", exact: true }).isEnabled()).toBe(true);
+    const other = await realGet<{ invitations: { email_address: string }[] }>(second, "/api/clinic/workforce/employments");
+    expect(other.invitations.some((invitation) => invitation.email_address === email)).toBe(false);
+    expect((await realMutation(second, "/api/clinic/context", { practice_id: seed.practice_id }, "PATCH")).status()).toBe(200);
+    const restored = await realGet<{ invitations: { email_address: string }[] }>(second, "/api/clinic/workforce/employments");
+    expect(restored.invitations).toEqual(baseline.invitations);
+    expect(submissions).toHaveLength(1);
+    expect(await first.getByText("Session locked", { exact: true }).count()).toBe(0);
+  } finally {
+    await context.close();
+  }
+}, 60000);
 async function fixture(page: Page) {
   page.setDefaultTimeout(4000);
   const control = {

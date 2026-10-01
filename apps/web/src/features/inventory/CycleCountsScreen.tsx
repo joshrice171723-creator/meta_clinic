@@ -1058,6 +1058,25 @@ export function CycleCountsScreen({
             Creation freezes the current stock positions in one active leaf bin.
             Sessions are opened immediately and are not scheduled automatically.
           </p>
+          {data.locations.length === 0 && (
+            <Alert severity="info">
+              Create an active leaf storage location before starting a count.
+              {canConfigure ? (
+                <Button
+                  component="a"
+                  href="/clinic/inventory/locations"
+                  size="small"
+                >
+                  Manage storage locations
+                </Button>
+              ) : (
+                <span className="inventory-permission">
+                  Inventory configuration access is required to manage
+                  locations.
+                </span>
+              )}
+            </Alert>
+          )}
           <form
             className="inventory-form-grid"
             onSubmit={(event) => event.preventDefault()}

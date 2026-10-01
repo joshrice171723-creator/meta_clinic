@@ -1,5 +1,5 @@
 import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, ApiError } from "../../api/client";
 import {
   Button,
@@ -126,9 +126,8 @@ export function SupplierPricingScreen({
   const [requestKey, setRequestKey] = useState("");
   const [requestSubmitted, setRequestSubmitted] = useState(false);
   const wizardQuery = new URLSearchParams(window.location.search);
-  const [manualOfferOpen, setManualOfferOpen] = useState(
-    wizardQuery.get("wizard") === "offer" && canManage,
-  );
+  const offerWizardPending = useRef(wizardQuery.get("wizard") === "offer");
+  const [manualOfferOpen, setManualOfferOpen] = useState(false);
   const [catalogQuery, setCatalogQuery] = useState(
     wizardQuery.get("product_name") ?? "",
   );
@@ -161,6 +160,13 @@ export function SupplierPricingScreen({
   const selectedSupplier = data.suppliers.find(
     (supplier) => supplier.id === supplierId,
   );
+  const selectedSupplierId = selectedSupplier?.id;
+  useEffect(() => {
+    if (offerWizardPending.current && canManage && selectedSupplierId) {
+      offerWizardPending.current = false;
+      setManualOfferOpen(true);
+    }
+  }, [canManage, selectedSupplierId]);
   const recordedRequest = data.quote_requests.find(
     (request) => request.request_key === requestKey,
   );

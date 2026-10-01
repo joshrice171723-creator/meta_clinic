@@ -4584,6 +4584,17 @@ function PurchaseCartWorkspace({
                       : (explanation?.offer_error ??
                         "Supplier terms unavailable")}
                   </small>
+                  {!offer &&
+                    data.capabilities.supplier_pricing === true &&
+                    capability(data, "inventory.catalog") && (
+                      <Button
+                        component="a"
+                        href={`/clinic/inventory/suppliers?${new URLSearchParams({ wizard: "offer", product_name: product.name })}`}
+                        size="small"
+                      >
+                        Record supplier offer
+                      </Button>
+                    )}
                   {offer && (
                     <small>
                       {money(offer.unit_price, offer.currency)} per supplier
