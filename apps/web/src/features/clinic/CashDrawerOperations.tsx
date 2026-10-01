@@ -103,6 +103,7 @@ export function hasPendingCashAttempt(scope: CashScope) {
 function deterministicCashError(reason: unknown) {
   return (
     reason instanceof ApiError &&
+    reason.code !== "outcome_unconfirmed" &&
     (reason.status === 400 || reason.status === 404 || reason.status === 422)
   );
 }
@@ -428,9 +429,24 @@ export function CashDrawerOperations({
           },
         },
       );
-      if (result.cash_tender.cash_drawer_session_id !== attempt.drawerId) {
+      const allocation = result?.payment_allocation;
+      const tender = result?.cash_tender;
+      const matchesAmount = (value: unknown, expected: string) =>
+        typeof value === "string" &&
+        decimalUnits(value) !== null &&
+        decimalUnits(value) === decimalUnits(expected);
+      if (
+        ![allocation?.id, allocation?.payment_event_id, tender?.id].every(
+          (id) => Number.isSafeInteger(id) && id! > 0,
+        ) ||
+        tender?.cash_drawer_session_id !== attempt.drawerId ||
+        !matchesAmount(allocation?.amount, attempt.allocationAmount) ||
+        !matchesAmount(tender?.tendered_amount, attempt.tenderedAmount) ||
+        !amounts ||
+        !matchesAmount(tender?.change_amount, amounts.changeAmount)
+      ) {
         throw new Error(
-          "The recorded cash payment did not match the selected drawer. Refresh payment activity before another action.",
+          "The recorded cash payment did not match the submitted payment. Refresh payment activity before another action.",
         );
       }
       if (durableRecoveryEnabled && !(await recovery.clear())) {
@@ -452,7 +468,9 @@ export function CashDrawerOperations({
       drawers.refresh();
       onRecorded(attempt.invoiceId);
     } catch (reason) {
-      if (deterministicCashError(reason)) {
+      // A rejected retry cannot establish that an earlier uncertain attempt
+      // never committed. Keep its exact identity until acknowledgment matches.
+      if (!pendingCashAttempt && deterministicCashError(reason)) {
         if (!durableRecoveryEnabled || (await recovery.clear())) {
           persistCashAttempt(clinic, null);
           setCashAttempt(null);
