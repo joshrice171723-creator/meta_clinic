@@ -34,7 +34,10 @@ import type {
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
-import { CashDrawerOperations } from "./CashDrawerOperations";
+import {
+  CashDrawerOperations,
+  pendingCashAttemptInvoiceId,
+} from "./CashDrawerOperations";
 import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
 import { stripeSetupReturnMarker } from "./billing/StripeConnectPanel";
 import { patientReferenceLabel } from "./patientReference";
@@ -319,6 +322,10 @@ function BillingConfirm({
 
 export function BillingDashboard() {
   const context = useClinic();
+  const [pendingCashState, setPendingCashState] = useState(() => {
+    const invoiceId = pendingCashAttemptInvoiceId(context);
+    return { pending: invoiceId !== null, invoiceId };
+  });
   const canRecordPayment = context.capabilities.billing_payment_record === true;
   const canUseCashDrawer =
     canRecordPayment || context.capabilities.billing_cash_reconcile === true;
@@ -383,6 +390,10 @@ export function BillingDashboard() {
       : "/api/clinic/billing",
   );
   const selectedDetail = detailResource.data?.invoice;
+  const cashPatientId =
+    selectedDetail?.id === selectedInvoice?.id
+      ? selectedDetail?.patient_id
+      : selectedInvoice?.patient?.id;
   const onlinePaymentPending =
     selectedDetail !== undefined &&
     ["processing", "needs_reconciliation"].includes(
@@ -1218,6 +1229,14 @@ export function BillingDashboard() {
                     </strong>
                   </div>
                 </div>
+                {pendingCashState.pending && (
+                  <Alert severity="warning">
+                    Cash payment for invoice #
+                    {pendingCashState.invoiceId ?? selectedInvoice.id} is pending
+                    confirmation. Review the original payment before recording
+                    another.
+                  </Alert>
+                )}
                 {selectedDetail && (
                   <InvoiceCheckoutControls
                     key={selectedInvoice.id}
@@ -1394,16 +1413,20 @@ export function BillingDashboard() {
               </Button>
             )}
           {selectedInvoice?.status === "posted" &&
-            !isZeroDecimal(selectedInvoice.balance) &&
+            (!isZeroDecimal(selectedInvoice.balance) ||
+              pendingCashState.pending) &&
             !onlinePaymentPending &&
             canRecordPayment && (
               <Button
+                disabled={cashPatientId === undefined}
                 onClick={() => {
                   setInvoiceOpen(false);
                   setActiveTab("cash");
                 }}
               >
-                Record cash payment
+                {pendingCashState.pending
+                  ? "Review pending cash payment"
+                  : "Record cash payment"}
               </Button>
             )}
           <Button
@@ -1473,6 +1496,8 @@ export function BillingDashboard() {
           </div>
           <CashDrawerOperations
             invoice={selectedInvoice ?? null}
+            patientId={cashPatientId}
+            onPendingChange={setPendingCashState}
             onRecorded={() => {
               refresh();
               detailResource.refresh();

@@ -72,7 +72,15 @@ afterAll(async () => {
   await server?.close();
 });
 
-async function fixture(page: Page, credited: string) {
+async function fixture(
+  page: Page,
+  credited: string,
+  cash?: {
+    pending: boolean;
+    recoveryGate?: Promise<void>;
+    onRequest?: (path: string, method: string) => void;
+  },
+) {
   page.setDefaultTimeout(5000);
   page.on("pageerror", (error) => console.error(error));
   const balance = credited === "5.00" ? "0.00" : "5.00";
@@ -95,6 +103,7 @@ async function fixture(page: Page, credited: string) {
   };
   await page.route(`${base}/api/**`, async (route) => {
     const url = new URL(route.request().url());
+    cash?.onRequest?.(url.pathname + url.search, route.request().method());
     let body: unknown;
     if (url.pathname === "/api/csrf") body = { csrf_token: "synthetic-token" };
     else if (url.pathname === "/api/clinic/billing")
@@ -135,13 +144,49 @@ async function fixture(page: Page, credited: string) {
           online_payment: { state: "unavailable", eligible: false },
         },
       };
-    else throw new Error(`Unexpected synthetic request: ${url.pathname}`);
+    else if (url.pathname === "/api/clinic/cash_drawers")
+      body = {
+        drawers: [
+          {
+            id: 707,
+            site_id: 704,
+            status: "open",
+            currency: "USD",
+            opening_float: "0",
+            cash_received: "25",
+            cash_refunded: "0",
+            expected_cash: "25",
+          },
+        ],
+      };
+    else if (url.pathname === "/api/clinic/working_drafts/checkout") {
+      await cash?.recoveryGate;
+      body = {
+        kind: "checkout",
+        patient_id: 706,
+        encounter_id: null,
+        record_id: 705,
+        scope: "cash_payment",
+        version: cash?.pending ? 1 : 0,
+        updated_at: null,
+        payload: cash?.pending
+          ? {
+              invoiceId: 705,
+              drawerId: 707,
+              currency: "USD",
+              tenderedAmount: "5",
+              allocationAmount: "5",
+              requestKey: "synthetic-pending-cash-705",
+            }
+          : null,
+      };
+    } else throw new Error(`Unexpected synthetic request: ${url.pathname}`);
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(body),
     });
   });
-  await page.goto(`${base}/qa?invoice_id=705`);
+  await page.goto(`${base}/qa?invoice_id=705${cash ? "&cash" : ""}`);
   const dialog = page.getByRole("dialog", { includeHidden: true });
   await dialog.waitFor();
   return dialog;
@@ -158,11 +203,9 @@ it.each(["5.00", "0.00"])(
       const values = dialog.locator(".billing-invoice-detail-values");
       expect(await values.textContent()).toContain("USD 30.00");
       expect(await values.textContent()).toContain("USD 25.00");
-      const credit = values
-        .locator("div")
-        .filter({
-          has: page.getByText("Credits and write-offs", { exact: true }),
-        });
+      const credit = values.locator("div").filter({
+        has: page.getByText("Credits and write-offs", { exact: true }),
+      });
       await expect
         .poll(() => credit.textContent())
         .toContain(`USD ${credited}`);
@@ -179,3 +222,95 @@ it.each(["5.00", "0.00"])(
   },
   15000,
 );
+
+it("#150 restores a saved cash lock after reload and offers recovery instead of new payment", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  const reads: string[] = [];
+  const mutations: string[] = [];
+  try {
+    const dialog = await fixture(page, "0.00", {
+      pending: true,
+      onRequest: (path, method) => {
+        if (path.includes("working_drafts")) reads.push(path);
+        if (method !== "GET") mutations.push(path);
+      },
+    });
+    const recoveryButton = dialog.getByRole("button", {
+      name: "Review pending cash payment",
+      exact: true,
+      includeHidden: true,
+    });
+    await expect.poll(() => recoveryButton.count()).toBe(1);
+    await page.reload();
+    await expect.poll(() => recoveryButton.count()).toBe(1);
+    await expect.poll(() => reads.length).toBe(2);
+    expect(
+      reads.every(
+        (path) =>
+          path.includes("patient_id=706") &&
+          path.includes("record_id=705") &&
+          path.includes("scope=cash_payment"),
+      ),
+    ).toBe(true);
+    expect(
+      await dialog
+        .getByRole("button", {
+          name: "Record cash payment",
+          exact: true,
+          includeHidden: true,
+        })
+        .count(),
+    ).toBe(0);
+    expect(
+      await dialog
+        .getByText(/Cash payment for invoice #705 is pending confirmation/)
+        .count(),
+    ).toBe(1);
+    await recoveryButton.click();
+    await page
+      .getByRole("button", { name: "Retry same payment", exact: true })
+      .waitFor();
+    expect(await page.getByLabel("Tendered cash").isDisabled()).toBe(true);
+    expect(await page.getByLabel("Tendered cash").inputValue()).toBe("5");
+    expect(mutations).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 15000);
+
+it("#150 waits for the saved-payment check before offering a new cash payment", async () => {
+  const page = await browser.newPage();
+  let release!: () => void;
+  const recoveryGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    const dialog = await fixture(page, "0.00", {
+      pending: false,
+      recoveryGate,
+    });
+    const newPayment = dialog.getByRole("button", {
+      name: "Record cash payment",
+      exact: true,
+      includeHidden: true,
+    });
+    await expect
+      .poll(
+        async () =>
+          (await newPayment.count()) === 0 || (await newPayment.isDisabled()),
+      )
+      .toBe(true);
+    release();
+    await expect
+      .poll(
+        async () =>
+          (await newPayment.count()) === 1 && (await newPayment.isEnabled()),
+      )
+      .toBe(true);
+  } finally {
+    release();
+    await page.close();
+  }
+}, 15000);
