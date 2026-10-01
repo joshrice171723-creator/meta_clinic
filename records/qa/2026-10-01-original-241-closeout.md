@@ -1,10 +1,10 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 134/241. Original dispositions recorded: 241/241.**
+**Issues closed: 135/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
-Branch: `codex/relay-qa-combined-20261001`. Integrated source: `a7ec7e89b5086ace465b359c9f8877855f8175d0`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
+Branch: `codex/relay-qa-combined-20261001`. Integrated source: `dcd6205fac56144d813474bd24b22bcbc5e9af67`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
 
 The earlier80/107/110 numbers were provisional and included partial-claim promotions; this reviewed count supersedes them. #54 and #238 each retain two independent rows. #94 remains historical R2 invalidation at25a23e4b, with no new retest.
 
@@ -28,8 +28,8 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 126 |
-| mixed | 51 |
+| fixed_and_verified | 127 |
+| mixed | 50 |
 | proven_invalid | 8 |
 | unverified | 32 |
 
@@ -147,7 +147,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 108 | #119 | VERF shows "Clinic setup is complete" while workforce claims unconfigured | fixed_and_verified | Setup-profile completeness distinguished from workforce readiness in locally passing guidance case; affected053 case passed. |
 | 109 | #120 | Write-off submit button mislabeled "Void invoice" | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 110 | #121 | Credit-centric copy renders in the write-off and void sub-forms | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 111 | #122 | Badge "Optional PIN" field prefilled with a redacted value before any input | mixed | Reported fresh-field prefill/autofill cause was not reproduced; resets are related rather than causal proof. |
+| 111 | #122 | Badge "Optional PIN" field prefilled with a redacted value before any input | mixed | Original fresh-field prefill/profile cause remains unverified; semantic autocomplete hint does not guarantee browser behavior. |
 | 112 | #123 | Spontaneous "Session locked" mid-test requiring re-authentication | unverified | Capture timing, actor generation, cookies and session-lock response for spontaneous lock; do not infer a defect from synthetic characterization. |
 | 113 | #124 | /clinic/memberships is a bare 404 with no guidance | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 114 | #125 | Growth copy references public pages that don't exist | fixed_and_verified | Current services route and growth copy references browser-verified; affected053 case passed. Hosted publishing remains separate. |
@@ -175,7 +175,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 136 | #147 | No client-side validation in the credit dialog | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 137 | #148 | "Void untouched unpaid invoice" offered on a touched invoice | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 138 | #149 | Invoice #3 (SIMT) shows Settled with allocated USD 25.00 ≠ total USD 30.00 and no visible credit | fixed_and_verified | Actual30invoice,25cash,5credit persist and project zero balance. Added permission-scoped metadata-only credit activity, tested denial/isolation/non-disclosure/issuance ordering. Actual invoice and patientactivity components render persisted backend payload, exactcredit identity/actor/time and invoice amount/reason. Backend batch16/227 andtwoUIcases pass; totalsnotsolely149. |
-| 139 | #150 | "Record cash payment" offered with no indication of the pending-payment lock | mixed | Original lock discoverability before entry still needs actual invoice-state coverage. |
+| 139 | #150 | "Record cash payment" offered with no indication of the pending-payment lock | fixed_and_verified | Actual cash payment component restores invoice-specific pendingwarning beforeentry and afterreload; Recordcashpayment absent, retainedtenderdisabled, exactretryonly. Explicitretry sendsretainedkey/amount/drawer andclearsaftermatchingacknowledgment. Billing source composes sameCashDrawerOperations forcollection/pendinginvoice; fixtureboundaries unchanged. |
 | 140 | #151 | Conflict detector treats cancelled appointments as blocking conflicts (day-based) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 141 | #152 | "Open chart" links to the same patient record page | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 142 | #153 | Recovered booking draft overrides the clicked slot | mixed | Clicked slot versus stale draft replacement and persisted appointment payload lack complete original context. |
