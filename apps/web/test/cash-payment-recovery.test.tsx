@@ -238,3 +238,24 @@ it.each(["allocation", "tender", "change", "receipt"])(
     }
   },
 );
+
+it("#145 renders one pending-cash warning without duplicated punctuation", async () => {
+  const page = await browser.newPage();
+  try {
+    await fixture(page, [
+      { status: 500, body: { error: "Synthetic uncertain cash response" } },
+    ]);
+    await submit(page);
+    const warning = page.getByText(
+      /Cash payment outcome is pending confirmation for invoice/,
+    );
+    await warning.waitFor();
+    expect(await warning.count()).toBe(1);
+    const text = (await warning.textContent())!.replace(/\s+/g, " ");
+    expect(text).toBe(
+      "Cash payment outcome is pending confirmation for invoice #705. Its drawer and amounts are locked. Review activity, then retry this same payment if it is missing. Retrying uses the same request key, so it cannot create a duplicate payment.",
+    );
+  } finally {
+    await page.close();
+  }
+});
