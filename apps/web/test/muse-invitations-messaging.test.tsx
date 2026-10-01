@@ -8,7 +8,9 @@ import {EmploymentAdminPage} from '/src/features/workforce/EmploymentAdminPage.t
 
 import {LiveStaffMessagingWorkspace} from '/src/features/staff-messaging/LiveStaffMessagingWorkspace.tsx';
 const mode = new URLSearchParams(location.search).get('mode'); const EmployeeActivationPage = mode === 'activation' ? (await import('/src/features/workforce/EmployeeActivationPage.tsx')).EmployeeActivationPage : null;
-createRoot(document.getElementById('root')).render(React.createElement(mode === 'messages' ? LiveStaffMessagingWorkspace : mode === 'activation' ? EmployeeActivationPage : EmploymentAdminPage));`;
+const VisitTypeSettings = mode === 'visit-types' ? (await import('/src/features/clinic/VisitTypeSettings.tsx')).VisitTypeSettings : null;
+const SiteSchedulingPolicySettings = mode === 'policy' ? (await import('/src/features/clinic/SiteSchedulingPolicy.tsx')).SiteSchedulingPolicySettings : null;
+createRoot(document.getElementById('root')).render(mode === 'visit-types' ? React.createElement(VisitTypeSettings,{canWrite:true}) : mode === 'policy' ? React.createElement(SiteSchedulingPolicySettings,{siteId:1}) : React.createElement(mode === 'messages' ? LiveStaffMessagingWorkspace : mode === 'activation' ? EmployeeActivationPage : EmploymentAdminPage));`;
 beforeAll(async () => {
   server = await createServer({
     configFile: false,
@@ -72,6 +74,17 @@ afterAll(async () => {
 async function open(mode: string, outcome = "success") {
   const page = await browser.newPage();
   const mutations: string[] = [];
+  const requests: { path: string; method: string; body: unknown }[] = [];
+  let retiredAt: string | null = null;
+  let policy = {
+    site_id: 1,
+    revision: 0,
+    recurrence_enabled: false,
+    overbook_enabled: false,
+    eligible_visit_type_ids: [],
+    effective_from: null as string | null,
+    written_by_membership_id: null as number | null,
+  };
   let pendingInvitation = true;
   let invitationCount = 0;
   await page.route(
@@ -79,9 +92,61 @@ async function open(mode: string, outcome = "success") {
     (route) => {
       const path = new URL(route.request().url()).pathname;
       const method = route.request().method();
+      requests.push({ path, method, body: route.request().postDataJSON() });
       let status = 200;
       let body: unknown = {};
       if (path.endsWith("/csrf")) body = { csrf_token: "synthetic-only" };
+      else if (
+        mode === "visit-types" &&
+        path === "/api/clinic/visit_types/1" &&
+        method === "PATCH"
+      ) {
+        mutations.push(path);
+        retiredAt = "2026-10-01T00:00:00Z";
+        body = {
+          visit_type: {
+            id: 1,
+            code: "Synthetic follow-up",
+            retired_at: retiredAt,
+          },
+        };
+      } else if (
+        (mode === "visit-types" || mode === "policy") &&
+        path === "/api/clinic/facilities"
+      )
+        body = {
+          visit_types: [
+            { id: 1, code: "Synthetic follow-up", retired_at: retiredAt },
+          ],
+          can_write: true,
+        };
+      else if (
+        mode === "policy" &&
+        path === "/api/clinic/facilities/1/scheduling_policy"
+      ) {
+        if (method === "PATCH") {
+          mutations.push(path);
+          const input = route.request().postDataJSON().policy;
+          policy = {
+            ...policy,
+            ...input,
+            revision: 1,
+            effective_from: "2026-10-01T00:00:00Z",
+            written_by_membership_id: 9,
+          };
+        }
+        body = { policy, can_write: true, can_overbook: false };
+      } else if (
+        mode === "policy" &&
+        path === "/api/clinic/facilities/1/resource_compatibility"
+      )
+        body = {
+          can_write: false,
+          resources: [],
+          rooms: [],
+          service_offerings: [],
+          policies: [],
+        };
       else if (
         method === "PATCH" &&
         path === "/api/clinic/workforce/onboarding/1"
@@ -175,7 +240,7 @@ async function open(mode: string, outcome = "success") {
     },
   );
   await page.goto(base + "qa-invites?mode=" + mode);
-  return { page, mutations };
+  return { page, mutations, requests };
 }
 async function fillInvite(page: Page) {
   await page
@@ -355,3 +420,92 @@ it("Muse44 empty recipients explains the block inside the dialog without posting
   expect(mutations).toHaveLength(0);
   await page.close();
 });
+
+it("#52 deactivates a visit type and retains its inactive status on readback and reload", async () => {
+  const { page, mutations, requests } = await open("visit-types");
+  try {
+    const row = page
+      .getByRole("row")
+      .filter({ hasText: "Synthetic follow-up" });
+    await row.getByText("Active", { exact: true }).waitFor();
+    await row.getByRole("button", { name: "Deactivate", exact: true }).click();
+    await page
+      .getByText(
+        "Synthetic follow-up is no longer available for new appointments.",
+        { exact: true },
+      )
+      .waitFor();
+    await row.getByText("Inactive", { exact: true }).waitFor();
+    expect(requests.filter((request) => request.method === "PATCH")).toEqual([
+      {
+        path: "/api/clinic/visit_types/1",
+        method: "PATCH",
+        body: {
+          visit_type: { active: false, request_key: expect.any(String) },
+        },
+      },
+    ]);
+    await page.reload();
+    await row.getByText("Inactive", { exact: true }).waitFor();
+    expect(
+      await row
+        .getByRole("button", { name: "Activate", exact: true })
+        .isEnabled(),
+    ).toBe(true);
+    expect(mutations).toEqual(["/api/clinic/visit_types/1"]);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
+it("#52 saves an authorized scheduling policy and retains the revision and values on reload", async () => {
+  const { page, mutations, requests } = await open("policy");
+  try {
+    const recurrence = page.getByRole("checkbox", {
+      name: "Allow recurring appointments at this site",
+      exact: true,
+    });
+    await recurrence.waitFor();
+    const save = page.getByRole("button", {
+      name: "Save scheduling policy",
+      exact: true,
+    });
+    expect(await save.isEnabled()).toBe(true);
+    await recurrence.check();
+    await save.click();
+    await page
+      .getByText("Scheduling policy saved. New bookings use this revision.", {
+        exact: true,
+      })
+      .waitFor();
+    await page.getByText(/^Site policy revision 1/).waitFor();
+    expect(requests.filter((request) => request.method === "PATCH")).toEqual([
+      {
+        path: "/api/clinic/facilities/1/scheduling_policy",
+        method: "PATCH",
+        body: {
+          policy: {
+            expected_revision: 0,
+            recurrence_enabled: true,
+            overbook_enabled: false,
+            eligible_visit_type_ids: [],
+          },
+        },
+      },
+    ]);
+    await page.reload();
+    await page.getByText(/^Site policy revision 1/).waitFor();
+    expect(await recurrence.isChecked()).toBe(true);
+    expect(
+      await page
+        .getByRole("checkbox", {
+          name: "Allow authorized staff overbook exceptions",
+          exact: true,
+        })
+        .isChecked(),
+    ).toBe(false);
+    expect(mutations).toEqual(["/api/clinic/facilities/1/scheduling_policy"]);
+  } finally {
+    await page.close();
+  }
+}, 20000);

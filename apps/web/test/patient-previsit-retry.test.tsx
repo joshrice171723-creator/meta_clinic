@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, type Browser, type Page, type Route } from "playwright-core";
 import { fileURLToPath } from "node:url";
 
 let server: ViteDevServer;
@@ -39,7 +39,11 @@ beforeAll(async () => {
           if (id === virtualId)
             return `import React from "react";import {createRoot} from "react-dom/client";
         import {PatientPrevisitNote} from "/src/features/patientPortal/PatientPrevisitNote";
-        createRoot(document.getElementById("root")).render(React.createElement(PatientPrevisitNote,{appointmentId:42,appointmentLabel:"Synthetic appointment"}));`;
+        import {PrevisitNoteImport} from "/src/features/clinic/PrevisitNoteImport";
+        const clinical=new URLSearchParams(location.search).get("mode")==="clinical";
+        createRoot(document.getElementById("root")).render(clinical
+          ? React.createElement(PrevisitNoteImport,{patientId:12,encounterId:30,subjective:"",disabled:false,onAppend:()=>{}})
+          : React.createElement(PatientPrevisitNote,{appointmentId:42,appointmentLabel:"Synthetic appointment"}));`;
         },
         configureServer(s) {
           s.middlewares.use("/retry-test", async (_req, res) => {
@@ -61,7 +65,10 @@ beforeAll(async () => {
     throw new Error("Missing fixture port");
   baseUrl = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch({
-    executablePath: "/usr/bin/chromium",
+    executablePath:
+      process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ||
+      process.env.BROWSER_EXECUTABLE_PATH ||
+      "/usr/bin/chromium",
     headless: true,
   });
 }, 15000);
@@ -299,3 +306,165 @@ it("retains explicit unknown/declined answers and permits editing after a defini
   ).toBe(0);
   await page.close();
 });
+
+it("#197 resolves an empty clinical previsit read and shows the current note after reload", async () => {
+  const page = await browser.newPage();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let reads = 0;
+  const methods: string[] = [];
+  try {
+    await page.route(
+      "**/api/clinic/patients/12/encounters/30/previsit_note",
+      async (route) => {
+        methods.push(route.request().method());
+        reads++;
+        if (reads === 1) await gate;
+        await route.fulfill({
+          json: {
+            patient_id: 12,
+            encounter_id: 30,
+            appointment_id: 42,
+            note:
+              reads === 1
+                ? null
+                : {
+                    id: 17,
+                    version_number: 1,
+                    text: "Synthetic current previsit context",
+                    status: "submitted",
+                    attestation: {
+                      id: "patient-intake",
+                      version: "1",
+                      accepted: true,
+                    },
+                    submitted_at: "2026-10-01T12:00:00Z",
+                  },
+          },
+        });
+      },
+    );
+    await page.goto(`${baseUrl}/retry-test?mode=clinical`);
+    const loading = page
+      .getByRole("status")
+      .filter({ hasText: "Checking for a pre-visit note…" });
+    await loading.waitFor();
+    release();
+    await expect.poll(() => loading.count()).toBe(0);
+    expect(await page.getByRole("alert").count()).toBe(0);
+    expect(
+      await page
+        .getByRole("button", { name: "Review note", exact: true })
+        .count(),
+    ).toBe(0);
+    await page.reload();
+    await page
+      .getByRole("heading", { name: "Before this visit", exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByText("Synthetic current previsit context", { exact: true })
+        .isVisible(),
+    ).toBe(true);
+    expect(
+      await page
+        .getByText("Patient confirmed the intake for care-team review.", {
+          exact: true,
+        })
+        .isVisible(),
+    ).toBe(true);
+    expect(await loading.count()).toBe(0);
+    expect(methods).toEqual(["GET", "GET"]);
+  } finally {
+    release();
+    await page.close();
+  }
+}, 20000);
+
+it("#197 replaces a failed clinical previsit read with an actionable retry", async () => {
+  const page = await browser.newPage();
+  let reads = 0;
+  try {
+    await page.route(
+      "**/api/clinic/patients/12/encounters/30/previsit_note",
+      (route) => {
+        expect(route.request().method()).toBe("GET");
+        return ++reads === 1
+          ? route.abort("failed")
+          : route.fulfill({
+              json: {
+                patient_id: 12,
+                encounter_id: 30,
+                appointment_id: 42,
+                note: null,
+              },
+            });
+      },
+    );
+    await page.goto(`${baseUrl}/retry-test?mode=clinical`);
+    const error = page.getByText(
+      "The patient's pre-visit note could not be loaded.",
+      { exact: true },
+    );
+    await error.waitFor();
+    expect(await page.getByRole("status").count()).toBe(0);
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect.poll(() => reads).toBe(2);
+    await expect.poll(() => error.count()).toBe(0);
+    expect(await page.getByRole("status").count()).toBe(0);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
+it("#197 resolves a stalled clinical previsit read at the actual transport deadline and retries", async () => {
+  const page = await browser.newPage();
+  let stalled: Route | undefined;
+  let reads = 0;
+  try {
+    await page.clock.install();
+    await page.route(
+      "**/api/clinic/patients/12/encounters/30/previsit_note",
+      (route) => {
+        expect(route.request().method()).toBe("GET");
+        reads++;
+        if (reads === 1) {
+          stalled = route;
+          return;
+        }
+        return route.fulfill({
+          json: {
+            patient_id: 12,
+            encounter_id: 30,
+            appointment_id: 42,
+            note: null,
+          },
+        });
+      },
+    );
+    await page.goto(`${baseUrl}/retry-test?mode=clinical`);
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Checking for a pre-visit note…" })
+      .waitFor();
+    await expect.poll(() => reads).toBe(1);
+    await page.clock.runFor(30_001);
+    const error = page.getByText(
+      "The patient's pre-visit note could not be loaded.",
+      { exact: true },
+    );
+    await error.waitFor();
+    expect(await page.getByRole("status").count()).toBe(0);
+    await stalled?.abort("failed").catch(() => undefined);
+    stalled = undefined;
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect.poll(() => reads).toBe(2);
+    await expect.poll(() => error.count()).toBe(0);
+    expect(await page.getByRole("status").count()).toBe(0);
+  } finally {
+    await stalled?.abort("failed").catch(() => undefined);
+    await page.close();
+  }
+}, 20000);

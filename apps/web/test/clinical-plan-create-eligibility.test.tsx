@@ -36,7 +36,7 @@ beforeAll(async () => {
           if (id === "\0plan-context")
             return 'export const useClinic=()=>({practice:{timezone:"UTC"},capabilities:{patients:true,notes_read:true}});';
           if (id === "\0plan-resource")
-            return 'export const useResource=(path,options)=>({data:options?.enabled===false?undefined:path.endsWith("/events")?{attempts:[]}:window.planData,refresh:()=>{}}); export const LoadState=()=>null;';
+            return 'import {useResource as actualUseResource} from "/src/shared/ui"; export const useResource=(path,options)=>new URLSearchParams(location.search).has("save")?actualUseResource(path,options):({data:options?.enabled===false?undefined:path.endsWith("/events")?{attempts:[]}:window.planData,refresh:()=>{}}); export const LoadState=()=>null;';
           if (id === "\0plan-closure")
             return 'import React from "react"; export const ClinicalPlanClosurePanel=()=>React.createElement("div",{id:"shared-closure"},"Shared fulfillment fixture");';
           if (id === "\0plan-prescription")
@@ -121,6 +121,124 @@ it("opens the same care-plan dialog from Goals when all existing prerequisites h
   await page.getByRole("dialog").waitFor();
   expect(await page.getByRole("dialog").innerText()).toContain("care plan");
   await page.close();
+});
+
+it("#191 saves a facility-qualified open-encounter care plan from Goals and reads it after reload", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  page.setDefaultTimeout(5000);
+  const base = "/api/clinic/patients/12/encounters/30";
+  const records = Object.fromEntries(
+    [
+      "medication_requests",
+      "service_requests",
+      "diagnoses",
+      "procedures",
+      "care_plans",
+      "care_goals",
+      "immunizations",
+      "assessments",
+    ].map((kind) => [kind, [] as Record<string, unknown>[]]),
+  );
+  const posts: Record<string, any>[] = [];
+  const unexpected: string[] = [];
+  let reads = 0;
+  try {
+    await page.route(`${baseUrl}/api/**`, async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === "/api/csrf" && request.method() === "GET")
+        return route.fulfill({ json: { csrf_token: "synthetic-plan-csrf" } });
+      if (
+        path === `${base}/clinical_plan_workspace` &&
+        request.method() === "GET"
+      ) {
+        reads += 1;
+        return route.fulfill({
+          json: {
+            records,
+            truncated: Object.fromEntries(
+              Object.keys(records).map((kind) => [kind, false]),
+            ),
+            capabilities: Object.fromEntries(
+              Object.keys(records).map((kind) => [kind, true]),
+            ),
+            new_work: { care_plans: true },
+            assessment_scope: [],
+            medication_products: [],
+            medication_order_options: { dose_units: [], routes: [] },
+            prior_care: [],
+            prior_orders: [],
+          },
+        });
+      }
+      if (path === `${base}/care_plans` && request.method() === "POST") {
+        expect(request.headers()["x-csrf-token"]).toBe("synthetic-plan-csrf");
+        const body = request.postDataJSON();
+        posts.push(body);
+        expect(body.care_plan).toEqual({
+          status: "draft",
+          title: "Synthetic Goals recovery plan",
+          description: "Synthetic agreed follow-up",
+          starts_on: "",
+          ends_on: "",
+          request_key: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        });
+        const plan = {
+          ...body.care_plan,
+          id: 191,
+          patient_id: 12,
+          encounter_id: 30,
+          site_id: 1,
+          series_id: "synthetic-plan-191",
+          version_number: 1,
+          prior_revision_id: null,
+          recorded_at: "2026-10-01T12:00:00Z",
+          recorded_by_name: "Synthetic clinician",
+        };
+        records.care_plans.push(plan);
+        return route.fulfill({ status: 201, json: { care_plan: plan } });
+      }
+      unexpected.push(`${request.method()} ${path}`);
+      await route.abort();
+    });
+    await page.goto(`${baseUrl}/plan-create?save`);
+    await page.getByRole("tab", { name: /Goals/ }).click();
+    const add = page.getByRole("button", {
+      name: "Add care plan",
+      exact: true,
+    });
+    expect(await add.isEnabled()).toBe(true);
+    await add.click();
+    await page
+      .getByRole("textbox", { name: "Plan title", exact: true })
+      .fill("Synthetic Goals recovery plan");
+    await page
+      .getByRole("textbox", { name: "Plan details", exact: true })
+      .fill("Synthetic agreed follow-up");
+    await page
+      .getByRole("button", { name: "Save revision", exact: true })
+      .click();
+    await expect.poll(() => posts.length).toBe(1);
+    await expect.poll(() => page.getByRole("dialog").count()).toBe(0);
+    await page
+      .getByText("Synthetic Goals recovery plan", { exact: true })
+      .waitFor();
+    expect(reads).toBeGreaterThanOrEqual(2);
+    const readsBeforeReload = reads;
+    await page.reload();
+    await page.getByRole("tab", { name: /Care plans/ }).click();
+    await page
+      .getByText("Synthetic Goals recovery plan", { exact: true })
+      .waitFor();
+    expect(reads).toBeGreaterThan(readsBeforeReload);
+    expect(records.care_plans).toHaveLength(1);
+    expect(posts).toHaveLength(1);
+    expect(unexpected).toEqual([]);
+  } finally {
+    await page.close();
+  }
 });
 
 it("keeps shared fulfillment outside tab-specific content and distinguishes structured assessments", async () => {
