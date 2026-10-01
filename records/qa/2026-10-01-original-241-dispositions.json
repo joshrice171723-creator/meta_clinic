@@ -1,16 +1,16 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T20:36:37.154540+00:00",
-    "source_revision": "dcd6205fac56144d813474bd24b22bcbc5e9af67",
+    "generated_at": "2026-10-01T20:48:59.816420+00:00",
+    "source_revision": "cdd4f117e9612343b31666fcfab6c75b6c06aa8a",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 135,
-    "remaining": 106,
+    "closed": 137,
+    "remaining": 104,
     "counts": {
-      "mixed": 50,
-      "fixed_and_verified": 127,
+      "mixed": 49,
+      "fixed_and_verified": 129,
       "deferred": 5,
-      "unverified": 32,
+      "unverified": 31,
       "blocked": 19,
       "proven_invalid": 8
     },
@@ -830,6 +830,48 @@
         ],
         "integrated_source_revision": "dcd6205fac56144d813474bd24b22bcbc5e9af67",
         "evidence_label": "original_claim_open; scoped_local_evidence_only"
+      },
+      {
+        "key": "61 | Waitlist add disabled — zero clinicians configured",
+        "disposition": "fixed_and_verified",
+        "scope": "Current local claim verified with composed browser and real backend proof; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual configured staff controls enable Add and preserve exact selected patient/site/clinician/type/window through queue reload. Real Rails POST, database reload and two authenticated GETs verify durable creation with eligible configuration."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-cdd4f117e961-20261001T204755Z-d6cf55\\focused-waitlist-61-78-backend-qa.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue61-78\\browser-final-proof.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\waitlist61-78-adaptation.md"
+        ],
+        "integrated_source_revision": "cdd4f117e9612343b31666fcfab6c75b6c06aa8a",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "78 | Waitlist cancellation → patient offer (Notes for QA #4)",
+        "disposition": "fixed_and_verified",
+        "scope": "Current local claim verified with composed browser and real backend proof; historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual cancelled-opening controls publish exact offer and preserve staff/patient offered state after reload. Real cancellation commit callback now auto-offers and persists exact interval through staff and repeated portal GETs. Regression failed on PostgreSQL integer bind 30.0; one-line whole-minute division fixes it and the unchanged backend proof passes. Existing manual acceptance, replay, identity and expiry evidence is reused; its path is unchanged."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-cdd4f117e961-20261001T204755Z-d6cf55\\focused-waitlist-61-78-backend-qa.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue61-78\\browser-final-proof.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\waitlist61-78-adaptation.md"
+        ],
+        "integrated_source_revision": "cdd4f117e9612343b31666fcfab6c75b6c06aa8a",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
       }
     ]
   },
@@ -5343,14 +5385,24 @@
       "key": "61 | Waitlist add disabled — zero clinicians configured",
       "title": "Waitlist add disabled — zero clinicians configured",
       "source_line": 449,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Current local claim verified with composed browser and real backend proof; historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual configured staff controls enable Add and preserve exact selected patient/site/clinician/type/window through queue reload. Real Rails POST, database reload and two authenticated GETs verify durable creation with eligible configuration."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Original active clinician/site/service eligibility permits waitlist add and persisted readback. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-cdd4f117e961-20261001T204755Z-d6cf55\\focused-waitlist-61-78-backend-qa.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue61-78\\browser-final-proof.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\waitlist61-78-adaptation.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5375,25 +5427,24 @@
       "key": "78 | Waitlist cancellation → patient offer (Notes for QA #4)",
       "title": "Waitlist cancellation → patient offer (Notes for QA #4)",
       "source_line": 453,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Current local claim verified with composed browser and real backend proof; historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Waitlist datetime entry and backend booking/replay/expiry checks plus later integrated journey pass preserved."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Complete cancellation-to-offer UI assertion mapping remains narrower than full historical claim."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual cancelled-opening controls publish exact offer and preserve staff/patient offered state after reload. Real cancellation commit callback now auto-offers and persists exact interval through staff and repeated portal GETs. Regression failed on PostgreSQL integer bind 30.0; one-line whole-minute division fixes it and the unchanged backend proof passes. Existing manual acceptance, replay, identity and expiry evidence is reused; its path is unchanged."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Complete cancellation-to-offer UI assertion mapping remains narrower than full historical claim.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-cdd4f117e961-20261001T204755Z-d6cf55\\focused-waitlist-61-78-backend-qa.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue61-78\\browser-final-proof.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\waitlist61-78-adaptation.md"
+      ],
       "integrator_review_note": null
     },
     {

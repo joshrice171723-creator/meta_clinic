@@ -1,10 +1,10 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 135/241. Original dispositions recorded: 241/241.**
+**Issues closed: 137/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
-Branch: `codex/relay-qa-combined-20261001`. Integrated source: `dcd6205fac56144d813474bd24b22bcbc5e9af67`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
+Branch: `codex/relay-qa-combined-20261001`. Integrated source: `cdd4f117e9612343b31666fcfab6c75b6c06aa8a`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
 
 The earlier80/107/110 numbers were provisional and included partial-claim promotions; this reviewed count supersedes them. #54 and #238 each retain two independent rows. #94 remains historical R2 invalidation at25a23e4b, with no new retest.
 
@@ -28,10 +28,10 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 127 |
-| mixed | 50 |
+| fixed_and_verified | 129 |
+| mixed | 49 |
 | proven_invalid | 8 |
-| unverified | 32 |
+| unverified | 31 |
 
 ## Every original entry
 
@@ -251,9 +251,9 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 212 | #42 | Billing credit/adjustment 500s and sticks the dialog | fixed_and_verified | Actual credit success renders persisted history; actual error/reconciliation/reopen preserves amount/reason and exact retry identity then closes on confirmation. Real backend credit persistence, replay, bounds and atomic rollback proof retained. |
 | 213 | #52 | Visit-type "Disable" does nothing; scheduling policy save permission-blocked | unverified | Visit-type disabling and scheduling-policy permission/save both verified for original owner. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 214 | #54 | Visitor demo tenant isolation | unverified | Two independent visitor sessions have intended tenant isolation and reset boundaries; this54 is NOT statement generation. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
-| 215 | #61 | Waitlist add disabled — zero clinicians configured | unverified | Original active clinician/site/service eligibility permits waitlist add and persisted readback. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
+| 215 | #61 | Waitlist add disabled — zero clinicians configured | fixed_and_verified | Actual configured staff controls enable Add and preserve exact selected patient/site/clinician/type/window through queue reload. Real Rails POST, database reload and two authenticated GETs verify durable creation with eligible configuration. |
 | 216 | #69 | /owner returns 502 Bad Gateway | unverified | Original owner credential/PIN gateway sequence reaches workspace without502 or session-verification failure. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
-| 217 | #78 | Waitlist cancellation → patient offer (Notes for QA #4) | mixed | Complete cancellation-to-offer UI assertion mapping remains narrower than full historical claim. |
+| 217 | #78 | Waitlist cancellation → patient offer (Notes for QA #4) | fixed_and_verified | Actual cancelled-opening controls publish exact offer and preserve staff/patient offered state after reload. Real cancellation commit callback now auto-offers and persists exact interval through staff and repeated portal GETs. Regression failed on PostgreSQL integer bind 30.0; one-line whole-minute division fixes it and the unchanged backend proof passes. Existing manual acceptance, replay, identity and expiry evidence is reused; its path is unchanged. |
 | 218 | #81 | Chart "Signing" anchor renders nothing; completed encounter stuck as unsigned draft | mixed | Completed-but-unsigned state and actual anchor rendering are not established by source presence. |
 | 219 | #82 | "Return to tracking board" link dead on encounter detail page (0.1.1) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 220 | #83 | No write-off / bad-debt flow | fixed_and_verified | Actual write-off form submits amount/reason/idempotency identity then renders saved write-off history and reduced balance. Unchanged real backend persistence, replay, bounds, authorization and rollback evidence composes full original absent-flow claim. |
