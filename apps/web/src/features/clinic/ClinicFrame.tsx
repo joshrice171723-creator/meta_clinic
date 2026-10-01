@@ -185,7 +185,7 @@ export function ClinicFrame({
           <div className="practice-label">
             {scopeSelector}
             {!scopeSelector && <strong>{practiceName}</strong>}
-            <small>Clinic time · {timezone}</small>
+            <small>Clinic timezone · {timezone}</small>
             {!scopeSelector && (
               <span className="practice-location">
                 <small>Location</small>

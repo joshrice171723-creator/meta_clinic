@@ -881,7 +881,7 @@ export function ClinicSchedule({
         <Typography variant="caption" color="text.secondary">
           Export omits cancelled and no-show appointments
           {data.as_of
-            ? ` · Updated ${new Date(data.as_of).toLocaleString()}`
+            ? ` · Schedule as of ${new Date(data.as_of).toLocaleString(undefined, { timeZone: timezone, timeZoneName: "short" })} (${timezone})`
             : ""}
         </Typography>
       )}
