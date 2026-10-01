@@ -248,7 +248,10 @@ export function BadgeAdminPage() {
         select
         label="Location"
         value={siteId}
-        onChange={(event) => setSiteId(event.target.value)}
+        onChange={(event) => {
+          setPin("");
+          setSiteId(event.target.value);
+        }}
         sx={{ maxWidth: 360 }}
       >
         {clinic.sites.map((site) => (
@@ -271,7 +274,10 @@ export function BadgeAdminPage() {
               fullWidth
               label="Employee"
               value={employmentId}
-              onChange={(event) => setEmploymentId(event.target.value)}
+              onChange={(event) => {
+                setPin("");
+                setEmploymentId(event.target.value);
+              }}
             >
               {eligible.map((employment) => (
                 <MenuItem key={employment.id} value={String(employment.id)}>

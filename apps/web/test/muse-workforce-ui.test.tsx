@@ -1,0 +1,371 @@
+import { afterAll, beforeAll, expect, it } from "vitest";
+import { createServer, type ViteDevServer } from "vite";
+import { chromium, type Browser, type Page } from "playwright-core";
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("..", import.meta.url));
+const sites = [
+  { id: 1, code: "SYN1", name: "Synthetic One" },
+  { id: 2, code: "SYN2", name: "Synthetic Two" },
+];
+const employees = [
+  { id: 1, employee_name: "Synthetic Alpha", active_for_work: true },
+  { id: 2, employee_name: "Synthetic Beta", active_for_work: true },
+];
+const entry = `
+import React from 'react'; import {createRoot} from 'react-dom/client';
+import {BadgeAdminPage} from '/src/features/workforce/BadgeAdminPage.tsx';
+import {ScheduleBuilderPage} from '/src/features/workforce/ScheduleBuilderPage.tsx';
+import {TimecardReviewPage} from '/src/features/workforce/TimecardReviewPage.tsx';
+import {PayrollExportPage} from '/src/features/workforce/PayrollExportPage.tsx';
+import {EmploymentAdminPage} from '/src/features/workforce/EmploymentAdminPage.tsx';
+import {PracticeFeatureSettings} from '/src/features/clinic/PracticeFeatureSettings.tsx';
+import {DevelopmentControls} from '/src/features/identity/DevelopmentAccountSwitcher.tsx';
+const mode = new URLSearchParams(location.search).get('mode');
+const component = { badges: BadgeAdminPage, schedule: ScheduleBuilderPage, timecards: TimecardReviewPage, payroll: PayrollExportPage, employees: EmploymentAdminPage, setup: PracticeFeatureSettings, activation: DevelopmentControls }[mode];
+createRoot(document.getElementById('root')).render(React.createElement(component, mode === 'setup' ? {canWrite: false, siteId: 1} : mode === 'activation' ? {accounts: [], businessDate: '2026-10-01'} : {}));
+`;
+let server: ViteDevServer;
+let browser: Browser;
+let base: string;
+beforeAll(async () => {
+  server = await createServer({
+    configFile: false,
+    root,
+    server: { host: "127.0.0.1", port: 0 },
+    plugins: [
+      {
+        name: "synthetic-workforce-only",
+        enforce: "pre",
+        resolveId(source, importer) {
+          if (source === "/qa-workforce.tsx") return "\0qa-workforce";
+          if (
+            importer?.includes("/src/features/workforce/") &&
+            source === "../clinic/Workspace"
+          )
+            return "\0qa-context";
+          if (
+            importer?.includes("/src/features/workforce/") &&
+            source === "../clinic/clinicNavigation"
+          )
+            return "\0qa-navigation";
+        },
+        load(id) {
+          if (id === "\0qa-workforce") return entry;
+          if (id === "\0qa-navigation")
+            return "export const useClinicNavigation = () => ({ navigate: path => { window.qaDestination = path; } });";
+          if (id === "\0qa-context")
+            return `export const useClinic = () => ({ current_site: ${JSON.stringify(sites[0])}, sites: ${JSON.stringify(sites)}, practice: { timezone: 'UTC' }, capabilities: { workforce_admin: !location.search.includes("denied"), workforce_settings: !location.search.includes('denied'), workforce_timecards_read: true, workforce_timecards_review: !location.search.includes('denied'), workforce_timecards_approve: false, workforce_payroll_configure: true, workforce_payroll_export: true } });`;
+        },
+        configureServer(vite) {
+          vite.middlewares.use((request, response, next) => {
+            if (request.url?.startsWith("/qa-workforce?")) {
+              response.setHeader("Content-Type", "text/html");
+              response.end(
+                '<div id="root"></div><script type="module" src="/qa-workforce.tsx"></script>',
+              );
+            } else next();
+          });
+        },
+      },
+    ],
+  });
+  await server.listen();
+  base = server.resolvedUrls!.local[0];
+  browser = await chromium.launch({
+    executablePath:
+      process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || "/usr/bin/chromium",
+    args: ["--no-sandbox"],
+  });
+}, 60000);
+afterAll(async () => {
+  await browser?.close();
+  await server?.close();
+});
+async function open(mode: string) {
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+  });
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    (route) => {
+      const path = new URL(route.request().url()).pathname;
+      let body: unknown = {};
+      let status = 200;
+      if (path === "/api/csrf") body = { csrf_token: "synthetic-only" };
+      else if (path.endsWith("/timecards") && mode.includes("empty"))
+        body = {
+          timecards: [],
+          employees: [],
+          default_period_start: "2026-09-28",
+        };
+      else if (path.endsWith("/schedules") || path.endsWith("/timecards")) {
+        status = 422;
+        body = {
+          error:
+            "Workforce settings have not been configured for this practice.",
+          code: "workforce_settings_unconfigured",
+        };
+      } else if (path.endsWith("/adjustments")) body = { adjustments: [] };
+      else if (path.endsWith("/payroll-exports"))
+        body = {
+          configurations: [],
+          batches: [],
+          fields: [],
+          default_columns: [],
+          employees: [],
+          timecards: [],
+        };
+      else if (path.endsWith("/employments"))
+        body = {
+          employments: [],
+          staff_members: [],
+          membership_options: [],
+          role_options: [
+            {
+              id: 1,
+              role_code: "clinician",
+              label: "Clinician",
+              version: 1,
+              permissions: [],
+            },
+          ],
+          invitations: [],
+          sites,
+        };
+      else if (path.endsWith("/kiosks")) body = { kiosks: [] };
+      else if (path.endsWith("/badges")) {
+        if (route.request().method() === "POST") {
+          if (mode.includes("failure")) {
+            status = 422;
+            body = { error: "Synthetic badge refusal" };
+          } else
+            body = {
+              badge: {
+                id: 1,
+                employment_id: 1,
+                site_id: 1,
+                active: true,
+                pin_required: true,
+                issued_at: "2026-10-01T00:00:00Z",
+              },
+              printable: {
+                token: "synthetic-nonfunctional",
+                barcode_svg: "",
+                reprintable: false,
+              },
+            };
+        } else body = { employees, badges: [] };
+      } else if (path.endsWith("/practice_features"))
+        body = {
+          features: {
+            site_id: 1,
+            site_specialty_configured: true,
+            site_revision: 1,
+            profile_scope: "site",
+            revision: 1,
+            configured: true,
+            finalized: true,
+            finalized_at: "2026-10-01T00:00:00Z",
+            clinic_type: "primary_care",
+            core: {},
+            optional: {},
+            service_scope: [],
+            selected_services: [],
+            assessment_scope: [],
+            assessment_configured: true,
+            insurance_workflows_enabled: false,
+            recommended_clinic_type: "primary_care",
+            recommended_service_scope: [],
+            recommended_assessment_scope: [],
+            starter_profile: { id: "primary-care", version: 1, visits: {} },
+          },
+        };
+      else {
+        status = 404;
+        body = { error: "Unexpected synthetic API request" };
+      }
+      return route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+    },
+  );
+  await page.goto(base + "qa-workforce?mode=" + mode);
+  return page;
+}
+it.each([false, true])(
+  "Muse19 unconfigured schedule provides capability-aware recovery denied=%s",
+  async (denied) => {
+    const page = await open("schedule" + (denied ? "&denied=1" : ""));
+    await page.getByRole("alert").waitFor();
+    expect(await page.getByRole("alert").innerText()).toContain(
+      "Workforce settings are not configured for this location.",
+    );
+    expect(await page.locator("body").innerText()).not.toContain(
+      "Could not load",
+    );
+    if (denied)
+      expect(
+        await page
+          .getByRole("link", { name: "Configure workforce settings" })
+          .count(),
+      ).toBe(0);
+    else
+      expect(
+        await page
+          .getByRole("link", { name: "Configure workforce settings" })
+          .getAttribute("href"),
+      ).toBe("/clinic/workforce/settings");
+    await page.close();
+  },
+);
+it("Muse31 explains separate scheduling setup and links Clinic Setup", async () => {
+  const page = await open("employees");
+  await select(page, "Access role", "Clinician");
+  const link = page.getByRole("link", { name: "Open Clinic Setup" });
+  await link.waitFor();
+  expect(
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Clinician access role" })
+      .innerText(),
+  ).toContain("set availability and add them to a service offering");
+  expect(await link.getAttribute("href")).toBe("/clinic/facilities");
+  await page.close();
+});
+it.each([false, true])(
+  "Muse67 timecard configuration recovery respects capability denied=%s",
+  async (denied) => {
+    const page = await open("timecards" + (denied ? "&denied=1" : ""));
+    await page
+      .getByText(
+        "Workforce settings have not been configured for this practice.",
+        { exact: false },
+      )
+      .waitFor();
+    const button = page.getByRole("button", {
+      name: "Open workforce settings",
+    });
+    if (denied) {
+      expect(await button.count()).toBe(0);
+      expect(await page.locator("body").innerText()).toContain(
+        "Ask a workforce settings administrator",
+      );
+    } else {
+      await button.click();
+      expect(
+        await page.evaluate(
+          () => (window as unknown as { qaDestination: string }).qaDestination,
+        ),
+      ).toBe("/clinic/workforce/settings");
+    }
+    await page.close();
+  },
+);
+it("Muse68 explains approved-timecard prerequisite and offers Timecards recovery", async () => {
+  const page = await open("payroll");
+  const button = page.getByRole("button", { name: "Open Timecards" });
+  await button.waitFor();
+  expect(
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "No approved timecards" })
+      .innerText(),
+  ).toContain("No approved timecards are available.");
+  expect(
+    await page.getByRole("button", { name: "Preview export" }).isDisabled(),
+  ).toBe(true);
+  await button.click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { qaDestination: string }).qaDestination,
+    ),
+  ).toBe("/clinic/workforce/timecards");
+  await page.close();
+});
+it("Muse88 activation entry explicitly asks for an invitation code", async () => {
+  const page = await open("activation");
+  const link = page.getByRole("link", {
+    name: "Activate with invitation code",
+  });
+  await link.waitFor();
+  expect(await link.getAttribute("href")).toBe("/workforce/activate");
+  await page.close();
+});
+it("Muse119 completed clinic profile explicitly separates workforce settings", async () => {
+  const page = await open("setup");
+  const text = page.getByText(
+    "Location profile setup is complete. Workforce settings are managed separately under Workforce.",
+    { exact: true },
+  );
+  await text.waitFor();
+  expect(await text.isVisible()).toBe(true);
+  await page.close();
+});
+async function select(page: Page, label: string, option: string) {
+  await page.getByRole("combobox", { name: label, exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+it.each(["success", "failure"])(
+  "Muse122 PIN starts empty and clears after synthetic %s",
+  async (outcome) => {
+    const page = await open("badges&" + outcome);
+    const pin = page.getByLabel("Optional PIN", { exact: true });
+    await pin.waitFor();
+    expect(await pin.inputValue()).toBe("");
+    await select(page, "Employee", "Synthetic Alpha");
+    await pin.fill("2468");
+    await page.getByRole("button", { name: "Issue or replace badge" }).click();
+    if (outcome === "success") await page.getByRole("dialog").waitFor();
+    else
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "Synthetic badge refusal" })
+        .waitFor();
+    expect(await pin.inputValue()).toBe("");
+    await page.close();
+  },
+);
+it("Muse122 PIN clears when selecting another employee", async () => {
+  const page = await open("badges");
+  await select(page, "Employee", "Synthetic Alpha");
+  const pin = page.getByLabel("Optional PIN", { exact: true });
+  await pin.fill("2468");
+  await select(page, "Employee", "Synthetic Beta");
+  expect(await pin.inputValue()).toBe("");
+  await page.close();
+});
+it("Muse122 PIN clears when selecting another site", async () => {
+  const page = await open("badges");
+  await select(page, "Employee", "Synthetic Alpha");
+  const pin = page.getByLabel("Optional PIN", { exact: true });
+  await pin.fill("2468");
+  await select(page, "Location", "Synthetic Two");
+  expect(await pin.inputValue()).toBe("");
+  await page.close();
+});
+
+it("Muse67 no eligible employees offers management recovery and blocks calculation", async () => {
+  const page = await open("timecards&empty=1");
+  const button = page.getByRole("button", { name: "Manage employees" });
+  await button.waitFor();
+  expect(
+    await page
+      .getByRole("button", { name: "Calculate", exact: true })
+      .isDisabled(),
+  ).toBe(true);
+  expect(
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "No active employees" })
+      .innerText(),
+  ).toContain("Activate or link an employee and assign this location.");
+  await button.click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { qaDestination: string }).qaDestination,
+    ),
+  ).toBe("/clinic/workforce/employees");
+  await page.close();
+});
