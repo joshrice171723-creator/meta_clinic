@@ -104,7 +104,7 @@ module Development
       end
     end
 
-    def self.prepare_sandbox_step!(run)
+    def self.prepare_sandbox_step!(run, visitor:)
       raise ArgumentError, "Open the full sandbox before continuing preparation." unless
         DemoLessonCatalog.sandbox?(run.lesson_key)
 
@@ -116,6 +116,13 @@ module Development
         raise ActiveRecord::RecordNotFound unless run.active?
 
         step = Integer(run.baseline.to_h.fetch("sandbox_preparation_step", 0))
+        # Registered visitors bound to this shared run may confirm completion.
+        # Only its creator may advance incomplete preparation; check under the
+        # same locks as the stage write so a concurrent reset cannot bypass it.
+        raise ActiveRecord::RecordNotFound unless visitor
+        next true if step >= SANDBOX_PREPARERS.length
+        raise ActiveRecord::RecordNotFound unless run.visitor_id == visitor.id
+
         if (preparer = SANDBOX_PREPARERS[step])
           preparer.prepare!(run)
           step += 1

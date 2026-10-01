@@ -128,9 +128,9 @@ module Development
     def prepare_sandbox
       run = current_run!
       require_run_user!(run)
-      raise ActiveRecord::RecordNotFound unless run.visitor_id == current_visitor&.id
+      visitor = current_visitor || raise(ActiveRecord::RecordNotFound)
 
-      render json: { complete: SharedDemoLesson.prepare_sandbox_step!(run) }
+      render json: { complete: SharedDemoLesson.prepare_sandbox_step!(run, visitor:) }
     end
 
     def enrollment

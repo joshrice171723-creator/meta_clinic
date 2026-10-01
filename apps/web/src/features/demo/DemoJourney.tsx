@@ -284,7 +284,6 @@ export function DemoJourney() {
   };
   const selectLesson = async (lesson_key: string | null, restart = false) => {
     const startingSandbox = lesson_key === "sandbox";
-    let sandboxRunCreated = false;
     if (startingSandbox) {
       sandboxStartedAt.current = Date.now();
       setSandboxElapsed(0);
@@ -296,13 +295,37 @@ export function DemoJourney() {
     generation.current += 1;
     try {
       clearCsrf();
-      const response = await api<DemoRunResponse>("/api/demo/lesson", {
-        method: "POST",
-        body: { lesson_key, restart },
-        timeoutMs: lesson_key === "sandbox" ? 240_000 : undefined,
-      });
+      let response: DemoRunResponse;
+      try {
+        response = await api<DemoRunResponse>("/api/demo/lesson", {
+          method: "POST",
+          body: { lesson_key, restart },
+          timeoutMs: lesson_key === "sandbox" ? 240_000 : undefined,
+        });
+      } catch (reason) {
+        if (
+          !startingSandbox ||
+          !(reason instanceof ApiError) ||
+          reason.code !== "outcome_unconfirmed"
+        )
+          throw reason;
+        // Recover the committed run, then use the ordinary preparation path.
+        // The old run does not prove that an unconfirmed reset committed.
+        let recovered: DemoRunResponse;
+        try {
+          recovered = await api<DemoRunResponse>("/api/demo/run");
+        } catch {
+          throw reason;
+        }
+        if (
+          !recovered.active ||
+          recovered.run.lesson_key !== "sandbox" ||
+          (restart && recovered.run.id === run?.id)
+        )
+          throw reason;
+        response = recovered;
+      }
       if (startingSandbox) {
-        sandboxRunCreated = true;
         let complete = false;
         while (!complete) {
           const preparation = await api<{ complete: boolean }>(
@@ -320,23 +343,6 @@ export function DemoJourney() {
       }
       setRestartOpen(false);
     } catch (reason) {
-      if (
-        lesson_key === "sandbox" &&
-        !sandboxRunCreated &&
-        reason instanceof ApiError &&
-        reason.code === "outcome_unconfirmed"
-      ) {
-        try {
-          const current = await api<DemoRunResponse>("/api/demo/run");
-          if (current.active && current.run?.lesson_key === "sandbox") {
-            setState({ status: "ready", value: current });
-            setRestartOpen(false);
-            return;
-          }
-        } catch {
-          // Keep the original outcome-unconfirmed error available to the visitor.
-        }
-      }
       const failure = message(reason, "This lesson could not be opened.");
       setError(
         startingSandbox && sandboxStartedAt.current !== null

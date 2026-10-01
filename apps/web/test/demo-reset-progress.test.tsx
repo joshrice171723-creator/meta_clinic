@@ -69,10 +69,19 @@ vi.mock("@mui/icons-material/ArrowForwardRounded", () => ({
 vi.mock("../src/api/client", () => ({
   api: harness.request,
   clearCsrf: vi.fn(),
-  ApiError: class ApiError extends Error {},
+  ApiError: class ApiError extends Error {
+    constructor(
+      public status: number,
+      message: string,
+      public code?: string,
+    ) {
+      super(message);
+    }
+  },
 }));
 
 import { DemoJourney } from "../src/features/demo/DemoJourney";
+import { ApiError } from "../src/api/client";
 
 type Element = { type: unknown; props: Record<string, any> };
 const payload = {
@@ -130,9 +139,11 @@ function startMockedReset() {
   return { resolve, reject };
 }
 async function settle() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
+}
+function beginReset() {
+  button(render(), "Reset Sandbox").props.onClick();
+  button(resetDialog(render()), "Reset Sandbox").props.onClick();
 }
 beforeEach(() => {
   vi.useFakeTimers();
@@ -198,6 +209,9 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
   });
   it("closes the dialog only when the mocked reset response succeeds", async () => {
     const pending = startMockedReset();
+    harness.request
+      .mockResolvedValueOnce({ complete: true })
+      .mockResolvedValueOnce(payload);
     expect(resetDialog(render()).props.open).toBe(true);
     pending.resolve(payload);
     await settle();
@@ -206,6 +220,79 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
     expect(nodes(tree).some((node) => node.props.role === "status")).toBe(
       false,
     );
-    expect(harness.request).toHaveBeenCalledTimes(1);
+    expect(harness.request).toHaveBeenCalledTimes(3);
+  });
+  it("waits for all stages after recovering a lost initial response", async () => {
+    const replacement = {
+      ...payload,
+      run: { ...payload.run, id: "synthetic-replacement-34" },
+    };
+    let finish!: (value: unknown) => void;
+    harness.request
+      .mockRejectedValueOnce(
+        new ApiError(0, "Response lost", "outcome_unconfirmed"),
+      )
+      .mockResolvedValueOnce(replacement)
+      .mockResolvedValueOnce({ complete: false })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(replacement);
+    beginReset();
+    await settle();
+    expect(resetDialog(render()).props.open).toBe(true);
+    expect(button(resetDialog(render()), "Reset Sandbox").props.disabled).toBe(
+      true,
+    );
+    expect(harness.states[0]).toEqual({ status: "ready", value: payload });
+    expect(harness.request).toHaveBeenNthCalledWith(
+      4,
+      "/api/demo/sandbox/prepare",
+      {
+        method: "POST",
+        body: {},
+        timeoutMs: 240_000,
+      },
+    );
+    finish({ complete: true });
+    await settle();
+    expect(resetDialog(render()).props.open).toBe(false);
+    expect(harness.states[0]).toEqual({ status: "ready", value: replacement });
+    expect(harness.request).toHaveBeenNthCalledWith(5, "/api/demo/run");
+  });
+  it("keeps the original failure when recovery only finds the old run", async () => {
+    harness.request
+      .mockRejectedValueOnce(
+        new ApiError(0, "Response lost", "outcome_unconfirmed"),
+      )
+      .mockResolvedValueOnce(payload);
+    beginReset();
+    await settle();
+    expect(resetDialog(render()).props.open).toBe(true);
+    expect(text(resetDialog(render()))).toContain("Response lost");
+    expect(harness.request).toHaveBeenCalledTimes(2);
+  });
+  it("retains a preparation denial after initial-response recovery without showing success", async () => {
+    const replacement = {
+      ...payload,
+      run: { ...payload.run, id: "synthetic-replacement-34" },
+    };
+    harness.request
+      .mockRejectedValueOnce(
+        new ApiError(0, "Response lost", "outcome_unconfirmed"),
+      )
+      .mockResolvedValueOnce(replacement)
+      .mockRejectedValueOnce(new ApiError(404, "Not found."));
+    beginReset();
+    await settle();
+    expect(resetDialog(render()).props.open).toBe(true);
+    expect(text(resetDialog(render()))).toContain("Not found.");
+    expect(button(resetDialog(render()), "Reset Sandbox").props.disabled).toBe(
+      false,
+    );
+    expect(harness.states[0]).toEqual({ status: "ready", value: payload });
+    expect(harness.request).toHaveBeenCalledTimes(3);
   });
 });
