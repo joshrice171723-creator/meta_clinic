@@ -119,6 +119,7 @@ function LocationSelectionDialog({
           id="location-picker-description"
           variant="body2"
         >
+          This is a staff workspace.
           Choose a location you are authorized to use before entering the clinic
           workspace.
         </Typography>
@@ -138,6 +139,9 @@ function LocationSelectionDialog({
             Back to current location
           </Button>
         )}
+        <Button href="/portal" disabled={selectingSiteId !== null}>
+          Return to My launch
+        </Button>
         {error && (
           <Typography color="error" role="alert" variant="body2">
             {error}
