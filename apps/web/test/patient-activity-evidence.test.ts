@@ -296,7 +296,9 @@ it("#219 dismisses and reloads an unresolved registration then reconciles its ex
       .getByRole("button", { name: "Retry same request", exact: true })
       .waitFor();
     expect(
-      await dialog.locator("fieldset").getAttribute("disabled"),
+      await dialog
+        .locator("fieldset:not([aria-hidden='true'])")
+        .getAttribute("disabled"),
     ).not.toBeNull();
     await page.keyboard.press("Escape");
     await expect.poll(() => dialog.count()).toBe(0);
@@ -318,7 +320,9 @@ it("#219 dismisses and reloads an unresolved registration then reconciles its ex
     await retry.waitFor();
     expect(await retry.isEnabled()).toBe(true);
     expect(
-      await dialog.locator("fieldset").getAttribute("disabled"),
+      await dialog
+        .locator("fieldset:not([aria-hidden='true'])")
+        .getAttribute("disabled"),
     ).not.toBeNull();
     expect(
       await page.evaluate(() => (window as any).qa.registration.officialBodies),

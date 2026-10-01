@@ -568,7 +568,7 @@ it("Muse102 receiving exposes native leaf creation and posts a receipt to that e
       base + "clinic/inventory/locations?return_to=/clinic/inventory/receiving",
     );
     await page
-      .getByLabel("Location name", { exact: true })
+      .getByRole("textbox", { name: /^Location name/ })
       .fill("Synthetic new leaf bin");
     await page.getByRole("combobox", { name: "Facility", exact: true }).click();
     await page
