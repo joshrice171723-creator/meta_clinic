@@ -2177,6 +2177,7 @@ function BookingFormEditor({
                 busy ||
                 outcomeUnconfirmed ||
                 holdOutcomeUnconfirmed ||
+                seriesOutcomeUnconfirmed ||
                 Boolean(heldSlot)
               }
               onEditingChange={setChangingPatient}
@@ -2203,6 +2204,7 @@ function BookingFormEditor({
                   busy ||
                   outcomeUnconfirmed ||
                   holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
                   Boolean(heldSlot)
                 }
                 value={startsAt}
@@ -2238,6 +2240,7 @@ function BookingFormEditor({
                   busy ||
                   outcomeUnconfirmed ||
                   holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
                   Boolean(heldSlot)
                 }
                 value={endsAt}
@@ -2274,6 +2277,7 @@ function BookingFormEditor({
                     busy ||
                     outcomeUnconfirmed ||
                     holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
                     Boolean(heldSlot)
                   }
                   onClick={() => setDuration(minutes)}
@@ -2293,6 +2297,7 @@ function BookingFormEditor({
                 busy ||
                 outcomeUnconfirmed ||
                 holdOutcomeUnconfirmed ||
+                seriesOutcomeUnconfirmed ||
                 Boolean(heldSlot)
               }
               canConfigure={clinic.capabilities.telehealth_configure === true}
@@ -2319,6 +2324,7 @@ function BookingFormEditor({
                   busy ||
                   outcomeUnconfirmed ||
                   holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
                   Boolean(heldSlot)
                 }
               >
@@ -2350,6 +2356,7 @@ function BookingFormEditor({
                     busy ||
                     outcomeUnconfirmed ||
                     holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
                     Boolean(heldSlot)
                   }
                 >
@@ -2376,6 +2383,7 @@ function BookingFormEditor({
                   busy ||
                   outcomeUnconfirmed ||
                   holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
                   Boolean(heldSlot)
                 }
               >
@@ -2436,6 +2444,7 @@ function BookingFormEditor({
                     busy ||
                     outcomeUnconfirmed ||
                     holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
                     Boolean(heldSlot)
                   }
                 >
