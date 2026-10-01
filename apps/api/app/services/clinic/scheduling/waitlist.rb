@@ -68,7 +68,7 @@ module Clinic
         Authorization.authorize_with_legacy!(actor: actor, practice: appointment.practice,
           action: "appointments.status_transition", legacy_action: "appointments.write", site: appointment.site)
         expires_at = [now + 4.hours, appointment.starts_at].min
-        duration_minutes = (appointment.ends_at - appointment.starts_at) / 60
+        duration_minutes = (appointment.ends_at - appointment.starts_at).div(60)
         candidates = WaitlistEntry.where(practice: appointment.practice, site_id: appointment.site_id,
           clinician_id: appointment.booked_clinician_id, visit_type_id: appointment.visit_type_id)
           .where("(state = 'waiting' OR (state = 'offered' AND offer_expires_at <= ?))", now)
