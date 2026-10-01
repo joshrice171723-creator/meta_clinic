@@ -23,14 +23,21 @@ const modules: Record<string, string> = {
     export const LoadState = () => null;`,
   "./Workspace": `export const useClinic = () => ({
     practice: { id: 1 }, user_id: 1, membership_id: 1,
-    capabilities: { billing_read: true, billing_invoice_draft: true }
+    capabilities: { billing_read: true, billing_invoice_draft: true,
+      billing_invoice_post: window.qaCashPending !== undefined,
+      billing_payment_record: window.qaCashPending !== undefined }
   });`,
   "./useWorkingDraft": `export const useWorkingDraft = () => ({
     ready: true, restored: null, save: async () => true, clear: async () => true
   });`,
-  "./CashDrawerOperations": `export const CashDrawerOperations = () => null;
-    export const hasPendingCashAttempt = () => false;
-    export const pendingCashAttemptInvoiceId = () => null;`,
+  "./CashDrawerOperations": `import {useEffect} from 'react';
+    export const CashDrawerOperations = ({onPendingChange, invoice}) => {
+      useEffect(() => { onPendingChange?.({pending: window.qaCashPending === true,
+        invoiceId: invoice?.id ?? null}); }, [invoice?.id]);
+      return null;
+    };
+    export const hasPendingCashAttempt = () => window.qaCashPending === true;
+    export const pendingCashAttemptInvoiceId = () => window.qaCashPending === true ? 77 : null;`,
   "./CashPayEstimates": `export const CashPayEstimates = () => null;`,
   "./GuidedCheckout": `export const GuidedCheckout = () => null;`,
   "./InvoiceCheckoutControls": `export const InvoiceCheckoutControls = () => null;`,
@@ -286,3 +293,61 @@ it("ignores an older aborted ledger response after a later save refresh", async 
     await page.close();
   }
 }, 60_000);
+
+// Muse #148: exercise the real Billing -> CheckoutSettlement -> adjustment wiring.
+it.each([true, false])(
+  "#148 gates invoice void with pending cash = %s",
+  async (pending) => {
+    const page = await browser.newPage({
+      viewport: { width: 1280, height: 900 },
+    });
+    try {
+      await page.addInitScript((pending) => {
+        (window as any).qaCashPending = pending;
+      }, pending);
+      await page.goto(`${base}qa?patient_id=77&encounter_id=9`);
+      await waitRequests(page, 2);
+      await resolve(page, 0, {
+        ...ledger,
+        invoices: [
+          {
+            ...invoice,
+            status: "posted",
+            total_amount: "30.00",
+            balance_amount: "30.00",
+            adjustment_limits: {
+              credit_available_amount: "30.00",
+              void_eligible: true,
+            },
+          },
+        ],
+      });
+      await resolve(page, 1, {
+        invoices: [{ id: 77, encounter_id: 9, status: "posted" }],
+      });
+      await page
+        .getByRole("button", { name: "Adjust charges", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", {
+        name: "Adjust invoice charges",
+      });
+      const voidAction = dialog.getByRole("button", {
+        name: "Void untouched unpaid invoice",
+        exact: true,
+      });
+      await voidAction.waitFor();
+      expect(await voidAction.isDisabled()).toBe(pending);
+      expect(
+        await dialog
+          .getByText(/Cash payment for invoice #77 is pending confirmation/)
+          .count(),
+      ).toBe(pending ? 1 : 0);
+      expect(
+        (await requests(page)).filter((r) => r.method !== "GET"),
+      ).toHaveLength(0);
+    } finally {
+      await page.close();
+    }
+  },
+  20000,
+);
