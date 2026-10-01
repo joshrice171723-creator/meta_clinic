@@ -87,9 +87,10 @@ beforeAll(async () => {
   await server.listen();
   base = server.resolvedUrls!.local[0];
   browser = await chromium.launch({
-    executablePath: ["/usr/bin/chromium", chromium.executablePath()].find(
-      existsSync,
-    ),
+    executablePath:
+      process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ||
+      process.env.BROWSER_EXECUTABLE_PATH ||
+      ["/usr/bin/chromium", chromium.executablePath()].find(existsSync),
     args: ["--no-sandbox"],
   });
 }, 60000);
