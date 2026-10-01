@@ -102,17 +102,30 @@ const emptyEntry = (): CoordinationEntry => ({
   reference_id: null,
 });
 
-export function PatientCareCoordination({ patientId }: { patientId: number }) {
+export function PatientCareCoordination({
+  patientId,
+  onSaved,
+}: {
+  patientId: number;
+  onSaved?: () => void;
+}) {
   const clinic = useClinic();
   return (
     <CoordinationPanel
       key={`${clinic.user_id}:${clinic.practice.id}:${clinic.authorization_generation}:${patientId}`}
       patientId={patientId}
+      onSaved={onSaved}
     />
   );
 }
 
-function CoordinationPanel({ patientId }: { patientId: number }) {
+function CoordinationPanel({
+  patientId,
+  onSaved,
+}: {
+  patientId: number;
+  onSaved?: () => void;
+}) {
   const path = `/api/clinic/patients/${patientId}/care_coordination`;
   const resource = useResource<PatientCareCoordinationResponse>(path);
   const { registerBlocker } = useClinicNavigation();
@@ -198,6 +211,7 @@ function CoordinationPanel({ patientId }: { patientId: number }) {
         `Care coordination revision ${result.coordination.revision} saved.`,
       );
       resource.refresh();
+      onSaved?.();
     } catch (reason) {
       if (!active.current) return;
       const uncertain =

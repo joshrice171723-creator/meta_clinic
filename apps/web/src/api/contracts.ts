@@ -224,6 +224,7 @@ export type PatientActivityHistory = {
   coverage: {
     source:
       | "registration"
+      | "care_coordination"
       | "appointments"
       | "notes"
       | "encounters"
@@ -239,6 +240,7 @@ export type PatientActivityHistory = {
     id: number;
     source:
       | "registration"
+      | "care_coordination"
       | "appointments"
       | "notes"
       | "encounters"

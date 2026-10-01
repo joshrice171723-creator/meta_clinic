@@ -988,7 +988,10 @@ function PatientRecord({
           </Dialog>
         </>
       )}
-      <PatientDetails patient={patient} />
+      <PatientDetails
+        patient={patient}
+        onCoordinationSaved={onRegistrationSaved}
+      />
       <Accordion>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography component="h2" variant="subtitle1">
@@ -998,10 +1001,11 @@ function PatientRecord({
         <AccordionDetails>
           <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
             Authorized record activity, newest first. This view shows version
-            metadata only, without previous field values or clinical content. It
-            follows the patient’s lineage across registration, membership,
-            payment, scheduling, encounters, notes, invoices, and reminders;
-            sources you cannot access are called out instead of appearing empty.
+            and revision metadata only, without previous field values or
+            clinical content. It follows the patient’s lineage across
+            registration, care coordination, membership, payment, scheduling,
+            encounters, notes, invoices, and reminders; sources you cannot
+            access are called out instead of appearing empty.
           </Typography>
           {!activityHistory ? (
             <Alert severity="info">Patient activity is unavailable.</Alert>
@@ -1037,14 +1041,16 @@ function PatientRecord({
               ) : (
                 <Stack component="ol" spacing={2} sx={{ m: 0, pl: 3 }}>
                   {activityHistory.entries.map((entry) => (
-                    <Box component="li" key={entry.id}>
+                    <Box component="li" key={`${entry.source}:${entry.id}`}>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {entry.section} ·{" "}
                         {entry.event === "create"
                           ? "Created"
                           : entry.event === "update"
                             ? "Updated"
-                            : entry.event}
+                            : entry.event === "recorded"
+                              ? "Recorded"
+                              : entry.event}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {entry.occurred_at
@@ -1062,7 +1068,9 @@ function PatientRecord({
                       <Typography variant="body2">
                         {entry.changed_fields.length
                           ? `Fields: ${entry.changed_fields.map((field) => field.replaceAll("_", " ")).join(", ")}`
-                          : "Record version updated"}
+                          : entry.event === "recorded"
+                            ? "Revision recorded"
+                            : "Record version updated"}
                       </Typography>
                     </Box>
                   ))}
@@ -1071,7 +1079,7 @@ function PatientRecord({
               {activityHistory.has_more && (
                 <Typography variant="body2">
                   Showing the latest 25 events from included sources. Older
-                  version metadata remains in the audit record.
+                  activity metadata remains in the underlying records.
                 </Typography>
               )}
             </Stack>
@@ -2547,7 +2555,13 @@ function PatientRegistrationEditor({
   );
 }
 
-function PatientDetails({ patient }: { patient: Patient }) {
+function PatientDetails({
+  patient,
+  onCoordinationSaved,
+}: {
+  patient: Patient;
+  onCoordinationSaved: () => void;
+}) {
   const d = patient.demographics;
   const vitalLabel = (code: string) =>
     ({
@@ -2666,7 +2680,10 @@ function PatientDetails({ patient }: { patient: Patient }) {
             : "No vital-sign observations recorded."}
         </p>
       </Card>
-      <PatientCareCoordination patientId={patient.id} />
+      <PatientCareCoordination
+        patientId={patient.id}
+        onSaved={onCoordinationSaved}
+      />
       <IntakeConsentEvidence patientId={patient.id} />
       <PatientClinicalHistory patientId={patient.id} />
       <PatientLabReports
