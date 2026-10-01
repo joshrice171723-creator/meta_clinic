@@ -1,14 +1,14 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T19:47:11.366185+00:00",
+    "generated_at": "2026-10-01T19:55:00.595398+00:00",
     "source_revision": "62f52c4d9e1d775cebf647ce33439108247ee0ea",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 113,
-    "remaining": 128,
+    "closed": 118,
+    "remaining": 123,
     "counts": {
-      "mixed": 60,
-      "fixed_and_verified": 105,
+      "mixed": 55,
+      "fixed_and_verified": 110,
       "unverified": 44,
       "deferred": 5,
       "blocked": 19,
@@ -268,6 +268,101 @@
         ],
         "integrated_source_revision": "1bfa1d5aaaf1067a10a5a85830bc9d3ba1ca45c3",
         "evidence_label": "whole_current_local_claim_verified; reused_execution; hosted_acceptance_separate"
+      },
+      {
+        "key": "24 | Missing-space string-concat typos (class)",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Current rendered checks cover timezone, appointment count, service price, catalog version, invoice total, refund date separator and export label spacing. Four intended Muse24 cases and shared invoice93/146 assertions pass; unrelated batch failures retained, not called green."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue24\\final-disposition.json"
+        ],
+        "integrated_source_revision": "59a0e302035f5b8a107c34a8db4e007f23dc3bab",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "83 | No write-off / bad-debt flow",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual write-off form submits amount/reason/idempotency identity then renders saved write-off history and reduced balance. Unchanged real backend persistence, replay, bounds, authorization and rollback evidence composes full original absent-flow claim."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue83\\disposition.md"
+        ],
+        "integrated_source_revision": "59a0e302035f5b8a107c34a8db4e007f23dc3bab",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "87 | Payment receipt/ledger timestamps don't match recording time",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Two actual payment UI checks preserve recorded4:47AM clinic time across detail/reload and Chicago/Tokyo browsers. Real Rails payment and receipt timestamps remain equal after36-minute-later retry/read; actual receipt template renders original recorded time."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue87-disposition.json"
+        ],
+        "integrated_source_revision": "59a0e302035f5b8a107c34a8db4e007f23dc3bab",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "45 | Badge issuance silently fails; kiosk enrollment code does nothing",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual badge/enrollment UI shows unconfigured errors and configured creation results, printable/code, refreshed lists and reload; real Rails persists replacement badge and enrollment metadata/digests, sanitizes readback and consumes enrollment successfully."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-45-86-final-results.json"
+        ],
+        "integrated_source_revision": "59a0e302035f5b8a107c34a8db4e007f23dc3bab",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "86 | Badge issuance silently does nothing for Sim Frontdesk (blocks WF-028)",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual eligible-employee badge issuance now yields visible result/readback or explicit refusal, composed with real backend persistence. Target job title does not affect the source eligibility path. Historical named issuer/target configuration is unknown, not invalidated."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-45-86-final-results.json"
+        ],
+        "integrated_source_revision": "59a0e302035f5b8a107c34a8db4e007f23dc3bab",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
       }
     ]
   },
@@ -1325,25 +1420,22 @@
       "key": "24 | Missing-space string-concat typos (class)",
       "title": "Missing-space string-concat typos (class)",
       "source_line": 121,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Specific spacing examples in UTC, USD price, Catalog version and Export day were verified."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Remaining appointment-count, total and date examples lack exact affected screen coverage."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Current rendered checks cover timezone, appointment count, service price, catalog version, invoice total, refund date separator and export label spacing. Four intended Muse24 cases and shared invoice93/146 assertions pass; unrelated batch failures retained, not called green."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Remaining appointment-count, total and date examples lack exact affected screen coverage.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue24\\final-disposition.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -1599,25 +1691,22 @@
       "key": "45 | Badge issuance silently fails; kiosk enrollment code does nothing",
       "title": "Badge issuance silently fails; kiosk enrollment code does nothing",
       "source_line": 147,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Independent badge/kiosk capabilities and errors have passing frontend checks."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Actual configured synthetic badge issuance and enrollment persistence/readback are not established."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual badge/enrollment UI shows unconfigured errors and configured creation results, printable/code, refreshed lists and reload; real Rails persists replacement badge and enrollment metadata/digests, sanitizes readback and consumes enrollment successfully."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual configured synthetic badge issuance and enrollment persistence/readback are not established.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-45-86-final-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2200,25 +2289,22 @@
       "key": "86 | Badge issuance silently does nothing for Sim Frontdesk (blocks WF-028)",
       "title": "Badge issuance silently does nothing for Sim Frontdesk (blocks WF-028)",
       "source_line": 199,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Badge capability/error correction checked locally."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original configured badge issue/persisted readback for Sim Frontdesk remains unproved."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual eligible-employee badge issuance now yields visible result/readback or explicit refusal, composed with real backend persistence. Target job title does not affect the source eligibility path. Historical named issuer/target configuration is unknown, not invalidated."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original configured badge issue/persisted readback for Sim Frontdesk remains unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-45-86-final-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -4804,25 +4890,22 @@
       "key": "83 | No write-off / bad-debt flow",
       "title": "No write-off / bad-debt flow",
       "source_line": 459,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Authorized write-off persistence/replay/limit/permission/rollback checks pass."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Actual write-off UI discoverability/persistence journey is not proved by backend characterization."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual write-off form submits amount/reason/idempotency identity then renders saved write-off history and reduced balance. Unchanged real backend persistence, replay, bounds, authorization and rollback evidence composes full original absent-flow claim."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual write-off UI discoverability/persistence journey is not proved by backend characterization.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue83\\disposition.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -4847,25 +4930,22 @@
       "key": "87 | Payment receipt/ledger timestamps don't match recording time",
       "title": "Payment receipt/ledger timestamps don't match recording time",
       "source_line": 463,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local original claim verified with explicitly composed evidence; historical hosted observation preserved.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Original timestamp retention on replay and new-payment new timestamp checked1/22."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Historical receipt/ledger browser display and original recording-time mismatch remain unproved."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Two actual payment UI checks preserve recorded4:47AM clinic time across detail/reload and Chicago/Tokyo browsers. Real Rails payment and receipt timestamps remain equal after36-minute-later retry/read; actual receipt template renders original recorded time."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Historical receipt/ledger browser display and original recording-time mismatch remain unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue87-disposition.json"
+      ],
       "integrator_review_note": null
     },
     {

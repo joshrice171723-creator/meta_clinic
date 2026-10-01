@@ -175,6 +175,33 @@ class ClinicProviderAssignmentTest < ActionDispatch::IntegrationTest
     assert_not_includes batch.eligible.map { |provider| provider.fetch(:clinician_profile_id) }, foreign_profile.id.to_s
   end
 
+  test "Muse85 board offers an eligible configured clinician and reads back the assigned provider" do
+    grant_permissions!(@membership, "patients.read")
+    @site.update!(status: "active")
+    login
+    get "/api/clinic/tracking_board", headers: @headers
+    assert_response :success
+    provider = response.parsed_body.fetch("eligible_providers").find { |row| row.fetch("clinician_profile_id") == @profile.id.to_s }
+    assert provider, "Configured eligible clinician must be offered on the board"
+    assert_includes provider.fetch("site_ids"), @site.id.to_s
+    visit = response.parsed_body.fetch("visits").find { |row| row.fetch("encounter_id") == @encounter.id }
+    assert_equal true, visit.fetch("provider_assignment_available")
+    assert_nil visit.fetch("provider")
+    post "/api/clinic/encounters/#{@encounter.id}/provider_assignment", params: {
+      assignment: { patient_id: @patient.id, clinician_profile_id: @profile.id,
+        request_key: "muse85-configured-provider", expected_token: nil }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    token = response.parsed_body.fetch("assignment").fetch("token")
+    assert @encounter.participants.queue_providers.current.exists?(membership: @profile.membership)
+    get "/api/clinic/tracking_board", headers: @headers
+    assert_response :success
+    assigned = response.parsed_body.fetch("visits").find { |row| row.fetch("encounter_id") == @encounter.id }.fetch("provider")
+    assert_equal @profile.id.to_s, assigned.fetch("clinician_profile_id")
+    assert_equal token, assigned.fetch("token")
+    assert assigned.fetch("display_name").present?
+  end
+
   private
 
   def assign(expected_token:, key:)

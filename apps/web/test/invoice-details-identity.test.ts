@@ -60,6 +60,7 @@ const entry = `
     resolve(index, value) {
       const request = this.requests[index];
       request.done = true;
+      request.value = value;
       request.resolve(value);
     }
   };
@@ -496,7 +497,17 @@ it("#42 preserves a failed credit and recovers through its exact retry", async (
       (window as any).qa.requests[2].reject(new Error("Internal Server Error"));
     });
     await waitRequests(page, 5);
-    await dialog.getByText(/Internal Server Error/).waitFor();
+    await page.evaluate(() => {
+      const qa = (window as any).qa;
+      qa.resolve(3, qa.requests[0].value);
+      qa.resolve(4, qa.requests[1].value);
+    });
+    await page
+      .getByRole("button", { name: "Adjust charges", exact: true })
+      .click();
+    await dialog
+      .getByText(/This charge adjustment has an unconfirmed outcome/)
+      .waitFor();
     expect(
       await dialog.getByLabel("Credit amount", { exact: true }).inputValue(),
     ).toBe("5.00");

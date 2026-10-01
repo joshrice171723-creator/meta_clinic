@@ -255,6 +255,14 @@ it("Muse21/44 only active non-self staff are offered", async () => {
   expect(await page.getByRole("option").allTextContents()).toEqual([
     "eligible@example.test",
   ]);
+  await page
+    .getByRole("option", { name: "eligible@example.test", exact: true })
+    .click();
+  expect(
+    await page
+      .getByRole("button", { name: "Create conversation", exact: true })
+      .isEnabled(),
+  ).toBe(true);
   await page.close();
 });
 it.each(["denied", "conflict"])(

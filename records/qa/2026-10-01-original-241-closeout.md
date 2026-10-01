@@ -1,6 +1,6 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 113/241. Original dispositions recorded: 241/241.**
+**Issues closed: 118/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
@@ -28,8 +28,8 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 105 |
-| mixed | 60 |
+| fixed_and_verified | 110 |
+| mixed | 55 |
 | proven_invalid | 8 |
 | unverified | 44 |
 
@@ -89,7 +89,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 50 | #21 | Staff conversation composer has empty participant list | unverified | CONFIG:Establish eligible staff recipients for the original location/account and verify real recipient readback in isolated hosted QA, without creating real messages. |
 | 51 | #22 | Inventory receiving/counting unreachable — and setup itself is permission-blocked | mixed | Supplier-offer setup, permission denial and receiving/counting end-to-end prerequisites remain separately unproved. |
 | 52 | #23 | Recalls worklist has no creation entry point | fixed_and_verified | Existing recall creation entry/guidance frontend checks plus independently passed creation/replay2/24 resolve current local absence claim. |
-| 53 | #24 | Missing-space string-concat typos (class) | mixed | Remaining appointment-count, total and date examples lack exact affected screen coverage. |
+| 53 | #24 | Missing-space string-concat typos (class) | fixed_and_verified | Current rendered checks cover timezone, appointment count, service price, catalog version, invoice total, refund date separator and export label spacing. Four intended Muse24 cases and shared invoice93/146 assertions pass; unrelated batch failures retained, not called green. |
 | 54 | #26 | Omni login hard to discover | unverified | Verify discoverability of owner and clinic-team credential entry including PIN guidance on the published build. |
 | 55 | #31 | Newly invited Clinician not bookable | unverified | CONFIG:Establish invited clinician profile, eligible site and availability, then verify the original booking picker includes the configured clinician. |
 | 56 | #32 | "Schedule appointment" silent no-op outside capacity template | fixed_and_verified | Local outside-capacity booking rejection gives explicit feedback and retains draft in145-related/16-browser batch; capacity guard preserved. |
@@ -102,7 +102,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 63 | #40 | VERF/QAGT fixtures absent from environment (NEEDS OWNER INPUT) | blocked | Approved existing synthetic location/account inventory for the reported environment. |
 | 64 | #43 | Inventory setup permission-blocked for owner | unverified | Capture original Omni inventory-setup denial with effective permissions and response; independent allowed/denied2/14 checks do not classify that fixture. |
 | 65 | #44 | Staff messaging unusable — empty participant list | mixed | Original empty eligible recipient set requires original actor/site eligibility evidence; error repair does not populate staff. |
-| 66 | #45 | Badge issuance silently fails; kiosk enrollment code does nothing | mixed | Actual configured synthetic badge issuance and enrollment persistence/readback are not established. |
+| 66 | #45 | Badge issuance silently fails; kiosk enrollment code does nothing | fixed_and_verified | Actual badge/enrollment UI shows unconfigured errors and configured creation results, printable/code, refreshed lists and reload; real Rails persists replacement badge and enrollment metadata/digests, sanitizes readback and consumes enrollment successfully. |
 | 67 | #46 | Scribe still can't start a session | blocked | Approved Scribe template/runtime prerequisites for the original site. |
 | 68 | #47 | Prescriptions dead end | blocked | Intended medication service availability and an authorized prescribing actor in synthetic scope. |
 | 69 | #48 | Lab orders dead end | blocked | Intended service-request availability, authorized actor and synthetic order/specimen prerequisites. |
@@ -128,7 +128,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 89 | #73 | No intake forms attached to booking | unverified | Verify booking-to-intake form attachment and durable readback on exact build; targeted backend1/9 is limited evidence. |
 | 90 | #74 | Hollow staffing model cascades | blocked | Approved synthetic staffing/profile/site prerequisites for the aggregate affected workflows. |
 | 91 | #85 | Tracking Board provider assignment offers no clinicians | mixed | This guard does not establish the historical empty-provider picker cause. |
-| 92 | #86 | Badge issuance silently does nothing for Sim Frontdesk (blocks WF-028) | mixed | Original configured badge issue/persisted readback for Sim Frontdesk remains unproved. |
+| 92 | #86 | Badge issuance silently does nothing for Sim Frontdesk (blocks WF-028) | fixed_and_verified | Actual eligible-employee badge issuance now yields visible result/readback or explicit refusal, composed with real backend persistence. Target job title does not affect the source eligibility path. Historical named issuer/target configuration is unknown, not invalidated. |
 | 93 | #88 | Dev-tools "ACTIVATE CLINIC ACCOUNT" is a UX trap | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 94 | #89 | Vitals error text missing on empty observed time | fixed_and_verified | Visible accessible empty-observed-time feedback verified by local browser case in42-focused batch; hosted observation retained. |
 | 95 | #91 | Inventory wizard skips step 3 | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
@@ -256,9 +256,9 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 217 | #78 | Waitlist cancellation → patient offer (Notes for QA #4) | mixed | Complete cancellation-to-offer UI assertion mapping remains narrower than full historical claim. |
 | 218 | #81 | Chart "Signing" anchor renders nothing; completed encounter stuck as unsigned draft | mixed | Completed-but-unsigned state and actual anchor rendering are not established by source presence. |
 | 219 | #82 | "Return to tracking board" link dead on encounter detail page (0.1.1) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 220 | #83 | No write-off / bad-debt flow | mixed | Actual write-off UI discoverability/persistence journey is not proved by backend characterization. |
+| 220 | #83 | No write-off / bad-debt flow | fixed_and_verified | Actual write-off form submits amount/reason/idempotency identity then renders saved write-off history and reduced balance. Unchanged real backend persistence, replay, bounds, authorization and rollback evidence composes full original absent-flow claim. |
 | 221 | #84 | No duplicate-patient merge feature | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 222 | #87 | Payment receipt/ledger timestamps don't match recording time | mixed | Historical receipt/ledger browser display and original recording-time mismatch remain unproved. |
+| 222 | #87 | Payment receipt/ledger timestamps don't match recording time | fixed_and_verified | Two actual payment UI checks preserve recorded4:47AM clinic time across detail/reload and Chicago/Tokyo browsers. Real Rails payment and receipt timestamps remain equal after36-minute-later retry/read; actual receipt template renders original recorded time. |
 | 223 | #90 | Inventory "Record quote" catalog-match search finds nothing (was offer-blocking) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 224 | #96 | Appointment cancellation does not apply (REGRESSION) | unverified | Acknowledged cancellation applies and remains cancelled after reload in original Front Desk context. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 225 | #97 | Waitlist "Hold time and publish offer" (was: never enables) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |

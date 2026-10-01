@@ -210,6 +210,12 @@ it("#20 direct route entry and reload retain server-selected location without ch
     ).toBe(0);
     await page.reload();
     await page.getByTestId("context").waitFor();
+    expect(
+      JSON.parse((await page.getByTestId("context").textContent())!),
+    ).toEqual({ practice: 81, site: 101 });
+    expect(
+      await page.getByRole("dialog", { name: "Choose your location" }).count(),
+    ).toBe(0);
     expect(mutations).toEqual([]);
   } finally {
     await page.close();

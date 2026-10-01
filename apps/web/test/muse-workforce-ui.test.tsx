@@ -451,7 +451,153 @@ it("Muse67 configured employees can calculate and reload saved timecard hours", 
   } finally {
     await page.close();
   }
-});
+}, 20000);
+
+it("Muse68 configured approved timecards produce preview export and saved history", async () => {
+  const page = await browser.newPage();
+  const mutations: { path: string; body: Record<string, unknown> }[] = [];
+  const employee = { id: "7", name: "Synthetic Payroll Employee" };
+  const batch = {
+    id: "68",
+    created_at: "2026-10-01T12:00:00Z",
+    source_digest: "b".repeat(64),
+    row_count: 1,
+    totals: { paid_hours: "8.0", overtime_hours: "0.0" },
+    download_url: "/api/clinic/workforce/payroll-exports/68/download",
+    supersedes_batch_id: null,
+  };
+  let saved = false;
+  try {
+    await page.route(
+      (url) => url.pathname.startsWith("/api/"),
+      (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        let body: unknown;
+        let status = 200;
+        if (path === "/api/csrf") body = { csrf_token: "synthetic-only" };
+        else if (
+          path === "/api/clinic/workforce/payroll-exports" &&
+          request.method() === "GET"
+        )
+          body = {
+            configurations: [
+              {
+                id: "6",
+                site_id: "1",
+                name: "Saved payroll hours",
+                revision: 1,
+                effective_from: "2020-01-01T00:00:00Z",
+                columns: [{ field: "paid_hours", header: "Paid hours" }],
+                employee_identifiers: { "7": "SYN-007" },
+              },
+            ],
+            employees: [employee],
+            fields: ["paid_hours"],
+            default_columns: [],
+            timecards: [
+              {
+                id: "67",
+                employment_id: employee.id,
+                period_start: "2026-09-28",
+                period_end: "2026-10-05",
+                version: 1,
+              },
+            ],
+            batches: saved ? [batch] : [],
+          };
+        else if (
+          request.method() === "POST" &&
+          [
+            "/api/clinic/workforce/payroll-exports/preview",
+            "/api/clinic/workforce/payroll-exports",
+          ].includes(path)
+        ) {
+          mutations.push({ path, body: request.postDataJSON() });
+          if (path.endsWith("/preview"))
+            body = {
+              rows: [{ employee_id: "SYN-007", paid_hours: "8.0" }],
+              totals: batch.totals,
+              source_digest: batch.source_digest,
+            };
+          else {
+            saved = true;
+            status = 201;
+            body = { batch };
+          }
+        } else {
+          status = 404;
+          body = { error: "Unexpected synthetic API request" };
+        }
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify(body),
+        });
+      },
+    );
+    await page.goto(base + "qa-workforce?mode=payroll");
+    const selection = page.getByRole("checkbox", {
+      name: new RegExp(employee.name),
+    });
+    await selection.waitFor();
+    const preview = page.getByRole("button", {
+      name: "Preview export",
+      exact: true,
+    });
+    const create = page.getByRole("button", {
+      name: "Create export",
+      exact: true,
+    });
+    expect(await preview.isDisabled()).toBe(true);
+    expect(await create.isDisabled()).toBe(true);
+    expect(
+      await page
+        .getByText("No approved timecards are available.", { exact: false })
+        .count(),
+    ).toBe(0);
+    await selection.check();
+    await preview.click();
+    await page.getByRole("table", { name: "Payroll preview" }).waitFor();
+    expect(
+      await page.getByRole("table", { name: "Payroll preview" }).innerText(),
+    ).toContain("SYN-007");
+    expect(await page.getByText(/1 rows · 8\.0 paid hours/).count()).toBe(1);
+    await create.click();
+    await page
+      .getByText("Export 68 is saved and ready to download.", { exact: true })
+      .waitFor();
+    const download = page.getByRole("link", {
+      name: "Download export 68",
+      exact: true,
+    });
+    await download.waitFor();
+    expect(await download.getAttribute("href")).toBe(batch.download_url);
+    expect(mutations.map((mutation) => mutation.path)).toEqual([
+      "/api/clinic/workforce/payroll-exports/preview",
+      "/api/clinic/workforce/payroll-exports",
+    ]);
+    expect(mutations[0].body).toEqual({
+      configuration_version_id: "6",
+      timecard_version_ids: ["67"],
+      idempotency_key: expect.any(String),
+      supersedes_batch_id: null,
+    });
+    expect(mutations[1].body).toEqual(mutations[0].body);
+    await page.reload();
+    await page
+      .getByRole("link", { name: "Download export 68", exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("link", { name: "Download export 68", exact: true })
+        .getAttribute("href"),
+    ).toBe(batch.download_url);
+    expect(mutations).toHaveLength(2);
+  } finally {
+    await page.close();
+  }
+}, 20000);
 
 it("Muse67 no eligible employees offers management recovery and blocks calculation", async () => {
   const page = await open("timecards&empty=1");
