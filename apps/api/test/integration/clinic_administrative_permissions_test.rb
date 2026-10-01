@@ -107,7 +107,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
     login(@users.fetch("billing_operator"))
 
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "20.00" } },
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "20.00", currency: "USD" } },
       headers: csrf_headers, as: :json
     assert_response :created
     drawer_id = response.parsed_body.dig("drawer", "id")
@@ -178,7 +178,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     assert_equal "3.0", drawer.fetch("cash_refunded")
 
     post "/api/clinic/cash_drawers/#{drawer_id}/close",
-      params: { drawer: { counted_cash: "29.00", discrepancy_explanation: "Synthetic count variance" } },
+      params: { drawer: { counted_cash: "29.00", discrepancy_explanation: "Synthetic count variance", request_key: "SYN-CASH-CLOSE-001" } },
       headers: csrf_headers, as: :json
     assert_response :success
     assert_equal "closed", response.parsed_body.dig("drawer", "status")
