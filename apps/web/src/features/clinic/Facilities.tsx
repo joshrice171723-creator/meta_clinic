@@ -85,7 +85,10 @@ const emptySite = (): EditableSite => ({
 function address(
   site: Pick<ClinicSite, "address_line1" | "city" | "state" | "postal_code">,
 ) {
-  return [site.address_line1, site.city, site.state, site.postal_code]
+  const stateAndPostalCode = [site.state, site.postal_code]
+    .filter(Boolean)
+    .join(" ");
+  return [site.address_line1, site.city, stateAndPostalCode]
     .filter(Boolean)
     .join(", ");
 }
