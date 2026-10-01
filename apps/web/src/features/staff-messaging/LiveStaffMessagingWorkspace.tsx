@@ -883,10 +883,11 @@ export function LiveStaffMessagingWorkspace() {
         ? participants.map((participant) => participant.id)
         : [Number(recipientId)];
     const title = createTitle.trim();
-    if (memberIds.length === 0 || memberIds.some((id) => !Number.isInteger(id) || id < 1)) {
-      setActionError(
-        "No active staff members are available at this location.",
-      );
+    if (
+      memberIds.length === 0 ||
+      memberIds.some((id) => !Number.isInteger(id) || id < 1)
+    ) {
+      setActionError("No active staff members are available at this location.");
       return;
     }
     if ((createKind === "team" || createKind === "role") && !title) {
@@ -957,7 +958,7 @@ export function LiveStaffMessagingWorkspace() {
 
   return (
     <Stack spacing={2}>
-      {actionError && (
+      {actionError && !createOpen && (
         <Alert
           severity="error"
           action={
@@ -1122,6 +1123,7 @@ export function LiveStaffMessagingWorkspace() {
         <DialogTitle>New staff conversation</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {actionError && <Alert severity="error">{actionError}</Alert>}
             <FormControl fullWidth disabled={creating}>
               <InputLabel id="conversation-kind-label">
                 Conversation type
@@ -1165,7 +1167,10 @@ export function LiveStaffMessagingWorkspace() {
                   onChange={(event) => setRecipientId(event.target.value)}
                 >
                   {participants.map((participant) => (
-                    <MenuItem key={participant.id} value={String(participant.id)}>
+                    <MenuItem
+                      key={participant.id}
+                      value={String(participant.id)}
+                    >
                       {participant.email}
                     </MenuItem>
                   ))}
