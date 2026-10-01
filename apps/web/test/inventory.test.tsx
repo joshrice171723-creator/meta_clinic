@@ -122,7 +122,8 @@ describe("inventory integration", () => {
     expect(render()).toContain(
       '<td data-label="Reorder point" class="numeric">0 mL</td>',
     );
-    expect(render()).toContain("At reorder point");
+    expect(render()).toContain("Out of stock");
+    expect(render()).not.toContain("At reorder point");
     expect(render()).not.toContain("Below reorder point");
     data.products[0] = {
       ...data.products[0],
@@ -141,6 +142,14 @@ describe("inventory integration", () => {
     };
     expect(render()).toContain("Below reorder point");
     expect(render()).not.toContain("At reorder point");
+    data.products[0] = {
+      ...data.products[0],
+      available_units: "1",
+      on_hand_units: "1",
+      low_stock: true,
+    };
+    expect(render()).toContain("At reorder point");
+    expect(render()).not.toContain("Out of stock");
   });
 
   it("#156 exposes the exact receiving link when putting stock in a bin is the next incomplete step", () => {
@@ -150,7 +159,7 @@ describe("inventory integration", () => {
         <CatalogScreen data={data} onRead={async () => {}} />,
       );
     expect(render()).toContain("Not started: Put stock in a bin");
-    expect(render()).not.toContain("Continue to Put stock in a bin");
+    expect(render()).toContain("Continue to Put stock in a bin");
     data.first_run = {
       ...data.first_run,
       supplier: true,

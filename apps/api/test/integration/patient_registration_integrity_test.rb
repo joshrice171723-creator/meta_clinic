@@ -94,6 +94,42 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     assert_equal "unknown", patient.dig("demographics", "date_of_birth_status")
   end
 
+  test "Muse41 registration receipt persists once and remains visible on directory reload" do
+    input = { display_name: "Synthetic receipt registration", reference: "SYN-MUSE41-RECEIPT",
+      sex: "unknown", request_key: "muse41-exact-registration" }
+    before_count = @practice.patients.count
+    post "/api/clinic/patients", params: { clinic_patient: input }, headers: csrf_headers, as: :json
+    assert_response :created, response.body
+    receipt_body = response.parsed_body
+    patient_id = receipt_body.fetch("id")
+    assert_equal input.fetch(:request_key), receipt_body.fetch("request_key")
+    assert_equal patient_id, receipt_body.dig("patient", "id")
+    assert_equal before_count + 1, @practice.patients.count
+
+    post "/api/clinic/patients", params: { clinic_patient: input }, headers: csrf_headers, as: :json
+    assert_response :created, response.body
+    assert_equal receipt_body, response.parsed_body
+    assert_equal before_count + 1, @practice.patients.count
+    receipt = Clinic::OperationReceipt.where(practice: @practice, actor_membership: @membership,
+      request_key: input.fetch(:request_key)).sole
+    assert receipt.outcome_committed?
+    assert_equal "patients.register", receipt.operation_code
+    assert_equal patient_id, receipt.resource_id
+
+    2.times do
+      get "/api/clinic/patients/#{patient_id}", headers: @headers
+      assert_response :success
+      assert_equal input.fetch(:reference), response.parsed_body.dig("patient", "reference")
+      assert_equal @registration_site.id, response.parsed_body.dig("patient", "primary_site_id")
+      get "/api/clinic/patients", params: { site_id: @registration_site.id }, headers: @headers
+      assert_response :success
+      rows = response.parsed_body.fetch("patients").select { |row| row.fetch("id") == patient_id }
+      assert_equal 1, rows.length
+      assert_equal input.fetch(:display_name), rows.sole.fetch("display_name")
+      assert_equal input.fetch(:reference), rows.sole.fetch("reference")
+    end
+  end
+
   test "patient directory filters by a clinic site and rejects an unknown site" do
     site = @registration_site
     @patient.update!(primary_site: site)

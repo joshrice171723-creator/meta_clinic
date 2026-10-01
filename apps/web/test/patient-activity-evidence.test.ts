@@ -20,7 +20,7 @@ for (const [file, name] of Object.entries({
 mocks["../api/client"] = mocks["../../api/client"];
 const entry = `import React from 'react'; import {createRoot} from 'react-dom/client';
 import {Patients} from '/src/features/clinic/Patients.tsx';
-const patient={id:77,display_name:'Synthetic activity patient',reference:'QA-ACTIVITY',demographics:{},contacts:[],emergency_contacts:[],social_histories:[]};
+const patient={id:77,display_name:'Synthetic activity patient',reference:'QA-ACTIVITY',updated_at:'2026-10-01T00:00:00Z',demographics:{},contacts:[],emergency_contacts:[],social_histories:[]};
 const activity={coverage:[{source:'appointments',label:'Appointments',status:'included'},{source:'notes',label:'Encounter notes',status:'not_authorized'},{source:'care_coordination',label:'Care coordination',status:'included'}],has_more:true,entries:[
 {id:1,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:88,event:'create',actor_reference:'user:901',occurred_at:'2026-10-01T01:00:00Z',changed_fields:['starts_at']},
 {id:2,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:88,event:'update',actor_reference:'user:902',occurred_at:'2026-10-01T02:00:00Z',changed_fields:['status']},
@@ -28,8 +28,21 @@ const activity={coverage:[{source:'appointments',label:'Appointments',status:'in
 {id:4,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:89,event:'touch',actor_reference:'user:904',occurred_at:'2026-10-01T02:20:00Z',changed_fields:[]} ]};
 let coordination={coordination:{id:1,patient_id:77,revision:1,payload:Object.fromEntries(['primary_care','specialists','pharmacy'].map(k=>[k,{state:'none',entries:[]}])),recorded_at:'2026-10-01T00:00:00Z',recorded_by_membership_id:9},can_write:true,limits:{primary_care:1,specialists:20,pharmacy:1}};
 if(window.qaActivityProof)Object.assign(activity,window.qaActivityProof);
+const registration=window.qaRegistrationProof?structuredClone(window.qaRegistrationProof):null;
 window.qa={requests:[],mode:'success',request(path,options={}){
  this.requests.push({path,method:options.method||'GET'});
+ if(registration && path==='/api/clinic/working_drafts/patient_update?patient_id=77'){
+  if(options.method==='PUT'){
+   registration.draftWrites.push(structuredClone(options.body));
+   if(options.body.expected_version!==registration.version)throw new Error('Synthetic working-copy version mismatch');
+   registration.payload=options.body.payload;registration.version++;
+  }
+  return Promise.resolve({kind:'patient_update',patient_id:77,encounter_id:null,record_id:null,scope:'main',version:registration.version,payload:structuredClone(registration.payload),updated_at:null});
+ }
+ if(registration && path==='/api/clinic/patients/77' && options.method==='PATCH'){
+  registration.officialBodies.push(structuredClone(options.body));
+  return Promise.resolve({patient,request_key:options.body.clinic_patient.request_key});
+ }
  if(path==='/api/clinic/patients/77/care_coordination'){
   if(options.method==='POST'){
    if(this.mode==='failure')return Promise.reject(new Error('Synthetic unconfirmed response'));
@@ -41,6 +54,7 @@ window.qa={requests:[],mode:'success',request(path,options={}){
  if(path.startsWith('/api/clinic/patients/77/encounters?'))return Promise.resolve({encounters:[]});
  throw new Error('Unexpected synthetic request '+path);
 }};
+window.qa.registration=registration;
 createRoot(document.getElementById('root')).render(React.createElement(Patients,{id:'77'}));`;
 let server: ViteDevServer, browser: Browser, base: string;
 beforeAll(async () => {
@@ -241,3 +255,99 @@ it.skipIf(!process.env.MUSE149_LEDGER_PROOF_INPUT)(
   },
   20000,
 );
+
+it("#219 dismisses and reloads an unresolved registration then reconciles its exact request", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+  });
+  const body = {
+    clinic_patient: {
+      display_name: "Synthetic activity patient",
+      reference: "QA-ACTIVITY",
+      sex: "unknown",
+      expected_updated_at: "2026-10-01T00:00:00Z",
+      request_key: "SYN-219-EXACT",
+    },
+  };
+  try {
+    await page.addInitScript((body) => {
+      (window as any).qaRegistrationProof = {
+        version: 5,
+        payload: {
+          body,
+          requestKey: body.clinic_patient.request_key,
+          pending: true,
+          outcomeUnconfirmed: true,
+        },
+        officialBodies: [],
+        draftWrites: [],
+      };
+    }, body);
+    await page.goto(base + "qa");
+    const edit = page.getByRole("button", {
+      name: "Edit registration",
+      exact: true,
+    });
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasText: "Edit registration details" });
+    await edit.click();
+    await dialog
+      .getByRole("button", { name: "Retry same request", exact: true })
+      .waitFor();
+    expect(
+      await dialog.locator("fieldset").getAttribute("disabled"),
+    ).not.toBeNull();
+    await page.keyboard.press("Escape");
+    await expect.poll(() => dialog.count()).toBe(0);
+    await edit.click();
+    await dialog
+      .getByRole("button", { name: "Retry same request", exact: true })
+      .waitFor();
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.poll(() => dialog.count()).toBe(0);
+    expect(
+      await page.evaluate(() => (window as any).qa.registration.officialBodies),
+    ).toEqual([]);
+    await page.reload();
+    await edit.click();
+    const retry = dialog.getByRole("button", {
+      name: "Retry same request",
+      exact: true,
+    });
+    await retry.waitFor();
+    expect(await retry.isEnabled()).toBe(true);
+    expect(
+      await dialog.locator("fieldset").getAttribute("disabled"),
+    ).not.toBeNull();
+    expect(
+      await page.evaluate(() => (window as any).qa.registration.officialBodies),
+    ).toEqual([]);
+    await retry.click();
+    await expect.poll(() => dialog.count()).toBe(0);
+    const recovered = await page.evaluate(
+      () => (window as any).qa.registration,
+    );
+    expect(recovered.officialBodies).toEqual([body]);
+    expect(
+      recovered.draftWrites.map((write: any) => write.expected_version),
+    ).toEqual([5, 6]);
+    expect(recovered.draftWrites[0].payload.body).toEqual(body);
+    expect(recovered.draftWrites[1].payload).toBeNull();
+    expect(recovered.payload).toBeNull();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as any).qa.requests.filter(
+              (request: any) =>
+                request.path === "/api/clinic/patients/77" &&
+                request.method === "GET",
+            ).length,
+        ),
+      )
+      .toBe(2);
+  } finally {
+    await page.close();
+  }
+}, 20000);
