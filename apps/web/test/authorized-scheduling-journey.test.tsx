@@ -71,7 +71,7 @@ it.skipIf(!realStackEnabled)(
       expect(candidate).toBeDefined();
       await selectReal(page, "Clinician account", candidate!.label);
       await page
-        .getByLabel("Clinician display name", { exact: true })
+        .getByRole("textbox", { name: /^Clinician display name/ })
         .fill(fixture.scheduling_scenarios.candidate_name);
       await selectReal(page, "Clinician location", fixture.site_name);
       await selectReal(

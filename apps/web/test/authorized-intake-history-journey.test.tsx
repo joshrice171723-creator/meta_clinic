@@ -90,6 +90,7 @@ it("authorized patient clinical history loads with one explicit empty state per 
     expect(actual.medications).toEqual([]);
     expect(actual.conditions).toEqual([]);
     await page.reload();
+    await history.getByText("Clinical history", { exact: true }).waitFor();
     await expect.poll(() => history.getByText("No recorded entries. No absence has been inferred.", { exact: true }).count()).toBe(3);
   } finally { await context.close(); }
 }, 60000);
@@ -105,6 +106,7 @@ it("authorized location timezone overrides practice in vitals review while persi
     const clinic = await realGet<{ practice: { timezone: string }; current_site: { timezone_override: string } }>(page, "/api/clinic/context");
     expect(clinic.practice.timezone).toBe("UTC");
     expect(clinic.current_site.timezone_override).toBe("America/Chicago");
+    await page.locator("#nurse-workspace").getByRole("button", { name: "Room & vitals", exact: true }).click();
     await page.locator("#nurse-workspace").getByRole("button", { name: "Record vital signs", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: /^Record vital signs/ });
     await dialog.getByRole("textbox", { name: "Heart rate", exact: true }).fill("72");

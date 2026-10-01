@@ -118,15 +118,16 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
           exact: true,
         })
         .click();
-      const objective = page.getByRole("textbox", {
+      const soap = page.locator("#chart-signing");
+      const objective = soap.getByRole("textbox", {
         name: "Objective (O)",
         exact: true,
       });
-      await page
+      await soap
         .getByRole("textbox", { name: "Chief Complaint", exact: true })
         .fill("Independent synthetic manual concern");
       await objective.fill("Independent synthetic examination");
-      await page
+      await soap
         .getByRole("button", {
           name: "Use template without prompts",
           exact: true,
@@ -138,7 +139,7 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
             `/api/clinic/encounters/${encounterId}/notes` &&
           response.request().method() === "POST",
       );
-      await page
+      await soap
         .getByRole("button", { name: "Save draft", exact: true })
         .click();
       const creation = await created;
@@ -153,7 +154,7 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
             `/api/clinic/notes/${noteId}/revisions` &&
           response.request().method() === "POST",
       );
-      await page
+      await soap
         .getByRole("button", { name: "Save new revision", exact: true })
         .click();
       expect((await revised).status()).toBe(201);
@@ -189,7 +190,7 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
         .toBe("Independent synthetic revised examination");
       await expect.poll(() => objective.isEnabled()).toBe(true);
 
-      const duration = page.getByRole("textbox", {
+      const duration = soap.getByRole("textbox", {
         name: "Duration",
         exact: true,
       });

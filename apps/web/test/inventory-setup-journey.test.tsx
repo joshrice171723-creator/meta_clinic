@@ -79,20 +79,23 @@ it.runIf(realStackEnabled)(
         .filter({ hasText: "Synthetic journey supplier" })
         .first()
         .waitFor();
-      // Independent synthetic catalog setup through the same authorized HTTP session.
-      const created = await api(page, "/api/clinic/pharmacy", {
-        clinic_pharmacy_product: {
-          name: "Synthetic Aspirin",
-          sku: "SYN-JOURNEY-ASPIRIN",
-          ndc: "00904705699",
-          stock_unit: "tablet",
-          quantity_scale: 0,
-          package_size: 90,
-          unit_reference: "Bottle of 90 tablets",
-          reorder_point: 0,
-        },
+      // Seeded catalog provenance: manufactured model fixture, not a signed directory import.
+      const seeded = fixture.inventory_scenarios as {
+        catalog_provenance: string;
+        product_id: number;
+        product_name: string;
+        product_sku: string;
+        product_ndc: string;
+      };
+      expect(seeded.catalog_provenance).toBe("independently_manufactured_synthetic_model_fixture");
+      const created = { id: seeded.product_id };
+      const catalogProduct = (await api(page, "/api/clinic/inventory/bootstrap")).data.products.find(
+        (product: { id: string }) => product.id === String(created.id),
+      );
+      expect(catalogProduct).toMatchObject({
+        id: String(created.id), name: seeded.product_name, ndc: seeded.product_ndc,
+        base_unit: "tablet", units_per_package: "90.0",
       });
-      expect(created.id).toBeTruthy();
       await page.goto(realUrl("/clinic/inventory/purchasing/new"));
       const recovery = page.getByRole("link", {
         name: "Record supplier offer",

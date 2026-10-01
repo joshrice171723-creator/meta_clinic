@@ -86,7 +86,8 @@ it.skipIf(!process.env.QA_REAL_BASE_URL)("#58 actual App cross-window clinic cha
     await first.getByLabel("Employee name", { exact: false }).fill("Synthetic cross-window employee");
     await first.getByLabel("Job title", { exact: false }).fill("Synthetic access test");
     await first.getByLabel("Employee email", { exact: false }).fill(email);
-    await selectReal(first, "Access role", "Clinic Administrator");
+    await first.getByLabel("Access role *", { exact: true }).click();
+    await first.getByRole("option", { name: "Clinic Administrator", exact: true }).click();
     await first.getByRole("checkbox", { name: seed.site_name, exact: true }).check();
     await second.goto(realUrl("/clinic/workforce/employees"));
     await second.locator(".clinic-shell").waitFor({ state: "visible" });
