@@ -51,7 +51,7 @@ const entry = `
     request(path, options = {}) {
       if (path.startsWith('/api/clinic/billing_services?'))
         return Promise.resolve({ services: [] });
-      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/draft$/.test(path))
+      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post)$/.test(path))
         throw new Error('Unexpected synthetic request: ' + path);
       return new Promise(resolve => this.requests.push({
         path, options, resolve, done: false
@@ -519,3 +519,55 @@ it("#146 links charge adjustments to the existing payment and refund history", a
     await page.close();
   }
 }, 15000);
+
+it("#93 replaces the draft details heading after posting and ledger refresh", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.addInitScript(() => {
+      (window as any).qaCashPending = false;
+    });
+    await page.goto(`${base}qa?patient_id=77&encounter_id=9`);
+    await waitRequests(page, 2);
+    await resolve(page, 0, {
+      ...ledger,
+      invoices: [
+        { ...invoice, total_amount: "50.00", balance_amount: "50.00" },
+      ],
+    });
+    await resolve(page, 1, {
+      invoices: [{ id: 77, encounter_id: 9, status: "draft" }],
+    });
+    await page
+      .getByRole("button", { name: "Review and post invoice #77", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm and post", exact: true })
+      .click();
+    await waitRequests(page, 3);
+    expect((await requests(page))[2].path).toBe("/api/clinic/invoices/77/post");
+    await resolve(page, 2, { invoice: { ...invoice, status: "posted" } });
+    await waitRequests(page, 5);
+    await resolve(page, 3, {
+      ...ledger,
+      invoices: [
+        {
+          ...invoice,
+          status: "posted",
+          total_amount: "50.00",
+          allocated_amount: "25.00",
+          balance_amount: "25.00",
+        },
+      ],
+    });
+    await resolve(page, 4, {
+      invoices: [{ id: 77, encounter_id: 9, status: "posted" }],
+    });
+    await expect
+      .poll(() => details(page).textContent())
+      .toContain("Partially settled · USD 25.00 balance");
+    expect(await details(page).count()).toBe(1);
+    expect(await details(page).textContent()).not.toContain("Draft");
+  } finally {
+    await page.close();
+  }
+}, 20000);
