@@ -104,6 +104,41 @@ it("#115 explains nonnumeric cash count without submitting or dropping the input
   }
 });
 
+it("#116 restores the exact closed drawer summary on a full reload", async () => {
+  const page = await browser.newPage();
+  try {
+    const closes = await countFixture(page);
+    await page.getByLabel("Counted cash", { exact: true }).fill("0");
+    await page
+      .getByRole("button", { name: "Close drawer", exact: true })
+      .click();
+    await page
+      .getByText(/Drawer closed with a USD -100.00 discrepancy/)
+      .waitFor();
+    expect(new URL(page.url()).searchParams.get("cash_drawer_id")).toBe("707");
+    await page.reload();
+    const summary = page.getByText(/Closed drawer · Counted USD 0.00/);
+    await summary.waitFor();
+    expect(await summary.textContent()).toContain("Discrepancy USD -100.00");
+    expect(await summary.textContent()).toContain(
+      "Awaiting manager reconciliation",
+    );
+    expect(
+      await page
+        .getByRole("button", { name: "Open another drawer", exact: true })
+        .count(),
+    ).toBe(1);
+    expect(
+      await page
+        .getByRole("button", { name: "Open drawer", exact: true })
+        .count(),
+    ).toBe(0);
+    expect(closes).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+}, 15000);
+
 afterAll(async () => {
   await browser?.close();
   await server?.close();
