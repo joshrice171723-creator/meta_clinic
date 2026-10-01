@@ -788,13 +788,19 @@ function DailyVisitsByState({
       {(capabilities.billing_payment_record ||
         capabilities.billing_cash_reconcile ||
         capabilities.billing_write) && (
-        <DailyCashDrawers key={loadedDate} date={loadedDate} />
+        <DailyCashDrawers
+          key={`cash-drawers-${loadedDate}`}
+          date={loadedDate}
+        />
       )}
       {capabilities.billing_read && (
-        <DailyInvoices key={loadedDate} date={loadedDate} />
+        <DailyInvoices key={`invoices-${loadedDate}`} date={loadedDate} />
       )}
       {capabilities.billing_read && (
-        <DailyPaymentActivity key={loadedDate} date={loadedDate} />
+        <DailyPaymentActivity
+          key={`payment-activity-${loadedDate}`}
+          date={loadedDate}
+        />
       )}
       {capabilities.billing_read &&
         (capabilities.billing_cash_reconcile || capabilities.billing_write) && (
@@ -806,7 +812,10 @@ function DailyVisitsByState({
           </>
         )}
       {capabilities.inventory && (
-        <DailyStockMovements key={loadedDate} date={loadedDate} />
+        <DailyStockMovements
+          key={`stock-movements-${loadedDate}`}
+          date={loadedDate}
+        />
       )}
     </Stack>
   );
