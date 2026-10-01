@@ -64,6 +64,26 @@ beforeAll(async () => {
     headless: true,
   });
 }, 15000);
+
+it("#114 explains a negative count without submitting or dropping the input", async () => {
+  const page = await browser.newPage();
+  try {
+    const closes = await countFixture(page);
+    await page.getByLabel("Counted cash", { exact: true }).fill("-50");
+    await page
+      .getByRole("button", { name: "Close drawer", exact: true })
+      .click();
+    await page
+      .getByText("Enter the counted cash amount with up to six decimal places.")
+      .waitFor();
+    expect(
+      await page.getByLabel("Counted cash", { exact: true }).inputValue(),
+    ).toBe("-50");
+    expect(closes).toEqual([]);
+  } finally {
+    await page.close();
+  }
+});
 afterAll(async () => {
   await browser?.close();
   await server?.close();
