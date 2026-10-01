@@ -94,7 +94,7 @@ describe("clinic shell composition", () => {
       "Choose a location you are authorized to use before entering the",
     );
     expect(workspace).toContain(
-      "requiresLocationSelection(data.sites, locationSelectionMade)",
+      "requiresLocationSelection(data.sites, locationSelected)",
     );
     expect(workspace).toContain("clinicOverviewRequired(path)");
     expect(workspace).not.toContain("Continue without selecting");

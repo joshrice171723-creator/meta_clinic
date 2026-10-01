@@ -93,6 +93,7 @@ function LocationSelectionDialog({
   onSelect,
   scopeSelector,
   setupNotice,
+  onCancel,
 }: {
   sites: ClinicWorkspaceContext["sites"];
   selectingSiteId: number | null;
@@ -100,12 +101,14 @@ function LocationSelectionDialog({
   onSelect: (siteId: number) => void;
   scopeSelector?: ReactNode;
   setupNotice?: ReactNode;
+  onCancel?: () => void;
 }) {
   return (
     <Dialog
       aria-describedby="location-picker-description"
       aria-labelledby="location-picker-title"
       open
+      onClose={selectingSiteId === null ? onCancel : undefined}
     >
       <DialogTitle id="location-picker-title">Choose your location</DialogTitle>
       <DialogContent>
@@ -130,6 +133,11 @@ function LocationSelectionDialog({
             </ListItemButton>
           ))}
         </List>
+        {onCancel && (
+          <Button disabled={selectingSiteId !== null} onClick={onCancel}>
+            Back to current location
+          </Button>
+        )}
         {error && (
           <Typography color="error" role="alert" variant="body2">
             {error}
@@ -485,7 +493,10 @@ export function Workspace({
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
   const [locationSelectionMade, setLocationSelectionMade] = useState(false);
-  const locationSelected = locationSelectionMade || Boolean(data?.current_site);
+  const [locationPickerRequested, setLocationPickerRequested] = useState(false);
+  const locationSelected =
+    !locationPickerRequested &&
+    (locationSelectionMade || Boolean(data?.current_site));
   const [switchingPractice, setSwitchingPractice] = useState(false);
   useLayoutEffect(() => {
     setClinicPractice(data?.practice.id);
@@ -499,7 +510,11 @@ export function Workspace({
 
   const selectSite = async (siteId: number) => {
     if (selectingLocation.current) return;
-    if (data?.current_site?.id === siteId) return;
+    if (data?.current_site?.id === siteId) {
+      setLocationPickerRequested(false);
+      setLocationPickerError("");
+      return;
+    }
     if (confirmNavigation && !confirmNavigation()) return;
     selectingLocation.current = true;
     setSelectingSiteId(siteId);
@@ -511,6 +526,7 @@ export function Workspace({
       });
       setPreviousLocationContext(data ?? null);
       setLocationSelectionMade(true);
+      setLocationPickerRequested(false);
       refreshWorkspace();
       overview.refresh();
     } catch (caught) {
@@ -647,6 +663,14 @@ export function Workspace({
             onSelect={(siteId) => void selectSite(siteId)}
             selectingSiteId={selectingSiteId}
             sites={data.sites}
+            onCancel={
+              data.current_site
+                ? () => {
+                    setLocationPickerRequested(false);
+                    setLocationPickerError("");
+                  }
+                : undefined
+            }
           />
         </main>
       </ClinicAppearanceScope>
@@ -677,7 +701,12 @@ export function Workspace({
                   />
                 )}
                 {data.sites.length > 1 && (
-                  <Button onClick={() => setLocationSelectionMade(false)}>
+                  <Button
+                    onClick={() => {
+                      setLocationPickerError("");
+                      setLocationPickerRequested(true);
+                    }}
+                  >
                     Choose another location
                   </Button>
                 )}
