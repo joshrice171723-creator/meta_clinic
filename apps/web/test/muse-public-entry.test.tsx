@@ -72,6 +72,18 @@ beforeAll(async () => {
       process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || "/usr/bin/chromium",
     args: ["--no-sandbox"],
   });
+  // Await the read-only fixture render before measuring destination navigation.
+  const warmPage = await open("/");
+  try {
+    await warmPage
+      .getByRole("link", {
+        name: "Sign in with clinic team account",
+        exact: true,
+      })
+      .waitFor();
+  } finally {
+    await warmPage.close();
+  }
 }, 60_000);
 afterAll(async () => {
   await browser?.close();

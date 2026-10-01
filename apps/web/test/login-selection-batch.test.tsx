@@ -44,6 +44,16 @@ beforeAll(async () => {
     executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
     headless: true,
   });
+  // Await the read-only fixture render before measuring the sign-in interaction.
+  const warmPage = await browser.newPage();
+  try {
+    await fixture(warmPage, "/clinic");
+    await warmPage
+      .getByRole("combobox", { name: "Organization", exact: true })
+      .waitFor();
+  } finally {
+    await warmPage.close();
+  }
 }, 15000);
 afterAll(async () => {
   await browser?.close();
