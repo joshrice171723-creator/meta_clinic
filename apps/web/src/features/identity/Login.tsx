@@ -130,7 +130,8 @@ export function Login({
                   variant="caption"
                   sx={{ display: "block" }}
                 >
-                  Use your owner account email and password.
+                  Use the email and password for your owner or clinic team
+                  account.
                 </Typography>
               </div>
             )}

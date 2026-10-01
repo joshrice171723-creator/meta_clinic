@@ -103,13 +103,16 @@ async function open(path: string): Promise<Page> {
   await page.goto(base.replace(/\/$/, "") + path);
   return page;
 }
-it("Muse257 preserves distinct sign-in destinations while credential copy is reviewed", async () => {
+it("Muse257 describes both credential types and preserves distinct sign-in destinations", async () => {
   const page = await open("/");
   const clinic = page.getByRole("link", {
     name: "Sign in with clinic team account",
     exact: true,
   });
   await clinic.waitFor();
+  expect(await page.locator(".login-development-tools").innerText()).toContain(
+    "Use the email and password for your owner or clinic team account.",
+  );
   await clinic.click();
   await page.waitForURL("**/login?credentials=1&next=%2Fclinic");
   await page.getByRole("heading", { name: /Clinic team/ }).waitFor();
