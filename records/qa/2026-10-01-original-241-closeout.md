@@ -1,10 +1,10 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 151/241. Original dispositions recorded: 241/241.**
+**Issues closed: 157/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
-Branch: `codex/relay-qa-combined-20261001`. Integrated source: `f8aec7a56a9f52a1f441e7cd6dec319f0993cc15`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
+Branch: `codex/relay-qa-combined-20261001`. Integrated source: `dc9f90539a30e34004ba53950728615b755da7c5`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
 
 The earlier80/107/110 numbers were provisional and included partial-claim promotions; this reviewed count supersedes them. #54 and #238 each retain two independent rows. #94 remains historical R2 invalidation at25a23e4b, with no new retest.
 
@@ -26,12 +26,12 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 
 | Disposition | Entries |
 | --- | ---: |
-| blocked | 19 |
+| blocked | 18 |
 | deferred | 5 |
-| fixed_and_verified | 143 |
-| mixed | 42 |
+| fixed_and_verified | 149 |
+| mixed | 38 |
 | proven_invalid | 8 |
-| unverified | 24 |
+| unverified | 23 |
 
 ## Every original entry
 
@@ -78,7 +78,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 39 | #7 | ACCOUNT settings copy | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 40 | #8 | "Workspace tools TEST" dev button | mixed | Original non-admin visibility needs nonsecret effective capabilities, deployment/demo mode and authorized owner-switch context. |
 | 41 | #10 | Site selector shows cryptic code | fixed_and_verified | Configured descriptive location selector name verified in the three-case browser batch; historical abbreviated-code observation preserved. |
-| 42 | #11 | Date/datetime pickers reject typed input | mixed | Intake date/datetime typing is outside the recorded booking coverage. |
+| 42 | #11 | Date/datetime pickers reject typed input | fixed_and_verified | Existing booking typed-date proof composes with new actual StaffIntakeSections native date/datetime direct-entry and controlled-value case. No arrows or Enter required; date can be changed again. New case passed at2063; source unchanged thereafter. |
 | 43 | #12 | Encounter Date of Visit defaults to today | fixed_and_verified | Accepted actual visit date policy now verified: default encounter start persists as actual clock, differs from scheduled date, repeated check-in keeps identical encounter/start, actual show and appointment APIs retain each timestamp. |
 | 44 | #14 | Location picker leaks ineligible locations | unverified | Verify the original Verify Admin location picker against effective eligibility on the hosted build; independent employee-preview repair is narrower evidence. |
 | 45 | #15 | Scheduling silently no-ops for unassigned clinician | fixed_and_verified | Local booking rejection gives explicit feedback and retains draft in145-related/16-browser batch. Capacity/site guards remain enforced; reschedule is beyond this original booking claim. |
@@ -135,7 +135,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 96 | #92 | Recurring-series preview lacks the assign-clinician-to-site action | unverified | Verify recurring preview offers assignment action only to an authorized actor and permits retry after valid clinician-site assignment. |
 | 97 | #93 | Stale ledger headings after posting an invoice | fixed_and_verified | Existing invoice-heading refresh regression verifies current local headings within21-test batch; no need historical cause to verify current display. |
 | 98 | #99 | Capacity "Blocked time" rule cannot be saved | fixed_and_verified | Actual Blocked time form submits selected site, clinician, dates, reason and policy identity; refreshed rule persists across browser reload. Actual isolated Rails create/readback and booking-prevention checks passed at6758; no relevant product changes. Composed local proof, synthetic browser transport. |
-| 99 | #100 | Patient portal has no access path | unverified | Verify intended patient login entry with approved synthetic account and actual authentication/portal destination; rendered entry is not authentication proof. |
+| 99 | #100 | Patient portal has no access path | fixed_and_verified | Actual Login patient entry remains reachable without patient preview accounts, displays credential entry, sends exactly one credential session POST and reaches intended patient destination. Focused browser case passed57d438 after required-label fixture correction. Composed unchanged real backend patient session login and protected portal previsit create/replay proof; destination fixture alone is not portal acceptance. |
 | 100 | #101 | No "mark as no-show" action | fixed_and_verified | Actual authorized front-desk no-show action and readback pass, denied/future actions blocked; real Rails scheduled/confirmed transition persistence passes. Actual schedule link navigates to front desk. Date/site/search filters select other appointments; no claim of automatic selected-context preservation. |
 | 101 | #106 | "Inventory locations →" link is a dead end | fixed_and_verified | ActualOperations inventorylocations link nativeclick reaches actualInventoryApp storagescreen, search andstoragepath visible. ExactGETcsrf thenGETlocations, nootherrequests/nativeerrors. Earlierfixturefailures preserved. |
 | 102 | #109 | Visitor sandbox "Reset Sandbox" fails — baseline not restored | fixed_and_verified | Actual DemoJourney/API client waits for staged completion, keeps reset dialog pending and iframe unavailable until completion, rebuilds frame, and lets distinct visitor re-enter completed generation without duplicate reset/advance. Intact real backend baseline preparation and two-visitor boundary proof reused. |
@@ -226,14 +226,14 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 187 | #202 | Stale preserved working text auto-pops a modal conflict on chart load and locks the entire working note | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 188 | #203 | Truncated helper text in the working-note conflict warning | unverified | Original conflict warning complete at reported viewport and accessible in full. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 189 | #204 | "Documentation" encounter-section link is inert | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 190 | #205 | "Request clinician handoff" stays DISABLED after completing preparation (WF-056 FAIL) | mixed | Actual eligible ready-revision handoff completion/reload remains unverified. |
-| 191 | #207 | Handoff "Save preparation" silently fails (WF-056) | mixed | Original connected preparation persistence/readback and unsaved-state clearing are unproved. |
+| 190 | #205 | "Request clinician handoff" stays DISABLED after completing preparation (WF-056 FAIL) | fixed_and_verified | Existing actual handoff UI leaves unreviewed history disabled, enables request only after owned ready revision receipt and sends its exact intake revision identity. Unchanged real backend persists ready intake, creates request and accepts handoff with owned IDs. Equivalent five-case UI and real integration proof reused without reruns. |
+| 191 | #207 | Handoff "Save preparation" silently fails (WF-056) | fixed_and_verified | Existing actual preparation UI uses owned save receipt despite stale refresh: explicit confirmation, Saved state, disabled repeated Save, exact review IDs; rejection/foreign receipt preserves unsaved/error state. Unchanged real backend intake201 and exact replay persist one owned revision, followed by request/accept. Equivalent proof reused; full browser reload not claimed. |
 | 192 | #208 | Encounter page intermittently redirects to /clinic/setup (WF-056) | unverified | Original intermittent chooser/setup redirect with session/context response evidence and stable selected location. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 193 | #209 | "This time is outside the site's operating hours." warning fires for every booking time tried (WF-056) | fixed_and_verified | Configured Chicago operating hours reject the three reported out-of-hours UTC inputs without writes, accept an in-hours appointment, and retain exact time on authenticated GET. Existing passing source-equivalent proof reused; original environment configuration not inferred. |
 | 194 | #210 | Tracking board shows scheduled time as arrival time (WF-055) | fixed_and_verified | Actual appointment-only check-in persists actual start, retries preserve start and board API separates it from scheduled timestamp. Unchanged mapper cases verify03:01 arrival versus14:00 slot and2minute wait; missing actual start never fabricates scheduled arrival. |
 | 195 | #211 | "Live updates are reconnecting" banner never resolves (WF-055) | mixed | Connected stream behavior and reported indefinite live banner are unproved. |
 | 196 | #212 | Checked-in visit has no cancellation or resolution path (WF-054 FAIL) | mixed | Explanation alone does not prove a checked-in visit can complete an authorized resolution journey. |
-| 197 | #213 | "Changed in another window" conflict flow silently switches organizations (#56 edge case) | mixed | The original chooser/second-window organization transition and actual setup-page sign-out recovery remain unverified. |
+| 197 | #213 | "Changed in another window" conflict flow silently switches organizations (#56 edge case) | fixed_and_verified | Existing actual Workspace conflict behavior preserves original practice and refuses silent replacement. Required-setup fallback now provides the same guarded existing session sign-out as normal workspace; actual DELETE with CSRF redirects to login and demo preview suppresses it. New focused case passed2063. Historical second-window chronology and hosted acceptance remain separate. |
 | 198 | #214 | Pending invitation rows show no activation link or code (WF-011 FAIL, regression) | fixed_and_verified | Pending invitations explain creation-only activation values and provide revoke/create replacement recovery. Actual UI creation, reload secrecy, revoke and replacement pass; real backend persists digest-only tokens and replaces revoked invitations. No old token recovery introduced. |
 | 199 | #215 | Write actions silently fail on expired session while reads keep working (WF-053) | mixed | The original initial expired-session booking, continuing reads and actual post-reauthentication recovery/persistence are not proved by the seven uncertainty/CSRF cases. |
 | 200 | #216 | Stale-session booking form: slot/room not carried, validation stuck (WF-053) | mixed | Original expired-session clicked slot/room recovery goes beyond a reset-only test. |
@@ -264,7 +264,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 225 | #97 | Waitlist "Hold time and publish offer" (was: never enables) | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 226 | #102 | Inventory receiving blocked — "Create an active leaf location before receiving stock" with no leaf-location/bin creation path | fixed_and_verified | Actual native receiving screen exposes storage management, creates an active leaf, returns to receiving, selects the created destination and sends an exact acknowledged receipt. Real clinic location creation and clinic receipt endpoint persistence, hold and replay cases pass separately. No same-leaf-across-fixtures or unrestricted-availability claim is inferred. |
 | 227 | #103 | Visitor/demo entry missing from the home page (REGRESSION?) | fixed_and_verified | Actualmarketinghome hero nativeclick reaches actualdemooverview thenactualDemoJourney withvisibleOpenSandbox; reloadretainsdemo, noauth/resetmutations. Affectedcredential/footer casesalsopass. |
-| 228 | #107 | Appointment detail dialog lost its Cancel action (0.1.3) | blocked | Authorized PatientClinicalHistory dependency for actual cancel+reload assertions; prior presence-only closure was rejected. |
+| 228 | #107 | Appointment detail dialog lost its Cancel action (0.1.3) | fixed_and_verified | Actual schedule detail dialog exposes cancellation, Go back makes no POST, explicit confirmation sends exact acknowledged transition with CSRF, refreshed calendar shows cancelled and hard reload retains it with disabled repeat action and no second POST. Focused browser case passeddc9f; unchanged real backend acknowledged cancellation200 and DB reload cancelled proof reused. |
 | 229 | #108 | Booking dialog auto-recovers a stale draft across sessions (minor) | unverified | Accepted cross-session draft recovery warning/replacement behavior with fresh booking intent. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 230 | #158 | Chart-level Clinical history workspace fails to load | blocked | Authorized PatientClinicalHistory dependency and permitted configured-site history-load verification. |
 | 231 | #194 | Clicking clinical-plan tabs scrolls the page back up to Intake | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |

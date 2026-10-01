@@ -1,17 +1,17 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T21:36:58.571025+00:00",
-    "source_revision": "f8aec7a56a9f52a1f441e7cd6dec319f0993cc15",
+    "generated_at": "2026-10-01T22:19:25.088672+00:00",
+    "source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 151,
-    "remaining": 90,
+    "closed": 157,
+    "remaining": 84,
     "counts": {
-      "mixed": 42,
-      "fixed_and_verified": 143,
+      "mixed": 38,
+      "fixed_and_verified": 149,
       "deferred": 5,
-      "unverified": 24,
-      "blocked": 19,
+      "unverified": 23,
+      "blocked": 18,
       "proven_invalid": 8
     },
     "all_original_dispositions_recorded": true,
@@ -1151,6 +1151,128 @@
         ],
         "integrated_source_revision": "f8aec7a56a9f52a1f441e7cd6dec319f0993cc15",
         "evidence_label": "whole_current_local_claim_verified; passing_source_equivalent_backend_evidence_reused"
+      },
+      {
+        "key": "11 | Date/datetime pickers reject typed input",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Existing booking typed-date proof composes with new actual StaffIntakeSections native date/datetime direct-entry and controlled-value case. No arrows or Enter required; date can be changed again. New case passed at2063; source unchanged thereafter."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-2063ed6a.json"
+        ],
+        "integrated_source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
+        "evidence_label": "whole_current_local_claim_verified; valid_equivalent_passing_proof_reused_where_stated"
+      },
+      {
+        "key": "100 | Patient portal has no access path",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual Login patient entry remains reachable without patient preview accounts, displays credential entry, sends exactly one credential session POST and reaches intended patient destination. Focused browser case passed57d438 after required-label fixture correction. Composed unchanged real backend patient session login and protected portal previsit create/replay proof; destination fixture alone is not portal acceptance."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-57d438fd.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-57d438fd-stage.json"
+        ],
+        "integrated_source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
+        "evidence_label": "whole_current_local_claim_verified; valid_equivalent_passing_proof_reused_where_stated"
+      },
+      {
+        "key": "107 | Appointment detail dialog lost its Cancel action (0.1.3)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual schedule detail dialog exposes cancellation, Go back makes no POST, explicit confirmation sends exact acknowledged transition with CSRF, refreshed calendar shows cancelled and hard reload retains it with disabled repeat action and no second POST. Focused browser case passeddc9f; unchanged real backend acknowledged cancellation200 and DB reload cancelled proof reused."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-dc9f9053.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-dc9f9053-stage.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-cdd4f117e961-20261001T204755Z-d6cf55\\focused-waitlist-61-78-backend-qa.json"
+        ],
+        "integrated_source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
+        "evidence_label": "whole_current_local_claim_verified; valid_equivalent_passing_proof_reused_where_stated"
+      },
+      {
+        "key": "213 | \"Changed in another window\" conflict flow silently switches organizations (#56 edge case)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Existing actual Workspace conflict behavior preserves original practice and refuses silent replacement. Required-setup fallback now provides the same guarded existing session sign-out as normal workspace; actual DELETE with CSRF redirects to login and demo preview suppresses it. New focused case passed2063. Historical second-window chronology and hosted acceptance remain separate."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-213-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-2063ed6a.json"
+        ],
+        "integrated_source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
+        "evidence_label": "whole_current_local_claim_verified; valid_equivalent_passing_proof_reused_where_stated"
+      },
+      {
+        "key": "205 | \"Request clinician handoff\" stays DISABLED after completing preparation (WF-056 FAIL)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Existing actual handoff UI leaves unreviewed history disabled, enables request only after owned ready revision receipt and sends its exact intake revision identity. Unchanged real backend persists ready intake, creates request and accepts handoff with owned IDs. Equivalent five-case UI and real integration proof reused without reruns."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        ],
+        "integrated_source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
+        "evidence_label": "whole_current_local_claim_verified; valid_equivalent_passing_proof_reused_where_stated"
+      },
+      {
+        "key": "207 | Handoff \"Save preparation\" silently fails (WF-056)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Existing actual preparation UI uses owned save receipt despite stale refresh: explicit confirmation, Saved state, disabled repeated Save, exact review IDs; rejection/foreign receipt preserves unsaved/error state. Unchanged real backend intake201 and exact replay persist one owned revision, followed by request/accept. Equivalent proof reused; full browser reload not claimed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        ],
+        "integrated_source_revision": "dc9f90539a30e34004ba53950728615b755da7c5",
+        "evidence_label": "whole_current_local_claim_verified; valid_equivalent_passing_proof_reused_where_stated"
       }
     ]
   },
@@ -1980,25 +2102,23 @@
       "key": "11 | Date/datetime pickers reject typed input",
       "title": "Date/datetime pickers reject typed input",
       "source_line": 99,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Booking native date typing is verified locally."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Intake date/datetime typing is outside the recorded booking coverage."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Existing booking typed-date proof composes with new actual StaffIntakeSections native date/datetime direct-entry and controlled-value case. No arrows or Enter required; date can be changed again. New case passed at2063; source unchanged thereafter."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Intake date/datetime typing is outside the recorded booking coverage.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-2063ed6a.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3275,14 +3395,24 @@
       "key": "100 | Patient portal has no access path",
       "title": "Patient portal has no access path",
       "source_line": 213,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual Login patient entry remains reachable without patient preview accounts, displays credential entry, sends exactly one credential session POST and reaches intended patient destination. Focused browser case passed57d438 after required-label fixture correction. Composed unchanged real backend patient session login and protected portal previsit create/replay proof; destination fixture alone is not portal acceptance."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Verify intended patient login entry with approved synthetic account and actual authentication/portal destination; rendered entry is not authentication proof.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-57d438fd.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-57d438fd-stage.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5121,25 +5251,22 @@
       "key": "205 | \"Request clinician handoff\" stays DISABLED after completing preparation (WF-056 FAIL)",
       "title": "\"Request clinician handoff\" stays DISABLED after completing preparation (WF-056 FAIL)",
       "source_line": 395,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Zero linked history reviews explain unmet readiness and explicit prerequisites are preserved."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Actual eligible ready-revision handoff completion/reload remains unverified."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Existing actual handoff UI leaves unreviewed history disabled, enables request only after owned ready revision receipt and sends its exact intake revision identity. Unchanged real backend persists ready intake, creates request and accepts handoff with owned IDs. Equivalent five-case UI and real integration proof reused without reruns."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual eligible ready-revision handoff completion/reload remains unverified.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5148,25 +5275,22 @@
       "key": "207 | Handoff \"Save preparation\" silently fails (WF-056)",
       "title": "Handoff \"Save preparation\" silently fails (WF-056)",
       "source_line": 397,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Synthetic owned/foreign receipts,visible rejection and unsaved preparation cases pass."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original connected preparation persistence/readback and unsaved-state clearing are unproved."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Existing actual preparation UI uses owned save receipt despite stale refresh: explicit confirmation, Saved state, disabled repeated Save, exact review IDs; rejection/foreign receipt preserves unsaved/error state. Unchanged real backend intake201 and exact replay persist one owned revision, followed by request/accept. Equivalent proof reused; full browser reload not claimed."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original connected preparation persistence/readback and unsaved-state clearing are unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5293,26 +5417,23 @@
       "key": "213 | \"Changed in another window\" conflict flow silently switches organizations (#56 edge case)",
       "title": "\"Changed in another window\" conflict flow silently switches organizations (#56 edge case)",
       "source_line": 409,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Partial local behavior verified; remaining material original-claim behavior unverified. Excluded from the closed count.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Supported local part",
+          "claim_scope": "Whole current local claim",
           "status": "locally_verified",
-          "detail": "Conflict retry keeps the original practice and refuses silent replacement context in the isolated browser fixture."
-        },
-        {
-          "claim_scope": "Remaining original claim",
-          "status": "unverified",
-          "detail": "The original chooser/second-window organization transition and actual setup-page sign-out recovery remain unverified."
+          "detail": "Existing actual Workspace conflict behavior preserves original practice and refuses silent replacement. Required-setup fallback now provides the same guarded existing session sign-out as normal workspace; actual DELETE with CSRF redirects to login and demo preview suppresses it. New focused case passed2063. Historical second-window chronology and hosted acceptance remain separate."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "The original chooser/second-window organization transition and actual setup-page sign-out recovery remain unverified.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-213-result.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-213-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-2063ed6a.json"
       ],
       "integrator_review_note": null
     },
@@ -5992,18 +6113,25 @@
       "key": "107 | Appointment detail dialog lost its Cancel action (0.1.3)",
       "title": "Appointment detail dialog lost its Cancel action (0.1.3)",
       "source_line": 475,
-      "disposition": "blocked",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
-      "blocking_input": {
-        "input": "Authorized PatientClinicalHistory dependency for actual cancel+reload assertions; prior presence-only closure was rejected.",
-        "owner": "Dot / authorized packet owner; integrator after authorized availability",
-        "reason": "Existing explicit access hold; no bypass or held-source reconstruction."
-      },
-      "remaining_qa_input": "Authorized PatientClinicalHistory dependency for actual cancel+reload assertions; prior presence-only closure was rejected.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; original historical observation and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual schedule detail dialog exposes cancellation, Go back makes no POST, explicit confirmation sends exact acknowledged transition with CSRF, refreshed calendar shows cancelled and hard reload retains it with disabled repeat action and no second POST. Focused browser case passeddc9f; unchanged real backend acknowledged cancellation200 and DB reload cancelled proof reused."
+        }
+      ],
+      "blocking_input": null,
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-dc9f9053.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\focused-browser-dc9f9053-stage.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-cdd4f117e961-20261001T204755Z-d6cf55\\focused-waitlist-61-78-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {

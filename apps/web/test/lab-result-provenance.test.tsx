@@ -69,7 +69,7 @@ beforeAll(async () => {
           if (id === "\0synthetic-clinic")
             return `export const useClinic=()=>({capabilities:{patients:true,notes_read:true,notes_write:false,observations_write:true},practice:{id:2,name:'Synthetic clinic',timezone:'UTC'}});`;
           if (id === "\0lab-entry")
-            return `import React from 'react';import {createRoot} from 'react-dom/client';import {PatientLabReports} from '/src/features/clinic/PatientLabReports.tsx';createRoot(document.getElementById('root')).render(React.createElement(PatientLabReports,{patientId:3,patientName:'Synthetic patient'}))`;
+            return `import React from 'react';import {createRoot} from 'react-dom/client';import {PatientLabReports} from '/src/features/clinic/PatientLabReports.tsx';createRoot(document.getElementById('root')).render(React.createElement(PatientLabReports,{patientId:3,patientName:'Synthetic patient',encounterId:new URLSearchParams(location.search).has('create')?30:undefined}))`;
         },
         configureServer(vite) {
           vite.middlewares.use((req, res, next) => {
@@ -337,4 +337,188 @@ it("rejected source time leaves supplied metadata editable and shows no success"
       .count(),
   ).toBe(0);
   await page.close();
+});
+
+
+it("#175 creates an external result for an active lab order and retains its order and collected specimen on readback and reload", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 1000 },
+    timezoneId: "UTC",
+  });
+  page.setDefaultTimeout(8000);
+  const reports: Record<string, any>[] = [];
+  const posts: Record<string, any>[] = [];
+  const unexpected: string[] = [];
+  let reportReads = 0;
+  let orderReads = 0;
+  const order = {
+    id: 175,
+    patient_id: 3,
+    encounter_id: 30,
+    site_id: 7,
+    request_kind: "lab",
+    intent: "order",
+    status: "active",
+    priority: "routine",
+    requested_display: "Synthetic active laboratory order",
+    destination: "Synthetic external laboratory",
+  };
+  try {
+    await page.route(/^http:\/\/127\.0\.0\.1:\d+\/api\//, async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      const method = request.method();
+      if (path === "/api/csrf" && method === "GET")
+        return route.fulfill({ json: { csrf_token: "synthetic-only" } });
+      if (
+        path === "/api/clinic/patients/3/encounters/30/clinical_plan_workspace" &&
+        method === "GET"
+      ) {
+        orderReads += 1;
+        return route.fulfill({
+          json: {
+            patient_id: 3,
+            encounter_id: 30,
+            records: { service_requests: [order] },
+          },
+        });
+      }
+      if (path === "/api/clinic/patients/3/lab_reports" && method === "GET") {
+        reportReads += 1;
+        return route.fulfill({
+          json: {
+            reports,
+            pagination: { page: 1, per_page: 25, total: reports.length },
+            can_write: true,
+            can_review: false,
+          },
+        });
+      }
+      if (path === "/api/clinic/patients/3/lab_reports" && method === "POST") {
+        expect(request.headers()["x-csrf-token"]).toBe("synthetic-only");
+        const input = request.postDataJSON().lab_report;
+        posts.push(input);
+        expect(input).toMatchObject({
+          confirmed_patient: true,
+          service_request_revision_id: order.id,
+          source_name: "Synthetic external laboratory",
+          external_report_id: "SYN-175-REPORT",
+          specimen_identifier: "SYN-175-SPECIMEN",
+          specimen_type_code: "synthetic-specimen",
+          specimen_type_display: "Synthetic collected specimen",
+          specimen_condition: "satisfactory",
+          title: "Synthetic external result #175",
+          collected_at: "2026-10-01T10:00:00.000Z",
+          issued_at: "2026-10-01T11:00:00.000Z",
+          results: [
+            expect.objectContaining({
+              name: "Synthetic laboratory measurement",
+              value: "4.70",
+            }),
+          ],
+        });
+        expect(input.request_key).toMatch(/^[0-9a-f-]{36}$/);
+        const currentVersion = {
+          ...version(),
+          ...input,
+          id: 176,
+          lab_report_id: 175,
+          patient_id: 3,
+          version_number: 1,
+          recorded_at: "2026-10-01T12:00:00Z",
+        };
+        const report = {
+          id: 175,
+          patient_id: 3,
+          site_id: 7,
+          service_request_revision_id: input.service_request_revision_id,
+          specimen: {
+            id: 177,
+            service_request_revision_id: input.service_request_revision_id,
+            specimen_identifier: input.specimen_identifier,
+            specimen_type_code: input.specimen_type_code,
+            specimen_type_display: input.specimen_type_display,
+            condition_code: input.specimen_condition,
+            collected_at: input.collected_at,
+            collected_by: 2,
+          },
+          source_name: input.source_name,
+          external_report_id: input.external_report_id,
+          current_version_id: currentVersion.id,
+          current_version: currentVersion,
+          open_prior_follow_ups: [],
+          created_at: "2026-10-01T12:00:00Z",
+          updated_at: "2026-10-01T12:00:00Z",
+        };
+        reports.push(report);
+        return route.fulfill({ status: 201, json: { report } });
+      }
+      unexpected.push(method + " " + path);
+      return route.abort();
+    });
+    await page.goto(base + "lab-test?create");
+    await page
+      .getByText("No lab reports are recorded for this patient.", { exact: true })
+      .waitFor();
+    const create = page.getByRole("button", { name: "New report", exact: true });
+    await create.waitFor();
+    expect(await create.isEnabled()).toBe(true);
+    await create.click();
+    await page
+      .getByRole("combobox", { name: /^Authorized laboratory order(?:\s*\*)?$/ })
+      .click();
+    await page
+      .getByRole("option", { name: /Synthetic active laboratory order/ })
+      .click();
+    await page.getByLabel(/^Source(?:\s*\*)?$/).fill("Synthetic external laboratory");
+    await page.getByLabel("Accession or external ID", { exact: true }).fill("SYN-175-REPORT");
+    await page.getByLabel(/^Title(?:\s*\*)?$/).fill("Synthetic external result #175");
+    await page.getByLabel(/^Specimen type(?:\s*\*)?$/).fill("Synthetic collected specimen");
+    await page.getByLabel(/^Specimen type code(?:\s*\*)?$/).fill("synthetic-specimen");
+    await page.getByLabel("Specimen identifier", { exact: true }).fill("SYN-175-SPECIMEN");
+    await page.getByLabel(/^Collected at(?:\s*\*)?$/).fill("2026-10-01T10:00");
+    await page.getByLabel(/^Reported at(?:\s*\*)?$/).fill("2026-10-01T11:00");
+    await page.getByLabel(/^Test(?:\s*\*)?$/).fill("Synthetic laboratory measurement");
+    await page.getByLabel(/^Value(?:\s*\*)?$/).fill("4.70");
+    await page
+      .getByLabel("I confirmed this report belongs to the selected patient.")
+      .check();
+    await page.getByRole("button", { name: "Record report", exact: true }).click();
+    await page.getByText("Lab report recorded.", { exact: true }).waitFor();
+    await page
+      .getByText("Synthetic external result #175", { exact: true })
+      .waitFor();
+    await page.getByText(/Synthetic laboratory measurement: 4.70/).waitFor();
+    await page
+      .getByText("Order #175 · Synthetic collected specimen · Satisfactory", {
+        exact: true,
+      })
+      .waitFor();
+    expect(posts).toHaveLength(1);
+    expect(reports).toHaveLength(1);
+    expect(reportReads).toBeGreaterThanOrEqual(2);
+    expect(orderReads).toBeGreaterThanOrEqual(1);
+    const readsBeforeReload = reportReads;
+    await page.reload();
+    await page
+      .getByText("Synthetic external result #175", { exact: true })
+      .waitFor();
+    await page.getByText(/Synthetic laboratory measurement: 4.70/).waitFor();
+    await page
+      .getByText("Order #175 · Synthetic collected specimen · Satisfactory", {
+        exact: true,
+      })
+      .waitFor();
+    expect(reportReads).toBeGreaterThan(readsBeforeReload);
+    expect(posts).toHaveLength(1);
+    expect(reports[0].service_request_revision_id).toBe(order.id);
+    expect(reports[0].specimen).toMatchObject({
+      service_request_revision_id: order.id,
+      specimen_identifier: "SYN-175-SPECIMEN",
+      collected_at: "2026-10-01T10:00:00.000Z",
+    });
+    expect(unexpected).toEqual([]);
+  } finally {
+    await page.close();
+  }
 });
