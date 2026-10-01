@@ -350,7 +350,12 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
     get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
     assert_response :success
-    assert_equal 1, response.parsed_body.fetch("links").length
+    assert_equal [
+      [ "lab_report", lab_report.id, lab_order.id ],
+      [ "medication_statement", statement.id, medication.fetch("id") ]
+    ], response.parsed_body.fetch("links").map { |link|
+      [ link.fetch("target_kind"), link.fetch("target_id"), link.fetch("source_revision_id") ]
+    }.sort_by(&:first)
     assert_equal "closed", response.parsed_body.fetch("referral_events").first.fetch("stage")
     assert response.parsed_body.fetch("available_link_targets").fetch("medication_statement")
       .any? { |target| target.fetch("id") == statement.id }
