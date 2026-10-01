@@ -289,6 +289,13 @@ export function ClinicNavigation({
           allowed: true,
         },
         {
+          href: "/clinic/operations#connectors-transmissions",
+          label: "Connectors & transmissions",
+          description: "Connection status and local simulator readouts",
+          Icon: StorefrontIcon,
+          allowed: true,
+        },
+        {
           href: "/clinic/reminders",
           label: "Reminders",
           Icon: NotificationsNoneIcon,

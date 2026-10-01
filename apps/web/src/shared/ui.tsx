@@ -95,12 +95,14 @@ export function LoadState({
 export function Card({
   title,
   children,
+  id,
 }: {
   title: string;
   children: ReactNode;
+  id?: string;
 }) {
   return (
-    <section className="clinic-card">
+    <section className="clinic-card" id={id}>
       <h2>{title}</h2>
       {children}
     </section>

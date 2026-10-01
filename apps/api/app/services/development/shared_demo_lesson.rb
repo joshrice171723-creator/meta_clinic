@@ -1,6 +1,29 @@
 module Development
   class SharedDemoLesson
     TEMPLATE_KEY = "primary_care".freeze
+    SANDBOX_PREPARERS = [
+      DemoSandboxPopulation,
+      DemoSandboxStaffActivity,
+      DemoSandboxSchedulingExceptions,
+      DemoSandboxSchedulingVariants,
+      DemoSandboxChartMeasurements,
+      DemoSandboxChartHistory,
+      DemoSandboxLongitudinalChart,
+      DemoSandboxLabHistory,
+      DemoSandboxLabContact,
+      DemoSandboxInventoryHistory,
+      DemoSandboxInventoryReplenishment,
+      DemoSandboxJourneys,
+      DemoSandboxPrescriptionOutcomes,
+      DemoSandboxBillingExceptions,
+      DemoSandboxQueue,
+      DemoSandboxCarePlanHistory,
+      DemoSandboxTelehealth,
+      DemoSandboxPatientContact,
+      DemoSandboxRefillCompletion,
+      DemoSandboxGrowth,
+      DemoSandboxMembershipHistory
+    ].freeze
 
     def self.enter!(lesson_key, visitor:, previous_run: nil, restart: false)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
@@ -72,29 +95,37 @@ module Development
         run = DemoRun.create!(template_key:, lesson_key:, practice: lesson.practice,
           operator_user: lesson.operator_user, visitor:)
         DemoLessonCatalog.prepare!(run)
-        DemoSandboxPopulation.prepare!(run) if sandbox
-        DemoSandboxStaffActivity.prepare!(run) if sandbox
-        DemoSandboxSchedulingExceptions.prepare!(run) if sandbox
-        DemoSandboxSchedulingVariants.prepare!(run) if sandbox
-        DemoSandboxChartMeasurements.prepare!(run) if sandbox
-        DemoSandboxChartHistory.prepare!(run) if sandbox
-        DemoSandboxLongitudinalChart.prepare!(run) if sandbox
-        DemoSandboxLabHistory.prepare!(run) if sandbox
-        DemoSandboxLabContact.prepare!(run) if sandbox
-        DemoSandboxInventoryHistory.prepare!(run) if sandbox
-        DemoSandboxInventoryReplenishment.prepare!(run) if sandbox
-        DemoSandboxJourneys.prepare!(run) if sandbox
-        DemoSandboxPrescriptionOutcomes.prepare!(run) if sandbox
-        DemoSandboxBillingExceptions.prepare!(run) if sandbox
-        DemoSandboxQueue.prepare!(run) if sandbox
-        DemoSandboxCarePlanHistory.prepare!(run) if sandbox
-        DemoSandboxTelehealth.prepare!(run) if sandbox
-        DemoSandboxPatientContact.prepare!(run) if sandbox
-        DemoSandboxRefillCompletion.prepare!(run) if sandbox
-        DemoSandboxGrowth.prepare!(run) if sandbox
-        DemoSandboxMembershipHistory.prepare!(run) if sandbox
-        lesson.update!(generation: lesson.generation + 1)
+        if sandbox
+          run.update!(baseline: run.baseline.to_h.merge("sandbox_preparation_step" => 0))
+        else
+          lesson.update!(generation: lesson.generation + 1)
+        end
         run
+      end
+    end
+
+    def self.prepare_sandbox_step!(run)
+      raise ArgumentError, "Open the full sandbox before continuing preparation." unless
+        DemoLessonCatalog.sandbox?(run.lesson_key)
+
+      ApplicationRecord.transaction do
+        ApplicationRecord.connection.execute(
+          "SELECT pg_advisory_xact_lock(hashtextextended('apply:demo-sandbox-pool', 0))"
+        )
+        run.lock!
+        raise ActiveRecord::RecordNotFound unless run.active?
+
+        step = Integer(run.baseline.to_h.fetch("sandbox_preparation_step", 0))
+        if (preparer = SANDBOX_PREPARERS[step])
+          preparer.prepare!(run)
+          step += 1
+          run.update!(baseline: run.baseline.to_h.merge("sandbox_preparation_step" => step))
+          if step >= SANDBOX_PREPARERS.length
+            lesson = DemoLesson.find_by!(lesson_key: run.lesson_key, practice_id: run.practice_id)
+            lesson.lock!.update!(generation: lesson.generation + 1)
+          end
+        end
+        step >= SANDBOX_PREPARERS.length
       end
     end
 
