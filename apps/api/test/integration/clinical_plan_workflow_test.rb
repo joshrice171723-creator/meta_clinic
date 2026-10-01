@@ -22,7 +22,10 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   test "Muse 191 care plan creation requires an open encounter and facility" do
-    [ [ "completed", @site ], [ "open", nil ] ].each_with_index do |(status, site), index|
+    [
+      [ "completed", @site, "Clinical plan records require an open encounter with a facility." ],
+      [ "open", nil, "Clinical plan records require an encounter facility." ]
+    ].each_with_index do |(status, site, expected_error), index|
       @encounter = @practice.encounters.create!(patient: @patient, site:,
         started_at: Time.utc(2026, 9, 10, 14), status:)
       assert_no_difference "Clinic::Care::CarePlanRevision.count" do
@@ -31,7 +34,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
             request_key: "muse-191-blocked-#{index}" }
         }, headers: csrf_headers, as: :json
         assert_response :unprocessable_entity
-        assert_includes response.parsed_body.fetch("error"), "open encounter with a facility"
+        assert_equal expected_error, response.parsed_body.fetch("error")
       end
     end
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
@@ -306,11 +309,21 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       request_kind: "referral", intent: "order", priority: "urgent",
       requested_display: "Synthetic specialist review", destination: "Synthetic specialty clinic"
     }, "closure-referral-create")
-    post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
-      params: { clinical_plan_link: { source_kind: "service_request", source_revision_id: referral.fetch("id"),
-        target_kind: "lab_report", target_id: 1, request_key: "closure-referral-wrong-target" } },
-      headers: csrf_headers, as: :json
-    assert_response :unprocessable_entity
+    lab_order = fulfillment_order("lab", "closure-referral-lab-order")
+    lab_report = fulfillment_lab_report(lab_order, "closure-referral-lab-report")
+    assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: { clinical_plan_link: { source_kind: "service_request", source_revision_id: referral.fetch("id"),
+          target_kind: "lab_report", target_id: lab_report.id, request_key: "closure-referral-wrong-target" } },
+        headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_equal "That result type does not match this order.", response.parsed_body.fetch("error")
+      post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
+        params: { clinical_plan_link: { source_kind: "service_request", source_revision_id: referral.fetch("id"),
+          target_kind: "lab_report", target_id: Clinic::Care::LabReport.maximum(:id) + 1,
+          request_key: "closure-referral-missing-target" } }, headers: csrf_headers, as: :json
+      assert_response :not_found
+    end
     event_body = lambda do |stage, key|
       { referral_event: { service_request_revision_id: referral.fetch("id"), direction: "outbound", stage:,
         organization_name: "Synthetic specialty clinic", note: "Synthetic exchange evidence", request_key: key } }
@@ -661,7 +674,7 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
   test "substitution remains unresolved in drafts and explicit choices retain revision history" do
     draft = create_record("medication_requests", "medication_request", {
-      medication_name: "Synthetic substitution draft", substitution_instruction: ""
+      medication_name: "Synthetic substitution draft", intent: "order", substitution_instruction: ""
     }, "substitution-draft")
     assert_nil draft.fetch("substitution_instruction")
     original = Clinic::Care::MedicationRequestRevision.find(draft.fetch("id"))
@@ -686,13 +699,13 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
   test "substitution create boundary accepts explicit choices and rejects unsupported choices" do
     %w[allowed not_allowed].each do |choice|
       draft = create_record("medication_requests", "medication_request", {
-        medication_name: "Synthetic explicit substitution draft", substitution_instruction: choice
+        medication_name: "Synthetic explicit substitution draft", intent: "order", substitution_instruction: choice
       }, "substitution-create-#{choice}")
       assert_equal choice, draft.fetch("substitution_instruction")
     end
     assert_no_difference "Clinic::Care::MedicationRequestRevision.count" do
       post "#{workspace_path(@patient)}/medication_requests", params: { medication_request: {
-        medication_name: "Synthetic invalid substitution draft", substitution_instruction: "automatic",
+        medication_name: "Synthetic invalid substitution draft", intent: "order", substitution_instruction: "automatic",
         request_key: "substitution-create-invalid"
       } }, headers: csrf_headers, as: :json
       assert_response :unprocessable_entity

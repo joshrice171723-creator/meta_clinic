@@ -12,6 +12,12 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     @patient = @practice.patients.first
     post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
     assert_response :success
+    @registration_site = @practice.sites.create!(code: "REGISTRATION-FIXTURE", status: "active")
+    @practice.visit_types.create!(code: "Synthetic registration visit")
+    Development::GuidedClinicDemo.configure_site_profile!(practice: @practice, site: @registration_site, membership: @membership,
+      clinic_type: "primary_care", request_key: "independent-registration-site-profile", finalize: true)
+    patch "/api/clinic/context", params: { site_id: @registration_site.id }, headers: csrf_headers, as: :json
+    assert_response :success
   end
 
   test "a rejected registration update leaves identity and audit history unchanged" do
@@ -68,7 +74,7 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
   end
 
   test "registration preserves an unknown date of birth without inventing one" do
-    site = @practice.sites.create!(code: "REGISTRATION")
+    site = @registration_site
     patch "/api/clinic/context", params: { site_id: site.id }, headers: csrf_headers, as: :json
     assert_response :success
     post "/api/clinic/patients", params: {
@@ -89,7 +95,7 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
   end
 
   test "patient directory filters by a clinic site and rejects an unknown site" do
-    site = @practice.sites.create!(code: "DIRECTORY")
+    site = @registration_site
     @patient.update!(primary_site: site)
 
     get "/api/clinic/patients", params: { site_id: site.id }, headers: @headers

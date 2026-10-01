@@ -88,7 +88,7 @@ module Clinic
 
       def serialize(preparation, order:)
         current = MedicationRequestRevision.where(practice_id: order.practice_id, series_id: order.series_id).order(version_number: :desc).first!
-        destination = preparation.pharmacy_destination
+        destination = PharmacyDestination.where(practice_id: preparation.practice_id).find(preparation.pharmacy_destination_id)
         fresh = current.id == preparation.medication_request_revision_id && destination.active? &&
           review_current?(order: current, review: preparation.review_event) &&
           digest(order: current, review: preparation.review_event, destination_snapshot: destination.snapshot,

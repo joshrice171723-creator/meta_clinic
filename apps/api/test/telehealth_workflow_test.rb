@@ -46,6 +46,10 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
       user: @patient_user, status: :active, invited_at: 1.day.ago, activated_at: 1.day.ago)
     @clinician = @practice.clinician_profiles.create!(membership: @membership,
       display_name: "Telehealth Clinician", reference: "TH-CLINICIAN")
+    7.times do |weekday|
+      Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
+        kind: "weekly", weekday:, start_minute: 0, end_minute: 1440, active: true)
+    end
     create_ready_configuration!
     login(@staff)
   end
@@ -360,7 +364,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     rule = { visit_type_id: @visit_type.id, site_id: @other_site.id, enabled: true,
       allowed_region_codes: [ "US-TX" ] }
 
-    put "/api/clinic/telehealth/settings/draft", headers: @headers, as: :json, params: {
+    put "/api/clinic/telehealth/settings/draft", headers: csrf_headers, as: :json, params: {
       request_key: "muse235-save-readback", expected_version: @setting.lock_version,
       settings: { provider_account_ref: TEST_ACCOUNT_REF, enabled: false },
       policy: policy_payload, visit_type_rules: [ rule ]
@@ -380,7 +384,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   test "Muse235 incomplete policy rejects the rule save without reporting success or persisting it" do
-    put "/api/clinic/telehealth/settings/draft", headers: @headers, as: :json, params: {
+    put "/api/clinic/telehealth/settings/draft", headers: csrf_headers, as: :json, params: {
       request_key: "muse235-incomplete-policy", expected_version: @setting.lock_version,
       settings: { provider_account_ref: TEST_ACCOUNT_REF, enabled: false },
       policy: policy_payload.merge(consent_title: "", consent_body: "", patient_instructions: "", support_label: ""),
