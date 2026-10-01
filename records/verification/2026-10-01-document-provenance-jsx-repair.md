@@ -29,3 +29,18 @@ python ../../bin/agent-resources run -- pnpm run typecheck
 ```
 
 Final aggregate output is retained locally in `/tmp/mc05-jsx-repair-types.log`. Whitespace diff check passed. No backend/database operation, new dependency, role/security change, reset, patient data, provider call or runtime release was performed.
+
+## Authorized cumulative compilation repair
+
+Parent subsequently assigned all eight remaining errors as one bounded batch from `e5b9cced2d01a41598f3b211b9b6a6b5b3e371f3`, with those source owners idle. The two intake `flexWrap` values and five lab/bulk-import `display` values now use supported MUI `sx` with the same existing values. No data, event handlers or feature contracts changed.
+
+The prescription fixture now explicitly has `preparation_id: null`. This represents an existing attempt recorded before durable preparation, not a new submission: the preparation migration deliberately leaves historical attempt references null, the attempt API type is `number | null`, and the timeline explicitly displays historical preparation as unavailable. New attempt creation still requires preparation in model/service/database guards; none are weakened and no preparation or successful runtime action is fabricated.
+
+Final cumulative checks passed:
+
+```sh
+python bin/agent-resources run -- pnpm --dir apps/web run typecheck
+python bin/agent-resources run -- pnpm --dir apps/web run build:bundle
+```
+
+Aggregate TypeScript exits zero. Both Vite production bundles exit zero: application (1519 modules), then Office (1087 modules, `dist/assets/office-plugin.html`). This supersedes the preceding eight-error aggregate blocker for this exact cumulative source. No additional release compilation blocker appeared. Whitespace diff check passed; package manifests/lockfiles are unchanged. Tests, browser/backend/runtime acceptance, main integration and deployment are outside this compilation-only result and are not claimed complete.

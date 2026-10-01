@@ -245,7 +245,7 @@ export function IntakeQuestionTasks({ patientId, encounterId, tasks, writable, d
           <Typography variant="body2" color="text.secondary">Choose a saved question and revision, then deliberately link or create a manual encounter task. The recorded answer and follow-up details remain unchanged. Assignment and transfer acknowledgment use the existing task workflow.</Typography>
           {error && <Alert severity="error">{error}</Alert>}
           {notice && <Alert severity="success">{notice}</Alert>}
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
             <Button onClick={() => void load()} disabled={busy || loading}>Check saved links</Button>
             {unknown && <Button variant="contained" disabled={busy || loading || disabled || !writable} onClick={() => { if (attempt.current) void submit(attempt.current); }}>Retry same request</Button>}
           </Stack>
@@ -297,7 +297,7 @@ export function IntakeQuestionTasks({ patientId, encounterId, tasks, writable, d
                   {task.waiting_reason && <Alert severity="info">{task.waiting_reason}</Alert>}
                   {task.assignment_exception && <Alert severity="warning">{task.assignment_exception}</Alert>}
                   {task.resolution_code && <Typography variant="body2">Resolution: {label(task.resolution_code)}</Typography>}
-                  {writable && manual && <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  {writable && manual && <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
                     {active && <><Button disabled={locked || !canClaim} onClick={() => transition(task, "claim")}>Claim</Button><Button disabled={locked || !assignee || assignee.membership_id === task.assigned_to_membership_id || assignee.membership_id === task.pending_assignee_membership_id} onClick={() => transition(task, "assign")}>Request transfer</Button></>}
                     {active && task.pending_assignee_membership_id && <><Button disabled={locked || !recipient} onClick={() => transition(task, "accept_transfer")}>Acknowledge transfer</Button><Button disabled={locked || !recipient} onClick={() => transition(task, "reject_transfer")}>Decline transfer</Button></>}
                     {task.state === "claimed" && <Button disabled={locked || !owns || blocked} onClick={() => transition(task, "start")}>Start</Button>}
