@@ -124,6 +124,10 @@ const MEASUREMENT_CODES = new Set([
   "vital-pain-score",
 ]);
 
+export function intakeGroupProgressLabel(saved: number, total: number) {
+  return `${saved} of ${total} ${total === 1 ? "group" : "groups"} saved · Save each group to unlock the next.`;
+}
+
 export function allIntakeChunksConfirmed(
   chunks: Array<{ index: number }>,
   confirmedChunkIndexes: number[],
@@ -1080,8 +1084,7 @@ export function NurseEncounterWorkspaceContent({
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
                 <Typography color="text.secondary">
-                  {confirmedChunkIndexes.length} of {intakeChunks.length} groups
-                  saved · Save each group to unlock the next.
+                  {intakeGroupProgressLabel(confirmedChunkIndexes.length, intakeChunks.length)}
                 </Typography>
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;

@@ -259,7 +259,7 @@ export function ClinicNavigation({
         },
         {
           href: "/clinic/recalls",
-          label: "Recalls and care gaps",
+          label: "Recalls",
           Icon: NotificationsNoneIcon,
           allowed: capabilities.patients && capabilities.encounters,
         },
@@ -508,6 +508,11 @@ export function Workspace({
   useLayoutEffect(() => () => setClinicPractice(undefined), []);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
+  const [setupRedirect, setSetupRedirect] = useState<{
+    path: string;
+    siteId: number;
+    practiceId: number;
+  } | null>(null);
   const selectingLocation = useRef(false);
   const [previousLocationContext, setPreviousLocationContext] =
     useState<ClinicWorkspaceContext | null>(null);
@@ -593,9 +598,11 @@ export function Workspace({
     if (landingDestination) navigate(landingDestination, { replace: true });
   }, [landingDestination, navigate]);
   useEffect(() => {
-    if (setupRequired && path !== "/clinic/setup" && !staffSetupPath)
+    if (setupRequired && path !== "/clinic/setup" && !staffSetupPath && data?.current_site) {
+      setSetupRedirect({ path, siteId: data.current_site.id, practiceId: data.practice.id });
       navigate("/clinic/setup", { replace: true });
-  }, [navigate, path, setupRequired, staffSetupPath]);
+    } else if (staffSetupPath || (data && !setupRequired)) setSetupRedirect(null);
+  }, [navigate, path, setupRequired, staffSetupPath, data?.current_site?.id, data?.practice.id]);
   useEffect(() => {
     document.getElementById("main")?.focus({ preventScroll: true });
   }, [path, homeView]);
@@ -698,6 +705,18 @@ export function Workspace({
           <ClinicContext value={clinicContext}>
             <ClinicOverviewContext value={overview.data ?? null}>
               <main id="main" className="wrap inner-page">
+                {setupRedirect &&
+                  setupRedirect.siteId === data.current_site?.id &&
+                  setupRedirect.practiceId === data.practice.id && (
+                    <Alert severity="info" sx={{ my: 2 }}>
+                      {setupRedirect.path === "/clinic/refills"
+                        ? "Refill requests are unavailable"
+                        : "The requested workspace is unavailable"} until setup
+                      is complete for {locationName}. You were taken to Clinic
+                      Setup. {data.capabilities.clinic_setup_write !== true &&
+                        "Ask a clinic administrator to complete setup."}
+                    </Alert>
+                  )}
                 {onlyIncompleteSites && (
                   <LocationSetupNotice
                     sites={incompleteSites}

@@ -451,8 +451,8 @@ const RESOURCE_META: Record<
     ],
   },
   assessments: {
-    label: "Assessments",
-    singular: "assessment",
+    label: "Structured assessments",
+    singular: "structured assessment",
     root: "assessment",
     initial: {
       status: "in_progress",
@@ -635,6 +635,36 @@ function recordForm(kind: ResourceKind, record: ClinicalRecord): FormState {
       return [name, name.endsWith("_at") && value ? value.slice(0, 16) : value];
     }),
   );
+}
+
+export function clinicalPlanCreateBlockedReasons(
+  data: ClinicalPlanWorkspaceContract,
+  encounter: EncounterDetail,
+  kind: ResourceKind,
+  pendingSave = false,
+) {
+  const reasons: string[] = [];
+  if (encounter.status !== "open" || encounter.ended_at !== null)
+    reasons.push(
+      "New clinical plan records require an open encounter that has not ended.",
+    );
+  if (!encounter.site_id)
+    reasons.push("Assign a facility to this encounter before adding a record.");
+  if (!data.capabilities[kind])
+    reasons.push(
+      `You do not have permission to add ${RESOURCE_META[kind].singular} records.`,
+    );
+  if (pendingSave)
+    reasons.push(
+      "Resolve the pending clinical record save before adding another record.",
+    );
+  if (data.new_work?.[kind] === false)
+    reasons.push(
+      "This service is disabled for new work. Ask the clinic configuration team about availability.",
+    );
+  if (kind === "assessments" && data.assessment_scope.length === 0)
+    reasons.push("No assessment categories are configured for this encounter.");
+  return reasons;
 }
 
 export function ClinicalPlanWorkspace({
@@ -1027,16 +1057,19 @@ export function ClinicalPlanWorkspace({
     );
   }
   const data = workspace.data;
-  const encounterWritable =
-    encounter.status === "open" &&
-    encounter.ended_at === null &&
-    Boolean(encounter.site_id);
   const canCreateRecord = (targetKind: ResourceKind) =>
-    data.capabilities[targetKind] &&
-    data.new_work?.[targetKind] !== false &&
-    pendingAttempt === null &&
-    encounterWritable &&
-    (targetKind !== "assessments" || data.assessment_scope.length > 0);
+    clinicalPlanCreateBlockedReasons(
+      data,
+      encounter,
+      targetKind,
+      pendingAttempt !== null,
+    ).length === 0;
+  const createBlockedReasons = clinicalPlanCreateBlockedReasons(
+    data,
+    encounter,
+    kind,
+    pendingAttempt !== null,
+  );
   const carePlanCreateBlockedReason =
     encounter.status !== "open" || encounter.ended_at !== null
       ? "Reopen the encounter before creating a care plan or adding a care goal."
@@ -1223,6 +1256,18 @@ export function ClinicalPlanWorkspace({
             ))}
           </Paper>
         )}
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Shared across this encounter: medication fulfillment and referral
+            evidence.
+          </Typography>
+          <ClinicalPlanClosurePanel
+            data={data}
+            base={base}
+            disabled={busy || pendingAttempt !== null}
+            refresh={workspace.refresh}
+          />
+        </Box>
         <Tabs
           value={kind}
           onChange={(_event, value: ResourceKind) => {
@@ -1252,6 +1297,11 @@ export function ClinicalPlanWorkspace({
           <Button
             variant="contained"
             disabled={!canCreateRecord(kind)}
+            aria-describedby={
+              createBlockedReasons.length
+                ? "clinical-plan-create-reasons"
+                : undefined
+            }
             onClick={() => openCreate()}
           >
             Add {meta.singular}
@@ -1265,11 +1315,11 @@ export function ClinicalPlanWorkspace({
             />
           ))}
         </Stack>
-        {data.new_work?.[kind] === false && (
-          <Alert severity="info">
-            This service is disabled for new work. Ask the clinic configuration
-            team about availability. Existing records remain available for
-            authorized review and reconciliation; unrelated care can continue.
+        {createBlockedReasons.length > 0 && (
+          <Alert id="clinical-plan-create-reasons" severity="info">
+            {createBlockedReasons.join(" ")} Existing records remain available
+            for authorized review and reconciliation; unrelated care can
+            continue.
           </Alert>
         )}
         {kind === "care_goals" && carePlans.length === 0 && (
@@ -1280,7 +1330,7 @@ export function ClinicalPlanWorkspace({
                 disabled={!canCreateRecord("care_plans")}
                 onClick={() => openCreate("care_plans")}
               >
-                Create plan
+                Add care plan
               </Button>
             }
           >
@@ -1298,7 +1348,7 @@ export function ClinicalPlanWorkspace({
         )}
         {records.length === 0 ? (
           <Typography color="text.secondary" variant="body2">
-            No {meta.label.toLowerCase()} are recorded for this encounter.
+            {`No ${meta.label.toLowerCase()} are recorded for this encounter.`}
           </Typography>
         ) : (
           <Stack spacing={1}>
@@ -1442,12 +1492,6 @@ export function ClinicalPlanWorkspace({
             })}
           </Stack>
         )}
-        <ClinicalPlanClosurePanel
-          data={data}
-          base={base}
-          disabled={busy || pendingAttempt !== null}
-          refresh={workspace.refresh}
-        />
       </Stack>
 
       {kind === "medication_requests" &&

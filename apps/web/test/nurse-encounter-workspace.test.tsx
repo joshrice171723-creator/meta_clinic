@@ -7,6 +7,7 @@ import type {
 } from "../src/api/contracts";
 import {
   allIntakeChunksConfirmed,
+  intakeGroupProgressLabel,
   intakeRevisionContinuity,
   NurseEncounterWorkspace,
 } from "../src/features/clinic/NurseEncounterWorkspace";
@@ -510,4 +511,15 @@ describe("intake revision continuity", () => {
     expect(result.expectedVersion).toBe(0);
     expect(result.conflict).toBe(false);
   });
+});
+
+it.each([
+  [0, 0, "0 of 0 groups"],
+  [0, 1, "0 of 1 group"],
+  [1, 1, "1 of 1 group"],
+  [3, 11, "3 of 11 groups"],
+])("keeps progress spacing for %s saved of %s", (saved, total, prefix) => {
+  expect(intakeGroupProgressLabel(Number(saved), Number(total))).toBe(
+    `${prefix} saved · Save each group to unlock the next.`,
+  );
 });

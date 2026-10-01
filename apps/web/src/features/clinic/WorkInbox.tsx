@@ -471,7 +471,7 @@ function TaskActions({
   task: ClinicalTaskItem;
   actorMembershipId: number;
   availableTasks: ClinicalTaskItem[];
-  onChanged: () => void;
+  onChanged: (message?: string) => void;
 }) {
   const [assigneeId, setAssigneeId] = useState(
     task.assigned_to_membership_id?.toString() || "",
@@ -505,7 +505,7 @@ function TaskActions({
     setBusy(action);
     setError("");
     try {
-      await api(`/api/clinic/clinical_tasks/${task.id}`, {
+      const response = await api<{ task: ClinicalTaskItem }>(`/api/clinic/clinical_tasks/${task.id}`, {
         method: "PATCH",
         body: {
           task: {
@@ -516,8 +516,11 @@ function TaskActions({
           },
         },
       });
+      if (response.task?.id !== task.id || !Number.isSafeInteger(response.task.version) || response.task.version <= attempt.version ||
+          (action === "complete" && response.task.state !== "completed"))
+        throw new ApiError(503, "The task update was not confirmed. Refresh before retrying.", "outcome_unconfirmed");
       attempts.current.delete(signature);
-      onChanged();
+      onChanged(action === "complete" ? "Clinical task resolved." : undefined);
     } catch (reason) {
       const failure = mutationFailure(reason);
       if (!failure.outcomeUnknown) attempts.current.delete(signature);
@@ -1227,7 +1230,7 @@ function InboxRow({
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
-  onChanged: () => void;
+  onChanged: (message?: string) => void;
 }) {
   const Icon =
     item.icon === "lab"
@@ -1392,7 +1395,7 @@ function PatientFlowCard({
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
-  onChanged: () => void;
+  onChanged: (message?: string) => void;
 }) {
   const patientId = item.href.match(/\/clinic\/patients\/(\d+)/)?.[1];
   const scheduleHref =
@@ -1581,6 +1584,7 @@ function ScopedWorkInbox() {
   const [offboardedPage, setOffboardedPage] = useState(1);
   const [workType, setWorkType] = useState<WorkType>("all");
   const [refreshRevision, setRefreshRevision] = useState(0);
+  const [notice, setNotice] = useState("");
   const filterScope = `${assignment}:${workType}`;
   const [pageState, setPageState] = useState(() =>
     freshInboxPages(filterScope),
@@ -2156,6 +2160,7 @@ function ScopedWorkInbox() {
 
   return (
     <Stack spacing={2.5} sx={{ mb: 3.5 }}>
+      {notice && <Alert severity="success">{notice}</Alert>}
       <Box>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -2483,9 +2488,10 @@ function ScopedWorkInbox() {
                             key={item.id}
                             item={item}
                             work={work.data}
-                            onChanged={() =>
-                              setRefreshRevision((value) => value + 1)
-                            }
+                            onChanged={(message) => {
+                              setNotice(message ?? "");
+                              setRefreshRevision((value) => value + 1);
+                            }}
                           />
                         ))}
                       </Stack>

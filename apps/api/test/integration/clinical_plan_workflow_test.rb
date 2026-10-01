@@ -21,6 +21,28 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     login(@user)
   end
 
+  test "Muse 191 care plan creation requires an open encounter and facility" do
+    [ [ "completed", @site ], [ "open", nil ] ].each_with_index do |(status, site), index|
+      @encounter = @practice.encounters.create!(patient: @patient, site:,
+        started_at: Time.utc(2026, 9, 10, 14), status:)
+      assert_no_difference "Clinic::Care::CarePlanRevision.count" do
+        post "#{workspace_path(@patient)}/care_plans", params: {
+          care_plan: { title: "Synthetic blocked plan", description: "Synthetic prerequisite check",
+            request_key: "muse-191-blocked-#{index}" }
+        }, headers: csrf_headers, as: :json
+        assert_response :unprocessable_entity
+        assert_includes response.parsed_body.fetch("error"), "open encounter with a facility"
+      end
+    end
+    @encounter = @practice.encounters.create!(patient: @patient, site: @site,
+      started_at: Time.utc(2026, 9, 10, 14), status: "open")
+    assert_difference "Clinic::Care::CarePlanRevision.count", 1 do
+      create_record("care_plans", "care_plan", {
+        title: "Synthetic allowed plan", description: "Synthetic prerequisite check"
+      }, "muse-191-allowed")
+    end
+  end
+
   test "clinical record families retain revisions and connect orders to staff work" do
     get "#{workspace_path(@patient)}/clinical_plan_workspace", headers: @headers
     assert_response :success

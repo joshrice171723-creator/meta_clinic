@@ -3592,12 +3592,17 @@ export function SoapNoteForm({
     useState<CorrectionTarget | null>(null);
   const [incomingNote, setIncomingNote] = useState<EncounterNote | null>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [historyRevisionId, setHistoryRevisionId] = useState<number | null>(null);
+  const historyRevision = currentNote?.revisions.find(
+    (revision) => revision.id === historyRevisionId,
+  );
   const [replaceWorkingCopy, setReplaceWorkingCopy] = useState(false);
   const saveAttemptRef = useRef<NoteSaveAttempt | null>(null);
   const restoredDraft = useRef(false);
   const resetAfterDraftReload = useRef(false);
   const skipNextDraftSave = useRef(false);
   const draftSaveTimer = useRef<number | null>(null);
+  const hasWorkingDraftEdits = useRef(false);
   const templateChanged =
     appliedTemplate?.id !== baseline.template?.id ||
     appliedTemplate?.version !== baseline.template?.version;
@@ -3618,6 +3623,13 @@ export function SoapNoteForm({
     !canWrite;
   const selectedTemplate =
     templates.find((template) => template.id === selectedTemplateId) ?? null;
+  const saveRequirement = !appliedTemplate
+    ? templates.length
+      ? "Choose a SOAP template, then use it without prompts or apply its prompts before saving."
+      : "No SOAP template is available. A supported template is required to save a chart draft."
+    : !hasSoapContent(sections)
+      ? "Enter note content before saving a chart draft."
+      : "";
 
   const applyTemplate = (template: NoteTemplate) => {
     setSections((current) => applySoapTemplate(current, template));
@@ -3728,7 +3740,6 @@ export function SoapNoteForm({
       note?.current_revision?.revision_no !== restored.baseline.revisionNo
     ) {
       setIncomingNote(note ?? null);
-      setConflictDialogOpen(Boolean(note));
     }
   }, [encounterId, note, patientId, workingDraft.ready, workingDraft.restored]);
 
@@ -3807,11 +3818,15 @@ export function SoapNoteForm({
 
   useEffect(() => {
     if (busy || !workingDraft.ready || !restoredDraft.current) return;
+    if (dirty || correctionTarget || saveAttemptRef.current)
+      hasWorkingDraftEdits.current = true;
     if (skipNextDraftSave.current) {
       skipNextDraftSave.current = false;
       return;
     }
-    if (!dirty && !correctionTarget && !saveAttemptRef.current) return;
+    // Returning to the baseline is also a working-copy change: otherwise a
+    // previously autosaved keystroke can reappear on the next reload.
+    if (!hasWorkingDraftEdits.current) return;
     const snapshot = workingSnapshot();
     if (!snapshot) return;
     cancelPendingDraftSave();
@@ -4082,6 +4097,7 @@ export function SoapNoteForm({
       );
       return;
     }
+    hasWorkingDraftEdits.current = false;
     setSaveState("idle");
     setNotice(
       attempt.operationCode === "notes.correct"
@@ -4256,6 +4272,7 @@ export function SoapNoteForm({
       );
       return;
     }
+    hasWorkingDraftEdits.current = false;
     const next: SoapEditorBaseline = {
       noteId: incomingNote.id,
       revisionId: incomingNote.current_revision.id,
@@ -4336,7 +4353,7 @@ export function SoapNoteForm({
           severity="warning"
           action={
             <Button color="inherit" onClick={() => setConflictDialogOpen(true)}>
-              Review versions
+              Resolve note conflict
             </Button>
           }
         >
@@ -4362,6 +4379,7 @@ export function SoapNoteForm({
                 }
                 color={revision.signed ? "success" : "default"}
                 label={`Revision ${revision.revision_no}${revision.signed ? " · signed" : " · unsigned"}`}
+                onClick={() => setHistoryRevisionId(revision.id)}
               />
             ))}
           </Stack>
@@ -4376,9 +4394,9 @@ export function SoapNoteForm({
                   Start with a SOAP template
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Choose prompts that fit this visit, then apply them before
-                  saving a draft. Template prompts are editable and do not
-                  document findings on their own.
+                  Choose a template for this visit. Use it with your own text or
+                  apply its editable prompts. Prompts do not document findings
+                  on their own.
                 </Typography>
               </Box>
               <FormControl fullWidth size="small">
@@ -4407,6 +4425,23 @@ export function SoapNoteForm({
                     : null}
                 </Alert>
               )}
+              <Button
+                variant="outlined"
+                sx={{ alignSelf: "flex-start" }}
+                disabled={!selectedTemplate || editorDisabled}
+                onClick={() => {
+                  if (!selectedTemplate || editorDisabled) return;
+                  setAppliedTemplate({
+                    id: selectedTemplate.id,
+                    version: selectedTemplate.version,
+                  });
+                  setNotice(
+                    `${selectedTemplate.label} selected. Your text is unchanged; review it before saving.`,
+                  );
+                }}
+              >
+                Use template without prompts
+              </Button>
               <Button
                 variant="outlined"
                 sx={{ alignSelf: "flex-start" }}
@@ -4532,12 +4567,13 @@ export function SoapNoteForm({
       {currentNote?.current_revision?.created_at && !signed && (
         <Typography variant="body2" color="text.secondary">
           Draft last saved {new Date(currentNote.current_revision.created_at).toLocaleString()}
-          {dirty ? " · Current edits are unsaved" : ""}
+          {dirty ? " · Current edits are not in a saved chart revision" : ""}
         </Typography>
       )}
       {workingDraft.status === "saved" && dirty && (
         <Typography variant="caption" role="status" color="text.secondary">
-          Working note saved for refresh recovery.
+          Last recovery save completed. Recovery copies do not create chart
+          revisions; save the note explicitly to record one.
         </Typography>
       )}
       {(workingDraft.status === "error" ||
@@ -4566,6 +4602,15 @@ export function SoapNoteForm({
             : null}
         </Alert>
       )}
+      {canWrite && (!signed || correctionTarget) && saveRequirement && (
+        <Typography
+          id="soap-save-requirement"
+          variant="body2"
+          color="text.secondary"
+        >
+          {saveRequirement}
+        </Typography>
+      )}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
@@ -4575,6 +4620,9 @@ export function SoapNoteForm({
           <Button
             variant="contained"
             onClick={() => void save()}
+            aria-describedby={
+              saveRequirement ? "soap-save-requirement" : undefined
+            }
             disabled={
               busy ||
               !workingDraft.ready ||
@@ -4714,12 +4762,60 @@ export function SoapNoteForm({
         </DialogActions>
       </Dialog>
       <Dialog
+        open={Boolean(historyRevision)}
+        onClose={() => setHistoryRevisionId(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Saved revision {historyRevision?.revision_no}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="info">
+              {historyRevision?.signed ? "Signed" : "Unsigned"} saved revision.
+              This history view is read-only and does not replace your working
+              text. Corrections use the current revision workflow.
+            </Alert>
+            {historyRevision?.body ? (
+              <>
+                {SOAP_SECTION_LABELS.map(([key, label]) => (
+                  <Box key={key}>
+                    <Typography variant="subtitle2">{label}</Typography>
+                    <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                      {historyRevision.body?.sections[key] || "Not recorded"}
+                    </Typography>
+                  </Box>
+                ))}
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                  Patient instructions:{" "}
+                  {historyRevision.body.patient_instructions || "Not recorded"}
+                </Typography>
+                <Typography>
+                  Actual session duration:{" "}
+                  {historyRevision.body.session_duration_minutes == null
+                    ? "Not recorded"
+                    : `${historyRevision.body.session_duration_minutes} minutes`}
+                </Typography>
+              </>
+            ) : (
+              <Typography>
+                Revision content is unavailable. Reload the chart to retrieve it.
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryRevisionId(null)}>
+            Close history
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
         open={conflictDialogOpen && Boolean(incomingNote)}
         onClose={() => !busy && setConflictDialogOpen(false)}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Review saved and preserved note versions</DialogTitle>
+        <DialogTitle>Resolve saved-note conflict</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="warning">
@@ -4977,7 +5073,7 @@ export function ChartQuickJump() {
     ["Orders & plans", "#clinical-plan-workspace"],
     ["HPI", "#chart-hpi"],
     ["ROS", "#chart-ros"],
-    ["Assessment", "#chart-assessment"],
+    ["SOAP assessment", "#chart-assessment"],
     ["Plan", "#chart-plan"],
     ["Signing", "#chart-signing"],
   ] as const;

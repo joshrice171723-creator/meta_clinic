@@ -270,8 +270,11 @@ export function IntakeQuestions({
   medicationReferences?: Array<{ id: string; name: string }>;
   answerStates?: string[];
 }) {
-  const set = (id: string, change: Exclude<IntakeAnswer, string>) =>
+  const [editingAnswers, setEditingAnswers] = useState<string[]>([]);
+  const set = (id: string, change: Exclude<IntakeAnswer, string>) => {
+    setEditingAnswers((current) => current.filter((fieldId) => fieldId !== id));
     onChange({ ...answers, [id]: change });
+  };
   return (
     <Box
       sx={{
@@ -299,7 +302,9 @@ export function IntakeQuestions({
             "prior_approaches",
             "procedures",
           ].includes(field.id);
-          const canEnterAnswer = ["answered", "unanswered"].includes(state);
+          const canEnterAnswer =
+            ["answered", "unanswered"].includes(state) ||
+            editingAnswers.includes(field.id);
           const saveAnswer = (value: string | string[]) =>
             set(field.id, {
               ...detail,
@@ -595,6 +600,14 @@ export function IntakeQuestions({
                     state={state}
                     answerStates={answerStates}
                     disabled={disabled}
+                    editing={editingAnswers.includes(field.id)}
+                    onEnterAnswer={() =>
+                      setEditingAnswers((current) =>
+                        current.includes(field.id)
+                          ? current.filter((id) => id !== field.id)
+                          : [...current, field.id],
+                      )
+                    }
                     onChange={(nextState) =>
                       set(
                         field.id,
@@ -677,11 +690,15 @@ function AnswerStateMenu({
   state,
   answerStates,
   disabled,
+  editing,
+  onEnterAnswer,
   onChange,
 }: {
   state: string;
   answerStates: string[];
   disabled: boolean;
+  editing: boolean;
+  onEnterAnswer: () => void;
   onChange: (state: string) => void;
 }) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -693,15 +710,15 @@ function AnswerStateMenu({
     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
       {hasAlternativeAnswer ? (
         <>
-          <Typography variant="body2" color="text.secondary">
-            Recorded as {stateLabel(state)}
+          <Typography variant="body2" color="text.secondary" role="status">
+            {`Recorded as ${stateLabel(state)}`}
           </Typography>
           <Button
             size="small"
             disabled={disabled}
-            onClick={() => onChange("unanswered")}
+            onClick={onEnterAnswer}
           >
-            Enter an answer
+            {editing ? "Keep recorded answer" : "Enter an answer"}
           </Button>
         </>
       ) : (
@@ -951,7 +968,12 @@ function HistoryEntryEditor({
                 onChange={(_event, value) =>
                   update(index, {
                     name: value?.name ?? "",
-                    product_id: value?.id === "other" ? "" : (value?.id ?? ""),
+                    ...(recordFields.some((field) => field.id === "product_id")
+                      ? {
+                          product_id:
+                            value?.id === "other" ? "" : (value?.id ?? ""),
+                        }
+                      : {}),
                   })
                 }
                 renderInput={(params) => (

@@ -71,8 +71,10 @@ export function composeHistoryOfPresentIllness(
   hpi: HpiFields,
   selections: ReviewOfSystemsSelections = {},
 ) {
-  const lines = FIELD_LABELS.filter(([field]) => hpi[field].trim()).map(
-    ([field, label]) => `- ${label}: ${hpi[field].trim()}`,
+  // This composer runs on every keystroke, including spaces and IME input.
+  // Preserve the exact field value in the working note and its recovery copy.
+  const lines = FIELD_LABELS.filter(([field]) => hpi[field].length > 0).map(
+    ([field, label]) => `- ${label}: ${hpi[field]}`,
   );
   const hpiBlock = lines.length ? `${HPI_HEADING}\n${lines.join("\n")}` : "";
   const combined = hpiBlock

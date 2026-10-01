@@ -557,8 +557,9 @@ function MedicationAdministrationPanel({
         ) : data.eligible_orders.length === 0 ? (
           <Alert severity="info">
             No current authorized medication orders are linked to clinic
-            inventory. Create and authorize a catalog-linked medication order
-            before recording administration.
+            inventory. Recording administration requires an authorized,
+            catalog-linked medication order. Review medication orders and clinic
+            service availability with an authorized clinician.
           </Alert>
         ) : (
           <>

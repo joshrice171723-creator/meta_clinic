@@ -168,6 +168,20 @@ type Form = {
 };
 type PatientScopedAttempt<T extends object> = T & { patientId: number };
 
+export function labReportEntryGuidance(
+  canCreate: boolean,
+  canWrite: boolean,
+  encounterId?: number,
+) {
+  if (canCreate)
+    return "Record an external result with New report against the exact active order and collected specimen.";
+  if (encounterId === undefined)
+    return "Review recorded reports here. Open the source encounter to record an external result against its active laboratory order and collected specimen.";
+  if (!canWrite)
+    return "Review recorded reports here. Recording an external result requires lab-report write access and an active laboratory order with a collected specimen.";
+  return "Recording an external result requires an active laboratory order and collected specimen.";
+}
+
 export function currentPatientAttempt<T extends { patientId: number }>(
   attempt: T | null,
   patientId: number,
@@ -968,8 +982,7 @@ export function PatientLabReports({
           Lab reports
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Record external results against the exact active order and collected
-          specimen. Acknowledgment and follow-up remain separate actions.
+          {`${labReportEntryGuidance(canCreate, canWrite, encounterId)} Acknowledgment and follow-up remain separate actions.`}
         </Typography>
       </Box>
       {error && (

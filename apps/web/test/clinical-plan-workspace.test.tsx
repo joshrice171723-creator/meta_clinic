@@ -7,6 +7,7 @@ import type {
 } from "../src/api/contracts";
 import {
   clinicalPlanTaskTarget,
+  clinicalPlanCreateBlockedReasons,
   clinicalPlanResourceMeta,
   ClinicalPlanWorkspace,
 } from "../src/features/clinic/ClinicalPlanWorkspace";
@@ -93,6 +94,69 @@ vi.mock("../src/features/clinic/PrescriptionFulfillmentPanel", () => ({
 }));
 
 describe("ClinicalPlanWorkspace", () => {
+  it("explains every existing create prerequisite without confusing visit state with configuration", () => {
+    const encounter = {
+      status: "completed",
+      ended_at: "2026-09-28T12:00:00Z",
+      site_id: null,
+    } as EncounterDetail;
+    const data = {
+      ...fixtures.workspace,
+      new_work: { medication_requests: false },
+    } as ClinicalPlanWorkspaceContract;
+    const reasons = clinicalPlanCreateBlockedReasons(
+      data,
+      encounter,
+      "medication_requests",
+      true,
+    );
+    expect(reasons.join(" ")).toContain("open encounter that has not ended");
+    expect(reasons.join(" ")).toContain("Assign a facility");
+    expect(reasons.join(" ")).toContain("do not have permission");
+    expect(reasons.join(" ")).toContain("pending clinical record save");
+    expect(reasons.join(" ")).toContain("service is disabled for new work");
+    const allowed = {
+      ...fixtures.workspace,
+      capabilities: {
+        ...fixtures.workspace.capabilities,
+        medication_requests: true,
+      },
+    };
+    expect(
+      clinicalPlanCreateBlockedReasons(
+        allowed,
+        {
+          status: "open",
+          ended_at: null,
+          site_id: "1",
+        } as EncounterDetail,
+        "medication_requests",
+      ),
+    ).toEqual([]);
+  });
+
+  it("associates the disabled Add control with its specific reasons", () => {
+    const html = renderToStaticMarkup(
+      <ClinicalPlanWorkspace
+        patient={{ id: 8, display_name: "Synthetic Patient" }}
+        encounter={
+          {
+            id: 72,
+            status: "completed",
+            ended_at: null,
+            site_id: "1",
+          } as EncounterDetail
+        }
+      />,
+    );
+    expect(html).toContain('aria-describedby="clinical-plan-create-reasons"');
+    expect(html).toContain("open encounter that has not ended");
+    expect(html).toContain(
+      "do not have permission to add medication request records",
+    );
+    expect(html).not.toContain("This service is disabled for new work");
+  });
+
   it("keeps substitution unresolved until an explicit prescription choice", () => {
     const meta = clinicalPlanResourceMeta.medication_requests;
     expect(meta.initial.substitution_instruction).toBe("");

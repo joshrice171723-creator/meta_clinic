@@ -219,17 +219,8 @@ export function useWorkingDraft<T>({
                 "This working draft changed in another window. Review the saved copy before replacing it.",
                 "draft_conflict",
               );
-            if (decision === "committed") {
-              active.current.version = recovered.version;
-              uncertain.current = null;
-              setState((value) => ({
-                ...value,
-                version: recovered.version,
-                status: "saved",
-                error: "",
-              }));
-              return true;
-            }
+            // A matching prior commit confirms only the older snapshot. Keep
+            // going to save this replacement (including an explicit clear).
             // Reconcile only the private working copy. A late original write
             // still meets the same version fence; official actions never replay.
             active.current.version = recovered.version;

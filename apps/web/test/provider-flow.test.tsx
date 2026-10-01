@@ -567,6 +567,30 @@ describe("provider encounter workflow", () => {
     });
   });
 
+  it.each([false, true])(
+    "derives fresh chart status from recorded notes while retaining confirmation (recorded=%s)",
+    (recorded) => {
+      const html = renderToStaticMarkup(
+        <ProviderEncounterWorkflow
+          patient={patient}
+          encounter={{
+            ...encounter,
+            note_ids: recorded ? [note.id] : [],
+            notes: recorded ? [note] : [],
+          }}
+          observations={[]}
+          timezone="America/Chicago"
+          noteWorkspace={<div>Protected SOAP editor</div>}
+        />,
+      );
+      expect(html).toContain(recorded ? "Chart In progress" : "Chart Not started");
+      expect(html).not.toContain("Protected SOAP editor");
+      expect(html).toContain(
+        recorded ? "Confirm and open chart" : "Confirm and begin charting",
+      );
+    },
+  );
+
   it("does not fabricate provider assignment and keeps chart content behind confirmation", () => {
     const html = renderToStaticMarkup(
       <ProviderEncounterWorkflow

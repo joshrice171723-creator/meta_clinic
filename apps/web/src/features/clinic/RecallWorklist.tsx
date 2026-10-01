@@ -195,7 +195,8 @@ function RecallWorklistContent() {
           Recall worklist
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
-          New recalls come from a needed follow-up saved in a patient encounter.
+          To create a recall, open a patient encounter and save Follow-up as
+          Needed with the clinician-entered plan and due date.
           Work due dates here, document outreach, and keep deferrals and
           completion evidence with the patient record. This queue does not infer
           screening intervals or send messages.
@@ -235,7 +236,9 @@ function RecallWorklistContent() {
             variant="outlined"
           />
           <Chip
-            label="Next action: work due recalls first"
+            label={resource.data.summary.due > 0
+              ? "Next action: work due recalls first"
+              : "No recalls are due now"}
             size="small"
             variant="outlined"
           />
