@@ -30,6 +30,9 @@ import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
 import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
 
+// Temporarily hide public lesson entry points; keep lesson workflows intact.
+const showDemoLessons = false;
+
 type LoadState =
   | { status: "loading" }
   | { status: "ready"; value: DemoRunResponse }
@@ -374,7 +377,7 @@ export function DemoJourney() {
     return (
       <Stack spacing={2} sx={{ py: 8, alignItems: "center" }}>
         <CircularProgress />
-        <Typography>Loading the guided demo…</Typography>
+        <Typography>Loading the sandbox…</Typography>
       </Stack>
     );
   if (state.status === "error")
@@ -392,12 +395,12 @@ export function DemoJourney() {
         sx={{ width: "100%", p: { xs: 2, sm: 3 } }}
       >
         <Typography component="h1" variant="h4">
-          Explore clinic workflows
+          Explore the clinic sandbox
         </Typography>
         <Typography color="text.secondary">
-          Browse the clinic tour without sharing details, or provide your name,
-          email and company for guided workflows. No account or email
-          verification is required.
+          Explore a shared clinic simulation with sample data. Provide your
+          name, email and company to continue. No account or email verification
+          is required.
         </Typography>
         {error && <Alert severity="error">{error}</Alert>}
         {state.value.notice && (
@@ -437,25 +440,27 @@ export function DemoJourney() {
               <Button type="submit" variant="contained" disabled={busy}>
                 {busy ? "Saving…" : "Continue"}
               </Button>
-              <Button
-                type="button"
-                variant="outlined"
-                disabled={busy}
-                onClick={() => void selectLesson("navigation_tour")}
-              >
-                Browse without sharing details
-              </Button>
-              <Typography variant="caption" color="text.secondary">
-                Opens the read-only clinic tour. Other guided workflows still
-                ask for your details.
-              </Typography>
+              <Box sx={{ display: showDemoLessons ? undefined : "none" }}>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  disabled={busy}
+                  onClick={() => void selectLesson("navigation_tour")}
+                >
+                  Browse without sharing details
+                </Button>
+                <Typography variant="caption" color="text.secondary">
+                  Opens the read-only clinic tour. Other guided workflows still
+                  ask for your details.
+                </Typography>
+              </Box>
             </Stack>
           </Paper>
         ) : (
           <Stack spacing={2}>
             <Typography color="text.secondary">
-              Guided lessons start with a fresh sample clinic. The sandbox is
-              shared, and changes remain visible to visitors until it is reset.
+              The sandbox is shared, and changes remain visible to visitors
+              until it is reset.
             </Typography>
             {preparingSandbox && (
               <Alert severity="info" role="status">
@@ -478,6 +483,7 @@ export function DemoJourney() {
               </Typography>
             )}
             <LessonCatalog
+              showLessons={showDemoLessons}
               lessons={state.value.lessons}
               busy={busy}
               onSelect={(lesson) => setPreparingLesson(lesson)}
@@ -558,7 +564,9 @@ export function DemoJourney() {
                       sandbox ? { lineHeight: 1.5, fontWeight: 600 } : undefined
                     }
                   >
-                    {sandbox ? "Sandbox" : activeLesson?.title}
+                    {sandbox
+                      ? "Sandbox · Clinic administrator simulation"
+                      : activeLesson?.title}
                   </Typography>
                   {!sandbox && (
                     <Typography variant="body2" color="text.secondary">
@@ -572,7 +580,7 @@ export function DemoJourney() {
                   onClick={() => void selectLesson(null)}
                   disabled={busy}
                 >
-                  Back to lessons
+                  Back to sandbox entry
                 </Button>
                 {sandbox && (
                   <Button
@@ -758,9 +766,10 @@ export function DemoJourney() {
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography component="h2" variant="h6">
-            Choose a lesson
+            Explore the sandbox
           </Typography>
           <LessonCatalog
+            showLessons={showDemoLessons}
             lessons={run.lessons}
             busy={busy}
             onSelect={(lesson) => setPreparingLesson(lesson)}
@@ -835,8 +844,8 @@ export function DemoJourney() {
         <DialogTitle id="lesson-complete-title">Lesson complete</DialogTitle>
         <DialogContent>
           <Typography>
-            You completed this walkthrough. Choose another lesson whenever you
-            are ready.
+            You completed this walkthrough. Return to the sandbox entry to
+            explore the shared clinic.
           </Typography>
           {activeGuide && (
             <Typography color="text.secondary" sx={{ mt: 2 }}>
@@ -853,7 +862,7 @@ export function DemoJourney() {
             }}
             disabled={busy}
           >
-            Back to lessons
+            Back to sandbox entry
           </Button>
         </DialogActions>
       </Dialog>
@@ -892,11 +901,13 @@ export function DemoJourney() {
 }
 
 export function LessonCatalog({
+  showLessons = true,
   lessons,
   busy,
   onSelect,
   onSandbox,
 }: {
+  showLessons?: boolean;
   lessons: DemoLesson[];
   busy: boolean;
   onSelect: (lesson: DemoLesson) => void;
@@ -941,7 +952,7 @@ export function LessonCatalog({
             variant="overline"
             sx={{ color: "#addbed", letterSpacing: "0.14em", fontWeight: 700 }}
           >
-            The full experience
+            Shared clinic simulation
           </Typography>
           <Typography
             component="h2"
@@ -949,11 +960,16 @@ export function LessonCatalog({
             variant="h5"
             sx={{ fontWeight: 700, letterSpacing: "-0.025em" }}
           >
-            Step inside a working clinic.
+            Explore the clinic sandbox.
           </Typography>
           <Typography sx={{ color: "#d8e8ef", maxWidth: 650 }}>
             Explore the entire workspace with prepared sample data. Go where
             your curiosity takes you, at your own pace.
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#d8e8ef" }}>
+            Workspace role: Clinic administrator. Explore front desk, clinical
+            team, inventory coordinator and patient workflows with simulated
+            data and payments.
           </Typography>
           <Button
             variant="contained"
@@ -987,11 +1003,11 @@ export function LessonCatalog({
               },
             }}
           >
-            Full Sandbox Demo
+            {showLessons ? "Full Sandbox Demo" : "Open Sandbox"}
           </Button>
         </Stack>
       </Box>
-      <Box>
+      <Box sx={{ display: showLessons ? undefined : "none" }}>
         <Typography component="h2" variant="h6" sx={{ fontWeight: 700 }}>
           Or choose a guided demo
         </Typography>
@@ -1015,10 +1031,13 @@ export function LessonCatalog({
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>
-      {visibleLessons.length === 0 && (
+      {showLessons && visibleLessons.length === 0 && (
         <Typography>No lessons in this clinic focus.</Typography>
       )}
-      {Array.from(new Set(visibleLessons.map(sectionFor))).map((section) => (
+      {(showLessons
+        ? Array.from(new Set(visibleLessons.map(sectionFor)))
+        : []
+      ).map((section) => (
         <Box component="section" key={section} aria-label={section}>
           <Typography component="h3" variant="overline" color="text.secondary">
             {section}
