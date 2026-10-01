@@ -12,12 +12,13 @@ import {
 } from "react";
 import { Button, Stack } from "@mui/material";
 import type {
+  ClinicWorkspaceContext,
   DevelopmentAccount,
   RuntimeEnvironment,
   User,
 } from "./api/contracts";
 import { api, ApiError, csrf, currentLoginDestination } from "./api/client";
-import { Form, LoadState } from "./shared/ui";
+import { Form, LoadState, useResource } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
 import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
@@ -660,6 +661,26 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
   );
 }
 
+function ClinicUpdateNotes({ user }: { user: User }) {
+  const context = useResource<ClinicWorkspaceContext>("/api/clinic/context");
+  const verified =
+    context.data?.user_id === user.id &&
+    context.data.schema_version === "clinic-context-v1" &&
+    context.data.policy_version === "clinic-authorization-v1";
+  return (
+    <main id="main" className="wrap inner-page">
+      <a href="/portal">Return to My launch</a>
+      {!context.data ? (
+        <LoadState error={context.error} />
+      ) : !verified ? (
+        <LoadState error="Unable to verify this clinic workspace. Reload and check your signed-in account." />
+      ) : (
+        <ClinicUpdateLog />
+      )}
+    </main>
+  );
+}
+
 function ClinicApplication({
   user,
   developmentAccounts,
@@ -805,10 +826,7 @@ function ClinicApplication({
   if (route.path === "/clinic/updates")
     return (
       <RouteBoundary root>
-        <main id="main" className="wrap inner-page">
-          <a href="/portal">Return to My launch</a>
-          <ClinicUpdateLog />
-        </main>
+        <ClinicUpdateNotes user={user} />
       </RouteBoundary>
     );
 

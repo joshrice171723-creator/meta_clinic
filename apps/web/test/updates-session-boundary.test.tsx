@@ -48,7 +48,7 @@ afterAll(async () => {
   await server?.close();
 });
 
-it("#255 authenticated static notes load without a location-context request", async () => {
+it("#255 authorized staff notes load without a selected location", async () => {
   const page = await browser.newPage();
   page.setDefaultTimeout(5000);
   const requests: string[] = [];
@@ -81,7 +81,17 @@ it("#255 authenticated static notes load without a location-context request", as
                   clinic_access: { active: true, authorization_generation: 1 },
                   session_policy: policy,
                 }
-              : {},
+              : path === "/api/clinic/context"
+                ? {
+                    user_id: 71,
+                    schema_version: "clinic-context-v1",
+                    policy_version: "clinic-authorization-v1",
+                    membership_id: 91,
+                    practice: { id: 81, name: "Synthetic clinic" },
+                    current_site: null,
+                    sites: [{ id: 101 }, { id: 102 }],
+                  }
+                : {},
       });
     });
     await page.goto(`${baseUrl}/clinic/updates`);
@@ -96,7 +106,7 @@ it("#255 authenticated static notes load without a location-context request", as
         .getByRole("link", { name: "Return to My launch", exact: true })
         .getAttribute("href"),
     ).toBe("/portal");
-    expect(requests).not.toContain("/api/clinic/context");
+    expect(requests).toContain("/api/clinic/context");
     expect(requests).toContain("/api/session");
   } finally {
     await page.close();
@@ -134,3 +144,67 @@ it("#255 unauthenticated notes keep the existing login redirect and reveal no re
     await page.close();
   }
 }, 15000);
+
+it.each([
+  ["patient-only account", null, 404],
+  ["authenticated user without clinic membership", null, 403],
+  ["revoked membership", { active: false, authorization_generation: 2 }, 403],
+  ["disabled practice", { active: true, authorization_generation: 1 }, 403],
+])(
+  "#255 denies %s at the existing clinic authorization boundary",
+  async (_label, access, status) => {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(4000);
+    try {
+      await page.route(/^https?:\/\/[^/]+\/api\//, async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        const now = Date.now();
+        if (path === "/api/clinic/context")
+          return route.fulfill({
+            status: Number(status),
+            json: { error: "Synthetic clinic access denied" },
+          });
+        await route.fulfill({
+          json:
+            path === "/api/csrf"
+              ? {
+                  csrf_token: "synthetic-token",
+                  clinic_available: true,
+                  development_accounts: [],
+                }
+              : path === "/api/session"
+                ? {
+                    user: {
+                      id: 71,
+                      email_address: "synthetic@example.invalid",
+                      admin: false,
+                    },
+                    clinic_access: access,
+                    session_policy: {
+                      server_time: new Date(now).toISOString(),
+                      idle_expires_at: new Date(now + 600000).toISOString(),
+                      absolute_expires_at: new Date(
+                        now + 3600000,
+                      ).toISOString(),
+                      idle_timeout_seconds: 600,
+                    },
+                  }
+                : {},
+        });
+      });
+      await page.goto(`${baseUrl}/clinic/updates`);
+      await page
+        .getByText(/Synthetic clinic access denied|Session locked/i)
+        .first()
+        .waitFor();
+      expect(
+        await page
+          .getByRole("heading", { name: "Notes for QA", exact: true })
+          .count(),
+      ).toBe(0);
+    } finally {
+      await page.close();
+    }
+  },
+  10000,
+);
